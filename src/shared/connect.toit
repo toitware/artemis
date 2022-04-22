@@ -6,6 +6,12 @@ import tls
 HOST /string ::= "a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com"
 PORT /int    ::= 8883
 
+DEVICE_NAME := "fisk"
+
+TOPIC_CONFIG   ::= "toit/devices/$DEVICE_NAME/config"
+TOPIC_WRITER   ::= TOPIC_CONFIG + "/writer"
+TOPIC_REVISION ::= TOPIC_CONFIG + "/revision"
+
 open_socket -> tls.Socket:
   certificate ::= tls.Certificate TOIT_CERT TOIT_PRIVATE_KEY
   socket := net.open.tcp_connect HOST PORT

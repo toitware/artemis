@@ -7,25 +7,17 @@ import system.containers
 
 import ..shared.connect
 
-CLIENT_ID ::= "toit/tiger-service-$(random 0x3fff_ffff)"
-HOST      ::= "localhost"
-PORT      ::= 1883
-
-TOPIC_CONFIG   ::= "toit/devices/fisk/config"
-TOPIC_REVISION ::= TOPIC_CONFIG + "/revision"
+CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
 revision/int? := null
-
 config/Map ::= {:}
+max_offline/Duration? := null
+
 new_config/Map? := null
 
 client/mqtt.Client? := null
 
 main arguments/List:
-  max_offline/Duration? := null
-  if arguments.size > 0:
-    max_offline = Duration --s=(int.parse arguments[0])
-
   while true:
     bytes_allocated_delta
     updates := monitor.Channel 10
@@ -37,13 +29,14 @@ main arguments/List:
         connection_task = null
 
     catch --trace:
-      while handle_updates updates or not max_offline:
-        // Keep going.
+      while true:
+        if handle_updates updates: continue
+        allocated := bytes_allocated_delta
+        print "Synchronized: $allocated bytes"
+        if max_offline: break
 
     // print_objects
     connection_task.cancel
-    allocated := bytes_allocated_delta
-    print "Synchronized: $allocated bytes"
 
     if max_offline:
       print "Going offline for $(max_offline) seconds"
@@ -59,18 +52,23 @@ handle_connection updates/monitor.Channel:
     client.subscribe TOPIC_REVISION --qos=1
 
     // add the topics we care about.
-
+    subscribed_to_config := false
     client.handle: | topic/string payload/ByteArray |
       if topic == TOPIC_REVISION:
         new_revision := ubjson.decode payload
         if new_revision != revision:
-          client.subscribe TOPIC_CONFIG --qos=1
+          revision = new_revision
+          if not subscribed_to_config:
+            subscribed_to_config = true
+            client.subscribe TOPIC_CONFIG --qos=1
+          if new_config and revision == new_config["revision"]:
+            updates.send 2
         else:
           updates.send 0
       else if topic == TOPIC_CONFIG:
         new_config = ubjson.decode payload
-        revision = new_config["revision"]
-        updates.send 2
+        if revision == new_config["revision"]:
+          updates.send 2
       else if topic.starts_with "toit/apps/":
         // TODO(kasper): Hacky!
         print "Got $topic post"
@@ -121,6 +119,12 @@ handle_updates updates/monitor.Channel -> bool:
     // Commit.
     config["apps"] = existing
 
+    // TODO(kasper): Should this just stay in config?
+    if new_config.contains "max-offline":
+      max_offline = Duration --s=new_config["max-offline"]
+    else:
+      max_offline = null
+
     images_subscribed = {}
     (compute_image_topics config).do:
       if client:
@@ -137,7 +141,6 @@ handle_updates updates/monitor.Channel -> bool:
 
   // state == 1 or state == 2
   if not images_subscribed.is_empty: return true
-  if new_revision != revision: return true
   return false
 
 images_installed := {:}

@@ -11,13 +11,7 @@ import host.file
 
 import ..shared.connect
 
-CLIENT_ID ::= "toit/tiger-client-$(random 0x3fff_ffff)"
-
-DEVICE_NAME := "fisk"
-
-TOPIC_CONFIG   ::= "toit/devices/$DEVICE_NAME/config"
-TOPIC_WRITER   ::= TOPIC_CONFIG + "/writer"
-TOPIC_REVISION ::= TOPIC_CONFIG + "/revision"
+CLIENT_ID ::= "toit/artemis-client-$(random 0x3fff_ffff)"
 
 // TODO:
 //  - groups of devices
@@ -25,8 +19,9 @@ TOPIC_REVISION ::= TOPIC_CONFIG + "/revision"
 
 main args:
   parser := arguments.ArgumentParser
-  install := parser.add_command "install"
-  uninstall := parser.add_command "uninstall"
+  parser.add_command "install"
+  parser.add_command "uninstall"
+  parser.add_command "set-max-offline"
 
   parsed/arguments.Arguments := parser.parse args
   if parsed.command == "install":
@@ -35,6 +30,9 @@ main args:
   else if parsed.command == "uninstall":
     update_config: | config/Map client/mqtt.Client |
       uninstall_app parsed config
+  else if parsed.command == "set-max-offline":
+    update_config: | config/Map client/mqtt.Client |
+      set_max_offline parsed config
 
 install_app args/arguments.Arguments config/Map client/mqtt.Client:
   app := args.rest[0]
@@ -59,6 +57,15 @@ uninstall_app args/arguments.Arguments config/Map:
   apps := config.get "apps"
   if not apps: return config
   apps.remove app
+  return config
+
+set_max_offline args/arguments.Arguments config/Map:
+  max_offline := int.parse args.rest[0]
+  print "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline)"
+  if max_offline > 0:
+    config["max-offline"] = max_offline
+  else:
+    config.remove "max-offline"
   return config
 
 update_config [block]:
