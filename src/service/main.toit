@@ -9,6 +9,10 @@ import ..shared.connect
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
+UPDATE_SYNCHRONIZED  /int ::= 0
+UPDATE_CHANGE_STATE  /int ::= 1
+UPDATE_CHANGE_CONFIG /int ::= 2
+
 revision/int? := null
 config/Map ::= {:}
 max_offline/Duration? := null
@@ -19,7 +23,7 @@ client/mqtt.Client? := null
 
 main arguments/List:
   while true:
-    bytes_allocated_delta
+    bytes_allocated_delta  // Reset the bytes allocated counter.
     updates := monitor.Channel 10
     connection_task := null
     connection_task = task::
@@ -35,7 +39,6 @@ main arguments/List:
         print "Synchronized: $allocated bytes"
         if max_offline: break
 
-    // print_objects
     connection_task.cancel
 
     if max_offline:
@@ -51,7 +54,7 @@ handle_connection updates/monitor.Channel:
     client = open_client CLIENT_ID socket
     client.subscribe TOPIC_REVISION --qos=1
 
-    // add the topics we care about.
+    // Add the topics we care about.
     subscribed_to_config := false
     client.handle: | topic/string payload/ByteArray |
       if topic == TOPIC_REVISION:
@@ -62,9 +65,11 @@ handle_connection updates/monitor.Channel:
             subscribed_to_config = true
             client.subscribe TOPIC_CONFIG --qos=1
           if new_config and revision == new_config["revision"]:
-            updates.send 2
+            updates.send UPDATE_CHANGE_CONFIG
         else:
-          updates.send 0
+          // TODO(kasper): Maybe we should let the update handler decide
+          // if we're synchronized or not?
+          updates.send UPDATE_SYNCHRONIZED
       else if topic == TOPIC_CONFIG:
         new_config = ubjson.decode payload
         if revision == new_config["revision"]:
@@ -83,7 +88,9 @@ handle_connection updates/monitor.Channel:
           images_subscribed.remove topic
           client.unsubscribe topic
           containers.start cnt
-          updates.send 1
+          // Our local state has changed. Maybe we're done? Let
+          // the update handler know.
+          updates.send UPDATE_CHANGE_STATE
   finally:
     if client:
       c := client
@@ -92,11 +99,10 @@ handle_connection updates/monitor.Channel:
     socket.close
 
 handle_updates updates/monitor.Channel -> bool:
-  state := updates.receive
-  if state == 0: return false
+  update := updates.receive
+  if update == UPDATE_SYNCHRONIZED: return false
 
-  new_revision := new_config["revision"]
-  if state == 2:
+  if update == UPDATE_CHANGE_CONFIG:
     old := config.get "apps"
     existing := old ? old.copy : {:}
 
@@ -139,7 +145,7 @@ handle_updates updates/monitor.Channel -> bool:
           if cnt: containers.uninstall cnt
           images_installed.remove value
 
-  // state == 1 or state == 2
+  // state == UPDATE_CHANGE_STATE or state == UPDATE_CHANGE_CONFIG
   if not images_subscribed.is_empty: return true
   return false
 
@@ -154,4 +160,3 @@ compute_image_topics config/Map -> List:
     if images_installed.contains value: continue.do
     result.add "toit/apps/$value/image"
   return result
-

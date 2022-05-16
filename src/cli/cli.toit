@@ -81,16 +81,16 @@ update_config [block]:
     me := "cli-$(random 0x3fff_ffff)-$(Time.now.ns_part)"
 
     others := 0
-    client.subscribe TOPIC_WRITER --qos=1
+    client.subscribe TOPIC_LOCK --qos=1
     receiver = task::
       try:
         client.handle: | topic/string payload/ByteArray |
-          if topic == TOPIC_WRITER:
+          if topic == TOPIC_LOCK:
             writer := ubjson.decode payload
             if not writer:
               others = 0
               print "$(%08d Time.monotonic_us): Trying to acquire lock"
-              client.publish TOPIC_WRITER (ubjson.encode me)  --qos=1 --retain
+              client.publish TOPIC_LOCK (ubjson.encode me)  --qos=1 --retain
             else if writer == me:
               if others == 0:
                 print "$(%08d Time.monotonic_us): Acquired lock"
@@ -116,7 +116,7 @@ update_config [block]:
         locked.get
     if exception == DEADLINE_EXCEEDED_ERROR and others == 0:
       print "$(%08d Time.monotonic_us): Trying to initialize writer lock"
-      client.publish TOPIC_WRITER (ubjson.encode me) --qos=1 --retain
+      client.publish TOPIC_LOCK (ubjson.encode me) --qos=1 --retain
 
       exception = catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
         with_timeout --ms=5_000:
@@ -156,7 +156,7 @@ update_config [block]:
       config["revision"] = revision
       config = block.call config client
 
-      // TODO(kasper): Maybe validate that the config?
+      // TODO(kasper): Maybe validate the config?
       client.publish TOPIC_CONFIG (ubjson.encode config) --qos=1 --retain
       if config_channel.receive["writer"] != me:
         throw "FATAL: Wrong writer in updated config"
@@ -171,7 +171,7 @@ update_config [block]:
       if receiver: receiver.cancel
       critical_do:
         print "$(%08d Time.monotonic_us): Releasing lock"
-        client.publish TOPIC_WRITER (ubjson.encode null) --qos=1 --retain
+        client.publish TOPIC_LOCK (ubjson.encode null) --qos=1 --retain
 
   finally:
     if client: client.close
