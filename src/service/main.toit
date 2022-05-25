@@ -21,9 +21,13 @@ new_config/Map? := null
 
 client/mqtt.Client? := null
 
+// Index in return value from `process_stats`.
+BYTES_ALLOCATED ::= 4
+
 main arguments/List:
+  stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
+  allocated := (process_stats stats)[BYTES_ALLOCATED]
   while true:
-    bytes_allocated_delta  // Reset the bytes allocated counter.
     updates := monitor.Channel 10
     connection_task := null
     connection_task = task::
@@ -35,8 +39,10 @@ main arguments/List:
     catch --trace:
       while true:
         if handle_updates updates: continue
-        allocated := bytes_allocated_delta
-        print "Synchronized: $allocated bytes"
+        new_allocated := (process_stats stats)[BYTES_ALLOCATED]
+        delta := new_allocated - allocated
+        print "Synchronized: $delta bytes allocated"
+        allocated = new_allocated
         if max_offline: break
 
     connection_task.cancel
