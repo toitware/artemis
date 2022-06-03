@@ -19,9 +19,9 @@ CLIENT_ID ::= "toit/artemis-client-$(random 0x3fff_ffff)"
 
 main args:
   parser := arguments.ArgumentParser
-  parser.add_command "install" --rest=["app-name", "image-file"]
-  parser.add_command "uninstall" --rest=["app-name"]
-  parser.add_command "set-max-offline" --rest=["offline-time-in-seconds"]
+  (parser.add_command "install").describe_rest ["app-name", "image-file"]
+  (parser.add_command "uninstall").describe_rest ["app-name"]
+  (parser.add_command "set-max-offline").describe_rest ["offline-time-in-seconds"]
 
   parsed/arguments.Arguments := parser.parse args
   if parsed.command == "install":
