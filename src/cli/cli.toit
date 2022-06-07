@@ -6,7 +6,7 @@ import crypto.sha1
 import encoding.ubjson
 import encoding.json
 
-import services.arguments
+import host.arguments
 import host.file
 
 import ..shared.connect
@@ -19,9 +19,9 @@ CLIENT_ID ::= "toit/artemis-client-$(random 0x3fff_ffff)"
 
 main args:
   parser := arguments.ArgumentParser
-  parser.add_command "install"
-  parser.add_command "uninstall"
-  parser.add_command "set-max-offline"
+  (parser.add_command "install").describe_rest ["app-name", "image-file"]
+  (parser.add_command "uninstall").describe_rest ["app-name"]
+  (parser.add_command "set-max-offline").describe_rest ["offline-time-in-seconds"]
 
   parsed/arguments.Arguments := parser.parse args
   if parsed.command == "install":
@@ -33,6 +33,10 @@ main args:
   else if parsed.command == "set-max-offline":
     update_config: | config/Map client/mqtt.Client |
       set_max_offline parsed config
+  else:
+    print_on_stderr_
+        parser.usage args
+    exit 1
 
 install_app args/arguments.Arguments config/Map client/mqtt.Client:
   app := args.rest[0]
