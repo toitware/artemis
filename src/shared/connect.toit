@@ -12,9 +12,13 @@ TOPIC_CONFIG   ::= "toit/devices/$DEVICE_NAME/config"
 TOPIC_LOCK     ::= TOPIC_CONFIG + "/writer"
 TOPIC_REVISION ::= TOPIC_CONFIG + "/revision"
 
+the_network := null
+
 open_socket -> tls.Socket:
   certificate ::= tls.Certificate TOIT_CERT TOIT_PRIVATE_KEY
-  socket := net.open.tcp_connect HOST PORT
+  if not the_network:
+    the_network = net.open
+  socket := the_network.tcp_connect HOST PORT
   tls_socket := tls.Socket.client socket
       --server_name=HOST
       --root_certificates=[AWS_ROOT_CERT]
