@@ -12,6 +12,8 @@ TOPIC_CONFIG   ::= "toit/devices/$DEVICE_NAME/config"
 TOPIC_LOCK     ::= TOPIC_CONFIG + "/writer"
 TOPIC_REVISION ::= TOPIC_CONFIG + "/revision"
 
+// This global variable keeps the network alive so the GC does not close down
+// the network connections.
 the_network := null
 
 open_socket -> tls.Socket:
