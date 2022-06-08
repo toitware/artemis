@@ -48,7 +48,7 @@ main arguments/List:
     connection_task.cancel
 
     if max_offline:
-      print "Going offline for $(max_offline) seconds"
+      print "Going offline for $(max_offline)"
       sleep max_offline
     else:
       print "Reconnecting to attempt to recover"
