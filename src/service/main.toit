@@ -1,5 +1,6 @@
 import net
 import mqtt
+import mqtt.packets as mqtt
 import monitor
 import encoding.ubjson
 
@@ -19,7 +20,7 @@ max_offline/Duration? := null
 
 new_config/Map? := null
 
-client/mqtt.Client? := null
+client/mqtt.FullClient? := null
 
 // Index in return value from `process_stats`.
 BYTES_ALLOCATED ::= 4
@@ -29,12 +30,8 @@ main arguments/List:
   allocated := (process_stats stats)[BYTES_ALLOCATED]
   while true:
     updates := monitor.Channel 10
-    connection_task := null
-    connection_task = task::
-      try:
-        handle_connection updates
-      finally:
-        connection_task = null
+
+    disconnect ::= run_client updates
 
     catch --trace:
       while true:
@@ -45,7 +42,7 @@ main arguments/List:
         allocated = new_allocated
         if max_offline: break
 
-    connection_task.cancel
+    disconnect.call
 
     if max_offline:
       print "Going offline for $(max_offline)"
@@ -54,55 +51,86 @@ main arguments/List:
       print "Reconnecting to attempt to recover"
       sleep --ms=500
 
-handle_connection updates/monitor.Channel:
-  socket := open_socket
-  try:
-    client = open_client CLIENT_ID socket
-    client.subscribe TOPIC_REVISION --qos=1
+run_client updates/monitor.Channel -> Lambda:
+  transport := create_transport
+  client = mqtt.FullClient --transport=transport
 
-    // Add the topics we care about.
-    subscribed_to_config := false
-    client.handle: | topic/string payload/ByteArray |
-      if topic == TOPIC_REVISION:
-        new_revision := ubjson.decode payload
-        if new_revision != revision:
-          revision = new_revision
-          if not subscribed_to_config:
-            subscribed_to_config = true
-            client.subscribe TOPIC_CONFIG --qos=1
-          if new_config and revision == new_config["revision"]:
-            updates.send UPDATE_CHANGE_CONFIG
-        else:
-          // TODO(kasper): Maybe we should let the update handler decide
-          // if we're synchronized or not?
-          updates.send UPDATE_SYNCHRONIZED
-      else if topic == TOPIC_CONFIG:
-        new_config = ubjson.decode payload
-        if revision == new_config["revision"]:
-          updates.send 2
-      else if topic.starts_with "toit/apps/":
-        // TODO(kasper): Hacky!
-        print "Got $topic post"
-        x := topic.split "/"
-        image := x[2]
-        if not images_installed.contains image:
-          writer := containers.ContainerImageWriter payload.size
-          writer.write payload
-          cnt := writer.commit
-          print "Installed image for app ($image -> $cnt)"
-          images_installed[image] = cnt
-          images_subscribed.remove topic
-          client.unsubscribe topic
-          containers.start cnt
-          // Our local state has changed. Maybe we're done? Let
-          // the update handler know.
-          updates.send UPDATE_CHANGE_STATE
-  finally:
+  // Since we are using `retain` for important data, we simply connect
+  // with the clean-session flag. The broker does not need to save
+  // QoS packets that aren't retained.
+  options := mqtt.SessionOptions
+      --client_id=CLIENT_ID
+      --clean_session
+
+  client.connect --options=options
+
+  disconnected := monitor.Latch
+
+  // Add the topics we care about.
+  subscribed_to_config := false
+
+  handle_task/Task_? := ?
+  handle_task = task::
+    catch --trace:
+      try:
+        client.handle: | packet/mqtt.Packet |
+          if packet is mqtt.PublishPacket:
+            publish := packet as mqtt.PublishPacket
+            topic := publish.topic
+            payload := publish.payload
+            if topic == TOPIC_REVISION:
+              new_revision := ubjson.decode payload
+              if new_revision != revision:
+                revision = new_revision
+                if not subscribed_to_config:
+                  subscribed_to_config = true
+                  client.subscribe TOPIC_CONFIG
+                if new_config and revision == new_config["revision"]:
+                  updates.send UPDATE_CHANGE_CONFIG
+              else:
+                // TODO(kasper): Maybe we should let the update handler decide
+                // if we're synchronized or not?
+                updates.send UPDATE_SYNCHRONIZED
+            else if topic == TOPIC_CONFIG:
+              new_config = ubjson.decode payload
+              if revision == new_config["revision"]:
+                updates.send 2
+            else if topic.starts_with "toit/apps/":
+              // TODO(kasper): Hacky!
+              print "Got $topic post"
+              x := topic.split "/"
+              image := x[2]
+              if not images_installed.contains image:
+                writer := containers.ContainerImageWriter payload.size
+                writer.write payload
+                cnt := writer.commit
+                print "Installed image for app ($image -> $cnt)"
+                images_installed[image] = cnt
+                images_subscribed.remove topic
+                client.unsubscribe topic
+                containers.start cnt
+                // Our local state has changed. Maybe we're done? Let
+                // the update handler know.
+                updates.send UPDATE_CHANGE_STATE
+          disconnected.set true
+      finally:
+        client = null
+        handle_task = null
+
+  // Wait for the client to run.
+  client.when_running: null
+
+  client.subscribe TOPIC_REVISION
+  disconnect_lambda := ::
     if client:
       c := client
       client = null
       c.close
-    socket.close
+      exception := with_timeout --ms=3_000:
+        disconnected.get
+      if exception: c.close --force
+      if handle_task: handle_task.cancel
+  return disconnect_lambda
 
 handle_updates updates/monitor.Channel -> bool:
   update := updates.receive
@@ -141,7 +169,7 @@ handle_updates updates/monitor.Channel -> bool:
     (compute_image_topics config).do:
       if client:
         print "Subscribing to $it"
-        client.subscribe it --qos=1
+        client.subscribe it
       images_subscribed.add it
     if old:
       old.do: | key value |

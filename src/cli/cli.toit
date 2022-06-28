@@ -73,11 +73,13 @@ set_max_offline args/arguments.Arguments config/Map:
   return config
 
 update_config [block]:
-  socket := open_socket
+  transport := create_transport
   client/mqtt.Client? := null
   receiver := null
   try:
-    client = open_client CLIENT_ID socket
+    client = mqtt.Client --transport=transport
+    options := mqtt.SessionOptions --client_id=CLIENT_ID --clean_session
+    client.start --options=options
 
     locked := monitor.Latch
     config_channel := monitor.Channel 1
@@ -85,55 +87,58 @@ update_config [block]:
     me := "cli-$(random 0x3fff_ffff)-$(Time.now.ns_part)"
 
     others := 0
-    client.subscribe TOPIC_LOCK --qos=1
-    receiver = task::
-      try:
-        client.handle: | topic/string payload/ByteArray |
-          if topic == TOPIC_LOCK:
-            writer := ubjson.decode payload
-            if not writer:
-              others = 0
-              print "$(%08d Time.monotonic_us): Trying to acquire lock"
-              client.publish TOPIC_LOCK (ubjson.encode me)  --qos=1 --retain
-            else if writer == me:
-              if others == 0:
-                print "$(%08d Time.monotonic_us): Acquired lock"
-                locked.set me
-              else:
-                // Someone else locked this before us. Just wait.
-                print "$(%08d Time.monotonic_us): Another writer acquired the lock"
-            else:
-              others++
-          else if topic == TOPIC_CONFIG:
-            if not config_channel.try_send (ubjson.decode payload):
-              // TODO(kasper): Tell main task.
-              throw "FATAL: Received too many configs"
-          else if topic == TOPIC_REVISION:
-            if not revision_channel.try_send (ubjson.decode payload):
-              // TODO(kasper): Tell main task.
-              throw "FATAL: Received too many revision"
-      finally:
-        receiver = null
+    client.subscribe TOPIC_LOCK:: | topic/string payload/ByteArray |
+      writer := ubjson.decode payload
+      if not writer:
+        others = 0
+        print "$(%08d Time.monotonic_us): Trying to acquire lock"
+        client.publish TOPIC_LOCK (ubjson.encode me)  --qos=1 --retain
+      else if writer == me:
+        if others == 0:
+          print "$(%08d Time.monotonic_us): Acquired lock"
+          locked.set me
+        else:
+          // Someone else locked this before us. Just wait.
+          print "$(%08d Time.monotonic_us): Another writer acquired the lock"
+      else:
+        others++
 
+    // We use the '--retain' flag when trying to acquire the lock.
+    // If nobody every took the lock, then we might need to wait for the
+    // timeout here. Otherwise, the broker should send the current lock holder
+    // immediately.
     exception := catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
       with_timeout --ms=5_000:
         locked.get
     if exception == DEADLINE_EXCEEDED_ERROR and others == 0:
+      // We assume that nobody has taken the lock so far.
       print "$(%08d Time.monotonic_us): Trying to initialize writer lock"
       client.publish TOPIC_LOCK (ubjson.encode me) --qos=1 --retain
 
       exception = catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
         with_timeout --ms=5_000:
           locked.get
-      if exception == DEADLINE_EXCEEDED_ERROR:
-        print "$(%08d Time.monotonic_us): Timed out waiting for writer lock"
-        return
+
+    // We didn't get the lock.
+    // TODO(florian): in theory we might just now get the lock. However, we
+    // would not releasing it. This could lead to a bad state.
+    if exception == DEADLINE_EXCEEDED_ERROR:
+      print "$(%08d Time.monotonic_us): Timed out waiting for writer lock"
+      return
 
     try:
-      catch --trace --unwind:
-        client.subscribe TOPIC_CONFIG --qos=1
-      catch --trace --unwind:
-        client.subscribe TOPIC_REVISION --qos=1
+      // We send config and revision changes with `--retain`.
+      // As such we should get a packet as soon as we subscribe to the topics.
+
+      client.subscribe TOPIC_CONFIG:: | topic/string payload/ByteArray |
+        if not config_channel.try_send (ubjson.decode payload):
+          // TODO(kasper): Tell main task.
+          throw "FATAL: Received too many configs"
+
+      client.subscribe TOPIC_REVISION:: | topic/string payload/ByteArray |
+        if not revision_channel.try_send (ubjson.decode payload):
+          // TODO(kasper): Tell main task.
+          throw "FATAL: Received too many revision"
 
       config := null
       exception = catch --trace --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
@@ -175,7 +180,7 @@ update_config [block]:
       if receiver: receiver.cancel
       critical_do:
         print "$(%08d Time.monotonic_us): Releasing lock"
-        client.publish TOPIC_LOCK (ubjson.encode null) --qos=1 --retain
+        client.publish TOPIC_LOCK (ubjson.encode null) --retain
 
   finally:
     if client: client.close
