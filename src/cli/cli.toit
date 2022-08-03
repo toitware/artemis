@@ -121,7 +121,7 @@ update_config [block]:
 
     // We didn't get the lock.
     // TODO(florian): in theory we might just now get the lock. However, we
-    // would not releasing it. This could lead to a bad state.
+    // will not release it. This could lead to a bad state.
     if exception == DEADLINE_EXCEEDED_ERROR:
       print "$(%08d Time.monotonic_us): Timed out waiting for writer lock"
       return
