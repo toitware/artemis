@@ -1,6 +1,7 @@
 import net
 import net.x509
 import mqtt
+import mqtt.transport as mqtt
 import tls
 
 HOST /string ::= "a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com"
@@ -16,24 +17,14 @@ TOPIC_REVISION ::= TOPIC_CONFIG + "/revision"
 // the network connections.
 the_network := null
 
-open_socket -> tls.Socket:
+create_transport -> mqtt.Transport:
   certificate ::= tls.Certificate TOIT_CERT TOIT_PRIVATE_KEY
   if not the_network:
     the_network = net.open
-  socket := the_network.tcp_connect HOST PORT
-  tls_socket := tls.Socket.client socket
+  return mqtt.TcpTransport.tls the_network --host=HOST --port=PORT
       --server_name=HOST
       --root_certificates=[AWS_ROOT_CERT]
       --certificate=certificate
-  tls_socket.handshake
-  return tls_socket
-
-open_client client_id/string socket/tls.Socket -> mqtt.Client:
-  client := mqtt.Client
-      client_id
-      mqtt.TcpTransport socket
-  return client
-
 
 AWS_ROOT_CERT/x509.Certificate ::= x509.Certificate.parse """
 -----BEGIN CERTIFICATE-----
