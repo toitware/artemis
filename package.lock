@@ -4,9 +4,9 @@ prefixes:
 packages:
   mqtt:
     url: github.com/toitware/mqtt
-    version: 2.0.1
-    hash: b96f1ca3ced9cf30934acc2c7911f1ea92d3bb71
+    version: 2.0.3
+    hash: 63d0eeed7656cb57c82fb17bab90d4fed187bce9
   pkg-host:
     url: github.com/toitlang/pkg-host
-    version: 1.4.1
-    hash: 444a69af53c5c2010074bceaef1afef615f14047
+    version: 1.6.0
+    hash: d05b91390e76c3543a9968b042aed330210bafa4
