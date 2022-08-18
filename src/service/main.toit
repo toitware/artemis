@@ -1,3 +1,5 @@
+// Copyright (C) 2022 Toitware ApS. All rights reserved.
+
 import net
 import mqtt
 import mqtt.packets as mqtt
@@ -5,6 +7,7 @@ import monitor
 import encoding.ubjson
 
 import system.containers
+import log
 
 import ..shared.connect
 
@@ -21,6 +24,7 @@ max_offline/Duration? := null
 new_config/Map? := null
 
 client/mqtt.FullClient? := null
+logger/log.Logger ::= log.default.with_name "artemis"
 
 // Index in return value from `process_stats`.
 BYTES_ALLOCATED ::= 4
@@ -31,27 +35,31 @@ main arguments/List:
   while true:
     updates := monitor.Channel 10
 
-    disconnect ::= run_client updates
+    name := "fisk"
+    device ::= Device name
+    logger.info "starting on $device.name"
+
+    disconnect ::= run_client device updates
 
     catch --trace:
       while true:
         if handle_updates updates: continue
         new_allocated := (process_stats stats)[BYTES_ALLOCATED]
         delta := new_allocated - allocated
-        print "Synchronized: $delta bytes allocated"
+        logger.info "synchronized" --tags={"allocated": delta}
         allocated = new_allocated
         if max_offline: break
 
     disconnect.call
 
     if max_offline:
-      print "Going offline for $(max_offline)"
+      logger.info "going offline" --tags={"duration": max_offline}
       sleep max_offline
     else:
-      print "Reconnecting to attempt to recover"
+      logger.warn "attempting to reconnect"
       sleep --ms=500
 
-run_client updates/monitor.Channel -> Lambda:
+run_client device/Device updates/monitor.Channel -> Lambda:
   transport := create_transport
   client = mqtt.FullClient --transport=transport
 
@@ -69,7 +77,7 @@ run_client updates/monitor.Channel -> Lambda:
   // Add the topics we care about.
   subscribed_to_config := false
 
-  handle_task/Task_? := ?
+  handle_task/Task? := ?
   handle_task = task::
     catch --trace:
       try:
@@ -78,33 +86,33 @@ run_client updates/monitor.Channel -> Lambda:
             publish := packet as mqtt.PublishPacket
             topic := publish.topic
             payload := publish.payload
-            if topic == TOPIC_REVISION:
+            if topic == device.topic_revision:
               new_revision := ubjson.decode payload
               if new_revision != revision:
                 revision = new_revision
                 if not subscribed_to_config:
                   subscribed_to_config = true
-                  client.subscribe TOPIC_CONFIG
+                  client.subscribe device.topic_config
                 if new_config and revision == new_config["revision"]:
                   updates.send UPDATE_CHANGE_CONFIG
               else:
                 // TODO(kasper): Maybe we should let the update handler decide
                 // if we're synchronized or not?
                 updates.send UPDATE_SYNCHRONIZED
-            else if topic == TOPIC_CONFIG:
+            else if topic == device.topic_config:
               new_config = ubjson.decode payload
               if revision == new_config["revision"]:
                 updates.send 2
             else if topic.starts_with "toit/apps/":
               // TODO(kasper): Hacky!
-              print "Got $topic post"
+              logger.info "received post" --tags={"topic": topic}
               x := topic.split "/"
               image := x[2]
               if not images_installed.contains image:
                 writer := containers.ContainerImageWriter payload.size
                 writer.write payload
                 cnt := writer.commit
-                print "Installed image for app ($image -> $cnt)"
+                logger.info "installed image for app" --tags={"image": image, "container": cnt}
                 images_installed[image] = cnt
                 images_subscribed.remove topic
                 client.unsubscribe topic
@@ -120,7 +128,7 @@ run_client updates/monitor.Channel -> Lambda:
   // Wait for the client to run.
   client.when_running: null
 
-  client.subscribe TOPIC_REVISION
+  client.subscribe device.topic_revision
   disconnect_lambda := ::
     if client:
       c := client
@@ -147,13 +155,13 @@ handle_updates updates/monitor.Channel -> bool:
         if n != value:
           // New or updated app.
           if n:
-            print "App reinstalled: $key | $n -> $value"
+            logger.info "app reinstalled: $key | $n -> $value"
           else:
-            print "App installed: $key | $value"
+            logger.info "app installed: $key | $value"
           existing[key] = value
     existing.copy.do: | key value |
       if apps and apps.get key: continue.do
-      print "App uninstalled: $key"
+      logger.info "app uninstalled: $key"
       existing.remove key
 
     // Commit.
@@ -168,7 +176,7 @@ handle_updates updates/monitor.Channel -> bool:
     images_subscribed = {}
     (compute_image_topics config).do:
       if client:
-        print "Subscribing to $it"
+        logger.info "subscribing" --tags={"topic": it}
         client.subscribe it
       images_subscribed.add it
     if old:
