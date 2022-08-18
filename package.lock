@@ -1,3 +1,4 @@
+sdk: ^1.6.10
 prefixes:
   host: pkg-host
   mqtt: mqtt

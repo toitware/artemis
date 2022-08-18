@@ -1,3 +1,5 @@
+// Copyright (C) 2022 Toitware ApS. All rights reserved.
+
 import net
 import net.x509
 import mqtt
@@ -7,15 +9,20 @@ import tls
 HOST /string ::= "a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com"
 PORT /int    ::= 8883
 
-DEVICE_NAME := "fisk"
-
-TOPIC_CONFIG   ::= "toit/devices/$DEVICE_NAME/config"
-TOPIC_LOCK     ::= TOPIC_CONFIG + "/writer"
-TOPIC_REVISION ::= TOPIC_CONFIG + "/revision"
-
 // This global variable keeps the network alive so the GC does not close down
 // the network connections.
 the_network := null
+
+class Device:
+  name/string
+  topic_config/string
+  topic_lock/string
+  topic_revision/string
+  constructor .name:
+    config ::= "toit/devices/$name/config"
+    topic_config = config
+    topic_lock = "$config/writer"
+    topic_revision = "$config/revision"
 
 create_transport -> mqtt.Transport:
   certificate ::= tls.Certificate TOIT_CERT TOIT_PRIVATE_KEY

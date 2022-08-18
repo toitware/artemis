@@ -1,3 +1,5 @@
+// Copyright (C) 2022 Toitware ApS. All rights reserved.
+
 import net
 import mqtt
 import monitor
@@ -19,19 +21,30 @@ CLIENT_ID ::= "toit/artemis-client-$(random 0x3fff_ffff)"
 
 main args:
   parser := arguments.ArgumentParser
-  (parser.add_command "install").describe_rest ["app-name", "image-file"]
-  (parser.add_command "uninstall").describe_rest ["app-name"]
-  (parser.add_command "set-max-offline").describe_rest ["offline-time-in-seconds"]
+
+  install_cmd := parser.add_command "install"
+  install_cmd.describe_rest ["app-name", "image-file"]
+
+  uninstall_cmd := parser.add_command "uninstall"
+  uninstall_cmd.describe_rest ["app-name"]
+
+  set_max_offline_cmd := parser.add_command "set-max-offline"
+  set_max_offline_cmd.describe_rest ["offline-time-in-seconds"]
+
+  [install_cmd, uninstall_cmd, set_max_offline_cmd].do:
+    it.add_option "device" --short="d" --default="fisk"
 
   parsed/arguments.Arguments := parser.parse args
+  device ::= Device parsed["device"]
+
   if parsed.command == "install":
-    update_config: | config/Map client/mqtt.Client |
+    update_config device: | config/Map client/mqtt.Client |
       install_app parsed config client
   else if parsed.command == "uninstall":
-    update_config: | config/Map client/mqtt.Client |
+    update_config device: | config/Map client/mqtt.Client |
       uninstall_app parsed config
   else if parsed.command == "set-max-offline":
-    update_config: | config/Map client/mqtt.Client |
+    update_config device: | config/Map client/mqtt.Client |
       set_max_offline parsed config
   else:
     print_on_stderr_
@@ -72,7 +85,7 @@ set_max_offline args/arguments.Arguments config/Map:
     config.remove "max-offline"
   return config
 
-update_config [block]:
+update_config device/Device [block]:
   transport := create_transport
   client/mqtt.Client? := null
   receiver := null
@@ -87,12 +100,12 @@ update_config [block]:
     me := "cli-$(random 0x3fff_ffff)-$(Time.now.ns_part)"
 
     others := 0
-    client.subscribe TOPIC_LOCK:: | topic/string payload/ByteArray |
+    client.subscribe device.topic_lock:: | topic/string payload/ByteArray |
       writer := ubjson.decode payload
       if not writer:
         others = 0
         print "$(%08d Time.monotonic_us): Trying to acquire lock"
-        client.publish TOPIC_LOCK (ubjson.encode me)  --qos=1 --retain
+        client.publish device.topic_lock (ubjson.encode me)  --qos=1 --retain
       else if writer == me:
         if others == 0:
           print "$(%08d Time.monotonic_us): Acquired lock"
@@ -113,7 +126,7 @@ update_config [block]:
     if exception == DEADLINE_EXCEEDED_ERROR and others == 0:
       // We assume that nobody has taken the lock so far.
       print "$(%08d Time.monotonic_us): Trying to initialize writer lock"
-      client.publish TOPIC_LOCK (ubjson.encode me) --qos=1 --retain
+      client.publish device.topic_lock (ubjson.encode me) --qos=1 --retain
 
       exception = catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
         with_timeout --ms=5_000:
@@ -130,24 +143,26 @@ update_config [block]:
       // We send config and revision changes with `--retain`.
       // As such we should get a packet as soon as we subscribe to the topics.
 
-      client.subscribe TOPIC_CONFIG:: | topic/string payload/ByteArray |
+      client.subscribe device.topic_config:: | topic/string payload/ByteArray |
         if not config_channel.try_send (ubjson.decode payload):
           // TODO(kasper): Tell main task.
           throw "FATAL: Received too many configs"
 
-      client.subscribe TOPIC_REVISION:: | topic/string payload/ByteArray |
+      client.subscribe device.topic_revision:: | topic/string payload/ByteArray |
         if not revision_channel.try_send (ubjson.decode payload):
           // TODO(kasper): Tell main task.
           throw "FATAL: Received too many revision"
 
       config := null
-      exception = catch --trace --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
+      exception = catch
+          --trace=(: it != DEADLINE_EXCEEDED_ERROR)
+          --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
         with_timeout --ms=5_000:
           config = config_channel.receive
       if exception == DEADLINE_EXCEEDED_ERROR:
         print "$(%08d Time.monotonic_us): Trying to initialize config"
-        client.publish TOPIC_CONFIG (ubjson.encode {"revision": 0}) --qos=1 --retain
-        client.publish TOPIC_REVISION (ubjson.encode 0) --qos=1 --retain
+        client.publish device.topic_config (ubjson.encode {"revision": 0}) --qos=1 --retain
+        client.publish device.topic_revision (ubjson.encode 0) --qos=1 --retain
 
         exception = catch --trace --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
           with_timeout --ms=5_000:
@@ -166,11 +181,11 @@ update_config [block]:
       config = block.call config client
 
       // TODO(kasper): Maybe validate the config?
-      client.publish TOPIC_CONFIG (ubjson.encode config) --qos=1 --retain
+      client.publish device.topic_config (ubjson.encode config) --qos=1 --retain
       if config_channel.receive["writer"] != me:
         throw "FATAL: Wrong writer in updated config"
 
-      client.publish TOPIC_REVISION (ubjson.encode revision) --qos=1 --retain
+      client.publish device.topic_revision (ubjson.encode revision) --qos=1 --retain
       if revision_channel.receive != revision:
         throw "FATAL: Wrong revision in updated config"
 
@@ -180,7 +195,7 @@ update_config [block]:
       if receiver: receiver.cancel
       critical_do:
         print "$(%08d Time.monotonic_us): Releasing lock"
-        client.publish TOPIC_LOCK (ubjson.encode null) --retain
+        client.publish device.topic_lock (ubjson.encode null) --retain
 
   finally:
     if client: client.close
