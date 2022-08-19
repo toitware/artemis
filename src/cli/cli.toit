@@ -21,6 +21,7 @@ CLIENT_ID ::= "toit/artemis-client-$(random 0x3fff_ffff)"
 
 main args:
   parser := arguments.ArgumentParser
+  parser.add_option "device" --short="d" --default="fisk"
 
   install_cmd := parser.add_command "install"
   install_cmd.describe_rest ["app-name", "image-file"]
@@ -30,9 +31,6 @@ main args:
 
   set_max_offline_cmd := parser.add_command "set-max-offline"
   set_max_offline_cmd.describe_rest ["offline-time-in-seconds"]
-
-  [install_cmd, uninstall_cmd, set_max_offline_cmd].do:
-    it.add_option "device" --short="d" --default="fisk"
 
   parsed/arguments.Arguments := parser.parse args
   device ::= Device parsed["device"]
