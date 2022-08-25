@@ -154,7 +154,7 @@ handle_updates updates/monitor.Channel -> bool:
         if n != value:
           // New or updated app.
           if n:
-            logger.info "app install: request" --tags={"name": key, "new": value, "old": n}
+            logger.info "app install: request" --tags={"name": key, "image": value, "old": n}
           else:
             logger.info "app install: request" --tags={"name": key, "image": value}
           existing[key] = value
