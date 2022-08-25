@@ -9,6 +9,8 @@ import encoding.ubjson
 import system.containers
 import log
 
+import device
+
 import ..shared.connect
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
@@ -35,8 +37,8 @@ main arguments/List:
   while true:
     updates := monitor.Channel 10
 
-    name := "fisk"
-    device ::= Device name
+    name := (platform == PLATFORM_FREERTOS) ? device.name : "fisk"
+    device ::= ArtemisDevice name
     logger.info "connecting to broker" --tags={"device": device.name}
 
     disconnect ::= run_client device updates
@@ -59,7 +61,7 @@ main arguments/List:
       logger.warn "attempting to reconnect"
       sleep --ms=500
 
-run_client device/Device updates/monitor.Channel -> Lambda:
+run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
   transport := create_transport
   client = mqtt.FullClient --transport=transport
 

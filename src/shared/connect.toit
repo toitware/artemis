@@ -13,7 +13,7 @@ PORT /int    ::= 8883
 // the network connections.
 the_network := null
 
-class Device:
+class ArtemisDevice:
   name/string
   topic_config/string
   topic_lock/string

@@ -33,7 +33,7 @@ main args:
   set_max_offline_cmd.describe_rest ["offline-time-in-seconds"]
 
   parsed/arguments.Arguments := parser.parse args
-  device ::= Device parsed["device"]
+  device ::= ArtemisDevice parsed["device"]
 
   if parsed.command == "install":
     update_config device: | config/Map client/mqtt.Client |
@@ -83,7 +83,7 @@ set_max_offline args/arguments.Arguments config/Map:
     config.remove "max-offline"
   return config
 
-update_config device/Device [block]:
+update_config device/ArtemisDevice [block]:
   transport := create_transport
   client/mqtt.Client? := null
   receiver := null
