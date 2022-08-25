@@ -37,7 +37,7 @@ main arguments/List:
 
     name := "fisk"
     device ::= Device name
-    logger.info "starting on $device.name"
+    logger.info "connecting to broker" --tags={"device": device.name}
 
     disconnect ::= run_client device updates
 
@@ -85,9 +85,8 @@ run_client device/Device updates/monitor.Channel -> Lambda:
           if packet is mqtt.PublishPacket:
             publish := packet as mqtt.PublishPacket
             topic := publish.topic
-            payload := publish.payload
             if topic == device.topic_revision:
-              new_revision := ubjson.decode payload
+              new_revision := ubjson.decode publish.payload
               if new_revision != revision:
                 revision = new_revision
                 if not subscribed_to_config:
@@ -100,23 +99,23 @@ run_client device/Device updates/monitor.Channel -> Lambda:
                 // if we're synchronized or not?
                 updates.send UPDATE_SYNCHRONIZED
             else if topic == device.topic_config:
-              new_config = ubjson.decode payload
+              new_config = ubjson.decode publish.payload
               if revision == new_config["revision"]:
                 updates.send 2
             else if topic.starts_with "toit/apps/":
               // TODO(kasper): Hacky!
-              logger.info "received post" --tags={"topic": topic}
-              x := topic.split "/"
-              image := x[2]
+              path := topic.split "/"
+              image := path[2]
               if not images_installed.contains image:
+                payload := publish.payload_stream
                 writer := containers.ContainerImageWriter payload.size
-                writer.write payload
-                cnt := writer.commit
-                logger.info "installed image for app" --tags={"image": image, "container": cnt}
-                images_installed[image] = cnt
+                while data := payload.read: writer.write data
+                container_id := writer.commit
+                logger.info "app install: done" --tags={"image": image, "container": container_id}
+                images_installed[image] = container_id
                 images_subscribed.remove topic
                 client.unsubscribe topic
-                containers.start cnt
+                containers.start container_id
                 // Our local state has changed. Maybe we're done? Let
                 // the update handler know.
                 updates.send UPDATE_CHANGE_STATE
@@ -155,13 +154,13 @@ handle_updates updates/monitor.Channel -> bool:
         if n != value:
           // New or updated app.
           if n:
-            logger.info "app reinstalled: $key | $n -> $value"
+            logger.info "app install: request" --tags={"name": key, "new": value, "old": n}
           else:
-            logger.info "app installed: $key | $value"
+            logger.info "app install: request" --tags={"name": key, "image": value}
           existing[key] = value
     existing.copy.do: | key value |
       if apps and apps.get key: continue.do
-      logger.info "app uninstalled: $key"
+      logger.info "app uninstall" --tags={"name": key}
       existing.remove key
 
     // Commit.
@@ -175,9 +174,7 @@ handle_updates updates/monitor.Channel -> bool:
 
     images_subscribed = {}
     (compute_image_topics config).do:
-      if client:
-        logger.info "subscribing" --tags={"topic": it}
-        client.subscribe it
+      if client: client.subscribe it
       images_subscribed.add it
     if old:
       old.do: | key value |
