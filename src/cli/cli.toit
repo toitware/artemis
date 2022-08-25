@@ -49,7 +49,7 @@ main args:
         parser.usage args
     exit 1
 
-install_app args/arguments.Arguments config/Map client/mqtt.Client:
+install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
   app := args.rest[0]
 
   image_path := args.rest[1]
@@ -66,7 +66,7 @@ install_app args/arguments.Arguments config/Map client/mqtt.Client:
   config["apps"] = apps
   return config
 
-uninstall_app args/arguments.Arguments config/Map:
+uninstall_app args/arguments.Arguments config/Map -> Map:
   app := args.rest[0]
   print "$(%08d Time.monotonic_us): Uninstalling app: $app"
   apps := config.get "apps"
@@ -74,7 +74,7 @@ uninstall_app args/arguments.Arguments config/Map:
   apps.remove app
   return config
 
-set_max_offline args/arguments.Arguments config/Map:
+set_max_offline args/arguments.Arguments config/Map -> Map:
   max_offline := int.parse args.rest[0]
   print "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline)"
   if max_offline > 0:
@@ -83,6 +83,11 @@ set_max_offline args/arguments.Arguments config/Map:
     config.remove "max-offline"
   return config
 
+/**
+Gets current config for the specified $device.
+Calls the $block with the current config, and gets a new config back.
+Sends the new config to the device.
+*/
 update_config device/ArtemisDevice [block]:
   transport := create_transport
   client/mqtt.Client? := null
@@ -115,7 +120,7 @@ update_config device/ArtemisDevice [block]:
         others++
 
     // We use the '--retain' flag when trying to acquire the lock.
-    // If nobody every took the lock, then we might need to wait for the
+    // If nobody ever took the lock, then we might need to wait for the
     // timeout here. Otherwise, the broker should send the current lock holder
     // immediately.
     exception := catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
