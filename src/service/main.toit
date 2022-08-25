@@ -10,6 +10,7 @@ import system.containers
 import log
 
 import device
+import host.pipe
 
 import ..shared.connect
 
@@ -37,7 +38,9 @@ main arguments/List:
   while true:
     updates := monitor.Channel 10
 
-    name := (platform == PLATFORM_FREERTOS) ? device.name : "fisk"
+    name := (platform == PLATFORM_FREERTOS)
+        ? device.name
+        : (pipe.backticks "hostname").trim
     device ::= ArtemisDevice name
     logger.info "connecting to broker" --tags={"device": device.name}
 
