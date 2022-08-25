@@ -84,7 +84,8 @@ set_max_offline args/arguments.Arguments config/Map:
   return config
 
 update_config device/ArtemisDevice [block]:
-  transport := create_transport
+  network := net.open
+  transport := create_transport network
   client/mqtt.Client? := null
   receiver := null
   try:
@@ -197,3 +198,4 @@ update_config device/ArtemisDevice [block]:
 
   finally:
     if client: client.close
+    network.close
