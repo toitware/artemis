@@ -96,7 +96,7 @@ install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
     client.publish "toit/apps/$uuid/image32" (file.read_content image32) --qos=1 --retain
     client.publish "toit/apps/$uuid/image64" (file.read_content image64) --qos=1 --retain
   finally:
-    catch: file.delete image32 
+    catch: file.delete image32
     catch: file.delete image64
     directory.rmdir tmpdir
 
@@ -129,7 +129,8 @@ Calls the $block with the current config, and gets a new config back.
 Sends the new config to the device.
 */
 update_config device/ArtemisDevice [block]:
-  transport := create_transport
+  network := net.open
+  transport := create_transport network
   client/mqtt.Client? := null
   receiver := null
   try:
@@ -242,6 +243,7 @@ update_config device/ArtemisDevice [block]:
 
   finally:
     if client: client.close
+    network.close
 
 get_toit_sdk -> string:
   if os.env.contains "JAG_TOIT_REPO_PATH":

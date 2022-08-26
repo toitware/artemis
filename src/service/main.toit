@@ -65,7 +65,8 @@ main arguments/List:
       sleep --ms=500
 
 run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
-  transport := create_transport
+  network := net.open
+  transport := create_transport network
   client = mqtt.FullClient --transport=transport
 
   // Since we are using `retain` for important data, we simply connect
@@ -142,6 +143,7 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
         disconnected.get
       if exception: c.close --force
       if handle_task: handle_task.cancel
+      network.close
   return disconnect_lambda
 
 handle_updates updates/monitor.Channel -> bool:
