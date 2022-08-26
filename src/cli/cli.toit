@@ -1,15 +1,20 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import net
-import mqtt
-import monitor
-import crypto.sha1
-
-import encoding.ubjson
+import binary show LITTLE_ENDIAN
 import encoding.json
+import encoding.ubjson
+import monitor
+import mqtt
+import net
+import uuid show Uuid
 
 import host.arguments
+import host.directory
 import host.file
+import host.os
+import host.pipe
+
+import ar
 
 import ..shared.connect
 
@@ -24,7 +29,7 @@ main args:
   parser.add_option "device" --short="d" --default="fisk"
 
   install_cmd := parser.add_command "install"
-  install_cmd.describe_rest ["app-name", "image-file"]
+  install_cmd.describe_rest ["app-name", "snapshot-file"]
 
   uninstall_cmd := parser.add_command "uninstall"
   uninstall_cmd.describe_rest ["app-name"]
@@ -49,20 +54,55 @@ main args:
         parser.usage args
     exit 1
 
+get_uuid_from_snapshot snapshot_path/string -> string?:
+  if not file.is_file snapshot_path:
+    print_on_stderr_ "$snapshot_path: Not a file"
+    exit 1
+
+  snapshot := file.read_content snapshot_path
+
+  ar_reader /ar.ArReader? := null
+  exception := catch:
+    ar_reader = ar.ArReader.from_bytes snapshot  // Throws if it's not a snapshot.
+  if exception: return null
+  first := ar_reader.next
+  if first.name != "toit": return null
+  uuid /string? := null
+  while member := ar_reader.next:
+    if member.name == "uuid":
+      uuid = (Uuid member.content).stringify
+  return uuid
+
 install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
   app := args.rest[0]
 
-  image_path := args.rest[1]
-  image := file.read_content image_path
-  sha := sha1.Sha1
-  sha.add image
-  checksum := ""
-  sha.get.do: checksum += "$(%02x it)"
-  client.publish "toit/apps/$checksum/image" image --qos=1 --retain
+  snapshot_path := args.rest[1]
+  uuid := get_uuid_from_snapshot snapshot_path
+  if not uuid:
+    print_on_stderr_ "$snapshot_path: Not a valid Toit snapshot"
+    exit 1
+
+  // Create the two images.
+  sdk := get_toit_sdk
+
+  tmpdir := directory.mkdtemp "/tmp/artemis-snapshot-to-image-"
+  image32 := "$tmpdir/image32"
+  image64 := "$tmpdir/image64"
+
+  try:
+    pipe.run_program ["$sdk/tools/snapshot_to_image", "-m32", "--binary", "-o", image32, snapshot_path]
+    pipe.run_program ["$sdk/tools/snapshot_to_image", "-m64", "--binary", "-o", image64, snapshot_path]
+
+    client.publish "toit/apps/$uuid/image32" (file.read_content image32) --qos=1 --retain
+    client.publish "toit/apps/$uuid/image64" (file.read_content image64) --qos=1 --retain
+  finally:
+    catch: file.delete image32 
+    catch: file.delete image64
+    directory.rmdir tmpdir
 
   print "$(%08d Time.monotonic_us): Installing app: $app"
   apps := config.get "apps" --if_absent=: {:}
-  apps[app] = checksum
+  apps[app] = uuid
   config["apps"] = apps
   return config
 
@@ -202,3 +242,20 @@ update_config device/ArtemisDevice [block]:
 
   finally:
     if client: client.close
+
+get_toit_sdk -> string:
+  if os.env.contains "JAG_TOIT_REPO_PATH":
+    repo := "$(os.env["JAG_TOIT_REPO_PATH"])/build/host/sdk"
+    if file.is_directory "$repo/bin" and file.is_directory "$repo/tools":
+      return repo
+    print_on_stderr_ "JAG_TOIT_REPO_PATH doesn't point to a built Toit repo"
+    exit 1
+  if os.env.contains "HOME":
+    jaguar := "$(os.env["HOME"])/.cache/jaguar/sdk"
+    if file.is_directory "$jaguar/bin" and file.is_directory "$jaguar/tools":
+      return jaguar
+    print_on_stderr_ "\$HOME/.cache/jaguar/sdk doesn't contain a Toit SDK"
+    exit 1
+  print_on_stderr_ "Did not find JAG_TOIT_REPO_PATH or a Jaguar installation"
+  exit 1
+  unreachable

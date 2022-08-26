@@ -185,7 +185,7 @@ handle_updates updates/monitor.Channel -> bool:
       old.do: | key value |
         if not existing.contains key:
           cnt := images_installed.get value
-          if client: client.unsubscribe "toit/apps/$value/image"
+          if client: client.unsubscribe "toit/apps/$value/image$BITS_PER_WORD"
           if cnt: containers.uninstall cnt
           images_installed.remove value
 
@@ -202,5 +202,5 @@ compute_image_topics config/Map -> List:
   result := []
   apps.do: | key value |
     if images_installed.contains value: continue.do
-    result.add "toit/apps/$value/image"
+    result.add "toit/apps/$value/image$BITS_PER_WORD"
   return result

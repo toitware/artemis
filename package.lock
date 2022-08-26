@@ -1,4 +1,5 @@
 prefixes:
+  ar: pkg-ar
   host: pkg-host
   mqtt: mqtt
 packages:
@@ -6,6 +7,10 @@ packages:
     url: github.com/toitware/mqtt
     version: 2.0.4
     hash: 81cd43e7383eccdbf07360cda3d03e9b862fa280
+  pkg-ar:
+    url: github.com/toitlang/pkg-ar
+    version: 1.0.0
+    hash: 175bcdfd59b2597c0825ef8765a20498a7e6a2db
   pkg-host:
     url: github.com/toitlang/pkg-host
     version: 1.7.1
