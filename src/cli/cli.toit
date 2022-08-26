@@ -54,28 +54,35 @@ main args:
         parser.usage args
     exit 1
 
+get_uuid_from_snapshot snapshot_path/string -> string?:
+  if not file.is_file snapshot_path:
+    print_on_stderr_ "$snapshot_path: Not a file"
+    exit 1
+
+  snapshot := file.read_content snapshot_path
+
+  ar_reader /ar.ArReader? := null
+  exception := catch:
+    ar_reader = ar.ArReader.from_bytes snapshot  // Throws if it's not a snapshot.
+  if exception: return null
+  first := ar_reader.next
+  if first.name != "toit": return null
+  uuid /string? := null
+  while member := ar_reader.next:
+    if member.name == "uuid":
+      uuid = (Uuid member.content).stringify
+  return uuid
+
 install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
   app := args.rest[0]
 
   snapshot_path := args.rest[1]
-  snapshot := file.read_content snapshot_path
-  uuid /string? := null
-
-  // Snapshot file?
-  exception := catch:
-    ar := ar.ArReader.from_bytes snapshot  // Throws if it's not a snapshot.
-    first := ar.next
-    if first.name != "toit": throw ""
-    while member := ar.next:
-      if member.name == "uuid":
-        uuid = (Uuid member.content).stringify
-    if not uuid: throw ""
-  if exception:
+  uuid := get_uuid_from_snapshot snapshot_path
+  if not uuid:
     print_on_stderr_ "$snapshot_path: Not a valid Toit snapshot"
     exit 1
 
   // Create the two images.
-
   sdk := get_toit_sdk
 
   tmpdir := directory.mkdtemp "/tmp/artemis-snapshot-to-image-"
@@ -241,10 +248,14 @@ get_toit_sdk -> string:
     repo := "$(os.env["JAG_TOIT_REPO_PATH"])/build/host/sdk"
     if file.is_directory "$repo/bin" and file.is_directory "$repo/tools":
       return repo
-    throw "JAG_TOIT_REPO_PATH doesn't point to a built Toit repo"
+    print_on_stderr_ "JAG_TOIT_REPO_PATH doesn't point to a built Toit repo"
+    exit 1
   if os.env.contains "HOME":
     jaguar := "$(os.env["HOME"])/.cache/jaguar/sdk"
     if file.is_directory "$jaguar/bin" and file.is_directory "$jaguar/tools":
       return jaguar
-    throw "\$HOME/.cache/jaguar/sdk doesn't contain a Toit SDK"
-  throw "Did not find JAG_TOIT_REPO_PATH or a jaguar installation"
+    print_on_stderr_ "\$HOME/.cache/jaguar/sdk doesn't contain a Toit SDK"
+    exit 1
+  print_on_stderr_ "Did not find JAG_TOIT_REPO_PATH or a Jaguar installation"
+  exit 1
+  unreachable
