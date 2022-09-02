@@ -1,3 +1,5 @@
+// Copyright (C) 2022 Toitware ApS. All rights reserved.
+
 import bytes show Buffer Reader
 import expect show *
 import reader show BufferedReader
@@ -24,14 +26,14 @@ one_way -> none:
   old := OldData zeros 0 0
 
   diff
-    old
-    zeros      // New bytes.
-    writer
-    zeros.size // Total new bytes size.
-    --fast=true
-    --with_header=false
-    --with_footer=false
-    --with_checksums=false
+      old
+      zeros      // New bytes.
+      writer
+      zeros.size // Total new bytes size.
+      --fast=true
+      --with_header=false
+      --with_footer=false
+      --with_checksums=false
 
   result := writer.bytes
   print result
@@ -40,28 +42,28 @@ one_way -> none:
   to  := "to come to the aid of the party.".to_byte_array
   writer = Buffer
   diff
-    OldData now 0 0
-    to
-    writer
-    to.size
-    --fast=true
-    --with_header=false
-    --with_footer=false
-    --with_checksums=false
+      OldData now 0 0
+      to
+      writer
+      to.size
+      --fast=true
+      --with_header=false
+      --with_footer=false
+      --with_checksums=false
 
   result = writer.bytes
   print result.size
 
   writer = Buffer
   diff
-    OldData now 0 0
-    to
-    writer
-    to.size
-    --fast=false
-    --with_header=false
-    --with_footer=false
-    --with_checksums=false
+      OldData now 0 0
+      to
+      writer
+      to.size
+      --fast=false
+      --with_header=false
+      --with_footer=false
+      --with_checksums=false
 
   result = writer.bytes
   print result.size
@@ -73,14 +75,14 @@ one_way -> none:
   to  = "Welcome to Copenhagen, hope you ".to_byte_array
   writer = Buffer
   diff
-    OldData now 0 0
-    to
-    writer
-    to.size
-    --fast=false
-    --with_header=false
-    --with_footer=false
-    --with_checksums=false
+      OldData now 0 0
+      to
+      writer
+      to.size
+      --fast=false
+      --with_header=false
+      --with_footer=false
+      --with_checksums=false
 
   result = writer.bytes
   print result.size
@@ -97,14 +99,14 @@ one_way -> none:
 
   writer = Buffer
   diff
-    OldData now 0 0
-    to
-    writer
-    to.size
-    --fast=false
-    --with_header=false
-    --with_footer=false
-    --with_checksums=false
+      OldData now 0 0
+      to
+      writer
+      to.size
+      --fast=false
+      --with_header=false
+      --with_footer=false
+      --with_checksums=false
   result = writer.bytes
 
   expected := #[
@@ -159,14 +161,14 @@ one_way -> none:
 
   writer = Buffer
   diff
-    OldData now 0 0
-    to
-    writer
-    to.size
-    --fast=false
-    --with_header=false
-    --with_footer=false
-    --with_checksums=false
+      OldData now 0 0
+      to
+      writer
+      to.size
+      --fast=false
+      --with_header=false
+      --with_footer=false
+      --with_checksums=false
   result = writer.bytes
 
   // Just swapping the order of the bytes is quite compact.
@@ -178,14 +180,14 @@ one_way -> none:
 
   writer = Buffer
   diff
-    OldData now 0 0
-    to
-    writer
-    to.size
-    --fast=false
-    --with_header=true
-    --with_footer=true
-    --with_checksums=true
+      OldData now 0 0
+      to
+      writer
+      to.size
+      --fast=false
+      --with_header=true
+      --with_footer=true
+      --with_checksums=true
   result = writer.bytes
 
   // A bit less compact with headers, footers and checksums.
@@ -218,14 +220,14 @@ round_trip now/ByteArray to/ByteArray -> none:
 
   writer := Buffer
   diff
-    OldData now 0 0
-    to
-    writer
-    to.size
-    --fast=false
-    --with_header=true
-    --with_footer=true
-    --with_checksums=false
+      OldData now 0 0
+      to
+      writer
+      to.size
+      --fast=false
+      --with_header=true
+      --with_footer=true
+      --with_checksums=false
   result := writer.bytes
 
   test_writer := TestWriter
