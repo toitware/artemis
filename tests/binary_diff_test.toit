@@ -1,7 +1,7 @@
 import bytes show Buffer
 import expect show *
 
-import .binary_diff
+import artemis.cli.binary_diff show *
 
 main:
   zeros := ByteArray 32
