@@ -2,16 +2,7 @@
 
 import crypto.sha256 show *
 import reader show *
-
-// Number of elements in the diff table.
-DIFF_TABLE_SIZE ::= 22
-
-// Position that new elements are inserted into the diff table.
-DIFF_TABLE_INSERTION ::= 7
-
-// Bit pattern that introduces metadata like the initial magic number.
-IGNORABLE_METADATA     ::= 0b0111_1111_1_000_0000
-NON_IGNORABLE_METADATA ::= 0b0111_1111_0_000_0000
+import ..shared.patch_format
 
 interface PatchWriter_:
   on_write data from/int=0 to/int=data.size -> none
@@ -315,7 +306,7 @@ class Patcher:
     // because the last few entries of an xx are unused.  All values in this
     // table are constant and in byte range so that it can be represented as a
     // byte array at runtime and in the program image.
-    COMMANDS ::= [
+    COMMANDS ::= #[
       2, 0b00, 0, 1,           // 00        Diff index 0 1.
       2, 0b01, 2, 3,           // 01xx      Diff index 0 3-5, xx != 0b11
       4, 0b0111, 4, 11,        // 0111_xxxx Diff index 0 11-23, xxxx <= 1100
