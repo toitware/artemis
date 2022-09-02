@@ -1,9 +1,23 @@
-import bytes show Buffer
+import bytes show Buffer Reader
 import expect show *
+import reader show BufferedReader
 
 import artemis.cli.binary_diff show *
+import artemis.service.patch show *
 
 main:
+  one_way
+  round_trip
+      (URFAUST + FAUST1).to_byte_array
+      (FAUST1 + URFAUST).to_byte_array
+  round_trip
+      MOBY_15.to_byte_array
+      MOBY_2705.to_byte_array
+  round_trip
+      MOBY_2705.to_byte_array
+      MOBY_15.to_byte_array
+
+one_way -> none:
   zeros := ByteArray 32
   writer := Buffer
 
@@ -71,34 +85,6 @@ main:
   result = writer.bytes
   print result.size
   print result
-
-  /*now = MOBY_2705.to_byte_array
-  to  = MOBY_15.to_byte_array
-  writer = Buffer
-  diff
-    OldData now 0 0
-    to
-    writer
-    to.size
-    --fast=false
-    --with_header=false
-    --with_footer=false
-    --with_checksums=false
-  result = writer.bytes
-
-  expected := #[
-      0x7f, 0x52, 0x00, 0x00, 0xff, 0x7d, 0xe2, 0xf8, 0x2c, 0xfc,
-      0x7e, 0x03, 0x1d, 0xf8, 0x2d, 0xfc, 0x7e, 0x00, 0x34, 0xfd,
-      0x75, 0xf8, 0x20, 0x0f, 0x80, 0xa7, 0xe0, 0x2b, 0xff, 0x82,
-      0xcf, 0xc7, 0xd0, 0xaf, 0x80, 0xa5, 0xf8, 0x20, 0x7d, 0x10,
-      0xf8, 0x0a, 0x4f, 0x82, 0x07, 0xd0, 0x2f, 0x23, 0x3f, 0x1f,
-      0x41, 0x7e, 0x02, 0x97, 0xe0, 0x81, 0xf4, 0x4b, 0xe8, 0x29,
-      0x84, 0x81, 0xf8, 0x3f, 0x67, 0xe1, 0xd9, 0xf7, 0x77, 0xe9,
-      0xd1, 0xa1, 0x97, 0xf9, 0xf9, 0xf8, 0x03, 0xd3, 0xfa, 0x0d,
-      0xf8, 0x0f, 0x87, 0xf5, 0xf8, 0x0c, 0xf7, 0xfa, 0x00]
-
-  expect_bytes_equal expected result
-  */
 
   print "**** Faust *****"
 
@@ -214,6 +200,44 @@ main:
   List.chunk_up 0 result.size 16: | from to size |
     print result[from..to]
 
+class TestWriter implements PatchObserver:
+  size /int? := null
+  writer /Buffer := Buffer
+
+  on_write data from/int=0 to/int=data.size:
+    writer.write data[from..to]
+
+  on_size size/int: this.size = size
+
+  on_new_checksum checksum/ByteArray:
+
+  on_checkpoint patch_position/int:
+
+round_trip now/ByteArray to/ByteArray -> none:
+  old_data := OldData now 0 0
+
+  writer := Buffer
+  diff
+    OldData now 0 0
+    to
+    writer
+    to.size
+    --fast=false
+    --with_header=true
+    --with_footer=true
+    --with_checksums=false
+  result := writer.bytes
+
+  test_writer := TestWriter
+
+  patcher := Patcher
+      BufferedReader (Reader result)
+      now
+
+  patcher.patch test_writer
+
+  expect_equals to.size test_writer.size
+  expect_equals to test_writer.writer.bytes
 
 MOBY_2705 ::= """\
 Call me Ishmael. Some years ago—never mind how long precisely—having
