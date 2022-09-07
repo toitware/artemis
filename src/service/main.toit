@@ -32,7 +32,7 @@ logger/log.Logger ::= log.default.with_name "artemis"
 // Index in return value from `process_stats`.
 BYTES_ALLOCATED ::= 4
 
-main arguments/List:
+main arguments:
   stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
   allocated := (process_stats stats)[BYTES_ALLOCATED]
   while true:
