@@ -75,6 +75,7 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
   options := mqtt.SessionOptions
       --client_id=CLIENT_ID
       --clean_session
+      --last_will=(mqtt.LastWill --retain device.topic_presence "disappeared".to_byte_array --qos=0)
 
   client.connect --options=options
 
@@ -133,11 +134,14 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
   // Wait for the client to run.
   client.when_running: null
 
+  client.publish device.topic_presence "online".to_byte_array --retain
+
   client.subscribe device.topic_revision
   disconnect_lambda := ::
     if client:
       c := client
       client = null
+      c.publish device.topic_presence "offline".to_byte_array --retain
       c.close
       exception := with_timeout --ms=3_000:
         disconnected.get
