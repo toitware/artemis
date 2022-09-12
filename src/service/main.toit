@@ -75,7 +75,7 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
   options := mqtt.SessionOptions
       --client_id=CLIENT_ID
       --clean_session
-      --last_will=(mqtt.LastWill --retain device.topic_presence "disconnected".to_byte_array --qos=0)
+      --last_will=(mqtt.LastWill --retain device.topic_presence "lost".to_byte_array --qos=0)
 
   client.connect --options=options
 
