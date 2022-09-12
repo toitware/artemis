@@ -55,7 +55,6 @@ synchronize device/ArtemisDevice:
   disconnect ::= run_client device updates
   try:
     while true:
-      applications.subscribe client
       if handle_updates applications updates: continue
       new_allocated := (process_stats stats)[BYTES_ALLOCATED]
       delta := new_allocated - allocated
@@ -145,8 +144,8 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
       if handle_task: handle_task.cancel
   return disconnect_lambda
 
-
 handle_updates applications/ApplicationManager updates/monitor.Channel -> bool:
+  applications.subscribe client
   update := updates.receive
   if update == UPDATE_SYNCHRONIZED: return false
 
