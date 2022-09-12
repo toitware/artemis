@@ -37,6 +37,10 @@ main args:
   set_max_offline_cmd := parser.add_command "set-max-offline"
   set_max_offline_cmd.describe_rest ["offline-time-in-seconds"]
 
+  status_cmd := parser.add_command "status"
+
+  watch_presence_cmd := parser.add_command "watch-presence"
+
   parsed/arguments.Arguments := parser.parse args
   device ::= ArtemisDevice parsed["device"]
 
@@ -49,6 +53,10 @@ main args:
   else if parsed.command == "set-max-offline":
     update_config device: | config/Map client/mqtt.Client |
       set_max_offline parsed config
+  else if parsed.command == "status":
+    print_status device
+  else if parsed.command == "watch-presence":
+    watch_presence
   else:
     print_on_stderr_
         parser.usage args
@@ -123,21 +131,26 @@ set_max_offline args/arguments.Arguments config/Map -> Map:
     config.remove "max-offline"
   return config
 
+with_mqtt [block]:
+  network := net.open
+  transport := create_transport network
+  client/mqtt.Client? := null
+  try:
+    client = mqtt.Client --transport=transport
+    options := mqtt.SessionOptions --client_id=CLIENT_ID --clean_session
+    client.start --options=options
+    block.call client
+  finally:
+    if client: client.close
+    network.close
+
 /**
 Gets current config for the specified $device.
 Calls the $block with the current config, and gets a new config back.
 Sends the new config to the device.
 */
 update_config device/ArtemisDevice [block]:
-  network := net.open
-  transport := create_transport network
-  client/mqtt.Client? := null
-  receiver := null
-  try:
-    client = mqtt.Client --transport=transport
-    options := mqtt.SessionOptions --client_id=CLIENT_ID --clean_session
-    client.start --options=options
-
+  with_mqtt: | client/mqtt.Client |
     locked := monitor.Latch
     config_channel := monitor.Channel 1
     revision_channel := monitor.Channel 1
@@ -236,14 +249,9 @@ update_config device/ArtemisDevice [block]:
       print "Updated config to $config"
 
     finally:
-      if receiver: receiver.cancel
       critical_do:
         print "$(%08d Time.monotonic_us): Releasing lock"
         client.publish device.topic_lock (ubjson.encode null) --retain
-
-  finally:
-    if client: client.close
-    network.close
 
 get_toit_sdk -> string:
   if os.env.contains "JAG_TOIT_REPO_PATH":
@@ -261,3 +269,24 @@ get_toit_sdk -> string:
   print_on_stderr_ "Did not find JAG_TOIT_REPO_PATH or a Jaguar installation"
   exit 1
   unreachable
+
+print_status device/ArtemisDevice:
+  with_timeout --ms=5_000:
+    with_mqtt: | client/mqtt.Client |
+      status := monitor.Latch
+      config := monitor.Latch
+      client.subscribe device.topic_presence:: | topic/string payload/ByteArray |
+        status.set payload.to_string
+      client.subscribe device.topic_config:: | topic/string payload/ByteArray |
+        config.set (ubjson.decode payload)
+      print "Device: $device.name"
+      print "  $status.get"
+      print "  $config.get"
+
+watch_presence:
+  with_mqtt: | client/mqtt.Client |
+    client.subscribe "toit/devices/presence/#":: | topic/string payload/ByteArray |
+      device_name := (topic.split "/").last
+      print "$(%08d Time.monotonic_us): $device_name: $payload.to_string"
+    // Wait forever.
+    (monitor.Latch).get
