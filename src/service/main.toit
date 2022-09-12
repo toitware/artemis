@@ -13,7 +13,7 @@ main arguments:
       ? device.name
       : (pipe.backticks "hostname").trim
   device ::= ArtemisDevice name
-  scheduler ::= Scheduler
+  scheduler ::= Scheduler.instance
   scheduler.add_job
       SynchronizeJob device
   scheduler.run

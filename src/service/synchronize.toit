@@ -10,7 +10,10 @@ import uuid
 
 import system.containers
 
+import .action
+import .application
 import .scheduler show Job SchedulerTime
+
 import ..shared.connect
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
@@ -35,7 +38,7 @@ class SynchronizeJob extends Job:
   device/ArtemisDevice
   constructor .device:
 
-  next_run now/SchedulerTime -> SchedulerTime:
+  schedule now/SchedulerTime -> SchedulerTime?:
     if not last_run or not max_offline: return now
     return last_run + max_offline
 
@@ -48,10 +51,12 @@ synchronize device/ArtemisDevice:
   updates := monitor.Channel 10
   logger.info "connecting to broker" --tags={"device": device.name}
 
+  applications ::= ApplicationManager.instance
   disconnect ::= run_client device updates
   try:
     while true:
-      if handle_updates updates: continue
+      applications.subscribe client
+      if handle_updates applications updates: continue
       new_allocated := (process_stats stats)[BYTES_ALLOCATED]
       delta := new_allocated - allocated
       logger.info "synchronized" --tags={"allocated": delta}
@@ -110,17 +115,10 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
             else if topic.starts_with "toit/apps/":
               // TODO(kasper): Hacky!
               path := topic.split "/"
-              image := path[2]
-              if not images_installed.contains image:
-                payload := publish.payload_stream
-                writer := containers.ContainerImageWriter payload.size
-                while data := payload.read: writer.write data
-                container_id := writer.commit
-                logger.info "app install: done" --tags={"image": image, "container": container_id}
-                images_installed[image] = container_id
-                images_subscribed.remove topic
-                client.unsubscribe topic
-                containers.start container_id
+              id := path[2]
+              application/Application? := ApplicationManager.instance.lookup id
+              if application and application.container == null:
+                application.fetch client publish.payload_stream
                 // Our local state has changed. Maybe we're done? Let
                 // the update handler know.
                 updates.send UPDATE_CHANGE_STATE
@@ -147,64 +145,14 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
       if handle_task: handle_task.cancel
   return disconnect_lambda
 
-abstract class Action:
-  static apply actions/List map/Map -> Map:
-    copy := map.copy
-    actions.do: | action/Action |
-      action.perform copy
-    return copy
 
-  abstract perform map/Map -> none
-
-abstract class ActionApplication extends Action:
-  name/string
-  constructor .name:
-
-  install map/Map id/string:
-    map[name] = id
-
-  uninstall map/Map id/string:
-    container := images_installed.get id
-    if client: client.unsubscribe "toit/apps/$id/image$BITS_PER_WORD"
-    if container: containers.uninstall container
-    images_installed.remove id
-    map.remove name
-
-class ActionApplicationInstall extends ActionApplication:
-  new/string
-  constructor name/string .new:
-    super name
-
-  perform map/Map -> none:
-    logger.info "app install: request" --tags={"name": name, "new": new}
-    install map new
-
-class ActionApplicationUpdate extends ActionApplication:
-  new/string
-  old/string
-  constructor name/string .new .old:
-    super name
-
-  perform map/Map -> none:
-    logger.info "app install: request" --tags={"name": name, "new": new, "old": old}
-    uninstall map old
-
-class ActionApplicationUninstall extends ActionApplication:
-  old/string
-  constructor name/string .old:
-    super name
-
-  perform map/Map -> none:
-    logger.info "app uninstall" --tags={"name": name}
-    uninstall map old
-
-handle_updates updates/monitor.Channel -> bool:
+handle_updates applications/ApplicationManager updates/monitor.Channel -> bool:
   update := updates.receive
   if update == UPDATE_SYNCHRONIZED: return false
 
+  actions := []
   if update == UPDATE_CHANGE_CONFIG:
     existing := config.get "apps" --if_absent=: {:}
-    actions := []
     apps := new_config.get "apps"
     if apps:
       apps.do: | name new |
@@ -228,24 +176,5 @@ handle_updates updates/monitor.Channel -> bool:
     else:
       max_offline = null
 
-    // TODO(kasper): Move this somewhere else.
-    images_subscribed = {}
-    (compute_image_topics config).do:
-      if client: client.subscribe it
-      images_subscribed.add it
-
   // state == UPDATE_CHANGE_STATE or state == UPDATE_CHANGE_CONFIG
-  if not images_subscribed.is_empty: return true
-  return false
-
-images_installed := {:}
-images_subscribed := {}
-
-compute_image_topics config/Map -> List:
-  apps := config.get "apps"
-  if not apps: return []
-  result := []
-  apps.do: | key value |
-    if images_installed.contains value: continue.do
-    result.add "toit/apps/$value/image$BITS_PER_WORD"
-  return result
+  return applications.complete

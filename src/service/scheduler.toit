@@ -7,7 +7,7 @@ abstract class Job:
   last_run -> SchedulerTime?:
     return last_run_
 
-  abstract next_run now/SchedulerTime -> SchedulerTime
+  abstract schedule now/SchedulerTime -> SchedulerTime?
   abstract run -> none
 
   start now/SchedulerTime -> none:
@@ -28,7 +28,8 @@ abstract class Job:
     // TODO(kasper): Should we wait until the task is done?
 
 class Scheduler:
-  jobs_ ::= []
+  static instance := Scheduler
+  jobs_ := []
 
   run -> none:
     while true:
@@ -43,10 +44,13 @@ class Scheduler:
     jobs_.add job
     // TODO(kasper): Tell scheduler that the state has changed.
 
+  remove_job job/Job -> none:
+    jobs_ = jobs_.filter: not identical it job
+
   run_due_jobs_ now/SchedulerTime -> SchedulerTime?:
     first/SchedulerTime? := null
     jobs_.do: | job/Job |
-      next ::= job.next_run now
+      next ::= job.schedule now
       if not next: continue.do
       if next <= now:
         job.start now
