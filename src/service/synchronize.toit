@@ -104,7 +104,7 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
             else if topic == device.topic_config:
               new_config = ubjson.decode publish.payload
               if revision == new_config["revision"]:
-                updates.send 2
+                updates.send UPDATE_CHANGE_CONFIG
             else if topic.starts_with "toit/apps/":
               // TODO(kasper): Hacky!
               path := topic.split "/"
@@ -122,8 +122,11 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
                 // Our local state has changed. Maybe we're done? Let
                 // the update handler know.
                 updates.send UPDATE_CHANGE_STATE
-          disconnected.set true
       finally:
+        critical_do:
+          disconnected.set true
+          client.close --force
+          network.close
         client = null
         handle_task = null
 
@@ -132,15 +135,9 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
 
   client.subscribe device.topic_revision
   disconnect_lambda := ::
-    if client:
-      c := client
-      client = null
-      c.close
-      exception := with_timeout --ms=3_000:
-        disconnected.get
-      if exception: c.close --force
-      if handle_task: handle_task.cancel
-      network.close
+    if client: client.close
+    with_timeout --ms=3_000: disconnected.get
+    if handle_task: handle_task.cancel
   return disconnect_lambda
 
 handle_updates updates/monitor.Channel -> bool:
