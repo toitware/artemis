@@ -11,7 +11,7 @@ class ApplicationManager:
   static instance ::= ApplicationManager
   applications_ := {:}  // Map<string, Application>
 
-  complete -> bool:
+  is_complete -> bool:
     applications_.do: | id/string application/Application |
       if application.container == null: return false
     return true
@@ -29,11 +29,13 @@ class ApplicationManager:
     Scheduler.instance.remove_job application
     applications_.remove application.id
 
-  subscribe client/mqtt.FullClient -> none:
+  synchronize_subscriptions client/mqtt.FullClient -> none:
     applications_.do: | id/string application/Application |
       container := application.container
-      if container: continue.do
-      application.subscribe client
+      if container:
+        application.unsubscribe client
+      else:
+        application.subscribe client
 
 class Application extends Job:
   name/string
@@ -58,11 +60,12 @@ class Application extends Job:
     client.subscribe topic_
     subscribed_ = true
 
-  fetch client/mqtt.FullClient payload/SizedReader:
+  unsubscribe client/mqtt.FullClient:
+    if not subscribed_: return
+    client.unsubscribe topic_
     subscribed_ = false
-    // TODO(kasper): We need to unsubscribe after we're done fetching. Maybe
-    // we can let the application manager handle that for us?
-    // client.unsubscribe topic_
+
+  fetch client/mqtt.FullClient payload/SizedReader:
     writer := containers.ContainerImageWriter payload.size
     while data := payload.read: writer.write data
     container_ = writer.commit

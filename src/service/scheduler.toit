@@ -20,16 +20,31 @@ abstract class Job:
         // last run timestamp to the starting time ($now).
         last_run_ = SchedulerTime.now
         task_ = null
-        // TODO(kasper): Tell scheduler that the state has changed.
+        Scheduler.instance.wakeup
 
   stop -> none:
     if not task_: return
     task_.cancel
     // TODO(kasper): Should we wait until the task is done?
 
+monitor SchedulerSignal:
+  changed_ := false
+
+  wakeup -> none:
+    changed_ = true
+
+  wait deadline/SchedulerTime? -> none:
+    deadline_monotonic := deadline ? deadline.to_monotonic_us : null
+    try_await --deadline=deadline_monotonic: changed_
+    changed_ = false
+
 class Scheduler:
   static instance := Scheduler
   jobs_ := []
+  signal_ ::= SchedulerSignal
+
+  wakeup -> none:
+    signal_.wakeup
 
   run -> none:
     while true:
@@ -38,11 +53,11 @@ class Scheduler:
       next := run_due_jobs_ now
       // TODO(kasper): Return when we're all idle.
       if not next: next = now + (Duration --ms=500)
-      sleep (now.to next)
+      signal_.wait next
 
   add_job job/Job -> none:
     jobs_.add job
-    // TODO(kasper): Tell scheduler that the state has changed.
+    wakeup
 
   remove_job job/Job -> none:
     jobs_ = jobs_.filter: not identical it job
@@ -78,3 +93,6 @@ class SchedulerTime:
 
   to other/SchedulerTime -> Duration:
     return Duration --us=other.us_ - us_
+
+  to_monotonic_us -> int:
+    return us_

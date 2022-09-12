@@ -118,6 +118,10 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
               application/Application? := ApplicationManager.instance.lookup id
               if application and application.container == null:
                 application.fetch client publish.payload_stream
+                logger.info "app install: container fetched" --tags={
+                    "name": application.name,
+                    "container": application.container,
+                }
                 // Our local state has changed. Maybe we're done? Let
                 // the update handler know.
                 updates.send UPDATE_CHANGE_STATE
@@ -145,7 +149,7 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
   return disconnect_lambda
 
 handle_updates applications/ApplicationManager updates/monitor.Channel -> bool:
-  applications.subscribe client
+  applications.synchronize_subscriptions client
   update := updates.receive
   if update == UPDATE_SYNCHRONIZED: return false
 
@@ -176,4 +180,4 @@ handle_updates applications/ApplicationManager updates/monitor.Channel -> bool:
       max_offline = null
 
   // state == UPDATE_CHANGE_STATE or state == UPDATE_CHANGE_CONFIG
-  return applications.complete
+  return not applications.is_complete
