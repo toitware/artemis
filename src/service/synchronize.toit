@@ -1,13 +1,14 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import encoding.ubjson
+import log
 import net
+import monitor
 import mqtt
 import mqtt.packets as mqtt
-import monitor
-import encoding.ubjson
+import uuid
 
 import system.containers
-import log
 
 import .scheduler show Job SchedulerTime
 import ..shared.connect
@@ -146,32 +147,80 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
       if handle_task: handle_task.cancel
   return disconnect_lambda
 
+abstract class Action:
+  static apply actions/List map/Map -> Map:
+    copy := map.copy
+    actions.do: | action/Action |
+      action.perform copy
+    return copy
+
+  abstract perform map/Map -> none
+
+abstract class ActionApplication extends Action:
+  name/string
+  constructor .name:
+
+  install map/Map id/string:
+    map[name] = id
+
+  uninstall map/Map id/string:
+    container := images_installed.get id
+    if client: client.unsubscribe "toit/apps/$id/image$BITS_PER_WORD"
+    if container: containers.uninstall container
+    images_installed.remove id
+    map.remove name
+
+class ActionApplicationInstall extends ActionApplication:
+  new/string
+  constructor name/string .new:
+    super name
+
+  perform map/Map -> none:
+    logger.info "app install: request" --tags={"name": name, "new": new}
+    install map new
+
+class ActionApplicationUpdate extends ActionApplication:
+  new/string
+  old/string
+  constructor name/string .new .old:
+    super name
+
+  perform map/Map -> none:
+    logger.info "app install: request" --tags={"name": name, "new": new, "old": old}
+    uninstall map old
+
+class ActionApplicationUninstall extends ActionApplication:
+  old/string
+  constructor name/string .old:
+    super name
+
+  perform map/Map -> none:
+    logger.info "app uninstall" --tags={"name": name}
+    uninstall map old
+
 handle_updates updates/monitor.Channel -> bool:
   update := updates.receive
   if update == UPDATE_SYNCHRONIZED: return false
 
   if update == UPDATE_CHANGE_CONFIG:
-    old := config.get "apps"
-    existing := old ? old.copy : {:}
-
+    existing := config.get "apps" --if_absent=: {:}
+    actions := []
     apps := new_config.get "apps"
     if apps:
-      apps.do: | key value |
-        n := existing.get key
-        if n != value:
+      apps.do: | name new |
+        old := existing.get name
+        if old != new:
           // New or updated app.
-          if n:
-            logger.info "app install: request" --tags={"name": key, "image": value, "old": n}
+          if old:
+            actions.add (ActionApplicationUpdate name new old)
           else:
-            logger.info "app install: request" --tags={"name": key, "image": value}
-          existing[key] = value
-    existing.copy.do: | key value |
-      if apps and apps.get key: continue.do
-      logger.info "app uninstall" --tags={"name": key}
-      existing.remove key
+            actions.add (ActionApplicationInstall name new)
+    existing.do: | name old |
+      if apps and apps.get name: continue.do
+      actions.add (ActionApplicationUninstall name old)
 
     // Commit.
-    config["apps"] = existing
+    config["apps"] = Action.apply actions existing
 
     // TODO(kasper): Should this just stay in config?
     if new_config.contains "max-offline":
@@ -179,17 +228,11 @@ handle_updates updates/monitor.Channel -> bool:
     else:
       max_offline = null
 
+    // TODO(kasper): Move this somewhere else.
     images_subscribed = {}
     (compute_image_topics config).do:
       if client: client.subscribe it
       images_subscribed.add it
-    if old:
-      old.do: | key value |
-        if not existing.contains key:
-          cnt := images_installed.get value
-          if client: client.unsubscribe "toit/apps/$value/image$BITS_PER_WORD"
-          if cnt: containers.uninstall cnt
-          images_installed.remove value
 
   // state == UPDATE_CHANGE_STATE or state == UPDATE_CHANGE_CONFIG
   if not images_subscribed.is_empty: return true
