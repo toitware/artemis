@@ -6,7 +6,8 @@ import encoding.ubjson
 import monitor
 import mqtt
 import net
-import uuid show Uuid
+import uuid
+import crypto.sha256
 
 import host.arguments
 import host.directory
@@ -34,6 +35,9 @@ main args:
   uninstall_cmd := parser.add_command "uninstall"
   uninstall_cmd.describe_rest ["app-name"]
 
+  update_cmd := parser.add_command "update"
+  install_cmd.describe_rest ["firmware.bin"]
+
   set_max_offline_cmd := parser.add_command "set-max-offline"
   set_max_offline_cmd.describe_rest ["offline-time-in-seconds"]
 
@@ -50,6 +54,9 @@ main args:
   else if parsed.command == "uninstall":
     update_config device: | config/Map client/mqtt.Client |
       uninstall_app parsed config
+  else if parsed.command == "update":
+    update_config device: | config/Map client/mqtt.Client |
+      update_firmware parsed config client
   else if parsed.command == "set-max-offline":
     update_config device: | config/Map client/mqtt.Client |
       set_max_offline parsed config
@@ -75,18 +82,18 @@ get_uuid_from_snapshot snapshot_path/string -> string?:
   if exception: return null
   first := ar_reader.next
   if first.name != "toit": return null
-  uuid /string? := null
+  id/string? := null
   while member := ar_reader.next:
     if member.name == "uuid":
-      uuid = (Uuid member.content).stringify
-  return uuid
+      id = (uuid.Uuid member.content).stringify
+  return id
 
 install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
   app := args.rest[0]
 
   snapshot_path := args.rest[1]
-  uuid := get_uuid_from_snapshot snapshot_path
-  if not uuid:
+  id := get_uuid_from_snapshot snapshot_path
+  if not id:
     print_on_stderr_ "$snapshot_path: Not a valid Toit snapshot"
     exit 1
 
@@ -101,8 +108,8 @@ install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
     pipe.run_program ["$sdk/tools/snapshot_to_image", "-m32", "--binary", "-o", image32, snapshot_path]
     pipe.run_program ["$sdk/tools/snapshot_to_image", "-m64", "--binary", "-o", image64, snapshot_path]
 
-    client.publish "toit/apps/$uuid/image32" (file.read_content image32) --qos=1 --retain
-    client.publish "toit/apps/$uuid/image64" (file.read_content image64) --qos=1 --retain
+    client.publish "toit/apps/$id/image32" (file.read_content image32) --qos=1 --retain
+    client.publish "toit/apps/$id/image64" (file.read_content image64) --qos=1 --retain
   finally:
     catch: file.delete image32
     catch: file.delete image64
@@ -110,7 +117,7 @@ install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
 
   print "$(%08d Time.monotonic_us): Installing app: $app"
   apps := config.get "apps" --if_absent=: {:}
-  apps[app] = uuid
+  apps[app] = id
   config["apps"] = apps
   return config
 
@@ -120,6 +127,25 @@ uninstall_app args/arguments.Arguments config/Map -> Map:
   apps := config.get "apps"
   if not apps: return config
   apps.remove app
+  return config
+
+update_firmware args/arguments.Arguments config/Map client/mqtt.Client -> Map:
+  firmware_path := args.rest[0]
+
+  firmware_bin := file.read_content firmware_path
+  sha := sha256.Sha256
+  sha.add firmware_bin
+  id/string := "$(uuid.Uuid sha.get[0..uuid.SIZE])"
+
+  cursor := 0
+  parts := []
+  while cursor < firmware_bin.size:
+    end := min firmware_bin.size (cursor + 64 * 1024)
+    parts.add cursor
+    client.publish "toit/firmware/$id/$cursor" firmware_bin[cursor..end] --qos=1 --retain
+    cursor = end
+  client.publish "toit/firmware/$id" (ubjson.encode {"size": firmware_bin.size, "parts": parts}) --qos=1 --retain
+  config["firmware"] = id
   return config
 
 set_max_offline args/arguments.Arguments config/Map -> Map:
