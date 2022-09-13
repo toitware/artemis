@@ -2,13 +2,22 @@
 
 import .applications
 
-abstract class Action:
-  static apply actions/List map/Map? -> Map:
-    copy := map ? map.copy : {:}
-    actions.do: | action/Action |
-      action.perform copy
-    return copy
+class ActionBundle:
+  section_/string
+  actions_/List ::= []
+  constructor .section_:
 
+  add action/Action:
+    actions_.add action
+
+  commit map/Map -> none:
+    section := map.get section_
+    copy := section ? section.copy : {:}
+    actions_.do: | action/Action |
+      action.perform copy
+    map[section_] = copy
+
+abstract class Action:
   abstract perform map/Map -> none
 
 abstract class ActionApplication extends Action:
