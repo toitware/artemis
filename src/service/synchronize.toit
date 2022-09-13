@@ -22,8 +22,6 @@ revision/int? := null
 config/Map ::= {:}
 max_offline/Duration? := null
 
-client/mqtt.FullClient? := null
-
 // Index in return value from `process_stats`.
 BYTES_ALLOCATED ::= 4
 
@@ -49,11 +47,11 @@ class SynchronizeJob extends Job:
     allocated := (process_stats stats)[BYTES_ALLOCATED]
     logger_.info "connecting to broker" --tags={"device": device.name}
 
-    disconnect ::= run_client this
-    try:
+    run_client_: | client/mqtt.FullClient |
       while true:
         applications_.synchronize client
-        if process_actions_: continue
+        work_remaining ::= process_actions_
+        if work_remaining: continue
 
         new_allocated := (process_stats stats)[BYTES_ALLOCATED]
         delta := new_allocated - allocated
@@ -62,8 +60,6 @@ class SynchronizeJob extends Job:
         if max_offline:
           logger_.info "going offline" --tags={"duration": max_offline}
           return
-    finally:
-      disconnect.call
 
   process_actions_ -> bool:
     actions/List? := actions_.receive
@@ -77,10 +73,10 @@ class SynchronizeJob extends Job:
     // completed, we're done.
     return actions_.size > 0 or applications_.any_incomplete
 
-  handle_nop -> none:
+  handle_nop_ -> none:
     actions_.send null
 
-  handle_new_config new_config/Map -> none:
+  handle_new_config_ new_config/Map -> none:
     actions := []
     existing := config.get "apps" --if_absent=: {:}
     apps := new_config.get "apps" --if_absent=: {:}
@@ -104,7 +100,7 @@ class SynchronizeJob extends Job:
 
     actions_.send actions
 
-  handle_new_image topic/string packet/mqtt.PublishPacket -> none:
+  handle_new_image_ topic/string packet/mqtt.PublishPacket -> none:
     // TODO(kasper): This is a bit hacky.
     path := topic.split "/"
     id := path[2]
@@ -113,72 +109,70 @@ class SynchronizeJob extends Job:
     applications_.complete application packet.payload_stream
     actions_.send null
 
-// TODO(kasper): Turn this into a method on SynchronizeJob.
-run_client job/SynchronizeJob -> Lambda:
-  device ::= job.device
-  network := net.open
-  transport := create_transport network
-  client = mqtt.FullClient --transport=transport
+  run_client_ [block]:
+    network ::= net.open
+    transport ::= create_transport network
+    client/mqtt.FullClient? := mqtt.FullClient --transport=transport
 
-  // Since we are using `retain` for important data, we simply connect
-  // with the clean-session flag. The broker does not need to save
-  // QoS packets that aren't retained.
-  options := mqtt.SessionOptions
-      --client_id=CLIENT_ID
-      --clean_session
-      --last_will=(mqtt.LastWill --retain device.topic_presence "disappeared".to_byte_array --qos=0)
+    // Since we are using `retain` for important data, we simply connect
+    // with the clean-session flag. The broker does not need to save
+    // QoS packets that aren't retained.
+    last_will ::= mqtt.LastWill device.topic_presence "disappeared".to_byte_array
+        --retain
+        --qos=0
+    options ::= mqtt.SessionOptions
+        --client_id=CLIENT_ID
+        --clean_session
+        --last_will=last_will
 
-  client.connect --options=options
+    client.connect --options=options
+    disconnected := monitor.Latch
 
-  disconnected := monitor.Latch
+    handle_task/Task? := ?
+    handle_task = task::
+      catch --trace:
+        try:
+          subscribed_to_config := false
+          new_config/Map? := null
+          client.handle: | packet/mqtt.Packet |
+            if packet is mqtt.PublishPacket:
+              publish := packet as mqtt.PublishPacket
+              topic := publish.topic
+              if topic == device.topic_revision:
+                new_revision := ubjson.decode publish.payload
+                if new_revision != revision:
+                  revision = new_revision
+                  if not subscribed_to_config:
+                    subscribed_to_config = true
+                    client.subscribe device.topic_config
+                  if new_config and revision == new_config["revision"]:
+                    handle_new_config_ new_config
+                else:
+                  handle_nop_
+              else if topic == device.topic_config:
+                new_config = ubjson.decode publish.payload
+                if revision == new_config["revision"]:
+                  handle_new_config_ new_config
+              else if topic.starts_with "toit/apps/":
+                handle_new_image_ topic publish
+        finally:
+          critical_do:
+            disconnected.set true
+            client.close --force
+            network.close
+          client = null
+          handle_task = null
 
-  // Add the topics we care about.
-  subscribed_to_config := false
-  new_config/Map? := null
-
-  handle_task/Task? := ?
-  handle_task = task::
-    catch --trace:
-      try:
-        client.handle: | packet/mqtt.Packet |
-          if packet is mqtt.PublishPacket:
-            publish := packet as mqtt.PublishPacket
-            topic := publish.topic
-            if topic == device.topic_revision:
-              new_revision := ubjson.decode publish.payload
-              if new_revision != revision:
-                revision = new_revision
-                if not subscribed_to_config:
-                  subscribed_to_config = true
-                  client.subscribe device.topic_config
-                if new_config and revision == new_config["revision"]:
-                  job.handle_new_config new_config
-              else:
-                job.handle_nop
-            else if topic == device.topic_config:
-              new_config = ubjson.decode publish.payload
-              if revision == new_config["revision"]:
-                job.handle_new_config new_config
-            else if topic.starts_with "toit/apps/":
-              job.handle_new_image topic publish
-      finally:
-        critical_do:
-          disconnected.set true
-          client.close --force
-          network.close
-        client = null
-        handle_task = null
-
-  // Wait for the client to run.
-  client.when_running: null
-  client.publish device.topic_presence "online".to_byte_array --retain
-  client.subscribe device.topic_revision
-
-  disconnect_lambda := ::
     try:
-      if client: client.publish device.topic_presence "offline".to_byte_array --retain
-      if client: client.close
-      with_timeout --ms=3_000: disconnected.get
+      // Wait for the client to run.
+      client.when_running: null
+      client.publish device.topic_presence "online".to_byte_array --retain
+      client.subscribe device.topic_revision
+      block.call client
     finally:
-      if handle_task: handle_task.cancel
-  return disconnect_lambda
+      try:
+        if client: client.publish device.topic_presence "offline".to_byte_array --retain
+        if client: client.close
+        with_timeout --ms=3_000: disconnected.get
+      finally:
+        if handle_task: handle_task.cancel
