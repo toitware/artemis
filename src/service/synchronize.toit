@@ -23,17 +23,19 @@ config/Map ::= {:}
 max_offline/Duration? := null
 
 client/mqtt.FullClient? := null
-logger/log.Logger ::= log.default.with_name "artemis"
 
 // Index in return value from `process_stats`.
 BYTES_ALLOCATED ::= 4
 
 class SynchronizeJob extends Job:
+  logger_/log.Logger
   device/ArtemisDevice
   applications_/ApplicationManager
   actions_/monitor.Channel ::= monitor.Channel 16  // TODO(kasper): Maybe this should be unbounded?
 
-  constructor .device .applications_:
+  constructor logger/log.Logger .device .applications_:
+    logger_ = logger.with_name "synchronize"
+    super "synchronize"
 
   schedule now/JobTime -> JobTime?:
     if not last_run or not max_offline: return now
@@ -45,7 +47,8 @@ class SynchronizeJob extends Job:
   synchronize_ -> none:
     stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
     allocated := (process_stats stats)[BYTES_ALLOCATED]
-    logger.info "connecting to broker" --tags={"device": device.name}
+    updates := monitor.Channel 10
+    logger_.info "connecting to broker" --tags={"device": device.name}
 
     disconnect ::= run_client this
     try:
@@ -55,10 +58,10 @@ class SynchronizeJob extends Job:
 
         new_allocated := (process_stats stats)[BYTES_ALLOCATED]
         delta := new_allocated - allocated
-        logger.info "synchronized" --tags={"allocated": delta}
+        logger_.info "synchronized" --tags={"allocated": delta}
         allocated = new_allocated
         if max_offline:
-          logger.info "going offline" --tags={"duration": max_offline}
+          logger_.info "going offline" --tags={"duration": max_offline}
           return
     finally:
       disconnect.call
@@ -107,12 +110,8 @@ class SynchronizeJob extends Job:
     path := topic.split "/"
     id := path[2]
     application/Application? := applications_.get id
-    if not application or application.is_complete: return
-    application.complete packet.payload_stream
-    logger.info "app install: received image" --tags={
-        "name": application.name,
-        "id": application.id,
-    }
+    if not application: return
+    applications_.complete application packet.payload_stream
     actions_.send null
 
 // TODO(kasper): Turn this into a method on SynchronizeJob.
