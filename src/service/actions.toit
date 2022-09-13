@@ -1,7 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import .applications
-import .synchronize show logger
 
 abstract class Action:
   static apply actions/List map/Map -> Map:
@@ -32,7 +31,6 @@ class ActionApplicationInstall extends ActionApplication:
     super manager name
 
   perform map/Map -> none:
-    logger.info "app install: request" --tags={"name": name, "new": new}
     install map new
 
 class ActionApplicationUpdate extends ActionApplication:
@@ -42,7 +40,6 @@ class ActionApplicationUpdate extends ActionApplication:
     super manager name
 
   perform map/Map -> none:
-    logger.info "app install: request" --tags={"name": name, "new": new, "old": old}
     uninstall map old
 
 class ActionApplicationUninstall extends ActionApplication:
@@ -51,5 +48,4 @@ class ActionApplicationUninstall extends ActionApplication:
     super manager name
 
   perform map/Map -> none:
-    logger.info "app uninstall" --tags={"name": name}
     uninstall map old

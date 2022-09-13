@@ -1,19 +1,22 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import uuid
-import system.containers
+import log
 import mqtt
 import reader show SizedReader
+import uuid
+
+import system.containers
 
 import .jobs
 import .scheduler
-import .synchronize show logger
 
 class ApplicationManager:
+  logger_/log.Logger
   scheduler_/Scheduler
   applications_ := {:}  // Map<string, Application>
 
-  constructor .scheduler_:
+  constructor logger/log.Logger .scheduler_:
+    logger_ = logger.with_name "apps"
 
   any_incomplete -> bool:
     applications_.do: | _ application/Application |
@@ -26,10 +29,18 @@ class ApplicationManager:
   install application/Application:
     applications_[application.id] = application
     scheduler_.add_job application
+    logger_.info "install" --tags=application.tags
+
+  complete application/Application reader/SizedReader:
+    if application.is_complete: return
+    application.complete reader
+    scheduler_.on_job_ready application
+    logger_.info "complete" --tags=application.tags
 
   uninstall application/Application:
     application.delete
     scheduler_.remove_job application
+    logger_.info "uninstall" --tags=application.tags
 
   synchronize client/mqtt.FullClient -> none:
     pruned/List? := null
@@ -49,12 +60,18 @@ class Application extends Job:
   static STATE_DELETED_                ::= 4 << 1 | 1
   static STATE_DELETED_UNSUBSCRIBED_   ::= 5 << 1 | 0
 
-  name/string
   id/string
   container_/uuid.Uuid? := null
   state_/int := STATE_CREATED_
 
-  constructor .name .id:
+  constructor name/string .id:
+    super name
+
+  stringify -> string:
+    return "application:$name"
+
+  tags -> Map:
+    return { "name": name, "id": id }
 
   is_complete -> bool:
     state ::= state_
