@@ -4,8 +4,8 @@ import .applications
 import .synchronize show logger
 
 abstract class Action:
-  static apply actions/List map/Map -> Map:
-    copy := map.copy
+  static apply actions/List map/Map? -> Map:
+    copy := map ? map.copy : {:}
     actions.do: | action/Action |
       action.perform copy
     return copy

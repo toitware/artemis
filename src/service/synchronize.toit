@@ -18,15 +18,9 @@ import ..shared.connect
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
-UPDATE_SYNCHRONIZED  /int ::= 0
-UPDATE_CHANGE_STATE  /int ::= 1
-UPDATE_CHANGE_CONFIG /int ::= 2
-
 revision/int? := null
 config/Map ::= {:}
 max_offline/Duration? := null
-
-new_config/Map? := null
 
 client/mqtt.FullClient? := null
 logger/log.Logger ::= log.default.with_name "artemis"
@@ -35,10 +29,11 @@ logger/log.Logger ::= log.default.with_name "artemis"
 BYTES_ALLOCATED ::= 4
 
 class SynchronizeJob extends Job:
-  device_/ArtemisDevice
+  device/ArtemisDevice
   applications_/ApplicationManager
+  actions_/monitor.Channel ::= monitor.Channel 16  // TODO(kasper): Maybe this should be unbounded?
 
-  constructor .device_ .applications_:
+  constructor .device .applications_:
 
   schedule now/JobTime -> JobTime?:
     if not last_run or not max_offline: return now
@@ -50,13 +45,14 @@ class SynchronizeJob extends Job:
   synchronize_ -> none:
     stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
     allocated := (process_stats stats)[BYTES_ALLOCATED]
-    updates := monitor.Channel 10
-    logger.info "connecting to broker" --tags={"device": device_.name}
+    logger.info "connecting to broker" --tags={"device": device.name}
 
-    disconnect ::= run_client device_ applications_ updates
+    disconnect ::= run_client this
     try:
       while true:
-        if handle_updates applications_ updates: continue
+        applications_.synchronize client
+        if process_actions_: continue
+
         new_allocated := (process_stats stats)[BYTES_ALLOCATED]
         delta := new_allocated - allocated
         logger.info "synchronized" --tags={"allocated": delta}
@@ -67,8 +63,61 @@ class SynchronizeJob extends Job:
     finally:
       disconnect.call
 
+  process_actions_ -> bool:
+    actions/List? := actions_.receive
+
+    // TODO(kasper): Not all actions will work on the 'apps' subsection,
+    // so this needs to be generalized.
+    if actions: config["apps"] = Action.apply actions (config.get "apps")
+
+    // If there are any incomplete apps left, we still have
+    // work to do, so we return true. If all apps have been
+    // completed, we're done.
+    return actions_.size > 0 or applications_.any_incomplete
+
+  handle_nop -> none:
+    actions_.send null
+
+  handle_new_config new_config/Map -> none:
+    actions := []
+    existing := config.get "apps" --if_absent=: {:}
+    apps := new_config.get "apps" --if_absent=: {:}
+    apps.do: | name new |
+      old := existing.get name
+      if old != new:
+        // New or updated app.
+        if old:
+          actions.add (ActionApplicationUpdate applications_ name new old)
+        else:
+          actions.add (ActionApplicationInstall applications_ name new)
+    existing.do: | name old |
+      if apps.get name: continue.do
+      actions.add (ActionApplicationUninstall applications_ name old)
+
+    // TODO(kasper): Should this just stay in config?
+    if new_config.contains "max-offline":
+      max_offline = Duration --s=new_config["max-offline"]
+    else:
+      max_offline = null
+
+    actions_.send actions
+
+  handle_new_image topic/string packet/mqtt.PublishPacket -> none:
+    // TODO(kasper): This is a bit hacky.
+    path := topic.split "/"
+    id := path[2]
+    application/Application? := applications_.get id
+    if not application or application.is_complete: return
+    application.complete packet.payload_stream
+    logger.info "app install: received image" --tags={
+        "name": application.name,
+        "id": application.id,
+    }
+    actions_.send null
+
 // TODO(kasper): Turn this into a method on SynchronizeJob.
-run_client device/ArtemisDevice applications/ApplicationManager updates/monitor.Channel -> Lambda:
+run_client job/SynchronizeJob -> Lambda:
+  device ::= job.device
   network := net.open
   transport := create_transport network
   client = mqtt.FullClient --transport=transport
@@ -87,6 +136,7 @@ run_client device/ArtemisDevice applications/ApplicationManager updates/monitor.
 
   // Add the topics we care about.
   subscribed_to_config := false
+  new_config/Map? := null
 
   handle_task/Task? := ?
   handle_task = task::
@@ -104,29 +154,15 @@ run_client device/ArtemisDevice applications/ApplicationManager updates/monitor.
                   subscribed_to_config = true
                   client.subscribe device.topic_config
                 if new_config and revision == new_config["revision"]:
-                  updates.send UPDATE_CHANGE_CONFIG
+                  job.handle_new_config new_config
               else:
-                // TODO(kasper): Maybe we should let the update handler decide
-                // if we're synchronized or not?
-                updates.send UPDATE_SYNCHRONIZED
+                job.handle_nop
             else if topic == device.topic_config:
               new_config = ubjson.decode publish.payload
               if revision == new_config["revision"]:
-                updates.send UPDATE_CHANGE_CONFIG
+                job.handle_new_config new_config
             else if topic.starts_with "toit/apps/":
-              // TODO(kasper): Hacky!
-              path := topic.split "/"
-              id := path[2]
-              application/Application? := applications.get id
-              if application and not application.is_complete:
-                application.complete publish.payload_stream
-                logger.info "app install: received image" --tags={
-                    "name": application.name,
-                    "id": application.id,
-                }
-                // Our local state has changed. Maybe we're done? Let
-                // the update handler know.
-                updates.send UPDATE_CHANGE_STATE
+              job.handle_new_image topic publish
       finally:
         critical_do:
           disconnected.set true
@@ -137,10 +173,9 @@ run_client device/ArtemisDevice applications/ApplicationManager updates/monitor.
 
   // Wait for the client to run.
   client.when_running: null
-
   client.publish device.topic_presence "online".to_byte_array --retain
-
   client.subscribe device.topic_revision
+
   disconnect_lambda := ::
     try:
       if client: client.publish device.topic_presence "offline".to_byte_array --retain
@@ -149,39 +184,3 @@ run_client device/ArtemisDevice applications/ApplicationManager updates/monitor.
     finally:
       if handle_task: handle_task.cancel
   return disconnect_lambda
-
-// TODO(kasper): Turn this into a method on SynchronizeJob.
-handle_updates applications/ApplicationManager updates/monitor.Channel -> bool:
-  applications.synchronize client
-  update := updates.receive
-  if update == UPDATE_SYNCHRONIZED: return false
-
-  actions := []
-  if update == UPDATE_CHANGE_CONFIG:
-    existing := config.get "apps" --if_absent=: {:}
-    apps := new_config.get "apps" --if_absent=: {:}
-    apps.do: | name new |
-      old := existing.get name
-      if old != new:
-        // New or updated app.
-        if old:
-          actions.add (ActionApplicationUpdate applications name new old)
-        else:
-          actions.add (ActionApplicationInstall applications name new)
-    existing.do: | name old |
-      if apps.get name: continue.do
-      actions.add (ActionApplicationUninstall applications name old)
-
-    // Commit.
-    config["apps"] = Action.apply actions existing
-
-    // TODO(kasper): Should this just stay in config?
-    if new_config.contains "max-offline":
-      max_offline = Duration --s=new_config["max-offline"]
-    else:
-      max_offline = null
-
-  // If there are any incomplete apps left, we still have
-  // work to do, so we return true. If all apps have been
-  // completed, we're done.
-  return applications.any_incomplete
