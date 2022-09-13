@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import .application
+import .applications
 import .synchronize show logger
 
 abstract class Action:
@@ -13,9 +13,9 @@ abstract class Action:
   abstract perform map/Map -> none
 
 abstract class ActionApplication extends Action:
+  manager/ApplicationManager
   name/string
-  manager/ApplicationManager ::= ApplicationManager.instance
-  constructor .name:
+  constructor .manager .name:
 
   install map/Map id/string:
     map[name] = id
@@ -23,13 +23,13 @@ abstract class ActionApplication extends Action:
 
   uninstall map/Map id/string:
     map.remove name
-    application/Application? := manager.lookup id
+    application/Application? := manager.get id
     if application: manager.uninstall application
 
 class ActionApplicationInstall extends ActionApplication:
   new/string
-  constructor name/string .new:
-    super name
+  constructor manager/ApplicationManager name/string .new:
+    super manager name
 
   perform map/Map -> none:
     logger.info "app install: request" --tags={"name": name, "new": new}
@@ -38,8 +38,8 @@ class ActionApplicationInstall extends ActionApplication:
 class ActionApplicationUpdate extends ActionApplication:
   new/string
   old/string
-  constructor name/string .new .old:
-    super name
+  constructor manager/ApplicationManager name/string .new .old:
+    super manager name
 
   perform map/Map -> none:
     logger.info "app install: request" --tags={"name": name, "new": new, "old": old}
@@ -47,8 +47,8 @@ class ActionApplicationUpdate extends ActionApplication:
 
 class ActionApplicationUninstall extends ActionApplication:
   old/string
-  constructor name/string .old:
-    super name
+  constructor manager/ApplicationManager name/string .old:
+    super manager name
 
   perform map/Map -> none:
     logger.info "app uninstall" --tags={"name": name}

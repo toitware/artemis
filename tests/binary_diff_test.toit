@@ -5,7 +5,7 @@ import expect show *
 import reader show BufferedReader
 
 import artemis.cli.binary_diff show *
-import artemis.service.patch show *
+import artemis.service.utils.patch show *
 
 main:
   one_way

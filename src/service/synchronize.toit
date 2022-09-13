@@ -10,9 +10,9 @@ import uuid
 
 import system.containers
 
-import .action
-import .application
-import .scheduler show Job SchedulerTime
+import .actions
+import .applications
+import .jobs
 
 import ..shared.connect
 
@@ -35,38 +35,40 @@ logger/log.Logger ::= log.default.with_name "artemis"
 BYTES_ALLOCATED ::= 4
 
 class SynchronizeJob extends Job:
-  device/ArtemisDevice
-  constructor .device:
+  device_/ArtemisDevice
+  applications_/ApplicationManager
 
-  schedule now/SchedulerTime -> SchedulerTime?:
+  constructor .device_ .applications_:
+
+  schedule now/JobTime -> JobTime?:
     if not last_run or not max_offline: return now
     return last_run + max_offline
 
   run -> none:
-    synchronize device
+    synchronize_
 
-synchronize device/ArtemisDevice:
-  stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
-  allocated := (process_stats stats)[BYTES_ALLOCATED]
-  updates := monitor.Channel 10
-  logger.info "connecting to broker" --tags={"device": device.name}
+  synchronize_ -> none:
+    stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
+    allocated := (process_stats stats)[BYTES_ALLOCATED]
+    updates := monitor.Channel 10
+    logger.info "connecting to broker" --tags={"device": device_.name}
 
-  applications ::= ApplicationManager.instance
-  disconnect ::= run_client device updates
-  try:
-    while true:
-      if handle_updates applications updates: continue
-      new_allocated := (process_stats stats)[BYTES_ALLOCATED]
-      delta := new_allocated - allocated
-      logger.info "synchronized" --tags={"allocated": delta}
-      allocated = new_allocated
-      if max_offline:
-        logger.info "going offline" --tags={"duration": max_offline}
-        return
-  finally:
-    disconnect.call
+    disconnect ::= run_client device_ applications_ updates
+    try:
+      while true:
+        if handle_updates applications_ updates: continue
+        new_allocated := (process_stats stats)[BYTES_ALLOCATED]
+        delta := new_allocated - allocated
+        logger.info "synchronized" --tags={"allocated": delta}
+        allocated = new_allocated
+        if max_offline:
+          logger.info "going offline" --tags={"duration": max_offline}
+          return
+    finally:
+      disconnect.call
 
-run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
+// TODO(kasper): Turn this into a method on SynchronizeJob.
+run_client device/ArtemisDevice applications/ApplicationManager updates/monitor.Channel -> Lambda:
   network := net.open
   transport := create_transport network
   client = mqtt.FullClient --transport=transport
@@ -115,12 +117,12 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
               // TODO(kasper): Hacky!
               path := topic.split "/"
               id := path[2]
-              application/Application? := ApplicationManager.instance.lookup id
-              if application and application.container == null:
-                application.fetch client publish.payload_stream
-                logger.info "app install: container fetched" --tags={
+              application/Application? := applications.get id
+              if application and not application.is_complete:
+                application.complete publish.payload_stream
+                logger.info "app install: received image" --tags={
                     "name": application.name,
-                    "container": application.container,
+                    "id": application.id,
                 }
                 // Our local state has changed. Maybe we're done? Let
                 // the update handler know.
@@ -148,27 +150,27 @@ run_client device/ArtemisDevice updates/monitor.Channel -> Lambda:
       if handle_task: handle_task.cancel
   return disconnect_lambda
 
+// TODO(kasper): Turn this into a method on SynchronizeJob.
 handle_updates applications/ApplicationManager updates/monitor.Channel -> bool:
-  applications.synchronize_subscriptions client
+  applications.synchronize client
   update := updates.receive
   if update == UPDATE_SYNCHRONIZED: return false
 
   actions := []
   if update == UPDATE_CHANGE_CONFIG:
     existing := config.get "apps" --if_absent=: {:}
-    apps := new_config.get "apps"
-    if apps:
-      apps.do: | name new |
-        old := existing.get name
-        if old != new:
-          // New or updated app.
-          if old:
-            actions.add (ActionApplicationUpdate name new old)
-          else:
-            actions.add (ActionApplicationInstall name new)
+    apps := new_config.get "apps" --if_absent=: {:}
+    apps.do: | name new |
+      old := existing.get name
+      if old != new:
+        // New or updated app.
+        if old:
+          actions.add (ActionApplicationUpdate applications name new old)
+        else:
+          actions.add (ActionApplicationInstall applications name new)
     existing.do: | name old |
-      if apps and apps.get name: continue.do
-      actions.add (ActionApplicationUninstall name old)
+      if apps.get name: continue.do
+      actions.add (ActionApplicationUninstall applications name old)
 
     // Commit.
     config["apps"] = Action.apply actions existing
@@ -179,5 +181,7 @@ handle_updates applications/ApplicationManager updates/monitor.Channel -> bool:
     else:
       max_offline = null
 
-  // state == UPDATE_CHANGE_STATE or state == UPDATE_CHANGE_CONFIG
-  return not applications.is_complete
+  // If there are any incomplete apps left, we still have
+  // work to do, so we return true. If all apps have been
+  // completed, we're done.
+  return applications.any_incomplete
