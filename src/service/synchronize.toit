@@ -40,9 +40,6 @@ class SynchronizeJob extends Job:
     return last_run + max_offline
 
   run -> none:
-    synchronize_
-
-  synchronize_ -> none:
     stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
     allocated := (process_stats stats)[BYTES_ALLOCATED]
     logger_.info "connecting to broker" --tags={"device": device.name}
@@ -50,8 +47,10 @@ class SynchronizeJob extends Job:
     run_client_: | client/mqtt.FullClient |
       while true:
         applications_.synchronize client
-        work_remaining ::= process_actions_
-        if work_remaining: continue
+        actions/ActionBundle? := actions_.receive
+        if actions: actions.commit config
+        // If there is more work to do, we take another spin in the loop.
+        if actions_.size > 0 or applications_.any_incomplete: continue
 
         new_allocated := (process_stats stats)[BYTES_ALLOCATED]
         delta := new_allocated - allocated
@@ -61,23 +60,11 @@ class SynchronizeJob extends Job:
           logger_.info "going offline" --tags={"duration": max_offline}
           return
 
-  process_actions_ -> bool:
-    actions/List? := actions_.receive
-
-    // TODO(kasper): Not all actions will work on the 'apps' subsection,
-    // so this needs to be generalized.
-    if actions: config["apps"] = Action.apply actions (config.get "apps")
-
-    // If there are any incomplete apps left, we still have
-    // work to do, so we return true. If all apps have been
-    // completed, we're done.
-    return actions_.size > 0 or applications_.any_incomplete
-
   handle_nop_ -> none:
     actions_.send null
 
   handle_new_config_ new_config/Map -> none:
-    actions := []
+    actions := ActionBundle "apps"
     existing := config.get "apps" --if_absent=: {:}
     apps := new_config.get "apps" --if_absent=: {:}
     apps.do: | name new |
