@@ -47,7 +47,6 @@ class SynchronizeJob extends Job:
   synchronize_ -> none:
     stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
     allocated := (process_stats stats)[BYTES_ALLOCATED]
-    updates := monitor.Channel 10
     logger_.info "connecting to broker" --tags={"device": device.name}
 
     disconnect ::= run_client this
