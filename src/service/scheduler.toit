@@ -1,13 +1,15 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import log
 import .jobs
 
 class Scheduler:
   jobs_ := []
   signal_ ::= SchedulerSignal_
+  logger_/log.Logger
 
-  awaken -> none:
-    signal_.awaken
+  constructor logger/log.Logger:
+    logger_ = logger.with_name "scheduler"
 
   run -> none:
     while true:
@@ -18,13 +20,27 @@ class Scheduler:
       if not next: next = now + (Duration --ms=500)
       signal_.wait next
 
+  add_jobs jobs/List -> none:
+    jobs.do: add_job it
+
   add_job job/Job -> none:
     job.scheduler_ = this
     jobs_.add job
-    awaken
+    signal_.awaken
 
   remove_job job/Job -> none:
     jobs_ = jobs_.filter: not identical it job
+
+  on_job_started job/Job -> none:
+    logger_.info "job started" --tags={"job": job.stringify}
+    signal_.awaken
+
+  on_job_ready job/Job -> none:
+    signal_.awaken
+
+  on_job_stopped job/Job -> none:
+    logger_.info "job stopped" --tags={"job": job.stringify}
+    signal_.awaken
 
   run_due_jobs_ now/JobTime -> JobTime?:
     first/JobTime? := null

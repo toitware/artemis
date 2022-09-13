@@ -3,32 +3,50 @@
 import .scheduler
 
 abstract class Job:
+  name/string
   scheduler_/Scheduler? := null
   task_/Task? := null
   last_run_/JobTime? := null
 
-  last_run -> JobTime?:
-    return last_run_
+  constructor .name:
 
   abstract schedule now/JobTime -> JobTime?
   abstract run -> none
+
+  last_run -> JobTime?:
+    return last_run_
+
+  stringify -> string:
+    return name
 
   start now/JobTime -> none:
     if task_: return
     task_ = task::
       try:
-        catch --trace: run
+        catch --trace:
+          scheduler_.on_job_started this
+          run
       finally:
         // TODO(kasper): Sometimes it makes more sense to set the
         // last run timestamp to the starting time ($now).
         last_run_ = JobTime.now
         task_ = null
-        scheduler_.awaken
+        scheduler_.on_job_stopped this
 
   stop -> none:
     if not task_: return
     task_.cancel
     // TODO(kasper): Should we wait until the task is done?
+
+abstract class PeriodicJob extends Job:
+  period_/Duration
+
+  constructor name/string .period_:
+    super name
+
+  schedule now/JobTime -> JobTime?:
+    if not last_run: return now
+    return last_run + period_
 
 class JobTime:
   us_/int

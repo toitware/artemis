@@ -29,16 +29,18 @@ max_offline/Duration? := null
 new_config/Map? := null
 
 client/mqtt.FullClient? := null
-logger/log.Logger ::= log.default.with_name "artemis"
 
 // Index in return value from `process_stats`.
 BYTES_ALLOCATED ::= 4
 
 class SynchronizeJob extends Job:
+  logger_/log.Logger
   device_/ArtemisDevice
   applications_/ApplicationManager
 
-  constructor .device_ .applications_:
+  constructor logger/log.Logger .device_ .applications_:
+    logger_ = logger.with_name "synchronize"
+    super "synchronize"
 
   schedule now/JobTime -> JobTime?:
     if not last_run or not max_offline: return now
@@ -51,7 +53,7 @@ class SynchronizeJob extends Job:
     stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
     allocated := (process_stats stats)[BYTES_ALLOCATED]
     updates := monitor.Channel 10
-    logger.info "connecting to broker" --tags={"device": device_.name}
+    logger_.info "connecting to broker" --tags={"device": device_.name}
 
     disconnect ::= run_client device_ applications_ updates
     try:
@@ -59,10 +61,10 @@ class SynchronizeJob extends Job:
         if handle_updates applications_ updates: continue
         new_allocated := (process_stats stats)[BYTES_ALLOCATED]
         delta := new_allocated - allocated
-        logger.info "synchronized" --tags={"allocated": delta}
+        logger_.info "synchronized" --tags={"allocated": delta}
         allocated = new_allocated
         if max_offline:
-          logger.info "going offline" --tags={"duration": max_offline}
+          logger_.info "going offline" --tags={"duration": max_offline}
           return
     finally:
       disconnect.call
@@ -118,12 +120,8 @@ run_client device/ArtemisDevice applications/ApplicationManager updates/monitor.
               path := topic.split "/"
               id := path[2]
               application/Application? := applications.get id
-              if application and not application.is_complete:
-                application.complete publish.payload_stream
-                logger.info "app install: received image" --tags={
-                    "name": application.name,
-                    "id": application.id,
-                }
+              if application:
+                applications.complete application publish.payload_stream
                 // Our local state has changed. Maybe we're done? Let
                 // the update handler know.
                 updates.send UPDATE_CHANGE_STATE
