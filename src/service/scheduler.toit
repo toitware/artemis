@@ -1,52 +1,35 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-abstract class Job:
-  task_/Task? := null
-  last_run_/SchedulerTime? := null
-
-  last_run -> SchedulerTime?:
-    return last_run_
-
-  abstract next_run now/SchedulerTime -> SchedulerTime
-  abstract run -> none
-
-  start now/SchedulerTime -> none:
-    if task_: return
-    task_ = task::
-      try:
-        catch --trace: run
-      finally:
-        // TODO(kasper): Sometimes it makes more sense to set the
-        // last run timestamp to the starting time ($now).
-        last_run_ = SchedulerTime.now
-        task_ = null
-        // TODO(kasper): Tell scheduler that the state has changed.
-
-  stop -> none:
-    if not task_: return
-    task_.cancel
-    // TODO(kasper): Should we wait until the task is done?
+import .jobs
 
 class Scheduler:
-  jobs_ ::= []
+  jobs_ := []
+  signal_ ::= SchedulerSignal_
+
+  awaken -> none:
+    signal_.awaken
 
   run -> none:
     while true:
-      now := SchedulerTime.now
+      now := JobTime.now
       // TODO(kasper): Stop jobs?
       next := run_due_jobs_ now
       // TODO(kasper): Return when we're all idle.
       if not next: next = now + (Duration --ms=500)
-      sleep (now.to next)
+      signal_.wait next
 
   add_job job/Job -> none:
+    job.scheduler_ = this
     jobs_.add job
-    // TODO(kasper): Tell scheduler that the state has changed.
+    awaken
 
-  run_due_jobs_ now/SchedulerTime -> SchedulerTime?:
-    first/SchedulerTime? := null
+  remove_job job/Job -> none:
+    jobs_ = jobs_.filter: not identical it job
+
+  run_due_jobs_ now/JobTime -> JobTime?:
+    first/JobTime? := null
     jobs_.do: | job/Job |
-      next ::= job.next_run now
+      next ::= job.schedule now
       if not next: continue.do
       if next <= now:
         job.start now
@@ -54,23 +37,13 @@ class Scheduler:
         first = next
     return first
 
-// TODO(kasper): What is a good name for this?
-class SchedulerTime:
-  us_/int
+monitor SchedulerSignal_:
+  awakened_ := false
 
-  constructor .us_:
+  awaken -> none:
+    awakened_ = true
 
-  constructor.now:
-    us_ = Time.monotonic_us
-
-  operator <= other/SchedulerTime -> bool:
-    return us_ <= other.us_
-
-  operator < other/SchedulerTime -> bool:
-    return us_ < other.us_
-
-  operator + duration/Duration -> SchedulerTime:
-    return SchedulerTime us_ + duration.in_us
-
-  to other/SchedulerTime -> Duration:
-    return Duration --us=other.us_ - us_
+  wait deadline/JobTime? -> none:
+    deadline_monotonic := deadline ? deadline.to_monotonic_us : null
+    try_await --deadline=deadline_monotonic: awakened_
+    awakened_ = false
