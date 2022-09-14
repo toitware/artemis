@@ -86,7 +86,8 @@ class SynchronizeJob extends Job:
           id ::= extract_id_ value
           actions.add (ActionApplicationUninstall applications_ key id)
         --modified=: | key nested/Modification |
-          handle_app_modification_ actions key nested
+          id ::= extract_id_ new_config["apps"][key]
+          handle_app_modification_ actions key id nested
 
     modification.on_value "max-offline"
         --added   =: | value | max_offline = (value is int) ? Duration --s=value : null
@@ -94,20 +95,19 @@ class SynchronizeJob extends Job:
 
     actions_.send actions
 
-  handle_app_modification_ actions/ActionBundle name/string modification/Modification -> none:
+  handle_app_modification_ actions/ActionBundle name/string id/string modification/Modification -> none:
     modification.on_value "id"
         --added=: | value |
-          // An existing app suddenly got an id.
-          unreachable
+          actions.add (ActionApplicationInstall applications_ name value)
+          return
         --removed=: | value |
-          // An existing app lost its id.
-          unreachable
+          actions.add (ActionApplicationUninstall applications_ name value)
+          return
         --updated=: | from to |
-          // An existing app changed its id.
           actions.add (ActionApplicationUninstall applications_ name from)
           actions.add (ActionApplicationInstall applications_ name to)
-    // TODO(kasper): This should be based on id, not name.
-    actions.add (ActionApplicationUpdate applications_ name)
+          return
+    actions.add (ActionApplicationUpdate applications_ name id)
 
   handle_new_image_ topic/string packet/mqtt.PublishPacket -> none:
     // TODO(kasper): This is a bit hacky.

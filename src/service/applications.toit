@@ -42,8 +42,8 @@ class ApplicationManager:
     scheduler_.remove_job application
     logger_.info "uninstall" --tags=application.tags
 
-  update name/string:
-    logger_.info "update (unimplemented)" --tags={"name": name}
+  update application/Application:
+    logger_.info "update (unimplemented)" --tags=application.tags
 
   synchronize client/mqtt.FullClient -> none:
     pruned/List? := null

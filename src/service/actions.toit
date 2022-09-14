@@ -38,11 +38,13 @@ class ActionApplicationInstall extends ActionApplication:
     install new
 
 class ActionApplicationUpdate extends ActionApplication:
-  constructor manager/ApplicationManager name/string:
+  id/string
+  constructor manager/ApplicationManager name/string .id:
     super manager name
 
   perform -> none:
-    manager.update name
+    application/Application? := manager.get id
+    if application: manager.update application
 
 class ActionApplicationUninstall extends ActionApplication:
   old/string
