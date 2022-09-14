@@ -30,7 +30,6 @@ abstract class Modification:
   map key/string [--added] [--removed] [--updated] -> none:
     map key --added=added --removed=removed --updated=updated
         --modified=: | key modification/UpdatedMap_ |
-          unreachable  // TODO(kasper): Test this case.
           updated.call key modification.from_ modification.to_
 
   map key/string [--added] [--removed] [--modified] -> none:

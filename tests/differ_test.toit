@@ -183,6 +183,13 @@ test_nested_change:
   modification.map "foo"
       --added=: expect false
       --removed=: expect false
+      --updated=: | key from to |
+        expect_equals key "bar"
+        expect_structural_equals {"id": 42} from
+        expect_structural_equals {"id": 21} to
+  modification.map "foo"
+      --added=: expect false
+      --removed=: expect false
       --modified=: | key nested/Modification |
         expect_equals key "bar"
         nested.value "id"
