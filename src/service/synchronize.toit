@@ -64,11 +64,12 @@ class SynchronizeJob extends Job:
   handle_nop_ -> none:
     actions_.send null
 
-  // TODO(kasper): This is a hack to wrap old applications in the new
-  // config map structure.
-  wrap_appplication_config_ value/any -> Map:
-    if value is Map: return value
-    return {Application.CONFIG_ID: value}
+  // TODO(kasper): This is a hack to allow old applications
+  // that haven't wrapped their ids in a map. Maybe we can
+  // just ignore them?
+  extract_id_ value/any -> string:
+    if value is Map: return value[Application.CONFIG_ID]
+    return value
 
   handle_new_config_ new_config/Map -> none:
     modification/Modification? := Modification.compute
@@ -79,21 +80,34 @@ class SynchronizeJob extends Job:
     actions := ActionBundle new_config
     modification.on_map "apps"
         --added=: | key value |
-          to_config ::= wrap_appplication_config_ value
-          actions.add (ActionApplicationInstall applications_ key to_config)
+          id ::= extract_id_ value
+          actions.add (ActionApplicationInstall applications_ key id)
         --removed=: | key value |
-          from_config ::= wrap_appplication_config_ value
-          actions.add (ActionApplicationUninstall applications_ key from_config)
-        --updated=: | key from to |
-          to_config ::= wrap_appplication_config_ to
-          from_config ::= wrap_appplication_config_ from
-          actions.add (ActionApplicationUpdate applications_ key to_config from_config)
+          id ::= extract_id_ value
+          actions.add (ActionApplicationUninstall applications_ key id)
+        --modified=: | key nested/Modification |
+          handle_app_modification_ actions key nested
 
     modification.on_value "max-offline"
         --added   =: | value | max_offline = (value is int) ? Duration --s=value : null
         --removed =: | value | max_offline = null
 
     actions_.send actions
+
+  handle_app_modification_ actions/ActionBundle name/string modification/Modification -> none:
+    modification.on_value "id"
+        --added=: | value |
+          // An existing app suddenly got an id.
+          unreachable
+        --removed=: | value |
+          // An existing app lost its id.
+          unreachable
+        --updated=: | from to |
+          // An existing app changed its id.
+          actions.add (ActionApplicationUninstall applications_ name from)
+          actions.add (ActionApplicationInstall applications_ name to)
+    // TODO(kasper): This should be based on id, not name.
+    actions.add (ActionApplicationUpdate applications_ name)
 
   handle_new_image_ topic/string packet/mqtt.PublishPacket -> none:
     // TODO(kasper): This is a bit hacky.

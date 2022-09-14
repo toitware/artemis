@@ -42,6 +42,9 @@ class ApplicationManager:
     scheduler_.remove_job application
     logger_.info "uninstall" --tags=application.tags
 
+  update name/string:
+    logger_.info "update (unimplemented)" --tags={"name": name}
+
   synchronize client/mqtt.FullClient -> none:
     pruned/List? := null
     applications_.do: | _ application/Application |
@@ -66,8 +69,7 @@ class Application extends Job:
   container_/uuid.Uuid? := null
   state_/int := STATE_CREATED_
 
-  constructor name/string config/Map:
-    id = config[CONFIG_ID]
+  constructor name/string .id:
     super name
 
   stringify -> string:

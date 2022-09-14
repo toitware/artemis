@@ -22,16 +22,15 @@ abstract class ActionApplication extends Action:
   name/string
   constructor .manager .name:
 
-  install config/Map:
-    manager.install (Application name config)
+  install id/string:
+    manager.install (Application name id)
 
-  uninstall config/Map:
-    id := config[Application.CONFIG_ID]
+  uninstall id/string:
     application/Application? := manager.get id
     if application: manager.uninstall application
 
 class ActionApplicationInstall extends ActionApplication:
-  new/Map
+  new/string
   constructor manager/ApplicationManager name/string .new:
     super manager name
 
@@ -39,16 +38,14 @@ class ActionApplicationInstall extends ActionApplication:
     install new
 
 class ActionApplicationUpdate extends ActionApplication:
-  new/Map
-  old/Map
-  constructor manager/ApplicationManager name/string .new .old:
+  constructor manager/ApplicationManager name/string:
     super manager name
 
   perform -> none:
-    uninstall old
+    manager.update name
 
 class ActionApplicationUninstall extends ActionApplication:
-  old/Map
+  old/string
   constructor manager/ApplicationManager name/string .old:
     super manager name
 
