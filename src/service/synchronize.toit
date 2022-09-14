@@ -77,7 +77,7 @@ class SynchronizeJob extends Job:
         --updated =: | key from to | actions.add (ActionApplicationUpdate applications_ key to from)
 
     modification.on_value "max-offline"
-        --added   =: | value | max_offline = Duration --s=value
+        --added   =: | value | max_offline = (value is int) ? Duration --s=value : null
         --removed =: | value | max_offline = null
 
     actions_.send actions

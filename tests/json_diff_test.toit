@@ -23,6 +23,7 @@ main:
 
   test_map_change
   test_nested_change
+  test_copy_and_modify
 
 test_stringify:
   test_stringify "{ foo: ~42 }" --from={"foo":42} --to={:}
@@ -57,6 +58,15 @@ callbacks expected/int [block]:
 
 test_value_change expected_from/any expected_to/any:
   modification/Modification? := null
+  modification = Modification.compute --from={:} --to={"foo": expected_to}
+  callbacks 1: | calls | modification.on_value
+      --added=: expect false
+      --removed=: expect false
+      --updated=: | from to |
+        expect_structural_equals {:} from
+        expect_structural_equals {"foo": expected_to} to
+        calls.up
+
   modification = Modification.compute --from={:} --to={"foo": expected_to}
   callbacks 1: | calls | modification.on_value "foo"
       --added=: | to |
@@ -96,8 +106,28 @@ test_map_change:
   test_map_added
   test_map_removed
   test_map_updated
+  test_map_extras
 
+test_map_extras:
   modification/Modification? := null
+  modification = Modification.compute --from={:} --to={"foo": 42}
+  callbacks 1: | calls | modification.on_map
+      --added=: | key/string value |
+        expect_equals "foo" key
+        expect_equals 42 value
+        calls.up
+      --removed=: expect false
+      --updated=: expect false
+
+  modification = Modification.compute --from={"bar": 42} --to={"bar": 87}
+  callbacks 1: | calls | modification.on_value
+      --added=: expect false
+      --removed=: expect false
+      --updated=: | from to |
+        expect_structural_equals {"bar": 42} from
+        expect_structural_equals {"bar": 87} to
+        calls.up
+
   modification = Modification.compute --from={"foo": {"bar": 42}} --to={"foo": {"bar": 87}}
   callbacks 1: | calls | modification.on_value "foo"
       --added=: expect false
@@ -114,6 +144,15 @@ test_map_no_change:
 
 test_map_added:
   modification/Modification? := null
+  modification = Modification.compute --from={:} --to={"bar": 42}
+  callbacks 1: | calls | modification.on_map
+      --added=: | key to |
+        expect_equals "bar" key
+        expect_structural_equals 42 to
+        calls.up
+      --removed=: expect false
+      --updated=: expect false
+
   modification = Modification.compute --from={"foo": {:}} --to={"foo": {"bar": 42}}
   callbacks 1: | calls | modification.on_map "foo"
       --added=: | key to |
@@ -172,6 +211,13 @@ test_map_removed:
         calls.up
       --updated=: expect false
 
+  modification = Modification.compute --from={"foo": {"bar": 87, "baz": 99}} --to={"foo": false}
+  callbacks 2: | calls | modification.on_map "foo"
+      --added=: expect false
+      --removed=: | key from |
+        calls.up
+      --updated=: expect false
+
 test_map_updated:
   modification/Modification? := null
   modification = Modification.compute --from={"foo": {"bar": 87}} --to={"foo": {"bar": 99}}
@@ -204,24 +250,33 @@ test_nested_change:
       --modified=: | nested/Modification |
         nested.on_value "bar"
             --added=:
-              expect_equals 99 it
+              expect_structural_equals 99 it
               calls.up
             --removed=:
-              expect_equals 87 it
+              expect_structural_equals 87 it
               calls.up
         calls.up
   callbacks 2: | calls | modification.on_map "foo"
-      --added=:
-        expect_equals "bar" it
+      --added=: | key value |
+        expect_equals "bar" key
+        expect_structural_equals 99 value
         calls.up
-      --removed=:
-        expect_equals "bar" it
+      --removed=: | key value |
+        expect_equals "bar" key
+        expect_structural_equals 87 value
         calls.up
       --modified=: expect false
 
   modification = Modification.compute
       --from = {"foo": {"bar": {"id": 42}}}
       --to   = {"foo": {"bar": {"id": 21}}}
+  callbacks 1: | calls | modification.on_value "foo"
+      --added=: expect false
+      --removed=: expect false
+      --updated=: | from to |
+        expect_structural_equals {"bar": {"id": 42}} from
+        expect_structural_equals {"bar": {"id": 21}} to
+        calls.up
   callbacks 1: | calls | modification.on_map "foo"
       --added=: expect false
       --removed=: expect false
@@ -241,5 +296,135 @@ test_nested_change:
               calls.up
             --removed=:
               expect_equals 42 it
+              calls.up
+        calls.up
+
+deep_copy value/any -> any:
+  if value is List:
+    return List value.size: deep_copy value[it]
+  else if value is Map:
+    copy := value.copy
+    value.do: | key value |
+      copy[key] = deep_copy value
+    return copy
+  else:
+    return value
+
+test_copy_and_modify:
+  original ::= {
+    "apps": {
+      "hest": {
+        "id": 42,
+        "triggers": [0, 2],
+      },
+      "fisk": {
+        "id": 87,
+        "triggers": [0, 3, 7, 1]
+      }
+    }
+  }
+
+  modification/Modification? := null
+  updated := null
+
+  updated = deep_copy original
+  updated["apps"]["hest"]["id"] = 99
+  modification = Modification.compute --from=original --to=updated
+  callbacks 3: | calls | modification.on_map "apps"
+      --added=: expect false
+      --removed=: expect false
+      --modified=: | key/string nested/Modification |
+        expect_equals "hest" key
+        nested.on_map
+            --added=: expect false
+            --removed=: expect false
+            --updated=: | key from to |
+              expect_equals "id" key
+              expect_equals 42 from
+              expect_equals 99 to
+              calls.up
+        nested.on_value "id"
+            --added=: expect false
+            --removed=: expect false
+            --updated=: | from to |
+              expect_equals 42 from
+              expect_equals 99 to
+              calls.up
+        calls.up
+
+  updated = deep_copy original
+  updated["apps"]["hest"]["id"] = 101
+  modification = Modification.compute --from=original --to=updated
+  callbacks 8: | calls | modification.on_value "apps"
+      --added=: expect false
+      --removed=: expect false
+      --modified=: | nested/Modification |
+        nested.on_map
+            --added=: expect false
+            --removed=: expect false
+            --updated=: | key from to |
+              expect_equals "hest" key
+              expect_structural_equals {"id": 42, "triggers": [0, 2]} from
+              expect_structural_equals {"id": 101, "triggers": [0, 2]} to
+              calls.up
+        nested.on_map
+            --added=: expect false
+            --removed=: expect false
+            --modified=: | key inner/Modification |
+              expect_equals "hest" key
+              inner.on_value
+                 --added=: | value |
+                   expect_structural_equals {"id": 101, "triggers": [0, 2]} value
+                   calls.up
+                 --removed=: | value |
+                   expect_structural_equals {"id": 42, "triggers": [0, 2]} value
+                   calls.up
+              inner.on_value "id"
+                 --added=: | value |
+                   expect_equals 101 value
+                   calls.up
+                 --removed=: | value |
+                   expect_equals 42 value
+                   calls.up
+              calls.up
+        nested.on_map "hest"
+            --added=: expect false
+            --removed=: expect false
+            --updated=: | key from to |
+              expect_equals "id" key
+              expect_equals 42 from
+              expect_equals 101 to
+              calls.up
+        calls.up
+
+  updated = deep_copy original
+  updated["apps"]["hest"]["triggers"][0] = 17
+  modification = Modification.compute --from=original --to=updated
+  callbacks 2: | calls | modification.on_map "apps"
+      --added=: expect false
+      --removed=: expect false
+      --modified=: | key/string nested/Modification |
+        nested.on_value "triggers"
+            --added=: expect false
+            --removed=: expect false
+            --updated=: | from to |
+              expect_structural_equals [0, 2] from
+              expect_structural_equals [17, 2] to
+              calls.up
+        calls.up
+
+  updated = deep_copy original
+  updated["apps"]["hest"]["triggers"].add 17
+  updated["apps"]["fisk"]["triggers"].add 17
+  modification = Modification.compute --from=original --to=updated
+  callbacks 4: | calls | modification.on_map "apps"
+      --added=: expect false
+      --removed=: expect false
+      --modified=: | key/string nested/Modification |
+        nested.on_value "triggers"
+            --added=: expect false
+            --removed=: expect false
+            --updated=: | from to |
+              expect_equals 17 to.last
               calls.up
         calls.up
