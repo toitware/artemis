@@ -15,6 +15,7 @@ import .applications
 import .jobs
 
 import ..shared.connect
+import ..shared.differ show Modification
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
@@ -64,26 +65,18 @@ class SynchronizeJob extends Job:
     actions_.send null
 
   handle_new_config_ new_config/Map -> none:
-    actions := ActionBundle "apps"
-    existing := config.get "apps" --if_absent=: {:}
-    apps := new_config.get "apps" --if_absent=: {:}
-    apps.do: | name new |
-      old := existing.get name
-      if old != new:
-        // New or updated app.
-        if old:
-          actions.add (ActionApplicationUpdate applications_ name new old)
-        else:
-          actions.add (ActionApplicationInstall applications_ name new)
-    existing.do: | name old |
-      if apps.get name: continue.do
-      actions.add (ActionApplicationUninstall applications_ name old)
+    modification/Modification? := Modification.compute --from=config --to=new_config
+    if not modification: return
 
-    // TODO(kasper): Should this just stay in config?
-    if new_config.contains "max-offline":
-      max_offline = Duration --s=new_config["max-offline"]
-    else:
-      max_offline = null
+    actions := ActionBundle "apps"
+    modification.map "apps"
+        --added   =: | key value | actions.add (ActionApplicationInstall applications_ key value)
+        --removed =: | key value | actions.add (ActionApplicationUninstall applications_ key value)
+        --updated =: | key from to | actions.add (ActionApplicationUpdate applications_ key to from)
+
+    modification.value "max-offline"
+        --added   =: | value | max_offline = Duration --s=value
+        --removed =: | value | max_offline = null
 
     actions_.send actions
 
