@@ -65,16 +65,18 @@ class SynchronizeJob extends Job:
     actions_.send null
 
   handle_new_config_ new_config/Map -> none:
-    modification/Modification? := Modification.compute --from=config --to=new_config
+    modification/Modification? := Modification.compute
+        --from=config
+        --to=new_config
     if not modification: return
 
     actions := ActionBundle "apps"
-    modification.map "apps"
+    modification.on_map "apps"
         --added   =: | key value | actions.add (ActionApplicationInstall applications_ key value)
         --removed =: | key value | actions.add (ActionApplicationUninstall applications_ key value)
         --updated =: | key from to | actions.add (ActionApplicationUpdate applications_ key to from)
 
-    modification.value "max-offline"
+    modification.on_value "max-offline"
         --added   =: | value | max_offline = Duration --s=value
         --removed =: | value | max_offline = null
 

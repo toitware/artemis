@@ -1,45 +1,43 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 abstract class Modification:
-  value key/string [--added] [--removed] -> none:
-    value key --added=added --removed=removed
+  on_value key/string [--added] [--removed] -> none:
+    on_value key --added=added --removed=removed
         --updated=: | from to |
           removed.call from
           added.call to
 
-  value key/string [--added] [--removed] [--updated] -> none:
-    value key --added=added --removed=removed --updated=updated
+  on_value key/string [--added] [--removed] [--updated] -> none:
+    on_value key --added=added --removed=removed --updated=updated
         --modified=: | modification/UpdatedMap_ |
           updated.call modification.from_ modification.to_
 
-  value key/string [--added] [--removed] [--modified] -> none:
-    value key --added=added --removed=removed --modified=modified
+  on_value key/string [--added] [--removed] [--modified] -> none:
+    on_value key --added=added --removed=removed --modified=modified
         --updated=: | from to |
           removed.call from
           added.call to
 
-  value key/string [--added] [--removed] [--updated] [--modified] -> none:
-    // Overridden in subclasses.
+  abstract on_value key/string [--added] [--removed] [--updated] [--modified] -> none
 
-  map key/string [--added] [--removed] -> none:
-    map key --added=added --removed=removed
+  on_map key/string [--added] [--removed] -> none:
+    on_map key --added=added --removed=removed
         --updated=: | key from to |
           removed.call key from
           added.call key to
 
-  map key/string [--added] [--removed] [--updated] -> none:
-    map key --added=added --removed=removed --updated=updated
+  on_map key/string [--added] [--removed] [--updated] -> none:
+    on_map key --added=added --removed=removed --updated=updated
         --modified=: | key modification/UpdatedMap_ |
           updated.call key modification.from_ modification.to_
 
-  map key/string [--added] [--removed] [--modified] -> none:
-    map key --added=added --removed=removed --modified=modified
+  on_map key/string [--added] [--removed] [--modified] -> none:
+    on_map key --added=added --removed=removed --modified=modified
         --updated=: | key from to |
           removed.call key from
           added.call key to
 
-  map key/string [--added] [--removed] [--updated] [--modified] -> none:
-    // Overridden in subclasses.
+  abstract on_map key/string [--added] [--removed] [--updated] [--modified] -> none
 
   static compute --from/Map --to/Map -> Modification?:
     return compute_map_modification_ from to: it
@@ -69,18 +67,24 @@ abstract class Modification:
 // --------------------------------------------------------------------------
 
 abstract class Modification_ extends Modification:
-  abstract handle_map_ [--added] [--removed] [--updated] [--modified] -> none
-  abstract handle_value_ [--added] [--removed] [--updated] [--modified] -> none
+  on_value key/string [--added] [--removed] [--updated] [--modified] -> none:
+    unreachable  // Overriden in all exposed subclasses.
+
+  on_map key/string [--added] [--removed] [--updated] [--modified] -> none:
+    unreachable  // Overriden in all exposed subclasses.
+
+  abstract visit_as_value_ [--added] [--removed] [--updated] [--modified] -> none
+  abstract visit_as_map_ [--added] [--removed] [--updated] [--modified] -> none
 
 class Added_ extends Modification_:
   to_/any
 
   constructor .to_:
 
-  handle_value_ [--added] [--removed] [--updated] [--modified] -> none:
+  visit_as_value_ [--added] [--removed] [--updated] [--modified] -> none:
     added.call to_
 
-  handle_map_ [--added] [--removed] [--updated] [--modified] -> none:
+  visit_as_map_ [--added] [--removed] [--updated] [--modified] -> none:
     if to_ is not Map: return
     to_.do: | key value | added.call key value
 
@@ -89,10 +93,10 @@ class Removed_ extends Modification_:
 
   constructor .from_:
 
-  handle_value_ [--added] [--removed] [--updated] [--modified] -> none:
+  visit_as_value_ [--added] [--removed] [--updated] [--modified] -> none:
     removed.call from_
 
-  handle_map_ [--added] [--removed] [--updated] [--modified] -> none:
+  visit_as_map_ [--added] [--removed] [--updated] [--modified] -> none:
     if from_ is not Map: return
     from_.do: | key value | removed.call key value
 
@@ -104,14 +108,17 @@ class Updated_ extends Modification_:
 
   constructor .from_ .to_:
 
-  handle_value_ [--added] [--removed] [--updated] [--modified] -> none:
+  visit_as_value_ [--added] [--removed] [--updated] [--modified] -> none:
     updated.call from_ to_
 
-  handle_map_ [--added] [--removed] [--updated] [--modified] -> none:
+  visit_as_map_ [--added] [--removed] [--updated] [--modified] -> none:
     /// Since either $from_ or $to_ isn't a map, we treat this
-    /// as an addition if we've changed it to a map.
-    if to_ is not Map: return
-    to_.do: | key value | added.call key value
+    /// as an addition if we've changed it to a map -- or a removal
+    /// we changed it from a map.
+    if to_ is Map:
+      to_.do: | key value | added.call key value
+    else if from_ is Map:
+      from_.do: | key value | removed.call key value
 
 class UpdatedMap_ extends Modification_:
   from_/Map
@@ -120,22 +127,22 @@ class UpdatedMap_ extends Modification_:
 
   constructor .from_ .to_ .modifications_:
 
-  value key/string [--added] [--removed] [--updated] [--modified] -> none:
+  on_value key/string [--added] [--removed] [--updated] [--modified] -> none:
     modification/Modification_? := modifications_.get key
     if not modification: return
-    modification.handle_value_ --added=added --removed=removed --updated=updated --modified=modified
+    modification.visit_as_value_ --added=added --removed=removed --updated=updated --modified=modified
 
-  map key/string [--added] [--removed] [--updated] [--modified] -> none:
+  on_map key/string [--added] [--removed] [--updated] [--modified] -> none:
     modification/Modification_? := modifications_.get key
     if not modification: return
-    modification.handle_map_ --added=added --removed=removed --updated=updated --modified=modified
+    modification.visit_as_map_ --added=added --removed=removed --updated=updated --modified=modified
 
-  handle_value_ [--added] [--removed] [--updated] [--modified] -> none:
+  visit_as_value_ [--added] [--removed] [--updated] [--modified] -> none:
     modified.call this
 
-  handle_map_ [--added] [--removed] [--updated] [--modified]-> none:
+  visit_as_map_ [--added] [--removed] [--updated] [--modified]-> none:
     modifications_.do: | key/string modification/Modification_ |
-      modification.handle_value_
+      modification.visit_as_value_
           --added    =: added.call key it
           --removed  =: removed.call key it
           --updated  =: | from to | updated.call key from to
