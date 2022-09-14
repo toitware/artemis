@@ -15,7 +15,7 @@ import .applications
 import .jobs
 
 import ..shared.connect
-import ..shared.differ show Modification
+import ..shared.json_diff show Modification
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
