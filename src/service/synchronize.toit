@@ -78,13 +78,13 @@ class SynchronizeJob extends Job:
 
     actions := ActionBundle new_config
     modification.on_map "apps"
-        --added   =: | key value |
+        --added=: | key value |
           to_config ::= wrap_appplication_config_ value
           actions.add (ActionApplicationInstall applications_ key to_config)
-        --removed =: | key value |
+        --removed=: | key value |
           from_config ::= wrap_appplication_config_ value
           actions.add (ActionApplicationUninstall applications_ key from_config)
-        --updated =: | key from to |
+        --updated=: | key from to |
           to_config ::= wrap_appplication_config_ to
           from_config ::= wrap_appplication_config_ from
           actions.add (ActionApplicationUpdate applications_ key to_config from_config)
