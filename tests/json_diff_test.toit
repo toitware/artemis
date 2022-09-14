@@ -303,7 +303,7 @@ deep_copy value/any -> any:
   if value is List:
     return List value.size: deep_copy value[it]
   else if value is Map:
-    copy := value.copy
+    copy := {:}
     value.do: | key value |
       copy[key] = deep_copy value
     return copy

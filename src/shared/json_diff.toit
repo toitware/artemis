@@ -4,7 +4,7 @@ abstract class Modification:
   /**
   Visits this modification and calls the provided blocks based on
     computed modifications in this instance. If a $key is provided,
-    only the modifications to the sub-tree keyed of the $key are
+    only the modifications to the sub-tree keyed off the $key are
     visited.
 
   The $added block is called with the value added.
@@ -67,7 +67,7 @@ abstract class Modification:
           added.call key to
 
   static compute --from/Map --to/Map -> Modification?:
-    return compute_map_modification_ from to: it
+    return compute_map_modification_ from to: null
 
   static stringify modification/Modification? -> string:
     if not modification: return "{ }"
@@ -179,30 +179,34 @@ class UpdatedMap_ extends Modification_:
           --updated  =: | from to | updated.call key from to
           --modified =: modified.call key it
 
-compute_map_modification_ from/Map to/Map [create] -> UpdatedMap_?:
+compute_map_modification_ from/Map to/Map [modified] -> UpdatedMap_?:
   modifications/Map? := null
   to.do: | to_key/string to_value |
     modification/Modification? := null
     if not from.contains to_key:
-      modification = create.call (Added_ to_value)
+      modified.call
+      modification = Added_ to_value
     else:
       from_value := from.get to_key
       if identical from_value to_value:
         continue.do
       else if from_value is List and to_value is List:
         if list_is_unmodified_ from_value to_value: continue.do
-        modification = create.call (Updated_ from_value to_value)
+        modified.call
+        modification = Updated_ from_value to_value
       else if from_value is Map and to_value is Map:
-        updated_map ::= compute_map_modification_ from_value to_value create
+        updated_map ::= compute_map_modification_ from_value to_value modified
         if not updated_map: continue.do
         modification = updated_map
       else:
-        modification = create.call (Updated_ from_value to_value)
+        modified.call
+        modification = Updated_ from_value to_value
     modifications = modifications or {:}
     modifications[to_key] = modification
   from.do: | from_key/string from_value |
     if to.contains from_key: continue.do
-    modification := create.call (Removed_ from_value)
+    modified.call
+    modification := Removed_ from_value
     modifications = modifications or {:}
     modifications[from_key] = modification
   return modifications ? (UpdatedMap_ from to modifications) : null
