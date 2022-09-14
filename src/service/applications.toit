@@ -42,6 +42,9 @@ class ApplicationManager:
     scheduler_.remove_job application
     logger_.info "uninstall" --tags=application.tags
 
+  update application/Application:
+    logger_.info "update (unimplemented)" --tags=application.tags
+
   synchronize client/mqtt.FullClient -> none:
     pruned/List? := null
     applications_.do: | _ application/Application |
@@ -59,6 +62,8 @@ class Application extends Job:
   static STATE_COMPLETED_UNSUBSCRIBED_ ::= 3 << 1 | 0
   static STATE_DELETED_                ::= 4 << 1 | 1
   static STATE_DELETED_UNSUBSCRIBED_   ::= 5 << 1 | 0
+
+  static CONFIG_ID ::= "id"
 
   id/string
   container_/uuid.Uuid? := null

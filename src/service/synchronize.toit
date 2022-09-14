@@ -20,7 +20,7 @@ import ..shared.json_diff show Modification
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
 revision/int? := null
-config/Map ::= {:}
+config/Map := {:}
 max_offline/Duration? := null
 
 // Index in return value from `process_stats`.
@@ -49,7 +49,7 @@ class SynchronizeJob extends Job:
       while true:
         applications_.synchronize client
         actions/ActionBundle? := actions_.receive
-        if actions: actions.commit config
+        if actions: config = actions.commit
         // If there is more work to do, we take another spin in the loop.
         if actions_.size > 0 or applications_.any_incomplete: continue
 
@@ -70,17 +70,55 @@ class SynchronizeJob extends Job:
         --to=new_config
     if not modification: return
 
-    actions := ActionBundle "apps"
+    actions := ActionBundle new_config
     modification.on_map "apps"
-        --added   =: | key value | actions.add (ActionApplicationInstall applications_ key value)
-        --removed =: | key value | actions.add (ActionApplicationUninstall applications_ key value)
-        --updated =: | key from to | actions.add (ActionApplicationUpdate applications_ key to from)
+        --added=: | key value |
+          // An app just appeared in the configuration. If we got an id
+          // for it, we install it.
+          id ::= value is Map ? value.get Application.CONFIG_ID : null
+          if id: actions.add (ActionApplicationInstall applications_ key id)
+        --removed=: | key value |
+          // An app disappeared completely from the configuration. We
+          // uninstall it, if we got an id for it.
+          id := value is string ? value : null
+          id = id or value is Map ? value.get Application.CONFIG_ID : null
+          if id: actions.add (ActionApplicationUninstall applications_ key id)
+        --modified=: | key nested/Modification |
+          value ::= new_config["apps"][key]
+          id ::= value is Map ? value.get Application.CONFIG_ID : null
+          handle_app_modification_ actions key id nested
 
     modification.on_value "max-offline"
-        --added   =: | value | max_offline = (value is int) ? Duration --s=value : null
-        --removed =: | value | max_offline = null
+        --added=: | value |
+          max_offline = (value is int) ? Duration --s=value : null
+        --removed=: | value |
+          max_offline = null
 
     actions_.send actions
+
+  handle_app_modification_ actions/ActionBundle name/string id/string? modification/Modification -> none:
+    modification.on_value "id"
+        --added=: | value |
+          // An application that existed in the configuration suddenly
+          // got an id. Great. Let's install it!
+          actions.add (ActionApplicationInstall applications_ name value)
+          return
+        --removed=: | value |
+          // Woops. We just lost the id for an application we already
+          // had in the configuration. We need to uninstall.
+          actions.add (ActionApplicationUninstall applications_ name value)
+          return
+        --updated=: | from to |
+          // An application had its id (the code) updated. We uninstall
+          // the old version and install the new one.
+          actions.add (ActionApplicationUninstall applications_ name from)
+          actions.add (ActionApplicationInstall applications_ name to)
+          return
+    // The configuration for the application was updated, but we didn't
+    // change its id, so the code for it is still valid. We add a pending
+    // action to make sure we let the application of the change possibly
+    // by restarting it.
+    if id: actions.add (ActionApplicationUpdate applications_ name id)
 
   handle_new_image_ topic/string packet/mqtt.PublishPacket -> none:
     // TODO(kasper): This is a bit hacky.

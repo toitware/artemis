@@ -110,7 +110,7 @@ install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
 
   print "$(%08d Time.monotonic_us): Installing app: $app"
   apps := config.get "apps" --if_absent=: {:}
-  apps[app] = uuid
+  apps[app] = {"id": uuid, "random": (random 1000)}
   config["apps"] = apps
   return config
 
