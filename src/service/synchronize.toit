@@ -64,13 +64,6 @@ class SynchronizeJob extends Job:
   handle_nop_ -> none:
     actions_.send null
 
-  // TODO(kasper): This is a hack to allow old applications
-  // that haven't wrapped their ids in a map. Maybe we can
-  // just ignore them?
-  extract_id_ value/any -> string:
-    if value is Map: return value[Application.CONFIG_ID]
-    return value
-
   handle_new_config_ new_config/Map -> none:
     modification/Modification? := Modification.compute
         --from=config
@@ -80,34 +73,52 @@ class SynchronizeJob extends Job:
     actions := ActionBundle new_config
     modification.on_map "apps"
         --added=: | key value |
-          id ::= extract_id_ value
-          actions.add (ActionApplicationInstall applications_ key id)
+          // An app just appeared in the configuration. If we got an id
+          // for it, we install it.
+          id ::= value is Map ? value.get Application.CONFIG_ID : null
+          if id: actions.add (ActionApplicationInstall applications_ key id)
         --removed=: | key value |
-          id ::= extract_id_ value
-          actions.add (ActionApplicationUninstall applications_ key id)
+          // An app disappeared completely from the configuration. We
+          // uninstall it, if we got an id for it.
+          id := value is string ? value : null
+          id = id or value is Map ? value.get Application.CONFIG_ID : null
+          if id: actions.add (ActionApplicationUninstall applications_ key id)
         --modified=: | key nested/Modification |
-          id ::= extract_id_ new_config["apps"][key]
+          value ::= new_config["apps"][key]
+          id ::= value is Map ? value.get Application.CONFIG_ID : null
           handle_app_modification_ actions key id nested
 
     modification.on_value "max-offline"
-        --added   =: | value | max_offline = (value is int) ? Duration --s=value : null
-        --removed =: | value | max_offline = null
+        --added=: | value |
+          max_offline = (value is int) ? Duration --s=value : null
+        --removed=: | value |
+          max_offline = null
 
     actions_.send actions
 
-  handle_app_modification_ actions/ActionBundle name/string id/string modification/Modification -> none:
+  handle_app_modification_ actions/ActionBundle name/string id/string? modification/Modification -> none:
     modification.on_value "id"
         --added=: | value |
+          // An application that existed in the configuration suddenly
+          // got an id. Great. Let's install it!
           actions.add (ActionApplicationInstall applications_ name value)
           return
         --removed=: | value |
+          // Woops. We just lost the id for an application we already
+          // had in the configuration. We need to uninstall.
           actions.add (ActionApplicationUninstall applications_ name value)
           return
         --updated=: | from to |
+          // An application had its id (the code) updated. We uninstall
+          // the old version and install the new one.
           actions.add (ActionApplicationUninstall applications_ name from)
           actions.add (ActionApplicationInstall applications_ name to)
           return
-    actions.add (ActionApplicationUpdate applications_ name id)
+    // The configuration for the application was updated, but we didn't
+    // change its id, so the code for it is still valid. We add a pending
+    // action to make sure we let the application of the change possibly
+    // by restarting it.
+    if id: actions.add (ActionApplicationUpdate applications_ name id)
 
   handle_new_image_ topic/string packet/mqtt.PublishPacket -> none:
     // TODO(kasper): This is a bit hacky.
