@@ -60,11 +60,14 @@ class Application extends Job:
   static STATE_DELETED_                ::= 4 << 1 | 1
   static STATE_DELETED_UNSUBSCRIBED_   ::= 5 << 1 | 0
 
+  static CONFIG_ID ::= "id"
+
   id/string
   container_/uuid.Uuid? := null
   state_/int := STATE_CREATED_
 
-  constructor name/string .id:
+  constructor name/string config/Map:
+    id = config[CONFIG_ID]
     super name
 
   stringify -> string:

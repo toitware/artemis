@@ -20,7 +20,7 @@ import ..shared.json_diff show Modification
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
 revision/int? := null
-config/Map ::= {:}
+config/Map := {:}
 max_offline/Duration? := null
 
 // Index in return value from `process_stats`.
@@ -49,7 +49,7 @@ class SynchronizeJob extends Job:
       while true:
         applications_.synchronize client
         actions/ActionBundle? := actions_.receive
-        if actions: actions.commit config
+        if actions: config = actions.commit
         // If there is more work to do, we take another spin in the loop.
         if actions_.size > 0 or applications_.any_incomplete: continue
 
@@ -64,17 +64,30 @@ class SynchronizeJob extends Job:
   handle_nop_ -> none:
     actions_.send null
 
+  // TODO(kasper): This is a hack to wrap old applications in the new
+  // config map structure.
+  wrap_appplication_config_ value/any -> Map:
+    if value is Map: return value
+    return {Application.CONFIG_ID: value}
+
   handle_new_config_ new_config/Map -> none:
     modification/Modification? := Modification.compute
         --from=config
         --to=new_config
     if not modification: return
 
-    actions := ActionBundle "apps"
+    actions := ActionBundle new_config
     modification.on_map "apps"
-        --added   =: | key value | actions.add (ActionApplicationInstall applications_ key value)
-        --removed =: | key value | actions.add (ActionApplicationUninstall applications_ key value)
-        --updated =: | key from to | actions.add (ActionApplicationUpdate applications_ key to from)
+        --added   =: | key value |
+          to_config ::= wrap_appplication_config_ value
+          actions.add (ActionApplicationInstall applications_ key to_config)
+        --removed =: | key value |
+          from_config ::= wrap_appplication_config_ value
+          actions.add (ActionApplicationUninstall applications_ key from_config)
+        --updated =: | key from to |
+          to_config ::= wrap_appplication_config_ to
+          from_config ::= wrap_appplication_config_ from
+          actions.add (ActionApplicationUpdate applications_ key to_config from_config)
 
     modification.on_value "max-offline"
         --added   =: | value | max_offline = (value is int) ? Duration --s=value : null
