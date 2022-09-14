@@ -14,7 +14,9 @@ class NtpJob extends PeriodicJob:
     super "ntp" period
 
   run -> none:
-    result ::= ntp.synchronize
+    result/ntp.Result? := null
+    exception := catch: result = ntp.synchronize
+    if exception: logger_.error "failed" --tags={"exception": exception}
     if not result: return
     esp32.adjust_real_time_clock result.adjustment
     logger_.info "synchronized" --tags={
