@@ -130,8 +130,9 @@ uninstall_app args/arguments.Arguments config/Map -> Map:
   return config
 
 update_firmware args/arguments.Arguments config/Map client/mqtt.Client -> Map:
-  firmware_path := args.rest[0]
+  FIRMWARE_PART_SIZE ::= 16 * 1024
 
+  firmware_path := args.rest[0]
   firmware_bin := file.read_content firmware_path
   sha := sha256.Sha256
   sha.add firmware_bin
@@ -140,11 +141,15 @@ update_firmware args/arguments.Arguments config/Map client/mqtt.Client -> Map:
   cursor := 0
   parts := []
   while cursor < firmware_bin.size:
-    end := min firmware_bin.size (cursor + 64 * 1024)
+    end := min firmware_bin.size (cursor + FIRMWARE_PART_SIZE)
     parts.add cursor
     client.publish "toit/firmware/$id/$cursor" firmware_bin[cursor..end] --qos=1 --retain
     cursor = end
-  client.publish "toit/firmware/$id" (ubjson.encode {"size": firmware_bin.size, "parts": parts}) --qos=1 --retain
+  firmware_info ::= ubjson.encode {
+      "size": firmware_bin.size,
+      "parts": parts,
+  }
+  client.publish "toit/firmware/$id" firmware_info --qos=1 --retain
   config["firmware"] = id
   return config
 

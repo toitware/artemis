@@ -70,6 +70,18 @@ class SynchronizeJob extends Job:
         --to=new_config
     if not modification: return
 
+    modification.on_value "firmware"
+        --added=: | value |
+          logger_.info "update firmware to $value"
+          handle_firmware_update_ value
+          return
+        --removed=: | value |
+          logger_.error "firmware information was lost (was: $value)"
+        --updated=: | from to |
+          logger_.info "update firmware from $from to $to"
+          handle_firmware_update_ to
+          return
+
     actions := ActionBundle new_config
     modification.on_map "apps"
         --added=: | key value |
@@ -94,6 +106,13 @@ class SynchronizeJob extends Job:
         --removed=: | value |
           max_offline = null
 
+    actions_.send actions
+
+  handle_firmware_update_ id/string -> none:
+    new_config ::= config.copy  // Shallow copy is enough.
+    new_config["firmware"] = id
+    actions := ActionBundle new_config
+    actions.add (ActionFirmwareUpdate id)
     actions_.send actions
 
   handle_app_modification_ actions/ActionBundle name/string id/string? modification/Modification -> none:

@@ -53,3 +53,13 @@ class ActionApplicationUninstall extends ActionApplication:
 
   perform -> none:
     uninstall old
+
+class ActionFirmwareUpdate extends Action:
+  id/string
+  constructor .id:
+
+  perform -> none:
+    // TODO(kasper): Introduce run-levels for jobs and make sure we're
+    // not running a lot of other stuff while we update the firmware.
+    print "************** FIRMWARE UPDATE **************"
+    print "... unimplemented ..."
