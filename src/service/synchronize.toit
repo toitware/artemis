@@ -7,12 +7,14 @@ import monitor
 import mqtt
 import mqtt.packets as mqtt
 import uuid
+import reader show SizedReader
 
 import system.containers
 
 import .actions
 import .applications
 import .jobs
+import .resources
 
 import ..shared.connect
 import ..shared.json_diff show Modification
@@ -30,7 +32,7 @@ class SynchronizeJob extends Job:
   logger_/log.Logger
   device/ArtemisDevice
   applications_/ApplicationManager
-  actions_/monitor.Channel ::= monitor.Channel 16  // TODO(kasper): Maybe this should be unbounded?
+  actions_/ActionManager ::= ActionManager
 
   constructor logger/log.Logger .device .applications_:
     logger_ = logger.with_name "synchronize"
@@ -45,13 +47,20 @@ class SynchronizeJob extends Job:
     allocated := (process_stats stats)[BYTES_ALLOCATED]
     logger_.info "connecting to broker" --tags={"device": device.name}
 
-    run_client_: | client/mqtt.FullClient |
+    run_client_: | resources/ResourceManager |
       while true:
-        applications_.synchronize client
-        actions/ActionBundle? := actions_.receive
-        if actions: config = actions.commit
-        // If there is more work to do, we take another spin in the loop.
-        if actions_.size > 0 or applications_.any_incomplete: continue
+        bundle/ActionBundle? := actions_.next
+        if bundle: config = actions_.commit bundle
+        if actions_.has_next: continue
+
+        // We only handle incomplete applications when we're done processing
+        // the other actions. This means that we prioritize firmware updates
+        // and configuration changes over fetching applications.
+        if applications_.any_incomplete:
+          bundle = ActionBundle config  // Doesn't change the configuration.
+          bundle.add (ActionApplicationFetch applications_ actions_ resources)
+          actions_.add bundle
+          continue
 
         new_allocated := (process_stats stats)[BYTES_ALLOCATED]
         delta := new_allocated - allocated
@@ -62,7 +71,7 @@ class SynchronizeJob extends Job:
           return
 
   handle_nop_ -> none:
-    actions_.send null
+    actions_.add null
 
   handle_new_config_ new_config/Map -> none:
     modification/Modification? := Modification.compute
@@ -70,23 +79,23 @@ class SynchronizeJob extends Job:
         --to=new_config
     if not modification: return
 
-    actions := ActionBundle new_config
+    bundle := ActionBundle new_config
     modification.on_map "apps"
         --added=: | key value |
           // An app just appeared in the configuration. If we got an id
           // for it, we install it.
           id ::= value is Map ? value.get Application.CONFIG_ID : null
-          if id: actions.add (ActionApplicationInstall applications_ key id)
+          if id: bundle.add (ActionApplicationInstall applications_ key id)
         --removed=: | key value |
           // An app disappeared completely from the configuration. We
           // uninstall it, if we got an id for it.
           id := value is string ? value : null
           id = id or value is Map ? value.get Application.CONFIG_ID : null
-          if id: actions.add (ActionApplicationUninstall applications_ key id)
+          if id: bundle.add (ActionApplicationUninstall applications_ key id)
         --modified=: | key nested/Modification |
           value ::= new_config["apps"][key]
           id ::= value is Map ? value.get Application.CONFIG_ID : null
-          handle_app_modification_ actions key id nested
+          handle_app_modification_ bundle key id nested
 
     modification.on_value "max-offline"
         --added=: | value |
@@ -94,40 +103,31 @@ class SynchronizeJob extends Job:
         --removed=: | value |
           max_offline = null
 
-    actions_.send actions
+    actions_.add bundle
 
-  handle_app_modification_ actions/ActionBundle name/string id/string? modification/Modification -> none:
+  handle_app_modification_ bundle/ActionBundle name/string id/string? modification/Modification -> none:
     modification.on_value "id"
         --added=: | value |
           // An application that existed in the configuration suddenly
           // got an id. Great. Let's install it!
-          actions.add (ActionApplicationInstall applications_ name value)
+          bundle.add (ActionApplicationInstall applications_ name value)
           return
         --removed=: | value |
           // Woops. We just lost the id for an application we already
           // had in the configuration. We need to uninstall.
-          actions.add (ActionApplicationUninstall applications_ name value)
+          bundle.add (ActionApplicationUninstall applications_ name value)
           return
         --updated=: | from to |
           // An application had its id (the code) updated. We uninstall
           // the old version and install the new one.
-          actions.add (ActionApplicationUninstall applications_ name from)
-          actions.add (ActionApplicationInstall applications_ name to)
+          bundle.add (ActionApplicationUninstall applications_ name from)
+          bundle.add (ActionApplicationInstall applications_ name to)
           return
     // The configuration for the application was updated, but we didn't
     // change its id, so the code for it is still valid. We add a pending
     // action to make sure we let the application of the change possibly
     // by restarting it.
-    if id: actions.add (ActionApplicationUpdate applications_ name id)
-
-  handle_new_image_ topic/string packet/mqtt.PublishPacket -> none:
-    // TODO(kasper): This is a bit hacky.
-    path := topic.split "/"
-    id := path[2]
-    application/Application? := applications_.get id
-    if not application: return
-    applications_.complete application packet.payload_stream
-    actions_.send null
+    if id: bundle.add (ActionApplicationUpdate applications_ name id)
 
   run_client_ [block]:
     network ::= net.open
@@ -147,6 +147,7 @@ class SynchronizeJob extends Job:
 
     client.connect --options=options
     disconnected := monitor.Latch
+    resources ::= ResourceManager client
 
     handle_task/Task? := ?
     handle_task = task::
@@ -173,8 +174,9 @@ class SynchronizeJob extends Job:
                 new_config = ubjson.decode publish.payload
                 if revision == new_config["revision"]:
                   handle_new_config_ new_config
-              else if topic.starts_with "toit/apps/":
-                handle_new_image_ topic publish
+              else:
+                known := resources.provide_resource topic: publish.payload_stream
+                if not known: logger_.warn "unhandled publish packet" --tags={"topic": topic}
         finally:
           critical_do:
             disconnected.set true
@@ -188,7 +190,7 @@ class SynchronizeJob extends Job:
       client.when_running: null
       client.publish device.topic_presence "online".to_byte_array --retain
       client.subscribe device.topic_revision
-      block.call client
+      block.call resources
     finally:
       try:
         if client: client.publish device.topic_presence "offline".to_byte_array --retain
