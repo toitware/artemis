@@ -58,7 +58,7 @@ class SynchronizeJob extends Job:
         // and configuration changes over fetching applications.
         if applications_.any_incomplete:
           bundle = ActionBundle config  // Doesn't change the configuration.
-          bundle.add (ActionFetchApplications applications_ actions_ resources)
+          bundle.add (ActionFetchApplication applications_ actions_ resources)
           actions_.add bundle
           continue
 

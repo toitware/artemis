@@ -92,7 +92,7 @@ abstract class ActionAsynchronous extends Action:
       finally:
         actions.on_stopped this
 
-class ActionFetchApplications extends ActionAsynchronous:
+class ActionFetchApplication extends ActionAsynchronous:
   applications/ApplicationManager
   fetcher/ResourceFetcher
   constructor .applications actions/ActionManager .fetcher:
