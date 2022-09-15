@@ -1,7 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
-import mqtt
 import reader show SizedReader
 import uuid
 
@@ -19,9 +18,12 @@ class ApplicationManager:
     logger_ = logger.with_name "apps"
 
   any_incomplete -> bool:
+    return first_incomplete != null
+
+  first_incomplete -> Application?:
     applications_.do: | _ application/Application |
-      if not application.is_complete: return true
-    return false
+      if not application.is_complete: return application
+    return null
 
   get id/string -> Application?:
     return applications_.get id
@@ -33,41 +35,24 @@ class ApplicationManager:
 
   complete application/Application reader/SizedReader:
     if application.is_complete: return
-    application.complete reader
+    application.complete_ reader
     scheduler_.on_job_ready application
     logger_.info "complete" --tags=application.tags
 
   uninstall application/Application:
-    application.delete
+    applications_.remove application.id
+    application.delete_
     scheduler_.remove_job application
     logger_.info "uninstall" --tags=application.tags
 
   update application/Application:
     logger_.info "update (unimplemented)" --tags=application.tags
 
-  synchronize client/mqtt.FullClient -> none:
-    pruned/List? := null
-    applications_.do: | _ application/Application |
-      application.synchronize client
-      if application.is_prunable:
-        pruned = pruned or []
-        pruned.add application
-    if not pruned: return
-    pruned.do: applications_.remove it.id
-
 class Application extends Job:
-  static STATE_CREATED_                ::= 0 << 1 | 0
-  static STATE_CREATED_SUBSCRIBED_     ::= 1 << 1 | 1
-  static STATE_COMPLETED_              ::= 2 << 1 | 1
-  static STATE_COMPLETED_UNSUBSCRIBED_ ::= 3 << 1 | 0
-  static STATE_DELETED_                ::= 4 << 1 | 1
-  static STATE_DELETED_UNSUBSCRIBED_   ::= 5 << 1 | 0
-
   static CONFIG_ID ::= "id"
 
   id/string
   container_/uuid.Uuid? := null
-  state_/int := STATE_CREATED_
 
   constructor name/string .id:
     super name
@@ -75,15 +60,14 @@ class Application extends Job:
   stringify -> string:
     return "application:$name"
 
+  path -> string:
+    return "toit/apps/$id/image$BITS_PER_WORD"
+
   tags -> Map:
     return { "name": name, "id": id }
 
   is_complete -> bool:
-    state ::= state_
-    return state == STATE_COMPLETED_ or state == STATE_COMPLETED_UNSUBSCRIBED_
-
-  is_prunable -> bool:
-    return state_ == STATE_DELETED_UNSUBSCRIBED_
+    return container_ != null
 
   schedule now/JobTime -> JobTime?:
     if not container_: return null
@@ -93,33 +77,12 @@ class Application extends Job:
   run -> none:
     containers.start container_
 
-  synchronize client/mqtt.FullClient -> none:
-    if state_ == STATE_CREATED_:
-      client.subscribe topic_
-      state_ = STATE_CREATED_SUBSCRIBED_
-    else if state_ == STATE_COMPLETED_:
-      client.unsubscribe topic_
-      state_ = STATE_COMPLETED_UNSUBSCRIBED_
-    else if state_ == STATE_DELETED_:
-      client.unsubscribe topic_
-      state_ = STATE_DELETED_UNSUBSCRIBED_
-
-  complete payload/SizedReader -> none:
-    assert: state_ == STATE_CREATED_SUBSCRIBED_
-    writer ::= containers.ContainerImageWriter payload.size
-    while data := payload.read: writer.write data
+  complete_ reader/SizedReader -> none:
+    writer ::= containers.ContainerImageWriter reader.size
+    while data := reader.read: writer.write data
     container_ = writer.commit
-    state_ = STATE_COMPLETED_
 
-  delete -> none:
+  delete_ -> none:
     container ::= container_
     if container: containers.uninstall container
     container_ = null
-    // Update the state. We always end up being deleted,
-    // but we take care
-    state_ = (state_ & 1 == 1)
-        ? STATE_DELETED_
-        : STATE_DELETED_UNSUBSCRIBED_
-
-  topic_ -> string:
-    return "toit/apps/$id/image$BITS_PER_WORD"
