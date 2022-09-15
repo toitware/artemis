@@ -130,7 +130,7 @@ uninstall_app args/arguments.Arguments config/Map -> Map:
   return config
 
 update_firmware args/arguments.Arguments config/Map client/mqtt.Client -> Map:
-  FIRMWARE_PART_SIZE ::= 16 * 1024
+  FIRMWARE_PART_SIZE ::= 64 * 1024
 
   firmware_path := args.rest[0]
   firmware_bin := file.read_content firmware_path
