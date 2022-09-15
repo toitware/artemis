@@ -15,11 +15,12 @@ import .applications
 import .jobs
 
 import ..shared.connect
+import ..shared.json_diff show Modification
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
 revision/int? := null
-config/Map ::= {:}
+config/Map := {:}
 max_offline/Duration? := null
 
 // Index in return value from `process_stats`.
@@ -40,9 +41,6 @@ class SynchronizeJob extends Job:
     return last_run + max_offline
 
   run -> none:
-    synchronize_
-
-  synchronize_ -> none:
     stats := List BYTES_ALLOCATED + 1  // Use this to collect stats to avoid allocation.
     allocated := (process_stats stats)[BYTES_ALLOCATED]
     logger_.info "connecting to broker" --tags={"device": device.name}
@@ -50,8 +48,10 @@ class SynchronizeJob extends Job:
     run_client_: | client/mqtt.FullClient |
       while true:
         applications_.synchronize client
-        work_remaining ::= process_actions_
-        if work_remaining: continue
+        actions/ActionBundle? := actions_.receive
+        if actions: config = actions.commit
+        // If there is more work to do, we take another spin in the loop.
+        if actions_.size > 0 or applications_.any_incomplete: continue
 
         new_allocated := (process_stats stats)[BYTES_ALLOCATED]
         delta := new_allocated - allocated
@@ -61,44 +61,64 @@ class SynchronizeJob extends Job:
           logger_.info "going offline" --tags={"duration": max_offline}
           return
 
-  process_actions_ -> bool:
-    actions/List? := actions_.receive
-
-    // TODO(kasper): Not all actions will work on the 'apps' subsection,
-    // so this needs to be generalized.
-    if actions: config["apps"] = Action.apply actions (config.get "apps")
-
-    // If there are any incomplete apps left, we still have
-    // work to do, so we return true. If all apps have been
-    // completed, we're done.
-    return actions_.size > 0 or applications_.any_incomplete
-
   handle_nop_ -> none:
     actions_.send null
 
   handle_new_config_ new_config/Map -> none:
-    actions := []
-    existing := config.get "apps" --if_absent=: {:}
-    apps := new_config.get "apps" --if_absent=: {:}
-    apps.do: | name new |
-      old := existing.get name
-      if old != new:
-        // New or updated app.
-        if old:
-          actions.add (ActionApplicationUpdate applications_ name new old)
-        else:
-          actions.add (ActionApplicationInstall applications_ name new)
-    existing.do: | name old |
-      if apps.get name: continue.do
-      actions.add (ActionApplicationUninstall applications_ name old)
+    modification/Modification? := Modification.compute
+        --from=config
+        --to=new_config
+    if not modification: return
 
-    // TODO(kasper): Should this just stay in config?
-    if new_config.contains "max-offline":
-      max_offline = Duration --s=new_config["max-offline"]
-    else:
-      max_offline = null
+    actions := ActionBundle new_config
+    modification.on_map "apps"
+        --added=: | key value |
+          // An app just appeared in the configuration. If we got an id
+          // for it, we install it.
+          id ::= value is Map ? value.get Application.CONFIG_ID : null
+          if id: actions.add (ActionApplicationInstall applications_ key id)
+        --removed=: | key value |
+          // An app disappeared completely from the configuration. We
+          // uninstall it, if we got an id for it.
+          id := value is string ? value : null
+          id = id or value is Map ? value.get Application.CONFIG_ID : null
+          if id: actions.add (ActionApplicationUninstall applications_ key id)
+        --modified=: | key nested/Modification |
+          value ::= new_config["apps"][key]
+          id ::= value is Map ? value.get Application.CONFIG_ID : null
+          handle_app_modification_ actions key id nested
+
+    modification.on_value "max-offline"
+        --added=: | value |
+          max_offline = (value is int) ? Duration --s=value : null
+        --removed=: | value |
+          max_offline = null
 
     actions_.send actions
+
+  handle_app_modification_ actions/ActionBundle name/string id/string? modification/Modification -> none:
+    modification.on_value "id"
+        --added=: | value |
+          // An application that existed in the configuration suddenly
+          // got an id. Great. Let's install it!
+          actions.add (ActionApplicationInstall applications_ name value)
+          return
+        --removed=: | value |
+          // Woops. We just lost the id for an application we already
+          // had in the configuration. We need to uninstall.
+          actions.add (ActionApplicationUninstall applications_ name value)
+          return
+        --updated=: | from to |
+          // An application had its id (the code) updated. We uninstall
+          // the old version and install the new one.
+          actions.add (ActionApplicationUninstall applications_ name from)
+          actions.add (ActionApplicationInstall applications_ name to)
+          return
+    // The configuration for the application was updated, but we didn't
+    // change its id, so the code for it is still valid. We add a pending
+    // action to make sure we let the application of the change possibly
+    // by restarting it.
+    if id: actions.add (ActionApplicationUpdate applications_ name id)
 
   handle_new_image_ topic/string packet/mqtt.PublishPacket -> none:
     // TODO(kasper): This is a bit hacky.

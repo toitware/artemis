@@ -2,26 +2,30 @@
 
 import .applications
 
-abstract class Action:
-  static apply actions/List map/Map? -> Map:
-    copy := map ? map.copy : {:}
-    actions.do: | action/Action |
-      action.perform copy
-    return copy
+class ActionBundle:
+  config_/Map
+  actions_/List ::= []
+  constructor .config_:
 
-  abstract perform map/Map -> none
+  add action/Action:
+    actions_.add action
+
+  commit -> Map:
+    actions_.do: | action/Action | action.perform
+    return config_
+
+abstract class Action:
+  abstract perform -> none
 
 abstract class ActionApplication extends Action:
   manager/ApplicationManager
   name/string
   constructor .manager .name:
 
-  install map/Map id/string:
-    map[name] = id
+  install id/string:
     manager.install (Application name id)
 
-  uninstall map/Map id/string:
-    map.remove name
+  uninstall id/string:
     application/Application? := manager.get id
     if application: manager.uninstall application
 
@@ -30,22 +34,22 @@ class ActionApplicationInstall extends ActionApplication:
   constructor manager/ApplicationManager name/string .new:
     super manager name
 
-  perform map/Map -> none:
-    install map new
+  perform -> none:
+    install new
 
 class ActionApplicationUpdate extends ActionApplication:
-  new/string
-  old/string
-  constructor manager/ApplicationManager name/string .new .old:
+  id/string
+  constructor manager/ApplicationManager name/string .id:
     super manager name
 
-  perform map/Map -> none:
-    uninstall map old
+  perform -> none:
+    application/Application? := manager.get id
+    if application: manager.update application
 
 class ActionApplicationUninstall extends ActionApplication:
   old/string
   constructor manager/ApplicationManager name/string .old:
     super manager name
 
-  perform map/Map -> none:
-    uninstall map old
+  perform -> none:
+    uninstall old
