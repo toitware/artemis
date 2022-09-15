@@ -12,12 +12,25 @@ class ResourceManager implements ResourceFetcher:
 
   constructor .client_:
 
-  provide_resource path/string [block] -> none:
+  /**
+  Provides the resource returned by $block to all the tasks
+    waiting in a call to $fetch_resource for the resource for
+    the given $path.
+  */
+  provide_resource path/string [block] -> bool:
     monitor/ResourceMonitor_? ::= monitors_.get path
-    if monitor: monitor.provide block.call
+    if not monitor: return false
+    monitor.provide block.call
+    return true
 
-  // TODO(kasper): Should this take a timeout that doesn't
-  // cover the block call? I think so.
+  /**
+  Fetches the resource for the given $path by requesting it
+    and waiting until it is provided through a call from
+    another task to $provide_resource.
+
+  The fetched resource is passed onto the $block and the
+    resource is released when the block returns.
+  */
   fetch_resource path/string [block] -> none:
     monitor/ResourceMonitor_? := null
     try:
@@ -25,6 +38,8 @@ class ResourceManager implements ResourceFetcher:
           --init=:
             client_.subscribe path
             ResourceMonitor_
+      // TODO(kasper): Should $fetch_resource take a timeout
+      // that doesn't cover the block call? I think so.
       block.call monitor.fetch
     finally:
       monitors_.remove path

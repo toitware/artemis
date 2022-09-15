@@ -58,7 +58,7 @@ class SynchronizeJob extends Job:
         // and configuration changes over fetching applications.
         if applications_.any_incomplete:
           bundle = ActionBundle config  // Doesn't change the configuration.
-          bundle.add (ActionFetchApplication applications_ actions_ resources)
+          bundle.add (ActionApplicationFetch applications_ actions_ resources)
           actions_.add bundle
           continue
 
@@ -175,7 +175,8 @@ class SynchronizeJob extends Job:
                 if revision == new_config["revision"]:
                   handle_new_config_ new_config
               else:
-                resources.provide_resource topic: publish.payload_stream
+                known := resources.provide_resource topic: publish.payload_stream
+                if not known: logger_.warn "unhandled publish packet" --tags={"topic": topic}
         finally:
           critical_do:
             disconnected.set true

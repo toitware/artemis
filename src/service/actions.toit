@@ -29,7 +29,8 @@ class ActionManager:
     asynchronous_++
 
   on_stopped action/ActionAsynchronous:
-    if --asynchronous_ == 0: signal_.raise
+    asynchronous_--
+    if asynchronous_ == 0: signal_.raise
 
 class ActionBundle:
   config_/Map
@@ -92,7 +93,7 @@ abstract class ActionAsynchronous extends Action:
       finally:
         actions.on_stopped this
 
-class ActionFetchApplication extends ActionAsynchronous:
+class ActionApplicationFetch extends ActionAsynchronous:
   applications/ApplicationManager
   fetcher/ResourceFetcher
   constructor .applications actions/ActionManager .fetcher:
