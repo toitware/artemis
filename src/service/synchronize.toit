@@ -18,7 +18,7 @@ abstract class SynchronizeJob extends Job:
   static ACTION_NOP_/Lambda ::= :: null
 
   logger_/log.Logger
-  device/Device
+  device_/Device
   applications_/ApplicationManager
 
   // We limit the capacity of the actions channel to avoid letting
@@ -30,7 +30,7 @@ abstract class SynchronizeJob extends Job:
   // also possible to fetch it from there.
   max_offline_/Duration? := null
 
-  constructor logger/log.Logger .device .applications_:
+  constructor logger/log.Logger .device_ .applications_:
     logger_ = logger.with_name "synchronize"
     super "synchronize"
 
@@ -42,9 +42,9 @@ abstract class SynchronizeJob extends Job:
   abstract commit config/Map bundle/List -> Lambda
 
   run -> none:
-    logger_.info "connecting" --tags={"device": device.name}
+    logger_.info "connecting" --tags={"device": device_.name}
     connect: | resources/ResourceManager |
-      logger_.info "connected" --tags={"device": device.name}
+      logger_.info "connected" --tags={"device": device_.name}
       while true:
         actions_.receive.call
         if actions_.size > 0: continue

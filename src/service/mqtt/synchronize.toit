@@ -21,21 +21,19 @@ class SynchronizeJobMqtt extends SynchronizeJob:
   constructor logger/log.Logger device/DeviceMqtt applications/ApplicationManager:
     super logger device applications
 
-  // TODO(kasper): Not so nice.
-  device -> DeviceMqtt:
-    return super as DeviceMqtt
-
   commit config/Map actions/List -> Lambda:
     return ::
       actions.do: it.call
       config_ = config
 
   connect [block]:
+    device ::= device_ as DeviceMqtt
     network ::= net.open
     transport ::= create_transport network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
-    connect_client_ client
+    connect_client_ device client
     disconnected := monitor.Latch
+
     resources ::= ResourceManagerMqtt client
 
     handle_task/Task? := ?
@@ -92,7 +90,7 @@ class SynchronizeJobMqtt extends SynchronizeJob:
       finally:
         if handle_task: handle_task.cancel
 
-  connect_client_ client/mqtt.FullClient -> none:
+  connect_client_ device/DeviceMqtt client/mqtt.FullClient -> none:
     last_will ::= mqtt.LastWill device.topic_presence "disappeared".to_byte_array
         --retain
         --qos=0
