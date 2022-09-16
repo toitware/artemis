@@ -48,6 +48,8 @@ class SynchronizeJob extends Job:
     logger_.info "connecting to broker" --tags={"device": device.name}
 
     run_client_: | resources/ResourceManager |
+      print_objects
+      serial_print_heap_report "connected to broker"
       while true:
         bundle/ActionBundle? := actions_.next
         if bundle: config = actions_.commit bundle
@@ -119,6 +121,7 @@ class SynchronizeJob extends Job:
     actions_.add bundle
 
   handle_firmware_update_ resources/ResourceManager id/string -> none:
+    return
     new_config ::= config.copy  // Shallow copy is enough.
     new_config["firmware"] = id
     bundle := ActionBundle new_config

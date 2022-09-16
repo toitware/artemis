@@ -126,16 +126,19 @@ class ActionFirmwareUpdate extends ActionAsynchronous:
       parts = manifest["parts"]
     print "firmware update is $parts.size parts and $size bytes"
 
-    //writer := firmware.FirmwareWriter 0 size
+    writer := null
+    if platform == PLATFORM_FREERTOS: writer = firmware.FirmwareWriter 0 size
+    serial_print_heap_report
     took := Duration.of:
       parts.do: | offset/int |
         topic := "toit/firmware/$id/$offset"
         print "requesting firmware [$topic]"
         fetcher.fetch_resource topic: | reader/SizedReader |
           while data := reader.read:
-            //writer.write data
+            if writer: writer.write data
         print "requesting firmware [$topic] => written"
-      //writer.commit
+        serial_print_heap_report
+      if writer: writer.commit
     print "firmware update applied: $firmware.is_validation_pending ($took)"
 
   read_all reader/SizedReader -> ByteArray:
