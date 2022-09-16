@@ -196,4 +196,3 @@ abstract class SynchronizeJob extends Job:
       bytes.replace offset data
       offset += data.size
     return bytes
-
