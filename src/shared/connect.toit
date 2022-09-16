@@ -9,19 +9,23 @@ import tls
 HOST /string ::= "a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com"
 PORT /int    ::= 8883
 
-class ArtemisDevice:
+class Device:
   name/string
+  constructor .name:
+
+class DeviceMqtt extends Device:
   topic_config/string
   topic_lock/string
   topic_revision/string
   topic_presence/string
 
-  constructor .name:
+  constructor name/string:
     config ::= "toit/devices/$name/config"
     topic_config = config
     topic_lock = "$config/writer"
     topic_revision = "$config/revision"
     topic_presence = "toit/devices/presence/$name"
+    super name
 
 create_transport network/net.Interface -> mqtt.Transport:
   certificate ::= tls.Certificate TOIT_CERT TOIT_PRIVATE_KEY
