@@ -6,22 +6,22 @@ import log
 
 import .scheduler show Scheduler
 import .applications show ApplicationManager
-import .synchronize show SynchronizeJob
+import .mqtt.synchronize show SynchronizeJobMqtt
 
 import .ntp
-import ..shared.connect show ArtemisDevice
+import ..shared.connect show DeviceMqtt
 
 main arguments:
   logger := log.default.with_name "artemis"
   name := (platform == PLATFORM_FREERTOS)
       ? device.name
       : (pipe.backticks "hostname").trim
-  device ::= ArtemisDevice name
+  device ::= DeviceMqtt name
 
   scheduler ::= Scheduler logger
   applications ::= ApplicationManager logger scheduler
   scheduler.add_jobs [
-      SynchronizeJob logger device applications,
+      SynchronizeJobMqtt logger device applications,
       NtpJob logger (Duration --m=1),
   ]
   scheduler.run

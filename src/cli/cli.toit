@@ -46,7 +46,7 @@ main args:
   watch_presence_cmd := parser.add_command "watch-presence"
 
   parsed/arguments.Arguments := parser.parse args
-  device ::= ArtemisDevice parsed["device"]
+  device ::= DeviceMqtt parsed["device"]
 
   if parsed.command == "install":
     update_config device: | config/Map client/mqtt.Client |
@@ -180,7 +180,7 @@ Gets current config for the specified $device.
 Calls the $block with the current config, and gets a new config back.
 Sends the new config to the device.
 */
-update_config device/ArtemisDevice [block]:
+update_config device/DeviceMqtt [block]:
   with_mqtt: | client/mqtt.Client |
     locked := monitor.Latch
     config_channel := monitor.Channel 1
@@ -301,7 +301,7 @@ get_toit_sdk -> string:
   exit 1
   unreachable
 
-print_status device/ArtemisDevice:
+print_status device/DeviceMqtt:
   with_timeout --ms=5_000:
     with_mqtt: | client/mqtt.Client |
       status := monitor.Latch
