@@ -22,6 +22,9 @@ class ResourceManagerMqtt implements ResourceManager:
     monitor.provide block.call
     return true
 
+  fetch_image id/string [block] -> none:
+    fetch_resource "toit/apps/$id/image$BITS_PER_WORD" block
+
   /**
   Fetches the resource for the given $path by requesting it
     and waiting until it is provided through a call from
