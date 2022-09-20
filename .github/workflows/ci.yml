@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           make rebuild-cmake
-          cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOIT_RUN="$TOIT_EXEC" build
+          cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
 
       - name: Install packages
         run: |
