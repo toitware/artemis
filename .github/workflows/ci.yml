@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        # Windows is not yet supported.
+        os: [ ubuntu-latest, macos-latest ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup constants
+        shell: bash
+        run: |
+          TOIT_VERSION=v2.0.0-alpha.27
+          echo "TOIT_VERSION=$TOIT_VERSION" >> $GITHUB_ENV
+          export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
+          echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
+          if [[ "$RUNNER_OS" = "Linux" ]]; then
+            TOIT_FILE=toit-linux.tar.gz
+            echo "TOIT_EXEC=$DOWNLOAD_DIR/toit/bin/toit.run" >> $GITHUB_ENV
+            echo "TOITC_EXEC=$DOWNLOAD_DIR/toit/bin/toit.compile" >> $GITHUB_ENV
+            echo "TPKG_EXEC=$DOWNLOAD_DIR/toit/bin/toit.pkg" >> $GITHUB_ENV
+          elif [[ "$RUNNER_OS" = "macOS" ]]; then
+            TOIT_FILE=toit-macos.tar.gz
+            echo "TOIT_EXEC=$DOWNLOAD_DIR/toit/bin/toit.run" >> $GITHUB_ENV
+            echo "TOITC_EXEC=$DOWNLOAD_DIR/toit/bin/toit.compile" >> $GITHUB_ENV
+            echo "TPKG_EXEC=$DOWNLOAD_DIR/toit/bin/toit.pkg" >> $GITHUB_ENV
+          elif [[ "$RUNNER_OS" = "Windows" ]]; then
+            TOIT_FILE=toit-windows.tar.gz
+            echo "TOIT_EXEC=$DOWNLOAD_DIR/toit/bin/toit.run.exe" >> $GITHUB_ENV
+            echo "TOITC_EXEC=$DOWNLOAD_DIR/toit/bin/toit.compile.exe" >> $GITHUB_ENV
+            echo "TPKG_EXEC=$DOWNLOAD_DIR/toit/bin/toit.pkg.exe" >> $GITHUB_ENV
+          else
+            echo "UNSUPPORTED RUNNER: $RUNNER_OS"
+            exit 1
+          fi
+
+          if [[ $TOIT_VERSION = latest ]]; then
+            echo "TOIT_URL=https://github.com/toitlang/toit/releases/latest/download/$TOIT_FILE" >> $GITHUB_ENV
+          else
+            echo "TOIT_URL=https://github.com/toitlang/toit/releases/download/$TOIT_VERSION/$TOIT_FILE" >> $GITHUB_ENV
+          fi
+
+      # Fetch the dependencies. Different for each platform.
+      - name: Install dependencies - Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install ninja-build
+          ninja --version
+          cmake --version
+      - name: Install dependencies - macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja
+          ninja --version
+          cmake --version
+      - name: Install dependencies - Windows
+        if: runner.os == 'Windows'
+        run: |
+          choco install ninja
+          ninja --version
+          cmake --version
+
+      - uses: suisei-cn/actions-download-file@v1
+        name: Download Toit
+        with:
+          url: ${{ env.TOIT_URL }}
+          target: ${{ env.DOWNLOAD_DIR }}
+
+      - name: Extract Toit
+        shell: bash
+        run: |
+          cd "$DOWNLOAD_DIR"
+          tar x -f *.tar.gz
+
+      - name: Run cmake
+        shell: bash
+        run: |
+          make rebuild-cmake
+          cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
+
+      - name: Install packages
+        run: |
+          make install-pkgs
+
+      - name: Test
+        run: |
+          make test

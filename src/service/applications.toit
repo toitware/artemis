@@ -60,9 +60,6 @@ class Application extends Job:
   stringify -> string:
     return "application:$name"
 
-  path -> string:
-    return "toit/apps/$id/image$BITS_PER_WORD"
-
   tags -> Map:
     return { "name": name, "id": id }
 

@@ -10,7 +10,7 @@ import net
 import .resources
 import ..applications
 import ..synchronize show SynchronizeJob
-import ...shared.connect
+import ...shared.mqtt.aws
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
@@ -38,43 +38,42 @@ class SynchronizeJobMqtt extends SynchronizeJob:
 
     handle_task/Task? := ?
     handle_task = task::
-      catch --trace:
-        try:
-          subscribed_to_config := false
-          new_config/Map? := null
-          client.handle: | packet/mqtt.Packet |
-            if packet is mqtt.PublishPacket:
-              publish := packet as mqtt.PublishPacket
-              topic := publish.topic
-              if topic == device.topic_revision:
-                new_revision := ubjson.decode publish.payload
-                if new_revision != revision_:
-                  revision_ = new_revision
-                  if not subscribed_to_config:
-                    subscribed_to_config = true
-                    client.subscribe device.topic_config
-                  if new_config and revision_ == new_config["revision"]:
-                    handle_update_config resources config_ new_config
-                    new_config = null
-                else:
-                  // Maybe we're done? We let the synchronization task
-                  // know so it can react to the changed state.
-                  handle_nop
-              else if topic == device.topic_config:
-                new_config = ubjson.decode publish.payload
-                if revision_ == new_config["revision"]:
+      try:
+        subscribed_to_config := false
+        new_config/Map? := null
+        client.handle: | packet/mqtt.Packet |
+          if packet is mqtt.PublishPacket:
+            publish := packet as mqtt.PublishPacket
+            topic := publish.topic
+            if topic == device.topic_revision:
+              new_revision := ubjson.decode publish.payload
+              if new_revision != revision_:
+                revision_ = new_revision
+                if not subscribed_to_config:
+                  subscribed_to_config = true
+                  client.subscribe device.topic_config
+                if new_config and revision_ == new_config["revision"]:
                   handle_update_config resources config_ new_config
                   new_config = null
               else:
-                known := resources.provide_resource topic: publish.payload_stream
-                if not known: logger_.warn "unhandled publish packet" --tags={"topic": topic}
-        finally:
-          critical_do:
-            disconnected.set true
-            client.close --force
-            network.close
-          client = null
-          handle_task = null
+                // Maybe we're done? We let the synchronization task
+                // know so it can react to the changed state.
+                handle_nop
+            else if topic == device.topic_config:
+              new_config = ubjson.decode publish.payload
+              if revision_ == new_config["revision"]:
+                handle_update_config resources config_ new_config
+                new_config = null
+            else:
+              known := resources.provide_resource topic: publish.payload_stream
+              if not known: logger_.warn "unhandled publish packet" --tags={"topic": topic}
+      finally:
+        critical_do:
+          disconnected.set true
+          client.close --force
+          network.close
+        client = null
+        handle_task = null
 
     try:
       // Wait for the client to run.
@@ -91,6 +90,14 @@ class SynchronizeJobMqtt extends SynchronizeJob:
         if handle_task: handle_task.cancel
 
   connect_client_ device/DeviceMqtt client/mqtt.FullClient -> none:
+    // On slower platforms where the overhead for processing packets is high,
+    // we can avoid a number of unwanted retransmits from the broker by using
+    // a higher 'keep alive' setting. The slowest packet processing is for
+    // firmware updates on the ESP32, where we need to erase and write to the
+    // flash as we read the payload stream.
+    keep_alive := platform == PLATFORM_FREERTOS
+        ? Duration --m=1
+        : Duration --m=3
     last_will ::= mqtt.LastWill device.topic_presence "disappeared".to_byte_array
         --retain
         --qos=0
@@ -100,5 +107,6 @@ class SynchronizeJobMqtt extends SynchronizeJob:
     options ::= mqtt.SessionOptions
         --client_id=CLIENT_ID
         --clean_session
+        --keep_alive=keep_alive
         --last_will=last_will
     client.connect --options=options

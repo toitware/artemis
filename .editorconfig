@@ -1,0 +1,8 @@
+# EditorConfig.
+# See https://editorconfig.org
+
+# Toit uses 2 spaces for indentation.
+[*.toit]
+indent_style = space
+indent_size = 2
+insert_final_newline = true

@@ -15,7 +15,7 @@ import .applications
 import .jobs
 import .resources
 
-import ..shared.connect
+import ..shared.device show Device
 import ..shared.json_diff show Modification
 
 abstract class SynchronizeJob extends Job:
@@ -71,7 +71,10 @@ abstract class SynchronizeJob extends Job:
 
   handle_update_config resources/ResourceManager from/Map to/Map -> none:
     modification/Modification? := Modification.compute --from=from --to=to
-    if not modification: return
+    if not modification:
+      handle_nop
+      return
+    logger_.info "config changed: $(Modification.stringify modification)"
 
     modification.on_value "firmware"
         --added=: | value |
@@ -153,7 +156,7 @@ abstract class SynchronizeJob extends Job:
     return ::
       incomplete/Application? ::= applications_.first_incomplete
       if incomplete:
-        resources.fetch_resource incomplete.path: | reader/SizedReader |
+        resources.fetch_image incomplete.id: | reader/SizedReader |
           applications_.complete incomplete reader
 
   action_set_max_offline_ value/any -> Lambda:

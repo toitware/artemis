@@ -22,6 +22,9 @@ class ResourceManagerMqtt implements ResourceManager:
     monitor.provide block.call
     return true
 
+  fetch_image id/string [block] -> none:
+    fetch_resource "toit/apps/$id/image$BITS_PER_WORD" block
+
   /**
   Fetches the resource for the given $path by requesting it
     and waiting until it is provided through a call from
@@ -32,13 +35,12 @@ class ResourceManagerMqtt implements ResourceManager:
   */
   fetch_resource path/string [block] -> none:
     start := null
-    monitor/ResourceMonitor_? := null
+    monitor/ResourceMonitor_ ::= monitors_.get path
+        --if_absent=: ResourceMonitor_
+        --if_present=: throw "Already fetching $path"
+    monitors_[path] = monitor
     try:
-      monitor = monitors_.get path
-          --init=:
-            start = Time.monotonic_us
-            client_.subscribe path
-            ResourceMonitor_
+      client_.subscribe path
       // TODO(kasper): Should $fetch_resource take a timeout
       // that doesn't cover the block call? I think so.
       block.call monitor.fetch
@@ -47,9 +49,9 @@ class ResourceManagerMqtt implements ResourceManager:
       if start and stamp: print_ "setting up fetching of $path took $(Duration --us=stamp - start)"
       if start: print_ "fetching $path took $(Duration --us=end - start)"
     finally:
-      monitors_.remove path
       catch --trace: client_.unsubscribe path
-      if monitor: monitor.done
+      monitors_.remove path
+      monitor.done
 
 monitor ResourceMonitor_:
   reader_/SizedReader? := null
