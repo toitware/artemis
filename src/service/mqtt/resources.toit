@@ -34,16 +34,26 @@ class ResourceManagerMqtt implements ResourceManager:
     monitor/ResourceMonitor_? := null
     try:
       monitor = monitors_.get path
-          --init=:
-            client_.subscribe path
-            ResourceMonitor_
+          --if_absent=: ResourceMonitor_
+          --if_present=: throw "Already fetching $path"
+      monitors_[path] = monitor
+      client_.subscribe path
       // TODO(kasper): Should $fetch_resource take a timeout
       // that doesn't cover the block call? I think so.
       block.call monitor.fetch
     finally:
-      monitors_.remove path
       catch --trace: client_.unsubscribe path
+      monitors_.remove path
       if monitor: monitor.done
+
+  fetch_resource path/string size/int offsets/List [block] -> none:
+    // TODO(kasper): We can make this smarter by pre-subscribing to
+    // next part topic when we start reading from the current part.
+    // If there is plenty of memory available, we can also accept to
+    // get the parts out-of-order and reassemble them.
+    offsets.do: | offset/int |
+      fetch_resource "$path/$offset": | reader/SizedReader |
+        block.call offset reader
 
 monitor ResourceMonitor_:
   reader_/SizedReader? := null

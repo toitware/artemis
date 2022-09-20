@@ -91,6 +91,14 @@ class SynchronizeJobMqtt extends SynchronizeJob:
         if handle_task: handle_task.cancel
 
   connect_client_ device/DeviceMqtt client/mqtt.FullClient -> none:
+    // On slower platforms where the overhead for processing packets is high,
+    // we can avoid a number of unwanted retransmits from the broker by using
+    // a higher 'keep alive' setting. The slowest packet processing is for
+    // firmware updates on the ESP32, where we need to erase and write to the
+    // flash as we read the payload stream.
+    keep_alive := platform == PLATFORM_FREERTOS
+        ? Duration --m=1
+        : Duration --m=3
     last_will ::= mqtt.LastWill device.topic_presence "disappeared".to_byte_array
         --retain
         --qos=0
@@ -99,6 +107,7 @@ class SynchronizeJobMqtt extends SynchronizeJob:
     // QoS packets that aren't retained.
     options ::= mqtt.SessionOptions
         --client_id=CLIENT_ID
+        --keep_alive=keep_alive
         --clean_session
         --last_will=last_will
     client.connect --options=options
