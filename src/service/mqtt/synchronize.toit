@@ -96,8 +96,8 @@ class SynchronizeJobMqtt extends SynchronizeJob:
     // firmware updates on the ESP32, where we need to erase and write to the
     // flash as we read the payload stream.
     keep_alive := platform == PLATFORM_FREERTOS
-        ? Duration --m=1
-        : Duration --m=3
+        ? Duration --m=3
+        : Duration --m=1
     last_will ::= mqtt.LastWill device.topic_presence "disappeared".to_byte_array
         --retain
         --qos=0

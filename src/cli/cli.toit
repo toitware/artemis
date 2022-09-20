@@ -193,7 +193,7 @@ update_firmware args/arguments.Arguments config/Map client -> Map:
     }
     client.publish "toit/firmware/$id" firmware_info --qos=1 --retain
   else:
-    unreachable
+    upload_supabase client "firmware/$id" firmware_bin
   config["firmware"] = id
   return config
 
