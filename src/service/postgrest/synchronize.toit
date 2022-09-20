@@ -11,6 +11,8 @@ import ..synchronize show SynchronizeJob
 import ...shared.device show Device
 import ...shared.postgrest.supabase
 
+POLL_INTERVAL ::= Duration --m=1
+
 class SynchronizeJobPostgrest extends SynchronizeJob:
   config_/Map := {:}
 
@@ -21,8 +23,6 @@ class SynchronizeJobPostgrest extends SynchronizeJob:
     return ::
       actions.do: it.call
       config_ = config
-
-  // TODO(kasper): Call handle_update_config
 
   connect [block]:
     network := net.open
@@ -40,7 +40,7 @@ class SynchronizeJobPostgrest extends SynchronizeJob:
           if info.size == 1 and info[0] is Map and info[0].contains "config":
             new_config := info[0]["config"]
             handle_update_config resources config_ new_config
-          sleep --ms=60_000
+          sleep POLL_INTERVAL
       finally:
         critical_do:
           disconnected.set true
