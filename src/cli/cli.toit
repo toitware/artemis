@@ -7,6 +7,7 @@ import monitor
 import mqtt
 import net
 import uuid show Uuid
+import http
 
 import host.arguments
 import host.directory
@@ -17,6 +18,7 @@ import host.pipe
 import ar
 
 import ..shared.mqtt.aws
+import ..shared.postgrest.supabase
 
 CLIENT_ID ::= "toit/artemis-client-$(random 0x3fff_ffff)"
 
@@ -27,6 +29,7 @@ CLIENT_ID ::= "toit/artemis-client-$(random 0x3fff_ffff)"
 main args:
   parser := arguments.ArgumentParser
   parser.add_option "device" --short="d" --default="fisk"
+  parser.add_flag "supabase" --short="S"
 
   install_cmd := parser.add_command "install"
   install_cmd.describe_rest ["app-name", "snapshot-file"]
@@ -42,25 +45,45 @@ main args:
   watch_presence_cmd := parser.add_command "watch-presence"
 
   parsed/arguments.Arguments := parser.parse args
-  device ::= DeviceMqtt parsed["device"]
 
-  if parsed.command == "install":
-    update_config device: | config/Map client/mqtt.Client |
-      install_app parsed config client
-  else if parsed.command == "uninstall":
-    update_config device: | config/Map client/mqtt.Client |
-      uninstall_app parsed config
-  else if parsed.command == "set-max-offline":
-    update_config device: | config/Map client/mqtt.Client |
-      set_max_offline parsed config
-  else if parsed.command == "status":
-    print_status device
-  else if parsed.command == "watch-presence":
-    watch_presence
+  if parsed["supabase"]:
+    device ::= DevicePostgrest parsed["device"]
+    if parsed.command == "install":
+      update_postgrest_config device: | config/Map client/http.Client |
+        install_app parsed config client
+    else if parsed.command == "uninstall":
+      update_postgrest_config device: | config/Map |
+        uninstall_app parsed config
+    else if parsed.command == "set-max-offline":
+      update_postgrest_config device: | config/Map |
+        set_max_offline parsed config
+    else if parsed.command == "status":
+      throw "Unimplemented command: $parsed.command --supabase"
+    else if parsed.command == "watch-presence":
+      throw "Unimplemented command: $parsed.command --supabase"
+    else:
+      print_on_stderr_
+          parser.usage args
+      exit 1
   else:
-    print_on_stderr_
-        parser.usage args
-    exit 1
+    device ::= DeviceMqtt parsed["device"]
+    if parsed.command == "install":
+      update_config device: | config/Map client/mqtt.Client |
+        install_app parsed config client
+    else if parsed.command == "uninstall":
+      update_config device: | config/Map |
+        uninstall_app parsed config
+    else if parsed.command == "set-max-offline":
+      update_config device: | config/Map |
+        set_max_offline parsed config
+    else if parsed.command == "status":
+      print_status device
+    else if parsed.command == "watch-presence":
+      watch_presence
+    else:
+      print_on_stderr_
+          parser.usage args
+      exit 1
 
 get_uuid_from_snapshot snapshot_path/string -> string?:
   if not file.is_file snapshot_path:
@@ -81,7 +104,7 @@ get_uuid_from_snapshot snapshot_path/string -> string?:
       uuid = (Uuid member.content).stringify
   return uuid
 
-install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
+install_app args/arguments.Arguments config/Map client -> Map:
   app := args.rest[0]
 
   snapshot_path := args.rest[1]
@@ -101,8 +124,12 @@ install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
     pipe.run_program ["$sdk/tools/snapshot_to_image", "-m32", "--binary", "-o", image32, snapshot_path]
     pipe.run_program ["$sdk/tools/snapshot_to_image", "-m64", "--binary", "-o", image64, snapshot_path]
 
-    client.publish "toit/apps/$uuid/image32" (file.read_content image32) --qos=1 --retain
-    client.publish "toit/apps/$uuid/image64" (file.read_content image64) --qos=1 --retain
+    if client is mqtt.Client:
+      client.publish "toit/apps/$uuid/image32" (file.read_content image32) --qos=1 --retain
+      client.publish "toit/apps/$uuid/image64" (file.read_content image64) --qos=1 --retain
+    else:
+      upload_supabase client "images/$uuid.32" (file.read_content image32)
+      upload_supabase client "images/$uuid.64" (file.read_content image64)
   finally:
     catch: file.delete image32
     catch: file.delete image64
@@ -113,6 +140,17 @@ install_app args/arguments.Arguments config/Map client/mqtt.Client -> Map:
   apps[app] = {"id": uuid, "random": (random 1000)}
   config["apps"] = apps
   return config
+
+upload_supabase client/http.Client path/string payload/ByteArray:
+  headers := create_headers // <--- argh.
+  headers.add "Content-Type" "application/octet-stream"
+  headers.add "x-upsert" "true"
+  response := client.post payload
+      --host=SUPABASE_HOST
+      --headers=headers
+      --path="/storage/v1/object/$path"
+  // 200 is accepted!
+  if response.status_code != 200: throw "UGH ($response.status_code)"
 
 uninstall_app args/arguments.Arguments config/Map -> Map:
   app := args.rest[0]
@@ -143,6 +181,45 @@ with_mqtt [block]:
   finally:
     if client: client.close
     network.close
+
+/**
+Gets current config for the specified $device.
+Calls the $block with the current config, and gets a new config back.
+Sends the new config to the device.
+*/
+update_postgrest_config device/DevicePostgrest [block]:
+  // TODO(kasper): Share more of this code with the corresponding
+  // code in the service.
+  network := net.open
+  client := create_client network
+  headers := create_headers
+  info := query client headers "devices" [
+    "name=eq.$(device.name)",
+  ]
+  id := null
+  old_config := {:}
+  if info.size == 1 and info[0] is Map:
+    id = info[0].get "id"
+    old_config = info[0].get "config" or old_config
+
+  new_config := block.call old_config client
+  upsert := id ? "?id=eq.$id" : ""
+
+  map := {
+    "config": new_config
+  }
+  if id:
+    map["id"] = id
+    headers.add "Prefer" "resolution=merge-duplicates"
+
+  payload := json.encode map
+  response := client.post payload
+      --host=SUPABASE_HOST
+      --headers=headers
+      --path="/rest/v1/devices$upsert"
+  // 201 is changed one entry.
+  if response.status_code != 201: throw "UGH ($response.status_code)"
+  network.close
 
 /**
 Gets current config for the specified $device.

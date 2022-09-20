@@ -70,6 +70,7 @@ abstract class SynchronizeJob extends Job:
     if not modification:
       handle_nop
       return
+    logger_.info "config changed: $(Modification.stringify modification)"
 
     bundle := []
     modification.on_map "apps"

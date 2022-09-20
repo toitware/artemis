@@ -27,14 +27,14 @@ class SynchronizeJobPostgrest extends SynchronizeJob:
   connect [block]:
     network := net.open
     client := create_client network
-    resources := ResourceManagerPostgrest client HOST create_headers
+    resources := ResourceManagerPostgrest client SUPABASE_HOST create_headers
 
     disconnected := monitor.Latch
     handle_task/Task? := ?
     handle_task = task::
       try:
         while true:
-          info := resources.query "devices" [
+          info := resources.fetch_json "devices" [
             "name=eq.$(device_.name)",
           ]
           if info.size == 1 and info[0] is Map and info[0].contains "config":

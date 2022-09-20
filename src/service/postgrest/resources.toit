@@ -23,9 +23,5 @@ class ResourceManagerPostgrest implements ResourceManager:
     if response.status_code != status_codes.STATUS_OK: throw "Not found"
     block.call response.body
 
-  query table/string filters/List=[] -> List?:
-    filter := filters.is_empty ? "" : "?$(filters.join "&")"
-    path := "/rest/v1/$table$filter"
-    response := client_.get host_ --headers=headers_ "$path"
-    if response.status_code != status_codes.STATUS_OK: return null
-    return json.decode_stream response.body
+  fetch_json table/string filters/List=[] -> List?:
+    return query client_ headers_ table filters

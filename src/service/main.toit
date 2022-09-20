@@ -17,7 +17,7 @@ import .postgrest.synchronize show SynchronizeJobPostgrest
 
 import .ntp
 
-USE_SUPABASE ::= false
+USE_SUPABASE ::= true
 
 main arguments:
   logger := log.default.with_name "artemis"
