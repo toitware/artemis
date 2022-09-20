@@ -1,6 +1,8 @@
 prefixes:
   ar: pkg-ar
+  certificate_roots: toit-cert-roots
   host: pkg-host
+  http: pkg-http
   mqtt: mqtt
   ntp: pkg-ntp
 packages:
@@ -16,7 +18,15 @@ packages:
     url: github.com/toitlang/pkg-host
     version: 1.7.1
     hash: 6b017ad10563263080bba6acde387ceebc13270b
+  pkg-http:
+    url: github.com/toitlang/pkg-http
+    version: 1.9.1
+    hash: fc9a7ba4bda43ffe0c644ff378afda7aca5757de
   pkg-ntp:
     url: github.com/toitlang/pkg-ntp
     version: 1.0.0
     hash: 1c3cc4a4819f459393f00efc576f66f838665719
+  toit-cert-roots:
+    url: github.com/toitware/toit-cert-roots
+    version: 1.3.2
+    hash: 288547039d8a3797330064e91d8c79ad16313545

@@ -16,7 +16,7 @@ import host.pipe
 
 import ar
 
-import ..shared.connect
+import ..shared.mqtt.aws
 
 CLIENT_ID ::= "toit/artemis-client-$(random 0x3fff_ffff)"
 
