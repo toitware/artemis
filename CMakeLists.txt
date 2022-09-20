@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.23)
 
-project(arguments)
+project(artemis)
 
 enable_testing()
 add_subdirectory(tests)
