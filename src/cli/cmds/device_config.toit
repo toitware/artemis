@@ -2,6 +2,7 @@
 
 import cli
 import .device_options_
+import ..artemis
 
 create_device_config_commands -> List:
   max_offline_cmd := cli.Command "set-max-offline"
@@ -21,10 +22,5 @@ set_max_offline parsed/cli.Parsed:
   client := get_client parsed
   max_offline := parsed["max-offline"]
 
-  client.update_config: | config/Map |
-    print "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline)"
-    if max_offline > 0:
-      config["max-offline"] = max_offline
-    else:
-      config.remove "max-offline"
-    config
+  artemis := Artemis
+  artemis.config_set_max_offline client --max_offline_seconds=max_offline
