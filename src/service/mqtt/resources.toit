@@ -37,7 +37,6 @@ class ResourceManagerMqtt implements ResourceManager:
     resource is released when the block returns.
   */
   fetch_resource path/string [block] -> none:
-    start := null
     monitor/ResourceMonitor_ ::= monitors_.get path
         --if_absent=: ResourceMonitor_
         --if_present=: throw "Already fetching $path"
@@ -47,10 +46,6 @@ class ResourceManagerMqtt implements ResourceManager:
       // TODO(kasper): Should $fetch_resource take a timeout
       // that doesn't cover the block call? I think so.
       block.call monitor.fetch
-      end := Time.monotonic_us
-      stamp := monitor.stamp
-      if start and stamp: print_ "setting up fetching of $path took $(Duration --us=stamp - start)"
-      if start: print_ "fetching $path took $(Duration --us=end - start)"
     finally:
       catch --trace: client_.unsubscribe path
       monitors_.remove path
@@ -59,17 +54,10 @@ class ResourceManagerMqtt implements ResourceManager:
 monitor ResourceMonitor_:
   reader_/SizedReader? := null
   done_/bool := false
-  stamp_ := null
-
-  stamp:
-    return stamp_
 
   provide reader/SizedReader -> none:
-    stamp_ = Time.monotonic_us
     reader_ = reader
     await: done_
-    end := Time.monotonic_us
-    print_ "blocked in provide for $(Duration --us=end - stamp_)"
 
   fetch -> SizedReader:
     await: reader_
