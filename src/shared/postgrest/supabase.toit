@@ -15,17 +15,17 @@ class DevicePostgrest implements Device:
   name/string
   constructor .name:
 
-create_client network/net.Interface -> http.Client:
+supabase_create_client network/net.Interface -> http.Client:
   return http.Client.tls network
       --root_certificates=[certificate_roots.BALTIMORE_CYBERTRUST_ROOT]
 
-create_headers -> http.Headers:
+supabase_create_headers -> http.Headers:
   headers := http.Headers
   headers.add "apikey" ANON_
   headers.add "Authorization" "Bearer $ANON_"
   return headers
 
-query client/http.Client headers/http.Headers table/string filters/List=[] -> List?:
+supabase_query client/http.Client headers/http.Headers table/string filters/List=[] -> List?:
   filter := filters.is_empty ? "" : "?$(filters.join "&")"
   path := "/rest/v1/$table$filter"
   response := client.get SUPABASE_HOST --headers=headers "$path"

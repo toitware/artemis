@@ -27,4 +27,4 @@ class ResourceManagerPostgrest implements ResourceManager:
     block.call response.body
 
   fetch_json table/string filters/List=[] -> List?:
-    return query client_ headers_ table filters
+    return supabase_query client_ headers_ table filters

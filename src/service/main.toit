@@ -9,7 +9,7 @@ import .applications show ApplicationManager
 
 import .synchronize show SynchronizeJob
 
-import ..shared.mqtt.aws show DeviceMqtt
+import ..shared.mqtt.base show DeviceMqtt
 import .mqtt.synchronize show SynchronizeJobMqtt
 
 import ..shared.postgrest.supabase show DevicePostgrest

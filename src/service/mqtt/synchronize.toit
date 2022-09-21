@@ -10,7 +10,9 @@ import net
 import .resources
 import ..applications
 import ..synchronize show SynchronizeJob
+
 import ...shared.mqtt.aws
+import ...shared.mqtt.base
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
@@ -26,10 +28,13 @@ class SynchronizeJobMqtt extends SynchronizeJob:
       actions.do: it.call
       config_ = config
 
+  fake_update_firmware id/string -> none:
+    config_["firmware"] = id
+
   connect [block]:
     device ::= device_ as DeviceMqtt
     network ::= net.open
-    transport ::= create_transport network
+    transport ::= aws_create_transport network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
     connect_client_ device client
     disconnected := monitor.Latch

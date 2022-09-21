@@ -6,29 +6,13 @@ import mqtt
 import mqtt.transport as mqtt
 import tls
 
-import ..device
+AWS_HOST /string ::= "a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com"
+AWS_PORT /int    ::= 8883
 
-HOST /string ::= "a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com"
-PORT /int    ::= 8883
-
-class DeviceMqtt implements Device:
-  name/string
-  topic_config/string
-  topic_lock/string
-  topic_revision/string
-  topic_presence/string
-
-  constructor .name:
-    config ::= "toit/devices/$name/config"
-    topic_config = config
-    topic_lock = "$config/writer"
-    topic_revision = "$config/revision"
-    topic_presence = "toit/devices/presence/$name"
-
-create_transport network/net.Interface -> mqtt.Transport:
+aws_create_transport network/net.Interface -> mqtt.Transport:
   certificate ::= tls.Certificate TOIT_CERT TOIT_PRIVATE_KEY
-  return mqtt.TcpTransport.tls network --host=HOST --port=PORT
-      --server_name=HOST
+  return mqtt.TcpTransport.tls network --host=AWS_HOST --port=AWS_PORT
+      --server_name=AWS_HOST
       --root_certificates=[AWS_ROOT_CERT]
       --certificate=certificate
 

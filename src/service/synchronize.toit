@@ -48,6 +48,13 @@ abstract class SynchronizeJob extends Job:
   abstract connect [block] -> none
   abstract commit config/Map bundle/List -> Lambda
 
+  // TODO(kasper): For now, we make it look like we've updated
+  // the firmware to avoid fetching the firmware over and over
+  // again. We should probably replace this with something that
+  // automatically populates our configuration with the right
+  // firmware id on boot.
+  abstract fake_update_firmware id/string -> none
+
   run -> none:
     logger_.info "connecting" --tags={"device": device_.name}
     connect: | resources/ResourceManager |
@@ -197,6 +204,9 @@ abstract class SynchronizeJob extends Job:
 
       if writer: writer.commit
       print "firmware update applied: $firmware.is_validation_pending ($took)"
+      // TODO(kasper): It would be great if we could also restart the Artemis
+      // service here for testing purposes.
+      fake_update_firmware id
 
   // TODO(kasper): Get rid of this again. Can we get a streaming
   // ubjson reader?
