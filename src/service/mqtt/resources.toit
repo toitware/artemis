@@ -27,16 +27,16 @@ class ResourceManagerMqtt implements ResourceManager:
     fetch_resource "toit/apps/$id/image$BITS_PER_WORD" block
 
   fetch_firmware id/string [block] -> none:
-    size/int? := null
+    total_size/int? := null
     parts/List? := null
     fetch_resource "toit/firmware/$id": | reader/SizedReader |
       manifest := ubjson.decode (read_all_ reader)
-      size = manifest["size"]
+      total_size = manifest["size"]
       parts = manifest["parts"]
     parts.do: | offset/int |
       topic := "toit/firmware/$id/$offset"
       fetch_resource topic: | reader/SizedReader |
-        block.call reader offset size
+        block.call reader offset total_size
 
   // TODO(kasper): Get rid of this again. Can we get a streaming
   // ubjson reader?

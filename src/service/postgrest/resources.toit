@@ -19,33 +19,44 @@ class ResourceManagerPostgrest implements ResourceManager:
     fetch_resource "/storage/v1/object/images/$id.$BITS_PER_WORD" block
 
   fetch_firmware id/string [block] -> none:
-    PART_SIZE ::= 128 * 1024
+    PART_SIZE ::= 64 * 1024
     offset := 0
     while true:
-      size/int? := null
       fetch_resource "/storage/v1/object/firmware/$id"
           --offset=offset
-          --size=PART_SIZE:
-        | reader/SizedReader |
-        size = reader.size
-        // TODO(kasper): The 'size' we pass here is wrong.
-        block.call reader 0 size
-      if size < PART_SIZE: return
-      offset += size
+          --size=PART_SIZE
+          : | reader/SizedReader total_size/int |
+            block.call reader offset total_size
+            offset += reader.size
+            if offset >= total_size: return
 
   fetch_resource path/string --offset/int=0 --size/int?=null [block] -> none:
-    partial/bool := false
+    partial := false
     headers := headers_
     if offset != 0 or size:
       partial = true
       headers = headers.copy
-      headers.add "Range" "bytes=$offset-$(offset + size - 1)"
+      end := size ? "$(offset + size - 1)" : ""
+      headers.add "Range" "bytes=$offset-$end"
     response := client_.get host_ --headers=headers path
-    // TODO(kasper): check response 200 or 206 properly.
-    if response.status_code != 200 and response.status_code != 206:
-      throw "Not found"
+    // Check the status code. The correct result depends on whether
+    // or not we're doing a partial fetch.
+    status := response.status_code
+    okay := (not partial and status == 200) or (partial and status == 206)
+    if not okay: throw "Not found ($status)"
+    // We got a response we can use. If it is partial we
+    // need to decode the response header to find the
+    // total size.
     body := response.body as SizedReader
-    block.call response.body
+    if partial:
+      // TODO(kasper): Try to avoid doing this for all parts.
+      // We only really need to do it for the first.
+      range := response.headers.single "Content-Range"
+      divider := range.index_of "/"
+      total_size := int.parse range[divider + 1..range.size]
+      block.call body total_size
+    else:
+      block.call body body.size
 
   fetch_json table/string filters/List=[] -> List?:
     return supabase_query client_ headers_ table filters
