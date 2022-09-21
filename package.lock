@@ -1,6 +1,7 @@
 prefixes:
   ar: pkg-ar
   certificate_roots: toit-cert-roots
+  cli: pkg-cli
   host: pkg-host
   http: pkg-http
   mqtt: mqtt
@@ -14,6 +15,10 @@ packages:
     url: github.com/toitlang/pkg-ar
     version: 1.0.0
     hash: 175bcdfd59b2597c0825ef8765a20498a7e6a2db
+  pkg-cli:
+    url: github.com/toitlang/pkg-cli
+    version: 1.0.0
+    hash: 01d8c8f76eef979ca455a760b3330f8f826fa881
   pkg-host:
     url: github.com/toitlang/pkg-host
     version: 1.7.1
