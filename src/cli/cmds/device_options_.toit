@@ -11,6 +11,7 @@ device_options -> List:
   hostname := null
   catch:
     hostname = pipe.backticks "hostname"
+    hostname = hostname.trim
 
   return [
     cli.OptionString "device"
