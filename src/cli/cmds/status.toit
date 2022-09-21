@@ -3,6 +3,8 @@
 import cli
 import .device_options_
 
+import ..mqtt.base
+
 create_status_commands -> List:
   status_cmd := cli.Command "status"
       --short_help="Print the online status of the device."
@@ -20,9 +22,20 @@ create_status_commands -> List:
   ]
 
 show_status parsed/cli.Parsed:
-  client := get_client parsed
-  client.print_status
+  mediator := get_mediator parsed
+  if mediator is not MediatorMqtt:
+    throw "Only MQTT is supported for this command."
+
+  mqtt_mediator := mediator as MediatorMqtt
+  device_id := parsed["device"]
+  mqtt_mediator.print_status --device_id=device_id
+  mqtt_mediator.close
 
 watch_presence parsed/cli.Parsed:
-  client := get_client parsed
-  client.watch_presence
+  mediator := get_mediator parsed
+  if mediator is not MediatorMqtt:
+    throw "Only MQTT is supported for this command."
+
+  mqtt_mediator := mediator as MediatorMqtt
+  mqtt_mediator.watch_presence
+  unreachable

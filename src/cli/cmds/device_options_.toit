@@ -3,7 +3,7 @@
 import cli
 import host.pipe
 
-import ..client
+import ..mediator
 import ..mqtt.aws
 import ..postgrest.supabase
 
@@ -23,11 +23,6 @@ device_options -> List:
         --short_help="Use Supabase."
   ]
 
-get_client parsed/cli.Parsed -> Client:
-  client/Client? := null
-  if parsed["supabase"]:
-    client = ClientSupabase parsed["device"]
-  else:
-    client = ClientAws parsed["device"]
-
-  return client
+get_mediator parsed/cli.Parsed -> Mediator:
+  if parsed["supabase"]: return MediatorSupabase
+  return create_aws_mediator

@@ -5,26 +5,33 @@ import monitor
 import http
 import encoding.json
 
-import ..client
+import ..mediator
 import ...shared.device
 import ...shared.postgrest.supabase
 
-class ClientSupabase extends Client:
-  device/DevicePostgrest
+class MediatorSupabase implements Mediator:
   client_/http.Client? := null
+  network_/net.Interface? := null
 
-  constructor device_name/string:
-    device = DevicePostgrest device_name
-
-  update_config [block]:
-    // TODO(kasper): Share more of this code with the corresponding
-    // code in the service.
+  constructor:
     network := net.open
     client := supabase_create_client network
     client_ = client  // TODO(kasper): Clear this again.
+
+  close:
+    client_ = null
+    if network_: network_.close
+    network_ = null
+
+  is_closed -> bool:
+    return client_ == null
+
+  device_update_config --device_id/string [block]:
+    // TODO(kasper): Share more of this code with the corresponding
+    // code in the service.
     headers := supabase_create_headers
-    info := supabase_query client headers "devices" [
-      "name=eq.$(device.name)",
+    info := supabase_query client_ headers "devices" [
+      "name=eq.$(device_id)",
     ]
     id := null
     old_config := {:}
@@ -43,19 +50,18 @@ class ClientSupabase extends Client:
       headers.add "Prefer" "resolution=merge-duplicates"
 
     payload := json.encode map
-    response := client.post payload
+    response := client_.post payload
         --host=SUPABASE_HOST
         --headers=headers
         --path="/rest/v1/devices$upsert"
     // 201 is changed one entry.
     if response.status_code != 201: throw "UGH ($response.status_code)"
-    network.close
 
-  upload_image id/string --bits/int content/ByteArray -> none:
-    upload_resource_ "images/$id.$bits" content
+  upload_image --app_id/string --bits/int content/ByteArray -> none:
+    upload_resource_ "images/$app_id.$bits" content
 
-  upload_firmware id/string content/ByteArray -> none:
-    upload_resource_ "firmware/$id" content
+  upload_firmware --firmware_id/string content/ByteArray -> none:
+    upload_resource_ "firmware/$firmware_id" content
 
   upload_resource_ path/string content/ByteArray -> none:
     headers := supabase_create_headers // TODO(kasper): This seems a bit iffy.

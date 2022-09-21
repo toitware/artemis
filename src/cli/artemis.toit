@@ -8,10 +8,21 @@ import host.pipe
 import host.os
 import uuid
 
-import .client
+import .mediator
 
+/**
+Manages devices that have an Artemis service running on them.
+*/
 class Artemis:
-  app_install client/Client --app_name/string --snapshot_path/string:
+  mediator_/Mediator
+
+  constructor .mediator_:
+
+  close:
+    // Do nothing for now.
+    // The mediators are not created here and should be closed outside.
+
+  app_install --device_id/string --app_name/string --snapshot_path/string:
     id := get_uuid_from_snapshot snapshot_path
     if not id:
       print_on_stderr_ "$snapshot_path: Not a valid Toit snapshot"
@@ -23,34 +34,32 @@ class Artemis:
     image32 := "$tmpdir/image32"
     image64 := "$tmpdir/image64"
 
-    client.update_config: | config/Map |
-      // We have to start updating the config already here, as the call to
-      // client.upload_image requires a running MQTT connection.
-      try:
-        pipe.run_program ["$sdk/tools/snapshot_to_image", "-m32", "--binary", "-o", image32, snapshot_path]
-        pipe.run_program ["$sdk/tools/snapshot_to_image", "-m64", "--binary", "-o", image64, snapshot_path]
-        client.upload_image id --bits=32 (file.read_content image32)
-        client.upload_image id --bits=64 (file.read_content image64)
-      finally:
-        catch: file.delete image32
-        catch: file.delete image64
-        directory.rmdir tmpdir
+    try:
+      pipe.run_program ["$sdk/tools/snapshot_to_image", "-m32", "--binary", "-o", image32, snapshot_path]
+      pipe.run_program ["$sdk/tools/snapshot_to_image", "-m64", "--binary", "-o", image64, snapshot_path]
+      mediator_.upload_image --app_id=id --bits=32 (file.read_content image32)
+      mediator_.upload_image --app_id=id --bits=64 (file.read_content image64)
+    finally:
+      catch: file.delete image32
+      catch: file.delete image64
+      directory.rmdir tmpdir
 
+    mediator_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Installing app: $app_name"
       apps := config.get "apps" --if_absent=: {:}
       apps[app_name] = {"id": id, "random": (random 1000)}
       config["apps"] = apps
       config
 
-  app_uninstall client/Client --app_name/string:
-    client.update_config: | config/Map |
+  app_uninstall --device_id/string --app_name/string:
+    mediator_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Uninstalling app: $app_name"
       apps := config.get "apps"
       if apps: apps.remove app_name
       config
 
-  config_set_max_offline client/Client --max_offline_seconds/int:
-    client.update_config: | config/Map |
+  config_set_max_offline --device_id/string --max_offline_seconds/int:
+    mediator_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline_seconds)"
       if max_offline_seconds > 0:
         config["max-offline"] = max_offline_seconds
@@ -58,14 +67,15 @@ class Artemis:
         config.remove "max-offline"
       config
 
-  firmware_update client/Client --firmware_path/string:
+  firmware_update --device_id/string --firmware_path/string:
     firmware_bin := file.read_content firmware_path
     sha := sha256.Sha256
     sha.add firmware_bin
     id/string := "$(uuid.Uuid sha.get[0..uuid.SIZE])"
 
-    client.update_config: | config/Map |
-      client.upload_firmware id firmware_bin
+    mediator_.upload_firmware --firmware_id=id firmware_bin
+
+    mediator_.device_update_config --device_id=device_id: | config/Map |
       config["firmware"] = id
       config
 
