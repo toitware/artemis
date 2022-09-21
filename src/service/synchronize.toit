@@ -6,10 +6,7 @@ import uuid
 import reader show SizedReader
 
 import system.containers
-
-// TODO(kasper): Move this out.
-import encoding.ubjson
-import system.firmware
+import system.firmware  // TODO(kasper): Move this elsewhere?
 
 import .applications
 import .jobs
@@ -17,9 +14,6 @@ import .resources
 
 import ..shared.device show Device
 import ..shared.json_diff show Modification
-
-// TODO(kasper): Get rid of this import.
-import .postgrest.resources show ResourceManagerPostgrest
 
 abstract class SynchronizeJob extends Job:
   static ACTION_NOP_/Lambda ::= :: null
@@ -176,44 +170,24 @@ abstract class SynchronizeJob extends Job:
     return ::
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
-      print "************** FIRMWARE UPDATE **************"
       writer := null
-      took := Duration.of:
-        if resources is ResourceManagerPostgrest:
-            resources.fetch_firmware id: | reader/SizedReader |
-              print "firmware update is 1 part and $reader.size bytes"
-              if platform == PLATFORM_FREERTOS: writer = firmware.FirmwareWriter 0 reader.size
-              while data := reader.read:
-                if writer: writer.write data
-        else:
-          size/int? := null
-          parts/List? := null
-          resources.fetch_firmware id: | reader/SizedReader |
-            manifest := ubjson.decode (read_all_ reader)
-            size = manifest["size"]
-            parts = manifest["parts"]
-          print "firmware update is $parts.size parts and $size bytes"
-          if platform == PLATFORM_FREERTOS: writer = firmware.FirmwareWriter 0 size
-          parts.do: | offset/int |
-            topic := "toit/firmware/$id/$offset"
-            print "requesting firmware [$topic]"
-            resources.fetch_resource topic: | reader/SizedReader |
-              while data := reader.read:
-                if writer: writer.write data
-            print "requesting firmware [$topic] => written"
-
+      written := 0
+      last := null
+      elapsed := Duration.of:
+        resources.fetch_firmware id: | reader/SizedReader offset/int total_size/int |
+          if offset == 0:
+            logger_.info "firmware update" --tags={"id": id, "size": total_size}
+            if platform == PLATFORM_FREERTOS:
+              writer = firmware.FirmwareWriter 0 total_size
+          while data := reader.read:
+            if writer: writer.write data
+            written += data.size
+            percent := (written * 100) / total_size
+            if percent < 100 and (not last or percent >= last + 5):
+              logger_.info "firmware update: $(%3d percent)%"
+              last = percent
       if writer: writer.commit
-      print "firmware update applied: $firmware.is_validation_pending ($took)"
+      logger_.info "firmware update: 100%" --tags={"elapsed": elapsed}
       // TODO(kasper): It would be great if we could also restart the Artemis
       // service here for testing purposes.
       fake_update_firmware id
-
-  // TODO(kasper): Get rid of this again. Can we get a streaming
-  // ubjson reader?
-  read_all_ reader/SizedReader -> ByteArray:
-    bytes := ByteArray reader.size
-    offset := 0
-    while data := reader.read:
-      bytes.replace offset data
-      offset += data.size
-    return bytes

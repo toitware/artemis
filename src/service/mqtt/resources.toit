@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import mqtt
+import encoding.ubjson
 import reader show SizedReader
 
 import ..resources
@@ -26,7 +27,26 @@ class ResourceManagerMqtt implements ResourceManager:
     fetch_resource "toit/apps/$id/image$BITS_PER_WORD" block
 
   fetch_firmware id/string [block] -> none:
-    fetch_resource "toit/firmware/$id" block
+    total_size/int? := null
+    parts/List? := null
+    fetch_resource "toit/firmware/$id": | reader/SizedReader |
+      manifest := ubjson.decode (read_all_ reader)
+      total_size = manifest["size"]
+      parts = manifest["parts"]
+    parts.do: | offset/int |
+      topic := "toit/firmware/$id/$offset"
+      fetch_resource topic: | reader/SizedReader |
+        block.call reader offset total_size
+
+  // TODO(kasper): Get rid of this again. Can we get a streaming
+  // ubjson reader?
+  static read_all_ reader/SizedReader -> ByteArray:
+    bytes := ByteArray reader.size
+    offset := 0
+    while data := reader.read:
+      bytes.replace offset data
+      offset += data.size
+    return bytes
 
   /**
   Fetches the resource for the given $path by requesting it
