@@ -28,8 +28,8 @@ update_firmware parsed/cli.Parsed:
   sha := sha256.Sha256
   sha.add firmware_bin
   id/string := "$(uuid.Uuid sha.get[0..uuid.SIZE])"
-  client.upload_firmware id firmware_bin
 
   client.update_config: | config/Map |
+    client.upload_firmware id firmware_bin
     config["firmware"] = id
     config

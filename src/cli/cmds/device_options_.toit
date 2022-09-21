@@ -20,7 +20,7 @@ device_options -> List:
         --required=(not hostname),
     cli.Flag "supabase"
         --short_name="S"
-        --short_help="Use the Supabase database."
+        --short_help="Use Supabase."
   ]
 
 get_client parsed/cli.Parsed -> Client:

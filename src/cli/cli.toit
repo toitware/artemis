@@ -14,7 +14,7 @@ import .cmds.device_config
 main args:
   root_cmd := cli.Command "root"
       --long_help="""
-      A fleet management system for IoT devices.
+      A fleet management system for Toit devices.
       """
 
   create_app_commands.do: root_cmd.add it
