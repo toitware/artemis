@@ -22,12 +22,16 @@ class SynchronizeJobPostgrest extends SynchronizeJob:
   commit config/Map actions/List -> Lambda:
     return ::
       actions.do: it.call
+      print "updating config from $config_ to $config"
       config_ = config
+
+  fake_update_firmware id/string -> none:
+    config_["firmware"] = id
 
   connect [block]:
     network := net.open
-    client := create_client network
-    resources := ResourceManagerPostgrest client SUPABASE_HOST create_headers
+    client := supabase_create_client network
+    resources := ResourceManagerPostgrest client SUPABASE_HOST supabase_create_headers
 
     disconnected := monitor.Latch
     handle_task/Task? := ?

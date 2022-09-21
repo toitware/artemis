@@ -7,12 +7,19 @@ import reader show SizedReader
 
 import system.containers
 
+// TODO(kasper): Move this out.
+import encoding.ubjson
+import system.firmware
+
 import .applications
 import .jobs
 import .resources
 
 import ..shared.device show Device
 import ..shared.json_diff show Modification
+
+// TODO(kasper): Get rid of this import.
+import .postgrest.resources show ResourceManagerPostgrest
 
 abstract class SynchronizeJob extends Job:
   static ACTION_NOP_/Lambda ::= :: null
@@ -40,6 +47,13 @@ abstract class SynchronizeJob extends Job:
 
   abstract connect [block] -> none
   abstract commit config/Map bundle/List -> Lambda
+
+  // TODO(kasper): For now, we make it look like we've updated
+  // the firmware to avoid fetching the firmware over and over
+  // again. We should probably replace this with something that
+  // automatically populates our configuration with the right
+  // firmware id on boot.
+  abstract fake_update_firmware id/string -> none
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.name}
@@ -72,6 +86,18 @@ abstract class SynchronizeJob extends Job:
       return
     logger_.info "config changed: $(Modification.stringify modification)"
 
+    modification.on_value "firmware"
+        --added=: | value |
+          logger_.info "update firmware to $value"
+          handle_firmware_update_ resources value
+          return
+        --removed=: | value |
+          logger_.error "firmware information was lost (was: $value)"
+        --updated=: | from to |
+          logger_.info "update firmware from $from to $to"
+          handle_firmware_update_ resources to
+          return
+
     bundle := []
     modification.on_map "apps"
         --added=: | key value |
@@ -95,6 +121,9 @@ abstract class SynchronizeJob extends Job:
         --removed =: bundle.add (action_set_max_offline_ null)
 
     actions_.send (commit to bundle)
+
+  handle_firmware_update_ resources/ResourceManager id/string -> none:
+    actions_.send (action_firmware_update_ resources id)
 
   handle_update_app_ bundle/List name/string id/string? modification/Modification -> none:
     modification.on_value "id"
@@ -141,5 +170,50 @@ abstract class SynchronizeJob extends Job:
           applications_.complete incomplete reader
 
   action_set_max_offline_ value/any -> Lambda:
+    return :: max_offline_ = (value is int) ? Duration --s=value : null
+
+  action_firmware_update_ resources/ResourceManager id/string -> Lambda:
     return ::
-      max_offline_ = (value is int) ? Duration --s=value : null
+      // TODO(kasper): Introduce run-levels for jobs and make sure we're
+      // not running a lot of other stuff while we update the firmware.
+      print "************** FIRMWARE UPDATE **************"
+      writer := null
+      took := Duration.of:
+        if resources is ResourceManagerPostgrest:
+            resources.fetch_firmware id: | reader/SizedReader |
+              print "firmware update is 1 part and $reader.size bytes"
+              if platform == PLATFORM_FREERTOS: writer = firmware.FirmwareWriter 0 reader.size
+              while data := reader.read:
+                if writer: writer.write data
+        else:
+          size/int? := null
+          parts/List? := null
+          resources.fetch_firmware id: | reader/SizedReader |
+            manifest := ubjson.decode (read_all_ reader)
+            size = manifest["size"]
+            parts = manifest["parts"]
+          print "firmware update is $parts.size parts and $size bytes"
+          if platform == PLATFORM_FREERTOS: writer = firmware.FirmwareWriter 0 size
+          parts.do: | offset/int |
+            topic := "toit/firmware/$id/$offset"
+            print "requesting firmware [$topic]"
+            resources.fetch_resource topic: | reader/SizedReader |
+              while data := reader.read:
+                if writer: writer.write data
+            print "requesting firmware [$topic] => written"
+
+      if writer: writer.commit
+      print "firmware update applied: $firmware.is_validation_pending ($took)"
+      // TODO(kasper): It would be great if we could also restart the Artemis
+      // service here for testing purposes.
+      fake_update_firmware id
+
+  // TODO(kasper): Get rid of this again. Can we get a streaming
+  // ubjson reader?
+  read_all_ reader/SizedReader -> ByteArray:
+    bytes := ByteArray reader.size
+    offset := 0
+    while data := reader.read:
+      bytes.replace offset data
+      offset += data.size
+    return bytes

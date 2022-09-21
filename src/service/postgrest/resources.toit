@@ -18,10 +18,13 @@ class ResourceManagerPostgrest implements ResourceManager:
   fetch_image id/string [block] -> none:
     fetch_resource "/storage/v1/object/images/$id.$BITS_PER_WORD" block
 
+  fetch_firmware id/string [block] -> none:
+    fetch_resource "/storage/v1/object/firmware/$id" block
+
   fetch_resource path/string [block] -> none:
     response := client_.get host_ --headers=headers_ path
     if response.status_code != status_codes.STATUS_OK: throw "Not found"
     block.call response.body
 
   fetch_json table/string filters/List=[] -> List?:
-    return query client_ headers_ table filters
+    return supabase_query client_ headers_ table filters
