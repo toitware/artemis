@@ -25,5 +25,5 @@ device_options -> List:
   ]
 
 get_mediator parsed/cli.Parsed -> Mediator:
-  if parsed["supabase"]: return MediatorSupabase
+  if parsed["supabase"]: return create_supabase_mediator
   return create_aws_mediator
