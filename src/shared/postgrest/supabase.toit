@@ -7,6 +7,14 @@ import http.status_codes
 import encoding.json
 
 import ..device
+import .base
+
+create_mediator_cli_supabase -> MediatorCliPostgrest:
+  network := net.open
+  http_client := supabase_create_client network
+  postgrest_client := SupabaseClient http_client
+  return MediatorCliPostgrest postgrest_client network
+
 
 SUPABASE_HOST ::= "uelhwhbsyumuqhbukich.supabase.co"
 ANON_ ::= "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlbGh3aGJzeXVtdXFoYnVraWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjM1OTU0NDYsImV4cCI6MTk3OTE3MTQ0Nn0.X6yvaUJDoN0Zk1xjYy_Ap-w6NhCc5BtyWnh5zGdoPFo"
@@ -34,3 +42,47 @@ supabase_query client/http.Client headers/http.Headers table/string filters/List
   response := client.get SUPABASE_HOST --headers=headers "$path"
   if response.status_code != status_codes.STATUS_OK: return null
   return json.decode_stream response.body
+
+class SupabaseClient implements PostgrestClient:
+  client_/http.Client? := null
+
+  constructor .client_:
+
+  close -> none:
+    client_ = null
+
+  is_closed -> bool:
+    return client_ == null
+
+  query table/string filters/List -> List?:
+    headers := http.Headers
+    supabase_add_auth_headers headers
+    return supabase_query client_ headers table filters
+
+  update_entry table/string --id/int? payload/ByteArray:
+    headers := http.Headers
+    supabase_add_auth_headers headers
+
+    upsert := ""
+    if id:
+      headers.add "Prefer" "resolution=merge-duplicates"
+      upsert = "?id=eq.$id"
+
+    response := client_.post payload
+        --host=SUPABASE_HOST
+        --headers=headers
+        --path="/rest/v1/$table$upsert"
+    // 201 is changed one entry.
+    if response.status_code != 201: throw "UGH ($response.status_code)"
+
+  upload_resource --path/string --content/ByteArray:
+    headers := http.Headers
+    supabase_add_auth_headers headers
+    headers.add "Content-Type" "application/octet-stream"
+    headers.add "x-upsert" "true"
+    response := client_.post content
+        --host=SUPABASE_HOST
+        --headers=headers
+        --path="/storage/v1/object/$path"
+    // 200 is accepted!
+    if response.status_code != 200: throw "UGH ($response.status_code)"

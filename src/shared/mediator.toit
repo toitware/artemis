@@ -3,7 +3,7 @@
 /**
 Responsible for allowing the Artemis CLI to talk to Artemis services on devices.
 */
-interface Mediator:
+interface MediatorCli:
   // TODO(florian): we probably want to add a `connect` function to this interface.
   // At the moment we require the connection to be open when artemis receives the
   // mediator.

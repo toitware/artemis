@@ -3,7 +3,7 @@
 import cli
 import .device_options_
 
-import ..mqtt.base
+import ...shared.mqtt.base
 
 create_status_commands -> List:
   status_cmd := cli.Command "status"
@@ -23,10 +23,10 @@ create_status_commands -> List:
 
 show_status parsed/cli.Parsed:
   mediator := get_mediator parsed
-  if mediator is not MediatorMqtt:
+  if mediator is not MediatorCliMqtt:
     throw "Only MQTT is supported for this command."
 
-  mqtt_mediator := mediator as MediatorMqtt
+  mqtt_mediator := mediator as MediatorCliMqtt
   // TODO(florian): map device name to device id.
   device_id := parsed["device"]
   mqtt_mediator.print_status --device_id=device_id
@@ -34,9 +34,9 @@ show_status parsed/cli.Parsed:
 
 watch_presence parsed/cli.Parsed:
   mediator := get_mediator parsed
-  if mediator is not MediatorMqtt:
+  if mediator is not MediatorCliMqtt:
     throw "Only MQTT is supported for this command."
 
-  mqtt_mediator := mediator as MediatorMqtt
+  mqtt_mediator := mediator as MediatorCliMqtt
   mqtt_mediator.watch_presence
   unreachable

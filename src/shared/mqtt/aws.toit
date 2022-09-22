@@ -6,8 +6,12 @@ import mqtt
 import mqtt.transport as mqtt
 import tls
 
-AWS_HOST /string ::= "a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com"
-AWS_PORT /int    ::= 8883
+import .base
+
+create_mediator_cli_aws -> MediatorCliMqtt:
+  network := net.open
+  transport := aws_create_transport network
+  return MediatorCliMqtt transport
 
 aws_create_transport network/net.Interface -> mqtt.Transport:
   certificate ::= tls.Certificate TOIT_CERT TOIT_PRIVATE_KEY
@@ -15,6 +19,9 @@ aws_create_transport network/net.Interface -> mqtt.Transport:
       --server_name=AWS_HOST
       --root_certificates=[AWS_ROOT_CERT]
       --certificate=certificate
+
+AWS_HOST /string ::= "a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com"
+AWS_PORT /int    ::= 8883
 
 AWS_ROOT_CERT/x509.Certificate ::= x509.Certificate.parse """
 -----BEGIN CERTIFICATE-----

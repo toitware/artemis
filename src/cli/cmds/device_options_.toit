@@ -3,9 +3,9 @@
 import cli
 import host.pipe
 
-import ..mediator
-import ..mqtt.aws
-import ..postgrest.supabase
+import ...shared.mediator
+import ...shared.mqtt.aws
+import ...shared.postgrest.supabase
 
 device_options -> List:
   hostname := null
@@ -24,6 +24,6 @@ device_options -> List:
         --short_help="Use Supabase."
   ]
 
-get_mediator parsed/cli.Parsed -> Mediator:
-  if parsed["supabase"]: return create_supabase_mediator
-  return create_aws_mediator
+get_mediator parsed/cli.Parsed -> MediatorCli:
+  if parsed["supabase"]: return create_mediator_cli_supabase
+  return create_mediator_cli_aws
