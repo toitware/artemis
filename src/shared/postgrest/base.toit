@@ -15,7 +15,7 @@ interface PostgrestClient:
   update_entry table/string --id/int? payload/ByteArray
   upload_resource --path/string --content/ByteArray
 
-class MediatorPostgrest implements Mediator:
+class MediatorCliPostgrest implements MediatorCli:
   client_/PostgrestClient? := null
   network_/net.Interface? := null
 

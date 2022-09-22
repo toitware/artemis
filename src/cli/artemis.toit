@@ -8,13 +8,13 @@ import host.pipe
 import host.os
 import uuid
 
-import .mediator
+import ..shared.mediator
 
 /**
 Manages devices that have an Artemis service running on them.
 */
 class Artemis:
-  mediator_/Mediator
+  mediator_/MediatorCli
 
   constructor .mediator_:
 

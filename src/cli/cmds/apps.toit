@@ -39,7 +39,7 @@ install_app parsed/cli.Parsed:
   device_name := parsed["device"]
   snapshot_path := parsed["snapshot"]
 
-  mediator := get_mediator parsed
+  mediator := create_mediator parsed
   artemis := Artemis mediator
   device_id := artemis.device_name_to_id device_name
   artemis.app_install --device_id=device_id --app_name=app_name --snapshot_path=snapshot_path
@@ -50,7 +50,7 @@ uninstall_app parsed/cli.Parsed:
   app_name := parsed["app-name"]
   device_name := parsed["device"]
 
-  mediator := get_mediator parsed
+  mediator := create_mediator parsed
   artemis := Artemis mediator
   device_id := artemis.device_name_to_id device_name
   artemis.app_uninstall --device_id=device_id --app_name=app_name
