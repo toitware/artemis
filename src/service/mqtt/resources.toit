@@ -4,7 +4,7 @@ import mqtt
 import encoding.ubjson
 import reader show SizedReader
 
-import ..resources
+import ..mediator_service
 
 class ResourceManagerMqtt implements ResourceManager:
   client_/mqtt.FullClient

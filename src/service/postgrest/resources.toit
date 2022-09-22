@@ -5,7 +5,7 @@ import http
 import http.status_codes
 import encoding.json
 
-import ..resources
+import ..mediator_service
 
 import ...shared.postgrest.supabase
 

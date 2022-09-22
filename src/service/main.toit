@@ -7,13 +7,14 @@ import log
 import .scheduler show Scheduler
 import .applications show ApplicationManager
 
+import .mediator_service
+
 import .synchronize show SynchronizeJob
 
-import ..shared.mqtt.base show DeviceMqtt
-import .mqtt.synchronize show SynchronizeJobMqtt
+import ..shared.device
 
-import ..shared.postgrest.supabase show DevicePostgrest
-import .postgrest.synchronize show SynchronizeJobPostgrest
+import .postgrest.synchronize show MediatorServicePostgrest
+import .mqtt.synchronize show MediatorServiceMqtt
 
 import .ntp
 
@@ -28,13 +29,15 @@ main arguments:
   scheduler ::= Scheduler logger
   applications ::= ApplicationManager logger scheduler
 
-  synchronize/SynchronizeJob? := null
+  device := Device name
+
+  mediator/MediatorService := ?
   if USE_SUPABASE:
-    device ::= DevicePostgrest name
-    synchronize = SynchronizeJobPostgrest logger device applications
+    mediator = MediatorServicePostgrest
   else:
-    device ::= DeviceMqtt name
-    synchronize = SynchronizeJobMqtt logger device applications
+    mediator = MediatorServiceMqtt logger
+
+  synchronize/SynchronizeJob := SynchronizeJob logger device applications mediator
 
   scheduler.add_jobs [
     synchronize,

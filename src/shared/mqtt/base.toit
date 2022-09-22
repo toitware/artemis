@@ -22,20 +22,6 @@ topic_revision_for_ device_id/string -> string:
 topic_presence_for_ device_id/string -> string:
   return "toit/devices/presence/$device_id"
 
-class DeviceMqtt implements Device:
-  name/string
-  topic_config/string
-  topic_lock/string
-  topic_revision/string
-  topic_presence/string
-
-  constructor .name:
-    config ::= topic_config_for_ name
-    topic_config = config
-    topic_lock = topic_lock_for_ name
-    topic_revision = topic_revision_for_ name
-    topic_presence = topic_presence_for_ name
-
 class MediatorCliMqtt implements MediatorCli:
   static ID_ ::= "toit/artemis-cli-$(random 0x3fff_ffff)"
 

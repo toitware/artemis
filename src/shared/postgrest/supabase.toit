@@ -19,10 +19,6 @@ create_mediator_cli_supabase -> MediatorCliPostgrest:
 SUPABASE_HOST ::= "uelhwhbsyumuqhbukich.supabase.co"
 ANON_ ::= "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlbGh3aGJzeXVtdXFoYnVraWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjM1OTU0NDYsImV4cCI6MTk3OTE3MTQ0Nn0.X6yvaUJDoN0Zk1xjYy_Ap-w6NhCc5BtyWnh5zGdoPFo"
 
-class DevicePostgrest implements Device:
-  name/string
-  constructor .name:
-
 supabase_create_client network/net.Interface -> http.Client:
   return http.Client.tls network
       --root_certificates=[certificate_roots.BALTIMORE_CYBERTRUST_ROOT]
