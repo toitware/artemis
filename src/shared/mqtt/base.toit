@@ -36,7 +36,6 @@ class DeviceMqtt implements Device:
     topic_revision = topic_revision_for_ name
     topic_presence = topic_presence_for_ name
 
-
 class MediatorCliMqtt implements MediatorCli:
   static ID_ ::= "toit/artemis-cli-$(random 0x3fff_ffff)"
 

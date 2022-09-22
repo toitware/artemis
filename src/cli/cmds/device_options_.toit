@@ -24,6 +24,6 @@ device_options -> List:
         --short_help="Use Supabase."
   ]
 
-get_mediator parsed/cli.Parsed -> MediatorCli:
+create_mediator parsed/cli.Parsed -> MediatorCli:
   if parsed["supabase"]: return create_mediator_cli_supabase
   return create_mediator_cli_aws

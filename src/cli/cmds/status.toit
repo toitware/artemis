@@ -22,7 +22,7 @@ create_status_commands -> List:
   ]
 
 show_status parsed/cli.Parsed:
-  mediator := get_mediator parsed
+  mediator := create_mediator parsed
   if mediator is not MediatorCliMqtt:
     throw "Only MQTT is supported for this command."
 
@@ -33,7 +33,7 @@ show_status parsed/cli.Parsed:
   mqtt_mediator.close
 
 watch_presence parsed/cli.Parsed:
-  mediator := get_mediator parsed
+  mediator := create_mediator parsed
   if mediator is not MediatorCliMqtt:
     throw "Only MQTT is supported for this command."
 
