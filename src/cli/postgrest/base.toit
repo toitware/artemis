@@ -14,7 +14,8 @@ interface PostgrestClient:
   is_closed -> bool
 
   query table/string filters/List -> List?
-  post payload/ByteArray --path/string --headers/http.Headers -> http.Response
+  update_entry table/string --id/int? payload/ByteArray
+  upload_resource --path/string --content/ByteArray
 
 class MediatorPostgrest implements Mediator:
   client_/PostgrestClient? := null
@@ -43,24 +44,16 @@ class MediatorPostgrest implements Mediator:
       old_config = info[0].get "config" or old_config
 
     new_config := block.call old_config
-    upsert := id ? "?id=eq.$id" : ""
 
     map := {
       "config": new_config
     }
 
-    headers := http.Headers
-
     if id:
       map["id"] = id
-      headers.add "Prefer" "resolution=merge-duplicates"
 
     payload := json.encode map
-    response := client_.post payload
-        --headers=headers
-        --path="/rest/v1/devices$upsert"
-    // 201 is changed one entry.
-    if response.status_code != 201: throw "UGH ($response.status_code)"
+    client_.update_entry "devices" payload --id=id
 
   upload_image --app_id/string --bits/int content/ByteArray -> none:
     upload_resource_ "images/$app_id.$bits" content
@@ -69,14 +62,7 @@ class MediatorPostgrest implements Mediator:
     upload_resource_ "firmware/$firmware_id" content
 
   upload_resource_ path/string content/ByteArray -> none:
-    headers := http.Headers
-    headers.add "Content-Type" "application/octet-stream"
-    headers.add "x-upsert" "true"
-    response := client_.post content
-        --headers=headers
-        --path="/storage/v1/object/$path"
-    // 200 is accepted!
-    if response.status_code != 200: throw "UGH ($response.status_code)"
+    client_.upload_resource --path=path --content=content
 
   print_status -> none:
     print_on_stderr_ "The Postgrest client does not support 'status'"

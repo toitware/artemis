@@ -26,13 +26,33 @@ class SupabaseClient implements PostgrestClient:
     supabase_add_auth_headers headers
     return supabase_query client_ headers table filters
 
-  post payload/ByteArray --path/string --headers/http.Headers -> http.Response:
-    headers = headers.copy
+  update_entry table/string --id/int? payload/ByteArray:
+    headers := http.Headers
     supabase_add_auth_headers headers
-    return client_.post payload
+
+    upsert := ""
+    if id:
+      headers.add "Prefer" "resolution=merge-duplicates"
+      upsert = "?id=eq.$id"
+
+    response := client_.post payload
         --host=SUPABASE_HOST
         --headers=headers
-        --path=path
+        --path="/rest/v1/$table$upsert"
+    // 201 is changed one entry.
+    if response.status_code != 201: throw "UGH ($response.status_code)"
+
+  upload_resource --path/string --content/ByteArray:
+    headers := http.Headers
+    supabase_add_auth_headers headers
+    headers.add "Content-Type" "application/octet-stream"
+    headers.add "x-upsert" "true"
+    response := client_.post content
+        --host=SUPABASE_HOST
+        --headers=headers
+        --path="/storage/v1/object/$path"
+    // 200 is accepted!
+    if response.status_code != 200: throw "UGH ($response.status_code)"
 
 create_supabase_mediator -> Mediator:
   network := net.open
