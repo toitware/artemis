@@ -27,6 +27,7 @@ show_status parsed/cli.Parsed:
     throw "Only MQTT is supported for this command."
 
   mqtt_mediator := mediator as MediatorMqtt
+  // TODO(florian): map device name to device id.
   device_id := parsed["device"]
   mqtt_mediator.print_status --device_id=device_id
   mqtt_mediator.close

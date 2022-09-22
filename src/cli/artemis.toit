@@ -22,6 +22,12 @@ class Artemis:
     // Do nothing for now.
     // The mediators are not created here and should be closed outside.
 
+  /**
+  Maps a device name to its id.
+  */
+  device_name_to_id name/string -> string:
+    return name
+
   app_install --device_id/string --app_name/string --snapshot_path/string:
     id := get_uuid_from_snapshot snapshot_path
     if not id:

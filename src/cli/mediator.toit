@@ -8,7 +8,7 @@ interface Mediator:
   // At the moment we require the connection to be open when artemis receives the
   // mediator.
 
-  /** CLoses this mediator. */
+  /** Closes this mediator. */
   close -> none
 
   /** Whether this mediator is closed. */
