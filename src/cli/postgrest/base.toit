@@ -9,8 +9,15 @@ import ..mediator
 import ...shared.device
 import ...shared.postgrest.supabase
 
+interface PostgrestClient:
+  close -> none
+  is_closed -> bool
+
+  query table/string filters/List -> List?
+  post payload/ByteArray --path/string --headers/http.Headers -> http.Response
+
 class MediatorPostgrest implements Mediator:
-  client_/http.Client? := null
+  client_/PostgrestClient? := null
   network_/net.Interface? := null
 
   constructor .client_ .network_:
@@ -26,8 +33,7 @@ class MediatorPostgrest implements Mediator:
   device_update_config --device_id/string [block]:
     // TODO(kasper): Share more of this code with the corresponding
     // code in the service.
-    headers := supabase_create_headers
-    info := supabase_query client_ headers "devices" [
+    info := client_.query "devices" [
       "name=eq.$(device_id)",
     ]
     id := null
@@ -42,13 +48,15 @@ class MediatorPostgrest implements Mediator:
     map := {
       "config": new_config
     }
+
+    headers := http.Headers
+
     if id:
       map["id"] = id
       headers.add "Prefer" "resolution=merge-duplicates"
 
     payload := json.encode map
     response := client_.post payload
-        --host=SUPABASE_HOST
         --headers=headers
         --path="/rest/v1/devices$upsert"
     // 201 is changed one entry.
@@ -61,20 +69,19 @@ class MediatorPostgrest implements Mediator:
     upload_resource_ "firmware/$firmware_id" content
 
   upload_resource_ path/string content/ByteArray -> none:
-    headers := supabase_create_headers // TODO(kasper): This seems a bit iffy.
+    headers := http.Headers
     headers.add "Content-Type" "application/octet-stream"
     headers.add "x-upsert" "true"
     response := client_.post content
-        --host=SUPABASE_HOST
         --headers=headers
         --path="/storage/v1/object/$path"
     // 200 is accepted!
     if response.status_code != 200: throw "UGH ($response.status_code)"
 
   print_status -> none:
-    print_on_stderr_ "The Supabase client does not support 'status'"
+    print_on_stderr_ "The Postgrest client does not support 'status'"
     exit 1
 
   watch_presence -> none:
-    print_on_stderr_ "The Supabase client does not support 'watch-presence'"
+    print_on_stderr_ "The Postgrest client does not support 'watch-presence'"
     exit 1

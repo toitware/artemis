@@ -19,10 +19,13 @@ supabase_create_client network/net.Interface -> http.Client:
   return http.Client.tls network
       --root_certificates=[certificate_roots.BALTIMORE_CYBERTRUST_ROOT]
 
-supabase_create_headers -> http.Headers:
-  headers := http.Headers
+supabase_add_auth_headers headers/http.Headers:
   headers.add "apikey" ANON_
   headers.add "Authorization" "Bearer $ANON_"
+
+supabase_create_headers -> http.Headers:
+  headers := http.Headers
+  supabase_add_auth_headers headers
   return headers
 
 supabase_query client/http.Client headers/http.Headers table/string filters/List=[] -> List?:
