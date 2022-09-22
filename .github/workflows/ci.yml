@@ -10,7 +10,8 @@ jobs:
     strategy:
       matrix:
         # Windows is not yet supported.
-        os: [ ubuntu-latest, macos-latest ]
+        # Avoid tests on macos for now. They are expensive.
+        os: [ ubuntu-latest ]
 
     runs-on: ${{ matrix.os }}
 
