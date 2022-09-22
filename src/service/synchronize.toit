@@ -82,7 +82,7 @@ class SynchronizeJob extends Job implements MediatorServiceCallback:
   handle_nop -> none:
     actions_.send ACTION_NOP_
 
-  handle_update_config resources/ResourceManager new_config/Map -> none:
+  handle_update_config new_config/Map resources/ResourceManager -> none:
     modification/Modification? := Modification.compute --from=config_ --to=new_config
     if not modification:
       handle_nop
