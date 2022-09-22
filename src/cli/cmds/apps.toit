@@ -35,17 +35,24 @@ create_app_commands -> List:
   ]
 
 install_app parsed/cli.Parsed:
-  client := get_client parsed
   app_name := parsed["app-name"]
+  device_name := parsed["device"]
   snapshot_path := parsed["snapshot"]
 
-  artemis := Artemis
-  artemis.app_install client --app_name=app_name --snapshot_path=snapshot_path
-
+  mediator := get_mediator parsed
+  artemis := Artemis mediator
+  device_id := artemis.device_name_to_id device_name
+  artemis.app_install --device_id=device_id --app_name=app_name --snapshot_path=snapshot_path
+  artemis.close
+  mediator.close
 
 uninstall_app parsed/cli.Parsed:
-  client := get_client parsed
   app_name := parsed["app-name"]
+  device_name := parsed["device"]
 
-  artemis := Artemis
-  artemis.app_uninstall client --app_name=app_name
+  mediator := get_mediator parsed
+  artemis := Artemis mediator
+  device_id := artemis.device_name_to_id device_name
+  artemis.app_uninstall --device_id=device_id --app_name=app_name
+  artemis.close
+  mediator.close

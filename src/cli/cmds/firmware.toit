@@ -19,8 +19,12 @@ create_firmware_commands -> List:
   return [firmware_cmd]
 
 update_firmware parsed/cli.Parsed:
-  client := get_client parsed
+  device_name := parsed["device"]
   firmware_path := parsed["firmware.bin"]
 
-  artemis := Artemis
-  artemis.firmware_update client --firmware_path=firmware_path
+  mediator := get_mediator parsed
+  artemis := Artemis mediator
+  device_id := artemis.device_name_to_id device_name
+  artemis.firmware_update --device_id=device_id --firmware_path=firmware_path
+  artemis.close
+  mediator.close
