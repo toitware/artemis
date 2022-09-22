@@ -1,5 +1,7 @@
 prefixes:
   artemis: ..
+  host: pkg-host
+  mqtt: mqtt
 packages:
   ..:
     path: ..

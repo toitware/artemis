@@ -1,3 +1,9 @@
 dependencies:
   artemis:
     path: ..
+  host:
+    url: github.com/toitlang/pkg-host
+    version: ^1.7.1
+  mqtt:
+    url: github.com/toitware/mqtt
+    version: ^2.0.4

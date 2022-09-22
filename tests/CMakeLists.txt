@@ -6,7 +6,8 @@ file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*_test.toit" "*_test_slow.
 
 set(TEST_TIMEOUT 40 CACHE STRING "The maximal amount of time each test is allowed to run")
 set(SLOW_TEST_TIMEOUT 200 CACHE STRING "The maximal amount of time each slow test is allowed to run")
-
+set(WITH_MOSQUITTO TRUE CACHE BOOL "Whether the tests should run with mosquitto")
+set(WITH_TOIT_MQTT TRUE CACHE BOOL "Whether the tests should run with Toit's MQTT broker")
 
 toit_project(tests "${CMAKE_CURRENT_LIST_DIR}")
 
@@ -25,6 +26,14 @@ include(fail.cmake OPTIONAL)
 message("Failing tests: ${FAILING_TESTS}")
 message("Skipped tests: ${SKIP_TESTS}")
 
+if (${WITH_MOSQUITTO})
+  set(TEST_FLAGS ${TEST_FLAGS} "mosquitto")
+endif()
+
+if (${WITH_TOIT_MQTT})
+  set(TEST_FLAGS ${TEST_FLAGS} "toit-mqtt")
+endif()
+
 foreach(file ${TESTS})
   set(test_name "/tests/${file}")
   if("${test_name}" IN_LIST SKIP_TESTS)
@@ -33,7 +42,7 @@ foreach(file ${TESTS})
 
   add_test(
     NAME "${test_name}"
-    COMMAND "${TOITRUN}" "${file}"
+    COMMAND "${TOITRUN}" "${file}" ${TEST_FLAGS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
 
