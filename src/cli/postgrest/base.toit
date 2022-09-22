@@ -6,8 +6,6 @@ import http
 import encoding.json
 
 import ..mediator
-import ...shared.device
-import ...shared.postgrest.supabase
 
 interface PostgrestClient:
   close -> none
