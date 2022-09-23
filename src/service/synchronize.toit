@@ -10,17 +10,20 @@ import system.firmware  // TODO(kasper): Move this elsewhere?
 
 import .applications
 import .jobs
-import .resources
+import .mediator_service
 
 import ..shared.device show Device
 import ..shared.json_diff show Modification
 
-abstract class SynchronizeJob extends Job:
+class SynchronizeJob extends Job implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
+
+  config_/Map := {:}
 
   logger_/log.Logger
   device_/Device
   applications_/ApplicationManager
+  mediator_/MediatorService
 
   // We limit the capacity of the actions channel to avoid letting
   // the connect task build up too much work.
@@ -31,7 +34,7 @@ abstract class SynchronizeJob extends Job:
   // also possible to fetch it from there.
   max_offline_/Duration? := null
 
-  constructor logger/log.Logger .device_ .applications_:
+  constructor logger/log.Logger .device_ .applications_ .mediator_:
     logger_ = logger.with_name "synchronize"
     super "synchronize"
 
@@ -39,19 +42,25 @@ abstract class SynchronizeJob extends Job:
     if not last_run or not max_offline_: return now
     return last_run + max_offline_
 
-  abstract connect [block] -> none
-  abstract commit config/Map bundle/List -> Lambda
+  commit config/Map actions/List -> Lambda:
+    return ::
+      actions.do: it.call
+      logger_.info "updating config" --tags={ "from": config_ , "to": config }
+      config_ = config
 
   // TODO(kasper): For now, we make it look like we've updated
   // the firmware to avoid fetching the firmware over and over
   // again. We should probably replace this with something that
   // automatically populates our configuration with the right
   // firmware id on boot.
-  abstract fake_update_firmware id/string -> none
+  fake_update_firmware id/string -> none:
+    config_["firmware"] = id
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.name}
-    connect: | resources/ResourceManager |
+    // TODO(florian): we need to get the actual device id.
+    device_id := device_.name
+    mediator_.connect --device_id=device_id --callback=this: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.name}
       while true:
         actions_.receive.call
@@ -73,8 +82,8 @@ abstract class SynchronizeJob extends Job:
   handle_nop -> none:
     actions_.send ACTION_NOP_
 
-  handle_update_config resources/ResourceManager from/Map to/Map -> none:
-    modification/Modification? := Modification.compute --from=from --to=to
+  handle_update_config new_config/Map resources/ResourceManager -> none:
+    modification/Modification? := Modification.compute --from=config_ --to=new_config
     if not modification:
       handle_nop
       return
@@ -106,7 +115,7 @@ abstract class SynchronizeJob extends Job:
           id = id or value is Map ? value.get Application.CONFIG_ID : null
           if id: bundle.add (action_app_uninstall_ key id)
         --modified=: | key nested/Modification |
-          value ::= to["apps"][key]  // TODO(kasper): This feels unfortunate.
+          value ::= new_config["apps"][key]  // TODO(kasper): This feels unfortunate.
           id ::= value is Map ? value.get Application.CONFIG_ID : null
           handle_update_app_ bundle key id nested
 
@@ -114,7 +123,7 @@ abstract class SynchronizeJob extends Job:
         --added   =: bundle.add (action_set_max_offline_ it)
         --removed =: bundle.add (action_set_max_offline_ null)
 
-    actions_.send (commit to bundle)
+    actions_.send (commit new_config bundle)
 
   handle_firmware_update_ resources/ResourceManager id/string -> none:
     actions_.send (action_firmware_update_ resources id)
