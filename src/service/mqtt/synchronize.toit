@@ -25,7 +25,7 @@ class MediatorServiceMqtt implements MediatorService:
   constructor .logger_ --create_transport/Lambda=(:: aws_create_transport it):
     create_transport_ = create_transport
 
-  connect --device_id/string --callback/MediatorServiceCallback [block]:
+  connect --device_id/string --callback/EventHandler [block]:
     network ::= net.open
     transport ::= create_transport_.call network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport

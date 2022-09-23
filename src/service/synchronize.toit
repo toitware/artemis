@@ -15,7 +15,7 @@ import .mediator_service
 import ..shared.device show Device
 import ..shared.json_diff show Modification
 
-class SynchronizeJob extends Job implements MediatorServiceCallback:
+class SynchronizeJob extends Job implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
 
   config_/Map := {:}
@@ -45,7 +45,7 @@ class SynchronizeJob extends Job implements MediatorServiceCallback:
   commit config/Map actions/List -> Lambda:
     return ::
       actions.do: it.call
-      print "updating config from $config_ to $config"
+      logger_.info "updating config" --tags={ "from": config_ , "to": config }
       config_ = config
 
   // TODO(kasper): For now, we make it look like we've updated

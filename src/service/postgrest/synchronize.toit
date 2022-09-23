@@ -15,7 +15,7 @@ import ...shared.postgrest.supabase
 POLL_INTERVAL ::= Duration --m=1
 
 class MediatorServicePostgrest implements MediatorService:
-  connect --device_id/string --callback/MediatorServiceCallback [block]:
+  connect --device_id/string --callback/EventHandler [block]:
     network := net.open
     client := supabase_create_client network
     resources := ResourceManagerPostgrest client SUPABASE_HOST supabase_create_headers
