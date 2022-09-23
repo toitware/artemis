@@ -10,4 +10,4 @@ interface MediatorServiceCallback:
   handle_nop
 
 interface MediatorService:
-  connect  --device_id/string --callback/MediatorServiceCallback [block]
+  connect --device_id/string --callback/MediatorServiceCallback [block]
