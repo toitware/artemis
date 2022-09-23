@@ -1,0 +1,3 @@
+[submodule "tests/third_party/ephemeral-port-reserve"]
+	path = tests/third_party/ephemeral-port-reserve
+	url = git@github.com:toitware/ephemeral-port-reserve.git
