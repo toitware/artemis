@@ -3,11 +3,9 @@
 import ar
 import crypto.sha256
 import host.file
-import host.directory
-import host.pipe
-import host.os
 import uuid
 
+import .sdk
 import ..shared.mediator
 
 /**
@@ -34,21 +32,11 @@ class Artemis:
       print_on_stderr_ "$snapshot_path: Not a valid Toit snapshot"
       exit 1
 
-    // Create the two images.
-    sdk := get_toit_sdk
-    tmpdir := directory.mkdtemp "/tmp/artemis-snapshot-to-image-"
-    image32 := "$tmpdir/image32"
-    image64 := "$tmpdir/image64"
-
-    try:
-      pipe.run_program ["$sdk/tools/snapshot_to_image", "-m32", "--binary", "-o", image32, snapshot_path]
-      pipe.run_program ["$sdk/tools/snapshot_to_image", "-m64", "--binary", "-o", image64, snapshot_path]
-      mediator_.upload_image --app_id=id --bits=32 (file.read_content image32)
-      mediator_.upload_image --app_id=id --bits=64 (file.read_content image64)
-    finally:
-      catch: file.delete image32
-      catch: file.delete image64
-      directory.rmdir tmpdir
+    images := snapshot_to_images snapshot_path
+    image32 := images[0]
+    image64 := images[1]
+    mediator_.upload_image --app_id=id --bits=32 image32
+    mediator_.upload_image --app_id=id --bits=64 image64
 
     mediator_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Installing app: $app_name"
@@ -84,23 +72,6 @@ class Artemis:
     mediator_.device_update_config --device_id=device_id: | config/Map |
       config["firmware"] = id
       config
-
-get_toit_sdk -> string:
-  if os.env.contains "JAG_TOIT_REPO_PATH":
-    repo := "$(os.env["JAG_TOIT_REPO_PATH"])/build/host/sdk"
-    if file.is_directory "$repo/bin" and file.is_directory "$repo/tools":
-      return repo
-    print_on_stderr_ "JAG_TOIT_REPO_PATH doesn't point to a built Toit repo"
-    exit 1
-  if os.env.contains "HOME":
-    jaguar := "$(os.env["HOME"])/.cache/jaguar/sdk"
-    if file.is_directory "$jaguar/bin" and file.is_directory "$jaguar/tools":
-      return jaguar
-    print_on_stderr_ "\$HOME/.cache/jaguar/sdk doesn't contain a Toit SDK"
-    exit 1
-  print_on_stderr_ "Did not find JAG_TOIT_REPO_PATH or a Jaguar installation"
-  exit 1
-  unreachable
 
 get_uuid_from_snapshot snapshot_path/string -> string?:
   if not file.is_file snapshot_path:
