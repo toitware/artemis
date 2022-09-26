@@ -1,6 +1,5 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import ar
 import crypto.sha256
 import host.file
 import uuid
@@ -26,17 +25,11 @@ class Artemis:
   device_name_to_id name/string -> string:
     return name
 
-  app_install --device_id/string --app_name/string --snapshot_path/string:
-    id := get_uuid_from_snapshot snapshot_path
-    if not id:
-      print_on_stderr_ "$snapshot_path: Not a valid Toit snapshot"
-      exit 1
-
-    images := snapshot_to_images snapshot_path
-    image32 := images[0]
-    image64 := images[1]
-    mediator_.upload_image --app_id=id --bits=32 image32
-    mediator_.upload_image --app_id=id --bits=64 image64
+  app_install --device_id/string --app_name/string --application_path/string:
+    images := application_to_images application_path
+    id := images.id
+    mediator_.upload_image --app_id=id --bits=32 images.image32
+    mediator_.upload_image --app_id=id --bits=64 images.image64
 
     mediator_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Installing app: $app_name"
@@ -73,21 +66,3 @@ class Artemis:
       config["firmware"] = id
       config
 
-get_uuid_from_snapshot snapshot_path/string -> string?:
-  if not file.is_file snapshot_path:
-    print_on_stderr_ "$snapshot_path: Not a file"
-    exit 1
-
-  snapshot := file.read_content snapshot_path
-
-  ar_reader /ar.ArReader? := null
-  exception := catch:
-    ar_reader = ar.ArReader.from_bytes snapshot  // Throws if it's not a snapshot.
-  if exception: return null
-  first := ar_reader.next
-  if first.name != "toit": return null
-  id/string? := null
-  while member := ar_reader.next:
-    if member.name == "uuid":
-      id = (uuid.Uuid member.content).stringify
-  return id
