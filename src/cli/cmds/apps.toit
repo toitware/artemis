@@ -13,7 +13,7 @@ create_app_commands -> List:
         cli.OptionString "app-name"
             --short_help="Name of the app to install."
             --required,
-        cli.OptionString "snapshot"
+        cli.OptionString "application"
             --short_help="Program to install."
             --type="input-file"
             --required,
@@ -37,12 +37,12 @@ create_app_commands -> List:
 install_app parsed/cli.Parsed:
   app_name := parsed["app-name"]
   device_name := parsed["device"]
-  snapshot_path := parsed["snapshot"]
+  application_path :=parsed["application"]
 
   mediator := create_mediator parsed
   artemis := Artemis mediator
   device_id := artemis.device_name_to_id device_name
-  artemis.app_install --device_id=device_id --app_name=app_name --snapshot_path=snapshot_path
+  artemis.app_install --device_id=device_id --app_name=app_name --application_path=application_path
   artemis.close
   mediator.close
 
