@@ -8,7 +8,7 @@ import artemis.service.synchronize show SynchronizeJob
 import artemis.service.applications show ApplicationManager
 import artemis.service.mediator_service as mediator
 import artemis.service.scheduler show Scheduler
-import artemis.shared.mediator
+import artemis.cli.mediator_cli as mediator
 import artemis.shared.device show Device
 
 import .mediators

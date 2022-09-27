@@ -3,7 +3,7 @@
 import log
 
 import mqtt.transport as mqtt
-import artemis.shared.mediator show MediatorCli
+import artemis.cli.mediator_cli show MediatorCli
 import artemis.service.mediator_service show MediatorService
 import artemis.shared.mqtt.base show MediatorCliMqtt
 import artemis.service.mqtt.synchronize show MediatorServiceMqtt
