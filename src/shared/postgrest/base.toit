@@ -5,7 +5,7 @@ import monitor
 import http
 import encoding.json
 
-import ..mediator
+import ...cli.mediator_cli
 
 interface PostgrestClient:
   close -> none

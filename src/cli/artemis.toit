@@ -5,7 +5,7 @@ import host.file
 import uuid
 
 import .sdk
-import ..shared.mediator
+import .mediator_cli
 
 /**
 Manages devices that have an Artemis service running on them.

@@ -3,7 +3,7 @@
 import cli
 import host.pipe
 
-import ...shared.mediator
+import ..mediator_cli
 import ...shared.mqtt.aws
 import ...shared.postgrest.supabase
 

@@ -6,7 +6,7 @@ import mqtt.transport as mqtt
 import encoding.ubjson
 
 import ..device
-import ..mediator
+import ...cli.mediator_cli
 
 topic_config_for_ device_id/string -> string:
   return "toit/devices/$device_id/config"
