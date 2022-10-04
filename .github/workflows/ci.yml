@@ -20,37 +20,41 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup constants
+      - name: Setup Jaguar and Toit
         shell: bash
         run: |
-          TOIT_VERSION=v2.0.0-alpha.27
-          echo "TOIT_VERSION=$TOIT_VERSION" >> $GITHUB_ENV
+          if [[ "$RUNNER_OS" = "Windows" ]]; then
+            BIN_EXTENSION=".exe"
+          fi
+
+          JAGUAR_VERSION=v1.7.0
+          export "JAGUAR_VERSION=${JAGUAR_VERSION}"
+
+          TOIT_SDK_DIR=$HOME/.cache/jaguar/sdk
+          echo "TOIT_EXEC=$TOIT_SDK_DIR/bin/toit.run$BIN_EXTENSION" >> $GITHUB_ENV
+          echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
+          echo "TPKG_EXEC=$TOIT_SDK_DIR/bin/toit.pkg$BIN_EXTENSION" >> $GITHUB_ENV
+
           export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
+
           if [[ "$RUNNER_OS" = "Linux" ]]; then
-            TOIT_FILE=toit-linux.tar.gz
-            echo "TOIT_EXEC=$DOWNLOAD_DIR/toit/bin/toit.run" >> $GITHUB_ENV
-            echo "TOITC_EXEC=$DOWNLOAD_DIR/toit/bin/toit.compile" >> $GITHUB_ENV
-            echo "TPKG_EXEC=$DOWNLOAD_DIR/toit/bin/toit.pkg" >> $GITHUB_ENV
+            JAGUAR_FILE=jag_linux.tgz
           elif [[ "$RUNNER_OS" = "macOS" ]]; then
-            TOIT_FILE=toit-macos.tar.gz
-            echo "TOIT_EXEC=$DOWNLOAD_DIR/toit/bin/toit.run" >> $GITHUB_ENV
-            echo "TOITC_EXEC=$DOWNLOAD_DIR/toit/bin/toit.compile" >> $GITHUB_ENV
-            echo "TPKG_EXEC=$DOWNLOAD_DIR/toit/bin/toit.pkg" >> $GITHUB_ENV
+            JAGUAR_FILE=jag_macos.zip
           elif [[ "$RUNNER_OS" = "Windows" ]]; then
-            TOIT_FILE=toit-windows.tar.gz
-            echo "TOIT_EXEC=$DOWNLOAD_DIR/toit/bin/toit.run.exe" >> $GITHUB_ENV
-            echo "TOITC_EXEC=$DOWNLOAD_DIR/toit/bin/toit.compile.exe" >> $GITHUB_ENV
-            echo "TPKG_EXEC=$DOWNLOAD_DIR/toit/bin/toit.pkg.exe" >> $GITHUB_ENV
+            JAGUAR_FILE=jag_windows.zip
           else
             echo "UNSUPPORTED RUNNER: $RUNNER_OS"
             exit 1
           fi
 
-          if [[ $TOIT_VERSION = latest ]]; then
-            echo "TOIT_URL=https://github.com/toitlang/toit/releases/latest/download/$TOIT_FILE" >> $GITHUB_ENV
+          JAGUAR_BASE_URL=https://github.com/toitlang/jaguar/releases
+
+          if [[ $JAGUAR_VERSION = latest ]]; then
+            echo "JAGUAR_URL=$JAGUAR_BASE_URL/latest/download/$JAGUAR_FILE" >> $GITHUB_ENV
           else
-            echo "TOIT_URL=https://github.com/toitlang/toit/releases/download/$TOIT_VERSION/$TOIT_FILE" >> $GITHUB_ENV
+            echo "JAGUAR_URL=$JAGUAR_BASE_URL/download/$JAGUAR_VERSION/$JAGUAR_FILE" >> $GITHUB_ENV
           fi
 
       # Fetch the dependencies. Different for each platform.
@@ -77,14 +81,32 @@ jobs:
       - uses: suisei-cn/actions-download-file@v1
         name: Download Toit
         with:
-          url: ${{ env.TOIT_URL }}
+          url: ${{ env.JAGUAR_URL }}
           target: ${{ env.DOWNLOAD_DIR }}
 
-      - name: Extract Toit
+      - name: Extract Jaguar - Linux
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           cd "$DOWNLOAD_DIR"
-          tar x -f *.tar.gz
+          tar x -f *.tgz
+      - name: Extract Jaguar - macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          cd "$DOWNLOAD_DIR"
+          unzip *.zip
+      - name: Extract Jaguar - Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cd "$DOWNLOAD_DIR"
+          unzip *.zip
+
+      - name: Setup Jaguar
+        run: |
+          cd "$DOWNLOAD_DIR"
+          ./jag setup
 
       - name: Run cmake
         shell: bash
