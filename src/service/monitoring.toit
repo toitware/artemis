@@ -7,19 +7,16 @@ import .jobs
 import ..shared.postgrest.supabase as supabase
 
 INTERVAL ::= Duration --m=1
-
-// TODO(kasper): Implement backoff.
-MIN_TIME_BETWEEN_ATTEMPTS ::= Duration --s=20
+INTERVAL_BETWEEN_ATTEMPTS ::= Duration --s=20
 
 last_success_/JobTime? := null
 last_attempt_/JobTime? := null
 
 ping_schedule now/JobTime -> JobTime:
   if not last_attempt_: return now
-  next := last_attempt_ + MIN_TIME_BETWEEN_ATTEMPTS
-  if now < next: return next
-  if not last_success_: return now
-  return last_success_ + INTERVAL
+  next := last_attempt_ + INTERVAL_BETWEEN_ATTEMPTS
+  if last_success_: next = max next (last_success_ + INTERVAL)
+  return next
 
 ping_timeout -> Duration:
   now := JobTime.now
