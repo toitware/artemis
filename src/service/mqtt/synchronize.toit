@@ -9,6 +9,7 @@ import net
 
 import .resources
 import ..applications
+import ..monitoring
 import ..synchronize show SynchronizeJob
 
 import ..mediator_service
@@ -27,6 +28,7 @@ class MediatorServiceMqtt implements MediatorService:
 
   connect --device_id/string --callback/EventHandler [block]:
     network ::= net.open
+    ping_monitoring network logger_
     transport ::= create_transport_.call network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
     connect_client_ --device_id=device_id client

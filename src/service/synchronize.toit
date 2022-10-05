@@ -11,6 +11,7 @@ import system.firmware  // TODO(kasper): Move this elsewhere?
 import .applications
 import .jobs
 import .mediator_service
+import .monitoring
 
 import ..shared.device show Device
 import ..shared.json_diff show Modification
@@ -40,7 +41,7 @@ class SynchronizeJob extends Job implements EventHandler:
 
   schedule now/JobTime -> JobTime?:
     if not last_run or not max_offline_: return now
-    return last_run + max_offline_
+    return min (ping_schedule now) (last_run + max_offline_)
 
   commit config/Map actions/List -> Lambda:
     return ::
@@ -63,7 +64,10 @@ class SynchronizeJob extends Job implements EventHandler:
     mediator_.connect --device_id=device_id --callback=this: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.name}
       while true:
-        actions_.receive.call
+        lambda/Lambda? := null
+        catch: with_timeout ping_timeout: lambda = actions_.receive
+        if not lambda: break
+        lambda.call
         if actions_.size > 0: continue
 
         // We only handle incomplete applications when we're done processing
@@ -74,10 +78,12 @@ class SynchronizeJob extends Job implements EventHandler:
           actions_.send (action_app_fetch_ resources)
           continue
 
-        logger_.info "synchronized"
         if max_offline_:
-          logger_.info "disconnecting" --tags={"duration": max_offline_}
-          return
+          logger_.info "synchronized" --tags={"max-offline": max_offline_}
+          break
+        logger_.info "synchronized"
+
+      logger_.info "disconnecting" --tags={"device": device_.name}
 
   handle_nop -> none:
     actions_.send ACTION_NOP_

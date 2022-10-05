@@ -14,6 +14,10 @@ class ToitImages:
 
   constructor .id .image32 .image64:
 
+run_assets_tool arguments/List -> none:
+  sdk := get_toit_sdk
+  pipe.run_program ["$sdk/tools/assets"] + arguments
+
 application_to_images application_path -> ToitImages:
   if application_path.ends_with ".toit":
     return toit_to_images application_path

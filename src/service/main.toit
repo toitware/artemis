@@ -3,6 +3,7 @@
 import device
 import host.pipe
 import log
+import system.assets
 
 import .scheduler show Scheduler
 import .applications show ApplicationManager
@@ -33,7 +34,7 @@ main arguments:
 
   mediator/MediatorService := ?
   if USE_SUPABASE:
-    mediator = MediatorServicePostgrest
+    mediator = MediatorServicePostgrest logger
   else:
     mediator = MediatorServiceMqtt logger
 

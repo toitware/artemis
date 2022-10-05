@@ -6,6 +6,7 @@ import .cmds.apps
 import .cmds.firmware
 import .cmds.status
 import .cmds.device_config
+import .cmds.provision
 
 // TODO:
 //  - groups of devices
@@ -21,5 +22,6 @@ main args:
   create_firmware_commands.do: root_cmd.add it
   create_device_config_commands.do: root_cmd.add it
   create_status_commands.do: root_cmd.add it
+  create_provision_commands.do: root_cmd.add it
 
   root_cmd.run args
