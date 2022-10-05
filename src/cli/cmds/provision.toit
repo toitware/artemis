@@ -11,6 +11,8 @@ import writer
 import crypto.sha256
 
 import ..sdk
+
+import ...shared.config
 import ...shared.postgrest.supabase as supabase
 
 import .broker_options_
@@ -49,7 +51,7 @@ create_provision_commands -> List:
 create_identity parsed/cli.Parsed:
   fleet_id := parsed["fleet-id"]
   device_id := parsed["device-id"]
-  broker := read_broker "broker.artemis" parsed
+  broker := read_broker_from_files parsed["broker.artemis"]
 
   network := net.open
   try:
@@ -130,8 +132,7 @@ create_assets device_id/string fleet_id/string hardware_id/string broker/Map -> 
 create_firmware parsed/cli.Parsed -> none:
   identity_path := parsed["identity"]
   output_path := parsed["output"]
-
-  broker := read_broker "broker" parsed
+  broker := read_broker_from_files parsed["broker"]
 
   // TODO(kasper): Please share this.
   certificates := {:}

@@ -16,13 +16,13 @@ class ResourceManagerPostgrest implements ResourceManager:
   constructor .client_ .host_ .headers_:
 
   fetch_image id/string [block] -> none:
-    fetch_resource "/storage/v1/object/images/$id.$BITS_PER_WORD" block
+    fetch_resource "/storage/v1/object/assets/images/$id.$BITS_PER_WORD" block
 
   fetch_firmware id/string [block] -> none:
     PART_SIZE ::= 64 * 1024
     offset := 0
     while true:
-      fetch_resource "/storage/v1/object/firmware/$id"
+      fetch_resource "/storage/v1/object/assets/firmware/$id"
           --offset=offset
           --size=PART_SIZE
           : | reader/SizedReader total_size/int |
@@ -42,12 +42,14 @@ class ResourceManagerPostgrest implements ResourceManager:
     // Check the status code. The correct result depends on whether
     // or not we're doing a partial fetch.
     status := response.status_code
+    body := response.body as SizedReader
     okay := (not partial and status == 200) or (partial and status == 206)
-    if not okay: throw "Not found ($status)"
+    if not okay:
+      while data := body.read: null // DRAIN!
+      throw "Not found ($status)"
     // We got a response we can use. If it is partial we
     // need to decode the response header to find the
     // total size.
-    body := response.body as SizedReader
     if partial:
       // TODO(kasper): Try to avoid doing this for all parts.
       // We only really need to do it for the first.
@@ -57,6 +59,7 @@ class ResourceManagerPostgrest implements ResourceManager:
       block.call body total_size
     else:
       block.call body body.size
+    while data := body.read: null // DRAIN!
 
   fetch_json table/string filters/List=[] -> List?:
     // TODO(kasper): This needs cleanup. It feels annoying that we

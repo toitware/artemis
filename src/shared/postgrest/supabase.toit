@@ -31,8 +31,12 @@ query_ client/http.Client host/string headers/http.Headers table/string filters/
   filter := filters.is_empty ? "" : "?$(filters.join "&")"
   path := "/rest/v1/$table$filter"
   response := client.get host --headers=headers "$path"
-  if response.status_code != status_codes.STATUS_OK: return null
-  return json.decode_stream response.body
+  body := response.body
+  result := null
+  if response.status_code == status_codes.STATUS_OK:
+    result = json.decode_stream body
+  while data := body.read: null // DRAIN!
+  return result
 
 class SupabaseClient implements PostgrestClient:
   client_/http.Client? := null
@@ -60,6 +64,8 @@ class SupabaseClient implements PostgrestClient:
         --headers=headers
         --path="/rest/v1/$table"
     // 201 is changed one entry.
+    body := response.body
+    while data := body.read: null // DRAIN!
     if response.status_code != 201: throw "UGH ($response.status_code)"
 
   upload_resource --path/string --content/ByteArray:
@@ -71,4 +77,6 @@ class SupabaseClient implements PostgrestClient:
         --headers=headers
         --path="/storage/v1/object/$path"
     // 200 is accepted!
+    body := response.body
+    while data := body.read: null // DRAIN!
     if response.status_code != 200: throw "UGH ($response.status_code)"

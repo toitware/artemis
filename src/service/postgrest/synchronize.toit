@@ -2,17 +2,12 @@
 
 import log
 import net
-import net.x509
-import reader show Reader
 import monitor
-import http
 
 import .resources
 import ..mediator_service
-import ..applications
-import ..monitoring
-import ..synchronize show SynchronizeJob
-import ...shared.device show Device
+
+import ..status show report_status
 import ...shared.postgrest.supabase as supabase
 
 POLL_INTERVAL ::= Duration --m=1
@@ -24,7 +19,7 @@ class MediatorServicePostgrest implements MediatorService:
 
   connect --device_id/string --callback/EventHandler [block]:
     network := net.open
-    ping_monitoring network logger_
+    report_status network logger_
     client := supabase.create_client network broker_
     headers := supabase.create_headers broker_
     resources := ResourceManagerPostgrest client broker_["supabase"]["host"] headers

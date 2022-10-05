@@ -50,10 +50,10 @@ class MediatorCliPostgrest implements MediatorCli:
     client_.update_entry "devices" --upsert payload
 
   upload_image --app_id/string --bits/int content/ByteArray -> none:
-    upload_resource_ "images/$app_id.$bits" content
+    upload_resource_ "assets/images/$app_id.$bits" content
 
   upload_firmware --firmware_id/string content/ByteArray -> none:
-    upload_resource_ "firmware/$firmware_id" content
+    upload_resource_ "assets/firmware/$firmware_id" content
 
   upload_resource_ path/string content/ByteArray -> none:
     client_.upload_resource --path=path --content=content

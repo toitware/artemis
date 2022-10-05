@@ -14,13 +14,3 @@ BROKER_ARTEMIS_OPTION_ ::= cli.OptionString "broker.artemis"
 
 broker_options -> List:
   return [ BROKER_OPTION_, BROKER_ARTEMIS_OPTION_ ]
-
-read_broker key/string parsed/cli.Parsed -> Map:
-  broker_path := parsed[key]
-  broker := json.decode (file.read_content broker_path)
-  supabase_x := broker["supabase"]
-  certificate_name := supabase_x["certificate"]
-  // PEM certificates need to be zero terminated. Ugh.
-  certificate := (file.read_content "config/certificates/$certificate_name") + #[0]
-  supabase_x["certificate"] = certificate
-  return broker

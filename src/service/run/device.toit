@@ -3,11 +3,12 @@
 import encoding.tison
 import system.assets
 
-import ..monitoring show ping_setup ping_device_assets
+import ..broker show decode_broker
+import ..status show report_status_setup
 import ..service show run_artemis
 
 main arguments:
   decoded ::= assets.decode
-  broker := ping_device_assets "broker" decoded
-  device := ping_setup decoded
+  broker := decode_broker "broker" decoded
+  device := report_status_setup decoded
   run_artemis device broker

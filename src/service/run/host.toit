@@ -7,7 +7,8 @@ import system.assets
 import encoding.json
 
 import ..service show run_artemis
-import ..monitoring show ping_setup
+import ..status show report_status_setup
+import ...shared.config
 
 main arguments:
   root_cmd := cli.Command "root"
@@ -26,15 +27,6 @@ main arguments:
 
 run parsed/cli.Parsed -> none:
   identity := file.read_content parsed["identity"]
-
-  // TODO(kasper): Move this elsewhere. Share with cli.
-  broker_path := parsed["broker"]
-  broker := json.decode (file.read_content broker_path)
-  supabase := broker["supabase"]
-  certificate_name := supabase["certificate"]
-  // PEM certificates need to be zero terminated. Ugh.
-  certificate := (file.read_content "config/certificates/$certificate_name") + #[0]
-  supabase["certificate"] = certificate
-
-  device := ping_setup (assets.decode identity)
+  broker := read_broker_from_files parsed["broker"]
+  device := report_status_setup (assets.decode identity)
   run_artemis device broker
