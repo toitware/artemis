@@ -106,7 +106,8 @@ jobs:
       - name: Setup Jaguar
         run: |
           cd "$DOWNLOAD_DIR"
-          ./jag setup
+          ./jag config analytics disable
+          ./jag setup --no-analytics
 
       - name: Run cmake
         shell: bash
