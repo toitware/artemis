@@ -2,6 +2,7 @@
 
 import certificate_roots
 import net
+import net.x509
 import http
 import http.status_codes
 import encoding.json
@@ -9,40 +10,38 @@ import encoding.json
 import ..device
 import .base
 
-create_mediator_cli_supabase -> MediatorCliPostgrest:
+create_mediator_cli_supabase broker/Map -> MediatorCliPostgrest:
   network := net.open
-  http_client := supabase_create_client network
-  postgrest_client := SupabaseClient http_client
+  http_client := create_client network broker
+  postgrest_client := SupabaseClient http_client broker
   return MediatorCliPostgrest postgrest_client network
 
+create_client network/net.Interface broker/Map -> http.Client:
+  certificate_text := broker["supabase"]["certificate"]
+  certificate := x509.Certificate.parse certificate_text
+  return http.Client.tls network --root_certificates=[certificate]
 
-SUPABASE_HOST ::= "uelhwhbsyumuqhbukich.supabase.co"
-ANON_ ::= "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlbGh3aGJzeXVtdXFoYnVraWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjM1OTU0NDYsImV4cCI6MTk3OTE3MTQ0Nn0.X6yvaUJDoN0Zk1xjYy_Ap-w6NhCc5BtyWnh5zGdoPFo"
-
-supabase_create_client network/net.Interface -> http.Client:
-  return http.Client.tls network
-      --root_certificates=[certificate_roots.BALTIMORE_CYBERTRUST_ROOT]
-
-supabase_add_auth_headers headers/http.Headers:
-  headers.add "apikey" ANON_
-  headers.add "Authorization" "Bearer $ANON_"
-
-supabase_create_headers -> http.Headers:
+create_headers broker/Map -> http.Headers:
+  anon := broker["supabase"]["anon"]
   headers := http.Headers
-  supabase_add_auth_headers headers
+  headers.add "apikey" anon
+  headers.add "Authorization" "Bearer $anon"
   return headers
 
-supabase_query client/http.Client headers/http.Headers table/string filters/List=[] -> List?:
+query_ client/http.Client host/string headers/http.Headers table/string filters/List=[] -> List?:
   filter := filters.is_empty ? "" : "?$(filters.join "&")"
   path := "/rest/v1/$table$filter"
-  response := client.get SUPABASE_HOST --headers=headers "$path"
+  response := client.get host --headers=headers "$path"
   if response.status_code != status_codes.STATUS_OK: return null
   return json.decode_stream response.body
 
 class SupabaseClient implements PostgrestClient:
   client_/http.Client? := null
+  broker_/Map
+  host_/string
 
-  constructor .client_:
+  constructor .client_ .broker_:
+    host_ = broker_["supabase"]["host"]
 
   close -> none:
     client_ = null
@@ -51,13 +50,11 @@ class SupabaseClient implements PostgrestClient:
     return client_ == null
 
   query table/string filters/List -> List?:
-    headers := http.Headers
-    supabase_add_auth_headers headers
-    return supabase_query client_ headers table filters
+    headers := create_headers broker_
+    return query_ client_ host_ headers table filters
 
   update_entry table/string --id/int? payload/ByteArray:
-    headers := http.Headers
-    supabase_add_auth_headers headers
+    headers := create_headers broker_
 
     upsert := ""
     if id:
@@ -65,19 +62,18 @@ class SupabaseClient implements PostgrestClient:
       upsert = "?id=eq.$id"
 
     response := client_.post payload
-        --host=SUPABASE_HOST
+        --host=host_
         --headers=headers
         --path="/rest/v1/$table$upsert"
     // 201 is changed one entry.
     if response.status_code != 201: throw "UGH ($response.status_code)"
 
   upload_resource --path/string --content/ByteArray:
-    headers := http.Headers
-    supabase_add_auth_headers headers
+    headers := create_headers broker_
     headers.add "Content-Type" "application/octet-stream"
     headers.add "x-upsert" "true"
     response := client_.post content
-        --host=SUPABASE_HOST
+        --host=host_
         --headers=headers
         --path="/storage/v1/object/$path"
     // 200 is accepted!

@@ -1,0 +1,6 @@
+{   "supabase": {
+        "anon"        : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlbGh3aGJzeXVtdXFoYnVraWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjM1OTU0NDYsImV4cCI6MTk3OTE3MTQ0Nn0.X6yvaUJDoN0Zk1xjYy_Ap-w6NhCc5BtyWnh5zGdoPFo",
+        "host"        : "uelhwhbsyumuqhbukich.supabase.co",
+        "certificate" : "certificate.baltimore"
+    }
+}

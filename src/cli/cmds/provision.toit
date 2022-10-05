@@ -1,22 +1,23 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import cli
-import uuid
-import host.file
 import encoding.json
-import writer
+import host.file
+import http
 import net
+import uuid
+import writer
 
 import ..sdk
 import ...shared.postgrest.supabase as supabase
 
-import certificate_roots
+import .broker_options_
 
 create_provision_commands -> List:
   provision_cmd := cli.Command "provision"
 
   create_identity_cmd := cli.Command "create-identity"
-      --options=[
+      --options=(broker_options --artemis_only) + [
         cli.OptionString "device-id"
             --default="",
         cli.OptionString "fleet-id"
@@ -39,61 +40,71 @@ create_provision_commands -> List:
 create_identity parsed/cli.Parsed:
   fleet_id := parsed["fleet-id"]
   device_id := parsed["device-id"]
+  broker := read_broker "broker.artemis" parsed
 
   network := net.open
-  client := supabase.supabase_create_client network
+  try:
+    client := supabase.create_client network broker
+    device := insert_device_in_fleet fleet_id device_id client broker
+    // Insert an initial event mostly for testing purposes.
+    device_id = device["alias"]
+    hardware_id := device["id"]
+    insert_created_event fleet_id hardware_id client broker
+    // Finally create the assets output file.
+    create_assets device_id fleet_id hardware_id broker
+  finally:
+    network.close
 
+insert_device_in_fleet fleet_id/string device_id/string client/http.Client broker/Map -> Map:
   map := {
     "fleet": fleet_id,
   }
   if not device_id.is_empty: map["alias"] = device_id
   payload := json.encode map
 
-  headers := supabase.supabase_create_headers
+  headers := supabase.create_headers broker
   headers.add "Prefer" "return=representation"
   table := "devices-$fleet_id"
   response := client.post payload
-      --host=supabase.SUPABASE_HOST
+      --host=broker["supabase"]["host"]
       --headers=headers
       --path="/rest/v1/$table"
 
   if response.status_code != 201:
     throw "Unable to create device identity"
-  new_entry := (json.decode_stream response.body).first
+  return (json.decode_stream response.body).first
 
-  device_id = new_entry["alias"]
-  hardware_id := new_entry["id"]
-  path := "$(device_id).identity"
-
-  map = {
+insert_created_event fleet_id/string hardware_id/string client/http.Client broker/Map -> none:
+  map := {
     "device": hardware_id,
     "data": { "type": "created" }
   }
-  payload = json.encode map
+  payload := json.encode map
 
-  headers = supabase.supabase_create_headers
-  table = "events-$fleet_id"
-  response = client.post payload
-      --host=supabase.SUPABASE_HOST
+  headers := supabase.create_headers broker
+  table := "events-$fleet_id"
+  response := client.post payload
+      --host=broker["supabase"]["host"]
       --headers=headers
       --path="/rest/v1/$table"
   if response.status_code != 201:
     throw "Unable to insert 'created' event"
 
+create_assets device_id/string fleet_id/string hardware_id/string broker/Map -> none:
+  path := "$(device_id).identity"
+
+  certificates := {:}
+  supabase := broker["supabase"].copy
+  certificates["womps"] = supabase["certificate"]
+  supabase["certificate"] = "womps"
+
   with_tmp_directory: | tmp/string |
-    certificates := {:}
     run_assets_tool ["-e", path, "create"]
-    // Add the cloud connection.
-    certificates["certificate.baltimore"] = certificate_roots.BALTIMORE_CYBERTRUST_ROOT_TEXT_
     write_json "$tmp/device.json" {
-      "device_id"     : device_id,
-      "fleet_id"      : fleet_id,
-      "hardware_id"   : hardware_id,
-      "supabase" : {
-        "anon"        : supabase.ANON_,
-        "host"        : supabase.SUPABASE_HOST,
-        "certificate" : "certificate.baltimore",
-      }
+      "device_id"   : device_id,
+      "fleet_id"    : fleet_id,
+      "hardware_id" : hardware_id,
+      "supabase"    : supabase,
     }
     run_assets_tool ["-e", path, "add", "--format=tison", "artemis.device", "$tmp/device.json"]
     // Add the certificates as distinct assets, so we can load them without

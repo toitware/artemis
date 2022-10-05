@@ -58,11 +58,9 @@ class SynchronizeJob extends Job implements EventHandler:
     config_["firmware"] = id
 
   run -> none:
-    logger_.info "connecting" --tags={"device": device_.name}
-    // TODO(florian): we need to get the actual device id.
-    device_id := device_.name
-    mediator_.connect --device_id=device_id --callback=this: | resources/ResourceManager |
-      logger_.info "connected" --tags={"device": device_.name}
+    logger_.info "connecting" --tags={"device": device_.id}
+    mediator_.connect --device_id=device_.id --callback=this: | resources/ResourceManager |
+      logger_.info "connected" --tags={"device": device_.id}
       while true:
         lambda/Lambda? := null
         catch: with_timeout ping_timeout: lambda = actions_.receive
@@ -83,7 +81,7 @@ class SynchronizeJob extends Job implements EventHandler:
           break
         logger_.info "synchronized"
 
-      logger_.info "disconnecting" --tags={"device": device_.name}
+      logger_.info "disconnecting" --tags={"device": device_.id}
 
   handle_nop -> none:
     actions_.send ACTION_NOP_

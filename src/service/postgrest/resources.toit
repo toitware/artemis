@@ -7,7 +7,7 @@ import encoding.json
 
 import ..mediator_service
 
-import ...shared.postgrest.supabase
+import ...shared.postgrest.supabase as supabase
 
 class ResourceManagerPostgrest implements ResourceManager:
   client_/http.Client
@@ -59,4 +59,6 @@ class ResourceManagerPostgrest implements ResourceManager:
       block.call body body.size
 
   fetch_json table/string filters/List=[] -> List?:
-    return supabase_query client_ headers_ table filters
+    // TODO(kasper): This needs cleanup. It feels annoying that we
+    // cannot use the SupabaseClient abstraction here.
+    return supabase.query_ client_ host_ headers_ table filters
