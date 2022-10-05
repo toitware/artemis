@@ -102,46 +102,37 @@ insert_created_event fleet_id/string hardware_id/string client/http.Client broke
     throw "Unable to insert 'created' event"
 
 create_assets device_id/string fleet_id/string hardware_id/string broker/Map -> none:
-  path := "$(device_id).identity"
+  assets_path := "$(device_id).identity"
 
-  certificates := {:}
+  // TODO(kasper): It is pretty ugly that we have to copy
+  // the supabase component to avoid messing with the
+  // broker map.
   supabase := broker["supabase"].copy
-  sha := sha256.Sha256
-  sha.add supabase["certificate"]
-  certificate_key := "certificate-$(hex.encode sha.get[0..8])"
-  certificates[certificate_key] = supabase["certificate"]
-  supabase["certificate"] = certificate_key
+  certificates := collect_certificates supabase
 
   with_tmp_directory: | tmp/string |
-    run_assets_tool ["-e", path, "create"]
+    run_assets_tool ["-e", assets_path, "create"]
     write_json "$tmp/device.json" {
       "device_id"   : device_id,
       "fleet_id"    : fleet_id,
       "hardware_id" : hardware_id,
       "supabase"    : supabase,
     }
-    run_assets_tool ["-e", path, "add", "--format=tison", "artemis.device", "$tmp/device.json"]
-    // Add the certificates as distinct assets, so we can load them without
-    // copying them into writable memory.
-    certificates.do: | name/string value |
-      write_blob "$tmp/$name" value
-      run_assets_tool ["-e", path, "add", name, "$tmp/$name"]
+    run_assets_tool ["-e", assets_path, "add", "--format=tison", "artemis.device", "$tmp/device.json"]
+    add_certificate_assets assets_path tmp certificates
 
-  print "Created device => $path"
+  print "Created device => $assets_path"
 
 create_firmware parsed/cli.Parsed -> none:
   identity_path := parsed["identity"]
   output_path := parsed["output"]
   broker := read_broker_from_files parsed["broker"]
 
-  // TODO(kasper): Please share this.
-  certificates := {:}
+  // TODO(kasper): It is pretty ugly that we have to copy
+  // the supabase component to avoid messing with the
+  // broker map.
   supabase := broker["supabase"].copy
-  sha := sha256.Sha256
-  sha.add supabase["certificate"]
-  certificate_key := "certificate-$(hex.encode sha.get[0..8])"
-  certificates[certificate_key] = supabase["certificate"]
-  supabase["certificate"] = certificate_key
+  certificates := collect_certificates supabase
 
   with_tmp_directory: | tmp/string |
     write_json "$tmp/broker.json" {
@@ -150,16 +141,11 @@ create_firmware parsed/cli.Parsed -> none:
 
     assets_path := "$tmp/artemis.assets"
     run_assets_tool ["-e", identity_path, "add", "-o", assets_path, "--format=tison", "broker", "$tmp/broker.json"]
+    add_certificate_assets assets_path tmp certificates
 
-    // TODO(kasper): Please share this.
-    certificates.do: | name/string value |
-      write_blob "$tmp/$name" value
-      run_assets_tool ["-e", assets_path, "add", name, "$tmp/$name"]
-
+    // TODO(kasper): Compile to image when building without JAG_TOIT_REPO_PATH.
     snapshot_path := "$tmp/artemis.snapshot"
     run_toit_compile ["-w", snapshot_path, "src/service/run/device.toit"]
-
-    // TODO(kasper): Copy the artemis snapshot to the cache.
 
     // Now we got the assets. Now we just need firmware.
     run_firmware_tool [
@@ -169,6 +155,22 @@ create_firmware parsed/cli.Parsed -> none:
         "--assets", assets_path,
         "artemis", snapshot_path,
     ]
+
+collect_certificates supabase/Map -> Map:
+  certificates := {:}
+  sha := sha256.Sha256
+  sha.add supabase["certificate"]
+  certificate_key := "certificate-$(hex.encode sha.get[0..8])"
+  certificates[certificate_key] = supabase["certificate"]
+  supabase["certificate"] = certificate_key
+  return certificates
+
+add_certificate_assets assets_path/string tmp/string certificates/Map -> none:
+  // Add the certificates as distinct assets, so we can load them without
+  // copying them into writable memory.
+  certificates.do: | name/string value |
+    write_blob "$tmp/$name" value
+    run_assets_tool ["-e", assets_path, "add", name, "$tmp/$name"]
 
 write_blob path/string value -> none:
   stream := file.Stream.for_write path
