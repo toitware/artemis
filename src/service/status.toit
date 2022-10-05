@@ -38,6 +38,11 @@ report_status network/net.Interface logger/log.Logger -> none:
   last_attempt_ = now
   success := false
   try:
+    // TODO(kasper): Let this be more mockable for testing.
+    // For now, we just always fail to report when this
+    // runs under tests.
+    if report_status_host_.is_empty: return
+
     // TODO(kasper): It is silly to generate a map here.
     client := supabase.create_client network {
       "supabase": {
