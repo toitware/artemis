@@ -10,8 +10,8 @@ import .jobs
 import ..shared.device show Device
 
 ENABLED_ := false
-INTERVAL ::= Duration --m=1
-INTERVAL_BETWEEN_ATTEMPTS ::= Duration --s=20
+INTERVAL ::= Duration --m=20
+INTERVAL_BETWEEN_ATTEMPTS ::= Duration --m=2
 
 last_success_/JobTime? := null
 last_attempt_/JobTime? := null
@@ -51,7 +51,7 @@ ping_monitoring network/net.Interface logger/log.Logger -> none:
     if not success: logger.warn "status reporting failed"
 
 ping_setup assets/Map -> Device?:
-  device := ping_device_assets_ assets
+  device := ping_device_assets "artemis.device" assets
   if not device: return null
 
   ping_host_ = device["supabase"]["host"]
@@ -73,8 +73,8 @@ ping_setup assets/Map -> Device?:
   ENABLED_ = true
   return Device device["device_id"]
 
-ping_device_assets_ assets/Map -> Map?:
-  device := assets.get "artemis.device" --if_present=: tison.decode it
+ping_device_assets key/string assets/Map -> Map?:
+  device := assets.get key --if_present=: tison.decode it
   if not device: return null
   if supabase := device.get "supabase":
     certificate_name := supabase["certificate"]

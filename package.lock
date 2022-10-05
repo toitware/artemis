@@ -1,6 +1,5 @@
 prefixes:
   ar: pkg-ar
-  certificate_roots: toit-cert-roots
   cli: pkg-cli
   host: pkg-host
   http: pkg-http
@@ -31,7 +30,3 @@ packages:
     url: github.com/toitlang/pkg-ntp
     version: 1.0.0
     hash: 1c3cc4a4819f459393f00efc576f66f838665719
-  toit-cert-roots:
-    url: github.com/toitware/toit-cert-roots
-    version: 1.3.2
-    hash: 288547039d8a3797330064e91d8c79ad16313545

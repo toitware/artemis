@@ -19,12 +19,12 @@ create_device_config_commands -> List:
   return [ max_offline_cmd ]
 
 set_max_offline parsed/cli.Parsed:
-  device_name := parsed["device"]
+  device_selector := parsed["device"]
   max_offline := parsed["max-offline"]
 
   mediator := create_mediator parsed
   artemis := Artemis mediator
-  device_id := artemis.device_name_to_id device_name
+  device_id := artemis.device_selector_to_id device_selector
   artemis.config_set_max_offline --device_id=device_id --max_offline_seconds=max_offline
   artemis.close
   mediator.close

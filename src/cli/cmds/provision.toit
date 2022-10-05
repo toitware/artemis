@@ -2,11 +2,13 @@
 
 import cli
 import encoding.json
+import encoding.hex
 import host.file
 import http
 import net
 import uuid
 import writer
+import crypto.sha256
 
 import ..sdk
 import ...shared.postgrest.supabase as supabase
@@ -17,9 +19,11 @@ create_provision_commands -> List:
   provision_cmd := cli.Command "provision"
 
   create_identity_cmd := cli.Command "create-identity"
-      --options=(broker_options --artemis_only) + [
+      --options=broker_options + [
         cli.OptionString "device-id"
             --default="",
+        // TODO(kasper): These options should be given through some
+        // sort of auth-based mechanism.
         cli.OptionString "fleet-id"
             --default="c6fb0602-79a6-4cc3-b1ee-08df55fb30ad",
         cli.OptionString "organization-id"
@@ -27,9 +31,14 @@ create_provision_commands -> List:
       ]
       --run=:: create_identity it
   create_firmware_cmd := cli.Command "create-firmware"
-      --options=[
+      --options=broker_options + [
         cli.OptionString "identity"
             --type="file"
+            --required,
+        cli.OptionString "output"
+            --short_name="o"
+            --type="file"
+            --required,
       ]
       --run=:: create_firmware it
 
@@ -95,8 +104,11 @@ create_assets device_id/string fleet_id/string hardware_id/string broker/Map -> 
 
   certificates := {:}
   supabase := broker["supabase"].copy
-  certificates["womps"] = supabase["certificate"]
-  supabase["certificate"] = "womps"
+  sha := sha256.Sha256
+  sha.add supabase["certificate"]
+  certificate_key := "certificate-$(hex.encode sha.get[0..8])"
+  certificates[certificate_key] = supabase["certificate"]
+  supabase["certificate"] = certificate_key
 
   with_tmp_directory: | tmp/string |
     run_assets_tool ["-e", path, "create"]
@@ -116,17 +128,46 @@ create_assets device_id/string fleet_id/string hardware_id/string broker/Map -> 
   print "Created device => $path"
 
 create_firmware parsed/cli.Parsed -> none:
-  // Inputs:
-  //  - identity file
-  //  - connect information
-  //  - artemis version?
-  sdk := get_toit_sdk
-  version := (file.read_content "$sdk/VERSION").to_string_non_throwing.trim
-  print "Toit SDK $version"
-  // base firmware envelope -- optionally fetched and cached
-  // artemis image -- fetched and cached based on version
-  //
-  unreachable
+  identity_path := parsed["identity"]
+  output_path := parsed["output"]
+
+  broker := read_broker "broker" parsed
+
+  // TODO(kasper): Please share this.
+  certificates := {:}
+  supabase := broker["supabase"].copy
+  sha := sha256.Sha256
+  sha.add supabase["certificate"]
+  certificate_key := "certificate-$(hex.encode sha.get[0..8])"
+  certificates[certificate_key] = supabase["certificate"]
+  supabase["certificate"] = certificate_key
+
+  with_tmp_directory: | tmp/string |
+    write_json "$tmp/broker.json" {
+      "supabase" : supabase,
+    }
+
+    assets_path := "$tmp/artemis.assets"
+    run_assets_tool ["-e", identity_path, "add", "-o", assets_path, "--format=tison", "broker", "$tmp/broker.json"]
+
+    // TODO(kasper): Please share this.
+    certificates.do: | name/string value |
+      write_blob "$tmp/$name" value
+      run_assets_tool ["-e", assets_path, "add", name, "$tmp/$name"]
+
+    snapshot_path := "$tmp/artemis.snapshot"
+    run_toit_compile ["-w", snapshot_path, "src/service/run/device.toit"]
+
+    // TODO(kasper): Copy the artemis snapshot to the cache.
+
+    // Now we got the assets. Now we just need firmware.
+    run_firmware_tool [
+        "-e", get_esp32_firmware_path,
+        "container", "install",
+        "-o", output_path,
+        "--assets", assets_path,
+        "artemis", snapshot_path,
+    ]
 
 write_blob path/string value -> none:
   stream := file.Stream.for_write path

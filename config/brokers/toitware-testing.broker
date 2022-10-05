@@ -1,6 +1,6 @@
 {   "supabase": {
-        "anon"        : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlbGh3aGJzeXVtdXFoYnVraWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjM1OTU0NDYsImV4cCI6MTk3OTE3MTQ0Nn0.X6yvaUJDoN0Zk1xjYy_Ap-w6NhCc5BtyWnh5zGdoPFo",
-        "host"        : "uelhwhbsyumuqhbukich.supabase.co",
+        "anon"        : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqZGl2emZpcGhsbGt5eGN6bWd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjQ5NTQxMjIsImV4cCI6MTk4MDUzMDEyMn0.ge4XAeh3xEHQokn-ayPKi1N0cQO_c8bhBzLli-I9bqU",
+        "host"        : "fjdivzfiphllkyxczmgw.supabase.co",
         "certificate" : "certificate.baltimore"
     }
 }

@@ -20,9 +20,9 @@ class Artemis:
     // The mediators are not created here and should be closed outside.
 
   /**
-  Maps a device name to its id.
+  Maps a device selector (name or id) to its id.
   */
-  device_name_to_id name/string -> string:
+  device_selector_to_id name/string -> string:
     return name
 
   app_install --device_id/string --app_name/string --application_path/string:

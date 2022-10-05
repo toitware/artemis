@@ -18,6 +18,14 @@ run_assets_tool arguments/List -> none:
   sdk := get_toit_sdk
   pipe.run_program ["$sdk/tools/assets"] + arguments
 
+run_firmware_tool arguments/List -> none:
+  sdk := get_toit_sdk
+  pipe.run_program ["$sdk/tools/firmware"] + arguments
+
+run_toit_compile arguments/List -> none:
+  sdk := get_toit_sdk
+  pipe.run_program ["$sdk/bin/toit.compile"] + arguments
+
 application_to_images application_path -> ToitImages:
   if application_path.ends_with ".toit":
     return toit_to_images application_path
@@ -72,6 +80,23 @@ get_toit_sdk -> string:
     if file.is_directory "$jaguar/bin" and file.is_directory "$jaguar/tools":
       return jaguar
     print_on_stderr_ "\$HOME/.cache/jaguar/sdk doesn't contain a Toit SDK"
+    exit 1
+  print_on_stderr_ "Did not find JAG_TOIT_REPO_PATH or a Jaguar installation"
+  exit 1
+  unreachable
+
+get_esp32_firmware_path -> string:
+  if os.env.contains "JAG_TOIT_REPO_PATH":
+    repo := "$(os.env["JAG_TOIT_REPO_PATH"])/build/esp32"
+    if file.is_directory "$repo":
+      return "$repo/firmware.envelope"
+    print_on_stderr_ "JAG_TOIT_REPO_PATH doesn't point to a built Toit repo"
+    exit 1
+  if os.env.contains "HOME":
+    jaguar_assets := "$(os.env["HOME"])/.cache/assets/"
+    if file.is_directory "$jaguar_assets":
+      return "$jaguar_assets/firmware-esp32.envelope"
+    print_on_stderr_ "\$HOME/.cache/jaguar/assets doesn't contain the ESP32 firmware"
     exit 1
   print_on_stderr_ "Did not find JAG_TOIT_REPO_PATH or a Jaguar installation"
   exit 1

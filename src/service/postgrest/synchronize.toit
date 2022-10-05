@@ -34,12 +34,13 @@ class MediatorServicePostgrest implements MediatorService:
     handle_task = task::
       try:
         while true:
-          info := resources.fetch_json "devices" [
-            "name=eq.$(device_id)",
-          ]
-          if info.size == 1 and info[0] is Map and info[0].contains "config":
-            new_config := info[0]["config"]
-            callback.handle_update_config new_config resources
+          info := resources.fetch_json "devices" [ "id=eq.$(device_id)" ]
+          new_config/Map? := null
+          if info and info.size == 1 and info[0] is Map and info[0].contains "config":
+            new_config = info[0]["config"]
+          else:
+            new_config = {:}
+          callback.handle_update_config new_config resources
           sleep POLL_INTERVAL
       finally:
         critical_do:

@@ -12,7 +12,7 @@ interface PostgrestClient:
   is_closed -> bool
 
   query table/string filters/List -> List?
-  update_entry table/string --id/int? payload/ByteArray
+  update_entry table/string --upsert/bool payload/ByteArray
   upload_resource --path/string --content/ByteArray
 
 class MediatorCliPostgrest implements MediatorCli:
@@ -33,25 +33,21 @@ class MediatorCliPostgrest implements MediatorCli:
     // TODO(kasper): Share more of this code with the corresponding
     // code in the service.
     info := client_.query "devices" [
-      "name=eq.$(device_id)",
+      "id=eq.$(device_id)",
     ]
-    id := null
     old_config := {:}
     if info.size == 1 and info[0] is Map:
-      id = info[0].get "id"
       old_config = info[0].get "config" or old_config
 
     new_config := block.call old_config
 
     map := {
-      "config": new_config
+      "id"     : device_id,
+      "config" : new_config,
     }
 
-    if id:
-      map["id"] = id
-
     payload := json.encode map
-    client_.update_entry "devices" payload --id=id
+    client_.update_entry "devices" --upsert payload
 
   upload_image --app_id/string --bits/int content/ByteArray -> none:
     upload_resource_ "images/$app_id.$bits" content

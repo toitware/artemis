@@ -1,6 +1,5 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import certificate_roots
 import net
 import net.x509
 import http
@@ -53,18 +52,13 @@ class SupabaseClient implements PostgrestClient:
     headers := create_headers broker_
     return query_ client_ host_ headers table filters
 
-  update_entry table/string --id/int? payload/ByteArray:
+  update_entry table/string --upsert/bool payload/ByteArray:
     headers := create_headers broker_
-
-    upsert := ""
-    if id:
-      headers.add "Prefer" "resolution=merge-duplicates"
-      upsert = "?id=eq.$id"
-
+    if upsert: headers.add "Prefer" "resolution=merge-duplicates"
     response := client_.post payload
         --host=host_
         --headers=headers
-        --path="/rest/v1/$table$upsert"
+        --path="/rest/v1/$table"
     // 201 is changed one entry.
     if response.status_code != 201: throw "UGH ($response.status_code)"
 

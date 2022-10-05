@@ -14,7 +14,7 @@ main arguments:
       --options=[
         cli.OptionString "broker"
             --type="file"
-            --default="config/brokers/toitware.broker"
+            --default="config/brokers/toitware-testing.broker"
       ]
       --rest=[
         cli.OptionString "identity"

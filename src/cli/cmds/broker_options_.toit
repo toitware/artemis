@@ -12,8 +12,7 @@ BROKER_ARTEMIS_OPTION_ ::= cli.OptionString "broker.artemis"
     --default="config/brokers/artemis.broker"
     --type="file"
 
-broker_options --artemis_only/bool=false -> List:
-  if artemis_only: return [ BROKER_ARTEMIS_OPTION_ ]
+broker_options -> List:
   return [ BROKER_OPTION_, BROKER_ARTEMIS_OPTION_ ]
 
 read_broker key/string parsed/cli.Parsed -> Map:
