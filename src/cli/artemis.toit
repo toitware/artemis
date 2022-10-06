@@ -26,10 +26,10 @@ class Artemis:
     return name
 
   app_install --device_id/string --app_name/string --application_path/string:
-    images := application_to_images application_path
-    id := images.id
-    mediator_.upload_image --app_id=id --bits=32 images.image32
-    mediator_.upload_image --app_id=id --bits=64 images.image64
+    program := CompiledProgram.application application_path
+    id := program.id
+    mediator_.upload_image --app_id=id --bits=32 program.image32
+    mediator_.upload_image --app_id=id --bits=64 program.image64
 
     mediator_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Installing app: $app_name"

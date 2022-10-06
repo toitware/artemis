@@ -7,111 +7,122 @@ import host.pipe
 import host.os
 import uuid
 
-class ToitImages:
+IS_SOURCE_BUILD              ::= resolve_is_source_build_
+PATH_FIRMWARE_ENVELOPE_ESP32 ::= resolve_firmware_envelope_path_ "esp32"
+
+PATH_TOIT_COMPILE_           ::= resolve_jaguar_sdk_path_ --dir="bin" "toit.compile"
+PATH_ASSETS_TOOL_            ::= resolve_jaguar_sdk_path_ --dir="tools" "assets"
+PATH_FIRMWARE_TOOL_          ::= resolve_jaguar_sdk_path_ --dir="tools" "firmware"
+PATH_SNAPSHOT_TO_IMAGE_TOOL_ ::= resolve_jaguar_sdk_path_ --dir="tools" "snapshot_to_image"
+
+run_assets_tool arguments/List -> none:
+  pipe.run_program [PATH_ASSETS_TOOL_] + arguments
+
+run_firmware_tool arguments/List -> none:
+  pipe.run_program [PATH_FIRMWARE_TOOL_] + arguments
+
+run_toit_compile arguments/List -> none:
+  pipe.run_program [PATH_TOIT_COMPILE_] + arguments
+
+run_snapshot_to_image_tool arguments/List -> none:
+  pipe.run_program [PATH_SNAPSHOT_TO_IMAGE_TOOL_] + arguments
+
+with_tmp_directory [block]:
+  tmpdir := directory.mkdtemp "/tmp/artemis-"
+  try:
+    block.call tmpdir
+  finally:
+    directory.rmdir --recursive tmpdir
+
+class CompiledProgram:
   id/string
   image32/ByteArray
   image64/ByteArray
 
   constructor .id .image32 .image64:
 
-run_assets_tool arguments/List -> none:
-  sdk := get_toit_sdk
-  pipe.run_program ["$sdk/tools/assets"] + arguments
+  constructor.application path/string:
+    id/string? := extract_id_from_snapshot_ path
+    return id ? (CompiledProgram.snapshot path --id=id) : CompiledProgram.source path
 
-run_firmware_tool arguments/List -> none:
-  sdk := get_toit_sdk
-  pipe.run_program ["$sdk/tools/firmware"] + arguments
-
-run_toit_compile arguments/List -> none:
-  sdk := get_toit_sdk
-  pipe.run_program ["$sdk/bin/toit.compile"] + arguments
-
-application_to_images application_path -> ToitImages:
-  if application_path.ends_with ".toit":
-    return toit_to_images application_path
-  return snapshot_to_images application_path
-
-toit_to_images toit_path/string -> ToitImages:
-  last_slash := toit_path.index_of --last "/"
-  last_backslash := toit_path.index_of --last "\\"
-  last_separator := max last_slash last_backslash
-  name := ?
-  if last_separator == -1:
-    name = toit_path
-  else:
-    name = toit_path[last_separator + 1 ..]
-  name = name.trim --right ".toit"
-  with_tmp_directory: | dir/string |
-    snapshot_path := "$dir/$(name).snapshot"
-    sdk := get_toit_sdk
-    pipe.run_program ["$sdk/bin/toit.compile", "-w", snapshot_path, toit_path]
-    return snapshot_to_images snapshot_path --tmp_directory=dir
-  unreachable
-
-snapshot_to_images snapshot_path/string --tmp_directory/string?=null -> ToitImages:
-  if not tmp_directory:
-    with_tmp_directory: | dir/string |
-      return snapshot_to_images snapshot_path --tmp_directory=dir
+  constructor.source path/string:
+    with_tmp_directory: | tmp/string |
+      snapshot_path := "$tmp/snapshot"
+      run_toit_compile ["-w", snapshot_path, path]
+      return CompiledProgram.snapshot snapshot_path
     unreachable
 
-  id := get_uuid_from_snapshot snapshot_path
-  if not id:
-    print_on_stderr_ "$snapshot_path: Not a valid Toit snapshot"
-    exit 1
+  constructor.snapshot path/string --id/string?=null:
+    with_tmp_directory: | tmp/string |
+      id = id or extract_id_from_snapshot_ path
+      if not id:
+        print_on_stderr_ "$path: Not a valid Toit snapshot"
+        exit 1
+      image32 := "$tmp/image32"
+      image64 := "$tmp/image64"
+      run_snapshot_to_image_tool ["-m32", "--binary", "-o", image32, path]
+      run_snapshot_to_image_tool ["-m64", "--binary", "-o", image64, path]
+      return CompiledProgram id (file.read_content image32) (file.read_content image64)
+    unreachable
 
-  // Create the two images.
-  sdk := get_toit_sdk
-  image32 := "$tmp_directory/image32"
-  image64 := "$tmp_directory/image64"
+resolve_is_source_build_ -> bool:
+  path := resolve_jaguar_path_
+      --repo_directory="build/host/sdk"
+      --repo_file="repo"
+      --cache_directory="sdk"
+      --cache_file="cache"
+  return path.ends_with "/repo"
 
-  pipe.run_program ["$sdk/tools/snapshot_to_image", "-m32", "--binary", "-o", image32, snapshot_path]
-  pipe.run_program ["$sdk/tools/snapshot_to_image", "-m64", "--binary", "-o", image64, snapshot_path]
-  return ToitImages id (file.read_content image32) (file.read_content image64)
+resolve_firmware_envelope_path_ model/string -> string:
+  return resolve_jaguar_path_
+      --repo_directory="build/$model"
+      --repo_file="firmware.envelope"
+      --cache_directory="assets"
+      --cache_file="firmware-$(model).envelope"
 
-get_toit_sdk -> string:
+resolve_jaguar_sdk_path_ --dir/string name/string -> string:
+  return resolve_jaguar_path_
+      --repo_directory="build/host/sdk/$dir"
+      --repo_file=name
+      --cache_directory="sdk/$dir"
+      --cache_file=name
+
+resolve_jaguar_path_ -> string
+    --repo_directory/string
+    --repo_file/string
+    --cache_directory/string
+    --cache_file/string:
+  directory/string? := null
+  result/string? := null
   if os.env.contains "JAG_TOIT_REPO_PATH":
-    repo := "$(os.env["JAG_TOIT_REPO_PATH"])/build/host/sdk"
-    if file.is_directory "$repo/bin" and file.is_directory "$repo/tools":
-      return repo
-    print_on_stderr_ "JAG_TOIT_REPO_PATH doesn't point to a built Toit repo"
+    root := os.env["JAG_TOIT_REPO_PATH"]
+    build := "$root/build"
+    if not file.is_directory "$build/host" or not file.is_directory "$build/esp32":
+      print_on_stderr_ "\$JAG_TOIT_REPO_PATH doesn't point to a built Toit repo"
+      exit 1
+    directory = "$root/$repo_directory"
+    result = "$directory/$repo_file"
+  else if os.env.contains "HOME":
+    root := "$(os.env["HOME"])/.cache/jaguar"
+    if not file.is_directory "$root/sdk" or not file.is_directory "$root/assets":
+      print_on_stderr_ "\$HOME/.cache/jaguar doesn't contain the Jaguar bits"
+      exit 1
+    directory = "$root/$cache_directory"
+    result = "$directory/$cache_file"
+  if not directory or not file.is_directory directory:
+    print_on_stderr_ "Did not find \$JAG_TOIT_REPO_PATH or a Jaguar installation"
     exit 1
-  if os.env.contains "HOME":
-    jaguar := "$(os.env["HOME"])/.cache/jaguar/sdk"
-    if file.is_directory "$jaguar/bin" and file.is_directory "$jaguar/tools":
-      return jaguar
-    print_on_stderr_ "\$HOME/.cache/jaguar/sdk doesn't contain a Toit SDK"
-    exit 1
-  print_on_stderr_ "Did not find JAG_TOIT_REPO_PATH or a Jaguar installation"
-  exit 1
-  unreachable
+  return result
 
-get_esp32_firmware_path -> string:
-  if os.env.contains "JAG_TOIT_REPO_PATH":
-    repo := "$(os.env["JAG_TOIT_REPO_PATH"])/build/esp32"
-    if file.is_directory "$repo":
-      return "$repo/firmware.envelope"
-    print_on_stderr_ "JAG_TOIT_REPO_PATH doesn't point to a built Toit repo"
-    exit 1
-  if os.env.contains "HOME":
-    jaguar_assets := "$(os.env["HOME"])/.cache/assets/"
-    if file.is_directory "$jaguar_assets":
-      return "$jaguar_assets/firmware-esp32.envelope"
-    print_on_stderr_ "\$HOME/.cache/jaguar/assets doesn't contain the ESP32 firmware"
-    exit 1
-  print_on_stderr_ "Did not find JAG_TOIT_REPO_PATH or a Jaguar installation"
-  exit 1
-  unreachable
-
-get_uuid_from_snapshot snapshot_path/string -> string?:
+extract_id_from_snapshot_ snapshot_path/string -> string?:
   if not file.is_file snapshot_path:
     print_on_stderr_ "$snapshot_path: Not a file"
     exit 1
 
   snapshot := file.read_content snapshot_path
-
-  ar_reader /ar.ArReader? := null
+  ar_reader/ar.ArReader? := null
   exception := catch:
-    ar_reader = ar.ArReader.from_bytes snapshot  // Throws if it's not a snapshot.
+    ar_reader = ar.ArReader.from_bytes snapshot
   if exception: return null
   first := ar_reader.next
   if first.name != "toit": return null
@@ -120,10 +131,3 @@ get_uuid_from_snapshot snapshot_path/string -> string?:
     if member.name == "uuid":
       id = (uuid.Uuid member.content).stringify
   return id
-
-with_tmp_directory [block]:
-  tmpdir := directory.mkdtemp "/tmp/artemis-image-creation-"
-  try:
-    block.call tmpdir
-  finally:
-    directory.rmdir --recursive tmpdir

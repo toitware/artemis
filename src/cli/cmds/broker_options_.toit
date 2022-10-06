@@ -5,8 +5,8 @@ import encoding.json
 import host.file
 
 BROKER_OPTION_ ::= cli.OptionString "broker"
-        --default="config/brokers/toitware-testing.broker"
-        --type="file"
+    --default="config/brokers/toitware-testing.broker"
+    --type="file"
 
 BROKER_ARTEMIS_OPTION_ ::= cli.OptionString "broker.artemis"
     --default="config/brokers/artemis.broker"

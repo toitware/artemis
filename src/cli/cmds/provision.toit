@@ -112,7 +112,7 @@ create_assets device_id/string fleet_id/string hardware_id/string broker/Map -> 
 
   with_tmp_directory: | tmp/string |
     run_assets_tool ["-e", assets_path, "create"]
-    write_json "$tmp/device.json" {
+    write_json_to_file "$tmp/device.json" {
       "device_id"   : device_id,
       "fleet_id"    : fleet_id,
       "hardware_id" : hardware_id,
@@ -135,7 +135,7 @@ create_firmware parsed/cli.Parsed -> none:
   certificates := collect_certificates supabase
 
   with_tmp_directory: | tmp/string |
-    write_json "$tmp/broker.json" {
+    write_json_to_file "$tmp/broker.json" {
       "supabase" : supabase,
     }
 
@@ -146,14 +146,19 @@ create_firmware parsed/cli.Parsed -> none:
     // TODO(kasper): Compile to image when building without JAG_TOIT_REPO_PATH.
     snapshot_path := "$tmp/artemis.snapshot"
     run_toit_compile ["-w", snapshot_path, "src/service/run/device.toit"]
+    program_path := snapshot_path
+    if not IS_SOURCE_BUILD:
+      program_path = "$tmp/artemis.image"
+      run_snapshot_to_image_tool ["-m32", "--binary", "-o", program_path, snapshot_path]
 
-    // Now we got the assets. Now we just need firmware.
+    // We have got the assets and the artemis code compiled. Now we
+    // just need to generate the firmware envelope.
     run_firmware_tool [
-        "-e", get_esp32_firmware_path,
+        "-e", PATH_FIRMWARE_ENVELOPE_ESP32,
         "container", "install",
         "-o", output_path,
         "--assets", assets_path,
-        "artemis", snapshot_path,
+        "artemis", program_path,
     ]
 
 collect_certificates supabase/Map -> Map:
@@ -169,10 +174,10 @@ add_certificate_assets assets_path/string tmp/string certificates/Map -> none:
   // Add the certificates as distinct assets, so we can load them without
   // copying them into writable memory.
   certificates.do: | name/string value |
-    write_blob "$tmp/$name" value
+    write_blob_to_file "$tmp/$name" value
     run_assets_tool ["-e", assets_path, "add", name, "$tmp/$name"]
 
-write_blob path/string value -> none:
+write_blob_to_file path/string value -> none:
   stream := file.Stream.for_write path
   try:
     writer := writer.Writer stream
@@ -180,5 +185,5 @@ write_blob path/string value -> none:
   finally:
     stream.close
 
-write_json path/string value/any -> none:
-  write_blob path (json.encode value)
+write_json_to_file path/string value/any -> none:
+  write_blob_to_file path (json.encode value)
