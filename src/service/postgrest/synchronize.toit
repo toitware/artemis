@@ -2,35 +2,40 @@
 
 import log
 import net
-import reader show Reader
 import monitor
 
 import .resources
 import ..mediator_service
-import ..applications
-import ..synchronize show SynchronizeJob
-import ...shared.device show Device
-import ...shared.postgrest.supabase
+
+import ..status show report_status
+import ...shared.postgrest.supabase as supabase
 
 POLL_INTERVAL ::= Duration --m=1
 
 class MediatorServicePostgrest implements MediatorService:
+  logger_/log.Logger
+  broker_/Map
+  constructor .logger_ .broker_:
+
   connect --device_id/string --callback/EventHandler [block]:
     network := net.open
-    client := supabase_create_client network
-    resources := ResourceManagerPostgrest client SUPABASE_HOST supabase_create_headers
+    report_status network logger_
+    client := supabase.create_client network broker_
+    headers := supabase.create_headers broker_
+    resources := ResourceManagerPostgrest client broker_["supabase"]["host"] headers
 
     disconnected := monitor.Latch
     handle_task/Task? := ?
     handle_task = task::
       try:
         while true:
-          info := resources.fetch_json "devices" [
-            "name=eq.$(device_id)",
-          ]
-          if info.size == 1 and info[0] is Map and info[0].contains "config":
-            new_config := info[0]["config"]
-            callback.handle_update_config new_config resources
+          info := resources.fetch_json "devices" [ "id=eq.$(device_id)" ]
+          new_config/Map? := null
+          if info and info.size == 1 and info[0] is Map and info[0].contains "config":
+            new_config = info[0]["config"]
+          else:
+            new_config = {:}
+          callback.handle_update_config new_config resources
           sleep POLL_INTERVAL
       finally:
         critical_do:

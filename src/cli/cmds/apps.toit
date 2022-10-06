@@ -36,23 +36,23 @@ create_app_commands -> List:
 
 install_app parsed/cli.Parsed:
   app_name := parsed["app-name"]
-  device_name := parsed["device"]
+  device_selector := parsed["device"]
   application_path :=parsed["application"]
 
   mediator := create_mediator parsed
   artemis := Artemis mediator
-  device_id := artemis.device_name_to_id device_name
+  device_id := artemis.device_selector_to_id device_selector
   artemis.app_install --device_id=device_id --app_name=app_name --application_path=application_path
   artemis.close
   mediator.close
 
 uninstall_app parsed/cli.Parsed:
   app_name := parsed["app-name"]
-  device_name := parsed["device"]
+  device_selector := parsed["device"]
 
   mediator := create_mediator parsed
   artemis := Artemis mediator
-  device_id := artemis.device_name_to_id device_name
+  device_id := artemis.device_selector_to_id device_selector
   artemis.app_uninstall --device_id=device_id --app_name=app_name
   artemis.close
   mediator.close

@@ -48,7 +48,7 @@ abstract class PeriodicJob extends Job:
     if not last_run: return now
     return last_run + period_
 
-class JobTime:
+class JobTime implements Comparable:
   us_/int
 
   constructor .us_:
@@ -70,3 +70,9 @@ class JobTime:
 
   to_monotonic_us -> int:
     return us_
+
+  compare_to other/JobTime -> int:
+    return us_.compare_to other.us_
+
+  compare_to other/JobTime [--if_equal] -> int:
+    return us_.compare_to other.us_ --if_equal=if_equal

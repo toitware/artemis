@@ -3,6 +3,7 @@
 import crypto.sha256
 import host.file
 import uuid
+import encoding.hex
 
 import .sdk
 import ..shared.mediator
@@ -20,16 +21,16 @@ class Artemis:
     // The mediators are not created here and should be closed outside.
 
   /**
-  Maps a device name to its id.
+  Maps a device selector (name or id) to its id.
   */
-  device_name_to_id name/string -> string:
+  device_selector_to_id name/string -> string:
     return name
 
   app_install --device_id/string --app_name/string --application_path/string:
-    images := application_to_images application_path
-    id := images.id
-    mediator_.upload_image --app_id=id --bits=32 images.image32
-    mediator_.upload_image --app_id=id --bits=64 images.image64
+    program := CompiledProgram.application application_path
+    id := program.id
+    mediator_.upload_image --app_id=id --bits=32 program.image32
+    mediator_.upload_image --app_id=id --bits=64 program.image64
 
     mediator_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Installing app: $app_name"
@@ -55,14 +56,17 @@ class Artemis:
       config
 
   firmware_update --device_id/string --firmware_path/string:
-    firmware_bin := file.read_content firmware_path
+    firmware_bin/ByteArray? := null
+    with_tmp_directory: | tmp/string |
+      firmware_bin_path := "$tmp/firmware.bin"
+      run_firmware_tool ["-e", firmware_path, "extract", "-o", firmware_bin_path, "--firmware.bin"]
+      firmware_bin = file.read_content firmware_bin_path
+
     sha := sha256.Sha256
     sha.add firmware_bin
-    id/string := "$(uuid.Uuid sha.get[0..uuid.SIZE])"
-
+    id/string := hex.encode sha.get
     mediator_.upload_firmware --firmware_id=id firmware_bin
 
     mediator_.device_update_config --device_id=device_id: | config/Map |
       config["firmware"] = id
       config
-
