@@ -6,7 +6,7 @@ import crypto.sha256 show *
 import host.pipe
 import writer
 
-import ..shared.patch_format
+import ..shared.utils.patch_format
 
 // Smaller numbers take longer, but get smaller diffs.
 SECTION_SIZE_ ::= 16

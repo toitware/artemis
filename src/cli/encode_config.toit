@@ -1,8 +1,6 @@
 // Copyright (C) 2020 Toitware ApS. All rights reserved.
 
 import host.file
-import ..kernel.config
-import encoding.tpack as tpack
 import encoding.json as json
 import services.arguments show *
 import crypto.sha256 as crypto

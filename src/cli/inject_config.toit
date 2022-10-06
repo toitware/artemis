@@ -4,12 +4,9 @@ import binary show LITTLE_ENDIAN
 import bytes
 import crypto.sha256 as crypto
 import host.file
-import ..kernel.config
 import .encode_config
 import encoding.json as json
-import encoding.tpack as tpack
 import host.file
-import ..kernel.config
 import host.pipe
 import services.arguments show *
 import uuid

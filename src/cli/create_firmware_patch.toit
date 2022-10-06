@@ -3,7 +3,6 @@
 import binary show LITTLE_ENDIAN
 import bytes
 import host.file
-import encoding.tpack as tpack
 import encoding.ubjson as ubjson
 import encoding.json as json
 import crypto.sha256 show *
@@ -14,12 +13,13 @@ import services.arguments show *
 import writer
 import uuid
 
-import ..kernel.config
 import .inject_config
 import .encode_config
 
 import .binary_diff
-import ..lib.patch
+
+import ..shared.utils.patch
+import ..shared.utils.patch_format
 
 // Chunk the new image into 32k sizes (uncompressed).  These are the points
 // where we can resume an incremental update.
@@ -39,7 +39,6 @@ MINIMUM_PATCH_CHUNK := 1024
 
 // NOTE this will not work if we enable
 // CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT or CONFIG_SECURE_BOOT_ENABLED
-
 
 main args/List:
   parser := ArgumentParser
@@ -191,9 +190,13 @@ instantiate --unique_id/uuid.Uuid --use_stdout/bool --raw_config/bool args -> no
 
   cfg := buffer.bytes
   if not raw_config:
+    unreachable
+    /* TODO(kasper): Renable this somehow.
+
     m := (json.Decoder).decode cfg
     parsed_config := parse_config m
     cfg = encode_config parsed_config
+    */
 
   new_bytes := inject_config_data new_sdk_dir new_sdk_model cfg unique_id
   old_bytes := file.read_content "$old_sdk_dir/model/$(old_sdk_model)/factory.bin"
