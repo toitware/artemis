@@ -2,7 +2,7 @@
 
 import crypto.sha256 show *
 import reader show *
-import ...shared.patch_format
+import .patch_format
 
 interface PatchWriter_:
   on_write data from/int=0 to/int=data.size -> none

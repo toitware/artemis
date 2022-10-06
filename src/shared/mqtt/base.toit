@@ -150,24 +150,22 @@ class MediatorCliMqtt implements MediatorCli:
   upload_image --app_id/string --bits/int content/ByteArray -> none:
     upload_resource_ "toit/apps/$app_id/image$bits" content
 
-  upload_firmware --firmware_id/string content/ByteArray -> none:
-    upload_resource_in_parts_ "toit/firmware/$firmware_id" content
+  upload_firmware --firmware_id/string parts/List -> none:
+    upload_resource_in_parts_ "toit/firmware/$firmware_id" parts
 
   upload_resource_ path/string content/ByteArray -> none:
     client_.publish path content --qos=1 --retain
 
-  upload_resource_in_parts_ path/string content/ByteArray -> none:
-    PART_SIZE ::= 64 * 1024
+  upload_resource_in_parts_ path/string parts/List -> none:
     cursor := 0
-    parts := []
-    while cursor < content.size:
-      end := min content.size (cursor + PART_SIZE)
-      parts.add cursor
-      upload_resource_ "$path/$cursor" content[cursor..end]
-      cursor = end
+    offsets := []
+    parts.do: | part/ByteArray |
+      offsets.add cursor
+      upload_resource_ "$path/$cursor" part
+      cursor += part.size
     manifest ::= ubjson.encode {
-        "size": content.size,
-        "parts": parts,
+        "size": cursor,
+        "parts": offsets,
     }
     upload_resource_ path manifest
 
