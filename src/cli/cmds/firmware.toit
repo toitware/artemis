@@ -10,9 +10,9 @@ create_firmware_commands -> List:
       --short_help="Update the firmware on a device."
       --options=device_options
       --rest=[
-        cli.OptionString "firmware.envelope"
+        cli.OptionString "firmware"
             --type="file"
-            --short_help="Firmware to install."
+            --short_help="Firmware envelope to install."
             --required,
       ]
       --run=:: update_firmware it
@@ -20,7 +20,7 @@ create_firmware_commands -> List:
 
 update_firmware parsed/cli.Parsed:
   device_selector := parsed["device"]
-  firmware_path := parsed["firmware.envelope"]
+  firmware_path := parsed["firmware"]
 
   mediator := create_mediator parsed
   artemis := Artemis mediator
