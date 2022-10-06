@@ -3,6 +3,7 @@
 import crypto.sha256
 import host.file
 import uuid
+import encoding.hex
 
 import .sdk
 import ..shared.mediator
@@ -55,14 +56,17 @@ class Artemis:
       config
 
   firmware_update --device_id/string --firmware_path/string:
-    firmware_bin := file.read_content firmware_path
+    firmware_bin/ByteArray? := null
+    with_tmp_directory: | tmp/string |
+      firmware_bin_path := "$tmp/firmware.bin"
+      run_firmware_tool ["-e", firmware_path, "extract", "-o", firmware_bin_path, "--firmware.bin"]
+      firmware_bin = file.read_content firmware_bin_path
+
     sha := sha256.Sha256
     sha.add firmware_bin
-    id/string := "$(uuid.Uuid sha.get[0..uuid.SIZE])"
-
+    id/string := hex.encode sha.get
     mediator_.upload_firmware --firmware_id=id firmware_bin
 
     mediator_.device_update_config --device_id=device_id: | config/Map |
       config["firmware"] = id
       config
-

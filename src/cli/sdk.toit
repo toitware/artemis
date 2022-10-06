@@ -34,6 +34,14 @@ with_tmp_directory [block]:
   finally:
     directory.rmdir --recursive tmpdir
 
+cache_snapshot path/string -> none:
+  if not os.env.contains "HOME": return
+  cache := "$(os.env["HOME"])/.cache/jaguar/snapshots"
+  if not file.is_directory cache: return
+  id := extract_id_from_snapshot_ path
+  if not id: return
+  pipe.run_program ["cp", "-f", path, "$cache/$(id).snapshot"]
+
 class CompiledProgram:
   id/string
   image32/ByteArray

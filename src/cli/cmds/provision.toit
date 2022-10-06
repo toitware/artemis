@@ -147,9 +147,12 @@ create_firmware parsed/cli.Parsed -> none:
     snapshot_path := "$tmp/artemis.snapshot"
     run_toit_compile ["-w", snapshot_path, "src/service/run/device.toit"]
     program_path := snapshot_path
-    if not IS_SOURCE_BUILD:
+    if IS_SOURCE_BUILD:
+      cache_snapshot snapshot_path
+    else:
       program_path = "$tmp/artemis.image"
       run_snapshot_to_image_tool ["-m32", "--binary", "-o", program_path, snapshot_path]
+
 
     // We have got the assets and the artemis code compiled. Now we
     // just need to generate the firmware envelope.
