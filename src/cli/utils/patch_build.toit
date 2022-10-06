@@ -27,13 +27,14 @@ MINIMUM_PATCH_CHUNK := 1024
 
 build_trivial_patch new_bytes/ByteArray -> List:
   parts := []
-  List.chunk_up 0 new_bytes.size SUBCHUNK_SIZE: | from to |
+  total_new_size := new_bytes.size
+  List.chunk_up 0 total_new_size SUBCHUNK_SIZE: | from to |
     writer := bytes.Buffer
     literal_block
         new_bytes[from..to]
         writer
-        --with_header=(from == 0)
-        --with_footer=(to == new_bytes.size)
+        --total_new_bytes=(from == 0 ? total_new_size : null)
+        --with_footer=(to == total_new_size)
     parts.add writer.bytes
   return parts
 

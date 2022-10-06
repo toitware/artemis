@@ -3,10 +3,8 @@
 import log
 import monitor
 import uuid
-import reader show SizedReader BufferedReader
-
+import reader show SizedReader
 import system.containers
-import system.firmware  // TODO(kasper): Move this elsewhere?
 
 import .applications
 import .jobs
@@ -16,8 +14,12 @@ import .status
 import ..shared.device show Device
 import ..shared.json_diff show Modification
 
-import ..shared.utils.patch
+// TODO(kasper): Move this elsewhere?
 import bytes
+import esp32
+import reader show BufferedReader
+import system.firmware
+import ..shared.utils.patch
 
 class SynchronizeJob extends Job implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
@@ -194,11 +196,11 @@ class SynchronizeJob extends Job implements EventHandler:
               logger_.info "firmware update" --tags={"id": id, "size": total_size}
               patcher = FirmwarePatcher logger_ total_size
             patcher.apply reader
-        if patcher: patcher.commit
         logger_.info "firmware update: 100%" --tags={"elapsed": elapsed}
         // TODO(kasper): It would be great if we could also restart the Artemis
         // service here for testing purposes.
         fake_update_firmware id
+        if platform == PLATFORM_FREERTOS: esp32.deep_sleep (Duration --ms=100)
       finally:
         if patcher: patcher.close
 
@@ -206,40 +208,56 @@ class FirmwarePatcher implements PatchObserver:
   logger_/log.Logger
 
   patch_size_/int
-  patch_offset_/int := 0
+  patch_offset_checkpointed_/int := 0
 
+  image_size_/int? := null
   image_offset_/int := 0
+  image_offset_checkpointed_/int := 0
+
+  writer_/firmware.FirmwareWriter? := null
 
   constructor .logger_ .patch_size_:
     // Do nothing.
 
   apply reader/SizedReader -> int:
     old_bytes := #[]
+    if image_size_:
+      if platform == PLATFORM_FREERTOS:
+        writer_ = firmware.FirmwareWriter image_offset_checkpointed_ image_size_
+      image_offset_ = image_offset_checkpointed_
     try:
       binary_patcher := Patcher (BufferedReader reader) old_bytes
-          --patch_offset=patch_offset_
+          --patch_offset=patch_offset_checkpointed_
       binary_patcher.patch this
     finally: | is_exception _ |
-      if is_exception: return patch_offset_
-      return patch_size_
+      if writer_:
+        // TODO(kasper): Handle exception in commit call.
+        if not is_exception: writer_.commit
+        writer_.close
+      return is_exception
+          ? patch_offset_checkpointed_  // Continue after checkpoint.
+          : patch_size_                 // Done!
 
-  commit -> none:
-    // TODO(kasper): Implement this.
-
-  close -> none:
-    // TODO(kasper): Implement this.
+  close:
+    if not writer_: return
+    writer_.close
+    writer_ = null
 
   on_write data from/int=0 to/int=data.size -> none:
-    // TODO(kasper): Actually do something with the data.
+    if writer_: writer_.write data[from..to]
     image_offset_ += to - from
 
   on_new_checksum hash/ByteArray -> none:
     unreachable
 
-  on_size image_size/int -> none:
-    unreachable
+  on_size size/int -> none:
+    image_size_ = size
+    if platform == PLATFORM_FREERTOS:
+      writer_ = firmware.FirmwareWriter 0 size
+    image_offset_ = 0
 
-  on_checkpoint position/int -> none:
-    percent := (position * 100) / patch_size_
+  on_checkpoint patch_offset/int -> none:
+    percent := (image_offset_ * 100) / image_size_
     logger_.info "firmware update: $(%3d percent)%"
-    patch_offset_ = position
+    patch_offset_checkpointed_ = patch_offset
+    image_offset_checkpointed_ = image_offset_
