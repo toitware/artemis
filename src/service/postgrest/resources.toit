@@ -26,8 +26,7 @@ class ResourceManagerPostgrest implements ResourceManager:
           --offset=offset
           --size=PART_SIZE
           : | reader/SizedReader total_size/int |
-            block.call reader offset total_size
-            offset += reader.size
+            offset = block.call reader offset total_size
             if offset >= total_size: return
 
   fetch_resource path/string --offset/int=0 --size/int?=null [block] -> none:
