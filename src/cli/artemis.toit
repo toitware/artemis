@@ -6,6 +6,8 @@ import uuid
 import encoding.hex
 
 import .sdk
+import .utils.patch_build show build_trivial_patch
+
 import ..shared.mediator
 
 /**
@@ -62,10 +64,13 @@ class Artemis:
       run_firmware_tool ["-e", firmware_path, "extract", "-o", firmware_bin_path, "--firmware.bin"]
       firmware_bin = file.read_content firmware_bin_path
 
+    // TODO(kasper): Complete this thought.
+    parts := build_trivial_patch firmware_bin
+
     sha := sha256.Sha256
     sha.add firmware_bin
     id/string := hex.encode sha.get
-    mediator_.upload_firmware --firmware_id=id firmware_bin
+    mediator_.upload_firmware --firmware_id=id parts
 
     mediator_.device_update_config --device_id=device_id: | config/Map |
       config["firmware"] = id

@@ -190,7 +190,9 @@ class SynchronizeJob extends Job implements EventHandler:
         resources.fetch_firmware id: | reader/SizedReader offset/int total_size/int |
           if offset == 0:
             logger_.info "firmware update" --tags={"id": id, "size": total_size}
-            if platform == PLATFORM_FREERTOS:
+            // TODO(kasper): We're actually receiving a patch, so we cannot just
+            // pass the data to the writer. Disabled for now.
+            if false and platform == PLATFORM_FREERTOS:
               writer = firmware.FirmwareWriter 0 total_size
           while data := reader.read:
             // This is really subtle, but because the firmware writing crosses the RPC

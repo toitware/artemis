@@ -52,7 +52,9 @@ class MediatorCliPostgrest implements MediatorCli:
   upload_image --app_id/string --bits/int content/ByteArray -> none:
     upload_resource_ "assets/images/$app_id.$bits" content
 
-  upload_firmware --firmware_id/string content/ByteArray -> none:
+  upload_firmware --firmware_id/string parts/List -> none:
+    content := #[]
+    parts.do: | part/ByteArray | content += part  // TODO(kasper): Avoid all this copying.
     upload_resource_ "assets/firmware/$firmware_id" content
 
   upload_resource_ path/string content/ByteArray -> none:

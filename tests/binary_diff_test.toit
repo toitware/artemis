@@ -4,7 +4,7 @@ import bytes show Buffer Reader
 import expect show *
 import reader show BufferedReader
 
-import artemis.cli.binary_diff show *
+import artemis.cli.utils.binary_diff show *
 import artemis.shared.utils.patch show *
 
 main:

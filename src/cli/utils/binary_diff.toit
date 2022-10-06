@@ -6,7 +6,7 @@ import crypto.sha256 show *
 import host.pipe
 import writer
 
-import ..shared.utils.patch_format
+import ...shared.utils.patch_format
 
 // Smaller numbers take longer, but get smaller diffs.
 SECTION_SIZE_ ::= 16
@@ -968,7 +968,7 @@ class NewOldOffsets:
   pages_/List
 
   // Determine new-old offsets per 128-byte page.
-  PAGE_BITS_ ::= 7
+  static PAGE_BITS_ ::= 7
 
   // If a rolling hash occurs too many places in the old file then it's just
   // a common pattern like all-zeros.  These don't help us match up parts of
