@@ -32,7 +32,8 @@ build_trivial_patch new_bytes/ByteArray -> List:
     literal_block
         new_bytes[from..to]
         writer
-        --with_footer=false
+        --with_header=(from == 0)
+        --with_footer=(to == new_bytes.size)
     parts.add writer.bytes
   return parts
 
