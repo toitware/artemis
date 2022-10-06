@@ -193,8 +193,13 @@ class SynchronizeJob extends Job implements EventHandler:
             if platform == PLATFORM_FREERTOS:
               writer = firmware.FirmwareWriter 0 total_size
           while data := reader.read:
-            if writer: writer.write data
+            // This is really subtle, but because the firmware writing crosses the RPC
+            // boundary, the provided data might get neutered and handed over to another
+            // process. In that case, the size after the call to writer.write is zero,
+            // which isn't great for tracking progress. So we update the written size
+            // before calling out to writer.write.
             written += data.size
+            if writer: writer.write data
             percent := (written * 100) / total_size
             if percent < 100 and (not last or percent >= last + 5):
               logger_.info "firmware update: $(%3d percent)%"

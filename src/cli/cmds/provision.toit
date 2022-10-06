@@ -41,6 +41,9 @@ create_provision_commands -> List:
             --short_name="o"
             --type="file"
             --required,
+        cli.OptionString "wifi-ssid"
+            --required,
+        cli.OptionString "wifi-password",
       ]
       --run=:: create_firmware it
 
@@ -143,16 +146,18 @@ create_firmware parsed/cli.Parsed -> none:
     run_assets_tool ["-e", identity_path, "add", "-o", assets_path, "--format=tison", "broker", "$tmp/broker.json"]
     add_certificate_assets assets_path tmp certificates
 
-    // TODO(kasper): Compile to image when building without JAG_TOIT_REPO_PATH.
     snapshot_path := "$tmp/artemis.snapshot"
     run_toit_compile ["-w", snapshot_path, "src/service/run/device.toit"]
+
+    // We compile the snapshot to a binary image, unless we're doing
+    // source builds. This way, we do not leak the source code of the
+    // artemis service.
     program_path := snapshot_path
     if IS_SOURCE_BUILD:
       cache_snapshot snapshot_path
     else:
       program_path = "$tmp/artemis.image"
       run_snapshot_to_image_tool ["-m32", "--binary", "-o", program_path, snapshot_path]
-
 
     // We have got the assets and the artemis code compiled. Now we
     // just need to generate the firmware envelope.
@@ -162,6 +167,19 @@ create_firmware parsed/cli.Parsed -> none:
         "-o", output_path,
         "--assets", assets_path,
         "artemis", program_path,
+    ]
+
+    wifi_ssid := parsed["wifi-ssid"]
+    wifi_password := parsed["wifi-password"]
+    wifi := {
+      "wifi.ssid"     : wifi_ssid,
+      "wifi.password ": wifi_password or "",
+    }
+
+    run_firmware_tool [
+      "-e", output_path,
+      "property", "set",
+      "wifi", (json.stringify wifi)
     ]
 
 collect_certificates supabase/Map -> Map:
