@@ -78,8 +78,7 @@ report_status_setup assets/Map -> Device?:
   catch --trace: device = assets.get "artemis.device" --if_present=: tison.decode it
   if not device: return null
   hardware_id := device["hardware_id"]
-  fleet_id := device["fleet_id"]
-  report_status_path_ = "/rest/v1/events-$fleet_id"
+  report_status_path_ = "/rest/v1/events"
   report_status_payload_ = """{
     "device": "$(json.escape_string hardware_id)",
     "data": { "type": "ping" }

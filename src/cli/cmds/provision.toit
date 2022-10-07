@@ -49,7 +49,7 @@ create_identity parsed/cli.Parsed:
     // Insert an initial event mostly for testing purposes.
     device_id = device["alias"]
     hardware_id := device["id"]
-    insert_created_event fleet_id hardware_id client artemis_broker
+    insert_created_event hardware_id client artemis_broker
     // Finally create the identity output file.
     create_identity_file device_id fleet_id hardware_id broker artemis_broker
   finally:
@@ -64,7 +64,7 @@ insert_device_in_fleet fleet_id/string device_id/string client/http.Client artem
 
   headers := supabase.create_headers artemis_broker
   headers.add "Prefer" "return=representation"
-  table := "devices-$fleet_id"
+  table := "devices"
   response := client.post payload
       --host=artemis_broker["supabase"]["host"]
       --headers=headers
@@ -74,7 +74,7 @@ insert_device_in_fleet fleet_id/string device_id/string client/http.Client artem
     throw "Unable to create device identity"
   return (json.decode_stream response.body).first
 
-insert_created_event fleet_id/string hardware_id/string client/http.Client artemis_broker/Map -> none:
+insert_created_event hardware_id/string client/http.Client artemis_broker/Map -> none:
   map := {
     "device": hardware_id,
     "data": { "type": "created" }
@@ -82,7 +82,7 @@ insert_created_event fleet_id/string hardware_id/string client/http.Client artem
   payload := json.encode map
 
   headers := supabase.create_headers artemis_broker
-  table := "events-$fleet_id"
+  table := "events"
   response := client.post payload
       --host=artemis_broker["supabase"]["host"]
       --headers=headers
