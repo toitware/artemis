@@ -15,7 +15,7 @@ import ..shared.device
 
 import .ntp
 
-run_artemis device/Device broker/Map -> none:
+run_artemis device/Device broker/Map --initial_firmware/ByteArray?=null -> none:
   logger := log.default.with_name "artemis"
   scheduler ::= Scheduler logger
   applications ::= ApplicationManager logger scheduler
@@ -27,6 +27,7 @@ run_artemis device/Device broker/Map -> none:
     mediator = MediatorServiceMqtt logger
 
   synchronize/SynchronizeJob := SynchronizeJob logger device applications mediator
+      --initial_firmware=initial_firmware
 
   scheduler.add_jobs [
     synchronize,

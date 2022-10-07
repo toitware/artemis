@@ -11,4 +11,5 @@ main arguments:
   decoded ::= assets.decode
   broker := decode_broker "broker" decoded
   device := report_status_setup decoded
-  run_artemis device broker
+  initial_firmware := decoded.get "artemis.firmware.initial"
+  run_artemis device broker --initial_firmware=initial_firmware

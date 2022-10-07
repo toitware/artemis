@@ -22,3 +22,11 @@ create_mediator parsed/cli.Parsed -> MediatorCli:
   if broker.contains "supabase":
     return create_mediator_cli_supabase broker
   return create_mediator_cli_aws
+
+// TODO(kasper): This doesn't work just yet. The broker information
+// isn't in the identity. Should it be?
+create_mediator --identity/Map -> MediatorCli:
+  broker := identity["broker"]
+  if broker.contains "supabase":
+    return create_mediator_cli_supabase broker
+  return create_mediator_cli_aws

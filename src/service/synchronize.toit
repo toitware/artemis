@@ -19,6 +19,8 @@ import bytes
 import esp32
 import reader show BufferedReader
 import system.firmware
+import encoding.ubjson
+import encoding.base64
 import ..shared.utils.patch
 
 class SynchronizeJob extends Job implements EventHandler:
@@ -40,8 +42,9 @@ class SynchronizeJob extends Job implements EventHandler:
   // also possible to fetch it from there.
   max_offline_/Duration? := null
 
-  constructor logger/log.Logger .device_ .applications_ .mediator_:
+  constructor logger/log.Logger .device_ .applications_ .mediator_ --initial_firmware/ByteArray?=null:
     logger_ = logger.with_name "synchronize"
+    if initial_firmware: config_["firmware"] = initial_firmware.to_string_non_throwing
     super "synchronize"
 
   schedule now/JobTime -> JobTime?:
@@ -184,8 +187,13 @@ class SynchronizeJob extends Job implements EventHandler:
   action_set_max_offline_ value/any -> Lambda:
     return :: max_offline_ = (value is int) ? Duration --s=value : null
 
-  action_firmware_update_ resources/ResourceManager id/string -> Lambda:
+  action_firmware_update_ resources/ResourceManager x/string -> Lambda:
     return ::
+      print "x = $x"
+      y := ubjson.decode (base64.decode x)
+      id := y["parts"][0]
+      print "full = $y"
+
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
       patcher/FirmwarePatcher? := null
@@ -257,7 +265,7 @@ class FirmwarePatcher implements PatchObserver:
     image_offset_ = 0
 
   on_checkpoint patch_offset/int -> none:
-    percent := (image_offset_ * 100) / image_size_
+    percent := (patch_offset * 100) / patch_size_
     logger_.info "firmware update: $(%3d percent)%"
     patch_offset_checkpointed_ = patch_offset
     image_offset_checkpointed_ = image_offset_
