@@ -3,10 +3,10 @@
 import encoding.tison
 
 decode_broker key/string assets/Map -> Map?:
-  device := assets.get key --if_present=: tison.decode it
-  if not device: return null
-  if supabase := device.get "supabase":
+  broker := assets.get key --if_present=: tison.decode it
+  if not broker: return null
+  if supabase := broker.get "supabase":
     certificate_name := supabase["certificate"]
     certificate := assets.get certificate_name
     supabase["certificate"] = certificate
-  return device
+  return broker

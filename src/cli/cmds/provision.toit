@@ -7,7 +7,6 @@ import encoding.base64
 import host.file
 import http
 import net
-import uuid
 import writer
 import crypto.sha256
 
@@ -33,18 +32,8 @@ create_provision_commands -> List:
             --default="4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
       ]
       --run=:: create_identity it
-  create_firmware_cmd := cli.Command "create-firmware"
-      // TODO(kasper): Should this only be your own broker? I think so.
-      --options=broker_options + [
-        cli.OptionString "output"
-            --short_name="o"
-            --type="file"
-            --required,
-      ]
-      --run=:: create_firmware it
 
   provision_cmd.add create_identity_cmd
-  provision_cmd.add create_firmware_cmd
   return [provision_cmd]
 
 create_identity parsed/cli.Parsed:
@@ -133,62 +122,6 @@ create_identity_file device_id/string fleet_id/string hardware_id/string broker/
 
   write_ubjson_to_file output_path identity
   print "Created device => $output_path"
-
-create_firmware parsed/cli.Parsed -> none:
-  output_path := parsed["output"]
-  broker := read_broker_from_files parsed["broker"]
-  artemis_broker := read_broker_from_files parsed["broker.artemis"]
-
-  // TODO(kasper): It is pretty ugly that we have to copy
-  // the supabase component to avoid messing with the
-  // broker map.
-  supabase := broker["supabase"].copy
-  artemis_supabase := artemis_broker["supabase"].copy
-  certificates := collect_certificates supabase
-  (collect_certificates artemis_supabase).do: | key/string value |
-    certificates[key] = value
-
-  with_tmp_directory: | tmp/string |
-    write_json_to_file "$tmp/broker.json" { "supabase" : supabase }
-    write_json_to_file "$tmp/artemis.broker.json" { "supabase" : artemis_supabase }
-
-    assets_path := "$tmp/artemis.assets"
-    run_assets_tool ["-e", assets_path, "create"]
-    run_assets_tool ["-e", assets_path, "add", "--format=tison", "broker", "$tmp/broker.json"]
-    run_assets_tool ["-e", assets_path, "add", "--format=tison", "artemis.broker", "$tmp/artemis.broker.json"]
-    add_certificate_assets assets_path tmp certificates
-
-    snapshot_path := "$tmp/artemis.snapshot"
-    run_toit_compile ["-w", snapshot_path, "src/service/run/device.toit"]
-
-    // We compile the snapshot to a binary image, unless we're doing
-    // source builds. This way, we do not leak the source code of the
-    // artemis service.
-    program_path := snapshot_path
-    if IS_SOURCE_BUILD:
-      cache_snapshot snapshot_path
-    else:
-      program_path = "$tmp/artemis.image"
-      run_snapshot_to_image_tool ["-m32", "--binary", "-o", program_path, snapshot_path]
-
-    // We have got the assets and the artemis code compiled. Now we
-    // just need to generate the firmware envelope.
-    run_firmware_tool [
-        "-e", PATH_FIRMWARE_ENVELOPE_ESP32,
-        "container", "install",
-        "-o", output_path,
-        "--assets", assets_path,
-        "artemis", program_path,
-    ]
-
-    // TODO(kasper): Base the uuid on the actual firmware bits and the Toit SDK version used
-    // to compile it. Maybe this can happen automatically somehow in tools/firmware?
-
-    // Finally, make it unique. The system uuid will have to be used when compiling
-    // code for the device in the future. This will prove that you know which versions
-    // went into the firmware image.
-    system_uuid ::= uuid.uuid5 "system.uuid" "$(random 1_000_000)-$Time.now-$Time.monotonic_us"
-    run_firmware_tool ["-e", output_path, "property", "set", "uuid", system_uuid.stringify]
 
 collect_certificates supabase/Map -> Map:
   certificates := {:}

@@ -4,29 +4,65 @@ import cli
 import host.pipe
 import host.file
 import system.assets
-import encoding.json
 
+import encoding.json
+import encoding.ubjson
+import encoding.base64
+import encoding.tison
+
+import ..broker show decode_broker
 import ..service show run_artemis
 import ..status show report_status_setup
+
+import ...cli.sdk  // TODO(kasper): This is an annoying dependency.
 import ...shared.config
 
 main arguments:
   root_cmd := cli.Command "root"
       --options=[
-        cli.OptionString "broker"
-            --type="file"
-            --default="config/brokers/toitware-testing.broker"
-      ]
-      --rest=[
+        cli.OptionString "firmware"
+            --required,
         cli.OptionString "identity"
             --type="file"
-            --required
+            --required,
       ]
       --run=:: run it
   root_cmd.run arguments
 
 run parsed/cli.Parsed -> none:
-  identity := file.read_content parsed["identity"]
-  broker := read_broker_from_files parsed["broker"]
-  device := report_status_setup (assets.decode identity)
-  run_artemis device broker
+  initial_firmware/ByteArray? := null
+  identity/Map? := null
+
+  firmware := parsed["firmware"]
+  exception := catch: ubjson.decode (base64.decode firmware)
+  if exception:
+    with_tmp_directory: | tmp/string |
+      run_firmware_tool [
+        "-e", firmware,
+        "container", "extract", "--part=assets",
+        "-o", "$tmp/artemis.assets",
+        "artemis"
+      ]
+      run_assets_tool [
+        "-e", "$tmp/artemis.assets",
+        "get", "-o", "$tmp/firmware.config",
+         "artemis.firmware.initial"
+      ]
+      run_assets_tool [
+        "-e", "$tmp/artemis.assets",
+        "get", "-o", "$tmp/firmware.config",
+         "artemis.firmware.initial"
+      ]
+      initial_firmware = file.read_content "$tmp/firmware.config"
+  else:
+    initial_firmware = firmware.to_byte_array
+
+  identity_raw := file.read_content parsed["identity"]
+  identity = ubjson.decode (base64.decode identity_raw)
+  identity["artemis.broker"] = tison.encode identity["artemis.broker"]
+  identity["artemis.device"] = tison.encode identity["artemis.device"]
+  identity["broker"] = tison.encode identity["broker"]
+
+  device := report_status_setup identity
+  broker := decode_broker "broker" identity
+  run_artemis device broker --initial_firmware=initial_firmware
