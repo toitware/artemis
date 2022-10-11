@@ -3,21 +3,41 @@
 Artemis consists of two parts:  A service that runs on the devices, and a CLI
 that allows you to control the devices.
 
-They communicate together using an MQTT service in the cloud.  Currently that
-is AWS's IoT service.  On the ESP32, the device uses the Jaguar device name a uuid 
-generated from its MAC address as its name.  On host platforms, we currently
-just use the hostname.
+They communicate together using MQTT or HTTP via a cloud service.  Currently the
+cloud service is AWS's IoT service or a Supabase instance.  On the ESP32, the 
+device keeps track of its device id after the initial flashing. 
 
-CLI commands can change settings of the device. Things like max-offline or the set
+CLI commands can change settings of the device.  Things like max-offline or the setgit
 of installed applications.
 
-To build, start in toitlang/toit and use:
+To put Artemis on a device, you first put together the firmware you want to
+run on the device. Let's put it in `firmware.envelope` using:
 
 ``` sh
-make flash ESP32_ENTRY=$HOME/Toitware/artemis/src/service/main.toit ESP32_PORT=/dev/ttyUSB0 ESP32_WIFI_SSID=mywifi ESP32_WIFI_PASSWORD=mypassword
+toit.run src/cli/cli.toit firmware create -o firmware.envelope
 ```
 
-(Currently you need to first zap the flash with 
-`./third_party/esp-idf/components/esptool_py/esptool/esptool.py erase_flash`).
+Then you create a device identity for the device you're provisioning:
 
-Also runs under Jaguar as an installable app.
+``` sh
+toit.run src/cli/cli.toit provision create-identity
+```
+
+That gives you a `<xxx>.identity` file that can be used to do the initial flashing
+of a device.
+
+``` sh
+toit.run src/cli/cli.toit firmware flash \
+    --identity=<xxx>.identity \
+    --wifi-ssid=mywifi --wifi-password=mypassword \
+    firmware.envelope
+```
+
+For now, this actually doesn't flash the device, but it will generate a device-specific
+envelope that you can flash using 'jag flash':
+
+``` sh
+jag flash --exclude-jaguar <xxx>.envelope
+```
+
+Happy hacking!
