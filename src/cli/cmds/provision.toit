@@ -121,7 +121,7 @@ create_identity_file device_id/string fleet_id/string hardware_id/string broker/
     identity[name] = content
 
   write_ubjson_to_file output_path identity
-  print "Created device => $output_path"
+  print "Created device identity => $output_path"
 
 collect_certificates supabase/Map -> Map:
   certificates := {:}

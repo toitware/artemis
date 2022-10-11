@@ -75,6 +75,7 @@ class Artemis:
             --device=device
             --wifi=wifi
             --envelope_path=firmware_path
+            --upload=: // Do nothing.
         initial_firmware_config = base64.encode (ubjson.encode upgrade_to)
         // TODO(kasper): We actually don't have to update the device configuration
         // stored in the online database unless we think it may contain garbage.
@@ -164,22 +165,21 @@ class Artemis:
           --device=device
           --wifi=wifi
           --envelope_path=firmware_path
-
-      // TODO(kasper): Is it okay to do this from within here?
-      // mediator_.upload_firmware --firmware_id=id part
+          --upload=: | id/string parts/List |
+            mediator_.upload_firmware --firmware_id=id parts
 
       updated := base64.encode (ubjson.encode upgrade_to)
       config["firmware"] = updated
       config
 
-  compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string -> Map:
+  compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string [--upload] -> Map:
     firmware_bin/ByteArray := extract_firmware_bin_ envelope_path
 
-    // TODO(kasper): Complete this thought.
-    parts := build_trivial_patch firmware_bin
+    parts/List := build_trivial_patch firmware_bin
     sha := sha256.Sha256
     sha.add firmware_bin
     id/string := base64.encode sha.get
+    upload.call id parts
 
     // TODO(kasper): This should include the uuid, so we can compile apps that fit later.
     // How do we get from uuid to Toit SDK version? Is that something we need to support?
