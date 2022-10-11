@@ -22,3 +22,9 @@ create_mediator parsed/cli.Parsed -> MediatorCli:
   if broker.contains "supabase":
     return create_mediator_cli_supabase broker
   return create_mediator_cli_aws
+
+create_mediator --identity/Map -> MediatorCli:
+  broker := identity["broker"]
+  if broker.contains "supabase":
+    return create_mediator_cli_supabase broker
+  return create_mediator_cli_aws

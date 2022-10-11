@@ -4,9 +4,7 @@ import log
 import monitor
 import uuid
 import reader show SizedReader
-
 import system.containers
-import system.firmware  // TODO(kasper): Move this elsewhere?
 
 import .applications
 import .jobs
@@ -15,6 +13,15 @@ import .status
 
 import ..shared.device show Device
 import ..shared.json_diff show Modification
+
+// TODO(kasper): Move this elsewhere?
+import bytes
+import esp32
+import reader show BufferedReader
+import system.firmware
+import encoding.ubjson
+import encoding.base64
+import ..shared.utils.patch
 
 class SynchronizeJob extends Job implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
@@ -35,8 +42,9 @@ class SynchronizeJob extends Job implements EventHandler:
   // also possible to fetch it from there.
   max_offline_/Duration? := null
 
-  constructor logger/log.Logger .device_ .applications_ .mediator_:
+  constructor logger/log.Logger .device_ .applications_ .mediator_ --initial_firmware/ByteArray?=null:
     logger_ = logger.with_name "synchronize"
+    if initial_firmware: config_["firmware"] = initial_firmware.to_string_non_throwing
     super "synchronize"
 
   schedule now/JobTime -> JobTime?:
@@ -179,35 +187,85 @@ class SynchronizeJob extends Job implements EventHandler:
   action_set_max_offline_ value/any -> Lambda:
     return :: max_offline_ = (value is int) ? Duration --s=value : null
 
-  action_firmware_update_ resources/ResourceManager id/string -> Lambda:
+  action_firmware_update_ resources/ResourceManager x/string -> Lambda:
     return ::
+      print "x = $x"
+      y := ubjson.decode (base64.decode x)
+      id := y["parts"][0]
+      print "full = $y"
+
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
-      writer := null
-      written := 0
-      last := null
-      elapsed := Duration.of:
-        resources.fetch_firmware id: | reader/SizedReader offset/int total_size/int |
-          if offset == 0:
-            logger_.info "firmware update" --tags={"id": id, "size": total_size}
-            // TODO(kasper): We're actually receiving a patch, so we cannot just
-            // pass the data to the writer. Disabled for now.
-            if false and platform == PLATFORM_FREERTOS:
-              writer = firmware.FirmwareWriter 0 total_size
-          while data := reader.read:
-            // This is really subtle, but because the firmware writing crosses the RPC
-            // boundary, the provided data might get neutered and handed over to another
-            // process. In that case, the size after the call to writer.write is zero,
-            // which isn't great for tracking progress. So we update the written size
-            // before calling out to writer.write.
-            written += data.size
-            if writer: writer.write data
-            percent := (written * 100) / total_size
-            if percent < 100 and (not last or percent >= last + 5):
-              logger_.info "firmware update: $(%3d percent)%"
-              last = percent
-      if writer: writer.commit
-      logger_.info "firmware update: 100%" --tags={"elapsed": elapsed}
-      // TODO(kasper): It would be great if we could also restart the Artemis
-      // service here for testing purposes.
-      fake_update_firmware id
+      patcher/FirmwarePatcher? := null
+      try:
+        elapsed := Duration.of:
+          resources.fetch_firmware id: | reader/SizedReader offset/int total_size/int |
+            if offset == 0:
+              logger_.info "firmware update" --tags={"id": id, "size": total_size}
+              patcher = FirmwarePatcher logger_ total_size
+            patcher.apply reader
+        logger_.info "firmware update: 100%" --tags={"elapsed": elapsed}
+        // TODO(kasper): It would be great if we could also restart the Artemis
+        // service here for testing purposes.
+        fake_update_firmware id
+        if platform == PLATFORM_FREERTOS: esp32.deep_sleep (Duration --ms=100)
+      finally:
+        if patcher: patcher.close
+
+class FirmwarePatcher implements PatchObserver:
+  logger_/log.Logger
+
+  patch_size_/int
+  patch_offset_checkpointed_/int := 0
+
+  image_size_/int? := null
+  image_offset_/int := 0
+  image_offset_checkpointed_/int := 0
+
+  writer_/firmware.FirmwareWriter? := null
+
+  constructor .logger_ .patch_size_:
+    // Do nothing.
+
+  apply reader/SizedReader -> int:
+    old_bytes := #[]
+    if image_size_:
+      if platform == PLATFORM_FREERTOS:
+        writer_ = firmware.FirmwareWriter image_offset_checkpointed_ image_size_
+      image_offset_ = image_offset_checkpointed_
+    try:
+      binary_patcher := Patcher (BufferedReader reader) old_bytes
+          --patch_offset=patch_offset_checkpointed_
+      binary_patcher.patch this
+    finally: | is_exception _ |
+      if writer_:
+        // TODO(kasper): Handle exception in commit call.
+        if not is_exception: writer_.commit
+        writer_.close
+      return is_exception
+          ? patch_offset_checkpointed_  // Continue after checkpoint.
+          : patch_size_                 // Done!
+
+  close:
+    if not writer_: return
+    writer_.close
+    writer_ = null
+
+  on_write data from/int=0 to/int=data.size -> none:
+    if writer_: writer_.write data[from..to]
+    image_offset_ += to - from
+
+  on_new_checksum hash/ByteArray -> none:
+    unreachable
+
+  on_size size/int -> none:
+    image_size_ = size
+    if platform == PLATFORM_FREERTOS:
+      writer_ = firmware.FirmwareWriter 0 size
+    image_offset_ = 0
+
+  on_checkpoint patch_offset/int -> none:
+    percent := (patch_offset * 100) / patch_size_
+    logger_.info "firmware update: $(%3d percent)%"
+    patch_offset_checkpointed_ = patch_offset
+    image_offset_checkpointed_ = image_offset_

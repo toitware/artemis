@@ -28,8 +28,10 @@ diff old_bytes/OldData new_bytes/ByteArray fd total_new_bytes=new_bytes.size --f
 
   return bdiff_size
 
-literal_block new_bytes/ByteArray fd --with_footer=false -> int:
-  initial_state := InitialState_.no_old_bytes new_bytes
+literal_block new_bytes/ByteArray fd --total_new_bytes/int?=null --with_footer=false -> int:
+  initial_state := total_new_bytes
+      ? InitialState_ (OldData #[] 0 0) new_bytes total_new_bytes --with_header=true
+      : InitialState_.no_old_bytes new_bytes --with_header=false
   literal_action := Literal_.literal_section initial_state new_bytes
 
   assert: literal_action.bits_spent & 7 == 0

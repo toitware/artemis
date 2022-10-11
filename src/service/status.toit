@@ -64,19 +64,21 @@ report_status network/net.Interface logger/log.Logger -> none:
     if not success: logger.warn "status reporting failed"
 
 report_status_setup assets/Map -> Device?:
-  device := decode_broker "artemis.device" assets
-  if not device: return null
+  broker := decode_broker "artemis.broker" assets
+  if not broker: return null
 
-  report_status_host_ = device["supabase"]["host"]
+  report_status_host_ = broker["supabase"]["host"]
   report_status_headers_ = http.Headers
-  anon := device["supabase"]["anon"]
+  anon := broker["supabase"]["anon"]
   report_status_headers_.add "apikey" anon
   report_status_headers_.add "Authorization" "Bearer $anon"
-  report_status_certificate_text_ = device["supabase"]["certificate"]
+  report_status_certificate_text_ = broker["supabase"]["certificate"]
 
+  device := null
+  catch --trace: device = assets.get "artemis.device" --if_present=: tison.decode it
+  if not device: return null
   hardware_id := device["hardware_id"]
-  fleet_id := device["fleet_id"]
-  report_status_path_ = "/rest/v1/events-$fleet_id"
+  report_status_path_ = "/rest/v1/events"
   report_status_payload_ = """{
     "device": "$(json.escape_string hardware_id)",
     "data": { "type": "ping" }
