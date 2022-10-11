@@ -14,7 +14,7 @@ import ..artemis
 import ..sdk
 import ...shared.config
 
-create_firmware_commands -> List:
+create_firmware_commands _ -> List:
   firmware_cmd := cli.Command "firmware"
 
   create_cmd := cli.Command "create"

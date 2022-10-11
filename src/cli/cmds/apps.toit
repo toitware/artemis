@@ -5,7 +5,7 @@ import cli
 import ..artemis
 import .device_options_
 
-create_app_commands -> List:
+create_app_commands _ -> List:
   install_cmd := cli.Command "install"
       --short_help="Install an app on a device."
       --options=device_options

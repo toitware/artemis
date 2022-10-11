@@ -4,7 +4,7 @@ import cli
 import .device_options_
 import ..artemis
 
-create_device_config_commands -> List:
+create_device_config_commands _ -> List:
   max_offline_cmd := cli.Command "set-max-offline"
       --short_help="Update the max-offline time of the device."
       --options=device_options
