@@ -3,33 +3,31 @@
 import certificate_roots
 import cli
 
-import ..artemis
 import ..config
-import .device_options_
 
 create_config_commands config/Config -> List:
-  firmware_cmd := cli.Command "config"
-      --short_help="Configure Artemis"
+  config_cmd := cli.Command "config"
+      --short_help="Configure Artemis tool."
 
   print_cmd := cli.Command "print"
-      --short_help="Print the current configuration"
+      --short_help="Print the current configuration."
       --run=:: print_config config
 
-  firmware_cmd.add print_cmd
+  config_cmd.add print_cmd
 
-  (create_broker_config_commands config).do: firmware_cmd.add it
+  (create_broker_config_commands config).do: config_cmd.add it
 
-  return [firmware_cmd]
+  return [config_cmd]
 
 create_broker_config_commands config/Config -> List:
-  firmware_cmd := cli.Command "broker"
-      --short_help="Configure the Artemis brokers"
+  config_broker_cmd := cli.Command "broker"
+      --short_help="Configure the Artemis brokers."
       --subcommands=[
         cli.Command "add"
-          --short_help="Adds a broker"
+          --short_help="Adds a broker."
           --subcommands=[
             cli.Command "supabase"
-                --short_help="Adds a Supabase broker"
+                --short_help="Adds a Supabase broker."
                 --options=[
                   cli.OptionString "certificate"
                     --short_help="The certificate to use for the broker."
@@ -49,7 +47,7 @@ create_broker_config_commands config/Config -> List:
           ]
       ]
 
-  return [firmware_cmd]
+  return [config_broker_cmd]
 
 print_config config/Config:
   throw "UNIMPLEMENTED"
