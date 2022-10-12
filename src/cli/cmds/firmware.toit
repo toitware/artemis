@@ -11,10 +11,11 @@ import .broker_options_
 import .device_options_
 
 import ..artemis
+import ..config
 import ..sdk
-import ...shared.config
+import ..broker
 
-create_firmware_commands _ -> List:
+create_firmware_commands config/Config -> List:
   firmware_cmd := cli.Command "firmware"
 
   create_cmd := cli.Command "create"
@@ -25,7 +26,7 @@ create_firmware_commands _ -> List:
             --type="file"
             --required
       ]
-      --run=:: create_firmware it
+      --run=:: create_firmware config it
 
   flash_cmd := cli.Command "flash"
       --short_help="Flash the initial firmware on a device."
@@ -46,7 +47,7 @@ create_firmware_commands _ -> List:
             --short_help="Firmware envelope to flash."
             --required,
       ]
-      --run=:: flash_firmware it
+      --run=:: flash_firmware config it
 
   update_cmd := cli.Command "update"
       --short_help="Update the firmware on a device."
@@ -57,17 +58,17 @@ create_firmware_commands _ -> List:
             --short_help="Firmware envelope to install."
             --required,
       ]
-      --run=:: update_firmware it
+      --run=:: update_firmware config it
 
   firmware_cmd.add create_cmd
   firmware_cmd.add flash_cmd
   firmware_cmd.add update_cmd
   return [firmware_cmd]
 
-create_firmware parsed/cli.Parsed -> none:
+create_firmware config/Config parsed/cli.Parsed -> none:
   output_path := parsed["output"]
-  broker := read_broker_from_files parsed["broker"]
-  artemis_broker := read_broker_from_files parsed["broker.artemis"]
+  broker := get_broker config parsed["broker"]
+  artemis_broker := get_broker config parsed["broker.artemis"]
 
   // TODO(kasper): It is pretty ugly that we have to copy
   // the supabase component to avoid messing with the
@@ -120,7 +121,7 @@ create_firmware parsed/cli.Parsed -> none:
     system_uuid ::= uuid.uuid5 "system.uuid" "$(random 1_000_000)-$Time.now-$Time.monotonic_us"
     run_firmware_tool ["-e", output_path, "property", "set", "uuid", system_uuid.stringify]
 
-flash_firmware parsed/cli.Parsed:
+flash_firmware config/Config parsed/cli.Parsed:
   firmware_path := parsed["firmware"]
   identity_path := parsed["identity"]
 
@@ -135,7 +136,7 @@ flash_firmware parsed/cli.Parsed:
   device_id := identity["artemis.device"]["device_id"]
   output_path := parsed["output"] or "$(device_id).envelope"
 
-  mediator := create_mediator parsed
+  mediator := create_mediator config parsed
   artemis := Artemis mediator
   artemis.firmware_create
       --identity=identity
@@ -148,11 +149,11 @@ flash_firmware parsed/cli.Parsed:
 
   print "Created firmware => $output_path; now flash it onto your device"
 
-update_firmware parsed/cli.Parsed:
+update_firmware config/Config parsed/cli.Parsed:
   device_selector := parsed["device"]
   firmware_path := parsed["firmware"]
 
-  mediator := create_mediator parsed
+  mediator := create_mediator config parsed
   artemis := Artemis mediator
   device_id := artemis.device_selector_to_id device_selector
   artemis.firmware_update --device_id=device_id --firmware_path=firmware_path

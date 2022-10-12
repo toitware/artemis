@@ -12,12 +12,13 @@ import crypto.sha256
 
 import ..sdk
 
-import ...shared.config
+import ..broker
+import ..config
 import ...shared.postgrest.supabase as supabase
 
 import .broker_options_
 
-create_provision_commands _ -> List:
+create_provision_commands config/Config -> List:
   provision_cmd := cli.Command "provision"
 
   create_identity_cmd := cli.Command "create-identity"
@@ -31,16 +32,16 @@ create_provision_commands _ -> List:
         cli.OptionString "organization-id"
             --default="4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
       ]
-      --run=:: create_identity it
+      --run=:: create_identity config it
 
   provision_cmd.add create_identity_cmd
   return [provision_cmd]
 
-create_identity parsed/cli.Parsed:
+create_identity config/Config parsed/cli.Parsed:
   fleet_id := parsed["fleet-id"]
   device_id := parsed["device-id"]
-  broker := read_broker_from_files parsed["broker"]
-  artemis_broker := read_broker_from_files parsed["broker.artemis"]
+  broker := get_broker config parsed["broker"]
+  artemis_broker := get_broker config parsed["broker.artemis"]
 
   network := net.open
   try:
