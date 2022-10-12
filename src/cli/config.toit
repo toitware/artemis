@@ -27,7 +27,7 @@ class Config:
   constructor .path .data:
 
   /**
-  Wether the configuration contains the given $key.
+  Whether the configuration contains the given $key.
 
   The key is split on dots, and the value is searched for in the nested map.
   */
