@@ -17,7 +17,7 @@ import ...shared.postgrest.supabase as supabase
 
 import .broker_options_
 
-create_provision_commands -> List:
+create_provision_commands _ -> List:
   provision_cmd := cli.Command "provision"
 
   create_identity_cmd := cli.Command "create-identity"
