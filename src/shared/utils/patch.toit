@@ -44,8 +44,8 @@ class Patcher:
     // Patch file should start with a magic number:
     // 0b0111_1111         Metadata tag, ASCII DEL.
     // 'M'                 Magic number code, not ignorable.
-    // 0x00 0x32           32 bits of payload.
-    // 0x70 0x17 0xd1 0xff Magic number 0x7017d1ff at offset 5.
+    // 0x32                32 bits of payload.
+    // 0x70 0x17 0xd1 0xff Magic number 0x7017d1ff at offset 4.
     ensure_bits_ 16
     // Stream should start either with the magic number or with a reset code,
     // which indicates a checkpoint in a stream where the decompression can be
@@ -124,8 +124,10 @@ class Patcher:
     // Position in patch data stream in bits.  The metadata intro sequence is
     // 16 bits: 0b0111_1111 and the metadata code which is 8 bits.
     METADATA_INTRO_SIZE ::= 16
-    SIZE_FIELD_SIZE ::= 16
-    size := get_bits_ SIZE_FIELD_SIZE
+    // 2 bit field gives the size of the size field, 6, 14, 22, or 30 bits.
+    METADATA_SIZE_FIELD_SIZE ::= 2
+    size_field_size ::= (get_bits_ METADATA_SIZE_FIELD_SIZE) * 8 + 6
+    size := get_bits_ size_field_size
     if ignorable:
       if code == 'S' and size == 38 * 8:  // 38 bytes of payload.
         // Sha checksum of old bytes.
@@ -163,11 +165,24 @@ class Patcher:
            (get_bits_ 16) != 0xd1ff:
           throw "INVALID_FORMAT"
         return null
+      if code == 'Z' or code == 'L':  // Output zeros or literal bytes.
+        byte := 0
+        if code == 'L':
+          byte = get_bits_ 8
+          size -= 8
+        repeats := get_bits_ size
+        if not byte_oriented: repeats *= 4
+        temp_buffer.fill byte
+        List.chunk_up 0 repeats temp_buffer.size: | _ _ chunk_size |
+          observer.on_write temp_buffer 0 chunk_size
+          out_checker.add temp_buffer 0 chunk_size
+        new_position += repeats
+        return null
       if code == 'E':  // End of patch.
         ignore_bits_ size
         return true
       if code == 'R':  // Reset state.
-        patch_position_before_metadata := patch_position * BITS_PER_BYTE - METADATA_INTRO_SIZE - SIZE_FIELD_SIZE - accumulator_size
+        patch_position_before_metadata := patch_position * BITS_PER_BYTE - METADATA_INTRO_SIZE - size_field_size - METADATA_SIZE_FIELD_SIZE - accumulator_size
         if patch_position_before_metadata == (round_up patch_position_before_metadata BITS_PER_BYTE):
           observer.on_checkpoint patch_position_before_metadata / BITS_PER_BYTE
         ignore_bits_ size
@@ -259,6 +274,7 @@ class Patcher:
       bits -= increment
 
   get_bits_ bits/int:
+    if bits == 0: return 0
     ensure_bits_ bits
     result := accumulator >> (accumulator_size - bits)
     consume_bits_ bits
