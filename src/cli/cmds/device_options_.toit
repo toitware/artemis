@@ -4,7 +4,8 @@ import cli
 
 import .broker_options_
 
-import ...shared.config
+import ..broker
+import ..config
 import ...shared.mediator
 import ...shared.mqtt.aws
 import ...shared.postgrest.supabase
@@ -17,8 +18,8 @@ device_options -> List:
         --required
   ]
 
-create_mediator parsed/cli.Parsed -> MediatorCli:
-  broker := read_broker_from_files parsed["broker"]
+create_mediator config/Config parsed/cli.Parsed -> MediatorCli:
+  broker := get_broker config parsed["broker"]
   if broker.contains "supabase":
     return create_mediator_cli_supabase broker
   return create_mediator_cli_aws
