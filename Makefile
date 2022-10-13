@@ -17,19 +17,19 @@ install-pkgs: rebuild-cmake
 test: install-pkgs rebuild-cmake
 	(cd build && ninja check)
 
-ARTEMIS_HOST:=uelhwhbsyumuqhbukich.supabase.co
-ARTEMIS_ANON:=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlbGh3aGJzeXVtdXFoYnVraWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjM1OTU0NDYsImV4cCI6MTk3OTE3MTQ0Nn0.X6yvaUJDoN0Zk1xjYy_Ap-w6NhCc5BtyWnh5zGdoPFo
-ARTEMIS_CERTIFICATE:=Baltimore CyberTrust Root
+ARTEMIS_HOST := uelhwhbsyumuqhbukich.supabase.co
+ARTEMIS_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlbGh3aGJzeXVtdXFoYnVraWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjM1OTU0NDYsImV4cCI6MTk3OTE3MTQ0Nn0.X6yvaUJDoN0Zk1xjYy_Ap-w6NhCc5BtyWnh5zGdoPFo
+ARTEMIS_CERTIFICATE := Baltimore CyberTrust Root
 
-TOITWARE_TESTING_HOST:=fjdivzfiphllkyxczmgw.supabase.co
-TOITWARE_TESTING_ANON:=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqZGl2emZpcGhsbGt5eGN6bWd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjQ5NTQxMjIsImV4cCI6MTk4MDUzMDEyMn0.ge4XAeh3xEHQokn-ayPKi1N0cQO_c8bhBzLli-I9bqU
-TOITWARE_TESTING_CERTIFICATE:=Baltimore CyberTrust Root
+TOITWARE_TESTING_HOST := fjdivzfiphllkyxczmgw.supabase.co
+TOITWARE_TESTING_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqZGl2emZpcGhsbGt5eGN6bWd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjQ5NTQxMjIsImV4cCI6MTk4MDUzMDEyMn0.ge4XAeh3xEHQokn-ayPKi1N0cQO_c8bhBzLli-I9bqU
+TOITWARE_TESTING_CERTIFICATE := Baltimore CyberTrust Root
 
 .PHONY: add-default-brokers
 add-default-brokers:
 	toit.run src/cli/cli.toit config broker add supabase \
 		--certificate="$(ARTEMIS_CERTIFICATE)" artemis $(ARTEMIS_HOST) "$(ARTEMIS_ANON)"
-	toit.run src/cli/cli.toit config broker add supabase\
+	toit.run src/cli/cli.toit config broker add supabase \
 		--certificate="$(TOITWARE_TESTING_CERTIFICATE)" toitware-testing $(TOITWARE_TESTING_HOST) "$(TOITWARE_TESTING_ANON)"
 
 

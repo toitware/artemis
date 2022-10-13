@@ -4,15 +4,6 @@ import host.file
 import encoding.json
 import .config
 
-read_broker_from_files path/string -> Map:
-  broker := json.decode (file.read_content path)
-  supabase := broker["supabase"]
-  certificate_name := supabase["certificate"]
-  // PEM certificates need to be zero terminated. Ugh.
-  certificate := (file.read_content "config/certificates/$certificate_name") + #[0]
-  supabase["certificate"] = certificate
-  return broker
-
 get_broker config/Config broker_name/string -> Map:
   brokers := config.get "brokers"
   if not brokers: throw "No brokers configured"
