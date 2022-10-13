@@ -9,7 +9,7 @@ import encoding.ubjson
 import encoding.json
 
 import .sdk
-import .cmds.provision show write_blob_to_file write_json_to_file
+import .cmds.provision show write_blob_to_file write_json_to_file write_ubjson_to_file
 import .utils.patch_build show build_trivial_patch
 
 import ..shared.mediator
@@ -67,21 +67,7 @@ class Artemis:
       --device_id/string
       --firmware_path/string
       --output_path/string -> none:
-    device := identity["artemis.device"]
     with_tmp_directory: | tmp/string |
-      initial_firmware_config/string? := null
-      mediator_.device_update_config --device_id=device_id: | config/Map |
-        upgrade_to := compute_firmware_update_
-            --device=device
-            --wifi=wifi
-            --envelope_path=firmware_path
-            --upload=: // Do nothing.
-        initial_firmware_config = base64.encode (ubjson.encode upgrade_to)
-        // TODO(kasper): We actually don't have to update the device configuration
-        // stored in the online database unless we think it may contain garbage.
-        config["firmware"] = initial_firmware_config
-        config
-
       artemis_assets_path := "$tmp/artemis.assets"
       run_firmware_tool [
         "-e", firmware_path,
@@ -99,45 +85,19 @@ class Artemis:
         print "not the same artemis broker"
         exit 1
 
-      write_json_to_file "$tmp/device.json" device
-      run_assets_tool [
-        "-e", artemis_assets_path,
-        "add", "--format=tison",
-        "artemis.device", "$tmp/device.json"
-      ]
-
-      write_blob_to_file "$tmp/firmware.config" initial_firmware_config
-      run_assets_tool [
-        "-e", artemis_assets_path,
-        "add",
-        "artemis.firmware.initial", "$tmp/firmware.config"
-      ]
-
-      artemis_image_path := "$tmp/artemis.image"
-      run_firmware_tool [
-        "-e", firmware_path,
-        "container", "extract",
-        "-o", artemis_image_path,
-        "--part", "image",
-        "artemis"
-      ]
-
-      firmware_envelope_path := "$tmp/firmware.envelope"
-      run_firmware_tool [
-        "-e", firmware_path,
-        "container", "install",
-        "-o", firmware_envelope_path,
-        "--assets", artemis_assets_path,
-        "artemis",
-        artemis_image_path
-      ]
-
-      run_firmware_tool [
-        "-e", firmware_envelope_path,
-        "property", "set",
-        "-o", output_path,
-        "wifi", (json.stringify wifi)
-      ]
+    device := identity["artemis.device"]
+    mediator_.device_update_config --device_id=device_id: | config/Map |
+      upgrade_to := compute_firmware_update_
+          --device=device
+          --wifi=wifi
+          --envelope_path=firmware_path
+          --upload=: // Do nothing.
+      initial_firmware_config := base64.encode (ubjson.encode upgrade_to)
+      print "firmware update = $initial_firmware_config"
+      // TODO(kasper): We actually don't have to update the device configuration
+      // stored in the online database unless we think it may contain garbage.
+      config["firmware"] = initial_firmware_config
+      config
 
   firmware_update --device_id/string --firmware_path/string -> none:
     mediator_.device_update_config --device_id=device_id: | config/Map |
@@ -173,29 +133,68 @@ class Artemis:
       config
 
   compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string [--upload] -> Map:
-    firmware_bin/ByteArray := extract_firmware_bin_ envelope_path
+    unconfigured_parts := compute_firmware_update_parts_
+        --envelope_path=envelope_path
+        --upload=: // Do not upload.
+    unconfigured_checksum := unconfigured_parts.remove_last
 
-    parts/List := build_trivial_patch firmware_bin
-    sha := sha256.Sha256
-    sha.add firmware_bin
-    id/string := base64.encode sha.get
-    upload.call id parts
-
-    // TODO(kasper): This should include the uuid, so we can compile apps that fit later.
-    // How do we get from uuid to Toit SDK version? Is that something we need to support?
-    // The uuid seems strictly better because it takes the full base image into account.
-
-    return {
-      "parts": [ id ],
-      "artemis.device": device,
-      "wifi": wifi,
+    config := {
+      "artemis.device" : device,
+      "wifi"           : wifi,
+      "firmware"       : ubjson.encode unconfigured_parts,
     }
 
-extract_firmware_bin_ envelope_path/string -> ByteArray:
+    configured_parts := compute_firmware_update_parts_
+        --envelope_path=envelope_path
+        --config=config
+        --upload=: // Do not upload.
+    configured_checksum := configured_parts.remove_last
+
+    if false:
+      unconfigured_parts.size.repeat: | index/int |
+        print "--- $index ---"
+        print "$unconfigured_parts[index]"
+        print "$configured_parts[index]"
+
+    return {
+      "config"   : config,
+      "checksum" : configured_checksum,
+    }
+
+  compute_firmware_update_parts_ --envelope_path/string --config/Map?=null [--upload] -> List:
+    firmware/Map := extract_firmware_ envelope_path config
+    firmware_bin/ByteArray := firmware["binary"]
+
+    parts := []
+    firmware["parts"].do: | entry/Map |
+      from := entry["from"]
+      to := entry["to"]
+
+      part := firmware_bin[from..to]
+      if entry["type"] == "config":
+        parts.add { "from": from, "to": to, "type": "config" }
+      else if entry["type"] == "checksum":
+        parts.add part
+      else:
+        chunks := build_trivial_patch part
+        sha := sha256.Sha256
+        sha.add part
+        hash := sha.get
+        id/string := base64.encode hash
+        upload.call id chunks
+        parts.add { "from": from, "to": to, "hash": hash }
+    return parts
+
+extract_firmware_ envelope_path/string config/Map? -> Map:
   with_tmp_directory: | tmp/string |
-    firmware_bin_path := "$tmp/firmware.bin"
-    run_firmware_tool ["-e", envelope_path, "extract", "-o", firmware_bin_path, "--firmware.bin"]
-    return file.read_content firmware_bin_path
+    firmware_ubjson_path := "$tmp/firmware.ubjson"
+    arguments := ["-e", envelope_path, "extract", "-o", firmware_ubjson_path, "--format=ubjson"]
+    if config:
+      config_path := "$tmp/config.json"
+      write_blob_to_file config_path (ubjson.encode config)
+      arguments += ["--config", config_path]
+    run_firmware_tool arguments
+    return ubjson.decode (file.read_content firmware_ubjson_path)
   unreachable
 
 is_same_broker broker/string identity/Map tmp/string assets_path/string -> bool:
