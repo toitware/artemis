@@ -142,11 +142,8 @@ flash_firmware parsed/cli.Parsed:
       --wifi=wifi
       --device_id=device_id
       --firmware_path=firmware_path
-      --output_path=output_path
   artemis.close
   mediator.close
-
-  print "Created firmware => $output_path; now flash it onto your device"
 
 update_firmware parsed/cli.Parsed:
   device_selector := parsed["device"]

@@ -18,10 +18,9 @@ diff old_bytes/OldData new_bytes/ByteArray fd total_new_bytes=new_bytes.size --f
 
   bdiff_size := 0
 
-  stderr := writer.Writer pipe.stderr
-
   end_state := diff_files old_bytes new_bytes pages fast total_new_bytes --with_header=with_header --with_checksums=with_checksums:
-    stderr.write "$it\n"
+    // Do not print anything.
+    null
 
   writer := Writer_ new_bytes
   bdiff_size += writer.write_diff fd end_state --with_footer=with_footer

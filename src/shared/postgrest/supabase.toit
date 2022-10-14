@@ -80,3 +80,15 @@ class SupabaseClient implements PostgrestClient:
     body := response.body
     while data := body.read: null // DRAIN!
     if response.status_code != 200: throw "UGH ($response.status_code)"
+
+  download_resource --path/string [block] -> none:
+    headers := create_headers broker_
+    response := client_.get host_ "/storage/v1/object/$path"
+        --headers=headers
+    body := response.body
+    try:
+      // 200 is accepted!
+      if response.status_code != 200: throw "UGH ($response.status_code)"
+      block.call body
+    finally:
+      while data := body.read: null // DRAIN!
