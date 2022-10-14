@@ -204,7 +204,9 @@ class SynchronizeJob extends Job implements EventHandler:
       firmware := ubjson.decode config["firmware"]
       grand_total_size := firmware.last["to"]
 
-      collected := []
+      collected := null
+      if platform != PLATFORM_FREERTOS: collected = []
+
       elapsed := Duration.of:
         firmware.size.repeat: | index/int |
           part := firmware[index]
@@ -243,19 +245,21 @@ class SynchronizeJob extends Job implements EventHandler:
                 grand_total_offset := index == 0 ? 0 : firmware[index - 1]["to"]
                 patcher = FirmwarePatcher logger_ total_size grand_total_offset grand_total_size
               patcher.apply reader old
-            collected.add patcher.writer_.bytes
+            if collected: collected.add patcher.writer_.bytes
           finally:
             if patcher: patcher.close
 
       logger_.info "firmware update: 100%" --tags={"elapsed": elapsed}
-      collected.add update["checksum"]
-      all := ByteArray 0
-      collected.do: all += it
-      print "Got a grand total of $all.size bytes"
-      sha := sha256.Sha256
-      sha.add all[..all.size - 32]
-      print "Computed checksum = $(hex.encode sha.get)"
-      print "Provided checksum = $(hex.encode all[all.size - 32..])"
+
+      if platform != PLATFORM_FREERTOS:
+        collected.add update["checksum"]
+        all := ByteArray 0
+        collected.do: all += it
+        print "Got a grand total of $all.size bytes"
+        sha := sha256.Sha256
+        sha.add all[..all.size - 32]
+        print "Computed checksum = $(hex.encode sha.get)"
+        print "Provided checksum = $(hex.encode all[all.size - 32..])"
 
       // TODO(kasper): It would be great if we could also restart the Artemis
       // service here for testing purposes.
@@ -290,8 +294,7 @@ class FirmwarePatcher implements PatchObserver:
     try:
       binary_patcher := Patcher (BufferedReader reader) old
           --patch_offset=patch_offset_checkpointed_
-      catch --trace --unwind=(: true):
-        binary_patcher.patch this
+      binary_patcher.patch this
     finally: | is_exception _ |
       if writer_:
         // TODO(kasper): Handle exception in commit call.
