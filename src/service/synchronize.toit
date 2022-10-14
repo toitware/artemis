@@ -197,7 +197,7 @@ class SynchronizeJob extends Job implements EventHandler:
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
       old_update := ubjson.decode (base64.decode config_["firmware"])
-      old_firmware := ubjson.decode old_update["config"]["firmware"]
+      old_firmware := ubjson.decode (ubjson.decode old_update["config"])["firmware"]
       update := ubjson.decode (base64.decode x)
       config_encoded := update["config"]
       config := ubjson.decode config_encoded
