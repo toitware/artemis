@@ -16,6 +16,8 @@ import ..status show report_status_setup
 
 import ...cli.sdk  // TODO(kasper): This is an annoying dependency.
 
+import ..synchronize show OLD_BYTES_HACK
+
 main arguments:
   root_cmd := cli.Command "root"
       --options=[
@@ -24,37 +26,20 @@ main arguments:
         cli.OptionString "identity"
             --type="file"
             --required,
+        cli.OptionString "old"
+            --type="file",
       ]
       --run=:: run it
   root_cmd.run arguments
 
 run parsed/cli.Parsed -> none:
-  initial_firmware/ByteArray? := null
   identity/Map? := null
 
   firmware := parsed["firmware"]
-  exception := catch: ubjson.decode (base64.decode firmware)
-  if exception:
-    with_tmp_directory: | tmp/string |
-      run_firmware_tool [
-        "-e", firmware,
-        "container", "extract", "--part=assets",
-        "-o", "$tmp/artemis.assets",
-        "artemis"
-      ]
-      run_assets_tool [
-        "-e", "$tmp/artemis.assets",
-        "get", "-o", "$tmp/firmware.config",
-         "artemis.firmware.initial"
-      ]
-      run_assets_tool [
-        "-e", "$tmp/artemis.assets",
-        "get", "-o", "$tmp/firmware.config",
-         "artemis.firmware.initial"
-      ]
-      initial_firmware = file.read_content "$tmp/firmware.config"
-  else:
-    initial_firmware = firmware.to_byte_array
+  initial_firmware := firmware.to_byte_array
+
+  if parsed["old"]:
+    OLD_BYTES_HACK = file.read_content parsed["old"]
 
   identity_raw := file.read_content parsed["identity"]
   identity = ubjson.decode (base64.decode identity_raw)

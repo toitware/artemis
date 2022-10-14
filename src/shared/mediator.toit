@@ -34,4 +34,9 @@ interface MediatorCli:
   /**
   Uploads a firmware with the given $firmware_id so that a device can fetch it.
   */
-  upload_firmware --firmware_id/string parts/List -> none
+  upload_firmware --firmware_id/string chunks/List -> none
+
+  /**
+  Downloads a firmware chunk. Ugly interface.
+  */
+  download_firmware --id/string -> ByteArray
