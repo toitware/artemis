@@ -70,11 +70,10 @@ add_supabase parsed/cli.Parsed config/Config:
   if certificate_name:
     if not config.contains "assets.certificates":
       config["assets.certificates"] = {:}
-    print config.data
     certificate_assets := config.get "assets.certificates"
     if not certificate_assets.contains certificate_name:
       certificate := get_certificate_ certificate_name
-      certificate_assets[name] = certificate
+      certificate_assets[certificate_name] = certificate
 
   if host.starts_with "http://" or host.starts_with "https://":
     host = host.trim --prefix "http://"

@@ -15,7 +15,6 @@ import ..service show run_artemis
 import ..status show report_status_setup
 
 import ...cli.sdk  // TODO(kasper): This is an annoying dependency.
-import ...shared.config
 
 import ..synchronize show OLD_BYTES_HACK
 
