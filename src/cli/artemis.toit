@@ -170,7 +170,7 @@ class PatchWriter implements PatchObserver:
   on_new_checksum checksum/ByteArray -> none:
     // Do nothing.
   on_checkpoint patch_position/int -> none:
-   // Do nothing.
+    // Do nothing.
 
 class FirmwareUpdate:
   firmware/Firmware
