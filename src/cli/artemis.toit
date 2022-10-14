@@ -245,26 +245,27 @@ class FirmwarePatch:
     patcher := Patcher bitstream #[]
     writer := PatchWriter
     if not patcher.patch writer: return
-    // ...
+    // Build the old bits and check that we get the correct hash.
     old := writer.buffer.bytes
     if old.size < writer.size: old += ByteArray (writer.size - old.size)
     sha := sha256.Sha256
     sha.add old
-    hash := sha.get
-    if hash != from_: return
-    // ...
+    if from_ != sha.get: return
+    // Build the diff and verify that we can apply it and get the
+    // correct hash out before uploading it.
     diff := build_diff_patch old bits_
+    if to_ != (compute_applied_hash_ diff old bits_): return
     mediator.upload_firmware --firmware_id=(id_ --from=from_ --to=to_) diff
 
-    // Check this here. It looks odd.
-    print "old = $old.size | new = $bits_.size"
-    yyy := diff.reduce --initial=#[]: | x a | x + a
-    print "diff size = $yyy.size"
-    bitstream2 := reader.BufferedReader (bytes.Reader yyy)
-    patcher2 := Patcher bitstream2 old
-    writer2 := PatchWriter
-    print "okay? $(patcher2.patch writer2)"
-    print "size = $(writer2.buffer.bytes.size)"
+  static compute_applied_hash_ diff/List old/ByteArray new/ByteArray -> ByteArray?:
+    combined := diff.reduce --initial=#[]: | acc chunk | acc + chunk
+    bitstream := reader.BufferedReader (bytes.Reader combined)
+    patcher := Patcher bitstream old
+    writer := PatchWriter
+    if not patcher.patch writer: return null
+    sha := sha256.Sha256
+    sha.add writer.buffer.bytes
+    return sha.get
 
   static id_ --from/ByteArray?=null --to/ByteArray -> string:
     folder := base64.encode to --url_mode

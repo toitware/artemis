@@ -55,7 +55,6 @@ class MediatorCliPostgrest implements MediatorCli:
     upload_resource_ "assets/images/$app_id.$bits" content
 
   upload_firmware --firmware_id/string parts/List -> none:
-    print "uploading $firmware_id"
     content := #[]
     parts.do: | part/ByteArray | content += part  // TODO(kasper): Avoid all this copying.
     upload_resource_ "assets/firmware/$firmware_id" content
@@ -64,7 +63,6 @@ class MediatorCliPostgrest implements MediatorCli:
     client_.upload_resource --path=path --content=content
 
   download_firmware --id/string -> ByteArray:
-    print "downloading $id"
     content := #[]
     client_.download_resource --path="assets/firmware/$id": | reader/reader.Reader |
       while data := reader.read:
