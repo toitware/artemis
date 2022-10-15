@@ -2,7 +2,9 @@
 
 import system.assets
 import system.firmware
+
 import encoding.base64
+import encoding.ubjson
 
 import ..broker show decode_broker
 import ..status show report_status_setup
@@ -16,6 +18,12 @@ main arguments:
   // the full base64 update string that contains the checksum and the
   // full config, but we probably need to compute this on the device on
   // the first boot after provisioning.
-  firmware := firmware.config "firmware"
-  print "firmware = $firmware"
+  update := ubjson.encode {
+    "config": ubjson.encode {
+      "firmware": firmware.config "firmware",
+      // TODO(kasper): There is more.
+    },
+    // "checksum": ByteArray 33
+  }
+  firmware := base64.encode update
   run_artemis device broker --firmware=firmware

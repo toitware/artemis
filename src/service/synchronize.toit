@@ -212,10 +212,11 @@ class SynchronizeJob extends Job implements EventHandler:
           part := firmware[index]
           type := part.get "type"
           if type == "config":
-            config_bytes := ByteArray part["to"] - part["from"]
-            LITTLE_ENDIAN.put_uint32 config_bytes 0 config_encoded.size
-            config_bytes.replace 4 config_encoded
-            collected.add config_bytes
+            if collected:
+              config_bytes := ByteArray part["to"] - part["from"]
+              LITTLE_ENDIAN.put_uint32 config_bytes 0 config_encoded.size
+              config_bytes.replace 4 config_encoded
+              collected.add config_bytes
             continue.repeat
 
           id := base64.encode part["hash"] --url_mode
@@ -227,7 +228,7 @@ class SynchronizeJob extends Job implements EventHandler:
 
           resource := null
           old := null
-          if from_to <= OLD_BYTES_HACK.size:
+          if collected and from_to <= OLD_BYTES_HACK.size:
             old = OLD_BYTES_HACK[from_from..from_to]
             if id == from_id:
               collected.add old
@@ -244,7 +245,7 @@ class SynchronizeJob extends Job implements EventHandler:
                 if index == 0: logger_.info "firmware update" --tags={"id": id, "size": grand_total_size}
                 grand_total_offset := index == 0 ? 0 : firmware[index - 1]["to"]
                 patcher = FirmwarePatcher logger_ total_size grand_total_offset grand_total_size
-              patcher.apply reader old
+              patcher.apply reader old --last=(index == firmware.size - 1)
             if collected: collected.add patcher.writer_.bytes
           finally:
             if patcher: patcher.close
@@ -284,7 +285,7 @@ class FirmwarePatcher implements PatchObserver:
   constructor .logger_ .patch_size_ .total_offset_ .total_size_:
     // Do nothing.
 
-  apply reader/SizedReader old/ByteArray -> int:
+  apply reader/SizedReader old/ByteArray --last/bool -> int:
     if image_size_:
       if platform == PLATFORM_FREERTOS:
         writer_ = firmware.FirmwareWriter image_offset_checkpointed_ image_size_
@@ -298,7 +299,7 @@ class FirmwarePatcher implements PatchObserver:
     finally: | is_exception _ |
       if writer_:
         // TODO(kasper): Handle exception in commit call.
-        if not is_exception: writer_.commit
+        if last and not is_exception: writer_.commit
         writer_.close
       return is_exception
           ? patch_offset_checkpointed_  // Continue after checkpoint.
