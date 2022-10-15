@@ -15,6 +15,8 @@ import ..config
 import ..sdk
 import ..broker
 
+import ...service.run.host show run_host
+
 create_firmware_commands config/Config -> List:
   firmware_cmd := cli.Command "firmware"
 
@@ -37,9 +39,11 @@ create_firmware_commands config/Config -> List:
         cli.OptionString "wifi-ssid"
             --required,
         cli.OptionString "wifi-password",
-        cli.OptionString "output"
-            --short_name="o"
-            --type="file"
+        cli.OptionString "port"
+            --short_name="p",
+        cli.OptionString "baud",
+        cli.Flag "simulate"
+            --default=false,
       ]
       --rest=[
         cli.OptionString "firmware"
@@ -134,17 +138,44 @@ flash_firmware config/Config parsed/cli.Parsed:
   identity_raw := file.read_content identity_path
   identity := ubjson.decode (base64.decode identity_raw)
   device_id := identity["artemis.device"]["device_id"]
-  output_path := parsed["output"] or "$(device_id).envelope"
 
   mediator := create_mediator config parsed
   artemis := Artemis mediator
-  artemis.firmware_create
+  update := artemis.firmware_create
       --identity=identity
       --wifi=wifi
       --device_id=device_id
       --firmware_path=firmware_path
   artemis.close
   mediator.close
+
+  if parsed["simulate"]:
+    run_host
+        --identity=identity
+        --encoding=update.encoding
+        --bits=update.firmware.bits
+    return
+
+  if not parsed["port"]:
+    print "No --port option given."
+    exit 1
+  port/string := parsed["port"]
+  baud/string? := parsed["baud"]
+
+  // TODO(kasper): We should add an option to the flashing tool
+  // that verifies that the hash of the output bits are the
+  // expected ones -- or a flag that allows us to just pass
+  // the bits in through a file.
+  with_tmp_directory: | tmp/string |
+    config_path := "$tmp/config.ubjson"
+    write_blob_to_file config_path update.config
+    arguments := [
+      "-e", firmware_path,
+      "flash", "--port", port,
+      "--config", config_path,
+    ]
+    if baud: arguments.add_all ["--baud", baud]
+    run_firmware_tool arguments
 
 update_firmware config/Config parsed/cli.Parsed:
   device_selector := parsed["device"]

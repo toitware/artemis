@@ -70,7 +70,7 @@ class Artemis:
       --identity/Map
       --wifi/Map
       --device_id/string
-      --firmware_path/string:
+      --firmware_path/string -> FirmwareUpdate:
     with_tmp_directory: | tmp/string |
       artemis_assets_path := "$tmp/artemis.assets"
       run_firmware_tool [
@@ -89,7 +89,7 @@ class Artemis:
         print "not the same artemis broker"
         exit 1
 
-    firmware/Firmware? := null
+    firmware/FirmwareUpdate? := null
     mediator_.device_update_config --device_id=device_id: | config/Map |
       device := identity["artemis.device"]
       upgrade_to := compute_firmware_update_
@@ -99,16 +99,14 @@ class Artemis:
 
       patches := upgrade_to.patches null
       patches.do: | patch/FirmwarePatch | patch.upload mediator_
-      firmware = upgrade_to.firmware
+      firmware = upgrade_to
 
       // TODO(kasper): We actually don't have to update the device configuration
       // stored in the online database unless we think it may contain garbage.
       config["firmware"] = upgrade_to.encoding
       config
 
-    // TODO(kasper): We need to do the flashing here.
-    print "Writing firmware.bin..."
-    write_blob_to_file "firmware.bin" firmware.bits
+    return firmware
 
   firmware_update --device_id/string --firmware_path/string -> none:
     mediator_.device_update_config --device_id=device_id: | config/Map |
@@ -175,9 +173,10 @@ class PatchWriter implements PatchObserver:
 class FirmwareUpdate:
   firmware/Firmware
   encoding/string
+  config/ByteArray
   config_/Map
 
-  constructor .firmware config/ByteArray:
+  constructor .firmware .config:
     map := { "config": config, "checksum": firmware.checksum }
     encoding = base64.encode (ubjson.encode map)
     config_ = ubjson.decode config
@@ -185,7 +184,8 @@ class FirmwareUpdate:
 
   constructor.encoded .encoding:
     map := ubjson.decode (base64.decode encoding)
-    config_ = ubjson.decode map["config"]
+    config = map["config"]
+    config_ = ubjson.decode config
     firmware = Firmware.encoded config_["firmware"] --checksum=map["checksum"]
 
   config key/string -> any:

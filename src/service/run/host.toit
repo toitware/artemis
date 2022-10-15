@@ -33,20 +33,22 @@ main arguments:
   root_cmd.run arguments
 
 run parsed/cli.Parsed -> none:
-  identity/Map? := null
-
-  firmware := parsed["firmware"]
-  initial_firmware := firmware.to_byte_array
-
-  if parsed["old"]:
-    OLD_BYTES_HACK = file.read_content parsed["old"]
+  bits := null
+  if parsed["old"]: bits = file.read_content parsed["old"]
 
   identity_raw := file.read_content parsed["identity"]
-  identity = ubjson.decode (base64.decode identity_raw)
+  identity := ubjson.decode (base64.decode identity_raw)
+  run_host
+      --identity=identity
+      --encoding=parsed["firmwarea"]
+      --bits=bits
+
+run_host --identity/Map --encoding/string --bits/ByteArray? -> none:
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
   identity["artemis.device"] = tison.encode identity["artemis.device"]
   identity["broker"] = tison.encode identity["broker"]
 
+  if bits: OLD_BYTES_HACK = bits
   device := report_status_setup identity
   broker := decode_broker "broker" identity
-  run_artemis device broker --initial_firmware=initial_firmware
+  run_artemis device broker --initial_firmware=encoding.to_byte_array
