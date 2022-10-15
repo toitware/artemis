@@ -45,10 +45,9 @@ run parsed/cli.Parsed -> none:
 
 run_host --identity/Map --encoding/string --bits/ByteArray? -> none:
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
-  identity["artemis.device"] = tison.encode identity["artemis.device"]
   identity["broker"] = tison.encode identity["broker"]
 
   if bits: OLD_BYTES_HACK = bits
-  device := report_status_setup identity
+  device := report_status_setup identity identity["artemis.device"]
   broker := decode_broker "broker" identity
-  run_artemis device broker --initial_firmware=encoding.to_byte_array
+  run_artemis device broker --firmware=encoding

@@ -47,9 +47,9 @@ class SynchronizeJob extends Job implements EventHandler:
   // also possible to fetch it from there.
   max_offline_/Duration? := null
 
-  constructor logger/log.Logger .device_ .applications_ .mediator_ --initial_firmware/ByteArray?=null:
+  constructor logger/log.Logger .device_ .applications_ .mediator_ --firmware/string?=null:
     logger_ = logger.with_name "synchronize"
-    if initial_firmware: config_["firmware"] = initial_firmware.to_string_non_throwing
+    if firmware: config_["firmware"] = firmware
     super "synchronize"
 
   schedule now/JobTime -> JobTime?:
