@@ -22,11 +22,8 @@ import crypto.sha256
 import system.firmware
 import encoding.ubjson
 import encoding.base64
-import encoding.hex
 import binary show LITTLE_ENDIAN
 import ..shared.utils.patch
-
-OLD_BYTES_HACK/ByteArray := #[]
 
 class SynchronizeJob extends Job implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
@@ -201,154 +198,126 @@ class SynchronizeJob extends Job implements EventHandler:
       update := ubjson.decode (base64.decode x)
       config_encoded := update["config"]
       config := ubjson.decode config_encoded
-      firmware := ubjson.decode config["firmware"]
-      grand_total_size := firmware.last["to"]
+      firmwarex := ubjson.decode config["firmware"]
+      grand_total_size := firmwarex.last["to"] + update["checksum"].size
 
-      collected := null
-      if platform != PLATFORM_FREERTOS: collected = []
+      logger_.info "firmware update" --tags={"size": grand_total_size}
 
       elapsed := Duration.of:
-        firmware.size.repeat: | index/int |
-          part := firmware[index]
+        firmwarex.size.repeat: | index/int |
+          is_last := index == firmwarex.size - 1
+          part := firmwarex[index]
           type := part.get "type"
+
+          checksum := is_last ? update["checksum"] : null
+          patcher := FirmwarePatcher logger_ part["from"] part["to"] grand_total_size checksum
+
           if type == "config":
-            if collected:
-              config_bytes := ByteArray part["to"] - part["from"]
-              LITTLE_ENDIAN.put_uint32 config_bytes 0 config_encoded.size
-              config_bytes.replace 4 config_encoded
-              collected.add config_bytes
-            continue.repeat
-
-          id := base64.encode part["hash"] --url_mode
-          // TODO(kasper): This should be based on name/type -- not index.
-          from_id := base64.encode old_firmware[index]["hash"] --url_mode
-
-          from_from := old_firmware[index]["from"]
-          from_to := old_firmware[index]["to"]
-
-          resource := null
-          old := null
-          if collected and from_to <= OLD_BYTES_HACK.size:
-            old = OLD_BYTES_HACK[from_from..from_to]
-            if id == from_id:
-              collected.add old
-              continue.repeat
-            resource = "$id/$from_id"
+            patcher.write_config config_encoded
           else:
-            resource = "$id/none"
-            old = #[]
-
-          patcher/FirmwarePatcher? := null
-          try:
-            resources.fetch_firmware resource: | reader/SizedReader offset/int total_size/int |
-              if offset == 0:
-                if index == 0: logger_.info "firmware update" --tags={"id": id, "size": grand_total_size}
-                grand_total_offset := index == 0 ? 0 : firmware[index - 1]["to"]
-                patcher = FirmwarePatcher logger_ total_size grand_total_offset grand_total_size
-              patcher.apply reader old --last=(index == firmware.size - 1)
-            if collected: collected.add patcher.writer_.bytes
-          finally:
-            if patcher: patcher.close
+            // TODO(kasper): This should be based on name/type -- not index.
+            patcher.write_part part resources old_firmware[index]
 
       logger_.info "firmware update: 100%" --tags={"elapsed": elapsed}
+      fake_update_firmware x  // TODO(kasper): Is this still fake?
+      firmware.upgrade
 
-      if platform != PLATFORM_FREERTOS:
-        collected.add update["checksum"]
-        all := ByteArray 0
-        collected.do: all += it
-        print "Got a grand total of $all.size bytes"
-        sha := sha256.Sha256
-        sha.add all[..all.size - 32]
-        print "Computed checksum = $(hex.encode sha.get)"
-        print "Provided checksum = $(hex.encode all[all.size - 32..])"
-
-      // TODO(kasper): It would be great if we could also restart the Artemis
-      // service here for testing purposes.
-      fake_update_firmware x
-      if platform == PLATFORM_FREERTOS: esp32.deep_sleep (Duration --ms=100)
 
 class FirmwarePatcher implements PatchObserver:
   logger_/log.Logger
+  from_/int
+  to_/int
+  checksum_/ByteArray?
 
+  offset_/int := ?
   total_size_/int
-  total_offset_/int
 
-  patch_size_/int
+  image_offset_checkpointed_/int := ?
   patch_offset_checkpointed_/int := 0
 
-  image_size_/int? := null
-  image_offset_/int := 0
-  image_offset_checkpointed_/int := 0
+  writer_/firmware.FirmwareWriter? := null
 
-  writer_ := null
+  constructor .logger_ .from_ .to_ .total_size_ .checksum_:
+    offset_ = from_
+    image_offset_checkpointed_ = from_
 
-  constructor .logger_ .patch_size_ .total_offset_ .total_size_:
-    // Do nothing.
+  write_config config/ByteArray -> none:
+    padded_size := to_ - from_
+    size := ByteArray 4
+    LITTLE_ENDIAN.put_uint32 size 0 config.size
+    write_: | writer/firmware.FirmwareWriter |
+      writer.write size
+      writer.write config
+      writer.pad padded_size - (config.size + 4)
+      on_checkpoint 0  // TODO(kasper): This is a bit weird.
 
-  apply reader/SizedReader old/ByteArray --last/bool -> int:
-    if image_size_:
-      if platform == PLATFORM_FREERTOS:
-        writer_ = firmware.FirmwareWriter image_offset_checkpointed_ image_size_
-      else:
-        writer_ = FakeFirmwareWriter.view writer_.bytes image_offset_checkpointed_ image_size_
-      image_offset_ = image_offset_checkpointed_
-    try:
+  write_part part/Map resources/ResourceManager existing/Map -> none:
+    new_hash := part["hash"]
+    old_hash := existing["hash"]
+
+    old_from := existing["from"]
+    old_to := existing["to"]
+
+    old := firmware.content
+    if old_to <= old.size:
+      old = old[old_from..old_to]
+      if new_hash == old_hash:
+        write_: | writer/firmware.FirmwareWriter |
+          List.chunk_up 0 old.size 512: | from to |
+            writer.write old[from..to]
+          on_checkpoint 0  // TODO(kasper): This is a bit weird.
+        return
+
+    new_id := base64.encode new_hash --url_mode
+    old_id := base64.encode old_hash --url_mode
+    resource := null
+    if old:
+      resource = "$new_id/$old_id"
+    else:
+      resource = "$new_id/none"
+      old = #[]
+
+    patch_size := 0
+    resources.fetch_firmware resource: | reader/SizedReader offset/int total_size/int |
+      // TODO(kasper): This isn't very elegant. We need the patch size
+      // to determine when we're done with the patch, but we only get
+      // it passed on the first block invocation.
+      if offset == 0: patch_size = total_size
+      apply_ reader old patch_size
+
+  apply_ reader/SizedReader old/ByteArray patch_size/int -> int:
+    write_: | writer/firmware.FirmwareWriter |
+      offset_ = image_offset_checkpointed_
       binary_patcher := Patcher (BufferedReader reader) old
           --patch_offset=patch_offset_checkpointed_
-      binary_patcher.patch this
-    finally: | is_exception _ |
-      if writer_:
-        // TODO(kasper): Handle exception in commit call.
-        if last and not is_exception: writer_.commit
-        writer_.close
-      return is_exception
-          ? patch_offset_checkpointed_  // Continue after checkpoint.
-          : patch_size_                 // Done!
+      exception := catch: binary_patcher.patch this
+      return exception == null ? patch_size : patch_offset_checkpointed_
+    unreachable
 
-  close:
-    if not writer_: return
-    writer_.close
-    writer_ = null
+  write_ [block]:
+    try:
+      extra := checksum_ ? checksum_.size : 0
+      writer_ = firmware.FirmwareWriter image_offset_checkpointed_ (to_ + extra)
+      block.call writer_
+      if not checksum_: return
+      writer_.write checksum_
+      writer_.commit
+    finally:
+      if writer_: writer_.close
+      writer_ = null
 
   on_write data from/int=0 to/int=data.size -> none:
     if writer_: writer_.write data[from..to]
-    image_offset_ += to - from
+    offset_ += to - from
 
   on_new_checksum hash/ByteArray -> none:
     unreachable
 
   on_size size/int -> none:
-    image_size_ = size
-    if platform == PLATFORM_FREERTOS:
-      writer_ = firmware.FirmwareWriter 0 size
-    else:
-      writer_ = FakeFirmwareWriter size
-    image_offset_ = 0
+    // Do nothing.
 
   on_checkpoint patch_offset/int -> none:
-    percent := (image_offset_ + total_offset_) * 100 / total_size_
+    percent := offset_  * 100 / total_size_
     logger_.info "firmware update: $(%3d percent)%"
     patch_offset_checkpointed_ = patch_offset
-    image_offset_checkpointed_ = image_offset_
-
-class FakeFirmwareWriter:
-  bytes/ByteArray
-  view/ByteArray
-  cursor_ := 0
-
-  constructor size/int:
-    bytes = ByteArray size
-    view = bytes
-
-  constructor.view .bytes from/int to/int:
-    view = bytes[from..to]
-
-  write data/ByteArray:
-    view.replace cursor_ data
-    cursor_ += data.size
-
-  commit -> none:
-    // Yes, yes.
-
-  close -> none:
-    // Si, si.
+    image_offset_checkpointed_ = offset_
