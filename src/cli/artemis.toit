@@ -3,14 +3,19 @@
 import crypto.sha256
 import host.file
 import uuid
+import bytes
+import reader
 
 import encoding.base64
 import encoding.ubjson
 import encoding.json
+import encoding.hex
 
 import .sdk
-import .cmds.provision show write_blob_to_file write_json_to_file
-import .utils.patch_build show build_trivial_patch
+import .cmds.provision show write_blob_to_file write_json_to_file write_ubjson_to_file
+
+import .utils.patch_build show build_diff_patch build_trivial_patch
+import ..shared.utils.patch show Patcher PatchObserver
 
 import ..shared.mediator
 
@@ -65,23 +70,8 @@ class Artemis:
       --identity/Map
       --wifi/Map
       --device_id/string
-      --firmware_path/string
-      --output_path/string -> none:
-    device := identity["artemis.device"]
+      --firmware_path/string:
     with_tmp_directory: | tmp/string |
-      initial_firmware_config/string? := null
-      mediator_.device_update_config --device_id=device_id: | config/Map |
-        upgrade_to := compute_firmware_update_
-            --device=device
-            --wifi=wifi
-            --envelope_path=firmware_path
-            --upload=: // Do nothing.
-        initial_firmware_config = base64.encode (ubjson.encode upgrade_to)
-        // TODO(kasper): We actually don't have to update the device configuration
-        // stored in the online database unless we think it may contain garbage.
-        config["firmware"] = initial_firmware_config
-        config
-
       artemis_assets_path := "$tmp/artemis.assets"
       run_firmware_tool [
         "-e", firmware_path,
@@ -99,53 +89,35 @@ class Artemis:
         print "not the same artemis broker"
         exit 1
 
-      write_json_to_file "$tmp/device.json" device
-      run_assets_tool [
-        "-e", artemis_assets_path,
-        "add", "--format=tison",
-        "artemis.device", "$tmp/device.json"
-      ]
+    firmware/Firmware? := null
+    mediator_.device_update_config --device_id=device_id: | config/Map |
+      device := identity["artemis.device"]
+      upgrade_to := compute_firmware_update_
+          --device=device
+          --wifi=wifi
+          --envelope_path=firmware_path
 
-      write_blob_to_file "$tmp/firmware.config" initial_firmware_config
-      run_assets_tool [
-        "-e", artemis_assets_path,
-        "add",
-        "artemis.firmware.initial", "$tmp/firmware.config"
-      ]
+      patches := upgrade_to.patches null
+      patches.do: | patch/FirmwarePatch | patch.upload mediator_
+      firmware = upgrade_to.firmware
 
-      artemis_image_path := "$tmp/artemis.image"
-      run_firmware_tool [
-        "-e", firmware_path,
-        "container", "extract",
-        "-o", artemis_image_path,
-        "--part", "image",
-        "artemis"
-      ]
+      // TODO(kasper): We actually don't have to update the device configuration
+      // stored in the online database unless we think it may contain garbage.
+      config["firmware"] = upgrade_to.encoding
+      config
 
-      firmware_envelope_path := "$tmp/firmware.envelope"
-      run_firmware_tool [
-        "-e", firmware_path,
-        "container", "install",
-        "-o", firmware_envelope_path,
-        "--assets", artemis_assets_path,
-        "artemis",
-        artemis_image_path
-      ]
-
-      run_firmware_tool [
-        "-e", firmware_envelope_path,
-        "property", "set",
-        "-o", output_path,
-        "wifi", (json.stringify wifi)
-      ]
+    // TODO(kasper): We need to do the flashing here.
+    print "Writing firmware.bin..."
+    write_blob_to_file "firmware.bin" firmware.bits
 
   firmware_update --device_id/string --firmware_path/string -> none:
     mediator_.device_update_config --device_id=device_id: | config/Map |
-      upgrade_from/Map := {:}
+      upgrade_from/FirmwareUpdate? := null
       existing := config.get "firmware"
-      if existing: catch: upgrade_from = ubjson.decode (base64.decode existing)
+      if existing: catch: upgrade_from = FirmwareUpdate.encoded existing
 
-      device := upgrade_from.get "artemis.device"
+      device := null
+      if upgrade_from: device = upgrade_from.config "artemis.device"
       if device:
         existing_id := device.get "device_id"
         if device_id != existing_id:
@@ -156,7 +128,8 @@ class Artemis:
         // Cannot proceed without an identity file.
         throw "Unclaimed device. Cannot proceed without an identity file."
 
-      wifi := upgrade_from.get "wifi"
+      wifi := null
+      if upgrade_from: wifi = upgrade_from.config "wifi"
       if not wifi:
         // Device has no way to connect.
         print "Warning: Device has no way to connect."
@@ -165,38 +138,211 @@ class Artemis:
           --device=device
           --wifi=wifi
           --envelope_path=firmware_path
-          --upload=: | id/string parts/List |
-            mediator_.upload_firmware --firmware_id=id parts
 
-      updated := base64.encode (ubjson.encode upgrade_to)
-      config["firmware"] = updated
+      patches := upgrade_to.patches upgrade_from
+      patches.do: | patch/FirmwarePatch | patch.upload mediator_
+      config["firmware"] = upgrade_to.encoding
       config
 
-  compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string [--upload] -> Map:
-    firmware_bin/ByteArray := extract_firmware_bin_ envelope_path
+  // TODO(kasper): Turn this into a static method on FirmwareUpdate?
+  compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string -> FirmwareUpdate:
+    unconfigured := extract_firmware_ envelope_path null
+    encoding := unconfigured.encoding
+    while true:
+      config := ubjson.encode {
+        "artemis.device" : device,
+        "wifi"           : wifi,
+        "firmware"       : encoding,
+      }
 
-    parts/List := build_trivial_patch firmware_bin
+      configured := extract_firmware_ envelope_path config
+      if configured.encoding == encoding:
+        return FirmwareUpdate configured config
+      encoding = configured.encoding
+
+class PatchWriter implements PatchObserver:
+  buffer/bytes.Buffer ::= bytes.Buffer
+  size/int? := null
+  on_write data from/int=0 to/int=data.size:
+    buffer.write data[from..to]
+  on_size size/int -> none:
+    this.size = size
+  on_new_checksum checksum/ByteArray -> none:
+    // Do nothing.
+  on_checkpoint patch_position/int -> none:
+    // Do nothing.
+
+class FirmwareUpdate:
+  firmware/Firmware
+  encoding/string
+  config_/Map
+
+  constructor .firmware config/ByteArray:
+    map := { "config": config, "checksum": firmware.checksum }
+    encoding = base64.encode (ubjson.encode map)
+    config_ = ubjson.decode config
+    assert: config_["firmware"] == firmware.encoding
+
+  constructor.encoded .encoding:
+    map := ubjson.decode (base64.decode encoding)
+    config_ = ubjson.decode map["config"]
+    firmware = Firmware.encoded config_["firmware"] --checksum=map["checksum"]
+
+  config key/string -> any:
+    return config_.get key
+
+  patches from/FirmwareUpdate? -> List:
+    result := []
+    firmware.parts.size.repeat: | index/int |
+      part := firmware.parts[index]
+      if part is FirmwarePartConfig: continue.repeat
+      // TODO(kasper): This should not just be based on index.
+      old/FirmwarePartPatch? := null
+      if from: old = from.firmware.parts[index]
+      if old and old.hash == part.hash:
+        continue.repeat
+      else if old:
+        result.add (FirmwarePatch --bits=part.bits --from=old.hash --to=part.hash)
+      else:
+        result.add (FirmwarePatch --bits=part.bits --to=part.hash)
+    return result
+
+class Firmware:
+  bits/ByteArray?
+  parts/List
+  checksum/ByteArray
+  encoding/ByteArray
+
+  constructor --.bits --.parts --.checksum:
+    encoding = ubjson.encode (parts.map: it.encode)
+
+  constructor.encoded .encoding --.checksum:
+    bits = null
+    list := ubjson.decode encoding
+    parts = list.map: FirmwarePart.encoded it
+
+class FirmwarePatch:
+  bits_/ByteArray
+  from_/ByteArray?
+  to_/ByteArray
+
+  constructor --bits/ByteArray --to/ByteArray --from/ByteArray?=null:
+    bits_ = bits
+    to_ = to
+    from_ = from
+
+  upload mediator/MediatorCli -> none:
+    // Always upload the trivial one.
+    trivial := build_trivial_patch bits_
+    mediator.upload_firmware --firmware_id=(id_ --to=to_) trivial
+    if not from_: return
+    // Attempt to download the old trivial patch and use it to construct
+    // the old bits so we can compute a diff from them.
+    trivial_old := null
+    catch: trivial_old = mediator.download_firmware --id=(id_ --to=from_)
+    if not trivial_old: return
+    bitstream := reader.BufferedReader (bytes.Reader trivial_old)
+    patcher := Patcher bitstream #[]
+    writer := PatchWriter
+    if not patcher.patch writer: return
+    // Build the old bits and check that we get the correct hash.
+    old := writer.buffer.bytes
+    if old.size < writer.size: old += ByteArray (writer.size - old.size)
     sha := sha256.Sha256
-    sha.add firmware_bin
-    id/string := base64.encode sha.get
-    upload.call id parts
+    sha.add old
+    if from_ != sha.get: return
+    // Build the diff and verify that we can apply it and get the
+    // correct hash out before uploading it.
+    diff := build_diff_patch old bits_
+    if to_ != (compute_applied_hash_ diff old bits_): return
+    mediator.upload_firmware --firmware_id=(id_ --from=from_ --to=to_) diff
 
-    // TODO(kasper): This should include the uuid, so we can compile apps that fit later.
-    // How do we get from uuid to Toit SDK version? Is that something we need to support?
-    // The uuid seems strictly better because it takes the full base image into account.
+  static compute_applied_hash_ diff/List old/ByteArray new/ByteArray -> ByteArray?:
+    combined := diff.reduce --initial=#[]: | acc chunk | acc + chunk
+    bitstream := reader.BufferedReader (bytes.Reader combined)
+    patcher := Patcher bitstream old
+    writer := PatchWriter
+    if not patcher.patch writer: return null
+    sha := sha256.Sha256
+    sha.add writer.buffer.bytes
+    return sha.get
 
-    return {
-      "parts": [ id ],
-      "artemis.device": device,
-      "wifi": wifi,
-    }
+  static id_ --from/ByteArray?=null --to/ByteArray -> string:
+    folder := base64.encode to --url_mode
+    entry := from ? (base64.encode from --url_mode) : "none"
+    return "$folder/$entry"
 
-extract_firmware_bin_ envelope_path/string -> ByteArray:
+abstract class FirmwarePart:
+  from/int
+  to/int
+  constructor .from .to:
+
+  constructor.encoded map/Map:
+    type := map.get "type"
+    if type == "config": return FirmwarePartConfig.encoded map
+    else: return FirmwarePartPatch.encoded map
+
+  abstract encode -> Map
+
+class FirmwarePartPatch extends FirmwarePart:
+  bits/ByteArray? := null
+  hash/ByteArray
+
+  constructor --from/int --to/int --.bits/ByteArray:
+    sha := sha256.Sha256
+    sha.add bits
+    hash = sha.get
+    super from to
+
+  constructor --from/int --to/int --.hash:
+    super from to
+
+  constructor.encoded map/Map:
+    return FirmwarePartPatch --from=map["from"] --to=map["to"] --hash=map["hash"]
+
+  encode -> Map:
+    return { "from": from, "to": to, "hash": hash }
+
+class FirmwarePartConfig extends FirmwarePart:
+  constructor --from/int --to/int:
+    super from to
+
+  constructor.encoded map/Map:
+    return FirmwarePartConfig --from=map["from"] --to=map["to"]
+
+  encode -> Map:
+    return { "from": from, "to": to, "type": "config" }
+
+extract_firmware_ envelope_path/string config/ByteArray? -> Firmware:
+  extract/Map? := null
   with_tmp_directory: | tmp/string |
-    firmware_bin_path := "$tmp/firmware.bin"
-    run_firmware_tool ["-e", envelope_path, "extract", "-o", firmware_bin_path, "--firmware.bin"]
-    return file.read_content firmware_bin_path
-  unreachable
+    firmware_ubjson_path := "$tmp/firmware.ubjson"
+    arguments := ["-e", envelope_path, "extract", "-o", firmware_ubjson_path, "--format=ubjson"]
+    if config:
+      config_path := "$tmp/config.json"
+      write_blob_to_file config_path config
+      arguments += ["--config", config_path]
+
+    run_firmware_tool arguments
+    extract = ubjson.decode (file.read_content firmware_ubjson_path)
+
+  bits := extract["binary"]
+  parts := []
+  checksum/ByteArray? := null
+
+  extract["parts"].do: | entry/Map |
+    from := entry["from"]
+    to := entry["to"]
+    part := bits[from..to]
+
+    if entry["type"] == "config":
+      parts.add (FirmwarePartConfig --to=to --from=from)
+    else if entry["type"] == "checksum":
+      checksum = part
+    else:
+      parts.add (FirmwarePartPatch --to=to --from=from --bits=part)
+
+  return Firmware --bits=bits --parts=parts --checksum=checksum
 
 is_same_broker broker/string identity/Map tmp/string assets_path/string -> bool:
   broker_path := "$tmp/broker.json"

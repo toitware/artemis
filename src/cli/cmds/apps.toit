@@ -3,9 +3,10 @@
 import cli
 
 import ..artemis
+import ..config
 import .device_options_
 
-create_app_commands -> List:
+create_app_commands config/Config -> List:
   install_cmd := cli.Command "install"
       --short_help="Install an app on a device."
       --options=device_options
@@ -18,7 +19,7 @@ create_app_commands -> List:
             --type="input-file"
             --required,
       ]
-      --run=:: install_app it
+      --run=:: install_app config it
 
   uninstall_cmd := cli.Command "uninstall"
       --long_help="Uninstall an app from a device."
@@ -27,30 +28,30 @@ create_app_commands -> List:
         cli.OptionString "app-name"
             --short_help="Name of the app to uninstall.",
       ]
-      --run=:: uninstall_app it
+      --run=:: uninstall_app config it
 
   return [
     install_cmd,
     uninstall_cmd,
   ]
 
-install_app parsed/cli.Parsed:
+install_app config/Config parsed/cli.Parsed:
   app_name := parsed["app-name"]
   device_selector := parsed["device"]
   application_path :=parsed["application"]
 
-  mediator := create_mediator parsed
+  mediator := create_mediator config parsed
   artemis := Artemis mediator
   device_id := artemis.device_selector_to_id device_selector
   artemis.app_install --device_id=device_id --app_name=app_name --application_path=application_path
   artemis.close
   mediator.close
 
-uninstall_app parsed/cli.Parsed:
+uninstall_app config/Config parsed/cli.Parsed:
   app_name := parsed["app-name"]
   device_selector := parsed["device"]
 
-  mediator := create_mediator parsed
+  mediator := create_mediator config parsed
   artemis := Artemis mediator
   device_id := artemis.device_selector_to_id device_selector
   artemis.app_uninstall --device_id=device_id --app_name=app_name

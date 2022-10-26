@@ -153,6 +153,9 @@ class MediatorCliMqtt implements MediatorCli:
   upload_firmware --firmware_id/string parts/List -> none:
     upload_resource_in_parts_ "toit/firmware/$firmware_id" parts
 
+  download_firmware --id/string -> ByteArray:
+    unreachable
+
   upload_resource_ path/string content/ByteArray -> none:
     client_.publish path content --qos=1 --retain
 

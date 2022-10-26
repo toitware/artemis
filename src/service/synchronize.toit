@@ -18,10 +18,15 @@ import ..shared.json_diff show Modification
 import bytes
 import esp32
 import reader show BufferedReader
+import crypto.sha256
 import system.firmware
 import encoding.ubjson
 import encoding.base64
+import encoding.hex
+import binary show LITTLE_ENDIAN
 import ..shared.utils.patch
+
+OLD_BYTES_HACK/ByteArray := #[]
 
 class SynchronizeJob extends Job implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
@@ -189,31 +194,83 @@ class SynchronizeJob extends Job implements EventHandler:
 
   action_firmware_update_ resources/ResourceManager x/string -> Lambda:
     return ::
-      print "x = $x"
-      y := ubjson.decode (base64.decode x)
-      id := y["parts"][0]
-      print "full = $y"
-
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
-      patcher/FirmwarePatcher? := null
-      try:
-        elapsed := Duration.of:
-          resources.fetch_firmware id: | reader/SizedReader offset/int total_size/int |
-            if offset == 0:
-              logger_.info "firmware update" --tags={"id": id, "size": total_size}
-              patcher = FirmwarePatcher logger_ total_size
-            patcher.apply reader
-        logger_.info "firmware update: 100%" --tags={"elapsed": elapsed}
-        // TODO(kasper): It would be great if we could also restart the Artemis
-        // service here for testing purposes.
-        fake_update_firmware id
-        if platform == PLATFORM_FREERTOS: esp32.deep_sleep (Duration --ms=100)
-      finally:
-        if patcher: patcher.close
+      old_update := ubjson.decode (base64.decode config_["firmware"])
+      old_firmware := ubjson.decode (ubjson.decode old_update["config"])["firmware"]
+      update := ubjson.decode (base64.decode x)
+      config_encoded := update["config"]
+      config := ubjson.decode config_encoded
+      firmware := ubjson.decode config["firmware"]
+      grand_total_size := firmware.last["to"]
+
+      collected := null
+      if platform != PLATFORM_FREERTOS: collected = []
+
+      elapsed := Duration.of:
+        firmware.size.repeat: | index/int |
+          part := firmware[index]
+          type := part.get "type"
+          if type == "config":
+            config_bytes := ByteArray part["to"] - part["from"]
+            LITTLE_ENDIAN.put_uint32 config_bytes 0 config_encoded.size
+            config_bytes.replace 4 config_encoded
+            collected.add config_bytes
+            continue.repeat
+
+          id := base64.encode part["hash"] --url_mode
+          // TODO(kasper): This should be based on name/type -- not index.
+          from_id := base64.encode old_firmware[index]["hash"] --url_mode
+
+          from_from := old_firmware[index]["from"]
+          from_to := old_firmware[index]["to"]
+
+          resource := null
+          old := null
+          if from_to <= OLD_BYTES_HACK.size:
+            old = OLD_BYTES_HACK[from_from..from_to]
+            if id == from_id:
+              collected.add old
+              continue.repeat
+            resource = "$id/$from_id"
+          else:
+            resource = "$id/none"
+            old = #[]
+
+          patcher/FirmwarePatcher? := null
+          try:
+            resources.fetch_firmware resource: | reader/SizedReader offset/int total_size/int |
+              if offset == 0:
+                if index == 0: logger_.info "firmware update" --tags={"id": id, "size": grand_total_size}
+                grand_total_offset := index == 0 ? 0 : firmware[index - 1]["to"]
+                patcher = FirmwarePatcher logger_ total_size grand_total_offset grand_total_size
+              patcher.apply reader old
+            if collected: collected.add patcher.writer_.bytes
+          finally:
+            if patcher: patcher.close
+
+      logger_.info "firmware update: 100%" --tags={"elapsed": elapsed}
+
+      if platform != PLATFORM_FREERTOS:
+        collected.add update["checksum"]
+        all := ByteArray 0
+        collected.do: all += it
+        print "Got a grand total of $all.size bytes"
+        sha := sha256.Sha256
+        sha.add all[..all.size - 32]
+        print "Computed checksum = $(hex.encode sha.get)"
+        print "Provided checksum = $(hex.encode all[all.size - 32..])"
+
+      // TODO(kasper): It would be great if we could also restart the Artemis
+      // service here for testing purposes.
+      fake_update_firmware x
+      if platform == PLATFORM_FREERTOS: esp32.deep_sleep (Duration --ms=100)
 
 class FirmwarePatcher implements PatchObserver:
   logger_/log.Logger
+
+  total_size_/int
+  total_offset_/int
 
   patch_size_/int
   patch_offset_checkpointed_/int := 0
@@ -222,19 +279,20 @@ class FirmwarePatcher implements PatchObserver:
   image_offset_/int := 0
   image_offset_checkpointed_/int := 0
 
-  writer_/firmware.FirmwareWriter? := null
+  writer_ := null
 
-  constructor .logger_ .patch_size_:
+  constructor .logger_ .patch_size_ .total_offset_ .total_size_:
     // Do nothing.
 
-  apply reader/SizedReader -> int:
-    old_bytes := #[]
+  apply reader/SizedReader old/ByteArray -> int:
     if image_size_:
       if platform == PLATFORM_FREERTOS:
         writer_ = firmware.FirmwareWriter image_offset_checkpointed_ image_size_
+      else:
+        writer_ = FakeFirmwareWriter.view writer_.bytes image_offset_checkpointed_ image_size_
       image_offset_ = image_offset_checkpointed_
     try:
-      binary_patcher := Patcher (BufferedReader reader) old_bytes
+      binary_patcher := Patcher (BufferedReader reader) old
           --patch_offset=patch_offset_checkpointed_
       binary_patcher.patch this
     finally: | is_exception _ |
@@ -262,10 +320,34 @@ class FirmwarePatcher implements PatchObserver:
     image_size_ = size
     if platform == PLATFORM_FREERTOS:
       writer_ = firmware.FirmwareWriter 0 size
+    else:
+      writer_ = FakeFirmwareWriter size
     image_offset_ = 0
 
   on_checkpoint patch_offset/int -> none:
-    percent := (patch_offset * 100) / patch_size_
+    percent := (image_offset_ + total_offset_) * 100 / total_size_
     logger_.info "firmware update: $(%3d percent)%"
     patch_offset_checkpointed_ = patch_offset
     image_offset_checkpointed_ = image_offset_
+
+class FakeFirmwareWriter:
+  bytes/ByteArray
+  view/ByteArray
+  cursor_ := 0
+
+  constructor size/int:
+    bytes = ByteArray size
+    view = bytes
+
+  constructor.view .bytes from/int to/int:
+    view = bytes[from..to]
+
+  write data/ByteArray:
+    view.replace cursor_ data
+    cursor_ += data.size
+
+  commit -> none:
+    // Yes, yes.
+
+  close -> none:
+    // Si, si.

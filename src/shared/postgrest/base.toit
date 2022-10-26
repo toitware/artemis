@@ -4,6 +4,7 @@ import net
 import monitor
 import http
 import encoding.json
+import reader
 
 import ..mediator
 
@@ -14,6 +15,7 @@ interface PostgrestClient:
   query table/string filters/List -> List?
   update_entry table/string --upsert/bool payload/ByteArray
   upload_resource --path/string --content/ByteArray
+  download_resource --path/string [block] -> none
 
 class MediatorCliPostgrest implements MediatorCli:
   client_/PostgrestClient? := null
@@ -59,6 +61,13 @@ class MediatorCliPostgrest implements MediatorCli:
 
   upload_resource_ path/string content/ByteArray -> none:
     client_.upload_resource --path=path --content=content
+
+  download_firmware --id/string -> ByteArray:
+    content := #[]
+    client_.download_resource --path="assets/firmware/$id": | reader/reader.Reader |
+      while data := reader.read:
+        content += data
+    return content
 
   print_status -> none:
     print_on_stderr_ "The Postgrest client does not support 'status'"
