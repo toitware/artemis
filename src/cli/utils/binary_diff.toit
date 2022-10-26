@@ -39,8 +39,6 @@ literal_block new_bytes/ByteArray fd --total_new_bytes/int?=null --with_footer=f
   start_of_section := 0
   scanning_repeated_bytes := false
   // The loop has two states - counting repeated bytes and literal non-repeated data.
-  // We run in word mode, 4 bytes at a time.  TODO: Check the byte_oriented flag and
-  // do the right thing.
   assert: head.byte_oriented
   for i := 0; i <= new_bytes.size; i++:
     if scanning_repeated_bytes:
