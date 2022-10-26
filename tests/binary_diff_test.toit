@@ -23,13 +23,19 @@ main:
   literal_round_trip
       MOBY_2705_ALIGNED.to_byte_array
   literal_round_trip
-      ByteArray 512
+      MOBY_2705.to_byte_array
   literal_round_trip
-      (ByteArray 90) + MOBY_2705.to_byte_array
+      MOBY_15.to_byte_array
+  literal_round_trip
+      ByteArray 512
+  4.repeat:
+    literal_round_trip
+        (ByteArray 90 + it) + MOBY_2705.to_byte_array
   literal_round_trip
       MOBY_15.to_byte_array + (ByteArray 87) + MOBY_2705.to_byte_array
-  literal_round_trip
-      (ByteArray 87) + MOBY_2705.to_byte_array + (ByteArray 87)
+  4.repeat:
+    literal_round_trip
+        (ByteArray 87) + MOBY_2705.to_byte_array + (ByteArray 87 + it)
   literal_round_trip
       (ByteArray 87 --filler=42) + MOBY_2705.to_byte_array + (ByteArray 87 --filler=91)
 

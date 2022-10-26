@@ -28,22 +28,23 @@ diff old_bytes/OldData new_bytes/ByteArray fd total_new_bytes=new_bytes.size --f
   return bdiff_size
 
 literal_block new_bytes/ByteArray fd --total_new_bytes/int?=null --with_footer=false -> int:
-  if new_bytes.size & 3 != 0: throw "literal_block needs a word-aligned area, but size is $new_bytes.size"
   initial_state := total_new_bytes
       ? InitialState_ (OldData #[] 0 0) new_bytes total_new_bytes --with_header=true
       : InitialState_.no_old_bytes new_bytes --with_header=false
 
   head/Action := initial_state
 
+  head = MoveCursor_ head 0 true  // Switch to byte oriented mode.
+
   start_of_section := 0
   scanning_repeated_bytes := false
   // The loop has two states - counting repeated bytes and literal non-repeated data.
   // We run in word mode, 4 bytes at a time.  TODO: Check the byte_oriented flag and
   // do the right thing.
-  assert: not head.byte_oriented
-  for i := 0; i <= new_bytes.size; i += 4:
+  assert: head.byte_oriented
+  for i := 0; i <= new_bytes.size; i++:
     if scanning_repeated_bytes:
-      if i == new_bytes.size or not all_same_ new_bytes[i - 1..i + 4]:
+      if i == new_bytes.size or not all_same_ new_bytes[i - 1..i + 1]:
         head = RepeatedBytes_ head --repeats=(i - start_of_section) --value=new_bytes[i - 1]
         scanning_repeated_bytes = false
         start_of_section = i
