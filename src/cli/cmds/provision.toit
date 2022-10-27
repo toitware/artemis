@@ -89,11 +89,7 @@ insert_created_event hardware_id/string client/http.Client artemis_broker/Map ->
       --headers=headers
       --path="/rest/v1/$table"
   if response.status_code != 201:
-    print response.status_code
-    data := #[]
-    while chunk := response.body.read: data += chunk
-    print data.to_string
-    throw "Unable to insert 'created' event"
+    throw "Unable to insert 'created' event."
 
 create_identity_file device_id/string fleet_id/string hardware_id/string broker/Map artemis_broker/Map -> none:
   output_path := "$(device_id).identity"
