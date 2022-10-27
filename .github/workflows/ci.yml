@@ -57,7 +57,7 @@ jobs:
             echo "JAGUAR_URL=$JAGUAR_BASE_URL/download/$JAGUAR_VERSION/$JAGUAR_FILE" >> $GITHUB_ENV
           fi
 
-      - name: Setup Environment
+      - name: Setup environment
         shell: bash
         run: |
           echo "ARTEMIS_CONFIG=${{ github.workspace }}/test_config" >> $GITHUB_ENV
