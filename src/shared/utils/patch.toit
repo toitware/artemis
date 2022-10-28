@@ -6,34 +6,6 @@ import system.firmware
 
 import .patch_format
 
-class Peekaboo:
-  reader_/Reader
-  cursor_/int := 0
-  bytes_/ByteArray? := null
-
-  constructor .reader_:
-
-  read_byte -> int:
-    bytes := ensure_bytes_
-    return bytes[cursor_++]
-
-  read --max_size/int -> ByteArray:
-    bytes := ensure_bytes_
-    from := cursor_
-    to := from + (min max_size (bytes.size - from))
-    result := bytes[from..to]
-    cursor_ = to
-    return result
-
-  ensure_bytes_ -> ByteArray:
-    bytes := bytes_
-    if bytes and cursor_ < bytes.size: return bytes
-    bytes = reader_.read
-    if not bytes: throw UNEXPECTED_END_OF_READER_EXCEPTION
-    bytes_ = bytes
-    cursor_ = 0
-    return bytes
-
 interface PatchWriter_:
   on_write data from/int=0 to/int=data.size -> none
 
@@ -43,7 +15,7 @@ interface PatchObserver extends PatchWriter_:
   on_checkpoint patch_position/int -> none
 
 class Patcher:
-  bitstream/Peekaboo
+  bitstream/PatchReader_
   old/firmware.FirmwareMapping?
   patch_position := ?
   old_position := 0
@@ -60,7 +32,7 @@ class Patcher:
   out_checker ::= Sha256
 
   constructor reader/Reader old --patch_offset=0:
-    bitstream = Peekaboo reader
+    bitstream = PatchReader_ reader
     this.old = (old is ByteArray) ? (firmware.FirmwareMapping_ old) : old
     patch_position = patch_offset
     init_
@@ -239,9 +211,8 @@ class Patcher:
     List.chunk_up old_position old_position + byte_count temp_buffer.size: | from to size |
       assert: (from | to) & 3 == 0  // Because of instruction memory.
       old.copy from to --into=temp_buffer
-      out_checker.add temp_buffer 0 size
       writer.on_write temp_buffer 0 size
-      // TODO(kasper): What happens if the writer neuters the temp buffer?
+      out_checker.add temp_buffer 0 size
     old_position += byte_count
     new_position += byte_count
 
@@ -268,9 +239,8 @@ class Patcher:
           byte := old[old_position + it]
           temp_buffer[it] = (byte + diff) & 0xff
         old_position += chunk_size
-        out_checker.add temp_buffer 0 chunk_size
         writer.on_write temp_buffer 0 chunk_size
-        // TODO(kasper): What happens if the writer neuters the temp buffer?
+        out_checker.add temp_buffer 0 chunk_size
         new_position += chunk_size
     else:
       List.chunk_up 0 repeats * 4 temp_buffer.size: | _ _ chunk_size |
@@ -283,9 +253,8 @@ class Patcher:
           temp_buffer[i + 1] = (word >> 8) & 0xff
           temp_buffer[i + 2] = (word >> 16) & 0xff
           temp_buffer[i + 3] = (word >> 24) & 0xff
-        out_checker.add temp_buffer 0 chunk_size
         writer.on_write temp_buffer 0 chunk_size
-        // TODO(kasper): What happens if the writer neuters the temp buffer?
+        out_checker.add temp_buffer 0 chunk_size
 
   ensure_bits_ bits/int -> none:
     while accumulator_size < bits:
@@ -327,18 +296,19 @@ class Patcher:
         // This causes a ByteArray allocation so we don't do it unless we hope
         // to get at least 4 bytes.
         byte_array := bitstream.read --max_size=(bytes - i)
+        // We must hand the bytes to the 'out_checker' and get the size of the
+        // byte array before we call 'on_write'. The writer may neuter the byte
+        // array, so after the call it might be empty.
         out_checker.add byte_array
-        // ...
         size := byte_array.size
-        patch_position += size
+        // Now write the bytes.
         writer.on_write byte_array 0 size
+        patch_position += size
         i += size - 1  // Minus 1 because the loop will increment it.
       else:
         temp_buffer[0] = get_bits_ BITS_PER_BYTE
-        out_checker.add temp_buffer 0 1
         writer.on_write temp_buffer 0 1
-        // TODO(kasper): Document that this can't cause the temp buffer to
-        // get neutered.
+        out_checker.add temp_buffer 0 1
 
   set_byte_oriented_ value/bool -> none:
     byte_oriented = value
@@ -409,3 +379,31 @@ class Patcher:
         dispatch_bits[idx] = command_bits
         argument_bits[idx] = COMMANDS[i + 2]
         argument_offsets[idx] = COMMANDS[i + 3]
+
+class PatchReader_:
+  reader_/Reader
+  cursor_/int := 0
+  bytes_/ByteArray? := null
+
+  constructor .reader_:
+
+  read_byte -> int:
+    bytes := ensure_bytes_
+    return bytes[cursor_++]
+
+  read --max_size/int -> ByteArray:
+    bytes := ensure_bytes_
+    from := cursor_
+    to := from + (min max_size (bytes.size - from))
+    result := bytes[from..to]
+    cursor_ = to
+    return result
+
+  ensure_bytes_ -> ByteArray:
+    bytes := bytes_
+    if bytes and cursor_ < bytes.size: return bytes
+    bytes = reader_.read
+    if not bytes: throw UNEXPECTED_END_OF_READER_EXCEPTION
+    bytes_ = bytes
+    cursor_ = 0
+    return bytes

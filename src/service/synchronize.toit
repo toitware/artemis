@@ -210,8 +210,8 @@ class SynchronizeJob extends Job implements EventHandler:
       update := ubjson.decode (base64.decode x)
       config_encoded := update["config"]
       config := ubjson.decode config_encoded
-      firmwarex := ubjson.decode config["firmware"]
-      grand_total_size := firmwarex.last["to"] + update["checksum"].size
+      firmware_description := ubjson.decode config["firmware"]
+      grand_total_size := firmware_description.last["to"] + update["checksum"].size
 
       logger_.info "firmware update" --tags={"size": grand_total_size}
 
@@ -220,8 +220,8 @@ class SynchronizeJob extends Job implements EventHandler:
           // TODO(kasper): Remember to close the writer in the patcher if
           // everything fails.
           patcher := FirmwarePatcher logger_ old grand_total_size
-          firmwarex.size.repeat: | index/int |
-            part := firmwarex[index]
+          firmware_description.size.repeat: | index/int |
+            part := firmware_description[index]
             type := part.get "type"
 
             if type == "config":

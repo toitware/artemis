@@ -111,7 +111,6 @@ class FirmwareWriter_ extends services.ServiceResource implements FirmwareWriter
     cursor_ += to - from
 
   pad size/int value/int -> none:
-    //print "write: [$(%08d from_ + cursor_) - $(%08d from_ + cursor_ + size)] (pad)"
     to := cursor_ + size
     view_.fill --from=cursor_ --to=to value
     cursor_ = to
