@@ -10,11 +10,14 @@ import ..mediator_service
 import ..status show report_status
 import ...shared.postgrest.supabase as supabase
 
-POLL_INTERVAL ::= Duration --m=1
+POLL_INTERVAL ::= Duration --s=20
+IDLE_TIMEOUT  ::= Duration --m=10
 
 class MediatorServicePostgrest implements MediatorService:
   logger_/log.Logger
   broker_/Map
+  idle_/monitor.Gate ::= monitor.Gate --unlocked
+
   constructor .logger_ .broker_:
 
   connect --device_id/string --callback/EventHandler [block]:
@@ -29,12 +32,14 @@ class MediatorServicePostgrest implements MediatorService:
     handle_task = task::
       try:
         while true:
+          with_timeout IDLE_TIMEOUT: idle_.enter
           info := resources.fetch_json "devices" [ "id=eq.$(device_id)" ]
           new_config/Map? := null
           if info and info.size == 1 and info[0] is Map and info[0].contains "config":
             new_config = info[0]["config"]
           else:
             new_config = {:}
+          idle_.lock
           callback.handle_update_config new_config resources
           sleep POLL_INTERVAL
       finally:
@@ -47,3 +52,6 @@ class MediatorServicePostgrest implements MediatorService:
     finally:
       if handle_task: handle_task.cancel
       disconnected.get
+
+  on_idle -> none:
+    idle_.unlock

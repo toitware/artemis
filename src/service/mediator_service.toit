@@ -11,3 +11,4 @@ interface EventHandler:
 
 interface MediatorService:
   connect --device_id/string --callback/EventHandler [block]
+  on_idle -> none
