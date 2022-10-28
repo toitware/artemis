@@ -11,7 +11,6 @@ import ..status show report_status_setup
 import ..service show run_artemis
 
 main arguments:
-  print "Artemis!"
   decoded ::= assets.decode
   broker := decode_broker "broker" decoded
   device := report_status_setup decoded firmware.config["artemis.device"]
