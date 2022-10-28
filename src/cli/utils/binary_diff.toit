@@ -802,7 +802,6 @@ class Literal_ extends Action:
     new_position_ = predecessor.new_position
     byte_count = size
     if not predecessor.byte_oriented and size & 3 != 0: throw "Literal section must be a multiple of 4"
-    assert: size & 3 == 0
     new_bits_spent := predecessor.bits_spent
     emit_driver byte_count 4: | bits _ _ length |
       new_bits_spent += bits + length * 8
