@@ -82,12 +82,14 @@ add_supabase parsed/cli.Parsed config/Config:
   if not config.contains "brokers":
     config["brokers"] = {:}
   brokers := config.get "brokers"
-  brokers[name] = {
-    "supabase": {
+  supabase_entry := {
       "host": host,
       "anon": anon,
-      "certificate": certificate_name,
-    }
+  }
+  if certificate_name:
+    supabase_entry["certificate"] = certificate_name
+  brokers[name] = {
+    "supabase": supabase_entry
   }
   config.write
   print "Added broker $name"

@@ -89,7 +89,7 @@ insert_created_event hardware_id/string client/http.Client artemis_broker/Map ->
       --headers=headers
       --path="/rest/v1/$table"
   if response.status_code != 201:
-    throw "Unable to insert 'created' event"
+    throw "Unable to insert 'created' event."
 
 create_identity_file device_id/string fleet_id/string hardware_id/string broker/Map artemis_broker/Map -> none:
   output_path := "$(device_id).identity"
@@ -127,10 +127,12 @@ create_identity_file device_id/string fleet_id/string hardware_id/string broker/
 collect_certificates supabase/Map -> Map:
   certificates := {:}
   sha := sha256.Sha256
-  sha.add supabase["certificate"]
-  certificate_key := "certificate-$(base64.encode sha.get[0..8])"
-  certificates[certificate_key] = supabase["certificate"]
-  supabase["certificate"] = certificate_key
+  certificate := supabase.get "certificate"
+  if certificate:
+    sha.add supabase["certificate"]
+    certificate_key := "certificate-$(base64.encode sha.get[0..8])"
+    certificates[certificate_key] = supabase["certificate"]
+    supabase["certificate"] = certificate_key
   return certificates
 
 add_certificate_assets assets_path/string tmp/string certificates/Map -> none:
