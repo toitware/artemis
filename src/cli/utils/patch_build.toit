@@ -17,7 +17,7 @@ build_diff_patch old_bytes/ByteArray new_bytes/ByteArray -> List:
   List.chunk_up 0 total_new_size SUBCHUNK_SIZE: | from to |
     writer := bytes.Buffer
     diff old_data new_bytes[from..to] writer total_new_size
-        --fast
+        --fast=false
         --with_header=(from == 0)
         --with_footer=(to == total_new_size)
     chunks.add writer.bytes

@@ -3,20 +3,23 @@
 import cli
 import host.pipe
 import host.file
+import bytes
+import crypto.sha256
+
 import system.assets
+import system.services
+
+import system.base.firmware show FirmwareWriter FirmwareServiceDefinitionBase
 
 import encoding.json
 import encoding.ubjson
 import encoding.base64
 import encoding.tison
+import encoding.hex
 
 import ..broker show decode_broker
 import ..service show run_artemis
 import ..status show report_status_setup
-
-import ...cli.sdk  // TODO(kasper): This is an annoying dependency.
-
-import ..synchronize show OLD_BYTES_HACK
 
 main arguments:
   root_cmd := cli.Command "root"
@@ -33,20 +36,96 @@ main arguments:
   root_cmd.run arguments
 
 run parsed/cli.Parsed -> none:
-  identity/Map? := null
-
-  firmware := parsed["firmware"]
-  initial_firmware := firmware.to_byte_array
-
-  if parsed["old"]:
-    OLD_BYTES_HACK = file.read_content parsed["old"]
+  bits := null
+  if parsed["old"]: bits = file.read_content parsed["old"]
 
   identity_raw := file.read_content parsed["identity"]
-  identity = ubjson.decode (base64.decode identity_raw)
+  identity := ubjson.decode (base64.decode identity_raw)
+  run_host
+      --identity=identity
+      --encoded=parsed["firmware"]
+      --bits=bits
+
+run_host --identity/Map --encoded/string --bits/ByteArray? -> none:
+  service := FirmwareServiceDefinition bits
+  service.install
+
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
-  identity["artemis.device"] = tison.encode identity["artemis.device"]
   identity["broker"] = tison.encode identity["broker"]
 
-  device := report_status_setup identity
+  device := report_status_setup identity identity["artemis.device"]
   broker := decode_broker "broker" identity
-  run_artemis device broker --initial_firmware=initial_firmware
+  run_artemis device broker --firmware=encoded
+
+// --------------------------------------------------------------------------
+
+class FirmwareServiceDefinition extends FirmwareServiceDefinitionBase:
+  content_/ByteArray?
+
+  constructor .content_:
+    super "system/firmware/artemis" --major=0 --minor=1
+
+  is_validation_pending -> bool:
+    return false
+
+  is_rollback_possible -> bool:
+    return false
+
+  validate -> bool:
+    throw "UNIMPLEMENTED"
+
+  rollback -> none:
+    throw "UNIMPLEMENTED"
+
+  upgrade -> none:
+    // TODO(kasper): Ignored for now.
+
+  config_ubjson -> ByteArray:
+    return ByteArray 0
+
+  config_entry key/string -> any:
+    return null
+
+  content:
+    // TODO(kasper): Avoid this copy. We need it right now
+    // because otherwise we run into trouble because we
+    // seem to receive a 'proxy', not a proper external
+    // byte array on the other side.
+    return content_.copy
+
+  firmware_writer_open client/int from/int to/int -> FirmwareWriter:
+    return FirmwareWriter_ this client from to
+
+class FirmwareWriter_ extends services.ServiceResource implements FirmwareWriter:
+  static image/ByteArray := #[]
+  view_/ByteArray? := null
+  cursor_/int := 0
+
+  constructor service/FirmwareServiceDefinition client/int from/int to/int:
+    if to > image.size: image = image + (ByteArray to - image.size: random 0x100)
+    view_ = image[from..to]
+    super service client
+
+  write bytes/ByteArray from=0 to=bytes.size -> none:
+    view_.replace cursor_ bytes[from..to]
+    cursor_ += to - from
+
+  pad size/int value/int -> none:
+    to := cursor_ + size
+    view_.fill --from=cursor_ --to=to value
+    cursor_ = to
+
+  flush -> none:
+    // Do nothing.
+
+  commit checksum/ByteArray? -> none:
+    print "Got a grand total of $image.size bytes"
+    sha := sha256.Sha256
+    sha.add image[..image.size - 32]
+    print "Computed checksum = $(hex.encode sha.get)"
+    print "Provided checksum = $(hex.encode image[image.size - 32..])"
+    view_ = null
+
+  on_closed -> none:
+    if not view_: return
+    view_ = null

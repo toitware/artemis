@@ -2,6 +2,8 @@
 
 import crypto.sha256 show *
 import reader show *
+import system.firmware
+
 import .patch_format
 
 interface PatchWriter_:
@@ -13,9 +15,8 @@ interface PatchObserver extends PatchWriter_:
   on_checkpoint patch_position/int -> none
 
 class Patcher:
-  bitstream/BufferedReader ::= ?
-  old_bytes/ByteArray
-  byte_list ::= ?
+  bitstream/PatchReader_
+  old/firmware.FirmwareMapping?
   patch_position := ?
   old_position := 0
   new_position := 0
@@ -30,11 +31,9 @@ class Patcher:
   temp_buffer ::= ByteArray 256
   out_checker ::= Sha256
 
-  /// The optional byte_list argument is a version of the old_bytes
-  /// ByteArray that has a [] argument.  This is needed for ByteArrays
-  /// backed by instruction memory.  TODO: Fix so that all ByteArray
-  /// operations work on instruction memory.
-  constructor .bitstream .old_bytes .byte_list=old_bytes --patch_offset=0:
+  constructor reader/Reader old --patch_offset=0:
+    bitstream = PatchReader_ reader
+    this.old = (old is ByteArray) ? (firmware.FirmwareMapping_ old) : old
     patch_position = patch_offset
     init_
 
@@ -117,7 +116,7 @@ class Patcher:
     if diff != 0: throw "ROUND TRIP FAILED"
 
   // Returns true if we are done.
-  // Returns false if old_bytes is incompatible with this patch.
+  // Returns false if old firmware is incompatible with this patch.
   // Throws if the patch format is unexpected.
   // Returns null in the normal case.
   handle_metadata_ ignorable/bool code/int observer/PatchObserver -> bool?:
@@ -136,7 +135,7 @@ class Patcher:
         //   32 bytes of Sha256 checksum.
         start := get_bits_ 24
         length := get_bits_ 24
-        if start < 0 or length < 0 or start + length > old_bytes.size or start + length < start:
+        if start < 0 or length < 0 or start + length > old.size or start + length < start:
           return false
         actual_checksum := get_sha_ start start + length
         diff := 0
@@ -203,7 +202,7 @@ class Patcher:
     buffer ::= ByteArray 128
     List.chunk_up from to buffer.size: | chunk_from chunk_to chunk_size |
       // Replace will only use 32 bit operations.
-      buffer.replace 0 old_bytes chunk_from chunk_to
+      old.copy chunk_from chunk_to --into=buffer
       summer.add buffer 0 chunk_size
     return summer.get
 
@@ -211,7 +210,7 @@ class Patcher:
     assert: (old_position | byte_count) & 3 == 0  // Because of instruction memory.
     List.chunk_up old_position old_position + byte_count temp_buffer.size: | from to size |
       assert: (from | to) & 3 == 0  // Because of instruction memory.
-      temp_buffer.replace 0 old_bytes from to
+      old.copy from to --into=temp_buffer
       writer.on_write temp_buffer 0 size
       out_checker.add temp_buffer 0 size
     old_position += byte_count
@@ -237,7 +236,7 @@ class Patcher:
     if by_bytes:
       List.chunk_up 0 repeats temp_buffer.size: | _ _ chunk_size |
         chunk_size.repeat:
-          byte := byte_list[old_position + it]
+          byte := old[old_position + it]
           temp_buffer[it] = (byte + diff) & 0xff
         old_position += chunk_size
         writer.on_write temp_buffer 0 chunk_size
@@ -246,7 +245,7 @@ class Patcher:
     else:
       List.chunk_up 0 repeats * 4 temp_buffer.size: | _ _ chunk_size |
         for i := 0; i < chunk_size; i += 4:
-          word := byte_list[old_position] + (byte_list[old_position + 1] << 8) + (byte_list[old_position + 2] << 16) + (byte_list[old_position + 3] << 24)
+          word := old[old_position] + (old[old_position + 1] << 8) + (old[old_position + 2] << 16) + (old[old_position + 3] << 24)
           old_position += 4
           new_position += 4
           word += diff
@@ -297,10 +296,15 @@ class Patcher:
         // This causes a ByteArray allocation so we don't do it unless we hope
         // to get at least 4 bytes.
         byte_array := bitstream.read --max_size=(bytes - i)
-        patch_position += byte_array.size
-        writer.on_write byte_array 0 byte_array.size
+        // We must hand the bytes to the 'out_checker' and get the size of the
+        // byte array before we call 'on_write'. The writer may neuter the byte
+        // array, so after the call it might be empty.
         out_checker.add byte_array
-        i += byte_array.size - 1  // Minus 1 because the loop will increment it.
+        size := byte_array.size
+        // Now write the bytes.
+        writer.on_write byte_array 0 size
+        patch_position += size
+        i += size - 1  // Minus 1 because the loop will increment it.
       else:
         temp_buffer[0] = get_bits_ BITS_PER_BYTE
         writer.on_write temp_buffer 0 1
@@ -375,3 +379,31 @@ class Patcher:
         dispatch_bits[idx] = command_bits
         argument_bits[idx] = COMMANDS[i + 2]
         argument_offsets[idx] = COMMANDS[i + 3]
+
+class PatchReader_:
+  reader_/Reader
+  cursor_/int := 0
+  bytes_/ByteArray? := null
+
+  constructor .reader_:
+
+  read_byte -> int:
+    bytes := ensure_bytes_
+    return bytes[cursor_++]
+
+  read --max_size/int -> ByteArray:
+    bytes := ensure_bytes_
+    from := cursor_
+    to := from + (min max_size (bytes.size - from))
+    result := bytes[from..to]
+    cursor_ = to
+    return result
+
+  ensure_bytes_ -> ByteArray:
+    bytes := bytes_
+    if bytes and cursor_ < bytes.size: return bytes
+    bytes = reader_.read
+    if not bytes: throw UNEXPECTED_END_OF_READER_EXCEPTION
+    bytes_ = bytes
+    cursor_ = 0
+    return bytes
