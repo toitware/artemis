@@ -102,6 +102,7 @@ class SynchronizeJob extends Job implements EventHandler:
           logger_.info "synchronized" --tags={"max-offline": max_offline_}
           break
         logger_.info "synchronized"
+        mediator_.on_idle
 
       logger_.info "disconnecting" --tags={"device": device_.id}
 

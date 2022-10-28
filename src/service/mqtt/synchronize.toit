@@ -93,6 +93,9 @@ class MediatorServiceMqtt implements MediatorService:
       finally:
         if handle_task: handle_task.cancel
 
+  on_idle -> none:
+    // Do nothing.
+
   connect_client_ --device_id/string client/mqtt.FullClient -> none:
     topic_presence := topic_presence_for_ device_id
 
