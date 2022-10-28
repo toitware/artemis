@@ -28,18 +28,45 @@ diff old_bytes/OldData new_bytes/ByteArray fd total_new_bytes=new_bytes.size --f
   return bdiff_size
 
 literal_block new_bytes/ByteArray fd --total_new_bytes/int?=null --with_footer=false -> int:
+  if new_bytes.size & 3 != 0: throw "literal_block needs a word-aligned area, but size is $new_bytes.size"
   initial_state := total_new_bytes
       ? InitialState_ (OldData #[] 0 0) new_bytes total_new_bytes --with_header=true
       : InitialState_.no_old_bytes new_bytes --with_header=false
-  literal_action := Literal_.literal_section initial_state new_bytes
 
-  assert: literal_action.bits_spent & 7 == 0
+  head/Action := initial_state
+
+  start_of_section := 0
+  scanning_repeated_bytes := false
+  // The loop has two states - counting repeated bytes and literal non-repeated data.
+  // We run in word mode, 4 bytes at a time.  TODO: Check the byte_oriented flag and
+  // do the right thing.
+  assert: not head.byte_oriented
+  for i := 0; i <= new_bytes.size; i += 4:
+    if scanning_repeated_bytes:
+      if i == new_bytes.size or not all_same_ new_bytes[i - 1..i + 4]:
+        head = RepeatedBytes_ head --repeats=(i - start_of_section) --value=new_bytes[i - 1]
+        scanning_repeated_bytes = false
+        start_of_section = i
+    if not scanning_repeated_bytes:
+      if i == new_bytes.size or (i < new_bytes.size - 8 and all_same_ new_bytes[i..i + 8]):
+        if start_of_section != i:
+          head = Literal_.literal_section head (i - start_of_section)
+        start_of_section = i
+        scanning_repeated_bytes = true
+
+  assert: head.bits_spent & 7 == 0
 
   writer := Writer_ new_bytes
 
-  bdiff_size := writer.write_diff fd literal_action --with_footer=with_footer
+  bdiff_size := writer.write_diff fd head --with_footer=with_footer
 
   return bdiff_size
+
+all_same_ byte_array/ByteArray -> bool:
+  value := byte_array[0]
+  byte_array.size.repeat:
+    if value != byte_array[it]: return false
+  return true
 
 new_checksum_block new_bytes/ByteArray fd checksum/ByteArray --with_header=true -> int:
   initial_state := InitialState_.no_old_bytes new_bytes --with_header
@@ -54,8 +81,11 @@ new_checksum_block new_bytes/ByteArray fd checksum/ByteArray --with_header=true 
   return bdiff_size
 
 class BitSequence_:
+  // First we will output these bits.
   bits/int
+  // This is the number of bits in the above int that are output.
   number_of_bits/int
+  // Once we have output the initial bits, we output this byte array.
   byte_array/ByteArray? := null
   byte_array_start/int := 0
   byte_array_count/int := 0
@@ -64,23 +94,37 @@ class BitSequence_:
 
   constructor .number_of_bits .bits .byte_array .byte_array_start=0 .byte_array_count=byte_array.size:
 
-  static metadata_bits_ data -> ByteArray:
-    // Prepend 16 bit big-endian size field, in bits.
-    return ByteArray data.size + 2:
-      if it < 2:
-        size := data.size * 8
-        continue.ByteArray (size >> (8 - (it * 8))) & 0xff
-      continue.ByteArray data[it - 2]
+  static size_field_ size_in_bits [block]:
+    // 2 bit field gives the size of the size field, 6, 14, 22, or 30 bits.
+    for i := 6; i <= 30; i += 8:
+      if size_in_bits < (1 << i):
+        block.call (i / 8) i
+        return
+    throw "Metadata size too large"
 
   static empty_byte_array_ := ByteArray 0
 
+  // Specialized constructor used by the Metadata actions.
+  // Emits the 16 bit metadata code, then the size, then the
+  // byte array.
   constructor.metadata code/int --ignorable/bool data=empty_byte_array_:
     number_of_bits = 16
     assert: 0 <= code <= 0x7f
     bits = (ignorable ? IGNORABLE_METADATA : NON_IGNORABLE_METADATA) + code
-    byte_array = metadata_bits_ data
-    byte_array_start = 0
-    byte_array_count = byte_array.size
+
+    // Append variable sized big-endian size field, in bits.
+    size := data.size * 8
+    size_field_size := 0
+    size_code := 0
+    size_field_ size: | size_code size_field_size |
+      bits <<= 2
+      bits |= size_code
+      bits <<= size_field_size
+      bits |= size
+      number_of_bits += 2 + size_field_size
+
+    byte_array = data
+    byte_array_count = data.size
 
 /// Immutable diff table structure.  Always returns a new
 /// one rather than mutating it.  This is used for creating
@@ -366,15 +410,15 @@ abstract class Action:
     return "$(%-30s new) $(%8d pos)"
 
 /// Returns a non-negative number as a series of bytes in big-endian order.
-metadata_number_ x:
+/// Since the size of the data attached to the metadata is given, we can
+///   use 8 bit numbers, 16 bit number, 24 bit numbers etc.
+metadata_number_ x -> ByteArray:
   assert: x >= 0
   little_endian := []
   while x != 0:
     little_endian.add x & 0xff
     x >>= 8
-  big_endian := []
-  little_endian.do --reversed: big_endian.add it
-  return big_endian
+  return ByteArray little_endian.size: little_endian[little_endian.size - 1 - it]
 
 class InitialState_ extends Action:
   with_header_ ::= ?
@@ -426,6 +470,43 @@ class InitialState_ extends Action:
 
   roughly_equals other -> bool:
     return false
+
+class RepeatedBytes_ extends Action:
+  value /int
+  repeats /int
+  constructor predecessor/Action --.repeats --.value=0:
+    super.private_ predecessor predecessor.diff_table predecessor.old_position
+        predecessor.new_position + repeats
+        predecessor.bits_spent + 24 + (value == 0 ? 0 : 8)
+    if not byte_oriented: assert: repeats % 4 == 0
+
+  emit_bits optional_pad/int -> List:
+    rep := byte_oriented ? repeats : repeats / 4
+    if value == 0:
+      return [BitSequence_.metadata 'Z' --ignorable=false (metadata_number_ rep)]
+    else:
+      return [BitSequence_.metadata 'L' --ignorable=false (#[value] + (metadata_number_ rep))]
+
+  stringify -> string:
+    return "Repeated, value=$value, repeats=$repeats"
+
+  short_string -> string:
+    return "Repeated, value=$value, repeats=$repeats"
+
+  comparable_hash_code -> int:
+    return (value + 1) * repeats
+
+  compare other -> bool:
+    if other is not RepeatedBytes_: return false
+    if other.value != value: return false
+    if other.repeats != repeats: return false
+    return base_compare_ other
+
+  rough_hash_code -> int:
+    return (value + 1) * repeats
+
+  roughly_equals other -> bool:
+    return compare other
 
 class SpecialAction_ extends Action:
   hash_code_ := 0
@@ -554,7 +635,7 @@ class MoveCursor_ extends Action:
     if predecessor.byte_oriented != byte_oriented or not in_byte_range:
       location := ByteArray 3: (old_position >> (8 * (2 - it))) & 0xff
       flag := byte_oriented ? 1 : 0
-      return [BitSequence_ 8 0b1110_1110 + flag location 0 3]
+      return [BitSequence_ 8 0b1110_1110 + flag location]
     if step.abs == 1:
       if step == 1:
         return [BitSequence_ 8 0b1111_1101]
@@ -718,10 +799,10 @@ class Literal_ extends Action:
       predecessor.new_position + predecessor.data_width_  // Overwrite, so we still step forwards.
       predecessor.bits_spent + 8 + 8 * predecessor.data_width_
 
-  constructor.literal_section predecessor/Action bytes/ByteArray:
-    new_position_ = 0
-    byte_count = bytes.size
-    assert: bytes.size & 3 == 0
+  constructor.literal_section predecessor/Action size/int:
+    new_position_ = predecessor.new_position
+    byte_count = size
+    assert: size & 3 == 0
     new_bits_spent := predecessor.bits_spent
     emit_driver byte_count 4: | bits _ _ length |
       new_bits_spent += bits + length * 8
@@ -1211,7 +1292,7 @@ class Writer_:
     one_byte_buffer := ByteArray 1
     all_actions.do: | action |
       next_byte_boundary := round_up number_of_bits 8
-      (action.emit_bits next_byte_boundary - number_of_bits).do: | to_output |
+      (action.emit_bits next_byte_boundary - number_of_bits).do: | to_output/BitSequence_ |
         accumulator <<= to_output.number_of_bits
         accumulator |= to_output.bits
         number_of_bits += to_output.number_of_bits
