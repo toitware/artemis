@@ -11,15 +11,24 @@ import ..status show report_status_setup
 import ..service show run_artemis
 
 main arguments:
+  print "Artemis!"
   decoded ::= assets.decode
   broker := decode_broker "broker" decoded
   device := report_status_setup decoded firmware.config["artemis.device"]
-  // TODO(kasper): We're missing the correct checksum. This
-  // means that the firmware will appear outdated when we
-  // synchronize with the cloud.
+
+  yyy := ubjson.decode firmware.config["firmware"]
+  end := yyy.last["to"]
+
   update := ubjson.encode {
     "config"   : firmware.config.ubjson,
-    "checksum" : ByteArray 33,
+    "checksum" : checksum end,
   }
   firmware := base64.encode update
   run_artemis device broker --firmware=firmware
+
+checksum end/int -> ByteArray:
+  firmware.map: | current/firmware.FirmwareMapping? |
+    bytes := ByteArray 33
+    if current: current.copy end (end + bytes.size) --into=bytes
+    return bytes
+  unreachable

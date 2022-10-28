@@ -10,7 +10,7 @@ import ..mediator_service
 import ..status show report_status
 import ...shared.postgrest.supabase as supabase
 
-POLL_INTERVAL ::= Duration --m=1
+POLL_INTERVAL ::= Duration --m=2
 
 class MediatorServicePostgrest implements MediatorService:
   logger_/log.Logger

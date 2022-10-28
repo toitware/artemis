@@ -8,7 +8,8 @@ import crypto.sha256
 
 import system.assets
 import system.services
-import system.api.firmware show FirmwareService
+
+import system.base.firmware show FirmwareWriter FirmwareServiceDefinitionBase
 
 import encoding.json
 import encoding.ubjson
@@ -58,42 +59,11 @@ run_host --identity/Map --encoding/string --bits/ByteArray? -> none:
 
 // --------------------------------------------------------------------------
 
-class FirmwareServiceDefinition extends services.ServiceDefinition:
+class FirmwareServiceDefinition extends FirmwareServiceDefinitionBase:
   content_/ByteArray?
 
   constructor .content_:
     super "system/firmware/artemis" --major=0 --minor=1
-    provides FirmwareService.UUID FirmwareService.MAJOR FirmwareService.MINOR
-
-  handle pid/int client/int index/int arguments/any -> any:
-    if index == FirmwareService.IS_VALIDATION_PENDING_INDEX:
-      return is_validation_pending
-    if index == FirmwareService.IS_ROLLBACK_POSSIBLE_INDEX:
-      return is_rollback_possible
-    if index == FirmwareService.VALIDATE_INDEX:
-      return validate
-    if index == FirmwareService.UPGRADE_INDEX:
-      return upgrade
-    if index == FirmwareService.ROLLBACK_INDEX:
-      return rollback
-    if index == FirmwareService.CONFIG_UBJSON_INDEX:
-      return config_ubjson
-    if index == FirmwareService.CONFIG_ENTRY_INDEX:
-      return config_entry arguments
-    if index == FirmwareService.CONTENT_INDEX:
-      return content
-    if index == FirmwareService.FIRMWARE_WRITER_OPEN_INDEX:
-      return firmware_writer_open client arguments[0] arguments[1]
-    if index == FirmwareService.FIRMWARE_WRITER_WRITE_INDEX:
-      writer ::= (resource client arguments[0]) as FirmwareWriter
-      return firmware_writer_write writer arguments[1]
-    if index == FirmwareService.FIRMWARE_WRITER_PAD_INDEX:
-      writer ::= (resource client arguments[0]) as FirmwareWriter
-      return firmware_writer_pad writer arguments[1] arguments[2]
-    if index == FirmwareService.FIRMWARE_WRITER_COMMIT_INDEX:
-      writer ::= (resource client arguments[0]) as FirmwareWriter
-      return firmware_writer_commit writer arguments[1]
-    unreachable
 
   is_validation_pending -> bool:
     return false
@@ -123,22 +93,10 @@ class FirmwareServiceDefinition extends services.ServiceDefinition:
     // byte array on the other side.
     return content_.copy
 
-  firmware_writer_open from/int to/int -> int:
-    unreachable  // TODO(kasper): Nasty.
+  firmware_writer_open client/int from/int to/int -> FirmwareWriter:
+    return FirmwareWriter_ this client from to
 
-  firmware_writer_open client/int from/int to/int -> services.ServiceResource:
-    return FirmwareWriter this client from to
-
-  firmware_writer_write writer/FirmwareWriter bytes/ByteArray -> none:
-    writer.write bytes
-
-  firmware_writer_pad writer/FirmwareWriter size/int value/int -> none:
-    writer.pad size value
-
-  firmware_writer_commit writer/FirmwareWriter checksum/ByteArray? -> none:
-    writer.commit checksum
-
-class FirmwareWriter extends services.ServiceResource:
+class FirmwareWriter_ extends services.ServiceResource implements FirmwareWriter:
   static image/ByteArray := #[]
   view_/ByteArray? := null
   cursor_/int := 0
@@ -153,9 +111,13 @@ class FirmwareWriter extends services.ServiceResource:
     cursor_ += to - from
 
   pad size/int value/int -> none:
+    //print "write: [$(%08d from_ + cursor_) - $(%08d from_ + cursor_ + size)] (pad)"
     to := cursor_ + size
     view_.fill --from=cursor_ --to=to value
     cursor_ = to
+
+  flush -> none:
+    // Do nothing.
 
   commit checksum/ByteArray? -> none:
     print "Got a grand total of $image.size bytes"

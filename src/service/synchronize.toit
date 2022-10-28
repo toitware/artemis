@@ -3,7 +3,7 @@
 import log
 import monitor
 import uuid
-import reader show SizedReader
+import reader show SizedReader UNEXPECTED_END_OF_READER_EXCEPTION
 import system.containers
 
 import .applications
@@ -17,13 +17,15 @@ import ..shared.json_diff show Modification
 // TODO(kasper): Move this elsewhere?
 import bytes
 import esp32
-import reader show BufferedReader
 import crypto.sha256
 import system.firmware
 import encoding.ubjson
 import encoding.base64
+import encoding.hex  // Temporary.
 import binary show LITTLE_ENDIAN
 import ..shared.utils.patch
+
+validate_firmware / bool := firmware.is_validation_pending
 
 class SynchronizeJob extends Job implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
@@ -85,6 +87,16 @@ class SynchronizeJob extends Job implements EventHandler:
           assert: actions_.size == 0  // No issues with getting blocked on send.
           actions_.send (action_app_fetch_ resources)
           continue
+
+        // We've successfully connected to the network, so we consider
+        // the current firmware functional. Go ahead and validate the
+        // firmware if requested to do so.
+        if validate_firmware:
+          if firmware.validate:
+            logger_.info "firmware update validated after connecting to network"
+            validate_firmware = false
+          else:
+            logger_.error "firmware update failed to validate"
 
         if max_offline_:
           logger_.info "synchronized" --tags={"max-offline": max_offline_}
@@ -204,80 +216,98 @@ class SynchronizeJob extends Job implements EventHandler:
       logger_.info "firmware update" --tags={"size": grand_total_size}
 
       elapsed := Duration.of:
-        firmwarex.size.repeat: | index/int |
-          is_last := index == firmwarex.size - 1
-          part := firmwarex[index]
-          type := part.get "type"
+        firmware.map: | old/firmware.FirmwareMapping? |
+          // TODO(kasper): Remember to close the writer in the patcher if
+          // everything fails.
+          patcher := FirmwarePatcher logger_ old grand_total_size
+          firmwarex.size.repeat: | index/int |
+            part := firmwarex[index]
+            type := part.get "type"
 
-          checksum := is_last ? update["checksum"] : null
-          patcher := FirmwarePatcher logger_ part["from"] part["to"] grand_total_size checksum
+            if type == "config":
+              patcher.write_config part config_encoded
+            else:
+              // TODO(kasper): This should be based on name/type -- not index.
+              patcher.write_part part resources old_firmware[index]
 
-          if type == "config":
-            patcher.write_config config_encoded
-          else:
-            // TODO(kasper): This should be based on name/type -- not index.
-            patcher.write_part part resources old_firmware[index]
+          patcher.write_checksum update["checksum"]
 
       logger_.info "firmware update: 100%" --tags={"elapsed": elapsed}
       fake_update_firmware x  // TODO(kasper): Is this still fake?
       firmware.upgrade
 
-
 class FirmwarePatcher implements PatchObserver:
   logger_/log.Logger
-  from_/int
-  to_/int
-  checksum_/ByteArray?
+  next_print_offset_/int := 0
 
-  offset_/int := ?
+  // old
+  old_/firmware.FirmwareMapping?
+
+  // new
+  writer_/firmware.FirmwareWriter := ?
   total_size_/int
+  offset_/int := ?
+  skip_/int := ?
 
-  image_offset_checkpointed_/int := ?
-  patch_offset_checkpointed_/int := 0
+  // committed
+  image_offset_checkpointed_/int := 0
+  image_skip_checkpointed_/int := 0
+  patch_offset_checkpointed_/int := -1
 
-  writer_/firmware.FirmwareWriter? := null
+  // uncommitted
+  remaining_/int := 0
+  prepared_patch_offset_/int := -1
+  prepared_image_skip_/int := -1
 
-  constructor .logger_ .from_ .to_ .total_size_ .checksum_:
-    offset_ = from_
-    image_offset_checkpointed_ = from_
+  constructor .logger_ .old_ size/int:
+    // TODO(kasper): Properly initialize skip and offset if
+    // we're resuming after powerloss or dropped connection.
+    offset_ = 0
+    skip_ = 0
+    total_size_ = size
+    writer_ = firmware.FirmwareWriter offset_ size
 
-  write_config config/ByteArray -> none:
-    padded_size := to_ - from_
+  write_config part/Map config/ByteArray -> none:
+    padded_size := part["to"] - part["from"]
     size := ByteArray 4
     LITTLE_ENDIAN.put_uint32 size 0 config.size
-    write_: | writer/firmware.FirmwareWriter |
-      writer.write size
-      writer.write config
-      writer.pad padded_size - (config.size + 4)
-      on_checkpoint 0  // TODO(kasper): This is a bit weird.
+    on_write size
+    on_write config
+    pad_ padded_size - (config.size + 4)
+
+  write_checksum checksum/ByteArray -> none:
+    on_write checksum
+    writer_.commit
 
   write_part part/Map resources/ResourceManager existing/Map -> none:
     new_hash := part["hash"]
     old_hash := existing["hash"]
 
-    old_from := existing["from"]
-    old_to := existing["to"]
+    old/firmware.FirmwareMapping? := null
+    if old_:
+      old_from := existing["from"]
+      old_to := existing["to"]
+      old = old_[old_from..old_to]
 
-    old := firmware.content
-    if old_to <= old.size:
-      old = old[old_from..old_to]
-      if new_hash == old_hash:
-        write_: | writer/firmware.FirmwareWriter |
-          List.chunk_up 0 old.size 512: | from to |
-            writer.write old[from..to]
-          on_checkpoint 0  // TODO(kasper): This is a bit weird.
-        return
+    if old and new_hash == old_hash:
+      chunk := ByteArray 512
+      List.chunk_up 0 old.size chunk.size: | from to size |
+        old.copy from to --into=chunk
+        on_write chunk[0..size]
+      return
 
     new_id := base64.encode new_hash --url_mode
-    old_id := base64.encode old_hash --url_mode
     resource := null
     if old:
+      old_id := base64.encode old_hash --url_mode
       resource = "$new_id/$old_id"
     else:
       resource = "$new_id/none"
-      old = #[]
 
+    // Reset the patch state.
     patch_size := 0
+    patch_offset_checkpointed_ = 0
+
     resources.fetch_firmware resource: | reader/SizedReader offset/int total_size/int |
       // TODO(kasper): This isn't very elegant. We need the patch size
       // to determine when we're done with the patch, but we only get
@@ -285,30 +315,56 @@ class FirmwarePatcher implements PatchObserver:
       if offset == 0: patch_size = total_size
       apply_ reader old patch_size
 
-  apply_ reader/SizedReader old/ByteArray patch_size/int -> int:
-    write_: | writer/firmware.FirmwareWriter |
-      offset_ = image_offset_checkpointed_
-      binary_patcher := Patcher (BufferedReader reader) old
-          --patch_offset=patch_offset_checkpointed_
-      exception := catch: binary_patcher.patch this
-      return exception == null ? patch_size : patch_offset_checkpointed_
-    unreachable
+  apply_ reader/SizedReader old/firmware.FirmwareMapping? patch_size/int -> int:
+    start := patch_offset_checkpointed_
+    binary_patcher := Patcher reader old --patch_offset=start
+    exception := catch --unwind=(: it != UNEXPECTED_END_OF_READER_EXCEPTION or patch_offset_checkpointed_ == start):
+      binary_patcher.patch this
+    if not exception: return patch_size
 
-  write_ [block]:
-    try:
-      extra := checksum_ ? checksum_.size : 0
-      writer_ = firmware.FirmwareWriter image_offset_checkpointed_ (to_ + extra)
-      block.call writer_
-      if not checksum_: return
-      writer_.write checksum_
-      writer_.commit
-    finally:
-      if writer_: writer_.close
-      writer_ = null
+    // Go back to last checkpoint.
+    logger_.info "going back to checkpoint" --tags={"offset": image_offset_checkpointed_, "skip": image_skip_checkpointed_}
+    remaining_ = 0
+    skip_ = image_skip_checkpointed_
+    offset_ = image_offset_checkpointed_ - skip_
+    writer_.close
+    writer_ = firmware.FirmwareWriter image_offset_checkpointed_ total_size_
+    return patch_offset_checkpointed_
+
+  pad_ padding/int -> none:
+    write_ 0 padding: | x y | writer_.pad (y - x)
 
   on_write data from/int=0 to/int=data.size -> none:
-    if writer_: writer_.write data[from..to]
+    write_ from to: | x y | writer_.write data[x..y]
+
+  write_ from/int to/int [write] -> none:
+    // Skip over already written parts.
+    to_skip := min skip_ (to - from)
+    if to_skip > 0:
+      skip_ -= to_skip
+      offset_ += to_skip
+      if skip_ > 0: return
+      from += to_skip
+
+    // Then try to get to a checkpoint.
+    to_write := min remaining_ (to - from)
+    if to_write > 0:
+      write.call from (from + to_write)
+      remaining_ -= to_write
+      offset_ += to_write
+      if remaining_ > 0: return
+      commit_checkpoint
+      from += to_write
+
+    // Write the rest.
+    write.call from to
     offset_ += to - from
+
+    // Give us some nice progress tracking.
+    if offset_ > next_print_offset_:
+      percent := (offset_ * 100) / total_size_
+      logger_.info "firmware update: $(%3d percent)%"
+      next_print_offset_ = offset_ + 64 * 1024
 
   on_new_checksum hash/ByteArray -> none:
     unreachable
@@ -317,7 +373,19 @@ class FirmwarePatcher implements PatchObserver:
     // Do nothing.
 
   on_checkpoint patch_offset/int -> none:
-    percent := offset_  * 100 / total_size_
-    logger_.info "firmware update: $(%3d percent)%"
-    patch_offset_checkpointed_ = patch_offset
+    if skip_ > 0 or remaining_ > 0: return
+    prepared_patch_offset_ = patch_offset
+    align := offset_ & 0xf
+    prepared_image_skip_ = align == 0 ? 0 : 16 - align
+    if prepared_image_skip_ == 0:
+      commit_checkpoint
+    else:
+      remaining_ = prepared_image_skip_
+
+  commit_checkpoint -> none:
+    writer_.flush
     image_offset_checkpointed_ = offset_
+    patch_offset_checkpointed_ = prepared_patch_offset_
+    image_skip_checkpointed_ = prepared_image_skip_
+    prepared_patch_offset_ = -1
+    prepared_image_skip_ = -1

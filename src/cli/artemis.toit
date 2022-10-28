@@ -5,6 +5,7 @@ import host.file
 import uuid
 import bytes
 import reader
+import system.firmware
 
 import encoding.base64
 import encoding.ubjson
@@ -241,8 +242,8 @@ class FirmwarePatch:
     trivial_old := null
     catch: trivial_old = mediator.download_firmware --id=(id_ --to=from_)
     if not trivial_old: return
-    bitstream := reader.BufferedReader (bytes.Reader trivial_old)
-    patcher := Patcher bitstream #[]
+    bitstream := bytes.Reader trivial_old
+    patcher := Patcher bitstream null
     writer := PatchWriter
     if not patcher.patch writer: return
     // Build the old bits and check that we get the correct hash.
@@ -254,12 +255,12 @@ class FirmwarePatch:
     // Build the diff and verify that we can apply it and get the
     // correct hash out before uploading it.
     diff := build_diff_patch old bits_
-    if to_ != (compute_applied_hash_ diff old bits_): return
+    if to_ != (compute_applied_hash_ diff old): return
     mediator.upload_firmware --firmware_id=(id_ --from=from_ --to=to_) diff
 
-  static compute_applied_hash_ diff/List old/ByteArray new/ByteArray -> ByteArray?:
+  static compute_applied_hash_ diff/List old/ByteArray -> ByteArray?:
     combined := diff.reduce --initial=#[]: | acc chunk | acc + chunk
-    bitstream := reader.BufferedReader (bytes.Reader combined)
+    bitstream := bytes.Reader combined
     patcher := Patcher bitstream old
     writer := PatchWriter
     if not patcher.patch writer: return null
