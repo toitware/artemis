@@ -721,8 +721,7 @@ class Literal_ extends Action:
   constructor.literal_section predecessor/Action bytes/ByteArray:
     new_position_ = 0
     byte_count = bytes.size
-    // TODO(kasper): We need to think about this!
-    // assert: bytes.size & 3 == 0
+    assert: bytes.size & 3 == 0
     new_bits_spent := predecessor.bits_spent
     emit_driver byte_count 4: | bits _ _ length |
       new_bits_spent += bits + length * 8
