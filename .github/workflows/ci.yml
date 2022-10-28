@@ -57,6 +57,11 @@ jobs:
             echo "JAGUAR_URL=$JAGUAR_BASE_URL/download/$JAGUAR_VERSION/$JAGUAR_FILE" >> $GITHUB_ENV
           fi
 
+      - name: Setup environment
+        shell: bash
+        run: |
+          echo "ARTEMIS_CONFIG=${{ github.workspace }}/test_config" >> $GITHUB_ENV
+
       # Fetch the dependencies. Different for each platform.
       - name: Install dependencies - Linux
         if: runner.os == 'Linux'
@@ -77,6 +82,35 @@ jobs:
           choco install ninja
           ninja --version
           cmake --version
+
+      - name: Install Supabase
+        uses: supabase/setup-cli@v1
+
+      - name: Start Supabase
+        shell: bash
+        working-directory: ${{ github.workspace }}/tests
+        run: |
+          supabase start
+          supabase status
+
+          # Sample output of supabase status:
+          # supabase local development setup is running.
+          #
+          #         API URL: http://localhost:54321
+          #           DB URL: postgresql://postgres:postgres@localhost:54322/postgres
+          #       Studio URL: http://localhost:54323
+          #     Inbucket URL: http://localhost:54324
+          #       JWT secret: super-secret-jwt-token-with-at-least-32-characters-long
+          #         anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ.625_WdcF3KHqz5amU0x2X5WWHP-OEs_4qj0ssLNHzTs
+          # service_role key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSJ9.vI9obAHOGyVVKa3pD--kJlyxp-Z2zV9UUMAhKpNLAcU
+
+          API_URL_LINE=$(supabase status | grep "API URL:")
+          API_URL=${API_URL_LINE#*API URL: }
+          API_HOST=${API_URL#*http://}
+          ANON_KEY_LINE=$(supabase status | grep "anon key:")
+          ANON_KEY=${ANON_KEY_LINE#*anon key: }
+          echo "API_HOST=$API_HOST" >> $GITHUB_ENV
+          echo "ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
       - uses: suisei-cn/actions-download-file@v1
         name: Download Toit
@@ -118,6 +152,19 @@ jobs:
       - name: Install packages
         run: |
           make install-pkgs
+
+      - name: Setup local broker
+        shell: bash
+        run: |
+          $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-broker" $API_HOST $ANON_KEY
+          cat $ARTEMIS_CONFIG
+
+      - name: Test provision
+        run: |
+          $TOIT_EXEC src/cli/cli.toit provision create-identity \
+              --broker=test-broker \
+              --broker.artemis=test-broker
+          ls
 
       - name: Test
         run: |
