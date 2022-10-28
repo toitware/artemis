@@ -43,10 +43,10 @@ run parsed/cli.Parsed -> none:
   identity := ubjson.decode (base64.decode identity_raw)
   run_host
       --identity=identity
-      --encoding=parsed["firmware"]
+      --encoded=parsed["firmware"]
       --bits=bits
 
-run_host --identity/Map --encoding/string --bits/ByteArray? -> none:
+run_host --identity/Map --encoded/string --bits/ByteArray? -> none:
   service := FirmwareServiceDefinition bits
   service.install
 
@@ -55,7 +55,7 @@ run_host --identity/Map --encoding/string --bits/ByteArray? -> none:
 
   device := report_status_setup identity identity["artemis.device"]
   broker := decode_broker "broker" identity
-  run_artemis device broker --firmware=encoding
+  run_artemis device broker --firmware=encoded
 
 // --------------------------------------------------------------------------
 

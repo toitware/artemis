@@ -152,7 +152,7 @@ flash_firmware config/Config parsed/cli.Parsed:
   if parsed["simulate"]:
     run_host
         --identity=identity
-        --encoding=update.encoding
+        --encoded=update.encoded
         --bits=update.firmware.bits
     return
 

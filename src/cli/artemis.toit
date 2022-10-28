@@ -67,11 +67,11 @@ class Artemis:
         config.remove "max-offline"
       config
 
-  firmware_create
+  firmware_create -> FirmwareUpdate
       --identity/Map
       --wifi/Map
       --device_id/string
-      --firmware_path/string -> FirmwareUpdate:
+      --firmware_path/string:
     with_tmp_directory: | tmp/string |
       artemis_assets_path := "$tmp/artemis.assets"
       run_firmware_tool [
@@ -104,7 +104,7 @@ class Artemis:
 
       // TODO(kasper): We actually don't have to update the device configuration
       // stored in the online database unless we think it may contain garbage.
-      config["firmware"] = upgrade_to.encoding
+      config["firmware"] = upgrade_to.encoded
       config
 
     return firmware
@@ -140,24 +140,24 @@ class Artemis:
 
       patches := upgrade_to.patches upgrade_from
       patches.do: | patch/FirmwarePatch | patch.upload mediator_
-      config["firmware"] = upgrade_to.encoding
+      config["firmware"] = upgrade_to.encoded
       config
 
   // TODO(kasper): Turn this into a static method on FirmwareUpdate?
   compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string -> FirmwareUpdate:
     unconfigured := extract_firmware_ envelope_path null
-    encoding := unconfigured.encoding
+    encoded := unconfigured.encoded
     while true:
       config := ubjson.encode {
         "artemis.device" : device,
         "wifi"           : wifi,
-        "firmware"       : encoding,
+        "firmware"       : encoded,
       }
 
       configured := extract_firmware_ envelope_path config
-      if configured.encoding == encoding:
+      if configured.encoded == encoded:
         return FirmwareUpdate configured config
-      encoding = configured.encoding
+      encoded = configured.encoded
 
 class PatchWriter implements PatchObserver:
   buffer/bytes.Buffer ::= bytes.Buffer
@@ -173,18 +173,18 @@ class PatchWriter implements PatchObserver:
 
 class FirmwareUpdate:
   firmware/Firmware
-  encoding/string
+  encoded/string
   config/ByteArray
   config_/Map
 
   constructor .firmware .config:
     map := { "config": config, "checksum": firmware.checksum }
-    encoding = base64.encode (ubjson.encode map)
+    encoded = base64.encode (ubjson.encode map)
     config_ = ubjson.decode config
     assert: config_["firmware"] == firmware.encoding
 
-  constructor.encoded .encoding:
-    map := ubjson.decode (base64.decode encoding)
+  constructor.encoded .encoded:
+    map := ubjson.decode (base64.decode encoded)
     config = map["config"]
     config_ = ubjson.decode config
     firmware = Firmware.encoded config_["firmware"] --checksum=map["checksum"]
@@ -212,14 +212,14 @@ class Firmware:
   bits/ByteArray?
   parts/List
   checksum/ByteArray
-  encoding/ByteArray
+  encoded/ByteArray
 
   constructor --.bits --.parts --.checksum:
-    encoding = ubjson.encode (parts.map: it.encode)
+    encoded = ubjson.encode (parts.map: it.encode)
 
-  constructor.encoded .encoding --.checksum:
+  constructor.encoded .encoded --.checksum:
     bits = null
-    list := ubjson.decode encoding
+    list := ubjson.decode encoded
     parts = list.map: FirmwarePart.encoded it
 
 class FirmwarePatch:
