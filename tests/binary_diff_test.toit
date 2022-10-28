@@ -18,6 +18,20 @@ main:
   round_trip
       MOBY_2705.to_byte_array
       MOBY_15.to_byte_array
+  MOBY_2705_ALIGNED ::= MOBY_2705[..MOBY_2705.size & ~3]
+  MOBY_15_ALLIGNED ::= MOBY_15[..MOBY_15.size & ~3]
+  literal_round_trip
+      MOBY_2705_ALIGNED.to_byte_array
+  literal_round_trip
+      ByteArray 512
+  literal_round_trip
+      (ByteArray 90) + MOBY_2705.to_byte_array
+  literal_round_trip
+      MOBY_15.to_byte_array + (ByteArray 87) + MOBY_2705.to_byte_array
+  literal_round_trip
+      (ByteArray 87) + MOBY_2705.to_byte_array + (ByteArray 87)
+  literal_round_trip
+      (ByteArray 87 --filler=42) + MOBY_2705.to_byte_array + (ByteArray 87 --filler=91)
 
 one_way -> none:
   zeros := ByteArray 32
@@ -110,7 +124,7 @@ one_way -> none:
   result = writer.bytes
 
   expected := #[
-      0x7f, 0x52, 0x00, 0x00, 0xfb, 0x0a, 0x48, 0x61, 0x62, 0x65,
+      0x7f, 0x52, 0x00, 0xfb, 0x0a, 0x48, 0x61, 0x62, 0x65,
       0x20, 0x6e, 0x75, 0x6e, 0x2c, 0x20, 0x61, 0x63, 0x68, 0x21,
       0x20, 0x50, 0x68, 0x69, 0x6c, 0x6f, 0x73, 0x6f, 0x70, 0x68,
       0x69, 0x65, 0x2c, 0x0a, 0x4a, 0x75, 0x72, 0x69, 0x73, 0x74,
@@ -173,7 +187,7 @@ one_way -> none:
 
   // Just swapping the order of the bytes is quite compact.
   expected = #[
-      0x7f, 0x52, 0x00, 0x00, 0xef, 0x00, 0x04, 0x86, 0x7e, 0x03,
+      0x7f, 0x52, 0x00, 0xef, 0x00, 0x04, 0x86, 0x7e, 0x03,
       0x96, 0xf8, 0x48, 0xef, 0x00, 0x00, 0x01, 0x7e, 0x03, 0x86]
 
   expect_bytes_equal expected result
@@ -240,6 +254,24 @@ round_trip now/ByteArray to/ByteArray -> none:
 
   expect_equals to.size test_writer.size
   expect_equals to test_writer.writer.bytes
+
+literal_round_trip now/ByteArray -> none:
+  writer := Buffer
+  literal_block now writer --total_new_bytes=now.size --with_footer=true
+
+  result := writer.bytes
+
+  test_writer := TestWriter
+
+  patcher := Patcher
+      BufferedReader (Reader result)
+      #[]
+
+  patcher.patch test_writer
+
+  round_tripped := test_writer.writer.bytes
+  expect_equals now.size round_tripped.size
+  expect_equals now test_writer.writer.bytes
 
 MOBY_2705 ::= """\
 Call me Ishmael. Some years ago—never mind how long precisely—having
