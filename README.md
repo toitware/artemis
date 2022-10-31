@@ -14,9 +14,6 @@ use the following command:
 make add-default-brokers
 ```
 
-CLI commands can change settings of the device.  Things like max-offline or the set
-of installed applications.
-
 To put Artemis on a device, you first put together the firmware you want to
 run on the device. Let's put it in `firmware.envelope` using:
 
