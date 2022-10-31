@@ -33,11 +33,20 @@ toit.run src/cli/cli.toit firmware flash \
     firmware.envelope
 ```
 
-For now, this actually doesn't flash the device, but it will generate a device-specific
-envelope that you can flash using 'jag flash':
+If you want to test this out, you can pass `--simulate` to the `firmware flash` command
+and this will do on-host simulation of running the firmware on an ESP32.
+
+You can now change the Artemis code a bit (or the SDK pointed to through `JAG_TOIT_REPO_PATH`) and 
+create new firmware:
 
 ``` sh
-jag flash --exclude-jaguar <xxx>.envelope
+toit.run src/cli/cli.toit firmware create -o new.envelope
+```
+
+and tell your device to update to it:
+
+``` sh
+toit.run src/cli/cli.toit firmware update -d <xxx> new.envelope
 ```
 
 Happy hacking!
