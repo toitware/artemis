@@ -7,7 +7,14 @@ They communicate together using MQTT or HTTP via a cloud service.  Currently the
 cloud service is AWS's IoT service or a Supabase instance.  On the ESP32, the 
 device keeps track of its device id after the initial flashing. 
 
-CLI commands can change settings of the device.  Things like max-offline or the setgit
+To configure your Artemis CLI to use our Supabase setup in the cloud, you can
+use the following command:
+
+``` sh
+make add-default-brokers
+```
+
+CLI commands can change settings of the device.  Things like max-offline or the set
 of installed applications.
 
 To put Artemis on a device, you first put together the firmware you want to
