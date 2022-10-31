@@ -171,8 +171,24 @@ class PatchWriter implements PatchObserver:
   on_checkpoint patch_position/int -> none:
     // Do nothing.
 
+/**
+A firmware for a specific device.
+
+Contains the generic $content which is shared among devices that use the same firmware version.
+In addition, it contains the $config which is unique to the device.
+*/
 class Firmware:
+  /**
+  The generic firmware.
+  The generic firmware can be shared among different devices.
+  The content always contains a description, identifying the firmware, but does not
+    always contain the actual bytes.
+  */
   content/FirmwareContent
+  /**
+  An encoded description of this firmware.
+  Contains the $config, and a checksum of the $content.
+  */
   encoded/string
   config/ByteArray
   config_/Map

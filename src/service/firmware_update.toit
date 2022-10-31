@@ -47,21 +47,21 @@ class FirmwarePatcher_ implements PatchObserver:
   logger_/log.Logger
   next_print_offset_/int := 0
 
-  // old
+  // Old.
   old_/firmware.FirmwareMapping?
 
-  // new
+  // New.
   writer_/firmware.FirmwareWriter? := ?
   size_/int
   offset_/int := ?
   skip_/int := ?
 
-  // committed
+  // Committed.
   image_offset_checkpointed_/int := 0
   image_skip_checkpointed_/int := 0
   patch_offset_checkpointed_/int := -1
 
-  // uncommitted
+  // Uncommitted.
   remaining_/int := 0
   prepared_patch_offset_/int := -1
   prepared_image_skip_/int := -1
