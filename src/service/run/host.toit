@@ -115,8 +115,9 @@ class FirmwareWriter_ extends services.ServiceResource implements FirmwareWriter
     view_.fill --from=cursor_ --to=to value
     cursor_ = to
 
-  flush -> none:
-    // Do nothing.
+  flush -> int:
+    // Everything is already flushed.
+    return 0
 
   commit checksum/ByteArray? -> none:
     print "Got a grand total of $image.size bytes"

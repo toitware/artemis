@@ -67,7 +67,7 @@ class Artemis:
         config.remove "max-offline"
       config
 
-  firmware_create -> FirmwareUpdate
+  firmware_create -> Firmware
       --identity/Map
       --wifi/Map
       --device_id/string
@@ -90,7 +90,7 @@ class Artemis:
         print "not the same artemis broker"
         exit 1
 
-    firmware/FirmwareUpdate? := null
+    firmware/Firmware? := null
     mediator_.device_update_config --device_id=device_id: | config/Map |
       device := identity["artemis.device"]
       upgrade_to := compute_firmware_update_
@@ -111,9 +111,9 @@ class Artemis:
 
   firmware_update --device_id/string --firmware_path/string -> none:
     mediator_.device_update_config --device_id=device_id: | config/Map |
-      upgrade_from/FirmwareUpdate? := null
+      upgrade_from/Firmware? := null
       existing := config.get "firmware"
-      if existing: catch: upgrade_from = FirmwareUpdate.encoded existing
+      if existing: catch: upgrade_from = Firmware.encoded existing
 
       device := null
       if upgrade_from: device = upgrade_from.config "artemis.device"
@@ -143,20 +143,20 @@ class Artemis:
       config["firmware"] = upgrade_to.encoded
       config
 
-  // TODO(kasper): Turn this into a static method on FirmwareUpdate?
-  compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string -> FirmwareUpdate:
+  // TODO(kasper): Turn this into a static method on Firmware?
+  compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string -> Firmware:
     unconfigured := extract_firmware_ envelope_path null
     encoded := unconfigured.encoded
     while true:
       config := ubjson.encode {
         "artemis.device" : device,
         "wifi"           : wifi,
-        "firmware"       : encoded,
+        "parts"          : encoded,
       }
 
       configured := extract_firmware_ envelope_path config
       if configured.encoded == encoded:
-        return FirmwareUpdate configured config
+        return Firmware configured config
       encoded = configured.encoded
 
 class PatchWriter implements PatchObserver:
@@ -171,35 +171,35 @@ class PatchWriter implements PatchObserver:
   on_checkpoint patch_position/int -> none:
     // Do nothing.
 
-class FirmwareUpdate:
-  firmware/Firmware
+class Firmware:
+  content/FirmwareContent
   encoded/string
   config/ByteArray
   config_/Map
 
-  constructor .firmware .config:
-    map := { "config": config, "checksum": firmware.checksum }
+  constructor .content .config:
+    map := { "config": config, "checksum": content.checksum }
     encoded = base64.encode (ubjson.encode map)
     config_ = ubjson.decode config
-    assert: config_["firmware"] == firmware.encoding
+    assert: config_["parts"] == content.encoded
 
   constructor.encoded .encoded:
     map := ubjson.decode (base64.decode encoded)
     config = map["config"]
     config_ = ubjson.decode config
-    firmware = Firmware.encoded config_["firmware"] --checksum=map["checksum"]
+    content = FirmwareContent.encoded config_["parts"] --checksum=map["checksum"]
 
   config key/string -> any:
     return config_.get key
 
-  patches from/FirmwareUpdate? -> List:
+  patches from/Firmware? -> List:
     result := []
-    firmware.parts.size.repeat: | index/int |
-      part := firmware.parts[index]
+    content.parts.size.repeat: | index/int |
+      part := content.parts[index]
       if part is FirmwarePartConfig: continue.repeat
       // TODO(kasper): This should not just be based on index.
       old/FirmwarePartPatch? := null
-      if from: old = from.firmware.parts[index]
+      if from: old = from.content.parts[index]
       if old and old.hash == part.hash:
         continue.repeat
       else if old:
@@ -208,7 +208,7 @@ class FirmwareUpdate:
         result.add (FirmwarePatch --bits=part.bits --to=part.hash)
     return result
 
-class Firmware:
+class FirmwareContent:
   bits/ByteArray?
   parts/List
   checksum/ByteArray
@@ -314,7 +314,7 @@ class FirmwarePartConfig extends FirmwarePart:
   encode -> Map:
     return { "from": from, "to": to, "type": "config" }
 
-extract_firmware_ envelope_path/string config/ByteArray? -> Firmware:
+extract_firmware_ envelope_path/string config/ByteArray? -> FirmwareContent:
   extract/Map? := null
   with_tmp_directory: | tmp/string |
     firmware_ubjson_path := "$tmp/firmware.ubjson"
@@ -343,7 +343,7 @@ extract_firmware_ envelope_path/string config/ByteArray? -> Firmware:
     else:
       parts.add (FirmwarePartPatch --to=to --from=from --bits=part)
 
-  return Firmware --bits=bits --parts=parts --checksum=checksum
+  return FirmwareContent --bits=bits --parts=parts --checksum=checksum
 
 is_same_broker broker/string identity/Map tmp/string assets_path/string -> bool:
   broker_path := "$tmp/broker.json"

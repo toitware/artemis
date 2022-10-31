@@ -141,7 +141,7 @@ flash_firmware config/Config parsed/cli.Parsed:
 
   mediator := create_mediator config parsed
   artemis := Artemis mediator
-  update := artemis.firmware_create
+  firmware := artemis.firmware_create
       --identity=identity
       --wifi=wifi
       --device_id=device_id
@@ -152,8 +152,8 @@ flash_firmware config/Config parsed/cli.Parsed:
   if parsed["simulate"]:
     run_host
         --identity=identity
-        --encoded=update.encoded
-        --bits=update.firmware.bits
+        --encoded=firmware.encoded
+        --bits=firmware.content.bits
     return
 
   if not parsed["port"]:
@@ -168,7 +168,7 @@ flash_firmware config/Config parsed/cli.Parsed:
   // the bits in through a file.
   with_tmp_directory: | tmp/string |
     config_path := "$tmp/config.ubjson"
-    write_blob_to_file config_path update.config
+    write_blob_to_file config_path firmware.config
     arguments := [
       "-e", firmware_path,
       "flash", "--port", port,
