@@ -158,11 +158,11 @@ class FirmwarePatcher_ implements PatchObserver:
   write_ from/int to/int [write] -> none:
     // Skip over already written parts.
     if write_skip_ > 0:
-      skip := min write_skip_ (to - from)
-      write_skip_ -= skip
-      write_offset_ += skip
+      size := min write_skip_ (to - from)
+      write_skip_ -= size
+      write_offset_ += size
       if write_skip_ > 0: return
-      from += skip
+      from += size
 
     // Try to get to a checkpoint by writing out the parts
     // leading up to the checkpoint. If we get all the way
