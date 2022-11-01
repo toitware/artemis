@@ -2,7 +2,7 @@
 
 interface ResourceManager:
   fetch_image id/string [block] -> none
-  fetch_firmware id/string [block] -> none
+  fetch_firmware id/string --offset/int=0 [block] -> none
   fetch_resource path/string [block] -> none
 
 interface EventHandler:
