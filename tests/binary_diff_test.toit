@@ -3,7 +3,6 @@
 import binary show LITTLE_ENDIAN
 import bytes show Buffer Reader
 import expect show *
-import reader show BufferedReader
 
 import artemis.cli.utils.binary_diff show *
 import artemis.shared.utils.patch show *
@@ -262,7 +261,7 @@ round_trip now/ByteArray to/ByteArray --fast/bool -> none:
   test_writer := TestWriter
 
   patcher := Patcher
-      BufferedReader (Reader result)
+      Reader result
       now
 
   patcher.patch test_writer
@@ -279,7 +278,7 @@ literal_round_trip now/ByteArray -> none:
   test_writer := TestWriter
 
   patcher := Patcher
-      BufferedReader (Reader result)
+      Reader result
       #[]
 
   patcher.patch test_writer
@@ -316,7 +315,7 @@ odd_size_test:
           test_writer := TestWriter
 
           patcher := Patcher
-              BufferedReader (Reader result)
+              Reader result
               old
 
           patcher.patch test_writer
