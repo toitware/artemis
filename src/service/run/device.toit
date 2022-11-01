@@ -15,7 +15,7 @@ main arguments:
   broker := decode_broker "broker" decoded
   device := report_status_setup decoded firmware.config["artemis.device"]
 
-  firmware_description := ubjson.decode firmware.config["firmware"]
+  firmware_description := ubjson.decode firmware.config["parts"]
   end := firmware_description.last["to"]
 
   update := ubjson.encode {

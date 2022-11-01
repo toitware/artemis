@@ -18,15 +18,14 @@ class ResourceManagerPostgrest implements ResourceManager:
   fetch_image id/string [block] -> none:
     fetch_resource "/storage/v1/object/assets/images/$id.$BITS_PER_WORD" block
 
-  fetch_firmware id/string [block] -> none:
+  fetch_firmware id/string --offset/int=0 [block] -> none:
     PART_SIZE ::= 64 * 1024
-    offset := 0
     while true:
       fetch_resource "/storage/v1/object/assets/firmware/$id"
           --offset=offset
           --size=PART_SIZE
           : | reader/SizedReader total_size/int |
-            offset = block.call reader offset total_size
+            offset = block.call reader offset
             if offset >= total_size: return
 
   fetch_resource path/string --offset/int=0 --size/int?=null [block] -> none:
