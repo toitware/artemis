@@ -300,35 +300,31 @@ odd_size_test:
         LITTLE_ENDIAN.put_uint32 new i i + 451
 
       [true, false].do: | fast |
-        [true, false].do: | pad |
-          [true, false].do: | checksums |
-            writer := Buffer
-            diff
-                OldData old 0 0
-                new
-                writer
-                new.size
-                --fast=fast
-                --with_header=false
-                --with_footer=true
-                --with_checksums=checksums
-            result := writer.bytes
+        [true, false].do: | checksums |
+          writer := Buffer
+          diff
+              OldData old 0 0
+              new
+              writer
+              new.size
+              --fast=fast
+              --with_header=false
+              --with_footer=true
+              --with_checksums=checksums
+          result := writer.bytes
 
-            test_writer := TestWriter
+          test_writer := TestWriter
 
-            padded_old := ByteArray (round_up old.size 4)
-            padded_old.replace 0 old
+          patcher := Patcher
+              BufferedReader (Reader result)
+              old
 
-            patcher := Patcher
-                BufferedReader (Reader result)
-                pad ? padded_old : old
+          patcher.patch test_writer
 
-            patcher.patch test_writer
+          round_tripped := test_writer.writer.bytes
 
-            round_tripped := test_writer.writer.bytes
-
-            expect_equals new.size round_tripped.size
-            expect_equals new test_writer.writer.bytes
+          expect_equals new.size round_tripped.size
+          expect_equals new test_writer.writer.bytes
 
 MOBY_2705 ::= """\
 Call me Ishmael. Some years ago—never mind how long precisely—having

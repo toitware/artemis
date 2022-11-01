@@ -197,36 +197,20 @@ class Patcher:
   get_sha_ from/int to/int -> ByteArray:
     summer ::= Sha256
     buffer ::= ByteArray 128
-    // We round up the end, but not past the end of the old data.
-    // This means in IRAM-backed flash we will round up, since that
-    // must have a 4-byte aligned size.  But when testing and running
-    // from ordinary memory we don't round past the end of the ByteArray.
-    top := min old.size
-        round_up to 4
-    List.chunk_up (round_down from 4) top buffer.size: | chunk_from chunk_to chunk_size |
-      assert: chunk_from.is_aligned 4
+    List.chunk_up from to buffer.size: | chunk_from chunk_to chunk_size |
       // Copy will only use 32 bit operations.
       old.copy chunk_from chunk_to --into=buffer
-      // Because of rounding, chunk_from and chunk_to might go slightly too far.
-      chop_start := max 0 (from - chunk_from)
-      chop_end := max 0 (chunk_to - to)
-      summer.add buffer chop_start (chunk_size - chop_end)
+      summer.add buffer 0 chunk_size
     return summer.get
 
   copy_data_no_diff_ byte_count/int writer/PatchWriter_ -> none:
     from := old_position
     to := old_position + byte_count
-    // See comment above.
-    top := min old.size
-        round_up to 4
-    List.chunk_up (round_down from 4) top temp_buffer.size: | chunk_from chunk_to chunk_size |
-      assert: chunk_from.is_aligned 4
+    List.chunk_up from to temp_buffer.size: | chunk_from chunk_to chunk_size |
       // Copy will only use 32 bit operations.
       old.copy chunk_from chunk_to --into=temp_buffer
-      chop_start := max 0 (from - chunk_from)
-      chop_end := max 0 (chunk_to - to)
-      writer.on_write temp_buffer chop_start (chunk_size - chop_end)
-      out_checker.add temp_buffer chop_start (chunk_size - chop_end)
+      writer.on_write temp_buffer 0 chunk_size
+      out_checker.add temp_buffer 0 chunk_size
     old_position += byte_count
     new_position += byte_count
 
