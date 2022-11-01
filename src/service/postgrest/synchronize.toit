@@ -23,7 +23,7 @@ class MediatorServicePostgrest implements MediatorService:
   connect --device_id/string --callback/EventHandler [block]:
     network := net.open
     report_status network logger_
-    idle_.unlock
+    idle_.unlock  // We're always idle when we're just connecting.
 
     client := supabase.create_client network broker_
     headers := supabase.create_headers broker_
