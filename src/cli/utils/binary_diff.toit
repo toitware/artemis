@@ -320,8 +320,8 @@ abstract class Action:
     wanted_diff := null
 
     if not byte_oriented:
-      assert: old_position & 3 == 0
-      assert: new_position & 3 == 0
+      assert: old_position.is_aligned 4
+      assert: new_position.is_aligned 4
 
     if old_bytes.valid old_position data_width_:
       wanted_diff = diff_to_int_ new_data - old_data
@@ -361,8 +361,8 @@ abstract class Action:
     result := []
     if not byte_oriented:
       // Currently word oriented.
-      if new_to_old & 3 == 0:
-        assert: current_new_to_old & 3 == 0
+      if new_to_old.is_aligned 4:
+        assert: current_new_to_old.is_aligned 4
         if diff != 0:
           result.add
             MoveCursor_ this diff false  // Word oriented.
@@ -371,7 +371,7 @@ abstract class Action:
           MoveCursor_ this diff true  // Byte oriented.
     else:
       // Currently byte oriented.
-      if new_position & 3 == 0 and new_to_old & 3 == 0:
+      if new_position.is_aligned 4 and new_to_old.is_aligned 4:
         result.add
           MoveCursor_ this diff false // Word oriented.
       if diff != 0:
@@ -801,7 +801,7 @@ class Literal_ extends Action:
   constructor.literal_section predecessor/Action size/int:
     new_position_ = predecessor.new_position
     byte_count = size
-    if not predecessor.byte_oriented and size & 3 != 0: throw "Literal section must be a multiple of 4"
+    if not predecessor.byte_oriented and not size.is_aligned 4: throw "Literal section must be a multiple of 4"
     new_bits_spent := predecessor.bits_spent
     emit_driver byte_count 4: | bits _ _ length |
       new_bits_spent += bits + length * 8
@@ -1119,12 +1119,15 @@ diff_files old_bytes/OldData new_bytes/ByteArray pages/NewOldOffsets fast_mode/b
   new_bytes.size.repeat: | new_position |
     actions_at_this_point := actions.any:
       it.new_position == new_position
+    // At some unaligned positions there are no actions to consider.
+    assert: actions_at_this_point or not new_position.is_aligned 4
     if actions_at_this_point:
       new_actions := ComparableSet_
       best_bdiff_length := int.MAX
       not_in_this_round := []
       best_offset_printed := false
-      fast := fast_mode and pages[new_position].size == 0
+      at_unaligned_end_zone := new_position == (round_down new_bytes.size 4)
+      fast := fast_mode and pages[new_position].size == 0 and not at_unaligned_end_zone
       actions.do: | action |
         limit := fast ? 16 : 64
         if actions.size > 1000 or new_actions.size > 1000: limit = fast ? 16 : 32
@@ -1133,6 +1136,8 @@ diff_files old_bytes/OldData new_bytes/ByteArray pages/NewOldOffsets fast_mode/b
           not_in_this_round.add action
           best_bdiff_length = min best_bdiff_length action.bits_spent
         else:
+          if at_unaligned_end_zone and not action.byte_oriented:
+            action = MoveCursor_ action 0 true // Switch to byte oriented mode.
           possible_children := action.add_data new_position fast
           possible_children.do: | child |
             bits := child.bits_spent
@@ -1197,8 +1202,9 @@ diff_files old_bytes/OldData new_bytes/ByteArray pages/NewOldOffsets fast_mode/b
         last_size = size
   end_state := null
   actions.do:
-    if not end_state or end_state.worse_than it:
-      end_state = it
+    if it.new_position == new_bytes.size:
+      if not end_state or end_state.worse_than it:
+        end_state = it
   return end_state
 
 /**

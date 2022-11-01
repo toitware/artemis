@@ -1,5 +1,6 @@
 // Copyright (C) 2020 Toitware ApS. All rights reserved.
 
+import binary show LITTLE_ENDIAN
 import crypto.sha256 show *
 import reader show *
 import system.firmware
@@ -194,25 +195,22 @@ class Patcher:
   /// Can get a SHA256 hash of a byte array that is in instruction memory,
   /// where only 32 bit accesses are allowed.
   get_sha_ from/int to/int -> ByteArray:
-    // The patch file should not contain checksums of unaligned part of the old
-    // image.
-    if (from | to) & 3 != 0: throw "INVALID_FORMAT"
-    length ::= to - from
     summer ::= Sha256
     buffer ::= ByteArray 128
     List.chunk_up from to buffer.size: | chunk_from chunk_to chunk_size |
-      // Replace will only use 32 bit operations.
+      // Copy will only use 32 bit operations.
       old.copy chunk_from chunk_to --into=buffer
       summer.add buffer 0 chunk_size
     return summer.get
 
   copy_data_no_diff_ byte_count/int writer/PatchWriter_ -> none:
-    assert: (old_position | byte_count) & 3 == 0  // Because of instruction memory.
-    List.chunk_up old_position old_position + byte_count temp_buffer.size: | from to size |
-      assert: (from | to) & 3 == 0  // Because of instruction memory.
-      old.copy from to --into=temp_buffer
-      writer.on_write temp_buffer 0 size
-      out_checker.add temp_buffer 0 size
+    from := old_position
+    to := old_position + byte_count
+    List.chunk_up from to temp_buffer.size: | chunk_from chunk_to chunk_size |
+      // Copy will only use 32 bit operations.
+      old.copy chunk_from chunk_to --into=temp_buffer
+      writer.on_write temp_buffer 0 chunk_size
+      out_checker.add temp_buffer 0 chunk_size
     old_position += byte_count
     new_position += byte_count
 
@@ -220,15 +218,13 @@ class Patcher:
     diff := diff_table[index]
     if diff == 0:
       byte_count := repeats * (byte_oriented ? 1 : 4)
-      if old_position & 3 != 0:
-        edge_bytes := min byte_count (4 - (old_position & 3))
+      if not old_position.is_aligned 4:
+        edge_bytes := min byte_count ((round_up old_position 4) - old_position)
         copy_data_diff_ diff edge_bytes --by_bytes=true writer
         byte_count -= edge_bytes
-      aligned := byte_count & ~3
-      if aligned != 0:
-        copy_data_no_diff_ aligned writer
-      if aligned != byte_count:
-        copy_data_diff_ diff (byte_count - aligned) --by_bytes=true writer
+      aligned := round_down byte_count 4
+      copy_data_no_diff_ aligned writer
+      copy_data_diff_ diff (byte_count - aligned) --by_bytes=true writer
     else:
       copy_data_diff_ diff repeats --by_bytes=byte_oriented writer
 
@@ -245,14 +241,12 @@ class Patcher:
     else:
       List.chunk_up 0 repeats * 4 temp_buffer.size: | _ _ chunk_size |
         for i := 0; i < chunk_size; i += 4:
+          // Can't use LITTLE_ENDIAN because old is not a real byte array.
           word := old[old_position] + (old[old_position + 1] << 8) + (old[old_position + 2] << 16) + (old[old_position + 3] << 24)
           old_position += 4
           new_position += 4
           word += diff
-          temp_buffer[i] = word & 0xff
-          temp_buffer[i + 1] = (word >> 8) & 0xff
-          temp_buffer[i + 2] = (word >> 16) & 0xff
-          temp_buffer[i + 3] = (word >> 24) & 0xff
+          LITTLE_ENDIAN.put_uint32 temp_buffer i word
         writer.on_write temp_buffer 0 chunk_size
         out_checker.add temp_buffer 0 chunk_size
 
