@@ -114,7 +114,7 @@ class Cache:
       throw "Cache entry '$(key)' is a file."
 
     if not file.is_directory key_path:
-      directory_store := DirectoryStore.private_ this key
+      directory_store := DirectoryStore_ this key
       try:
         block.call directory_store
         if not directory_store.has_stored_:
