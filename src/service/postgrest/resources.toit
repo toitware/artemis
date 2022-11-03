@@ -65,8 +65,11 @@ class ResourceManagerPostgrest implements ResourceManager:
     return supabase.query_ client_ host_ headers_ table filters
 
   report_status device_id/string status/Map -> none:
+    // TODO(kasper): This needs cleanup. It feels annoying that we
+    // cannot use the SupabaseClient abstraction here.
     headers := headers_.copy
     headers.add "Prefer" "resolution=merge-duplicates"
+    headers.add "Prefer" "return=headers-only"
     map := {
       "device" : device_id,
       "status" : status,
