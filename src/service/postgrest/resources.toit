@@ -63,3 +63,20 @@ class ResourceManagerPostgrest implements ResourceManager:
     // TODO(kasper): This needs cleanup. It feels annoying that we
     // cannot use the SupabaseClient abstraction here.
     return supabase.query_ client_ host_ headers_ table filters
+
+  report_status device_id/string status/Map -> none:
+    headers := headers_.copy
+    headers.add "Prefer" "resolution=merge-duplicates"
+    map := {
+      "device" : device_id,
+      "status" : status,
+    }
+    payload := json.encode map
+    response := client_.post payload
+        --host=host_
+        --headers=headers
+        --path="/rest/v1/reports"
+    // 201 is changed one entry.
+    body := response.body
+    while data := body.read: null // DRAIN!
+    if response.status_code != 201: throw "UGH ($response.status_code)"
