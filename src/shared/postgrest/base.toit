@@ -20,8 +20,10 @@ interface PostgrestClient:
 class MediatorCliPostgrest implements MediatorCli:
   client_/PostgrestClient? := null
   network_/net.Interface? := null
+  /** See $MediatorCli.id. */
+  id/string
 
-  constructor .client_ .network_:
+  constructor --.id/string .client_ .network_:
 
   close:
     client_ = null
@@ -37,6 +39,7 @@ class MediatorCliPostgrest implements MediatorCli:
     info := client_.query "devices" [
       "id=eq.$(device_id)",
     ]
+    if not info: throw "Device not found"
     old_config := {:}
     if info.size == 1 and info[0] is Map:
       old_config = info[0].get "config" or old_config

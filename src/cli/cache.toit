@@ -6,7 +6,7 @@ Handles cached files.
 Typically, caches are stored in the user's home: \$(HOME)/.cache, but users can
   overwrite this by setting the \$XDG_CACHE_HOME environment variable.
 
-To simplify testing, the environment variable $(APP_NAME)_CACHE_DIR can be used to
+To simplify testing, the environment variable '<app-name>_CACHE_DIR' can be used to
   override the cache directory.
 */
 
@@ -15,8 +15,6 @@ import host.file
 import host.directory
 import encoding.json
 import writer
-
-APP_NAME ::= "artemis"
 
 /**
 A class to manage objects that can be downloaded or generated, but should
@@ -30,20 +28,20 @@ class Cache:
   Creates a new cache.
 
   If the \$XDG_CACHE_HOME environment variable is set, the cache is located
-    at \$XDG_CACHE_HOME/$APP_NAME. Otherwise, the cache will is stored
-    in \$(HOME)/.cache/$APP_NAME.
+    at \$XDG_CACHE_HOME/$app_name. Otherwise, the cache will is stored
+    in \$(HOME)/.cache/$app_name.
   */
-  constructor --app_name=APP_NAME:
+  constructor --app_name/string:
     app_name_upper := app_name.to_ascii_upper
     env := os.env
     if env.contains "$(app_name_upper)_CACHE_DIR":
-      return Cache --app_name=app_name --path=env["$(app_name_upper)_CONFIG"]
+      return Cache --app_name=app_name --path=env["$(app_name_upper)_CACHE_DIR"]
 
     if env.contains "XDG_CACHE_HOME":
-      return Cache --app_name=app_name --path="$(env["XDG_CACHE_HOME"])/$(APP_NAME)"
+      return Cache --app_name=app_name --path="$(env["XDG_CACHE_HOME"])/$(app_name)"
 
     if env.contains "HOME":
-      return Cache --app_name=app_name --path="$(env["HOME"])/.cache/$(APP_NAME)"
+      return Cache --app_name=app_name --path="$(env["HOME"])/.cache/$(app_name)"
 
     throw "No cache directory found. HOME not set."
 
@@ -179,6 +177,14 @@ interface FileStore:
   save bytes/ByteArray
 
   /**
+  Calls the given $block with a $writer.Writer.
+
+  The $block must write its chunks to the writer.
+  The writer is closed after the block returns.
+  */
+  save_to_writer [block]
+
+  /**
   Copies the content of $path to the cache under $key.
 
   If the key already exists, the generated content is dropped.
@@ -265,10 +271,22 @@ class FileStore_ implements FileStore:
   */
   save bytes/ByteArray:
     store_: | file_path/string |
+      file.write_content bytes --path=file_path
+
+  /**
+  Calls the given $block with a $writer.Writer.
+
+  The $block must write its chunks to the writer.
+  The writer is closed after the block returns.
+  */
+  save_to_writer [block]:
+    store_: | file_path/string |
       stream := file.Stream.for_write file_path
       w := writer.Writer stream
-      w.write bytes
-      w.close
+      try:
+        block.call w
+      finally:
+        w.close
 
   /**
   Copies the content of $path to the cache under $key.

@@ -26,8 +26,10 @@ class MediatorCliMqtt implements MediatorCli:
   static ID_ ::= "toit/artemis-cli-$(random 0x3fff_ffff)"
 
   client_/mqtt.Client? := null
+  /** See $MediatorCli.id. */
+  id/string
 
-  constructor transport/mqtt.Transport:
+  constructor transport/mqtt.Transport --.id/string:
     options := mqtt.SessionOptions --client_id=ID_ --clean_session
     client_ = mqtt.Client --transport=transport
     client_.start --options=options
