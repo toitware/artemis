@@ -1,3 +1,4 @@
+sdk: ^1.6.10
 prefixes:
   artemis: ..
   host: pkg-host
@@ -7,6 +8,7 @@ packages:
     path: ..
     prefixes:
       ar: pkg-ar
+      certificate_roots: toit-cert-roots
       cli: pkg-cli
       host: pkg-host
       http: pkg-http
@@ -26,8 +28,8 @@ packages:
     hash: 01d8c8f76eef979ca455a760b3330f8f826fa881
   pkg-host:
     url: github.com/toitlang/pkg-host
-    version: 1.7.1
-    hash: 6b017ad10563263080bba6acde387ceebc13270b
+    version: 1.8.0
+    hash: e4cd984198becfe5e016b15ba8951d1b26255a33
   pkg-http:
     url: github.com/toitlang/pkg-http
     version: 1.9.3
@@ -36,3 +38,7 @@ packages:
     url: github.com/toitlang/pkg-ntp
     version: 1.0.0
     hash: 1c3cc4a4819f459393f00efc576f66f838665719
+  toit-cert-roots:
+    url: github.com/toitware/toit-cert-roots
+    version: 1.3.2
+    hash: 288547039d8a3797330064e91d8c79ad16313545
