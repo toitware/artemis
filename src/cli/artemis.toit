@@ -53,8 +53,8 @@ class Artemis:
         // TODO(florian): do we want to rely on the cache, or should we
         // do a check to see if the files are really uploaded?
         mediator_.upload_image --app_id=id --bits=32 program.image32
-        mediator_.upload_image --app_id=id --bits=64 program.image64
         file.write_content program.image32 --path="$tmp_dir/image32.bin"
+        mediator_.upload_image --app_id=id --bits=64 program.image64
         file.write_content program.image64 --path="$tmp_dir/image64.bin"
         store.move tmp_dir
 
@@ -269,7 +269,7 @@ class FirmwarePatch:
     c.get_directory_path cache_key: | store/cache.FileStore |
       trivial := build_trivial_patch bits_
       mediator.upload_firmware --firmware_id=trivial_id trivial
-      store.save_to_writer: | writer/writer.Writer |
+      store.save_via_writer: | writer/writer.Writer |
         trivial.do: writer.write it
         writer.close
 
@@ -311,7 +311,7 @@ class FirmwarePatch:
       diff := build_diff_patch old bits_
       if to_ != (compute_applied_hash_ diff old): return
       mediator.upload_firmware --firmware_id=diff_id diff
-      store.save_to_writer: | w/writer.Writer |
+      store.save_via_writer: | w/writer.Writer |
         diff.do: w.write it
         w.close
 

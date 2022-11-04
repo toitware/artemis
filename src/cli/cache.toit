@@ -182,7 +182,7 @@ interface FileStore:
   The $block must write its chunks to the writer.
   The writer is closed after the block returns.
   */
-  save_to_writer [block]
+  save_via_writer [block]
 
   /**
   Copies the content of $path to the cache under $key.
@@ -279,7 +279,7 @@ class FileStore_ implements FileStore:
   The $block must write its chunks to the writer.
   The writer is closed after the block returns.
   */
-  save_to_writer [block]:
+  save_via_writer [block]:
     store_: | file_path/string |
       stream := file.Stream.for_write file_path
       w := writer.Writer stream
