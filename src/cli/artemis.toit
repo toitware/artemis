@@ -265,7 +265,7 @@ class FirmwarePatch:
   upload mediator/MediatorCli c/cache.Cache -> none:
     trivial_id := id_ --to=to_
     cache_key := "$mediator.id/patches/$trivial_id"
-    // Unless they are already cached, always create/upload the trivial one.
+    // Unless it is already cached, always create/upload the trivial one.
     c.get_directory_path cache_key: | store/cache.FileStore |
       trivial := build_trivial_patch bits_
       mediator.upload_firmware --firmware_id=trivial_id trivial
@@ -275,7 +275,7 @@ class FirmwarePatch:
 
     if not from_: return
 
-    // Attempt to download the old trivial patch and use it to construct
+    // Attempt to fetch the old trivial patch and use it to construct
     // the old bits so we can compute a diff from them.
     trivial_old := null
     old_id := id_ --to=from_
