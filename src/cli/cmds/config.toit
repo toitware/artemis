@@ -3,9 +3,10 @@
 import certificate_roots
 import cli
 
+import ..cache
 import ..config
 
-create_config_commands config/Config -> List:
+create_config_commands config/Config cache/Cache -> List:
   config_cmd := cli.Command "config"
       --short_help="Configure Artemis tool."
 

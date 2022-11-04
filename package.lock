@@ -1,3 +1,4 @@
+sdk: ^1.6.10
 prefixes:
   ar: pkg-ar
   certificate_roots: toit-cert-roots
@@ -21,8 +22,8 @@ packages:
     hash: 01d8c8f76eef979ca455a760b3330f8f826fa881
   pkg-host:
     url: github.com/toitlang/pkg-host
-    version: 1.7.1
-    hash: 6b017ad10563263080bba6acde387ceebc13270b
+    version: 1.8.0
+    hash: e4cd984198becfe5e016b15ba8951d1b26255a33
   pkg-http:
     url: github.com/toitlang/pkg-http
     version: 1.9.3

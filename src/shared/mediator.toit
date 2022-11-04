@@ -15,6 +15,12 @@ interface MediatorCli:
   is_closed -> bool
 
   /**
+  A unique ID of the broker that can be used for caching.
+  May contain "/", in which case the cache will use subdirectories.
+  */
+  id -> string
+
+  /**
   Invokes the $block with the current configuration (a Map) of $device_id and
     updates the device's configuration with the new map that is returned from the block.
 

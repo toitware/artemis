@@ -13,7 +13,8 @@ create_mediator_cli_supabase broker/Map -> MediatorCliPostgrest:
   network := net.open
   http_client := create_client network broker
   postgrest_client := SupabaseClient http_client broker
-  return MediatorCliPostgrest postgrest_client network
+  id := "supabase/$broker["supabase"]["host"]"
+  return MediatorCliPostgrest postgrest_client network --id=id
 
 create_client network/net.Interface broker/Map -> http.Client:
   certificate_text := broker["supabase"].get "certificate"

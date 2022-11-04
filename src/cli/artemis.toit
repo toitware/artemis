@@ -5,6 +5,7 @@ import host.file
 import uuid
 import bytes
 import reader
+import writer
 import system.firmware
 
 import encoding.base64
@@ -12,6 +13,7 @@ import encoding.ubjson
 import encoding.json
 import encoding.hex
 
+import .cache as cache
 import .sdk
 import .cmds.provision show write_blob_to_file write_json_to_file write_ubjson_to_file
 
@@ -25,8 +27,9 @@ Manages devices that have an Artemis service running on them.
 */
 class Artemis:
   mediator_/MediatorCli
+  cache_/cache.Cache
 
-  constructor .mediator_:
+  constructor .mediator_ .cache_:
 
   close:
     // Do nothing for now.
@@ -38,11 +41,22 @@ class Artemis:
   device_selector_to_id name/string -> string:
     return name
 
+  image_cache_id_ id/string -> string:
+    return "$mediator_.id/images/$id"
+
   app_install --device_id/string --app_name/string --application_path/string:
     program := CompiledProgram.application application_path
     id := program.id
-    mediator_.upload_image --app_id=id --bits=32 program.image32
-    mediator_.upload_image --app_id=id --bits=64 program.image64
+    cache_id := image_cache_id_ id
+    cache_.get_directory_path cache_id: | store/cache.DirectoryStore |
+      store.with_tmp_directory: | tmp_dir |
+        // TODO(florian): do we want to rely on the cache, or should we
+        // do a check to see if the files are really uploaded?
+        mediator_.upload_image --app_id=id --bits=32 program.image32
+        file.write_content program.image32 --path="$tmp_dir/image32.bin"
+        mediator_.upload_image --app_id=id --bits=64 program.image64
+        file.write_content program.image64 --path="$tmp_dir/image64.bin"
+        store.move tmp_dir
 
     mediator_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Installing app: $app_name"
@@ -99,7 +113,7 @@ class Artemis:
           --envelope_path=firmware_path
 
       patches := upgrade_to.patches null
-      patches.do: | patch/FirmwarePatch | patch.upload mediator_
+      patches.do: | patch/FirmwarePatch | patch.upload mediator_ cache_
       firmware = upgrade_to
 
       // TODO(kasper): We actually don't have to update the device configuration
@@ -139,7 +153,7 @@ class Artemis:
           --envelope_path=firmware_path
 
       patches := upgrade_to.patches upgrade_from
-      patches.do: | patch/FirmwarePatch | patch.upload mediator_
+      patches.do: | patch/FirmwarePatch | patch.upload mediator_ cache_
       config["firmware"] = upgrade_to.encoded
       config
 
@@ -248,31 +262,58 @@ class FirmwarePatch:
     to_ = to
     from_ = from
 
-  upload mediator/MediatorCli -> none:
-    // Always upload the trivial one.
-    trivial := build_trivial_patch bits_
-    mediator.upload_firmware --firmware_id=(id_ --to=to_) trivial
+  upload mediator/MediatorCli c/cache.Cache -> none:
+    trivial_id := id_ --to=to_
+    cache_key := "$mediator.id/patches/$trivial_id"
+    // Unless it is already cached, always create/upload the trivial one.
+    c.get_directory_path cache_key: | store/cache.FileStore |
+      trivial := build_trivial_patch bits_
+      mediator.upload_firmware --firmware_id=trivial_id trivial
+      store.save_via_writer: | writer/writer.Writer |
+        trivial.do: writer.write it
+        writer.close
+
     if not from_: return
-    // Attempt to download the old trivial patch and use it to construct
+
+    // Attempt to fetch the old trivial patch and use it to construct
     // the old bits so we can compute a diff from them.
     trivial_old := null
-    catch: trivial_old = mediator.download_firmware --id=(id_ --to=from_)
-    if not trivial_old: return
+    old_id := id_ --to=from_
+    cache_key = "$mediator.id/patches/$old_id"
+    trivial_old_dir := c.get cache_key: | store/cache.FileStore |
+      catch: trivial_old = mediator.download_firmware --id=old_id
+      if not trivial_old: return
+      store.with_tmp_directory: | tmp_dir |
+        file.write_content trivial_old --path="$tmp_dir/patch"
+        // TODO(florian): we don't have the chunk-size when downloading from the broker.
+        store.move tmp_dir
+
+    if not trivial_old:
+      // The cache gave us a directory path.
+      trivial_old = file.read_content "$trivial_old_dir/patch"
+
     bitstream := bytes.Reader trivial_old
     patcher := Patcher bitstream null
-    writer := PatchWriter
-    if not patcher.patch writer: return
+    patch_writer := PatchWriter
+    if not patcher.patch patch_writer: return
     // Build the old bits and check that we get the correct hash.
-    old := writer.buffer.bytes
-    if old.size < writer.size: old += ByteArray (writer.size - old.size)
+    old := patch_writer.buffer.bytes
+    if old.size < patch_writer.size: old += ByteArray (patch_writer.size - old.size)
     sha := sha256.Sha256
     sha.add old
     if from_ != sha.get: return
-    // Build the diff and verify that we can apply it and get the
-    // correct hash out before uploading it.
-    diff := build_diff_patch old bits_
-    if to_ != (compute_applied_hash_ diff old): return
-    mediator.upload_firmware --firmware_id=(id_ --from=from_ --to=to_) diff
+
+    diff_id := id_ --from=from_ --to=to_
+    cache_key = "$mediator.id/patches/$diff_id"
+    c.get cache_key: | store/cache.FileStore |
+      // Build the diff and verify that we can apply it and get the
+      // correct hash out before uploading it.
+      diff := build_diff_patch old bits_
+      if to_ != (compute_applied_hash_ diff old): return
+      mediator.upload_firmware --firmware_id=diff_id diff
+      store.save_via_writer: | w/writer.Writer |
+        diff.do: w.write it
+        w.close
 
   static compute_applied_hash_ diff/List old/ByteArray -> ByteArray?:
     combined := diff.reduce --initial=#[]: | acc chunk | acc + chunk

@@ -2,6 +2,7 @@
 
 import cli
 
+import .cache
 import .config
 import .cmds.apps
 import .cmds.config
@@ -16,17 +17,18 @@ import .cmds.provision
 
 main args:
   config := read_config
+  cache := Cache --app_name="artemis"
 
   root_cmd := cli.Command "root"
       --long_help="""
       A fleet management system for Toit devices.
       """
 
-  (create_app_commands config).do: root_cmd.add it
-  (create_config_commands config).do: root_cmd.add it
-  (create_firmware_commands config).do: root_cmd.add it
-  (create_device_config_commands config).do: root_cmd.add it
-  (create_status_commands config).do: root_cmd.add it
-  (create_provision_commands config).do: root_cmd.add it
+  (create_app_commands config cache).do: root_cmd.add it
+  (create_config_commands config cache).do: root_cmd.add it
+  (create_firmware_commands config cache).do: root_cmd.add it
+  (create_device_config_commands config cache).do: root_cmd.add it
+  (create_status_commands config cache).do: root_cmd.add it
+  (create_provision_commands config cache).do: root_cmd.add it
 
   root_cmd.run args

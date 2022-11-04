@@ -3,10 +3,11 @@
 import cli
 import .device_options_
 
+import ..cache
 import ..config
 import ...shared.mqtt.base
 
-create_status_commands config/Config -> List:
+create_status_commands config/Config cache/Cache -> List:
   status_cmd := cli.Command "status"
       --short_help="Print the online status of the device."
       --options=device_options

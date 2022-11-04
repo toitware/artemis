@@ -11,7 +11,9 @@ import .base
 create_mediator_cli_aws -> MediatorCliMqtt:
   network := net.open
   transport := aws_create_transport network
-  return MediatorCliMqtt transport
+  // TODO(florian): there could be different mqtt/aws brokers.
+  id := "mqtt/aws"
+  return MediatorCliMqtt transport --id=id
 
 aws_create_transport network/net.Interface -> mqtt.Transport:
   certificate ::= tls.Certificate TOIT_CERT TOIT_PRIVATE_KEY

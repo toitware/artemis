@@ -27,7 +27,7 @@ with_mqtt_mediator logger/log.Logger mediator_id/string create_transport/Lambda 
   mediator_cli/MediatorCli? := null
   mediator_service/MediatorService? := null
   try:
-    mediator_cli = MediatorCliMqtt transport
+    mediator_cli = MediatorCliMqtt transport --id="test/$mediator_id"
     mediator_service = MediatorServiceMqtt logger --create_transport=create_transport
 
     block.call logger mediator_id mediator_cli mediator_service
