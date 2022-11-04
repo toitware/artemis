@@ -33,6 +33,7 @@ run_test
     scheduler := Scheduler logger
     applications := ApplicationManager logger scheduler
     job := SynchronizeJob logger device applications mediator_service
+      --firmware=""  // TODO(kasper): Should this be something more meaningful?
 
     task:: job.run
     expect_null (job.config_.get "max-offline")

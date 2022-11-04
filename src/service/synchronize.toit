@@ -21,6 +21,7 @@ validate_firmware / bool := firmware.is_validation_pending
 class SynchronizeJob extends Job implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
 
+  firmware_/string
   config_/Map := {:}
 
   logger_/log.Logger
@@ -37,9 +38,10 @@ class SynchronizeJob extends Job implements EventHandler:
   // also possible to fetch it from there.
   max_offline_/Duration? := null
 
-  constructor logger/log.Logger .device_ .applications_ .mediator_ --firmware/string?=null:
+  constructor logger/log.Logger .device_ .applications_ .mediator_ --firmware/string:
     logger_ = logger.with_name "synchronize"
-    if firmware: config_["firmware"] = firmware
+    firmware_ = firmware
+    config_["firmware"] = firmware
     super "synchronize"
 
   schedule now/JobTime -> JobTime?:
@@ -64,6 +66,14 @@ class SynchronizeJob extends Job implements EventHandler:
     logger_.info "connecting" --tags={"device": device_.id}
     mediator_.connect --device_id=device_.id --callback=this: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.id}
+
+      // TODO(kasper): Move this status reporting elsewhere. We shouldn't do
+      // it all the time for performance and bandwidth reasons.
+      resources.report_status device_.id {
+        "sdk"      : vm_sdk_version,
+        "firmware" : firmware_,
+      }
+
       while true:
         lambda/Lambda? := null
         catch: with_timeout report_status_timeout: lambda = actions_.receive
