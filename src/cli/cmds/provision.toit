@@ -67,7 +67,7 @@ insert_device_in_fleet fleet_id/string device_id/string client/http.Client artem
   if not device_id.is_empty: map["alias"] = device_id
   payload := json.encode map
 
-  headers := supabase.create_headers artemis_broker
+  headers := supabase.create_headers artemis_broker["supabase"]
   headers.add "Prefer" "return=representation"
   table := "devices"
   response := client.post payload
