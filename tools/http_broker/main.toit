@@ -34,8 +34,18 @@ class HttpBroker:
   firmwares := {:}
   device_status := {:}
 
-  // Map from device id to latch.
-  waiting_for_events := {:}
+  // Map from device-id to latch.
+  waiting_for_events/Map := {:}
+  /**
+  The state revisions for each device.
+  Every time the state of a device changes (which is signaled through a
+    $notify_device call), the revision is incremented.
+
+  When a client subscribes to events, it sends its current revision. If the
+    revision is not the same as the one stored here, then the client is
+    informed that it needs to reconcile its state.
+  */
+  state_revision/Map := {:}
 
   socket_/tcp.ServerSocket? := null
 
@@ -86,10 +96,12 @@ class HttpBroker:
   get_config data/Map:
     device_id := data["device_id"]
     config := configs.get device_id
+    return config
 
   update_config data/Map:
     device_id := data["device_id"]
     configs[device_id] = data["config"]
+    print "Updating config for $device_id to $configs[device_id] and notifying."
     notify_device device_id "config_updated"
 
   upload_image data/Map:
@@ -122,21 +134,31 @@ class HttpBroker:
 
   get_event data/Map:
     device_id := data["device_id"]
+    known_revision := data["state_revision"]
+    current_revision := state_revision.get device_id --init=:0
+
+    if current_revision != known_revision:
+      // The client and the server are out of sync. Inform the client that it needs
+      // to reconcile.
+      return {
+        "event_type": "out_of_sync",
+        "state_revision": current_revision,
+      }
+
     latch := monitor.Latch
     waiting_for_events[device_id] = latch
     event_type := latch.get
+    message := {
+      "event_type": event_type,
+      "state_revision": ++state_revision[device_id],
+    }
     if event_type == "config_updated":
-      return {
-        "event_type": "config_updated",
-        "config": configs[device_id]
-      }
+      message["config"] = configs[device_id]
     else if event_type == "status_updated":
-      return {
-        "event_type": "status_updated",
-        "status": device_status[device_id]
-      }
+      message["status"] = device_status[device_id]
     else:
       throw "Unknown event type: $event_type"
+    return message
 
   notify_device device_id/string event_type/string:
     latch/monitor.Latch? := waiting_for_events.get device_id

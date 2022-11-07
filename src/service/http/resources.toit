@@ -32,8 +32,8 @@ class ResourceManagerHttp implements ResourceManager:
       last_firmware_id_ = id
       last_firmware_ = firmware
 
-    reader := bytes.Reader firmware
-    block.call reader firmware.size
+    reader := bytes.Reader firmware[offset..]
+    block.call reader offset
 
   report_status device_id/string status/Map -> none:
     connection_.send_request "report_status" {
