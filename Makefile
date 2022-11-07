@@ -27,9 +27,9 @@ TOITWARE_TESTING_CERTIFICATE := Baltimore CyberTrust Root
 
 .PHONY: add-default-brokers
 add-default-brokers:
-	toit.run src/cli/cli.toit config broker add supabase \
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
 		--certificate="$(ARTEMIS_CERTIFICATE)" artemis $(ARTEMIS_HOST) "$(ARTEMIS_ANON)"
-	toit.run src/cli/cli.toit config broker add supabase \
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
 		--certificate="$(TOITWARE_TESTING_CERTIFICATE)" toitware-testing $(TOITWARE_TESTING_HOST) "$(TOITWARE_TESTING_ANON)"
 
 
