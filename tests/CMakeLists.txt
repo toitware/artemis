@@ -6,7 +6,7 @@ set(TEST_TIMEOUT 40 CACHE STRING "The maximal amount of time each test is allowe
 set(SLOW_TEST_TIMEOUT 200 CACHE STRING "The maximal amount of time each slow test is allowed to run")
 set(WITH_MOSQUITTO TRUE CACHE BOOL "Whether the tests should run with mosquitto")
 set(WITH_TOIT_MQTT TRUE CACHE BOOL "Whether the tests should run with Toit's MQTT broker")
-set(WITH_TOIT_HTTP TRUE CACHE BOOL "Whether the tests should run with Toit's http broker")
+set(WITH_TOIT_HTTP TRUE CACHE BOOL "Whether the tests should run with Toit's HTTP broker")
 
 toit_project(tests "${CMAKE_CURRENT_LIST_DIR}")
 

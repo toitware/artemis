@@ -10,7 +10,7 @@ import monitor
 
 main args:
   root_cmd := cli.Command "root"
-    --long_help="""An http-based broker
+    --long_help="""An HTTP-based broker
 
       Can be used to let devices and the CLI communicate with each other.
       This server keeps data in memory and should thus only be used for
@@ -68,7 +68,6 @@ class HttpBroker:
       else:
         print "Unknown command: $command"
         throw "BAD COMMAND $command"
-
 
   reply writer/http.ResponseWriter [block]:
     response_data := null
@@ -144,4 +143,3 @@ class HttpBroker:
     if latch:
       waiting_for_events.remove device_id
       latch.set event_type
-

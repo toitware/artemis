@@ -24,6 +24,7 @@ class MediatorServiceHttp implements MediatorService:
     handle_task/Task? := ?
     handle_task = task::
       while not connection_.is_closed:
+        // Long poll for new events.
         response := connection_.send_request "get_event" {
           "device_id": device_id,
         }
