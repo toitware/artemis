@@ -13,11 +13,11 @@ create_mediator_cli_supabase broker/Map -> MediatorCliPostgrest:
   network := net.open
   http_client := create_client network broker
   postgrest_client := SupabaseClient http_client broker
-  id := "supabase/$broker["supabase"]["host"]"
+  id := "supabase/$broker["host"]"
   return MediatorCliPostgrest postgrest_client network --id=id
 
 create_client network/net.Interface broker/Map -> http.Client:
-  certificate_text := broker["supabase"].get "certificate"
+  certificate_text := broker.get "certificate"
   if certificate_text:
     certificate := x509.Certificate.parse certificate_text
     return http.Client.tls network --root_certificates=[certificate]
@@ -25,7 +25,7 @@ create_client network/net.Interface broker/Map -> http.Client:
     return http.Client network
 
 create_headers broker/Map -> http.Headers:
-  anon := broker["supabase"]["anon"]
+  anon := broker["anon"]
   headers := http.Headers
   headers.add "apikey" anon
   headers.add "Authorization" "Bearer $anon"

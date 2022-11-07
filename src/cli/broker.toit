@@ -14,6 +14,10 @@ get_broker config/Config broker_name/string -> Map:
     if certificate_name := supabase.get "certificate":
       // Replace the certificate name with its content.
       supabase["certificate"] = get_certificate_ config certificate_name
+  if mqtt := result.get "mqtt":
+    if certificate_name := mqtt.get "root-certificate":
+      // Replace the certificate name with its content.
+      mqtt["root-certificate"] = get_certificate_ config certificate_name
   return result
 
 get_certificate_ config/Config certificate_name/string -> ByteArray:

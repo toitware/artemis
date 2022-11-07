@@ -44,9 +44,12 @@ create_identity config/Config parsed/cli.Parsed:
   broker := get_broker config parsed["broker"]
   artemis_broker := get_broker config parsed["broker.artemis"]
 
+  if not broker.contains "supabase": throw "unsupported broker"
+  if not artemis_broker.contains "supabase": throw "unsupported artemis broker"
+
   network := net.open
   try:
-    client := supabase.create_client network artemis_broker
+    client := supabase.create_client network artemis_broker["supabase"]
     device := insert_device_in_fleet fleet_id device_id client artemis_broker
     // Insert an initial event mostly for testing purposes.
     device_id = device["alias"]
