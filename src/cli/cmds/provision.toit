@@ -86,7 +86,7 @@ insert_created_event hardware_id/string client/http.Client artemis_broker/Map ->
   }
   payload := json.encode map
 
-  headers := supabase.create_headers artemis_broker
+  headers := supabase.create_headers artemis_broker["supabase"]
   table := "events"
   response := client.post payload
       --host=artemis_broker["supabase"]["host"]
