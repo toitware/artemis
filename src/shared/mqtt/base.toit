@@ -85,10 +85,15 @@ class MediatorCliMqtt implements MediatorCli:
         with_timeout --ms=5_000:
           locked.get
 
-    // We didn't get the lock.
-    // TODO(florian): in theory we might just now get the lock. However, we
-    // will not release it. This could lead to a bad state.
+    // It doesn't matter wheter we got the lock or not. We don't want to
+    // receive any messages on this topic anymore. Otherwise, we might
+    // even fight for the lock just after we released it below.
+    client.unsubscribe topic_lock
+
     if exception == DEADLINE_EXCEEDED_ERROR:
+      // We didn't get the lock.
+      // TODO(florian): in theory we might just now get the lock. However, we
+      // will not release it. This could lead to a bad state.
       print "$(%08d Time.monotonic_us): Timed out waiting for writer lock"
       return
 
