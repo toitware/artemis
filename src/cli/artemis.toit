@@ -266,31 +266,26 @@ class FirmwarePatch:
     trivial_id := id_ --to=to_
     cache_key := "$mediator.id/patches/$trivial_id"
     // Unless it is already cached, always create/upload the trivial one.
-    c.get_directory_path cache_key: | store/cache.FileStore |
+    c.get cache_key: | store/cache.FileStore |
       trivial := build_trivial_patch bits_
       mediator.upload_firmware --firmware_id=trivial_id trivial
       store.save_via_writer: | writer/writer.Writer |
         trivial.do: writer.write it
-        writer.close
 
     if not from_: return
 
     // Attempt to fetch the old trivial patch and use it to construct
     // the old bits so we can compute a diff from them.
-    trivial_old := null
     old_id := id_ --to=from_
     cache_key = "$mediator.id/patches/$old_id"
-    trivial_old_dir := c.get cache_key: | store/cache.FileStore |
-      catch: trivial_old = mediator.download_firmware --id=old_id
-      if not trivial_old: return
+    trivial_old := c.get cache_key: | store/cache.FileStore |
+      downloaded := null
+      catch: downloaded = mediator.download_firmware --id=old_id
+      if not downloaded: return
       store.with_tmp_directory: | tmp_dir |
-        file.write_content trivial_old --path="$tmp_dir/patch"
+        file.write_content downloaded --path="$tmp_dir/patch"
         // TODO(florian): we don't have the chunk-size when downloading from the broker.
         store.move tmp_dir
-
-    if not trivial_old:
-      // The cache gave us a directory path.
-      trivial_old = file.read_content "$trivial_old_dir/patch"
 
     bitstream := bytes.Reader trivial_old
     patcher := Patcher bitstream null
@@ -311,9 +306,8 @@ class FirmwarePatch:
       diff := build_diff_patch old bits_
       if to_ != (compute_applied_hash_ diff old): return
       mediator.upload_firmware --firmware_id=diff_id diff
-      store.save_via_writer: | w/writer.Writer |
-        diff.do: w.write it
-        w.close
+      store.save_via_writer: | writer/writer.Writer |
+        diff.do: writer.write it
 
   static compute_applied_hash_ diff/List old/ByteArray -> ByteArray?:
     combined := diff.reduce --initial=#[]: | acc chunk | acc + chunk
