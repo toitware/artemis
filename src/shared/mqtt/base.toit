@@ -3,10 +3,45 @@
 import monitor
 import mqtt
 import mqtt.transport as mqtt
+import net
+import net.x509
 import encoding.ubjson
+import tls
 
 import ..device
 import ..mediator
+
+create_mediator_cli_mqtt broker/Map:
+  id := "mqtt/$broker["host"]"
+  return MediatorCliMqtt broker --id=id
+
+create_transport network/net.Interface broker/Map -> mqtt.Transport:
+  if broker.contains "create-transport":
+    return broker["create-transport"].call network
+  return create_transport network
+      --host=broker["host"]
+      --port=broker["port"]
+      --root_certificate_text=broker.get "root-certificate"
+      --client_certificate_text=broker.get "client-certificate"
+      --client_key=broker.get "client-private-key"
+
+create_transport network/net.Interface -> mqtt.Transport
+    --host/string
+    --port/int
+    --root_certificate_text/string?=null
+    --client_certificate_text/string?=null
+    --client_key/string?=null:
+  if root_certificate_text:
+    client_certificate := null
+    if client_certificate_text:
+      client_certificate = tls.Certificate (x509.Certificate.parse client_certificate_text) client_key
+    root_certificate := x509.Certificate.parse root_certificate_text
+    return mqtt.TcpTransport.tls network --host=host --port=port
+        --server_name=host
+        --root_certificates=[root_certificate]
+        --certificate=client_certificate
+  else:
+    return mqtt.TcpTransport network --host=host --port=port
 
 topic_config_for_ device_id/string -> string:
   return "toit/devices/$device_id/config"
@@ -29,13 +64,18 @@ class MediatorCliMqtt implements MediatorCli:
   /** See $MediatorCli.id. */
   id/string
 
-  constructor transport/mqtt.Transport --.id/string:
+  transport_/mqtt.Transport
+
+  constructor broker/Map --.id/string:
+    network := net.open
     options := mqtt.SessionOptions --client_id=ID_ --clean_session
-    client_ = mqtt.Client --transport=transport
+    transport_ = create_transport network broker
+    client_ = mqtt.Client --transport=transport_
     client_.start --options=options
 
   close:
     client_.close
+    transport_.close
     client_ = null
 
   is_closed -> bool:

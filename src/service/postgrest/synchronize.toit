@@ -27,7 +27,7 @@ class MediatorServicePostgrest implements MediatorService:
 
     client := supabase.create_client network broker_
     headers := supabase.create_headers broker_
-    resources := ResourceManagerPostgrest client broker_["supabase"]["host"] headers
+    resources := ResourceManagerPostgrest client broker_["host"] headers
 
     disconnected := monitor.Latch
     handle_task/Task? := ?

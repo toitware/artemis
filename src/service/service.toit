@@ -22,9 +22,11 @@ run_artemis device/Device broker/Map --firmware/string?=null -> none:
 
   mediator/MediatorService := ?
   if broker.contains "supabase":
-    mediator = MediatorServicePostgrest logger broker
+    mediator = MediatorServicePostgrest logger broker["supabase"]
+  else if broker.contains "mqtt":
+    mediator = MediatorServiceMqtt logger broker["mqtt"]
   else:
-    mediator = MediatorServiceMqtt logger
+    throw "unknown broker $broker"
 
   synchronize/SynchronizeJob := SynchronizeJob logger device applications mediator
       --firmware=firmware

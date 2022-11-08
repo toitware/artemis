@@ -13,7 +13,6 @@ import ..status show report_status
 import ..synchronize show SynchronizeJob
 
 import ..mediator_service
-import ...shared.mqtt.aws
 import ...shared.mqtt.base
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
@@ -21,15 +20,14 @@ CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 class MediatorServiceMqtt implements MediatorService:
   revision_/int? := null
   logger_/log.Logger
-  create_transport_/Lambda
+  broker_/Map
 
-  constructor .logger_ --create_transport/Lambda=(:: aws_create_transport it):
-    create_transport_ = create_transport
+  constructor .logger_ .broker_:
 
   connect --device_id/string --callback/EventHandler [block]:
     network ::= net.open
     report_status network logger_
-    transport ::= create_transport_.call network
+    transport ::= create_transport network broker_
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
     connect_client_ --device_id=device_id client
     disconnected := monitor.Latch
@@ -75,6 +73,7 @@ class MediatorServiceMqtt implements MediatorService:
         critical_do:
           disconnected.set true
           client.close --force
+          transport.close
           network.close
         client = null
         handle_task = null

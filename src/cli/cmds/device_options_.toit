@@ -7,7 +7,7 @@ import .broker_options_
 import ..broker
 import ..config
 import ...shared.mediator
-import ...shared.mqtt.aws
+import ...shared.mqtt.base
 import ...shared.postgrest.supabase
 
 device_options -> List:
@@ -21,11 +21,7 @@ device_options -> List:
 create_mediator config/Config parsed/cli.Parsed -> MediatorCli:
   broker := get_broker config parsed["broker"]
   if broker.contains "supabase":
-    return create_mediator_cli_supabase broker
-  return create_mediator_cli_aws
-
-create_mediator --identity/Map -> MediatorCli:
-  broker := identity["broker"]
-  if broker.contains "supabase":
-    return create_mediator_cli_supabase broker
-  return create_mediator_cli_aws
+    return create_mediator_cli_supabase broker["supabase"]
+  if broker.contains "mqtt":
+    return create_mediator_cli_mqtt broker["mqtt"]
+  throw "Unknown broker type"
