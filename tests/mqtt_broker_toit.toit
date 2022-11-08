@@ -13,7 +13,9 @@ with_toit_mqtt_broker --logger/log.Logger [block]:
   broker_task := task:: broker.start
 
   try:
-    block.call:: TestClientTransport server_transport
+    block.call {
+      "create-transport": (:: TestClientTransport server_transport)
+    }
   finally:
     broker_task.cancel
 

@@ -15,8 +15,8 @@ import artemis.shared.device show Device
 import .mediators
 import .utils
 
-main args:
-  with_mediators args: | logger name mediator_cli mediator_service |
+run_test mediator_id/string:
+  with_mediator mediator_id: | logger name mediator_cli mediator_service |
     run_test logger name mediator_cli mediator_service
 
 run_test

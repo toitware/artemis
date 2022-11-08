@@ -14,32 +14,29 @@ import ..tools.http_broker.main as http_broker
 import .mqtt_broker_mosquitto
 import .mqtt_broker_toit
 
-with_mediators mediators/List [block]:
-  mediators.do: | mediator_id/string |
-    logger := log.default.with_name "testing-$mediator_id"
-    if mediator_id == "mosquitto":
-      with_mosquitto --logger=logger: | create_transport/Lambda |
-        with_mqtt_mediator logger mediator_id create_transport block
-    else if mediator_id == "toit-mqtt":
-      with_toit_mqtt_broker --logger=logger: | create_transport/Lambda |
-        with_mqtt_mediator logger mediator_id create_transport block
+with_mediator mediator_id [block]:
+  logger := log.default.with_name "testing-$mediator_id"
+  if mediator_id == "mosquitto":
+    with_mosquitto --logger=logger: | broker/Map |
+      with_mqtt_mediator logger mediator_id broker block
+  else if mediator_id == "toit-mqtt":
+    with_toit_mqtt_broker --logger=logger: | broker/Map |
+      with_mqtt_mediator logger mediator_id broker block
     else if mediator_id == "toit-http":
       with_toit_http_mediator logger mediator_id block
-    else:
-      throw "Unknown mediator $mediator_id"
+  else:
+    throw "Unknown mediator $mediator_id"
 
-with_mqtt_mediator logger/log.Logger mediator_id/string create_transport/Lambda [block]:
-  transport/mqtt.Transport := create_transport.call
+with_mqtt_mediator logger/log.Logger mediator_id/string broker/Map [block]:
   mediator_cli/MediatorCli? := null
   mediator_service/MediatorService? := null
   try:
-    mediator_cli = MediatorCliMqtt transport --id="test/$mediator_id"
-    mediator_service = MediatorServiceMqtt logger --create_transport=create_transport
+    mediator_cli = MediatorCliMqtt broker --id="test/$mediator_id"
+    mediator_service = MediatorServiceMqtt logger broker
 
     block.call logger mediator_id mediator_cli mediator_service
   finally:
     if mediator_cli: mediator_cli.close
-    transport.close
 
 with_toit_http_mediator logger/log.Logger mediator_id/string [block]:
   broker := http_broker.HttpBroker 0
