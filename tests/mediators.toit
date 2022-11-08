@@ -10,17 +10,16 @@ import artemis.service.mqtt.synchronize show MediatorServiceMqtt
 import .mqtt_broker_mosquitto
 import .mqtt_broker_toit
 
-with_mediators mediators/List [block]:
-  mediators.do: | mediator_id/string |
-    logger := log.default.with_name "testing-$mediator_id"
-    if mediator_id == "mosquitto":
-      with_mosquitto --logger=logger: | broker/Map |
-        with_mqtt_mediator logger mediator_id broker block
-    else if mediator_id == "toit-mqtt":
-      with_toit_mqtt_broker --logger=logger: | broker/Map |
-        with_mqtt_mediator logger mediator_id broker block
-    else:
-      throw "Unknown mediator $mediator_id"
+with_mediator mediator_id [block]:
+  logger := log.default.with_name "testing-$mediator_id"
+  if mediator_id == "mosquitto":
+    with_mosquitto --logger=logger: | broker/Map |
+      with_mqtt_mediator logger mediator_id broker block
+  else if mediator_id == "toit-mqtt":
+    with_toit_mqtt_broker --logger=logger: | broker/Map |
+      with_mqtt_mediator logger mediator_id broker block
+  else:
+    throw "Unknown mediator $mediator_id"
 
 with_mqtt_mediator logger/log.Logger mediator_id/string broker/Map [block]:
   mediator_cli/MediatorCli? := null
