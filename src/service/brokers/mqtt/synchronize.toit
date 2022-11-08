@@ -14,13 +14,14 @@ import ...synchronize show SynchronizeJob
 
 import ...broker
 import ....shared.mqtt
+import ....shared.broker_config
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
 class BrokerServiceMqtt implements BrokerService:
   revision_/int? := null
   logger_/log.Logger
-  broker_/Map
+  broker_/MqttBrokerConfig
 
   constructor .logger_ .broker_:
 

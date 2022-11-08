@@ -17,7 +17,7 @@ import encoding.base64
 import encoding.tison
 import encoding.hex
 
-import ..broker show decode_broker
+import ..broker show decode_broker_config
 import ..service show run_artemis
 import ..status show report_status_setup
 
@@ -54,8 +54,8 @@ run_host --identity/Map --encoded/string --bits/ByteArray? -> none:
   identity["broker"] = tison.encode identity["broker"]
 
   device := report_status_setup identity identity["artemis.device"]
-  broker := decode_broker "broker" identity
-  run_artemis device broker --firmware=encoded
+  broker_config := decode_broker_config "broker" identity
+  run_artemis device broker_config --firmware=encoded
 
 // --------------------------------------------------------------------------
 

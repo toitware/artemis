@@ -7,8 +7,7 @@ import .broker_options_
 import ..broker
 import ..config
 import ..broker
-import ..brokers.mqtt.base
-import ..brokers.postgrest.supabase
+import ...shared.broker_config
 
 device_options -> List:
   return broker_options + [
@@ -18,10 +17,6 @@ device_options -> List:
         --required
   ]
 
-create_broker config/Config parsed/cli.Parsed -> BrokerCli:
-  broker := get_broker_config config parsed["broker"]
-  if broker.contains "supabase":
-    return create_broker_cli_supabase broker["supabase"]
-  if broker.contains "mqtt":
-    return create_broker_cli_mqtt broker["mqtt"]
-  throw "Unknown broker type"
+create_broker_from_cli_args config/Config parsed/cli.Parsed -> BrokerCli:
+  broker_config := get_broker_config config parsed["broker"]
+  return create_broker broker_config

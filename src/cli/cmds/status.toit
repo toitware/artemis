@@ -24,7 +24,7 @@ create_status_commands config/Config cache/Cache -> List:
   ]
 
 show_status config/Config parsed/cli.Parsed:
-  broker := create_broker config parsed
+  broker := create_broker_from_cli_args config parsed
   if broker is not BrokerCliMqtt:
     throw "Only MQTT is supported for this command."
 
@@ -35,7 +35,7 @@ show_status config/Config parsed/cli.Parsed:
   mqtt_broker.close
 
 watch_presence config/Config parsed/cli.Parsed:
-  broker := create_broker config parsed
+  broker := create_broker_from_cli_args config parsed
   if broker is not BrokerCliMqtt:
     throw "Only MQTT is supported for this command."
 

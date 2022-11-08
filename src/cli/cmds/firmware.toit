@@ -72,27 +72,22 @@ create_firmware_commands config/Config cache/Cache -> List:
 
 create_firmware config/Config cache/Cache parsed/cli.Parsed -> none:
   output_path := parsed["output"]
-  broker := get_broker_config config parsed["broker"]
-  artemis_broker := get_broker_config config parsed["broker.artemis"]
+  broker_config := get_broker_config config parsed["broker"]
+  artemis_broker_config := get_broker_config config parsed["broker.artemis"]
 
-  // TODO(kasper): It is pretty ugly that we have to copy
-  // the supabase component to avoid messing with the
-  // broker map.
-  supabase := broker["supabase"].copy
-  artemis_supabase := artemis_broker["supabase"].copy
-  certificates := collect_certificates supabase
-  (collect_certificates artemis_supabase).do: | key/string value |
-    certificates[key] = value
+  serialized_certificates := {:}
+  serialized_broker := serialize_broker_config broker_config serialized_certificates
+  serialized_artemis_broker := serialize_broker_config artemis_broker_config serialized_certificates
 
   with_tmp_directory: | tmp/string |
-    write_json_to_file "$tmp/broker.json" { "supabase" : supabase }
-    write_json_to_file "$tmp/artemis.broker.json" { "supabase" : artemis_supabase }
+    write_json_to_file "$tmp/broker.json" serialized_broker
+    write_json_to_file "$tmp/artemis.broker.json" serialized_artemis_broker
 
     assets_path := "$tmp/artemis.assets"
     run_assets_tool ["-e", assets_path, "create"]
     run_assets_tool ["-e", assets_path, "add", "--format=tison", "broker", "$tmp/broker.json"]
     run_assets_tool ["-e", assets_path, "add", "--format=tison", "artemis.broker", "$tmp/artemis.broker.json"]
-    add_certificate_assets assets_path tmp certificates
+    add_certificate_assets assets_path tmp serialized_certificates
 
     snapshot_path := "$tmp/artemis.snapshot"
     run_toit_compile ["-w", snapshot_path, "src/service/run/device.toit"]
@@ -140,7 +135,7 @@ flash_firmware config/Config cache/Cache parsed/cli.Parsed:
   identity := ubjson.decode (base64.decode identity_raw)
   device_id := identity["artemis.device"]["device_id"]
 
-  broker := create_broker config parsed
+  broker := create_broker_from_cli_args config parsed
   artemis := Artemis broker cache
   firmware := artemis.firmware_create
       --identity=identity
@@ -182,7 +177,7 @@ update_firmware config/Config cache/Cache parsed/cli.Parsed:
   device_selector := parsed["device"]
   firmware_path := parsed["firmware"]
 
-  broker := create_broker config parsed
+  broker := create_broker_from_cli_args config parsed
   artemis := Artemis broker cache
   device_id := artemis.device_selector_to_id device_selector
   artemis.firmware_update --device_id=device_id --firmware_path=firmware_path

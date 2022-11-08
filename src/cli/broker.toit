@@ -3,22 +3,30 @@
 import host.file
 import encoding.json
 import .config
+import ..shared.broker_config
+import .brokers.mqtt.base
+import .brokers.postgrest.supabase
+import certificate_roots
+import crypto.sha256
+import encoding.base64
 
-get_broker_config config/Config broker_name/string -> Map:
+create_broker broker_config/BrokerConfig -> BrokerCli:
+  if broker_config is SupabaseBrokerConfig:
+    return create_broker_cli_supabase (broker_config as SupabaseBrokerConfig)
+  if broker_config is MqttBrokerConfig:
+    return create_broker_cli_mqtt (broker_config as MqttBrokerConfig)
+  throw "Unknown broker type"
+
+get_broker_config config/Config broker_name/string -> BrokerConfig:
   brokers := config.get "brokers"
   if not brokers: throw "No brokers configured"
   broker_config/Map? := brokers.get broker_name
   if not broker_config: throw "No broker named $broker_name"
-  result := broker_config.copy
-  if supabase := result.get "supabase":
-    if certificate_name := supabase.get "certificate":
-      // Replace the certificate name with its content.
-      supabase["certificate"] = get_certificate_ config certificate_name
-  if mqtt := result.get "mqtt":
-    if certificate_name := mqtt.get "root-certificate":
-      // Replace the certificate name with its content.
-      mqtt["root-certificate"] = get_certificate_ config certificate_name
-  return result
+  config_as_map := broker_config.copy
+  if not config_as_map.contains "type":
+    throw "Invalid broker config: missing type. Old version?"
+
+  return BrokerConfig broker_name config_as_map
 
 get_certificate_ config/Config certificate_name/string -> ByteArray:
   assets := config.get "assets"
@@ -29,6 +37,22 @@ get_certificate_ config/Config certificate_name/string -> ByteArray:
   if not certificate: throw "No certificate named $certificate_name"
   // PEM certificates need to be zero terminated. Ugh.
   return certificate.to_byte_array + #[0]
+
+/**
+Serializes a certificate to a string.
+Deduplicates them in the process.
+*/
+serialize_certificate_ certificate_string/string serialized_certificates/Map  -> string:
+  sha := sha256.Sha256
+  sha.add certificate_string
+  certificate_key := "certificate-$(base64.encode sha.get[0..8])"
+  serialized_certificates[certificate_key] = certificate_string
+  return certificate_key
+
+serialize_broker_config broker_config/BrokerConfig serialized_certificates/Map -> any:
+  broker_config.fill_certificate_texts: certificate_roots.MAP[it]
+  return broker_config.serialize:
+    serialize_certificate_ it serialized_certificates
 
 /**
 Responsible for allowing the Artemis CLI to talk to Artemis services on devices.

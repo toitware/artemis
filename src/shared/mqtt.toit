@@ -7,6 +7,7 @@ import net
 import net.x509
 import encoding.ubjson
 import tls
+import .broker_config
 
 /**
 MQTT functionality.
@@ -19,15 +20,16 @@ Ideally, there is (or should be) a clear separation between the parts that
   just generic and could live in their own package.
 */
 
-create_transport network/net.Interface broker_config/Map -> mqtt.Transport:
-  if broker_config.contains "create-transport":
-    return broker_config["create-transport"].call network
+create_transport network/net.Interface broker_config/MqttBrokerConfig -> mqtt.Transport:
+  if broker_config is CreateTransportMqttBrokerConfig:
+    return (broker_config as CreateTransportMqttBrokerConfig).create_transport
+
   return create_transport network
-      --host=broker_config["host"]
-      --port=broker_config["port"]
-      --root_certificate_text=broker_config.get "root-certificate"
-      --client_certificate_text=broker_config.get "client-certificate"
-      --client_key=broker_config.get "client-private-key"
+      --host=broker_config.host
+      --port=broker_config.port
+      --root_certificate_text=broker_config.root_certificate_text
+      --client_certificate_text=broker_config.client_certificate_text
+      --client_key=broker_config.client_private_key
 
 create_transport network/net.Interface -> mqtt.Transport
     --host/string

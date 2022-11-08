@@ -9,13 +9,14 @@ import ...broker
 
 import ...status show report_status
 import ....shared.postgrest as supabase
+import ....shared.broker_config
 
 POLL_INTERVAL ::= Duration --s=20
 IDLE_TIMEOUT  ::= Duration --m=10
 
 class BrokerServicePostgrest implements BrokerService:
   logger_/log.Logger
-  broker_/Map
+  broker_/SupabaseBrokerConfig
   idle_/monitor.Gate ::= monitor.Gate
 
   constructor .logger_ .broker_:
@@ -27,7 +28,7 @@ class BrokerServicePostgrest implements BrokerService:
 
     client := supabase.create_client network broker_
     headers := supabase.create_headers broker_
-    resources := ResourceManagerPostgrest client broker_["host"] headers
+    resources := ResourceManagerPostgrest client broker_.host headers
 
     disconnected := monitor.Latch
     handle_task/Task? := ?

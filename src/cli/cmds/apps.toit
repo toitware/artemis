@@ -41,7 +41,7 @@ install_app config/Config cache/Cache parsed/cli.Parsed:
   device_selector := parsed["device"]
   application_path :=parsed["application"]
 
-  broker := create_broker config parsed
+  broker := create_broker_from_cli_args config parsed
   artemis := Artemis broker cache
   device_id := artemis.device_selector_to_id device_selector
   artemis.app_install --device_id=device_id --app_name=app_name --application_path=application_path
@@ -52,7 +52,7 @@ uninstall_app config/Config cache/Cache parsed/cli.Parsed:
   app_name := parsed["app-name"]
   device_selector := parsed["device"]
 
-  broker := create_broker config parsed
+  broker := create_broker_from_cli_args config parsed
   artemis := Artemis broker cache
   device_id := artemis.device_selector_to_id device_selector
   artemis.app_uninstall --device_id=device_id --app_name=app_name

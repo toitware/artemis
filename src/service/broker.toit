@@ -2,15 +2,13 @@
 
 import reader show SizedReader  // For toitdoc.
 import encoding.tison
+import ..shared.broker_config
 
-decode_broker key/string assets/Map -> Map?:
-  broker := assets.get key --if_present=: tison.decode it
-  if not broker: return null
-  if supabase := broker.get "supabase":
-    certificate_name := supabase["certificate"]
-    certificate := assets.get certificate_name
-    supabase["certificate"] = certificate
-  return broker
+decode_broker_config key/string assets/Map -> BrokerConfig?:
+  broker_entry := assets.get key --if_present=: tison.decode it
+  if not broker_entry: return null
+  // We use the key as name for the broker configuration.
+  return BrokerConfig.deserialize key broker_entry: assets.get it
 
 /**
 The resource manager is used to exchange data with the broker.
