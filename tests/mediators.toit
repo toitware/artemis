@@ -22,8 +22,8 @@ with_mediator mediator_id [block]:
   else if mediator_id == "toit-mqtt":
     with_toit_mqtt_broker --logger=logger: | broker/Map |
       with_mqtt_mediator logger mediator_id broker block
-    else if mediator_id == "toit-http":
-      with_toit_http_mediator logger mediator_id block
+  else if mediator_id == "toit-http":
+    with_toit_http_mediator logger mediator_id block
   else:
     throw "Unknown mediator $mediator_id"
 

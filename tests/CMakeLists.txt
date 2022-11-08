@@ -23,10 +23,6 @@ include(fail.cmake OPTIONAL)
 message("Failing tests: ${FAILING_TESTS}")
 message("Skipped tests: ${SKIP_TESTS}")
 
-endif()
-
-if (${WITH_TOIT_HTTP})
-  set(TEST_FLAGS ${TEST_FLAGS} "toit-http")
 foreach(file ${TESTS})
   set(test_name "/tests/${file}")
   if("${test_name}" IN_LIST SKIP_TESTS)
