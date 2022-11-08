@@ -38,5 +38,8 @@ run_test
     task:: job.run
     expect_null (job.config_.get "max-offline")
     artemis.config_set_max_offline --device_id=DEVICE_NAME --max_offline_seconds=10
-    sleep --ms=500
+    with_timeout --ms=15_000:
+      while true:
+        if job.config_.get "max-offline": break
+        sleep --ms=5
     expect_equals 10 (job.config_["max-offline"])

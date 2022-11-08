@@ -1,7 +1,9 @@
 sdk: ^1.6.10
 prefixes:
   artemis: ..
+  cli: pkg-cli
   host: pkg-host
+  http: pkg-http
   mqtt: mqtt
 packages:
   ..:

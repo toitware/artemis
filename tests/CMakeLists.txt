@@ -4,6 +4,7 @@ file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*_test.toit" "*_test_slow.
 
 set(TEST_TIMEOUT 40 CACHE STRING "The maximal amount of time each test is allowed to run")
 set(SLOW_TEST_TIMEOUT 200 CACHE STRING "The maximal amount of time each slow test is allowed to run")
+set(WITH_TOIT_HTTP TRUE CACHE BOOL "Whether the tests should run with Toit's HTTP broker")
 
 toit_project(tests "${CMAKE_CURRENT_LIST_DIR}")
 
