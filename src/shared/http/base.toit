@@ -8,7 +8,6 @@ import net
 import ..mediator
 
 class MediatorCliHttp implements MediatorCli:
-
   network_/net.Interface? := ?
   id/string
   host/string
