@@ -4,35 +4,35 @@ import expect show *
 import log
 import mqtt.broker
 import artemis.cli.artemis show Artemis
+import artemis.cli.broker
 import artemis.cli.cache show Cache
 import artemis.service.synchronize show SynchronizeJob
 import artemis.service.applications show ApplicationManager
-import artemis.service.mediator_service as mediator
+import artemis.service.broker as broker
+import artemis.service.device show Device
 import artemis.service.scheduler show Scheduler
-import artemis.shared.mediator
-import artemis.shared.device show Device
 
-import .mediators
+import .brokers
 import .utils
 
-run_test mediator_id/string:
-  with_mediator mediator_id: | logger name mediator_cli mediator_service |
-    run_test logger name mediator_cli mediator_service
+run_test broker_id/string:
+  with_broker broker_id: | logger name broker_cli broker_service |
+    run_test logger name broker_cli broker_service
 
 run_test
     logger/log.Logger
-    mediator_name/string
-    mediator_cli/mediator.MediatorCli
-    mediator_service/mediator.MediatorService:
+    broker_name/string
+    broker_cli/broker.BrokerCli
+    broker_service/broker.BrokerService:
   DEVICE_NAME ::= "test-device-$random"
 
   with_tmp_directory: | tmp_dir |
     cache := Cache --app_name="artemis-test" --path=tmp_dir
     device := Device DEVICE_NAME
-    artemis := Artemis mediator_cli cache
+    artemis := Artemis broker_cli cache
     scheduler := Scheduler logger
     applications := ApplicationManager logger scheduler
-    job := SynchronizeJob logger device applications mediator_service
+    job := SynchronizeJob logger device applications broker_service
       --firmware=""  // TODO(kasper): Should this be something more meaningful?
 
     task:: job.run

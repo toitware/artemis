@@ -1,31 +1,32 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import http
 import net
 import net.x509
-import http
 import http.status_codes
 import encoding.json
 
-import ..device
-import .base
+/**
+Postgres and Supabase functionality.
 
-create_mediator_cli_supabase broker/Map -> MediatorCliPostgrest:
-  network := net.open
-  http_client := create_client network broker
-  postgrest_client := SupabaseClient http_client broker
-  id := "supabase/$broker["host"]"
-  return MediatorCliPostgrest postgrest_client network --id=id
+This library contains functionality and constants that are shared between
+  the cli and the service.
 
-create_client network/net.Interface broker/Map -> http.Client:
-  certificate_text := broker.get "certificate"
+Ideally, there is (or should be) a clear separation between the parts that
+  are here because both sides agree on them, and the parts that are
+  just generic and could live in their own package.
+*/
+
+create_client network/net.Interface broker_config/Map -> http.Client:
+  certificate_text := broker_config.get "certificate"
   if certificate_text:
     certificate := x509.Certificate.parse certificate_text
     return http.Client.tls network --root_certificates=[certificate]
   else:
     return http.Client network
 
-create_headers broker/Map -> http.Headers:
-  anon := broker["anon"]
+create_headers broker_config/Map -> http.Headers:
+  anon := broker_config["anon"]
   headers := http.Headers
   headers.add "apikey" anon
   headers.add "Authorization" "Bearer $anon"
@@ -41,6 +42,15 @@ query_ client/http.Client host/string headers/http.Headers table/string filters/
     result = json.decode_stream body
   while data := body.read: null // DRAIN!
   return result
+
+interface PostgrestClient:
+  close -> none
+  is_closed -> bool
+
+  query table/string filters/List -> List?
+  update_entry table/string --upsert/bool payload/ByteArray
+  upload_resource --path/string --content/ByteArray
+  download_resource --path/string [block] -> none
 
 class SupabaseClient implements PostgrestClient:
   client_/http.Client? := null

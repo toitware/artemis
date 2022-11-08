@@ -7,28 +7,28 @@ import .applications show ApplicationManager
 
 import .synchronize show SynchronizeJob
 
-import .mediator_service
-import .postgrest.synchronize show MediatorServicePostgrest
-import .mqtt.synchronize show MediatorServiceMqtt
+import .broker
+import .brokers.postgrest.synchronize show BrokerServicePostgrest
+import .brokers.mqtt.synchronize show BrokerServiceMqtt
 
-import ..shared.device
+import .device
 
 import .ntp
 
-run_artemis device/Device broker/Map --firmware/string?=null -> none:
+run_artemis device/Device broker_config/Map --firmware/string?=null -> none:
   logger := log.default.with_name "artemis"
   scheduler ::= Scheduler logger
   applications ::= ApplicationManager logger scheduler
 
-  mediator/MediatorService := ?
-  if broker.contains "supabase":
-    mediator = MediatorServicePostgrest logger broker["supabase"]
-  else if broker.contains "mqtt":
-    mediator = MediatorServiceMqtt logger broker["mqtt"]
+  broker/BrokerService := ?
+  if broker_config.contains "supabase":
+    broker = BrokerServicePostgrest logger broker_config["supabase"]
+  else if broker_config.contains "mqtt":
+    broker = BrokerServiceMqtt logger broker_config["mqtt"]
   else:
-    throw "unknown broker $broker"
+    throw "unknown broker $broker_config"
 
-  synchronize/SynchronizeJob := SynchronizeJob logger device applications mediator
+  synchronize/SynchronizeJob := SynchronizeJob logger device applications broker
       --firmware=firmware
 
   scheduler.add_jobs [

@@ -3,7 +3,7 @@
 import encoding.base64
 import bytes
 import .connection
-import ..mediator_service
+import ...broker
 
 class ResourceManagerHttp implements ResourceManager:
   connection_/HttpConnection_

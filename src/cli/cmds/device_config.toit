@@ -24,9 +24,9 @@ set_max_offline config/Config cache/Cache parsed/cli.Parsed:
   device_selector := parsed["device"]
   max_offline := parsed["max-offline"]
 
-  mediator := create_mediator config parsed
-  artemis := Artemis mediator cache
+  broker := create_broker config parsed
+  artemis := Artemis broker cache
   device_id := artemis.device_selector_to_id device_selector
   artemis.config_set_max_offline --device_id=device_id --max_offline_seconds=max_offline
   artemis.close
-  mediator.close
+  broker.close

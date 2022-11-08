@@ -20,20 +20,20 @@ import .cmds.provision show write_blob_to_file write_json_to_file write_ubjson_t
 import .utils.patch_build show build_diff_patch build_trivial_patch
 import ..shared.utils.patch show Patcher PatchObserver
 
-import ..shared.mediator
+import .broker
 
 /**
 Manages devices that have an Artemis service running on them.
 */
 class Artemis:
-  mediator_/MediatorCli
+  broker_/BrokerCli
   cache_/cache.Cache
 
-  constructor .mediator_ .cache_:
+  constructor .broker_ .cache_:
 
   close:
     // Do nothing for now.
-    // The mediators are not created here and should be closed outside.
+    // The brokers are not created here and should be closed outside.
 
   /**
   Maps a device selector (name or id) to its id.
@@ -42,7 +42,7 @@ class Artemis:
     return name
 
   image_cache_id_ id/string -> string:
-    return "$mediator_.id/images/$id"
+    return "$broker_.id/images/$id"
 
   app_install --device_id/string --app_name/string --application_path/string:
     program := CompiledProgram.application application_path
@@ -52,13 +52,13 @@ class Artemis:
       store.with_tmp_directory: | tmp_dir |
         // TODO(florian): do we want to rely on the cache, or should we
         // do a check to see if the files are really uploaded?
-        mediator_.upload_image --app_id=id --bits=32 program.image32
+        broker_.upload_image --app_id=id --bits=32 program.image32
         file.write_content program.image32 --path="$tmp_dir/image32.bin"
-        mediator_.upload_image --app_id=id --bits=64 program.image64
+        broker_.upload_image --app_id=id --bits=64 program.image64
         file.write_content program.image64 --path="$tmp_dir/image64.bin"
         store.move tmp_dir
 
-    mediator_.device_update_config --device_id=device_id: | config/Map |
+    broker_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Installing app: $app_name"
       apps := config.get "apps" --if_absent=: {:}
       apps[app_name] = {"id": id, "random": (random 1000)}
@@ -66,14 +66,14 @@ class Artemis:
       config
 
   app_uninstall --device_id/string --app_name/string:
-    mediator_.device_update_config --device_id=device_id: | config/Map |
+    broker_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Uninstalling app: $app_name"
       apps := config.get "apps"
       if apps: apps.remove app_name
       config
 
   config_set_max_offline --device_id/string --max_offline_seconds/int:
-    mediator_.device_update_config --device_id=device_id: | config/Map |
+    broker_.device_update_config --device_id=device_id: | config/Map |
       print "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline_seconds)"
       if max_offline_seconds > 0:
         config["max-offline"] = max_offline_seconds
@@ -105,7 +105,7 @@ class Artemis:
         exit 1
 
     firmware/Firmware? := null
-    mediator_.device_update_config --device_id=device_id: | config/Map |
+    broker_.device_update_config --device_id=device_id: | config/Map |
       device := identity["artemis.device"]
       upgrade_to := compute_firmware_update_
           --device=device
@@ -113,7 +113,7 @@ class Artemis:
           --envelope_path=firmware_path
 
       patches := upgrade_to.patches null
-      patches.do: | patch/FirmwarePatch | patch.upload mediator_ cache_
+      patches.do: | patch/FirmwarePatch | patch.upload broker_ cache_
       firmware = upgrade_to
 
       // TODO(kasper): We actually don't have to update the device configuration
@@ -124,7 +124,7 @@ class Artemis:
     return firmware
 
   firmware_update --device_id/string --firmware_path/string -> none:
-    mediator_.device_update_config --device_id=device_id: | config/Map |
+    broker_.device_update_config --device_id=device_id: | config/Map |
       upgrade_from/Firmware? := null
       existing := config.get "firmware"
       if existing: catch: upgrade_from = Firmware.encoded existing
@@ -153,7 +153,7 @@ class Artemis:
           --envelope_path=firmware_path
 
       patches := upgrade_to.patches upgrade_from
-      patches.do: | patch/FirmwarePatch | patch.upload mediator_ cache_
+      patches.do: | patch/FirmwarePatch | patch.upload broker_ cache_
       config["firmware"] = upgrade_to.encoded
       config
 
@@ -262,13 +262,13 @@ class FirmwarePatch:
     to_ = to
     from_ = from
 
-  upload mediator/MediatorCli c/cache.Cache -> none:
+  upload broker/BrokerCli c/cache.Cache -> none:
     trivial_id := id_ --to=to_
-    cache_key := "$mediator.id/patches/$trivial_id"
+    cache_key := "$broker.id/patches/$trivial_id"
     // Unless it is already cached, always create/upload the trivial one.
     c.get cache_key: | store/cache.FileStore |
       trivial := build_trivial_patch bits_
-      mediator.upload_firmware --firmware_id=trivial_id trivial
+      broker.upload_firmware --firmware_id=trivial_id trivial
       store.save_via_writer: | writer/writer.Writer |
         trivial.do: writer.write it
 
@@ -277,10 +277,10 @@ class FirmwarePatch:
     // Attempt to fetch the old trivial patch and use it to construct
     // the old bits so we can compute a diff from them.
     old_id := id_ --to=from_
-    cache_key = "$mediator.id/patches/$old_id"
+    cache_key = "$broker.id/patches/$old_id"
     trivial_old := c.get cache_key: | store/cache.FileStore |
       downloaded := null
-      catch: downloaded = mediator.download_firmware --id=old_id
+      catch: downloaded = broker.download_firmware --id=old_id
       if not downloaded: return
       store.with_tmp_directory: | tmp_dir |
         file.write_content downloaded --path="$tmp_dir/patch"
@@ -299,13 +299,13 @@ class FirmwarePatch:
     if from_ != sha.get: return
 
     diff_id := id_ --from=from_ --to=to_
-    cache_key = "$mediator.id/patches/$diff_id"
+    cache_key = "$broker.id/patches/$diff_id"
     c.get cache_key: | store/cache.FileStore |
       // Build the diff and verify that we can apply it and get the
       // correct hash out before uploading it.
       diff := build_diff_patch old bits_
       if to_ != (compute_applied_hash_ diff old): return
-      mediator.upload_firmware --firmware_id=diff_id diff
+      broker.upload_firmware --firmware_id=diff_id diff
       store.save_via_writer: | writer/writer.Writer |
         diff.do: writer.write it
 

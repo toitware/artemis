@@ -6,21 +6,13 @@ import http
 import encoding.json
 import reader
 
-import ..mediator
+import ...broker
+import ....shared.postgrest
 
-interface PostgrestClient:
-  close -> none
-  is_closed -> bool
-
-  query table/string filters/List -> List?
-  update_entry table/string --upsert/bool payload/ByteArray
-  upload_resource --path/string --content/ByteArray
-  download_resource --path/string [block] -> none
-
-class MediatorCliPostgrest implements MediatorCli:
+class BrokerCliPostgrest implements BrokerCli:
   client_/PostgrestClient? := null
   network_/net.Interface? := null
-  /** See $MediatorCli.id. */
+  /** See $BrokerCli.id. */
   id/string
 
   constructor --.id/string .client_ .network_:

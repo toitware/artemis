@@ -4,10 +4,10 @@ import log
 import net
 import .connection
 import .resources
-import ..status show report_status
-import ..mediator_service
+import ...status show report_status
+import ...broker
 
-class MediatorServiceHttp implements MediatorService:
+class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
   connection_/HttpConnection_
 

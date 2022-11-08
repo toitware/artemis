@@ -8,60 +8,18 @@ import net.x509
 import encoding.ubjson
 import tls
 
-import ..device
-import ..mediator
+import ...broker
+import ....shared.mqtt
 
-create_mediator_cli_mqtt broker/Map:
+create_broker_cli_mqtt broker/Map:
   id := "mqtt/$broker["host"]"
-  return MediatorCliMqtt broker --id=id
+  return BrokerCliMqtt broker --id=id
 
-create_transport network/net.Interface broker/Map -> mqtt.Transport:
-  if broker.contains "create-transport":
-    return broker["create-transport"].call network
-  return create_transport network
-      --host=broker["host"]
-      --port=broker["port"]
-      --root_certificate_text=broker.get "root-certificate"
-      --client_certificate_text=broker.get "client-certificate"
-      --client_key=broker.get "client-private-key"
-
-create_transport network/net.Interface -> mqtt.Transport
-    --host/string
-    --port/int
-    --root_certificate_text/string?=null
-    --client_certificate_text/string?=null
-    --client_key/string?=null:
-  if root_certificate_text:
-    client_certificate := null
-    if client_certificate_text:
-      client_certificate = tls.Certificate (x509.Certificate.parse client_certificate_text) client_key
-    root_certificate := x509.Certificate.parse root_certificate_text
-    return mqtt.TcpTransport.tls network --host=host --port=port
-        --server_name=host
-        --root_certificates=[root_certificate]
-        --certificate=client_certificate
-  else:
-    return mqtt.TcpTransport network --host=host --port=port
-
-topic_config_for_ device_id/string -> string:
-  return "toit/devices/$device_id/config"
-
-topic_lock_for_ device_id/string -> string:
-  config_topic := topic_config_for_ device_id
-  return "$config_topic/writer"
-
-topic_revision_for_ device_id/string -> string:
-  config_topic := topic_config_for_ device_id
-  return "$config_topic/revision"
-
-topic_presence_for_ device_id/string -> string:
-  return "toit/devices/presence/$device_id"
-
-class MediatorCliMqtt implements MediatorCli:
+class BrokerCliMqtt implements BrokerCli:
   static ID_ ::= "toit/artemis-cli-$(random 0x3fff_ffff)"
 
   client_/mqtt.Client? := null
-  /** See $MediatorCli.id. */
+  /** See $BrokerCli.id. */
   id/string
 
   transport_/mqtt.Transport
