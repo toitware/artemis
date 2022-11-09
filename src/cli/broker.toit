@@ -32,8 +32,8 @@ add_broker_to_config config/Config broker_config/BrokerConfig:
   brokers := config.get "brokers"
 
   // No need to deduplicate certificates. The block just returns 'it'.
-  serialized := broker_config.to_json --certificate_deduplicator=: it
-  brokers[broker_config.name] = serialized
+  json := broker_config.to_json --certificate_deduplicator=: it
+  brokers[broker_config.name] = json
 
 get_certificate_ config/Config certificate_name/string -> ByteArray:
   assets := config.get "assets"
