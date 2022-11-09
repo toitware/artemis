@@ -18,5 +18,5 @@ device_options -> List:
   ]
 
 create_broker_from_cli_args config/Config parsed/cli.Parsed -> BrokerCli:
-  broker_config := get_broker_config config parsed["broker"]
+  broker_config := get_broker_from_config config parsed["broker"]
   return create_broker broker_config

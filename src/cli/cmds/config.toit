@@ -4,8 +4,10 @@ import certificate_roots
 import cli
 import host.file
 
+import ..broker
 import ..cache
 import ..config
+import ...shared.broker_config
 
 create_config_commands config/Config cache/Cache -> List:
   config_cmd := cli.Command "config"
@@ -91,44 +93,22 @@ get_certificate_ name/string -> string:
     print "  $it"
   throw "Unknown certificate"
 
-add_certificate_to_config_ config/Config name/string:
-  if not config.contains "assets.certificates":
-    config["assets.certificates"] = {:}
-  certificate_assets := config.get "assets.certificates"
-  if not certificate_assets.contains name:
-    certificate := get_certificate_ name
-    certificate_assets[name] = certificate
-
-add_broker_to_config_ config/Config name/string type/string broker_config/Map:
-  if not config.contains "brokers":
-    config["brokers"] = {:}
-  brokers := config.get "brokers"
-
-  brokers[name] = {
-    type: broker_config
-  }
-
 add_supabase parsed/cli.Parsed config/Config:
   name := parsed["name"]
   host := parsed["host"]
   anon := parsed["anon"]
   certificate_name := parsed["certificate"]
 
-  if certificate_name:
-    add_certificate_to_config_ config certificate_name
-
   if host.starts_with "http://" or host.starts_with "https://":
     host = host.trim --prefix "http://"
     host = host.trim --prefix "https://"
 
-  supabase_config := {
-      "host": host,
-      "anon": anon,
-  }
-  if certificate_name:
-    supabase_config["certificate"] = certificate_name
+  supabase_config := SupabaseBrokerConfig name
+      --host=host
+      --anon=anon
+      --root_certificate_name=certificate_name
 
-  add_broker_to_config_ config name "supabase" supabase_config
+  add_broker_to_config config supabase_config
   config.write
 
   print "Added broker $name"
@@ -149,21 +129,14 @@ add_mqtt parsed/cli.Parsed config/Config:
   if client_private_key_path:
     client_private_key = (file.read_content client_private_key_path).to_string
 
-  if root_certificate_name:
-    add_certificate_to_config_ config root_certificate_name
+  mqtt_config := MqttBrokerConfig name
+      --host=host
+      --port=port
+      --root_certificate_name=root_certificate_name
+      --client_certificate=client_certificate
+      --client_private_key=client_private_key
 
-  mqtt_config := {
-      "host": host,
-      "port": port,
-  }
-  if root_certificate_name:
-    mqtt_config["root-certificate"] = root_certificate_name
-  if client_certificate:
-    mqtt_config["client-certificate"] = client_certificate
-  if client_private_key:
-    mqtt_config["client-private-key"] = client_private_key
-
-  add_broker_to_config_ config name "mqtt" mqtt_config
+  add_broker_to_config config mqtt_config
   config.write
 
   print "Added broker $name"

@@ -27,6 +27,7 @@ class BrokerServicePostgrest implements BrokerService:
     idle_.unlock  // We're always idle when we're just connecting.
 
     client := supabase.create_client network broker_
+        --certificate_provider=: "UNSUPPORTED"
     headers := supabase.create_headers broker_
     resources := ResourceManagerPostgrest client broker_.host headers
 

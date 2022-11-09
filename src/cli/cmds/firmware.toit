@@ -72,22 +72,22 @@ create_firmware_commands config/Config cache/Cache -> List:
 
 create_firmware config/Config cache/Cache parsed/cli.Parsed -> none:
   output_path := parsed["output"]
-  broker_config := get_broker_config config parsed["broker"]
-  artemis_broker_config := get_broker_config config parsed["broker.artemis"]
+  broker_config := get_broker_from_config config parsed["broker"]
+  artemis_broker_config := get_broker_from_config config parsed["broker.artemis"]
 
-  serialized_certificates := {:}
-  serialized_broker := serialize_broker_config broker_config serialized_certificates
-  serialized_artemis_broker := serialize_broker_config artemis_broker_config serialized_certificates
+  deduplicated_certificates := {:}
+  broker_json := broker_config_to_service_json broker_config deduplicated_certificates
+  artemis_broker_json := broker_config_to_service_json artemis_broker_config deduplicated_certificates
 
   with_tmp_directory: | tmp/string |
-    write_json_to_file "$tmp/broker.json" serialized_broker
-    write_json_to_file "$tmp/artemis.broker.json" serialized_artemis_broker
+    write_json_to_file "$tmp/broker.json" broker_json
+    write_json_to_file "$tmp/artemis.broker.json" artemis_broker_json
 
     assets_path := "$tmp/artemis.assets"
     run_assets_tool ["-e", assets_path, "create"]
     run_assets_tool ["-e", assets_path, "add", "--format=tison", "broker", "$tmp/broker.json"]
     run_assets_tool ["-e", assets_path, "add", "--format=tison", "artemis.broker", "$tmp/artemis.broker.json"]
-    add_certificate_assets assets_path tmp serialized_certificates
+    add_certificate_assets assets_path tmp deduplicated_certificates
 
     snapshot_path := "$tmp/artemis.snapshot"
     run_toit_compile ["-w", snapshot_path, "src/service/run/device.toit"]

@@ -45,6 +45,7 @@ report_status network/net.Interface logger/log.Logger -> none:
     if not report_status_broker_: return
 
     client := supabase.create_client network report_status_broker_
+        --certificate_provider=: throw "UNSUPPORTED"
 
     // TODO(kasper): We need some timeout here.
     response := client.post report_status_payload_

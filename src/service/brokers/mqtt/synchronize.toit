@@ -29,6 +29,7 @@ class BrokerServiceMqtt implements BrokerService:
     network ::= net.open
     report_status network logger_
     transport ::= create_transport network broker_
+        --certificate_provider=: throw "UNSUPPORTED"
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
     connect_client_ --device_id=device_id client
     disconnected := monitor.Latch

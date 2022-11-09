@@ -8,6 +8,7 @@ import host.file
 import http
 import net
 import writer
+import certificate_roots
 
 import ..sdk
 
@@ -42,8 +43,8 @@ create_provision_commands config/Config cache/Cache -> List:
 create_identity config/Config parsed/cli.Parsed:
   fleet_id := parsed["fleet-id"]
   device_id := parsed["device-id"]
-  broker_generic := get_broker_config config parsed["broker"]
-  artemis_broker_generic := get_broker_config config parsed["broker.artemis"]
+  broker_generic := get_broker_from_config config parsed["broker"]
+  artemis_broker_generic := get_broker_from_config config parsed["broker.artemis"]
 
   if broker_generic is not SupabaseBrokerConfig: throw "unsupported broker"
   if artemis_broker_generic is not SupabaseBrokerConfig: throw "unsupported artemis broker"
@@ -54,6 +55,7 @@ create_identity config/Config parsed/cli.Parsed:
   network := net.open
   try:
     client := supabase.create_client network artemis_broker
+        --certificate_provider=: certificate_roots.MAP[it]
     device := insert_device_in_fleet fleet_id device_id client artemis_broker
     // Insert an initial event mostly for testing purposes.
     device_id = device["alias"]
@@ -107,12 +109,11 @@ create_identity_file -> none
     artemis_broker_config/SupabaseBrokerConfig:
   output_path := "$(device_id).identity"
 
-  // A map from id to serialized certificate.
-  // We use this to deduplicate certificates.
-  serialized_certificates := {:}
+  // A map from id to deduplicated certificate.
+  deduplicated_certificates := {:}
 
-  serialized_broker := serialize_broker_config broker_config serialized_certificates
-  serialized_artemis_broker := serialize_broker_config artemis_broker_config serialized_certificates
+  broker_json := broker_config_to_service_json broker_config deduplicated_certificates
+  artemis_broker_json := broker_config_to_service_json artemis_broker_config deduplicated_certificates
 
   identity ::= {
     "artemis.device": {
@@ -120,12 +121,12 @@ create_identity_file -> none
       "fleet_id"    : fleet_id,
       "hardware_id" : hardware_id,
     },
-    "artemis.broker": serialized_artemis_broker,
-    "broker": serialized_broker,
+    "artemis.broker": artemis_broker_json,
+    "broker": broker_json,
   }
 
   // Add the necessary certificates to the identity.
-  serialized_certificates.do: | name/string content/ByteArray |
+  deduplicated_certificates.do: | name/string content/ByteArray |
     identity[name] = content
 
   write_ubjson_to_file output_path identity

@@ -8,7 +8,8 @@ decode_broker_config key/string assets/Map -> BrokerConfig?:
   broker_entry := assets.get key --if_present=: tison.decode it
   if not broker_entry: return null
   // We use the key as name for the broker configuration.
-  return BrokerConfig.deserialize key broker_entry: assets.get it
+  return BrokerConfig.from_json key broker_entry
+      --certificate_text_provider=: assets.get it
 
 /**
 The resource manager is used to exchange data with the broker.

@@ -7,6 +7,7 @@ import net
 import net.x509
 import encoding.ubjson
 import tls
+import certificate_roots
 
 import ...broker
 import ....shared.mqtt
@@ -29,6 +30,7 @@ class BrokerCliMqtt implements BrokerCli:
     network := net.open
     options := mqtt.SessionOptions --client_id=ID_ --clean_session
     transport_ = create_transport network broker_config
+        --certificate_provider=: certificate_roots.MAP[it]
     client_ = mqtt.Client --transport=transport_
     client_.start --options=options
 

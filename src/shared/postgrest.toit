@@ -18,9 +18,15 @@ Ideally, there is (or should be) a clear separation between the parts that
   just generic and could live in their own package.
 */
 
-create_client network/net.Interface broker_config/SupabaseBrokerConfig -> http.Client:
-  if broker_config.is_secured:
-    certificate := x509.Certificate.parse broker_config.certificate_text
+create_client -> http.Client
+    network/net.Interface
+    broker_config/SupabaseBrokerConfig
+    [--certificate_provider]:
+  root_certificate_text := broker_config.certificate_text
+  if not root_certificate_text and broker_config.certificate_name:
+    root_certificate_text = certificate_provider.call broker_config.certificate_name
+  if root_certificate_text:
+    certificate := x509.Certificate.parse root_certificate_text
     return http.Client.tls network --root_certificates=[certificate]
   else:
     return http.Client network

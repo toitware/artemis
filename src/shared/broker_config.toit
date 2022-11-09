@@ -6,29 +6,28 @@ abstract class BrokerConfig:
 
   constructor.from_sub_ .name .config_:
 
-  constructor name/string config/Map:
-    if config["type"] == "supabase":
-      return SupabaseBrokerConfig name config
-    else if config["type"] == "mqtt":
-      return MqttBrokerConfig name config
-    else:
-      throw "Unknown broker type: $config"
-
   /**
-  Creates a new broker-config.
-  Deserializes the serialized map, using the $certificate_deserializer to
-    get the serialized certificate texts.
+  Creates a new broker-config from a JSON map.
 
-  The $serialized object is modified and stored internally. It must not be
+  The $json_map object is modified and stored internally. It must not be
     modified after calling this method.
+
+  Calls the $certificate_text_provider to undo the deduplication operation of
+    $to_json.
   */
-  constructor.deserialize name/string serialized/Map [certificate_deserializer]:
+  constructor.from_json name/string json_map/Map [--certificate_text_provider]:
     // This is a bit fishy, as the constructors can already to validity checks
     // before we have recovered the content of fields that were deduplicated.
-    config := BrokerConfig name serialized
+    config/BrokerConfig := ?
+    if json_map["type"] == "supabase":
+      config = SupabaseBrokerConfig name json_map
+    else if json_map["type"] == "mqtt":
+      config = MqttBrokerConfig name json_map
+    else:
+      throw "Unknown broker type: $json_map"
     config.config_.map: | key value |
       if config.is_certificate_text_ key:
-        certificate_deserializer.call value
+        certificate_text_provider.call value
       else:
         value
     return config
@@ -36,16 +35,16 @@ abstract class BrokerConfig:
   /**
   Serializes this configuration to a map.
 
-  Uses the $certificate_serializer block to store larger certificates that
+  Uses the $certificate_deduplicator block to store larger certificates that
     should be deduplicated.
-  The $certificate_serializer is called with a certificate text, and must
+  The $certificate_deduplicator is called with a certificate text, and must
     return a unique identifier for the certificate.
   */
-  serialize [certificate_serializer] -> Map:
+  to_json [--certificate_deduplicator] -> Map:
     result := config_.copy
     result.map: | key value |
       if is_certificate_text_ key:
-        certificate_serializer.call value
+        certificate_deduplicator.call value
       else:
         value
     return result
