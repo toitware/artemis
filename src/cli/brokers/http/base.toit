@@ -5,9 +5,9 @@ import encoding.base64
 import http
 import net
 
-import ..mediator
+import ...broker
 
-class MediatorCliHttp implements MediatorCli:
+class BrokerCliHttp implements BrokerCli:
   network_/net.Interface? := ?
   id/string
   host/string

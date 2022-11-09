@@ -8,16 +8,16 @@ import mqtt.packets as mqtt
 import net
 
 import .resources
-import ..applications
-import ..status show report_status
-import ..synchronize show SynchronizeJob
+import ...applications
+import ...status show report_status
+import ...synchronize show SynchronizeJob
 
-import ..mediator_service
-import ...shared.mqtt.base
+import ...broker
+import ....shared.mqtt
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
-class MediatorServiceMqtt implements MediatorService:
+class BrokerServiceMqtt implements BrokerService:
   revision_/int? := null
   logger_/log.Logger
   broker_/Map

@@ -5,15 +5,15 @@ import net
 import monitor
 
 import .resources
-import ..mediator_service
+import ...broker
 
-import ..status show report_status
-import ...shared.postgrest.supabase as supabase
+import ...status show report_status
+import ....shared.postgrest as supabase
 
 POLL_INTERVAL ::= Duration --s=20
 IDLE_TIMEOUT  ::= Duration --m=10
 
-class MediatorServicePostgrest implements MediatorService:
+class BrokerServicePostgrest implements BrokerService:
   logger_/log.Logger
   broker_/Map
   idle_/monitor.Gate ::= monitor.Gate

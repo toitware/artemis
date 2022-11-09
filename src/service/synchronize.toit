@@ -10,10 +10,10 @@ import system.firmware
 import .applications
 import .firmware_update
 import .jobs
-import .mediator_service
+import .broker
 import .status
 
-import ..shared.device show Device
+import .device
 import ..shared.json_diff show Modification
 
 validate_firmware / bool := firmware.is_validation_pending
@@ -27,7 +27,7 @@ class SynchronizeJob extends Job implements EventHandler:
   logger_/log.Logger
   device_/Device
   applications_/ApplicationManager
-  mediator_/MediatorService
+  broker_/BrokerService
 
   // We limit the capacity of the actions channel to avoid letting
   // the connect task build up too much work.
@@ -38,7 +38,7 @@ class SynchronizeJob extends Job implements EventHandler:
   // also possible to fetch it from there.
   max_offline_/Duration? := null
 
-  constructor logger/log.Logger .device_ .applications_ .mediator_ --firmware/string:
+  constructor logger/log.Logger .device_ .applications_ .broker_ --firmware/string:
     logger_ = logger.with_name "synchronize"
     firmware_ = firmware
     config_["firmware"] = firmware
@@ -64,7 +64,7 @@ class SynchronizeJob extends Job implements EventHandler:
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.id}
-    mediator_.connect --device_id=device_.id --callback=this: | resources/ResourceManager |
+    broker_.connect --device_id=device_.id --callback=this: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.id}
 
       // TODO(kasper): Move this status reporting elsewhere. We shouldn't do
@@ -103,7 +103,7 @@ class SynchronizeJob extends Job implements EventHandler:
           logger_.info "synchronized" --tags={"max-offline": max_offline_}
           break
         logger_.info "synchronized"
-        mediator_.on_idle
+        broker_.on_idle
 
       logger_.info "disconnecting" --tags={"device": device_.id}
 

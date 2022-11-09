@@ -72,8 +72,8 @@ create_firmware_commands config/Config cache/Cache -> List:
 
 create_firmware config/Config cache/Cache parsed/cli.Parsed -> none:
   output_path := parsed["output"]
-  broker := get_broker config parsed["broker"]
-  artemis_broker := get_broker config parsed["broker.artemis"]
+  broker := get_broker_config config parsed["broker"]
+  artemis_broker := get_broker_config config parsed["broker.artemis"]
 
   // TODO(kasper): It is pretty ugly that we have to copy
   // the supabase component to avoid messing with the
@@ -140,15 +140,15 @@ flash_firmware config/Config cache/Cache parsed/cli.Parsed:
   identity := ubjson.decode (base64.decode identity_raw)
   device_id := identity["artemis.device"]["device_id"]
 
-  mediator := create_mediator config parsed
-  artemis := Artemis mediator cache
+  broker := create_broker config parsed
+  artemis := Artemis broker cache
   firmware := artemis.firmware_create
       --identity=identity
       --wifi=wifi
       --device_id=device_id
       --firmware_path=firmware_path
   artemis.close
-  mediator.close
+  broker.close
 
   if parsed["simulate"]:
     run_host
@@ -182,9 +182,9 @@ update_firmware config/Config cache/Cache parsed/cli.Parsed:
   device_selector := parsed["device"]
   firmware_path := parsed["firmware"]
 
-  mediator := create_mediator config parsed
-  artemis := Artemis mediator cache
+  broker := create_broker config parsed
+  artemis := Artemis broker cache
   device_id := artemis.device_selector_to_id device_selector
   artemis.firmware_update --device_id=device_id --firmware_path=firmware_path
   artemis.close
-  mediator.close
+  broker.close

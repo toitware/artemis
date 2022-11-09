@@ -10,8 +10,8 @@ import encoding.json
 import .broker
 import .jobs
 
-import ..shared.device show Device
-import ..shared.postgrest.supabase as supabase
+import .device
+import ..shared.postgrest as supabase
 
 INTERVAL ::= Duration --m=20
 INTERVAL_BETWEEN_ATTEMPTS ::= Duration --m=2

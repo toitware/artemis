@@ -5,7 +5,7 @@ import .device_options_
 
 import ..cache
 import ..config
-import ...shared.mqtt.base
+import ..brokers.mqtt.base
 
 create_status_commands config/Config cache/Cache -> List:
   status_cmd := cli.Command "status"
@@ -24,21 +24,21 @@ create_status_commands config/Config cache/Cache -> List:
   ]
 
 show_status config/Config parsed/cli.Parsed:
-  mediator := create_mediator config parsed
-  if mediator is not MediatorCliMqtt:
+  broker := create_broker config parsed
+  if broker is not BrokerCliMqtt:
     throw "Only MQTT is supported for this command."
 
-  mqtt_mediator := mediator as MediatorCliMqtt
+  mqtt_broker := broker as BrokerCliMqtt
   // TODO(florian): map device name to device id.
   device_id := parsed["device"]
-  mqtt_mediator.print_status --device_id=device_id
-  mqtt_mediator.close
+  mqtt_broker.print_status --device_id=device_id
+  mqtt_broker.close
 
 watch_presence config/Config parsed/cli.Parsed:
-  mediator := create_mediator config parsed
-  if mediator is not MediatorCliMqtt:
+  broker := create_broker config parsed
+  if broker is not BrokerCliMqtt:
     throw "Only MQTT is supported for this command."
 
-  mqtt_mediator := mediator as MediatorCliMqtt
-  mqtt_mediator.watch_presence
+  mqtt_broker := broker as BrokerCliMqtt
+  mqtt_broker.watch_presence
   unreachable

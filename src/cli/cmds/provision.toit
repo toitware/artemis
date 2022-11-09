@@ -15,7 +15,7 @@ import ..sdk
 import ..broker
 import ..cache
 import ..config
-import ...shared.postgrest.supabase as supabase
+import ..brokers.postgrest.supabase as supabase
 
 import .broker_options_
 
@@ -41,8 +41,8 @@ create_provision_commands config/Config cache/Cache -> List:
 create_identity config/Config parsed/cli.Parsed:
   fleet_id := parsed["fleet-id"]
   device_id := parsed["device-id"]
-  broker := get_broker config parsed["broker"]
-  artemis_broker := get_broker config parsed["broker.artemis"]
+  broker := get_broker_config config parsed["broker"]
+  artemis_broker := get_broker_config config parsed["broker.artemis"]
 
   if not broker.contains "supabase": throw "unsupported broker"
   if not artemis_broker.contains "supabase": throw "unsupported artemis broker"
