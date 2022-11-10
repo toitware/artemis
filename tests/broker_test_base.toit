@@ -13,7 +13,7 @@ import .brokers
 import .utils
 
 run_test broker_id/string:
-  with_broker broker_id: | logger name broker_cli broker_service |
+  with_brokers broker_id: | logger name broker_cli broker_service |
     run_test logger name broker_cli broker_service
 
 run_test

@@ -15,21 +15,25 @@ import ..tools.http_broker.main as http_broker
 import .mqtt_broker_mosquitto
 import .mqtt_broker_toit
 
-with_broker broker_id [block]:
+/**
+Starts the broker with the given $broker_id and calls the given [block] with
+  the $broker_id, broker-cli, and broker-service.
+*/
+with_brokers broker_id [block]:
   logger := log.default.with_name "testing-$broker_id"
   if broker_id == "mosquitto":
     with_mosquitto --logger=logger: | host/string port/int |
       broker_config := BrokerConfigMqtt "mosquitto" --host=host --port=port
-      with_mqtt_broker logger broker_id --broker_config=broker_config block
+      with_mqtt_brokers_ logger broker_id --broker_config=broker_config block
   else if broker_id == "toit-mqtt":
     with_toit_mqtt_broker --logger=logger: | create_transport/Lambda |
-      with_mqtt_broker logger broker_id --create_transport=create_transport block
+      with_mqtt_brokers_ logger broker_id --create_transport=create_transport block
   else if broker_id == "toit-http":
-    with_toit_http_broker logger broker_id block
+    with_toit_http_brokers_ logger broker_id block
   else:
     throw "Unknown broker $broker_id"
 
-with_mqtt_broker logger/log.Logger broker_id/string
+with_mqtt_brokers_ logger/log.Logger broker_id/string
     --broker_config/BrokerConfigMqtt?=null
     --create_transport/Lambda?=null
     [block]:
@@ -49,7 +53,7 @@ with_mqtt_broker logger/log.Logger broker_id/string
   finally:
     if broker_cli: broker_cli.close
 
-with_toit_http_broker logger/log.Logger broker_id/string [block]:
+with_toit_http_brokers_ logger/log.Logger broker_id/string [block]:
   broker := http_broker.HttpBroker 0
   port_latch := monitor.Latch
   broker_task := task:: broker.start port_latch
