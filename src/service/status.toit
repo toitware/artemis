@@ -65,7 +65,7 @@ report_status_setup assets/Map device/Map -> Device?:
   generic_broker := decode_broker_config "artemis.broker" assets
   if not generic_broker: return null
 
-  broker := generic_broker as SupabaseBrokerConfig
+  broker := generic_broker as BrokerConfigSupabase
 
   report_status_headers_ = http.Headers
   anon := broker.anon
@@ -82,7 +82,7 @@ report_status_setup assets/Map device/Map -> Device?:
   return Device device["device_id"]
 
 // TODO(kasper): These should probably be encapsulated in an object.
-report_status_broker_/SupabaseBrokerConfig? := null
+report_status_broker_/BrokerConfigSupabase? := null
 report_status_headers_/http.Headers? := null
 report_status_path_/string := ""
 report_status_payload_/ByteArray? := null

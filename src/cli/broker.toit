@@ -11,10 +11,10 @@ import crypto.sha256
 import encoding.base64
 
 create_broker broker_config/BrokerConfig -> BrokerCli:
-  if broker_config is SupabaseBrokerConfig:
-    return create_broker_cli_supabase (broker_config as SupabaseBrokerConfig)
-  if broker_config is MqttBrokerConfig:
-    return create_broker_cli_mqtt (broker_config as MqttBrokerConfig)
+  if broker_config is BrokerConfigSupabase:
+    return create_broker_cli_supabase (broker_config as BrokerConfigSupabase)
+  if broker_config is BrokerConfigMqtt:
+    return create_broker_cli_mqtt (broker_config as BrokerConfigMqtt)
   throw "Unknown broker type"
 
 get_broker_from_config config/Config broker_name/string -> BrokerConfig:
@@ -49,7 +49,7 @@ get_certificate_ config/Config certificate_name/string -> ByteArray:
 Serializes a certificate to a string.
 Deduplicates them in the process.
 */
-deduplicate_certificate certificate_string/string deduplicated_certificates/Map  -> string:
+deduplicate_certificate certificate_string/string deduplicated_certificates/Map -> string:
   sha := sha256.Sha256
   sha.add certificate_string
   certificate_key := "certificate-$(base64.encode sha.get[0..8])"

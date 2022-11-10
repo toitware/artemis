@@ -46,11 +46,11 @@ create_identity config/Config parsed/cli.Parsed:
   broker_generic := get_broker_from_config config parsed["broker"]
   artemis_broker_generic := get_broker_from_config config parsed["broker.artemis"]
 
-  if broker_generic is not SupabaseBrokerConfig: throw "unsupported broker"
-  if artemis_broker_generic is not SupabaseBrokerConfig: throw "unsupported artemis broker"
+  if broker_generic is not BrokerConfigSupabase: throw "unsupported broker"
+  if artemis_broker_generic is not BrokerConfigSupabase: throw "unsupported artemis broker"
 
-  broker := broker_generic as SupabaseBrokerConfig
-  artemis_broker := artemis_broker_generic as SupabaseBrokerConfig
+  broker := broker_generic as BrokerConfigSupabase
+  artemis_broker := artemis_broker_generic as BrokerConfigSupabase
 
   network := net.open
   try:
@@ -66,7 +66,7 @@ create_identity config/Config parsed/cli.Parsed:
   finally:
     network.close
 
-insert_device_in_fleet fleet_id/string device_id/string client/http.Client artemis_broker/SupabaseBrokerConfig -> Map:
+insert_device_in_fleet fleet_id/string device_id/string client/http.Client artemis_broker/BrokerConfigSupabase -> Map:
   map := {
     "fleet": fleet_id,
   }
@@ -85,7 +85,7 @@ insert_device_in_fleet fleet_id/string device_id/string client/http.Client artem
     throw "Unable to create device identity"
   return (json.decode_stream response.body).first
 
-insert_created_event hardware_id/string client/http.Client artemis_broker/SupabaseBrokerConfig -> none:
+insert_created_event hardware_id/string client/http.Client artemis_broker/BrokerConfigSupabase -> none:
   map := {
     "device": hardware_id,
     "data": { "type": "created" }
@@ -105,8 +105,8 @@ create_identity_file -> none
     device_id/string
     fleet_id/string
     hardware_id/string
-    broker_config/SupabaseBrokerConfig
-    artemis_broker_config/SupabaseBrokerConfig:
+    broker_config/BrokerConfigSupabase
+    artemis_broker_config/BrokerConfigSupabase:
   output_path := "$(device_id).identity"
 
   // A map from id to deduplicated certificate.

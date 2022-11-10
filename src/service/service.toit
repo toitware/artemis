@@ -23,10 +23,10 @@ run_artemis device/Device broker_config/BrokerConfig --firmware/string?=null -> 
   applications ::= ApplicationManager logger scheduler
 
   broker/BrokerService := ?
-  if broker_config is SupabaseBrokerConfig:
-    broker = BrokerServicePostgrest logger (broker_config as SupabaseBrokerConfig)
-  else if broker_config is MqttBrokerConfig:
-    broker = BrokerServiceMqtt logger --broker_config=(broker_config as MqttBrokerConfig)
+  if broker_config is BrokerConfigSupabase:
+    broker = BrokerServicePostgrest logger (broker_config as BrokerConfigSupabase)
+  else if broker_config is BrokerConfigMqtt:
+    broker = BrokerServiceMqtt logger --broker_config=(broker_config as BrokerConfigMqtt)
   else:
     throw "unknown broker $broker_config"
 

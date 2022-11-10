@@ -4,7 +4,7 @@ import log
 import monitor
 
 import mqtt.transport as mqtt
-import artemis.shared.broker_config show BrokerConfig MqttBrokerConfig
+import artemis.shared.broker_config show BrokerConfig BrokerConfigMqtt
 import artemis.cli.broker show BrokerCli
 import artemis.service.broker show BrokerService
 import artemis.cli.brokers.mqtt.base show BrokerCliMqtt
@@ -19,7 +19,7 @@ with_broker broker_id [block]:
   logger := log.default.with_name "testing-$broker_id"
   if broker_id == "mosquitto":
     with_mosquitto --logger=logger: | host/string port/int |
-      broker_config := MqttBrokerConfig "mosquitto" --host=host --port=port
+      broker_config := BrokerConfigMqtt "mosquitto" --host=host --port=port
       with_mqtt_broker logger broker_id --broker_config=broker_config block
   else if broker_id == "toit-mqtt":
     with_toit_mqtt_broker --logger=logger: | create_transport/Lambda |
@@ -30,7 +30,7 @@ with_broker broker_id [block]:
     throw "Unknown broker $broker_id"
 
 with_mqtt_broker logger/log.Logger broker_id/string
-    --broker_config/MqttBrokerConfig?=null
+    --broker_config/BrokerConfigMqtt?=null
     --create_transport/Lambda?=null
     [block]:
   if not broker_config and not create_transport: throw "INVALID_ARGUMENT"

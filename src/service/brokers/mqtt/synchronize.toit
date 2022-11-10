@@ -23,7 +23,7 @@ class BrokerServiceMqtt implements BrokerService:
   logger_/log.Logger
   create_transport_/Lambda
 
-  constructor .logger_ --broker_config/MqttBrokerConfig:
+  constructor .logger_ --broker_config/BrokerConfigMqtt:
     create_transport_ = :: | network/net.Interface |
       create_transport_from_broker_config network broker_config
           --certificate_provider=: throw "UNSUPPORTED"

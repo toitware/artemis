@@ -103,7 +103,7 @@ add_supabase parsed/cli.Parsed config/Config:
     host = host.trim --prefix "http://"
     host = host.trim --prefix "https://"
 
-  supabase_config := SupabaseBrokerConfig name
+  supabase_config := BrokerConfigSupabase name
       --host=host
       --anon=anon
       --root_certificate_name=certificate_name
@@ -129,7 +129,7 @@ add_mqtt parsed/cli.Parsed config/Config:
   if client_private_key_path:
     client_private_key = (file.read_content client_private_key_path).to_string
 
-  mqtt_config := MqttBrokerConfig name
+  mqtt_config := BrokerConfigMqtt name
       --host=host
       --port=port
       --root_certificate_name=root_certificate_name

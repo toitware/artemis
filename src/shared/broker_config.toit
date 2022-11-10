@@ -20,9 +20,9 @@ abstract class BrokerConfig:
     // before we have recovered the content of fields that were deduplicated.
     config/BrokerConfig := ?
     if json_map["type"] == "supabase":
-      config = SupabaseBrokerConfig name json_map
+      config = BrokerConfigSupabase name json_map
     else if json_map["type"] == "mqtt":
-      config = MqttBrokerConfig name json_map
+      config = BrokerConfigMqtt name json_map
     else:
       throw "Unknown broker type: $json_map"
     config.config_.map: | key value |
@@ -33,7 +33,7 @@ abstract class BrokerConfig:
     return config
 
   /**
-  Serializes this configuration to a map.
+  Serializes this configuration to a JSON map.
 
   Uses the $certificate_deduplicator block to store larger certificates that
     should be deduplicated.
@@ -52,7 +52,7 @@ abstract class BrokerConfig:
   abstract is_certificate_text_ field/string -> bool
   abstract fill_certificate_texts [certificate_getter] -> none
 
-class SupabaseBrokerConfig extends BrokerConfig:
+class BrokerConfigSupabase extends BrokerConfig:
   constructor name/string config/Map:
     super.from_sub_ name config
     check_
@@ -68,7 +68,7 @@ class SupabaseBrokerConfig extends BrokerConfig:
     }
     if root_certificate_name:
       config["root_certificate_name"] = root_certificate_name
-    return SupabaseBrokerConfig name config
+    return BrokerConfigSupabase name config
 
   host -> string:
     return config_["host"]
@@ -113,7 +113,7 @@ class SupabaseBrokerConfig extends BrokerConfig:
     if not config_.contains "host": throw "Missing host"
     if not config_.contains "anon": throw "Missing anon"
 
-class MqttBrokerConfig extends BrokerConfig:
+class BrokerConfigMqtt extends BrokerConfig:
   constructor name/string config/Map:
     super.from_sub_ name config
 
@@ -134,7 +134,7 @@ class MqttBrokerConfig extends BrokerConfig:
       config["client_certificate_text"] = client_certificate
     if client_private_key:
       config["client_private_key"] = client_private_key
-    return MqttBrokerConfig name config
+    return BrokerConfigMqtt name config
 
   host -> string:
     return config_["host"]

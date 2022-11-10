@@ -22,7 +22,7 @@ Ideally, there is (or should be) a clear separation between the parts that
 
 create_transport_from_broker_config -> mqtt.Transport
     network/net.Interface
-    broker_config/MqttBrokerConfig
+    broker_config/BrokerConfigMqtt
     [--certificate_provider]:
 
   root_certificate_text := broker_config.root_certificate_text

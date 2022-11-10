@@ -20,7 +20,7 @@ Ideally, there is (or should be) a clear separation between the parts that
 
 create_client -> http.Client
     network/net.Interface
-    broker_config/SupabaseBrokerConfig
+    broker_config/BrokerConfigSupabase
     [--certificate_provider]:
   root_certificate_text := broker_config.certificate_text
   if not root_certificate_text and broker_config.certificate_name:
@@ -31,7 +31,7 @@ create_client -> http.Client
   else:
     return http.Client network
 
-create_headers broker_config/SupabaseBrokerConfig -> http.Headers:
+create_headers broker_config/BrokerConfigSupabase -> http.Headers:
   anon := broker_config.anon
   headers := http.Headers
   headers.add "apikey" anon
@@ -60,7 +60,7 @@ interface PostgrestClient:
 
 class SupabaseClient implements PostgrestClient:
   client_/http.Client? := null
-  broker_/SupabaseBrokerConfig
+  broker_/BrokerConfigSupabase
   host_/string
 
   constructor .client_ .broker_:

@@ -16,7 +16,7 @@ IDLE_TIMEOUT  ::= Duration --m=10
 
 class BrokerServicePostgrest implements BrokerService:
   logger_/log.Logger
-  broker_/SupabaseBrokerConfig
+  broker_/BrokerConfigSupabase
   idle_/monitor.Gate ::= monitor.Gate
 
   constructor .logger_ .broker_:

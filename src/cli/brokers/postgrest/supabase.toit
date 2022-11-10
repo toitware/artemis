@@ -11,7 +11,7 @@ import ....shared.broker_config
 
 export create_headers create_client
 
-create_broker_cli_supabase broker_config/SupabaseBrokerConfig -> BrokerCliPostgrest:
+create_broker_cli_supabase broker_config/BrokerConfigSupabase -> BrokerCliPostgrest:
   network := net.open
   http_client := postgrest.create_client network broker_config
       --certificate_provider=: certificate_roots.MAP[it]
