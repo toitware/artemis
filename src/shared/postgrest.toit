@@ -11,7 +11,7 @@ import .broker_config
 Postgres and Supabase functionality.
 
 This library contains functionality and constants that are shared between
-  the cli and the service.
+  the CLI and the service.
 
 Ideally, there is (or should be) a clear separation between the parts that
   are here because both sides agree on them, and the parts that are
