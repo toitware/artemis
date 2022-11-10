@@ -21,9 +21,6 @@ validate_firmware / bool := firmware.is_validation_pending
 class SynchronizeJob extends Job implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
 
-  firmware_/string
-  config_/Map := {:}
-
   logger_/log.Logger
   device_/Device
   applications_/ApplicationManager
@@ -33,26 +30,19 @@ class SynchronizeJob extends Job implements EventHandler:
   // the connect task build up too much work.
   actions_ ::= monitor.Channel 1
 
-  // We cache the max-offline setting to avoid parsing it over and
-  // over again. It is also stored in the configuration, so it is
-  // also possible to fetch it from there.
-  max_offline_/Duration? := null
-
-  constructor logger/log.Logger .device_ .applications_ .broker_ --firmware/string:
+  constructor logger/log.Logger .device_ .applications_ .broker_:
     logger_ = logger.with_name "synchronize"
-    firmware_ = firmware
-    config_["firmware"] = firmware
     super "synchronize"
 
   schedule now/JobTime -> JobTime?:
-    if not last_run or not max_offline_: return now
-    return min (report_status_schedule now) (last_run + max_offline_)
+    if not last_run or not device_.max_offline: return now
+    return min (report_status_schedule now) (last_run + device_.max_offline_)
 
   commit config/Map actions/List -> Lambda:
     return ::
       actions.do: it.call
-      logger_.info "updating config" --tags={ "from": config_ , "to": config }
-      config_ = config
+      logger_.info "updating config" --tags={ "from": device_.config , "to": config }
+      device_.config = config
 
   // TODO(kasper): For now, we make it look like we've updated
   // the firmware to avoid fetching the firmware over and over
@@ -60,7 +50,7 @@ class SynchronizeJob extends Job implements EventHandler:
   // automatically populates our configuration with the right
   // firmware id on boot.
   fake_update_firmware id/string -> none:
-    config_["firmware"] = id
+    device_.firmware = id
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.id}
@@ -71,7 +61,7 @@ class SynchronizeJob extends Job implements EventHandler:
       // it all the time for performance and bandwidth reasons.
       resources.report_status device_.id {
         "sdk"      : vm_sdk_version,
-        "firmware" : firmware_,
+        "firmware" : device_.firmware,
       }
 
       while true:
@@ -99,8 +89,8 @@ class SynchronizeJob extends Job implements EventHandler:
           else:
             logger_.error "firmware update failed to validate"
 
-        if max_offline_:
-          logger_.info "synchronized" --tags={"max-offline": max_offline_}
+        if device_.max_offline:
+          logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
           break
         logger_.info "synchronized"
         broker_.on_idle
@@ -111,7 +101,7 @@ class SynchronizeJob extends Job implements EventHandler:
     actions_.send ACTION_NOP_
 
   handle_update_config new_config/Map resources/ResourceManager -> none:
-    modification/Modification? := Modification.compute --from=config_ --to=new_config
+    modification/Modification? := Modification.compute --from=device_.config --to=new_config
     if not modification:
       handle_nop
       return
@@ -201,13 +191,13 @@ class SynchronizeJob extends Job implements EventHandler:
           applications_.complete incomplete reader
 
   action_set_max_offline_ value/any -> Lambda:
-    return :: max_offline_ = (value is int) ? Duration --s=value : null
+    return :: device_.max_offline = (value is int) ? Duration --s=value : null
 
   action_firmware_update_ resources/ResourceManager new/string -> Lambda:
     return ::
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
-      old := config_["firmware"]
+      old := device_.firmware
       firmware_update logger_ resources --old=old --new=new
       fake_update_firmware new  // TODO(kasper): Is this still fake?
       firmware.upgrade

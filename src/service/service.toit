@@ -18,7 +18,7 @@ import .ntp
 
 import ..shared.broker_config
 
-run_artemis device/Device broker_config/BrokerConfig --firmware/string?=null -> none:
+run_artemis device/Device broker_config/BrokerConfig -> none:
   logger := log.default.with_name "artemis"
   scheduler ::= Scheduler logger
   applications ::= ApplicationManager logger scheduler
@@ -35,7 +35,6 @@ run_artemis device/Device broker_config/BrokerConfig --firmware/string?=null -> 
     throw "unknown broker $broker_config"
 
   synchronize/SynchronizeJob := SynchronizeJob logger device applications broker
-      --firmware=firmware
 
   scheduler.add_jobs [
     synchronize,
