@@ -23,6 +23,8 @@ abstract class BrokerConfig:
       config = BrokerConfigSupabase name json_map
     else if json_map["type"] == "mqtt":
       config = BrokerConfigMqtt name json_map
+    else if json_map["type"] == "toit-http":
+      config = BrokerConfigToitHttp name json_map
     else:
       throw "Unknown broker type: $json_map"
     config.config_.map: | key value |
@@ -175,3 +177,35 @@ class BrokerConfigMqtt extends BrokerConfig:
     if not config_.contains "port": throw "Missing port"
     if client_certificate_text and not client_private_key:
       throw "Missing client_private_key"
+
+/**
+A broker configuration for an http-based broker.
+
+This broker uses the light-weight unsecured protocol we use internally.
+*/
+class BrokerConfigToitHttp extends BrokerConfig:
+  constructor name/string config/Map:
+    super.from_sub_ name config
+
+  constructor name/string
+      --host/string
+      --port/int:
+    config := {
+      "type": "toit-http",
+      "host": host,
+      "port": port,
+    }
+    return BrokerConfigToitHttp name config
+
+  host -> string:
+    return config_["host"]
+
+  port -> int:
+    return config_["port"]
+
+  check_:
+    if not config_.contains "host": throw "Missing host"
+    if not config_.contains "port": throw "Missing port"
+
+  is_certificate_text_ field/string -> bool: return false
+  fill_certificate_texts [certificate_getter] -> none: return
