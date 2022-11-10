@@ -60,4 +60,3 @@ with_toit_http_broker logger/log.Logger broker_id/string [block]:
   finally:
     broker.close
     broker_task.cancel
-

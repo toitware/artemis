@@ -1,7 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import encoding.json
-import encoding.base64
+import encoding.ubjson
 import http
 import net
 
@@ -33,14 +32,19 @@ class BrokerCliHttp implements BrokerCli:
     if is_closed: throw "CLOSED"
     client := http.Client network_
 
-    response := client.post_json --host=host --port=port --path="/" {
+    encoded := ubjson.encode {
       "command": command,
       "data": data,
     }
+    response := client.post encoded --host=host --port=port --path="/"
+
     if response.status_code != 200:
       throw "HTTP error: $response.status_code $response.status_message"
 
-    decoded := json.decode_stream response.body
+    encoded_response := #[]
+    while chunk := response.body.read:
+      encoded_response += chunk
+    decoded := ubjson.decode encoded_response
     if not (decoded.get "success"):
       throw "Broker error: $(decoded.get "error")"
 
@@ -52,16 +56,20 @@ class BrokerCliHttp implements BrokerCli:
     send_request_ "update_config" {"device_id": device_id, "config": new}
 
   upload_image --app_id/string --bits/int content/ByteArray -> none:
-    send_request_ "upload_image" {"app_id": app_id, "bits": bits, "content": content}
+    send_request_ "upload_image" {
+      "app_id": app_id,
+      "bits": bits,
+      "content": content,
+    }
 
   upload_firmware --firmware_id/string chunks/List -> none:
     firmware := #[]
     chunks.do: firmware += it
     send_request_ "upload_firmware" {
       "firmware_id": firmware_id,
-      "content": base64.encode firmware,
+      "content": firmware,
     }
 
   download_firmware --id/string -> ByteArray:
     response := send_request_ "download_firmware" {"firmware_id": id}
-    return base64.decode response["content"]
+    return response
