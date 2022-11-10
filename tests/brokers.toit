@@ -4,8 +4,7 @@ import log
 import monitor
 
 import mqtt.transport as mqtt
-import artemis.shared.broker_config show
-    BrokerConfig MqttBrokerConfig CreateTransportMqttBrokerConfig
+import artemis.shared.broker_config show BrokerConfig MqttBrokerConfig
 import artemis.cli.broker show BrokerCli
 import artemis.service.broker show BrokerService
 import artemis.cli.brokers.mqtt.base show BrokerCliMqtt
@@ -21,22 +20,30 @@ with_broker broker_id [block]:
   if broker_id == "mosquitto":
     with_mosquitto --logger=logger: | host/string port/int |
       broker_config := MqttBrokerConfig "mosquitto" --host=host --port=port
-      with_mqtt_broker logger broker_id broker_config block
+      with_mqtt_broker logger broker_id --broker_config=broker_config block
   else if broker_id == "toit-mqtt":
     with_toit_mqtt_broker --logger=logger: | create_transport/Lambda |
-      broker_config := CreateTransportMqttBrokerConfig "toit-mqtt" create_transport
-      with_mqtt_broker logger broker_id broker_config block
+      with_mqtt_broker logger broker_id --create_transport=create_transport block
   else if broker_id == "toit-http":
     with_toit_http_broker logger broker_id block
   else:
     throw "Unknown broker $broker_id"
 
-with_mqtt_broker logger/log.Logger broker_id/string broker_config/MqttBrokerConfig [block]:
+with_mqtt_broker logger/log.Logger broker_id/string
+    --broker_config/MqttBrokerConfig?=null
+    --create_transport/Lambda?=null
+    [block]:
+  if not broker_config and not create_transport: throw "INVALID_ARGUMENT"
+  if broker_config and create_transport: throw "INVALID_ARGUMENT"
   broker_cli/BrokerCli? := null
   broker_service/BrokerService? := null
   try:
-    broker_cli = BrokerCliMqtt broker_config --id="test/$broker_id"
-    broker_service = BrokerServiceMqtt logger broker_config
+    if broker_config:
+      broker_service = BrokerServiceMqtt logger --broker_config=broker_config
+      broker_cli = BrokerCliMqtt --broker_config=broker_config --id="test/$broker_id"
+    else:
+      broker_service = BrokerServiceMqtt logger --create_transport=create_transport
+      broker_cli = BrokerCliMqtt --create_transport=create_transport --id="test/$broker_id"
 
     block.call logger broker_id broker_cli broker_service
   finally:

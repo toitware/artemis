@@ -175,24 +175,3 @@ class MqttBrokerConfig extends BrokerConfig:
     if not config_.contains "port": throw "Missing port"
     if client_certificate_text and not client_private_key:
       throw "Missing client_private_key"
-
-/**
-An MQTT broker config that has a lambda to create the transport.
-
-In this configuration no other fields (like $host) can be used.
-*/
-class CreateTransportMqttBrokerConfig extends MqttBrokerConfig:
-  create_transport_/Lambda
-
-  constructor name/string create_transport/Lambda:
-    create_transport_ = create_transport
-    super name {:}
-
-  is_secured -> bool:
-    return false
-
-  create_transport:
-    return create_transport_.call
-
-  check_:
-    // Don't do any checks.

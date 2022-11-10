@@ -20,12 +20,10 @@ Ideally, there is (or should be) a clear separation between the parts that
   just generic and could live in their own package.
 */
 
-create_transport -> mqtt.Transport
+create_transport_from_broker_config -> mqtt.Transport
     network/net.Interface
     broker_config/MqttBrokerConfig
     [--certificate_provider]:
-  if broker_config is CreateTransportMqttBrokerConfig:
-    return (broker_config as CreateTransportMqttBrokerConfig).create_transport
 
   root_certificate_text := broker_config.root_certificate_text
   if not root_certificate_text and broker_config.root_certificate_name:

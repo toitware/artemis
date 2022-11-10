@@ -26,7 +26,7 @@ run_artemis device/Device broker_config/BrokerConfig --firmware/string?=null -> 
   if broker_config is SupabaseBrokerConfig:
     broker = BrokerServicePostgrest logger (broker_config as SupabaseBrokerConfig)
   else if broker_config is MqttBrokerConfig:
-    broker = BrokerServiceMqtt logger (broker_config as MqttBrokerConfig)
+    broker = BrokerServiceMqtt logger --broker_config=(broker_config as MqttBrokerConfig)
   else:
     throw "unknown broker $broker_config"
 
