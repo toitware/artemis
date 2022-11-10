@@ -14,20 +14,27 @@ import ...synchronize show SynchronizeJob
 
 import ...broker
 import ....shared.mqtt
+import ....shared.broker_config
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
 class BrokerServiceMqtt implements BrokerService:
   revision_/int? := null
   logger_/log.Logger
-  broker_/Map
+  create_transport_/Lambda
 
-  constructor .logger_ .broker_:
+  constructor .logger_ --broker_config/BrokerConfigMqtt:
+    create_transport_ = :: | network/net.Interface |
+      create_transport_from_broker_config network broker_config
+          --certificate_provider=: throw "UNSUPPORTED"
+
+  constructor .logger_ --create_transport/Lambda:
+    create_transport_ = create_transport
 
   connect --device_id/string --callback/EventHandler [block]:
     network ::= net.open
     report_status network logger_
-    transport ::= create_transport network broker_
+    transport ::= create_transport_.call network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
     connect_client_ --device_id=device_id client
     disconnected := monitor.Latch

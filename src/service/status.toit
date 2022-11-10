@@ -12,6 +12,7 @@ import .jobs
 
 import .device
 import ..shared.postgrest as supabase
+import ..shared.broker_config
 
 INTERVAL ::= Duration --m=20
 INTERVAL_BETWEEN_ATTEMPTS ::= Duration --m=2
@@ -41,17 +42,14 @@ report_status network/net.Interface logger/log.Logger -> none:
     // TODO(kasper): Let this be more mockable for testing.
     // For now, we just always fail to report when this
     // runs under tests.
-    if report_status_host_.is_empty: return
+    if not report_status_broker_: return
 
-    // TODO(kasper): It is silly to generate a map here.
-    client := supabase.create_client network {
-      "supabase": {
-        "certificate": report_status_certificate_text_
-      }
-    }
+    client := supabase.create_client network report_status_broker_
+        --certificate_provider=: throw "UNSUPPORTED"
+
     // TODO(kasper): We need some timeout here.
     response := client.post report_status_payload_
-        --host=report_status_host_
+        --host=report_status_broker_.host
         --headers=report_status_headers_
         --path=report_status_path_
     body := response.body
@@ -64,15 +62,15 @@ report_status network/net.Interface logger/log.Logger -> none:
     if not success: logger.warn "status reporting failed"
 
 report_status_setup assets/Map device/Map -> Device?:
-  broker := decode_broker "artemis.broker" assets
-  if not broker: return null
+  generic_broker := decode_broker_config "artemis.broker" assets
+  if not generic_broker: return null
 
-  report_status_host_ = broker["supabase"]["host"]
+  broker := generic_broker as BrokerConfigSupabase
+
   report_status_headers_ = http.Headers
-  anon := broker["supabase"]["anon"]
+  anon := broker.anon
   report_status_headers_.add "apikey" anon
   report_status_headers_.add "Authorization" "Bearer $anon"
-  report_status_certificate_text_ = broker["supabase"]["certificate"]
 
   hardware_id := device["hardware_id"]
   report_status_path_ = "/rest/v1/events"
@@ -84,8 +82,7 @@ report_status_setup assets/Map device/Map -> Device?:
   return Device device["device_id"]
 
 // TODO(kasper): These should probably be encapsulated in an object.
-report_status_host_/string := ""
+report_status_broker_/BrokerConfigSupabase? := null
 report_status_headers_/http.Headers? := null
-report_status_certificate_text_/any := null
 report_status_path_/string := ""
 report_status_payload_/ByteArray? := null

@@ -7,13 +7,15 @@ import net
 import net.x509
 import encoding.ubjson
 import tls
+import certificate_roots
 
 import ...broker
 import ....shared.mqtt
+import ....shared.broker_config
 
-create_broker_cli_mqtt broker/Map:
-  id := "mqtt/$broker["host"]"
-  return BrokerCliMqtt broker --id=id
+create_broker_cli_mqtt broker_config/BrokerConfigMqtt:
+  id := "mqtt/$broker_config.host"
+  return BrokerCliMqtt --broker_config=broker_config --id=id
 
 class BrokerCliMqtt implements BrokerCli:
   static ID_ ::= "toit/artemis-cli-$(random 0x3fff_ffff)"
@@ -24,11 +26,16 @@ class BrokerCliMqtt implements BrokerCli:
 
   transport_/mqtt.Transport
 
-  constructor broker/Map --.id/string:
+  constructor --broker_config/BrokerConfigMqtt --id/string:
+    return BrokerCliMqtt --id=id --create_transport=:: | network/net.Interface |
+      create_transport_from_broker_config network broker_config
+          --certificate_provider=: certificate_roots.MAP[it]
+
+  constructor --create_transport/Lambda --.id/string:
     network := net.open
-    options := mqtt.SessionOptions --client_id=ID_ --clean_session
-    transport_ = create_transport network broker
+    transport_ = create_transport.call network
     client_ = mqtt.Client --transport=transport_
+    options := mqtt.SessionOptions --client_id=ID_ --clean_session
     client_.start --options=options
 
   close:

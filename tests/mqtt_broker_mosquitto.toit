@@ -88,10 +88,7 @@ with_mosquitto --logger/log.Logger [block]:
     sleep --ms=(50*i)
 
   try:
-    block.call {
-      "host": "localhost",
-      "port": port,
-    }
+    block.call "localhost" port
   finally: | is_exception _ |
     pid := mosquitto_fork_data[3]
     logger.info "killing mosquitto server"

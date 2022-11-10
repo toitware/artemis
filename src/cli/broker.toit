@@ -3,22 +3,37 @@
 import host.file
 import encoding.json
 import .config
+import ..shared.broker_config
+import .brokers.mqtt.base
+import .brokers.postgrest.supabase
+import certificate_roots
+import crypto.sha256
+import encoding.base64
 
-get_broker_config config/Config broker_name/string -> Map:
+create_broker broker_config/BrokerConfig -> BrokerCli:
+  if broker_config is BrokerConfigSupabase:
+    return create_broker_cli_supabase (broker_config as BrokerConfigSupabase)
+  if broker_config is BrokerConfigMqtt:
+    return create_broker_cli_mqtt (broker_config as BrokerConfigMqtt)
+  throw "Unknown broker type"
+
+get_broker_from_config config/Config broker_name/string -> BrokerConfig:
   brokers := config.get "brokers"
   if not brokers: throw "No brokers configured"
-  broker_config/Map? := brokers.get broker_name
-  if not broker_config: throw "No broker named $broker_name"
-  result := broker_config.copy
-  if supabase := result.get "supabase":
-    if certificate_name := supabase.get "certificate":
-      // Replace the certificate name with its content.
-      supabase["certificate"] = get_certificate_ config certificate_name
-  if mqtt := result.get "mqtt":
-    if certificate_name := mqtt.get "root-certificate":
-      // Replace the certificate name with its content.
-      mqtt["root-certificate"] = get_certificate_ config certificate_name
-  return result
+  json_map := brokers.get broker_name
+  if not json_map: throw "No broker named $broker_name"
+
+  // Certificates weren't deduplicated. The block just returns 'it'.
+  return BrokerConfig.from_json broker_name json_map --certificate_text_provider=: it
+
+add_broker_to_config config/Config broker_config/BrokerConfig:
+  if not config.contains "brokers":
+    config["brokers"] = {:}
+  brokers := config.get "brokers"
+
+  // No need to deduplicate certificates. The block just returns 'it'.
+  json := broker_config.to_json --certificate_deduplicator=: it
+  brokers[broker_config.name] = json
 
 get_certificate_ config/Config certificate_name/string -> ByteArray:
   assets := config.get "assets"
@@ -29,6 +44,22 @@ get_certificate_ config/Config certificate_name/string -> ByteArray:
   if not certificate: throw "No certificate named $certificate_name"
   // PEM certificates need to be zero terminated. Ugh.
   return certificate.to_byte_array + #[0]
+
+/**
+Serializes a certificate to a string.
+Deduplicates them in the process.
+*/
+deduplicate_certificate certificate_string/string deduplicated_certificates/Map -> string:
+  sha := sha256.Sha256
+  sha.add certificate_string
+  certificate_key := "certificate-$(base64.encode sha.get[0..8])"
+  deduplicated_certificates[certificate_key] = certificate_string
+  return certificate_key
+
+broker_config_to_service_json broker_config/BrokerConfig deduplicated_certificates/Map -> any:
+  broker_config.fill_certificate_texts: certificate_roots.MAP[it]
+  return broker_config.to_json --certificate_deduplicator=:
+    deduplicate_certificate it deduplicated_certificates
 
 /**
 Responsible for allowing the Artemis CLI to talk to Artemis services on devices.

@@ -15,16 +15,18 @@ import .device
 
 import .ntp
 
-run_artemis device/Device broker_config/Map --firmware/string?=null -> none:
+import ..shared.broker_config
+
+run_artemis device/Device broker_config/BrokerConfig --firmware/string?=null -> none:
   logger := log.default.with_name "artemis"
   scheduler ::= Scheduler logger
   applications ::= ApplicationManager logger scheduler
 
   broker/BrokerService := ?
-  if broker_config.contains "supabase":
-    broker = BrokerServicePostgrest logger broker_config["supabase"]
-  else if broker_config.contains "mqtt":
-    broker = BrokerServiceMqtt logger broker_config["mqtt"]
+  if broker_config is BrokerConfigSupabase:
+    broker = BrokerServicePostgrest logger (broker_config as BrokerConfigSupabase)
+  else if broker_config is BrokerConfigMqtt:
+    broker = BrokerServiceMqtt logger --broker_config=(broker_config as BrokerConfigMqtt)
   else:
     throw "unknown broker $broker_config"
 

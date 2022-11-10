@@ -8,7 +8,7 @@ import host.file
 import http
 import net
 import writer
-import crypto.sha256
+import certificate_roots
 
 import ..sdk
 
@@ -18,6 +18,8 @@ import ..config
 import ..brokers.postgrest.supabase as supabase
 
 import .broker_options_
+
+import ...shared.broker_config
 
 create_provision_commands config/Config cache/Cache -> List:
   provision_cmd := cli.Command "provision"
@@ -41,15 +43,19 @@ create_provision_commands config/Config cache/Cache -> List:
 create_identity config/Config parsed/cli.Parsed:
   fleet_id := parsed["fleet-id"]
   device_id := parsed["device-id"]
-  broker := get_broker_config config parsed["broker"]
-  artemis_broker := get_broker_config config parsed["broker.artemis"]
+  broker_generic := get_broker_from_config config parsed["broker"]
+  artemis_broker_generic := get_broker_from_config config parsed["broker.artemis"]
 
-  if not broker.contains "supabase": throw "unsupported broker"
-  if not artemis_broker.contains "supabase": throw "unsupported artemis broker"
+  if broker_generic is not BrokerConfigSupabase: throw "unsupported broker"
+  if artemis_broker_generic is not BrokerConfigSupabase: throw "unsupported artemis broker"
+
+  broker := broker_generic as BrokerConfigSupabase
+  artemis_broker := artemis_broker_generic as BrokerConfigSupabase
 
   network := net.open
   try:
-    client := supabase.create_client network artemis_broker["supabase"]
+    client := supabase.create_client network artemis_broker
+        --certificate_provider=: certificate_roots.MAP[it]
     device := insert_device_in_fleet fleet_id device_id client artemis_broker
     // Insert an initial event mostly for testing purposes.
     device_id = device["alias"]
@@ -60,18 +66,18 @@ create_identity config/Config parsed/cli.Parsed:
   finally:
     network.close
 
-insert_device_in_fleet fleet_id/string device_id/string client/http.Client artemis_broker/Map -> Map:
+insert_device_in_fleet fleet_id/string device_id/string client/http.Client artemis_broker/BrokerConfigSupabase -> Map:
   map := {
     "fleet": fleet_id,
   }
   if not device_id.is_empty: map["alias"] = device_id
   payload := json.encode map
 
-  headers := supabase.create_headers artemis_broker["supabase"]
+  headers := supabase.create_headers artemis_broker
   headers.add "Prefer" "return=representation"
   table := "devices"
   response := client.post payload
-      --host=artemis_broker["supabase"]["host"]
+      --host=artemis_broker.host
       --headers=headers
       --path="/rest/v1/$table"
 
@@ -79,33 +85,35 @@ insert_device_in_fleet fleet_id/string device_id/string client/http.Client artem
     throw "Unable to create device identity"
   return (json.decode_stream response.body).first
 
-insert_created_event hardware_id/string client/http.Client artemis_broker/Map -> none:
+insert_created_event hardware_id/string client/http.Client artemis_broker/BrokerConfigSupabase -> none:
   map := {
     "device": hardware_id,
     "data": { "type": "created" }
   }
   payload := json.encode map
 
-  headers := supabase.create_headers artemis_broker["supabase"]
+  headers := supabase.create_headers artemis_broker
   table := "events"
   response := client.post payload
-      --host=artemis_broker["supabase"]["host"]
+      --host=artemis_broker.host
       --headers=headers
       --path="/rest/v1/$table"
   if response.status_code != 201:
     throw "Unable to insert 'created' event."
 
-create_identity_file device_id/string fleet_id/string hardware_id/string broker/Map artemis_broker/Map -> none:
+create_identity_file -> none
+    device_id/string
+    fleet_id/string
+    hardware_id/string
+    broker_config/BrokerConfigSupabase
+    artemis_broker_config/BrokerConfigSupabase:
   output_path := "$(device_id).identity"
 
-  // TODO(kasper): It is pretty ugly that we have to copy
-  // the supabase component to avoid messing with the
-  // broker map.
-  supabase := broker["supabase"].copy
-  artemis_supabase := artemis_broker["supabase"].copy
-  certificates := collect_certificates supabase
-  (collect_certificates artemis_supabase).do: | key/string value |
-    certificates[key] = value
+  // A map from id to deduplicated certificate.
+  deduplicated_certificates := {:}
+
+  broker_json := broker_config_to_service_json broker_config deduplicated_certificates
+  artemis_broker_json := broker_config_to_service_json artemis_broker_config deduplicated_certificates
 
   identity ::= {
     "artemis.device": {
@@ -113,31 +121,16 @@ create_identity_file device_id/string fleet_id/string hardware_id/string broker/
       "fleet_id"    : fleet_id,
       "hardware_id" : hardware_id,
     },
-    "artemis.broker": {
-      "supabase"    : artemis_supabase,
-    },
-    "broker": {
-      "supabase"    : supabase,
-    },
+    "artemis.broker": artemis_broker_json,
+    "broker": broker_json,
   }
 
   // Add the necessary certificates to the identity.
-  certificates.do: | name/string content/ByteArray |
+  deduplicated_certificates.do: | name/string content/ByteArray |
     identity[name] = content
 
   write_ubjson_to_file output_path identity
   print "Created device identity => $output_path"
-
-collect_certificates supabase/Map -> Map:
-  certificates := {:}
-  sha := sha256.Sha256
-  certificate := supabase.get "certificate"
-  if certificate:
-    sha.add supabase["certificate"]
-    certificate_key := "certificate-$(base64.encode sha.get[0..8])"
-    certificates[certificate_key] = supabase["certificate"]
-    supabase["certificate"] = certificate_key
-  return certificates
 
 add_certificate_assets assets_path/string tmp/string certificates/Map -> none:
   // Add the certificates as distinct assets, so we can load them without

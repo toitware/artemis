@@ -6,13 +6,13 @@ import system.firmware
 import encoding.base64
 import encoding.ubjson
 
-import ..broker show decode_broker
+import ..broker show decode_broker_config
 import ..status show report_status_setup
 import ..service show run_artemis
 
 main arguments:
   decoded ::= assets.decode
-  broker := decode_broker "broker" decoded
+  broker_config := decode_broker_config "broker" decoded
   device := report_status_setup decoded firmware.config["artemis.device"]
 
   firmware_description := ubjson.decode firmware.config["parts"]
@@ -23,7 +23,7 @@ main arguments:
     "checksum" : checksum end,
   }
   firmware := base64.encode update
-  run_artemis device broker --firmware=firmware
+  run_artemis device broker_config --firmware=firmware
 
 checksum end/int -> ByteArray:
   firmware.map: | current/firmware.FirmwareMapping? |

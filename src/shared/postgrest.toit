@@ -5,6 +5,7 @@ import net
 import net.x509
 import http.status_codes
 import encoding.json
+import .broker_config
 
 /**
 Postgres and Supabase functionality.
@@ -17,16 +18,21 @@ Ideally, there is (or should be) a clear separation between the parts that
   just generic and could live in their own package.
 */
 
-create_client network/net.Interface broker_config/Map -> http.Client:
-  certificate_text := broker_config.get "certificate"
-  if certificate_text:
-    certificate := x509.Certificate.parse certificate_text
+create_client -> http.Client
+    network/net.Interface
+    broker_config/BrokerConfigSupabase
+    [--certificate_provider]:
+  root_certificate_text := broker_config.certificate_text
+  if not root_certificate_text and broker_config.certificate_name:
+    root_certificate_text = certificate_provider.call broker_config.certificate_name
+  if root_certificate_text:
+    certificate := x509.Certificate.parse root_certificate_text
     return http.Client.tls network --root_certificates=[certificate]
   else:
     return http.Client network
 
-create_headers broker_config/Map -> http.Headers:
-  anon := broker_config["anon"]
+create_headers broker_config/BrokerConfigSupabase -> http.Headers:
+  anon := broker_config.anon
   headers := http.Headers
   headers.add "apikey" anon
   headers.add "Authorization" "Bearer $anon"
@@ -54,11 +60,11 @@ interface PostgrestClient:
 
 class SupabaseClient implements PostgrestClient:
   client_/http.Client? := null
-  broker_/Map
+  broker_/BrokerConfigSupabase
   host_/string
 
   constructor .client_ .broker_:
-    host_ = broker_["supabase"]["host"]
+    host_ = broker_.host
 
   close -> none:
     client_ = null
