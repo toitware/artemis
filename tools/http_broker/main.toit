@@ -5,8 +5,6 @@ import http
 import net
 import net.tcp
 import encoding.ubjson
-import encoding.json
-import encoding.base64
 import monitor
 
 main args:
