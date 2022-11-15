@@ -18,7 +18,9 @@ import .cmds.provision
 main args:
   config := read_config
   cache := Cache --app_name="artemis"
+  main args --config=config --cache=cache
 
+main args --config/Config --cache/Cache:
   root_cmd := cli.Command "root"
       --long_help="""
       A fleet management system for Toit devices.
