@@ -44,16 +44,16 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     test_handler := TestEventHandler
     if test_iteration == 2:
       // Send a config update while the service is not connected.
-      broker_cli.device_update_config  --device_id=DEVICE_ID: | old |
+      broker_cli.device_update_config --device_id=DEVICE_ID: | old |
         if test_iteration == 1:
           expect_equals "succeeded 2" old["test-entry"]
-        old["test-entry"] ="succeeded while offline"
+        old["test-entry"] = "succeeded while offline"
         old
 
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler:
       event_type := null
       if broker_cli is not mqtt_broker.BrokerCliMqtt:
-        // The mqtt broker only sends a first config event when the CLI updates
+        // The MQTT broker only sends a first config event when the CLI updates
         // the config. All others send it as soon as the service connects.
         // We need to wait for this initial configuration, so that the test isn't
         // flaky. Otherwise, the CLI could send an update before the service
@@ -62,12 +62,12 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       else:
         (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
 
-      broker_cli.device_update_config  --device_id=DEVICE_ID: | old |
+      broker_cli.device_update_config --device_id=DEVICE_ID: | old |
         if test_iteration == 1:
           expect_equals "succeeded 2" old["test-entry"]
         else if test_iteration == 2:
           expect_equals "succeeded while offline" old["test-entry"]
-        old["test-entry"] ="succeeded 1"
+        old["test-entry"] = "succeeded 1"
         old
 
       if broker_cli is mqtt_broker.BrokerCliMqtt:
@@ -146,7 +146,7 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         // also verify that the 32-bit image is correct.
         data := #[]
         while chunk := reader.read: data += chunk
-        expect_equals (BITS_PER_WORD == 32 ? content_32 : content_64) data
+        expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
 
 test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   DEVICE_ID ::= "test-id-upload-firmware"
@@ -161,7 +161,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
     chunks := ?
     if iteration <= 1:
-      chunks =  [content]
+      chunks = [content]
     else:
       chunks = []
       List.chunk_up 0 content.size 1024: | from/int to/int |
@@ -172,7 +172,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     if broker_cli is not mqtt_broker.BrokerCliMqtt:
       // Downloading a firmware isn't implemented for the MQTT broker.
       downloaded_bytes := broker_cli.download_firmware --id=FIRMWARE_ID
-      expect_equals content downloaded_bytes
+      expect_bytes_equal content downloaded_bytes
 
     test_handler := TestEventHandler
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler: | resources/broker.ResourceManager |
@@ -195,7 +195,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
             expect_equals current_offset offset
             partial_data := #[]
             while chunk := reader.read: partial_data += chunk
-            expect_equals content[current_offset..current_offset + partial_data.size] partial_data
+            expect_bytes_equal content[current_offset..current_offset + partial_data.size] partial_data
 
             // If we can, advance by 3 chunks.
             if offset_index + 3 < offsets.size:
