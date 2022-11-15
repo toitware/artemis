@@ -28,8 +28,8 @@ run_artemis device/Device broker_config/BrokerConfig -> none:
     broker = BrokerServicePostgrest logger (broker_config as BrokerConfigSupabase)
   else if broker_config is BrokerConfigMqtt:
     broker = BrokerServiceMqtt logger --broker_config=(broker_config as BrokerConfigMqtt)
-  else if broker_config is BrokerConfigToitHttp:
-    http_broker_config := broker_config as BrokerConfigToitHttp
+  else if broker_config is BrokerConfigHttpToit:
+    http_broker_config := broker_config as BrokerConfigHttpToit
     broker = BrokerServiceHttp logger http_broker_config.host http_broker_config.port
   else:
     throw "unknown broker $broker_config"
