@@ -7,7 +7,7 @@ import net
 import ...broker
 import ....shared.broker_config
 
-create_broker_cli_toit_http broker_config/BrokerConfigToitHttp -> BrokerCliHttp:
+create_broker_cli_http_toit broker_config/BrokerConfigHttpToit -> BrokerCliHttp:
   id := "toit-http/$broker_config.host-$broker_config.port"
   return BrokerCliHttp broker_config.host broker_config.port --id=id
 

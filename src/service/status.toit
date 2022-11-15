@@ -61,7 +61,10 @@ report_status network/net.Interface logger/log.Logger -> none:
     if not success: logger.warn "status reporting failed"
 
 /**
-Contacts the Toitware backend to report that the device is online.
+Sets up the status-report functionality.
+
+This is service that contacts the Toitware backend to report that a
+  certain device is online and using Artemis.
 */
 report_status_setup assets/Map device/Map -> none:
   generic_broker := decode_broker_config "artemis.broker" assets

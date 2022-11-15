@@ -50,10 +50,7 @@ class Config:
     current := data
     parts[.. parts.size - 1].do:
       if current is not Map: throw "Cannot set $key: Path contains non-map."
-      if current.contains it: current = current[it]
-      new_map := {:}
-      current[it] = new_map
-      current = new_map
+      current = current.get it --init=: {:}
     current[parts.last] = value
 
   /**
@@ -63,16 +60,29 @@ class Config:
   The key is split on dots, and the value is searched for in the nested map.
   */
   get key/string -> any:
+    return get_ key --no-initialize_if_missing --init=: unreachable
+
+  /**
+  Variant of $(get key).
+
+  Calls $init if the $key isn't present, and stores the result as initial
+    value.
+
+  Creates all intermediate maps if they don't exist.
+  */
+  get key/string [--init] -> any:
+    return get_ key --initialize_if_missing --init=init
+
+  get_ key/string --initialize_if_missing/bool [--init]:
     parts := key.split "."
     result := data
     for i := 0; i < parts.size; i++:
       part_key := parts[i]
       if result is not Map:
         throw "Invalid key. $(parts[.. i - 1].join ".") is not a map"
-      if result.contains part_key:
-        result = result[part_key]
-      else:
-        return null
+      result = result.get part_key --init=:
+        if not initialize_if_missing: return null
+        i != parts.size - 1 ? {:} : init.call
     return result
 
   /**
