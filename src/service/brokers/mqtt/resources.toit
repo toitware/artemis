@@ -34,10 +34,10 @@ class ResourceManagerMqtt implements ResourceManager:
       manifest := ubjson.decode (read_all_ reader)
       total_size = manifest["size"]
       parts = manifest["parts"]
-    parts.do: | offset/int |
-      topic := "toit/firmware/$id/$offset"
+    parts.do: | part_offset/int |
+      topic := "toit/firmware/$id/$part_offset"
       fetch_resource_ topic: | reader/SizedReader |
-        block.call reader offset
+        block.call reader part_offset
 
   // TODO(kasper): Get rid of this again. Can we get a streaming
   // ubjson reader?

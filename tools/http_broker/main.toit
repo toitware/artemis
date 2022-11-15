@@ -4,8 +4,7 @@ import cli
 import http
 import net
 import net.tcp
-import encoding.json
-import encoding.base64
+import encoding.ubjson
 import monitor
 
 main args:
@@ -65,16 +64,22 @@ class HttpBroker:
     server := http.Server
     print "Listening on port $socket.local_address.port"
     server.listen socket:: | request/http.Request writer/http.ResponseWriter |
-      data := json.decode_stream request.body
-      command := data["command"]
+      encoded_message := #[]
+      while chunk := request.body.read:
+        encoded_message += chunk
+      message := ubjson.decode encoded_message
 
-      if command == "get_config": reply writer: get_config data["data"]
-      else if command == "update_config": reply writer: update_config data["data"]
-      else if command == "upload_image": reply writer: upload_image data["data"]
-      else if command == "upload_firmware": reply writer: upload_firmware data["data"]
-      else if command == "download_firmware": reply writer: download_firmware data["data"]
-      else if command == "report_status": reply writer: report_status data["data"]
-      else if command == "get_event": reply writer: get_event data["data"]
+      command := message["command"]
+      data := message["data"]
+
+      if command == "get_config": reply writer: get_config data
+      else if command == "update_config": reply writer: update_config data
+      else if command == "upload_image": reply writer: upload_image data
+      else if command == "download_image": reply writer: download_image data
+      else if command == "upload_firmware": reply writer: upload_firmware data
+      else if command == "download_firmware": reply writer: download_firmware data
+      else if command == "report_status": reply writer: report_status data
+      else if command == "get_event": reply writer: get_event data
       else:
         print "Unknown command: $command"
         throw "BAD COMMAND $command"
@@ -83,20 +88,20 @@ class HttpBroker:
     response_data := null
     exception := catch --trace: response_data = block.call
     if exception:
-      writer.write (json.encode {
+      writer.write (ubjson.encode {
         "success": false,
         "error": "$exception",
       })
     else:
-      writer.write (json.encode {
+      writer.write (ubjson.encode {
         "success": true,
         "data": response_data
       })
 
-  get_config data/Map:
+  get_config data/Map -> Map:
     device_id := data["device_id"]
     config := configs.get device_id
-    return config
+    return config or {:}
 
   update_config data/Map:
     device_id := data["device_id"]
@@ -109,6 +114,11 @@ class HttpBroker:
     bits := data["bits"]
     images["$app_id-$bits"] = data["content"]
 
+  download_image data/Map:
+    app_id := data["app_id"]
+    bits := data["bits"]
+    return images["$app_id-$bits"]
+
   upload_firmware data/Map:
     firmware_id := data["firmware_id"]
     firmwares[firmware_id] = data["content"]
@@ -116,16 +126,8 @@ class HttpBroker:
   download_firmware data/Map:
     firmware_id := data["firmware_id"]
     offset := (data.get "offset") or 0
-    encoded_firmware := firmwares[firmware_id]
-    encoded_content := ?
-    if offset == 0:
-      encoded_content = encoded_firmware
-    else:
-      bytes := base64.decode encoded_firmware
-      encoded_content = base64.encode bytes[offset..]
-    return {
-      "content": encoded_content
-    }
+    firmware := firmwares[firmware_id]
+    return firmware[offset..]
 
   report_status data/Map:
     device_id := data["device_id"]

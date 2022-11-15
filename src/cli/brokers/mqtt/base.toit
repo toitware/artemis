@@ -26,6 +26,16 @@ class BrokerCliMqtt implements BrokerCli:
 
   transport_/mqtt.Transport
 
+  /**
+  The timeout, in ms, we are willing to wait for retained messages.
+
+  Should generally be kept at a high level, as it only triggers if a retained
+    message isn't available, or if a device is contacted the first time.
+
+  Can be changed to something lower for tests.
+  */
+  retain_timeout_ms := 5_000
+
   constructor --broker_config/BrokerConfigMqtt --id/string:
     return BrokerCliMqtt --id=id --create_transport=:: | network/net.Interface |
       create_transport_from_broker_config network broker_config
@@ -79,7 +89,7 @@ class BrokerCliMqtt implements BrokerCli:
     // timeout here. Otherwise, the broker should send the current lock holder
     // immediately.
     exception := catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-      with_timeout --ms=5_000:
+      with_timeout --ms=retain_timeout_ms:
         locked.get
     if exception == DEADLINE_EXCEEDED_ERROR and others == 0:
       // We assume that nobody has taken the lock so far.
@@ -87,7 +97,7 @@ class BrokerCliMqtt implements BrokerCli:
       client.publish topic_lock (ubjson.encode me) --qos=1 --retain
 
       exception = catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-        with_timeout --ms=5_000:
+        with_timeout --ms=retain_timeout_ms:
           locked.get
 
     // It doesn't matter wheter we got the lock or not. We don't want to
@@ -120,7 +130,7 @@ class BrokerCliMqtt implements BrokerCli:
       exception = catch
           --trace=(: it != DEADLINE_EXCEEDED_ERROR)
           --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-        with_timeout --ms=5_000:
+        with_timeout --ms=retain_timeout_ms:
           config = config_channel.receive
       if exception == DEADLINE_EXCEEDED_ERROR:
         print "$(%08d Time.monotonic_us): Trying to initialize config"
@@ -128,7 +138,7 @@ class BrokerCliMqtt implements BrokerCli:
         client.publish topic_revision (ubjson.encode 0) --qos=1 --retain
 
         exception = catch --trace --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-          with_timeout --ms=5_000:
+          with_timeout --ms=retain_timeout_ms:
             config = config_channel.receive
         if exception == DEADLINE_EXCEEDED_ERROR:
           print "$(%08d Time.monotonic_us): Timed out waiting for config"

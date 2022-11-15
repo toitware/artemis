@@ -18,7 +18,7 @@ interface ResourceManager:
   /**
   Downloads the application image with the given $id.
 
-  Calls the $block with the image data and its size.
+  Calls the $block with a $SizedReader.
   */
   fetch_image id/string [block] -> none
 
@@ -27,7 +27,11 @@ interface ResourceManager:
 
   The $offset is the offset in the firmware to start downloading from.
 
-  Calls the $block with a $SizedReader and an offset of the given chunk.
+  Calls the $block with a $SizedReader and an offset of the given chunk. The block
+    must return the next offset it wants to download from.
+  Some implementations don't respect the returned value yet, and users of
+    this class must be able to deal with continuous chunks.
+
   Depending on the implementation, there might be multiple calls to the block.
   */
   fetch_firmware id/string --offset/int=0 [block] -> none
