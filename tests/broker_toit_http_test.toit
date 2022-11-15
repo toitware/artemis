@@ -3,4 +3,4 @@
 import .broker_test_base
 
 main args:
-  run_test "toit-http"
+  run_test "http-toit"
