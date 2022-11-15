@@ -24,7 +24,7 @@ abstract class BrokerConfig:
     else if json_map["type"] == "mqtt":
       config = BrokerConfigMqtt name json_map
     else if json_map["type"] == "toit-http":
-      config = BrokerConfigToitHttp name json_map
+      config = BrokerConfigHttpToit name json_map
     else:
       throw "Unknown broker type: $json_map"
     config.config_.map: | key value |
@@ -179,11 +179,11 @@ class BrokerConfigMqtt extends BrokerConfig:
       throw "Missing client_private_key"
 
 /**
-A broker configuration for an http-based broker.
+A broker configuration for an HTTP-based broker.
 
 This broker uses the light-weight unsecured protocol we use internally.
 */
-class BrokerConfigToitHttp extends BrokerConfig:
+class BrokerConfigHttpToit extends BrokerConfig:
   constructor name/string config/Map:
     super.from_sub_ name config
 
@@ -195,7 +195,7 @@ class BrokerConfigToitHttp extends BrokerConfig:
       "host": host,
       "port": port,
     }
-    return BrokerConfigToitHttp name config
+    return BrokerConfigHttpToit name config
 
   host -> string:
     return config_["host"]
