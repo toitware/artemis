@@ -21,7 +21,7 @@ with_http_broker [block]:
   port_latch := monitor.Latch
   broker_task := task:: broker.start port_latch
 
-  broker_config := broker_config.BrokerConfigToitHttp "test-server"
+  broker_config := broker_config.BrokerConfigHttpToit "test-server"
       --host="localhost"
       --port=port_latch.get
   try:
