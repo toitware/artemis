@@ -10,7 +10,6 @@ import encoding.json
 import .broker
 import .jobs
 
-import .device
 import ..shared.postgrest as supabase
 import ..shared.broker_config
 
@@ -61,9 +60,15 @@ report_status network/net.Interface logger/log.Logger -> none:
   finally:
     if not success: logger.warn "status reporting failed"
 
-report_status_setup assets/Map device/Map -> Device?:
+/**
+Sets up the status-report functionality.
+
+This is service that contacts the Toitware backend to report that a
+  certain device is online and using Artemis.
+*/
+report_status_setup assets/Map device/Map -> none:
   generic_broker := decode_broker_config "artemis.broker" assets
-  if not generic_broker: return null
+  if not generic_broker: return
 
   broker := generic_broker as BrokerConfigSupabase
 
@@ -78,8 +83,6 @@ report_status_setup assets/Map device/Map -> Device?:
     "device": "$(json.escape_string hardware_id)",
     "data": { "type": "ping" }
   }""".to_byte_array
-
-  return Device device["device_id"]
 
 // TODO(kasper): These should probably be encapsulated in an object.
 report_status_broker_/BrokerConfigSupabase? := null

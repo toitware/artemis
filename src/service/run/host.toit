@@ -20,6 +20,7 @@ import encoding.hex
 import ..broker show decode_broker_config
 import ..service show run_artemis
 import ..status show report_status_setup
+import ..device
 
 main arguments:
   root_cmd := cli.Command "root"
@@ -53,9 +54,10 @@ run_host --identity/Map --encoded/string --bits/ByteArray? -> none:
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
   identity["broker"] = tison.encode identity["broker"]
 
-  device := report_status_setup identity identity["artemis.device"]
+  report_status_setup identity identity["artemis.device"]
+  device := Device --id=identity["device_id"] --firmware=encoded
   broker_config := decode_broker_config "broker" identity
-  run_artemis device broker_config --firmware=encoded
+  run_artemis device broker_config
 
 // --------------------------------------------------------------------------
 

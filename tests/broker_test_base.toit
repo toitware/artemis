@@ -28,18 +28,18 @@ run_test
 
   with_tmp_directory: | tmp_dir |
     cache := Cache --app_name="artemis-test" --path=tmp_dir
-    device := Device DEVICE_NAME
+    device := Device --id=DEVICE_NAME
+        --firmware=""  // TODO(kasper): Should this be something more meaningful?
     artemis := Artemis broker_cli cache
     scheduler := Scheduler logger
     applications := ApplicationManager logger scheduler
     job := SynchronizeJob logger device applications broker_service
-      --firmware=""  // TODO(kasper): Should this be something more meaningful?
 
     task:: job.run
-    expect_null (job.config_.get "max-offline")
+    expect_null device.max_offline
     artemis.config_set_max_offline --device_id=DEVICE_NAME --max_offline_seconds=10
     with_timeout --ms=15_000:
       while true:
-        if job.config_.get "max-offline": break
+        if device.max_offline: break
         sleep --ms=5
-    expect_equals 10 (job.config_["max-offline"])
+    expect_equals 10 device.max_offline.in_s
