@@ -50,12 +50,7 @@ class Config:
     current := data
     parts[.. parts.size - 1].do:
       if current is not Map: throw "Cannot set $key: Path contains non-map."
-      if current.contains it:
-        current = current[it]
-      else:
-        new_map := {:}
-        current[it] = new_map
-        current = new_map
+      current = current.get it --init=: {:}
     current[parts.last] = value
 
   /**
@@ -85,19 +80,9 @@ class Config:
       part_key := parts[i]
       if result is not Map:
         throw "Invalid key. $(parts[.. i - 1].join ".") is not a map"
-      if result.contains part_key:
-        result = result[part_key]
-      else if initialize_if_missing:
-        if i != parts.size - 1:
-          new_map := {:}
-          result[part_key] = new_map
-          result = new_map
-        else:
-          initial_value := init.call
-          result[part_key] = initial_value
-          result = initial_value
-      else:
-        return null
+      result = result.get part_key --init=:
+        if not initialize_if_missing: return null
+        i != parts.size - 1 ? {:} : init.call
     return result
 
   /**

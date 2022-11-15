@@ -17,7 +17,7 @@ main:
     // Initial a non existing value with the `--init` function.
     // Note that the key is split on dots, and intermediate maps
     // are created.
-    initial := config.get "foo.bar.baz" --init=:"qux"
+    initial := config.get "foo.bar.baz" --init=: "qux"
     expect_equals "qux" initial
     expect (config.get "foo") is Map
     expect (config.get "foo.bar") is Map
@@ -38,22 +38,4 @@ main:
     // Read the config back in.
     config2 := cfg.read_config_file config_file --init=: unreachable
 
-    expect (deep_equals config.data config2.data)
-
-deep_equals a/any b/any:
-  if a is Map:
-    if b is not Map: return false
-    if a.size != b.size: return false
-    a.do: | key value |
-      if not b.contains key: return false
-      if not deep_equals value b[key]: return false
-    return true
-
-  if a is List:
-    if b is not List: return false
-    if a.size != b.size: return false
-    a.size.repeat:
-      if not deep_equals a[it] b[it]: return false
-    return true
-
-  return a == b
+    expect_structural_equals config.data config2.data
