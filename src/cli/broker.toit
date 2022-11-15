@@ -16,8 +16,8 @@ create_broker broker_config/BrokerConfig -> BrokerCli:
     return create_broker_cli_supabase (broker_config as BrokerConfigSupabase)
   if broker_config is BrokerConfigMqtt:
     return create_broker_cli_mqtt (broker_config as BrokerConfigMqtt)
-  if broker_config is BrokerConfigToitHttp:
-    return create_broker_cli_toit_http (broker_config as BrokerConfigToitHttp)
+  if broker_config is BrokerConfigHttpToit:
+    return create_broker_cli_http_toit (broker_config as BrokerConfigHttpToit)
   throw "Unknown broker type"
 
 get_broker_from_config config/Config broker_name/string -> BrokerConfig:
