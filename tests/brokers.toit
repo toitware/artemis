@@ -24,8 +24,8 @@ with_broker broker_id [block]:
   else if broker_id == "toit-mqtt":
     with_toit_mqtt_broker --logger=logger: | create_transport/Lambda |
       with_mqtt_broker logger broker_id --create_transport=create_transport block
-  else if broker_id == "toit-http":
-    with_toit_http_broker logger broker_id block
+  else if broker_id == "http-toit":
+    with_toit_broker_http logger broker_id block
   else:
     throw "Unknown broker $broker_id"
 
@@ -49,7 +49,7 @@ with_mqtt_broker logger/log.Logger broker_id/string
   finally:
     if broker_cli: broker_cli.close
 
-with_toit_http_broker logger/log.Logger broker_id/string [block]:
+with_toit_broker_http logger/log.Logger broker_id/string [block]:
   broker := http_broker.HttpBroker 0
   port_latch := monitor.Latch
   broker_task := task:: broker.start port_latch
