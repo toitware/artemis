@@ -18,7 +18,7 @@ import .ntp
 
 import ..shared.broker_config
 
-run_artemis device/Device broker_config/BrokerConfig -> none:
+run_artemis device/Device broker_config/BrokerConfig --start_ntp/bool=true -> none:
   logger := log.default.with_name "artemis"
   scheduler ::= Scheduler logger
   applications ::= ApplicationManager logger scheduler
@@ -36,8 +36,9 @@ run_artemis device/Device broker_config/BrokerConfig -> none:
 
   synchronize/SynchronizeJob := SynchronizeJob logger device applications broker
 
-  scheduler.add_jobs [
-    synchronize,
-    NtpJob logger (Duration --m=1),
-  ]
+  jobs := [synchronize]
+  if start_ntp:
+    jobs.add (NtpJob logger (Duration --m=1))
+
+  scheduler.add_jobs jobs
   scheduler.run
