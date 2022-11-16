@@ -97,3 +97,23 @@ GRANT ALL ON TABLE public.organizations TO authenticated;
 GRANT ALL ON TABLE public.organizations TO postgres;
 
 GRANT ALL ON TABLE public.organizations TO service_role;
+
+CREATE TABLE IF NOT EXISTS public.configs
+(
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    config json DEFAULT NULL,
+    CONSTRAINT configs_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.configs
+    OWNER to postgres;
+
+GRANT ALL ON TABLE public.configs TO anon;
+
+GRANT ALL ON TABLE public.configs TO authenticated;
+
+GRANT ALL ON TABLE public.configs TO postgres;
+
+GRANT ALL ON TABLE public.configs TO service_role;
