@@ -55,6 +55,8 @@ abstract class BrokerConfig:
   abstract fill_certificate_texts [certificate_getter] -> none
 
 class BrokerConfigSupabase extends BrokerConfig:
+  static DEFAULT_POLL_INTERVAL ::= Duration --s=20
+
   constructor name/string config/Map:
     super.from_sub_ name config
     check_
@@ -62,11 +64,13 @@ class BrokerConfigSupabase extends BrokerConfig:
   constructor name/string
       --host/string
       --anon/string
-      --root_certificate_name/string?=null:
+      --root_certificate_name/string?=null
+      --poll_interval/Duration=DEFAULT_POLL_INTERVAL:
     config := {
       "type": "supabase",
       "host": host,
       "anon": anon,
+      "poll_interval": poll_interval.in_us,
     }
     if root_certificate_name:
       config["root_certificate_name"] = root_certificate_name
@@ -80,6 +84,9 @@ class BrokerConfigSupabase extends BrokerConfig:
 
   anon -> string:
     return config_["anon"]
+
+  poll_interval -> Duration:
+    return Duration --us=config_["poll_interval"]
 
   is_secured -> bool:
     return config_.contains "certificate_name" or config_.contains "certificate_text"
