@@ -80,6 +80,7 @@ class BrokerServiceMqtt implements BrokerService:
               known := resources.provide_resource topic: publish.payload_stream
               if not known: logger_.warn "unhandled publish packet" --tags={"topic": topic}
           else if packet is mqtt.SubAckPacket:
+            print "$((packet as mqtt.SubAckPacket).packet_id) $subscribe_to_revisions_packet_id"
             if (packet as mqtt.SubAckPacket).packet_id == subscribe_to_revisions_packet_id:
               subscribed_to_revisions_latch.set true
 
