@@ -16,7 +16,7 @@ import artemis.cli.brokers.postgrest.base show BrokerCliPostgrest
 import artemis.cli.brokers.postgrest.supabase show create_broker_cli_supabase
 import artemis.service.brokers.postgrest.synchronize show BrokerServicePostgrest
 import artemis.shared.server_config show ServerConfigSupabase
-import ..tools.http_broker.main as http_broker
+import ..tools.http_servers.broker as http_broker
 import .mqtt_broker_mosquitto
 import .mqtt_broker_toit
 import .supabase_local_broker

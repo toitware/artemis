@@ -4,6 +4,7 @@ import log
 import net
 
 import .postgrest.supabase show ArtemisServerServiceSupabase
+import .http.base show ArtemisServerServiceHttp
 import ...shared.server_config
 
 /**
@@ -17,6 +18,10 @@ interface ArtemisServerService:
     if server_config is ServerConfigSupabase:
       return ArtemisServerServiceSupabase
           (server_config as ServerConfigSupabase)
+          --hardware_id=hardware_id
+    if server_config is ServerConfigHttpToit:
+      return ArtemisServerServiceHttp
+          (server_config as ServerConfigHttpToit)
           --hardware_id=hardware_id
     throw "UNSUPPORTED BROKER_CONFIG"
 
