@@ -75,7 +75,7 @@ insert_device_in_fleet fleet_id/string device_id/string client/http.Client artem
 
   headers := supabase.create_headers artemis_broker
   headers.add "Prefer" "return=representation"
-  table := "devices"
+  table := "billables"
   response := client.post payload
       --host=artemis_broker.host
       --headers=headers

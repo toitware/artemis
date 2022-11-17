@@ -36,7 +36,7 @@ class BrokerServicePostgrest implements BrokerService:
       try:
         while true:
           with_timeout IDLE_TIMEOUT: idle_.enter
-          info := resources.fetch_json "configs" [ "id=eq.$(device_id)" ]
+          info := resources.fetch_json "devices" [ "id=eq.$(device_id)" ]
           new_config/Map? := null
           if info and info.size == 1 and info[0] is Map and info[0].contains "config":
             new_config = info[0]["config"]

@@ -28,7 +28,7 @@ class BrokerCliPostgrest implements BrokerCli:
   device_update_config --device_id/string [block]:
     // TODO(kasper): Share more of this code with the corresponding
     // code in the service.
-    info := client_.query "configs" [
+    info := client_.query "devices" [
       "id=eq.$(device_id)",
     ]
     if not info: throw "Device not found"
@@ -44,7 +44,7 @@ class BrokerCliPostgrest implements BrokerCli:
     }
 
     payload := json.encode map
-    client_.update_entry "configs" --upsert payload
+    client_.update_entry "devices" --upsert payload
 
   upload_image --app_id/string --bits/int content/ByteArray -> none:
     upload_resource_ "assets/images/$app_id.$bits" content
