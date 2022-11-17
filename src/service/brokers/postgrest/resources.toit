@@ -5,7 +5,7 @@ import http
 import http.status_codes
 import encoding.json
 
-import ...broker
+import ..broker
 import ....shared.postgrest as postgres
 
 class ResourceManagerPostgrest implements ResourceManager:

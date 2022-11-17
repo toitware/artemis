@@ -12,7 +12,7 @@ import ...applications
 import ...check_in show check_in
 import ...synchronize show SynchronizeJob
 
-import ...broker
+import ..broker
 import ....shared.mqtt
 import ....shared.broker_config
 

@@ -7,6 +7,7 @@ import .broker_options_
 import ..broker
 import ..config
 import ..broker
+import ..brokers.broker
 import ...shared.broker_config
 
 device_options -> List:
@@ -19,4 +20,4 @@ device_options -> List:
 
 create_broker_from_cli_args config/Config parsed/cli.Parsed -> BrokerCli:
   broker_config := get_broker_from_config config parsed["broker"]
-  return create_broker broker_config
+  return BrokerCli broker_config

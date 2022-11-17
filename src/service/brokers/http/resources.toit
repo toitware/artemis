@@ -2,7 +2,7 @@
 
 import bytes
 import .connection
-import ...broker
+import ..broker
 
 class ResourceManagerHttp implements ResourceManager:
   connection_/HttpConnection_

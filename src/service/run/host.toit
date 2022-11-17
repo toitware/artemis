@@ -17,7 +17,7 @@ import encoding.base64
 import encoding.tison
 import encoding.hex
 
-import ..broker show decode_broker_config
+import ..utils show decode_broker_config
 import ..service show run_artemis
 import ..check_in show check_in_setup
 import ..device

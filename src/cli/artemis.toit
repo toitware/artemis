@@ -20,7 +20,7 @@ import .cmds.provision show write_blob_to_file write_json_to_file write_ubjson_t
 import .utils.patch_build show build_diff_patch build_trivial_patch
 import ..shared.utils.patch show Patcher PatchObserver
 
-import .broker
+import .brokers.broker
 
 /**
 Manages devices that have an Artemis service running on them.

@@ -10,7 +10,7 @@ import system.firmware
 import .applications
 import .firmware_update
 import .jobs
-import .broker
+import .brokers.broker
 import .check_in
 
 import .device
