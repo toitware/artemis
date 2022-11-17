@@ -4,11 +4,10 @@ import cli
 
 import .broker_options_
 
-import ..broker
 import ..config
-import ..broker
+import ..server_config
 import ..brokers.broker
-import ...shared.broker_config
+import ...shared.server_config
 
 device_options -> List:
   return broker_options + [
@@ -19,5 +18,5 @@ device_options -> List:
   ]
 
 create_broker_from_cli_args config/Config parsed/cli.Parsed -> BrokerCli:
-  broker_config := get_broker_from_config config parsed["broker"]
-  return BrokerCli broker_config
+  server_config := get_server_from_config config parsed["broker"]
+  return BrokerCli server_config

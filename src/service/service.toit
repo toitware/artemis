@@ -13,14 +13,14 @@ import .device
 
 import .ntp
 
-import ..shared.broker_config
+import ..shared.server_config
 
-run_artemis device/Device broker_config/BrokerConfig --start_ntp/bool=true -> none:
+run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> none:
   logger := log.default.with_name "artemis"
   scheduler ::= Scheduler logger
   applications ::= ApplicationManager logger scheduler
 
-  broker := BrokerService logger broker_config
+  broker := BrokerService logger server_config
 
   synchronize/SynchronizeJob := SynchronizeJob logger device applications broker
 

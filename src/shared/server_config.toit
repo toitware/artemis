@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-abstract class BrokerConfig:
+abstract class ServerConfig:
   name/string
   config_/Map
 
@@ -18,13 +18,13 @@ abstract class BrokerConfig:
   constructor.from_json name/string json_map/Map [--certificate_text_provider]:
     // This is a bit fishy, as the constructors can already to validity checks
     // before we have recovered the content of fields that were deduplicated.
-    config/BrokerConfig := ?
+    config/ServerConfig := ?
     if json_map["type"] == "supabase":
-      config = BrokerConfigSupabase name json_map
+      config = ServerConfigSupabase name json_map
     else if json_map["type"] == "mqtt":
-      config = BrokerConfigMqtt name json_map
+      config = ServerConfigMqtt name json_map
     else if json_map["type"] == "toit-http":
-      config = BrokerConfigHttpToit name json_map
+      config = ServerConfigHttpToit name json_map
     else:
       throw "Unknown broker type: $json_map"
     config.config_.map: | key value |
@@ -54,7 +54,7 @@ abstract class BrokerConfig:
   abstract is_certificate_text_ field/string -> bool
   abstract fill_certificate_texts [certificate_getter] -> none
 
-class BrokerConfigSupabase extends BrokerConfig:
+class ServerConfigSupabase extends ServerConfig:
   static DEFAULT_POLL_INTERVAL ::= Duration --s=20
 
   constructor name/string config/Map:
@@ -74,7 +74,7 @@ class BrokerConfigSupabase extends BrokerConfig:
     }
     if root_certificate_name:
       config["root_certificate_name"] = root_certificate_name
-    return BrokerConfigSupabase name config
+    return ServerConfigSupabase name config
 
   host -> string:
     return config_["host"]
@@ -122,7 +122,7 @@ class BrokerConfigSupabase extends BrokerConfig:
     if not config_.contains "host": throw "Missing host"
     if not config_.contains "anon": throw "Missing anon"
 
-class BrokerConfigMqtt extends BrokerConfig:
+class ServerConfigMqtt extends ServerConfig:
   constructor name/string config/Map:
     super.from_sub_ name config
 
@@ -143,7 +143,7 @@ class BrokerConfigMqtt extends BrokerConfig:
       config["client_certificate_text"] = client_certificate
     if client_private_key:
       config["client_private_key"] = client_private_key
-    return BrokerConfigMqtt name config
+    return ServerConfigMqtt name config
 
   host -> string:
     return config_["host"]
@@ -190,7 +190,7 @@ A broker configuration for an HTTP-based broker.
 
 This broker uses the light-weight unsecured protocol we use internally.
 */
-class BrokerConfigHttpToit extends BrokerConfig:
+class ServerConfigHttpToit extends ServerConfig:
   constructor name/string config/Map:
     super.from_sub_ name config
 
@@ -202,7 +202,7 @@ class BrokerConfigHttpToit extends BrokerConfig:
       "host": host,
       "port": port,
     }
-    return BrokerConfigHttpToit name config
+    return ServerConfigHttpToit name config
 
   host -> string:
     return config_["host"]
