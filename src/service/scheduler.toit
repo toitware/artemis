@@ -12,13 +12,16 @@ class Scheduler:
     logger_ = logger.with_name "scheduler"
 
   run -> none:
-    while true:
-      now := JobTime.now
-      // TODO(kasper): Stop jobs?
-      next := run_due_jobs_ now
-      // TODO(kasper): Return when we're all idle.
-      if not next: next = now + (Duration --ms=500)
-      signal_.wait next
+    try:
+      while true:
+        now := JobTime.now
+        // TODO(kasper): Stop jobs?
+        next := run_due_jobs_ now
+        // TODO(kasper): Return when we're all idle.
+        if not next: next = now + (Duration --ms=500)
+        signal_.wait next
+    finally:
+      jobs_.do: it.stop
 
   add_jobs jobs/List -> none:
     jobs.do: add_job it
