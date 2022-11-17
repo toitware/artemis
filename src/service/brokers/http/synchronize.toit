@@ -22,7 +22,7 @@ class BrokerServiceHttp implements BrokerService:
     resources := ResourceManagerHttp connection_
 
     handle_task/Task? := ?
-    handle_task = task::
+    handle_task = task --background::
       // We don't know our state revision.
       // The server will ask us to reconcile.
       state_revision := -1

@@ -46,7 +46,7 @@ class BrokerServiceMqtt implements BrokerService:
     topic_presence := topic_presence_for_ device_id
 
     handle_task/Task? := ?
-    handle_task = task::
+    handle_task = task --background::
       try:
         subscribed_to_config := false
         new_config/Map? := null

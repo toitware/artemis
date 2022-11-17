@@ -32,7 +32,7 @@ class BrokerServicePostgrest implements BrokerService:
 
     disconnected := monitor.Latch
     handle_task/Task? := ?
-    handle_task = task::
+    handle_task = task --background::
       try:
         while true:
           with_timeout IDLE_TIMEOUT: idle_.enter
