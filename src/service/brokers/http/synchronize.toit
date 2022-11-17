@@ -4,7 +4,7 @@ import log
 import net
 import .connection
 import .resources
-import ...status show report_status
+import ...check_in show check_in
 import ...broker
 
 class BrokerServiceHttp implements BrokerService:
@@ -16,7 +16,7 @@ class BrokerServiceHttp implements BrokerService:
 
   connect --device_id/string --callback/EventHandler [block]:
     network := net.open
-    report_status network logger_
+    check_in network logger_
     network.close
 
     resources := ResourceManagerHttp connection_

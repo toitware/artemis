@@ -9,7 +9,7 @@ import net
 
 import .resources
 import ...applications
-import ...status show report_status
+import ...check_in show check_in
 import ...synchronize show SynchronizeJob
 
 import ...broker
@@ -33,7 +33,7 @@ class BrokerServiceMqtt implements BrokerService:
 
   connect --device_id/string --callback/EventHandler [block]:
     network ::= net.open
-    report_status network logger_
+    check_in network logger_
     transport ::= create_transport_.call network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
     connect_client_ --device_id=device_id client

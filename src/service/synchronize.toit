@@ -11,7 +11,7 @@ import .applications
 import .firmware_update
 import .jobs
 import .broker
-import .status
+import .check_in
 
 import .device
 import ..shared.json_diff show Modification
@@ -36,7 +36,7 @@ class SynchronizeJob extends Job implements EventHandler:
 
   schedule now/JobTime -> JobTime?:
     if not last_run or not device_.max_offline: return now
-    return min (report_status_schedule now) (last_run + device_.max_offline_)
+    return min (check_in_schedule now) (last_run + device_.max_offline_)
 
   commit config/Map actions/List -> Lambda:
     return ::
@@ -66,7 +66,7 @@ class SynchronizeJob extends Job implements EventHandler:
 
       while true:
         lambda/Lambda? := null
-        catch: with_timeout report_status_timeout: lambda = actions_.receive
+        catch: with_timeout check_in_timeout: lambda = actions_.receive
         if not lambda: break
         lambda.call
         if actions_.size > 0: continue

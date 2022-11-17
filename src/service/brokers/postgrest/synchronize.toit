@@ -7,7 +7,7 @@ import monitor
 import .resources
 import ...broker
 
-import ...status show report_status
+import ...check_in show check_in
 import ....shared.postgrest as supabase
 import ....shared.broker_config
 
@@ -22,7 +22,7 @@ class BrokerServicePostgrest implements BrokerService:
 
   connect --device_id/string --callback/EventHandler [block]:
     network := net.open
-    report_status network logger_
+    check_in network logger_
     idle_.unlock  // We're always idle when we're just connecting.
 
     client := supabase.create_client network broker_
