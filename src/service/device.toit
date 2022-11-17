@@ -8,6 +8,11 @@ A representation of the device we are running on.
 This class abstracts away the current configuration of the device.
 */
 class Device:
+  /**
+  The hardware ID of the device.
+
+  This ID was chosen during provisioning and is unique.
+  */
   id/string
   config_/Map := ?
 

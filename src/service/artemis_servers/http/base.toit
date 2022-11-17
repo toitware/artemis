@@ -19,6 +19,7 @@ class ArtemisServerServiceHttp implements ArtemisServerService:
     exception := catch:
       send_request_ network "check-in" {
         "hardware_id": hardware_id_,
+        "data": { "type": "ping" },
       }
     return exception != null
 
