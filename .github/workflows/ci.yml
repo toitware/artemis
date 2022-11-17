@@ -86,9 +86,9 @@ jobs:
       - name: Install Supabase
         uses: supabase/setup-cli@v1
 
-      - name: Start Supabase
+      - name: Start Supabase - Toitware
         shell: bash
-        working-directory: ${{ github.workspace }}/tests
+        working-directory: ${{ github.workspace }}/tests/supabase_toitware
         run: |
           supabase start
           supabase status
@@ -109,8 +109,23 @@ jobs:
           API_HOST=${API_URL#*http://}
           ANON_KEY_LINE=$(supabase status | grep "anon key:")
           ANON_KEY=${ANON_KEY_LINE#*anon key: }
-          echo "API_HOST=$API_HOST" >> $GITHUB_ENV
-          echo "ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
+          echo "SUPABASE_TOITWARE_API_HOST=$API_HOST" >> $GITHUB_ENV
+          echo "SUPABASE_TOITWARE_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
+
+      - name: Start Supabase - Customer
+        shell: bash
+        working-directory: ${{ github.workspace }}/tests/supabase_customer
+        run: |
+          supabase start
+          supabase status
+
+          API_URL_LINE=$(supabase status | grep "API URL:")
+          API_URL=${API_URL_LINE#*API URL: }
+          API_HOST=${API_URL#*http://}
+          ANON_KEY_LINE=$(supabase status | grep "anon key:")
+          ANON_KEY=${ANON_KEY_LINE#*anon key: }
+          echo "SUPABASE_CUSTOMER_API_HOST=$API_HOST" >> $GITHUB_ENV
+          echo "SUPABASE_CUSTOMER_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
       - uses: suisei-cn/actions-download-file@v1
         name: Download Toit
@@ -153,17 +168,20 @@ jobs:
         run: |
           make install-pkgs
 
-      - name: Setup local broker
+      - name: Setup local brokers
         shell: bash
         run: |
-          $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-broker" $API_HOST $ANON_KEY
+          $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-toitware" \
+            $SUPABASE_TOITWARE_API_HOST $SUPABASE_TOITWARE_ANON_KEY
+          $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-customer" \
+            $SUPABASE_CUSTOMER_API_HOST $SUPABASE_CUSTOMER_ANON_KEY
           cat $ARTEMIS_CONFIG
 
       - name: Test provision
         run: |
           $TOIT_EXEC src/cli/cli.toit provision create-identity \
-              --broker=test-broker \
-              --broker.artemis=test-broker
+              --broker=test-customer \
+              --broker.artemis=test-toitware
           ls
 
       - name: Test
