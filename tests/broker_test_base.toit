@@ -53,8 +53,8 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler:
       event_type := null
       if broker_cli is not mqtt_broker.BrokerCliMqtt:
-        // The MQTT broker only sends a first config event when the CLI updates
-        // the config. All others send it as soon as the service connects.
+        // All brokers, except the MQTT broker, immediately send a first initial
+        // config as soon as the service connects.
         // We need to wait for this initial configuration, so that the test isn't
         // flaky. Otherwise, the CLI could send an update before the service
         // connects, thus not sending the initial empty config.
