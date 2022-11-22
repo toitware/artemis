@@ -7,10 +7,13 @@ import reader show SizedReader
 import artemis.cli.broker
 import artemis.service.broker as broker
 import artemis.cli.brokers.mqtt.base as mqtt_broker
+import artemis.cli.brokers.postgrest.base as postgrest_broker
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
 
 import .brokers
 import .utils
+
+POSTGREST_DEVICE_UUID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
 
 run_test broker_id/string:
   with_brokers broker_id: | logger name broker_cli broker_service |
@@ -39,7 +42,11 @@ class TestEventHandler implements broker.EventHandler:
     channel.send "nop"
 
 test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  DEVICE_ID ::= "test-id-config"
+  // When running the postgrest test we need a device ID that is
+  // a valid UUID, and that is in the database.
+  DEVICE_ID ::= broker_cli is postgrest_broker.BrokerCliPostgrest
+      ? POSTGREST_DEVICE_UUID
+      : "test-id-config"
   3.repeat: | test_iteration |
     test_handler := TestEventHandler
     if test_iteration == 2:
@@ -70,6 +77,8 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old["test-entry"] = "succeeded 1"
         old
 
+      broker_service.on_idle
+
       if broker_cli is mqtt_broker.BrokerCliMqtt:
         event_type = test_handler.channel.receive
 
@@ -83,6 +92,8 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           // When the CLI updates the config, it sends two config revisions in
           // rapid succession.
           // The service might not even see the first one.
+          // Note that the MQTT broker thus must not be long running, as an old
+          // config entry would confuse the test.
           mqtt_already_has_updated_config = event_config.contains "test-entry"
       else if test_iteration == 1:
         if event_type == "nop":
@@ -102,6 +113,7 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         event_config := event_value[1]
         expect_equals "succeeded while offline" event_config["test-entry"]
 
+      broker_service.on_idle
       if not mqtt_already_has_updated_config:
         event_type = test_handler.channel.receive
       expect_equals "update_config" event_type
@@ -115,6 +127,7 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old["test-entry"] = "succeeded 2"
         old
 
+      broker_service.on_idle
       event_type = test_handler.channel.receive
       expect_equals "update_config" event_type
       event_value = test_handler.events[2]

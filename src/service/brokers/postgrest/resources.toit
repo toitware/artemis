@@ -40,14 +40,14 @@ class ResourceManagerPostgrest implements ResourceManager:
     // or not we're doing a partial fetch.
     status := response.status_code
     body := response.body as SizedReader
-    okay := (not partial and status == 200) or (partial and status == 206)
+    okay := status == 200 or (partial and status == 206)
     if not okay:
       while data := body.read: null // DRAIN!
       throw "Not found ($status)"
     // We got a response we can use. If it is partial we
     // need to decode the response header to find the
     // total size.
-    if partial:
+    if partial and status != 200:
       // TODO(kasper): Try to avoid doing this for all parts.
       // We only really need to do it for the first.
       range := response.headers.single "Content-Range"
