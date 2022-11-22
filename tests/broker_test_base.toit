@@ -73,12 +73,17 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       if broker_cli is mqtt_broker.BrokerCliMqtt:
         event_type = test_handler.channel.receive
 
+      mqtt_already_has_updated_config := false
       if test_iteration == 0:
         expect_equals "update_config" event_type
         event_value := test_handler.events[0]
         expect_equals "update_config" event_value[0]
         event_config := event_value[1]
-        expect_not (event_config.contains "test-entry")
+        if broker_cli is mqtt_broker.BrokerCliMqtt:
+          // When the CLI updates the config, it sends two config revisions in
+          // rapid succession.
+          // The service might not even see the first one.
+          mqtt_already_has_updated_config = event_config.contains "test-entry"
       else if test_iteration == 1:
         if event_type == "nop":
           // The MQTT broker doesn't send a config update when it can tell that
@@ -97,7 +102,8 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         event_config := event_value[1]
         expect_equals "succeeded while offline" event_config["test-entry"]
 
-      event_type = test_handler.channel.receive
+      if not mqtt_already_has_updated_config:
+        event_type = test_handler.channel.receive
       expect_equals "update_config" event_type
       event_value := test_handler.events[1]
       expect_equals "update_config" event_value[0]
