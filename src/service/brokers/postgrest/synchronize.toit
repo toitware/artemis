@@ -11,7 +11,6 @@ import ...status show report_status
 import ....shared.postgrest as supabase
 import ....shared.broker_config
 
-POLL_INTERVAL ::= Duration --s=20
 IDLE_TIMEOUT  ::= Duration --m=10
 
 class BrokerServicePostgrest implements BrokerService:
@@ -45,7 +44,7 @@ class BrokerServicePostgrest implements BrokerService:
             new_config = {:}
           idle_.lock
           callback.handle_update_config new_config resources
-          sleep POLL_INTERVAL
+          sleep broker_.poll_interval
       finally:
         critical_do:
           disconnected.set true
