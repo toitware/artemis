@@ -48,7 +48,7 @@ class BrokerServiceMqtt implements BrokerService:
     sub_ack_latch := monitor.Latch
 
     handle_task/Task? := ?
-    handle_task = task::
+    handle_task = task --background::
       try:
         subscribed_to_config := false
         new_config/Map? := null
