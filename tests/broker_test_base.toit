@@ -4,8 +4,8 @@ import expect show *
 import log
 import monitor
 import reader show SizedReader
-import artemis.cli.broker
-import artemis.service.broker as broker
+import artemis.cli.brokers.broker
+import artemis.service.brokers.broker
 import artemis.cli.brokers.mqtt.base as mqtt_broker
 import artemis.cli.brokers.postgrest.base as postgrest_broker
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker

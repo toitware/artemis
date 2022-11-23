@@ -6,7 +6,7 @@ import system.firmware
 import encoding.base64
 import encoding.ubjson
 
-import ..broker show decode_broker_config
+import ..utils show decode_broker_config
 import ..check_in show check_in_setup
 import ..service show run_artemis
 import ..device

@@ -4,7 +4,7 @@ import encoding.ubjson
 import http
 import net
 
-import ...broker
+import ..broker
 import ....shared.broker_config
 
 create_broker_cli_http_toit broker_config/BrokerConfigHttpToit -> BrokerCliHttp:

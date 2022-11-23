@@ -4,7 +4,7 @@ import log
 import net
 
 import .artemis_servers.artemis_server
-import .broker
+import .utils
 import .jobs
 
 import ..shared.broker_config

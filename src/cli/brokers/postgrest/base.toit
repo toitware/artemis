@@ -6,7 +6,7 @@ import http
 import encoding.json
 import reader
 
-import ...broker
+import ..broker
 import ....shared.postgrest
 
 class BrokerCliPostgrest implements BrokerCli:

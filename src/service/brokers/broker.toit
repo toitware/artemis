@@ -1,15 +1,14 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import reader show SizedReader  // For toitdoc.
 import encoding.tison
-import ..shared.broker_config
+import log
+import reader show SizedReader  // For toitdoc.
 
-decode_broker_config key/string assets/Map -> BrokerConfig?:
-  broker_entry := assets.get key --if_present=: tison.decode it
-  if not broker_entry: return null
-  // We use the key as name for the broker configuration.
-  return BrokerConfig.from_json key broker_entry
-      --certificate_text_provider=: assets.get it
+import .postgrest.synchronize show BrokerServicePostgrest
+import .mqtt.synchronize show BrokerServiceMqtt
+import .http.synchronize show BrokerServiceHttp
+
+import ...shared.broker_config
 
 /**
 The resource manager is used to exchange data with the broker.
@@ -59,6 +58,18 @@ interface EventHandler:
 An interface to communicate with the CLI through a broker.
 */
 interface BrokerService:
+  constructor logger/log.Logger broker_config/BrokerConfig:
+    if broker_config is BrokerConfigSupabase:
+      return BrokerServicePostgrest logger (broker_config as BrokerConfigSupabase)
+    else if broker_config is BrokerConfigMqtt:
+      return BrokerServiceMqtt logger --broker_config=(broker_config as BrokerConfigMqtt)
+    else if broker_config is BrokerConfigHttpToit:
+      http_broker_config := broker_config as BrokerConfigHttpToit
+      return BrokerServiceHttp logger http_broker_config.host http_broker_config.port
+    else:
+      throw "unknown broker $broker_config"
+
+
   /**
   Connects to the broker.
 

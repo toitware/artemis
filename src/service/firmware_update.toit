@@ -11,7 +11,7 @@ import encoding.base64
 import binary show LITTLE_ENDIAN
 import reader show SizedReader UNEXPECTED_END_OF_READER_EXCEPTION
 
-import .broker
+import .brokers.broker
 import ..shared.utils.patch
 
 firmware_update logger/log.Logger resources/ResourceManager --old/string --new/string -> none:

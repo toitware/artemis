@@ -9,7 +9,7 @@ import encoding.ubjson
 import tls
 import certificate_roots
 
-import ...broker
+import ..broker
 import ....shared.mqtt
 import ....shared.broker_config
 

@@ -6,8 +6,8 @@ import host.directory
 
 import mqtt.transport as mqtt
 import artemis.shared.broker_config show BrokerConfig BrokerConfigMqtt
-import artemis.cli.broker show BrokerCli
-import artemis.service.broker show BrokerService
+import artemis.cli.brokers.broker show BrokerCli
+import artemis.service.brokers.broker show BrokerService
 import artemis.cli.brokers.mqtt.base show BrokerCliMqtt
 import artemis.service.brokers.mqtt.synchronize show BrokerServiceMqtt
 import artemis.cli.brokers.http.base show BrokerCliHttp
