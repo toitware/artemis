@@ -1,11 +1,9 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import cli
-import http
-import net
-import net.tcp
-import encoding.ubjson
 import monitor
+
+import .base
 
 main args:
   root_cmd := cli.Command "root"
@@ -25,9 +23,7 @@ main args:
 
   root_cmd.run args
 
-class HttpBroker:
-  port/int? := null
-
+class HttpBroker extends HttpServer:
   configs := {:}
   images := {:}
   firmwares := {:}
@@ -46,57 +42,21 @@ class HttpBroker:
   */
   state_revision/Map := {:}
 
-  socket_/tcp.ServerSocket? := null
+  constructor port/int:
+    super port
 
-  constructor .port:
-
-  close:
-    if socket_:
-      socket_.close
-      socket_ = null
-
-  /** Starts the server in a blocking way. */
-  start port_latch/monitor.Latch?=null:
-    network := net.open
-    socket := network.tcp_listen (port or 0)
-    port = socket.local_address.port
-    if port_latch: port_latch.set port
-    server := http.Server
-    print "Listening on port $socket.local_address.port"
-    server.listen socket:: | request/http.Request writer/http.ResponseWriter |
-      encoded_message := #[]
-      while chunk := request.body.read:
-        encoded_message += chunk
-      message := ubjson.decode encoded_message
-
-      command := message["command"]
-      data := message["data"]
-
-      if command == "get_config": reply writer: get_config data
-      else if command == "update_config": reply writer: update_config data
-      else if command == "upload_image": reply writer: upload_image data
-      else if command == "download_image": reply writer: download_image data
-      else if command == "upload_firmware": reply writer: upload_firmware data
-      else if command == "download_firmware": reply writer: download_firmware data
-      else if command == "report_status": reply writer: report_status data
-      else if command == "get_event": reply writer: get_event data
-      else:
-        print "Unknown command: $command"
-        throw "BAD COMMAND $command"
-
-  reply writer/http.ResponseWriter [block]:
-    response_data := null
-    exception := catch --trace: response_data = block.call
-    if exception:
-      writer.write (ubjson.encode {
-        "success": false,
-        "error": "$exception",
-      })
+  run_command command/string data -> any:
+    if command == "get_config": return get_config data
+    else if command == "update_config": return update_config data
+    else if command == "upload_image": return upload_image data
+    else if command == "download_image": return download_image data
+    else if command == "upload_firmware": return upload_firmware data
+    else if command == "download_firmware": return download_firmware data
+    else if command == "report_status": return report_status data
+    else if command == "get_event": return get_event data
     else:
-      writer.write (ubjson.encode {
-        "success": true,
-        "data": response_data
-      })
+      print "Unknown command: $command"
+      throw "BAD COMMAND $command"
 
   get_config data/Map -> Map:
     device_id := data["device_id"]
