@@ -4,7 +4,7 @@ import log
 import net
 
 import .postgrest.supabase show ArtemisServerServiceSupabase
-import ...shared.broker_config
+import ...shared.server_config
 
 /**
 An abstraction for the Artemis server.
@@ -13,10 +13,10 @@ Devices check in with the server to report that they are alive and
   should be billed.
 */
 interface ArtemisServerService:
-  constructor broker_config/BrokerConfig --hardware_id/string:
-    if broker_config is BrokerConfigSupabase:
+  constructor server_config/ServerConfig --hardware_id/string:
+    if server_config is ServerConfigSupabase:
       return ArtemisServerServiceSupabase
-          (broker_config as BrokerConfigSupabase)
+          (server_config as ServerConfigSupabase)
           --hardware_id=hardware_id
     throw "UNSUPPORTED BROKER_CONFIG"
 

@@ -12,14 +12,14 @@ import certificate_roots
 
 import ..sdk
 
-import ..broker
+import ..server_config
 import ..cache
 import ..config
 import ..brokers.postgrest.supabase as supabase
 
 import .broker_options_
 
-import ...shared.broker_config
+import ...shared.server_config
 
 create_provision_commands config/Config cache/Cache -> List:
   provision_cmd := cli.Command "provision"
@@ -43,14 +43,14 @@ create_provision_commands config/Config cache/Cache -> List:
 create_identity config/Config parsed/cli.Parsed:
   fleet_id := parsed["fleet-id"]
   device_id := parsed["device-id"]
-  broker_generic := get_broker_from_config config parsed["broker"]
-  artemis_broker_generic := get_broker_from_config config parsed["broker.artemis"]
+  broker_generic := get_server_from_config config parsed["broker"]
+  artemis_broker_generic := get_server_from_config config parsed["broker.artemis"]
 
-  if broker_generic is not BrokerConfigSupabase: throw "unsupported broker"
-  if artemis_broker_generic is not BrokerConfigSupabase: throw "unsupported artemis broker"
+  if broker_generic is not ServerConfigSupabase: throw "unsupported broker"
+  if artemis_broker_generic is not ServerConfigSupabase: throw "unsupported artemis broker"
 
-  broker := broker_generic as BrokerConfigSupabase
-  artemis_broker := artemis_broker_generic as BrokerConfigSupabase
+  broker := broker_generic as ServerConfigSupabase
+  artemis_broker := artemis_broker_generic as ServerConfigSupabase
 
   network := net.open
   try:
@@ -66,7 +66,7 @@ create_identity config/Config parsed/cli.Parsed:
   finally:
     network.close
 
-insert_device_in_fleet fleet_id/string device_id/string client/http.Client artemis_broker/BrokerConfigSupabase -> Map:
+insert_device_in_fleet fleet_id/string device_id/string client/http.Client artemis_broker/ServerConfigSupabase -> Map:
   map := {
     "fleet": fleet_id,
   }
@@ -85,7 +85,7 @@ insert_device_in_fleet fleet_id/string device_id/string client/http.Client artem
     throw "Unable to create device identity"
   return (json.decode_stream response.body).first
 
-insert_created_event hardware_id/string client/http.Client artemis_broker/BrokerConfigSupabase -> none:
+insert_created_event hardware_id/string client/http.Client artemis_broker/ServerConfigSupabase -> none:
   map := {
     "device": hardware_id,
     "data": { "type": "created" }
@@ -105,15 +105,15 @@ create_identity_file -> none
     device_id/string
     fleet_id/string
     hardware_id/string
-    broker_config/BrokerConfigSupabase
-    artemis_broker_config/BrokerConfigSupabase:
+    server_config/ServerConfigSupabase
+    artemis_server_config/ServerConfigSupabase:
   output_path := "$(device_id).identity"
 
   // A map from id to deduplicated certificate.
   deduplicated_certificates := {:}
 
-  broker_json := broker_config_to_service_json broker_config deduplicated_certificates
-  artemis_broker_json := broker_config_to_service_json artemis_broker_config deduplicated_certificates
+  broker_json := server_config_to_service_json server_config deduplicated_certificates
+  artemis_broker_json := server_config_to_service_json artemis_server_config deduplicated_certificates
 
   identity ::= {
     "artemis.device": {

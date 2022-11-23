@@ -4,10 +4,10 @@ import certificate_roots
 import cli
 import host.file
 
-import ..broker
+import ..server_config
 import ..cache
 import ..config
-import ...shared.broker_config
+import ...shared.server_config
 
 create_config_commands config/Config cache/Cache -> List:
   config_cmd := cli.Command "config"
@@ -19,11 +19,11 @@ create_config_commands config/Config cache/Cache -> List:
 
   config_cmd.add print_cmd
 
-  (create_broker_config_commands config).do: config_cmd.add it
+  (create_server_config_commands config).do: config_cmd.add it
 
   return [config_cmd]
 
-create_broker_config_commands config/Config -> List:
+create_server_config_commands config/Config -> List:
   config_broker_cmd := cli.Command "broker"
       --short_help="Configure the Artemis brokers."
 
@@ -103,12 +103,12 @@ add_supabase parsed/cli.Parsed config/Config:
     host = host.trim --prefix "http://"
     host = host.trim --prefix "https://"
 
-  supabase_config := BrokerConfigSupabase name
+  supabase_config := ServerConfigSupabase name
       --host=host
       --anon=anon
       --root_certificate_name=certificate_name
 
-  add_broker_to_config config supabase_config
+  add_server_to_config config supabase_config
   config.write
 
   print "Added broker $name"
@@ -129,14 +129,14 @@ add_mqtt parsed/cli.Parsed config/Config:
   if client_private_key_path:
     client_private_key = (file.read_content client_private_key_path).to_string
 
-  mqtt_config := BrokerConfigMqtt name
+  mqtt_config := ServerConfigMqtt name
       --host=host
       --port=port
       --root_certificate_name=root_certificate_name
       --client_certificate=client_certificate
       --client_private_key=client_private_key
 
-  add_broker_to_config config mqtt_config
+  add_server_to_config config mqtt_config
   config.write
 
   print "Added broker $name"

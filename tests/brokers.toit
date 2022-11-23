@@ -5,7 +5,7 @@ import monitor
 import host.directory
 
 import mqtt.transport as mqtt
-import artemis.shared.broker_config show BrokerConfig BrokerConfigMqtt
+import artemis.shared.server_config show ServerConfig ServerConfigMqtt
 import artemis.cli.brokers.broker show BrokerCli
 import artemis.service.brokers.broker show BrokerService
 import artemis.cli.brokers.mqtt.base show BrokerCliMqtt
@@ -15,7 +15,7 @@ import artemis.service.brokers.http.synchronize show BrokerServiceHttp
 import artemis.cli.brokers.postgrest.base show BrokerCliPostgrest
 import artemis.cli.brokers.postgrest.supabase show create_broker_cli_supabase
 import artemis.service.brokers.postgrest.synchronize show BrokerServicePostgrest
-import artemis.shared.broker_config show BrokerConfigSupabase
+import artemis.shared.server_config show ServerConfigSupabase
 import ..tools.http_broker.main as http_broker
 import .mqtt_broker_mosquitto
 import .mqtt_broker_toit
@@ -29,8 +29,8 @@ with_brokers broker_id [block]:
   logger := log.default.with_name "testing-$broker_id"
   if broker_id == "mosquitto":
     with_mosquitto --logger=logger: | host/string port/int |
-      broker_config := BrokerConfigMqtt "mosquitto" --host=host --port=port
-      with_mqtt_brokers_ logger broker_id --broker_config=broker_config block
+      server_config := ServerConfigMqtt "mosquitto" --host=host --port=port
+      with_mqtt_brokers_ logger broker_id --server_config=server_config block
   else if broker_id == "toit-mqtt":
     with_toit_mqtt_broker --logger=logger: | create_transport/Lambda |
       with_mqtt_brokers_ logger broker_id --create_transport=create_transport block
@@ -44,25 +44,25 @@ with_brokers broker_id [block]:
       directory.chdir "$current_dir/supabase_customer"
       with_supabase: | host/string anon/string |
         directory.chdir current_dir
-        broker_config := BrokerConfigSupabase "supabase-local" --host=host --anon=anon
-        with_postgrest_brokers_ logger broker_id broker_config block
+        server_config := ServerConfigSupabase "supabase-local" --host=host --anon=anon
+        with_postgrest_brokers_ logger broker_id server_config block
     finally:
       directory.chdir current_dir
   else:
     throw "Unknown broker $broker_id"
 
 with_mqtt_brokers_ logger/log.Logger broker_id/string
-    --broker_config/BrokerConfigMqtt?=null
+    --server_config/ServerConfigMqtt?=null
     --create_transport/Lambda?=null
     [block]:
-  if not broker_config and not create_transport: throw "INVALID_ARGUMENT"
-  if broker_config and create_transport: throw "INVALID_ARGUMENT"
+  if not server_config and not create_transport: throw "INVALID_ARGUMENT"
+  if server_config and create_transport: throw "INVALID_ARGUMENT"
   broker_cli/BrokerCli? := null
   broker_service/BrokerService? := null
   try:
-    if broker_config:
-      broker_service = BrokerServiceMqtt logger --broker_config=broker_config
-      broker_cli = BrokerCliMqtt --broker_config=broker_config --id="test/$broker_id"
+    if server_config:
+      broker_service = BrokerServiceMqtt logger --server_config=server_config
+      broker_cli = BrokerCliMqtt --server_config=server_config --id="test/$broker_id"
     else:
       broker_service = BrokerServiceMqtt logger --create_transport=create_transport
       broker_cli = BrokerCliMqtt --create_transport=create_transport --id="test/$broker_id"
@@ -86,11 +86,11 @@ with_http_toit_brokers_ logger/log.Logger broker_id/string [block]:
 with_postgrest_brokers_
     logger/log.Logger
     broker_id/string
-    broker_config/BrokerConfigSupabase
+    server_config/ServerConfigSupabase
     [block]:
-  broker_config.config_["poll_interval"] = 1000 // us.
-  broker_service := BrokerServicePostgrest logger broker_config
-  broker_cli := create_broker_cli_supabase broker_config
+  server_config.config_["poll_interval"] = 1000 // us.
+  broker_service := BrokerServicePostgrest logger server_config
+  broker_cli := create_broker_cli_supabase server_config
   try:
     block.call logger broker_id broker_cli broker_service
   finally:

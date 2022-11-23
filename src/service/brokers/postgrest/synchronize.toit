@@ -9,13 +9,13 @@ import ..broker
 
 import ...check_in show check_in
 import ....shared.postgrest as supabase
-import ....shared.broker_config
+import ....shared.server_config
 
 IDLE_TIMEOUT  ::= Duration --m=10
 
 class BrokerServicePostgrest implements BrokerService:
   logger_/log.Logger
-  broker_/BrokerConfigSupabase
+  broker_/ServerConfigSupabase
   idle_/monitor.Gate ::= monitor.Gate
 
   constructor .logger_ .broker_:

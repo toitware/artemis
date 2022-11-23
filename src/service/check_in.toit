@@ -7,7 +7,7 @@ import .artemis_servers.artemis_server
 import .utils
 import .jobs
 
-import ..shared.broker_config
+import ..shared.server_config
 import ..shared.postgrest as supabase
 
 
@@ -58,8 +58,8 @@ This is the service that contacts the Toitware backend to report that a
 check_in_setup assets/Map device/Map -> none:
   // For simplicity we are reusing the broker configurations for
   // the customer brokers for the Artemis-server configurations.
-  broker_config := decode_broker_config "artemis.broker" assets
-  if not broker_config: return
+  server_config := decode_server_config "artemis.broker" assets
+  if not server_config: return
 
   hardware_id := device["hardware_id"]
-  check_in_server_ = ArtemisServerService broker_config --hardware_id=hardware_id
+  check_in_server_ = ArtemisServerService server_config --hardware_id=hardware_id

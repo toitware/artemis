@@ -5,10 +5,10 @@ import .brokers
 import artemis.cli
 import artemis.cli.cache
 import artemis.cli.config
-import artemis.cli.broker as cli_broker
+import artemis.cli.server_config as cli_server_config
 import artemis.service
 import artemis.service.device show Device
-import artemis.shared.broker_config show BrokerConfig
+import artemis.shared.server_config show ServerConfig
 import .utils
 
 main:
@@ -20,16 +20,16 @@ main:
 
     device_id := "test-device"
     device := Device --id=device_id --firmware="foo"
-    with_http_broker: | broker_config/BrokerConfig |
+    with_http_broker: | server_config/ServerConfig |
       artemis_task := task::
-        service.run_artemis device broker_config --no-start_ntp
+        service.run_artemis device server_config --no-start_ntp
 
-      cli_broker.add_broker_to_config config broker_config
+      cli_server_config.add_server_to_config config server_config
 
       cli.main --config=config --cache=cache [
         "set-max-offline",
-        "--broker", broker_config.name,
-        "--broker.artemis", broker_config.name,
+        "--broker", server_config.name,
+        "--broker.artemis", server_config.name,
         "--device=$device_id", "3"
       ]
 

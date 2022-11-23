@@ -11,11 +11,11 @@ import certificate_roots
 
 import ..broker
 import ....shared.mqtt
-import ....shared.broker_config
+import ....shared.server_config
 
-create_broker_cli_mqtt broker_config/BrokerConfigMqtt:
-  id := "mqtt/$broker_config.host"
-  return BrokerCliMqtt --broker_config=broker_config --id=id
+create_broker_cli_mqtt server_config/ServerConfigMqtt:
+  id := "mqtt/$server_config.host"
+  return BrokerCliMqtt --server_config=server_config --id=id
 
 class BrokerCliMqtt implements BrokerCli:
   static ID_ ::= "toit/artemis-cli-$(random 0x3fff_ffff)"
@@ -36,9 +36,9 @@ class BrokerCliMqtt implements BrokerCli:
   */
   retain_timeout_ms := 5_000
 
-  constructor --broker_config/BrokerConfigMqtt --id/string:
+  constructor --server_config/ServerConfigMqtt --id/string:
     return BrokerCliMqtt --id=id --create_transport=:: | network/net.Interface |
-      create_transport_from_broker_config network broker_config
+      create_transport_from_server_config network server_config
           --certificate_provider=: certificate_roots.MAP[it]
 
   constructor --create_transport/Lambda --.id/string:

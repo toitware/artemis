@@ -8,7 +8,7 @@ import .postgrest.synchronize show BrokerServicePostgrest
 import .mqtt.synchronize show BrokerServiceMqtt
 import .http.synchronize show BrokerServiceHttp
 
-import ...shared.broker_config
+import ...shared.server_config
 
 /**
 The resource manager is used to exchange data with the broker.
@@ -58,16 +58,16 @@ interface EventHandler:
 An interface to communicate with the CLI through a broker.
 */
 interface BrokerService:
-  constructor logger/log.Logger broker_config/BrokerConfig:
-    if broker_config is BrokerConfigSupabase:
-      return BrokerServicePostgrest logger (broker_config as BrokerConfigSupabase)
-    else if broker_config is BrokerConfigMqtt:
-      return BrokerServiceMqtt logger --broker_config=(broker_config as BrokerConfigMqtt)
-    else if broker_config is BrokerConfigHttpToit:
-      http_broker_config := broker_config as BrokerConfigHttpToit
-      return BrokerServiceHttp logger http_broker_config.host http_broker_config.port
+  constructor logger/log.Logger server_config/ServerConfig:
+    if server_config is ServerConfigSupabase:
+      return BrokerServicePostgrest logger (server_config as ServerConfigSupabase)
+    else if server_config is ServerConfigMqtt:
+      return BrokerServiceMqtt logger --server_config=(server_config as ServerConfigMqtt)
+    else if server_config is ServerConfigHttpToit:
+      http_server_config := server_config as ServerConfigHttpToit
+      return BrokerServiceHttp logger http_server_config.host http_server_config.port
     else:
-      throw "unknown broker $broker_config"
+      throw "unknown broker $server_config"
 
 
   /**

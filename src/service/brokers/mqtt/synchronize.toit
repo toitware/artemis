@@ -14,7 +14,7 @@ import ...synchronize show SynchronizeJob
 
 import ..broker
 import ....shared.mqtt
-import ....shared.broker_config
+import ....shared.server_config
 
 CLIENT_ID ::= "toit/artemis-service-$(random 0x3fff_ffff)"
 
@@ -23,9 +23,9 @@ class BrokerServiceMqtt implements BrokerService:
   logger_/log.Logger
   create_transport_/Lambda
 
-  constructor .logger_ --broker_config/BrokerConfigMqtt:
+  constructor .logger_ --server_config/ServerConfigMqtt:
     create_transport_ = :: | network/net.Interface |
-      create_transport_from_broker_config network broker_config
+      create_transport_from_server_config network server_config
           --certificate_provider=: throw "UNSUPPORTED"
 
   constructor .logger_ --create_transport/Lambda:

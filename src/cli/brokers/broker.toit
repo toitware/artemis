@@ -2,7 +2,7 @@
 
 import host.file
 import encoding.json
-import ...shared.broker_config
+import ...shared.server_config
 import .mqtt.base
 import .postgrest.supabase
 import .http.base
@@ -15,13 +15,13 @@ interface BrokerCli:
   // At the moment we require the connection to be open when artemis receives the
   // broker.
 
-  constructor broker_config/BrokerConfig:
-    if broker_config is BrokerConfigSupabase:
-      return create_broker_cli_supabase (broker_config as BrokerConfigSupabase)
-    if broker_config is BrokerConfigMqtt:
-      return create_broker_cli_mqtt (broker_config as BrokerConfigMqtt)
-    if broker_config is BrokerConfigHttpToit:
-      return create_broker_cli_http_toit (broker_config as BrokerConfigHttpToit)
+  constructor server_config/ServerConfig:
+    if server_config is ServerConfigSupabase:
+      return create_broker_cli_supabase (server_config as ServerConfigSupabase)
+    if server_config is ServerConfigMqtt:
+      return create_broker_cli_mqtt (server_config as ServerConfigMqtt)
+    if server_config is ServerConfigHttpToit:
+      return create_broker_cli_http_toit (server_config as ServerConfigHttpToit)
     throw "Unknown broker config type"
 
   /** Closes this broker. */
