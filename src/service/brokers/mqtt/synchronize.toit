@@ -45,6 +45,8 @@ class BrokerServiceMqtt implements BrokerService:
     topic_config := topic_config_for_ device_id
     topic_presence := topic_presence_for_ device_id
 
+    sub_ack_latch := monitor.Latch
+
     handle_task/Task? := ?
     handle_task = task::
       try:
@@ -76,6 +78,11 @@ class BrokerServiceMqtt implements BrokerService:
             else:
               known := resources.provide_resource topic: publish.payload_stream
               if not known: logger_.warn "unhandled publish packet" --tags={"topic": topic}
+          else if packet is mqtt.SubAckPacket:
+            sub_ack_id := (packet as mqtt.SubAckPacket).packet_id
+            if not sub_ack_latch.has_value:
+              sub_ack_latch.set sub_ack_id
+
       finally:
         critical_do:
           disconnected.set true
@@ -89,7 +96,13 @@ class BrokerServiceMqtt implements BrokerService:
       // Wait for the client to run.
       client.when_running: null
       client.publish topic_presence "online".to_byte_array --retain
-      client.subscribe topic_revision
+      subscribe_to_revisions_packet_id := -1
+      packet_id := client.subscribe topic_revision
+      // Wait for the subscription to be acknowledged.
+      // This isn't strictly necessary, but makes the code more deterministic.
+      sub_ack_id := sub_ack_latch.get
+      if packet_id != sub_ack_id:
+        throw "Bad SubAck ID: $packet_id != $sub_ack_id"
       block.call resources
     finally:
       try:
