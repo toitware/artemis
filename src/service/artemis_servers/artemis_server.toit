@@ -20,7 +20,6 @@ interface ArtemisServerService:
           --hardware_id=hardware_id
     throw "UNSUPPORTED BROKER_CONFIG"
 
-
   /**
   Checks in with the server.
 
