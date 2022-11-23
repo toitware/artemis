@@ -7,14 +7,14 @@ import .base
 
 main args:
   root_cmd := cli.Command "root"
-    --long_help="""An HTTP-based Artemis server
+    --long_help="""An HTTP-based Artemis server.
 
       Can be used instead of the Supabase servers.
       This server keeps data in memory and should thus only be used for testing.
       """
     --options=[
       cli.OptionInt "port" --short_name="p"
-          --short_help="The port to listen on"
+          --short_help="The port to listen on."
     ]
     --run=:: | parsed/cli.Parsed |
       broker := HttpArtemisServer parsed["port"]
@@ -60,7 +60,6 @@ class HttpArtemisServer extends HttpServer:
     if command == "create-device-in-fleet": return create_device_in_fleet data
     if command == "notify-created": return store_event data
     else:
-      print "Unknown command: $command"
       throw "BAD COMMAND $command"
 
   store_event data/Map:

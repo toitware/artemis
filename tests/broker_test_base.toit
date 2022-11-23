@@ -60,8 +60,8 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler:
       event_type := null
       if broker_cli is not mqtt_broker.BrokerCliMqtt:
-        // The MQTT broker only sends a first config event when the CLI updates
-        // the config. All others send it as soon as the service connects.
+        // All brokers, except the MQTT broker, immediately send a first initial
+        // config as soon as the service connects.
         // We need to wait for this initial configuration, so that the test isn't
         // flaky. Otherwise, the CLI could send an update before the service
         // connects, thus not sending the initial empty config.
@@ -82,13 +82,19 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       if broker_cli is mqtt_broker.BrokerCliMqtt:
         event_type = test_handler.channel.receive
 
+      mqtt_already_has_updated_config := false
       if test_iteration == 0:
         expect_equals "update_config" event_type
         event_value := test_handler.events[0]
         expect_equals "update_config" event_value[0]
         event_config := event_value[1]
-        // This might still be an old entry, if we are having a long-running broker.
-        // Don't test for its content (or absence of it) here.
+        if broker_cli is mqtt_broker.BrokerCliMqtt:
+          // When the CLI updates the config, it sends two config revisions in
+          // rapid succession.
+          // The service might not even see the first one.
+          // Note that the MQTT broker thus must not be long running, as an old
+          // config entry would confuse the test.
+          mqtt_already_has_updated_config = event_config.contains "test-entry"
       else if test_iteration == 1:
         if event_type == "nop":
           // The MQTT broker doesn't send a config update when it can tell that
@@ -108,7 +114,8 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         expect_equals "succeeded while offline" event_config["test-entry"]
 
       broker_service.on_idle
-      event_type = test_handler.channel.receive
+      if not mqtt_already_has_updated_config:
+        event_type = test_handler.channel.receive
       expect_equals "update_config" event_type
       event_value := test_handler.events[1]
       expect_equals "update_config" event_value[0]

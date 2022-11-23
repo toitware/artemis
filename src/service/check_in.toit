@@ -17,6 +17,8 @@ INTERVAL_BETWEEN_ATTEMPTS_ ::= Duration --m=2
 last_success_/JobTime? := null
 last_attempt_/JobTime? := null
 
+check_in_server_/ArtemisServerService? := null
+
 check_in_schedule now/JobTime -> JobTime:
   if not last_attempt_: return now
   next := last_attempt_ + INTERVAL_BETWEEN_ATTEMPTS_
@@ -61,6 +63,3 @@ check_in_setup assets/Map device/Map -> none:
 
   hardware_id := device["hardware_id"]
   check_in_server_ = ArtemisServerService server_config --hardware_id=hardware_id
-
-
-check_in_server_/ArtemisServerService? := null

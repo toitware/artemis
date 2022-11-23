@@ -25,7 +25,6 @@ interface ArtemisServerService:
           --hardware_id=hardware_id
     throw "UNSUPPORTED ARTEMIS SERVER CONFIG"
 
-
   /**
   Checks in with the server.
 
