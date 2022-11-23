@@ -24,7 +24,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 
   has_event --hardware_id/string --type/string -> bool:
     // For simplicity just run through all entries.
-    // In the test-setup we should have that many.
+    // In the test-setup we should not have that many.
     entries := query_ "events" [
       "device=eq.$hardware_id",
     ]

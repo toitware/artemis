@@ -22,7 +22,6 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
 
   has_event --hardware_id/string --type/string -> bool:
     server_.events.do: | entry/EventEntry |
-      print "entry: $entry"
       if entry.device_id == hardware_id and
           entry.data is Map and (entry.data.get "type") == type:
         return true
