@@ -7,7 +7,7 @@ import encoding.base64
 import encoding.ubjson
 
 import ..broker show decode_broker_config
-import ..status show report_status_setup
+import ..check_in show check_in_setup
 import ..service show run_artemis
 import ..device
 
@@ -15,7 +15,7 @@ main arguments:
   decoded ::= assets.decode
   broker_config := decode_broker_config "broker" decoded
 
-  report_status_setup decoded firmware.config["artemis.device"]
+  check_in_setup decoded firmware.config["artemis.device"]
 
   firmware_description := ubjson.decode firmware.config["parts"]
   end := firmware_description.last["to"]
