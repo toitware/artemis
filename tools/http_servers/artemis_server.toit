@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import cli
+import uuid
 
 import .base
 
@@ -34,6 +35,9 @@ class EventEntry:
 
   constructor .device_id --.data:
 
+  stringify -> string:
+    return "EventEntry($device_id, $data)"
+
 class HttpArtemisServer extends HttpServer:
   static DEVICE_NOT_FOUND ::= 0
 
@@ -52,14 +56,24 @@ class HttpArtemisServer extends HttpServer:
     super port
 
   run_command command/string data -> any:
-    if command == "check-in": return check_in data
+    if command == "check-in": return store_event data
+    if command == "create-device-in-fleet": return create_device_in_fleet data
+    if command == "notify-created": return store_event data
     else:
       throw "BAD COMMAND $command"
 
-  check_in data/Map:
+  store_event data/Map:
     device_id := data["hardware_id"]
     if not devices.contains device_id:
       errors.add [DEVICE_NOT_FOUND, device_id]
       throw "Device not found"
     events.add
-        EventEntry device_id --data=data
+        EventEntry device_id --data=data["data"]
+
+  create_device_in_fleet data/Map:
+    fleet_id := data["fleet"]
+    alias := data.get "alias"
+
+    hardware_id := "$(uuid.uuid5 "" "hardware_id - $Time.monotonic_us")"
+    devices[hardware_id] = DeviceEntry hardware_id --alias=(alias or "") --fleet=fleet_id
+    return hardware_id

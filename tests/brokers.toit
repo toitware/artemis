@@ -2,7 +2,6 @@
 
 import log
 import monitor
-import host.directory
 
 import mqtt.transport as mqtt
 import artemis.shared.server_config show ServerConfig ServerConfigMqtt
@@ -19,7 +18,7 @@ import artemis.shared.server_config show ServerConfigSupabase
 import ..tools.http_servers.broker as http_broker
 import .mqtt_broker_mosquitto
 import .mqtt_broker_toit
-import .supabase_local_broker
+import .supabase_local_server
 
 /**
 Starts the broker with the given $broker_id and calls the given [block] with
@@ -38,16 +37,8 @@ with_brokers broker_id [block]:
     with_http_toit_brokers_ logger broker_id block
   else if broker_id == "supabase-local":
     // Here we are only interested in customer brokers.
-    // We need to move into the customer-supabase directory to get its configuration.
-    current_dir := directory.cwd
-    try:
-      directory.chdir "$current_dir/supabase_customer"
-      with_supabase: | host/string anon/string |
-        directory.chdir current_dir
-        server_config := ServerConfigSupabase "supabase-local" --host=host --anon=anon
-        with_postgrest_brokers_ logger broker_id server_config block
-    finally:
-      directory.chdir current_dir
+    server_config := get_supabase_config --sub_directory="supabase_customer"
+    with_postgrest_brokers_ logger broker_id server_config block
   else:
     throw "Unknown broker $broker_id"
 

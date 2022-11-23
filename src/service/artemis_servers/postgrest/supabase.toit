@@ -11,7 +11,7 @@ import ....shared.server_config
 import ....shared.postgrest as supabase
 
 class ArtemisServerServiceSupabase implements ArtemisServerService:
-  server_config_/ServerConfigSupabase?
+  server_config_/ServerConfigSupabase
 
   hardware_id_/string
 

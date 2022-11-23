@@ -23,7 +23,7 @@ interface ArtemisServerService:
       return ArtemisServerServiceHttp
           (server_config as ServerConfigHttpToit)
           --hardware_id=hardware_id
-    throw "UNSUPPORTED BROKER_CONFIG"
+    throw "UNSUPPORTED ARTEMIS SERVER CONFIG"
 
   /**
   Checks in with the server.
