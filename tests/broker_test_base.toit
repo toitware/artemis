@@ -29,17 +29,20 @@ run_test
   test_firmware broker_cli broker_service
   test_config broker_cli broker_service
 
+class TestEvent:
+  type/string
+  value/any
+
+  constructor .type .value=null:
+
 class TestEventHandler implements broker.EventHandler:
-  events := []
   channel := monitor.Channel 10
 
   handle_update_config new_config/Map? resources/broker.ResourceManager:
-    events.add ["update_config", new_config]
-    channel.send "update_config"
+    channel.send (TestEvent "update_config" new_config)
 
   handle_nop:
-    events.add ["nop"]
-    channel.send "nop"
+    channel.send (TestEvent "nop")
 
 test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   // When running the postgrest test we need a device ID that is
@@ -58,14 +61,14 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old
 
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler:
-      event_type := null
+      event/TestEvent? := null
       if broker_cli is not mqtt_broker.BrokerCliMqtt:
         // All brokers, except the MQTT broker, immediately send a first initial
         // config as soon as the service connects.
         // We need to wait for this initial configuration, so that the test isn't
         // flaky. Otherwise, the CLI could send an update before the service
         // connects, thus not sending the initial empty config.
-        event_type = test_handler.channel.receive
+        event = test_handler.channel.receive
       else:
         (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
 
@@ -80,14 +83,12 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       broker_service.on_idle
 
       if broker_cli is mqtt_broker.BrokerCliMqtt:
-        event_type = test_handler.channel.receive
+        event = test_handler.channel.receive
 
       mqtt_already_has_updated_config := false
       if test_iteration == 0:
-        expect_equals "update_config" event_type
-        event_value := test_handler.events[0]
-        expect_equals "update_config" event_value[0]
-        event_config := event_value[1]
+        expect_equals "update_config" event.type
+        event_config := event.value
         if broker_cli is mqtt_broker.BrokerCliMqtt:
           // When the CLI updates the config, it sends two config revisions in
           // rapid succession.
@@ -96,30 +97,24 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           // config entry would confuse the test.
           mqtt_already_has_updated_config = event_config.contains "test-entry"
       else if test_iteration == 1:
-        if event_type == "nop":
+        if event.type == "nop":
           // The MQTT broker doesn't send a config update when it can tell that
           // the configuration hasn't changed in the meantime.
           expect broker_cli is mqtt_broker.BrokerCliMqtt
         else:
-          expect_equals "update_config" event_type
-          event_value := test_handler.events[0]
-          expect_equals "update_config" event_value[0]
-          event_config := event_value[1]
+          expect_equals "update_config" event.type
+          event_config := event.value
           expect_equals "succeeded 2" event_config["test-entry"]
       else:
-        expect_equals "update_config" event_type
-        event_value := test_handler.events[0]
-        expect_equals "update_config" event_value[0]
-        event_config := event_value[1]
+        expect_equals "update_config" event.type
+        event_config := event.value
         expect_equals "succeeded while offline" event_config["test-entry"]
 
       broker_service.on_idle
       if not mqtt_already_has_updated_config:
-        event_type = test_handler.channel.receive
-      expect_equals "update_config" event_type
-      event_value := test_handler.events[1]
-      expect_equals "update_config" event_value[0]
-      event_config := event_value[1]
+        event = test_handler.channel.receive
+      expect_equals "update_config" event.type
+      event_config := event.value
       expect_equals "succeeded 1" event_config["test-entry"]
 
       broker_cli.device_update_config --device_id=DEVICE_ID: | old |
@@ -128,11 +123,9 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old
 
       broker_service.on_idle
-      event_type = test_handler.channel.receive
-      expect_equals "update_config" event_type
-      event_value = test_handler.events[2]
-      expect_equals "update_config" event_value[0]
-      event_config = event_value[1]
+      event = test_handler.channel.receive
+      expect_equals "update_config" event.type
+      event_config = event.value
       expect_equals "succeeded 2" event_config["test-entry"]
 
       expect_equals 0 test_handler.channel.size
