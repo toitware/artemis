@@ -57,7 +57,8 @@ class HttpArtemisServer extends HttpServer:
 
   run_command command/string data -> any:
     if command == "check-in": return store_event data
-    if command == "create-device-in-organization": return create_device_in_organization data
+    if command == "create-device-in-organization":
+      return create_device_in_organization data
     if command == "notify-created": return store_event data
     else:
       throw "BAD COMMAND $command"
@@ -75,7 +76,12 @@ class HttpArtemisServer extends HttpServer:
     alias := data.get "alias"
 
     hardware_id := "$(uuid.uuid5 "" "hardware_id - $Time.monotonic_us")"
+    device_id := alias or "$(uuid.uuid5 "" "device_id - $Time.monotonic_us")"
     devices[hardware_id] = DeviceEntry hardware_id
-        --alias=(alias or "")
+        --alias=device_id
         --organization_id=organization_id
-    return hardware_id
+    return {
+      "hardware_id": hardware_id,
+      "id": device_id,
+      "organization_id": organization_id,
+    }

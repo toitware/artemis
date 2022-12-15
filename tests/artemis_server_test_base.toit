@@ -37,9 +37,10 @@ run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor:
 
 test_create_device_in_fleet server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
   // Test without and with alias.
-  hardware_id1 := server_cli.create_device_in_organization
+  device1 := server_cli.create_device_in_organization
       --device_id=""
       --organization_id=ORGANIZATION_ID
+  hardware_id1 := device1.hardware_id
   data := backdoor.fetch_device_information --hardware_id=hardware_id1
   expect_equals hardware_id1 data[0]
   expect_equals ORGANIZATION_ID data[1]
@@ -47,10 +48,11 @@ test_create_device_in_fleet server_cli/ArtemisServerCli backdoor/ArtemisServerBa
   // TODO(florian): check that this is always the case? (in which case we would
   // need to fix the http server).
 
-  hardware_id2 := server_cli.create_device_in_organization
+  device2 := server_cli.create_device_in_organization
       --device_id="Testy"
       --organization_id=ORGANIZATION_ID
   sleep --ms=200
+  hardware_id2 := device2.hardware_id
   data = backdoor.fetch_device_information --hardware_id=hardware_id2
   expect_equals hardware_id2 data[0]
   expect_equals ORGANIZATION_ID data[1]

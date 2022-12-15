@@ -8,14 +8,14 @@ import host.file
 import http
 import net
 import writer
-import certificate_roots
 
 import ..sdk
 
 import ..server_config
 import ..cache
 import ..config
-import ..brokers.postgrest.supabase as supabase
+import ..device
+import ..artemis_servers.artemis_server show ArtemisServerCli
 
 import .broker_options_
 
@@ -28,10 +28,8 @@ create_provision_commands config/Config cache/Cache -> List:
       --options=broker_options + [
         cli.OptionString "device-id"
             --default="",
-        // TODO(kasper): These options should be given through some
+        // TODO(kasper): This option should be given through some
         // sort of auth-based mechanism.
-        cli.OptionString "fleet-id"
-            --default="c6fb0602-79a6-4cc3-b1ee-08df55fb30ad",
         cli.OptionString "organization-id"
             --default="4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
       ]
@@ -41,7 +39,7 @@ create_provision_commands config/Config cache/Cache -> List:
   return [provision_cmd]
 
 create_identity config/Config parsed/cli.Parsed:
-  fleet_id := parsed["fleet-id"]
+  organization_id := parsed["organization-id"]
   device_id := parsed["device-id"]
   broker_generic := get_server_from_config config parsed["broker"]
   artemis_broker_generic := get_server_from_config config parsed["broker.artemis"]
@@ -54,56 +52,24 @@ create_identity config/Config parsed/cli.Parsed:
 
   network := net.open
   try:
-    client := supabase.create_client network artemis_broker
-        --certificate_provider=: certificate_roots.MAP[it]
-    device := insert_device_in_fleet fleet_id device_id client artemis_broker
+    server := ArtemisServerCli network artemis_broker
+    device := server.create_device_in_organization --organization_id=organization_id --device_id=device_id
+
+    // If the device id was not specified, use the one returned by the server.
+    device_id = device.id
+    hardware_id := device.hardware_id
+
     // Insert an initial event mostly for testing purposes.
-    device_id = device["alias"]
-    hardware_id := device["id"]
-    insert_created_event hardware_id client artemis_broker
+    server.notify_created --hardware_id=hardware_id
+
     // Finally create the identity output file.
-    create_identity_file device_id fleet_id hardware_id broker artemis_broker
+    create_identity_file device_id organization_id hardware_id broker artemis_broker
   finally:
     network.close
 
-insert_device_in_fleet fleet_id/string device_id/string client/http.Client artemis_broker/ServerConfigSupabase -> Map:
-  map := {
-    "fleet": fleet_id,
-  }
-  if not device_id.is_empty: map["alias"] = device_id
-  payload := json.encode map
-
-  headers := supabase.create_headers artemis_broker
-  headers.add "Prefer" "return=representation"
-  table := "devices"
-  response := client.post payload
-      --host=artemis_broker.host
-      --headers=headers
-      --path="/rest/v1/$table"
-
-  if response.status_code != 201:
-    throw "Unable to create device identity"
-  return (json.decode_stream response.body).first
-
-insert_created_event hardware_id/string client/http.Client artemis_broker/ServerConfigSupabase -> none:
-  map := {
-    "device": hardware_id,
-    "data": { "type": "created" }
-  }
-  payload := json.encode map
-
-  headers := supabase.create_headers artemis_broker
-  table := "events"
-  response := client.post payload
-      --host=artemis_broker.host
-      --headers=headers
-      --path="/rest/v1/$table"
-  if response.status_code != 201:
-    throw "Unable to insert 'created' event."
-
 create_identity_file -> none
     device_id/string
-    fleet_id/string
+    organization_id/string
     hardware_id/string
     server_config/ServerConfigSupabase
     artemis_server_config/ServerConfigSupabase:
@@ -117,9 +83,9 @@ create_identity_file -> none
 
   identity ::= {
     "artemis.device": {
-      "device_id"   : device_id,
-      "fleet_id"    : fleet_id,
-      "hardware_id" : hardware_id,
+      "device_id"       : device_id,
+      "organization_id" : organization_id,
+      "hardware_id"     : hardware_id,
     },
     "artemis.broker": artemis_broker_json,
     "broker": broker_json,
