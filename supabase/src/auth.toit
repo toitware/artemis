@@ -61,6 +61,38 @@ class Auth:
 
     client_.set_session_ session
 
+  sign_up --email/string --password/string -> none:
+    response := client_.request_
+        --method=http.POST
+        --path="/auth/v1/signup"
+        --payload={
+          "email": email,
+          "password": password,
+        }
+    if response and response is Map:
+      if (response.get "email") == email: return
+      if user := response.get "user":
+        if (user.get "email") == email: return
+    throw "Failed to sign up"
+
+  sign_in --email/string --password/string -> none:
+    response := client_.request_
+        --method=http.POST
+        --path="/auth/v1/token"
+        --payload={
+          "email": email,
+          "password": password,
+        }
+        --query_parameters={
+          "grant_type": "password",
+        }
+    session := Session_
+        --access_token=response["access_token"]
+        --expires_in=response["expires_in"]
+        --refresh_token=response["refresh_token"]
+        --token_type=response["token_type"]
+    client_.set_session_ session
+
   sign_in --provider/string -> none:
     network := net.open
     try:
