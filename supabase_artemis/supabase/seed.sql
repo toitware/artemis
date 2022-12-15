@@ -1,8 +1,10 @@
 insert into public.organizations(id, name)
-values('4b6d9e35-cae9-44c0-8da0-6b0e485987e2', 'Toitware ApS');
+values('4b6d9e35-cae9-44c0-8da0-6b0e485987e2', 'Test Organization');
 
-insert into public.devices(id, organization_id)
-values('eb45c662-356c-4bea-ad8c-ede37688fddf', '4b6d9e35-cae9-44c0-8da0-6b0e485987e2');
+insert into public.devices(id, alias, organization_id)
+values('eb45c662-356c-4bea-ad8c-ede37688fddf',
+       '191149e5-a95b-47b1-80dd-b149f953d272',
+       '4b6d9e35-cae9-44c0-8da0-6b0e485987e2');
 
 -- Add users:
 --  * "test@example.com" with password "password"
@@ -16,3 +18,8 @@ INSERT INTO auth.identities (id,user_id,identity_data,provider,last_sign_in_at,c
 	('f76629c5-a070-4bbc-9918-64beaea48848','f76629c5-a070-4bbc-9918-64beaea48848'::uuid,'{"sub": "f76629c5-a070-4bbc-9918-64beaea48848"}','email','2022-02-11 21:02:04.545','2022-02-11 21:02:04.545','2022-02-11 21:02:04.545'),
 	('d9064bb5-1501-4ec9-bfee-21ab74d645b8','d9064bb5-1501-4ec9-bfee-21ab74d645b8'::uuid,'{"sub": "d9064bb5-1501-4ec9-bfee-21ab74d645b8"}','email','2022-02-12 07:40:23.615','2022-02-12 07:40:23.615','2022-02-12 07:40:23.615')
 ON CONFLICT (id, provider) DO NOTHING;
+
+INSERT INTO public.roles(user_id, organization_id, role)
+VALUES
+  ('f76629c5-a070-4bbc-9918-64beaea48848', '4b6d9e35-cae9-44c0-8da0-6b0e485987e2', 'admin'),
+  ('d9064bb5-1501-4ec9-bfee-21ab74d645b8', '4b6d9e35-cae9-44c0-8da0-6b0e485987e2', 'member')

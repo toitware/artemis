@@ -48,6 +48,6 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
       network.close
 
 main:
-  server_config := get_supabase_config --sub_directory="../supabase_artemis"
+  server_config := get_supabase_config --sub_directory=SUPABASE_ARTEMIS
   backdoor := SupabaseBackdoor server_config
   run_test server_config backdoor

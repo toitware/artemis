@@ -37,7 +37,7 @@ with_brokers broker_id [block]:
     with_http_toit_brokers_ logger broker_id block
   else if broker_id == "supabase-local":
     // Here we are only interested in customer brokers.
-    server_config := get_supabase_config --sub_directory="supabase_customer"
+    server_config := get_supabase_config --sub_directory=SUPABASE_CUSTOMER
     with_supabase_brokers_ logger broker_id server_config block
   else:
     throw "Unknown broker $broker_id"
