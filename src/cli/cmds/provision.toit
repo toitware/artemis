@@ -41,8 +41,8 @@ create_provision_commands config/Config cache/Cache -> List:
 create_identity config/Config parsed/cli.Parsed:
   organization_id := parsed["organization-id"]
   device_id := parsed["device-id"]
-  broker_generic := get_server_from_config config parsed["broker"]
-  artemis_broker_generic := get_server_from_config config parsed["broker.artemis"]
+  broker_generic := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
+  artemis_broker_generic := get_server_from_config config parsed["broker.artemis"] CONFIG_ARTEMIS_DEFAULT_KEY
 
   if broker_generic is not ServerConfigSupabase: throw "unsupported broker"
   if artemis_broker_generic is not ServerConfigSupabase: throw "unsupported artemis broker"
