@@ -47,10 +47,8 @@ query_ client/http.Client host/string headers/http.Headers table/string filters/
 class Client:
   client_/http.Client? := null
   broker_/ServerConfig
-  host_/string
 
   constructor .client_ .broker_:
-    host_ = broker_.host
 
   close -> none:
     client_ = null
@@ -60,13 +58,13 @@ class Client:
 
   query table/string filters/List -> List?:
     headers := create_headers broker_
-    return query_ client_ host_ headers table filters
+    return query_ client_ broker_.host headers table filters
 
   update_entry table/string --upsert/bool payload/ByteArray:
     headers := create_headers broker_
     if upsert: headers.add "Prefer" "resolution=merge-duplicates"
     response := client_.post payload
-        --host=host_
+        --host=broker_.host
         --headers=headers
         --path="/rest/v1/$table"
     // 201 is changed one entry.
@@ -79,7 +77,7 @@ class Client:
     headers.add "Content-Type" "application/octet-stream"
     headers.add "x-upsert" "true"
     response := client_.post content
-        --host=host_
+        --host=broker_.host
         --headers=headers
         --path="/storage/v1/object/$path"
     // 200 is accepted!
@@ -89,7 +87,7 @@ class Client:
 
   download_resource --path/string [block] -> none:
     headers := create_headers broker_
-    response := client_.get host_ "/storage/v1/object/$path"
+    response := client_.get broker_.host "/storage/v1/object/$path"
         --headers=headers
     body := response.body
     try:
