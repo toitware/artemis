@@ -23,8 +23,8 @@ interface ArtemisServerBackdoor:
   has_event --hardware_id/string --type/string -> bool
 
 
-/** A fleet ID that was already added to the Supabase server. */
-FLEET_ID ::= "c6fb0602-79a6-4cc3-b1ee-08df55fb30ad"
+/** An organization ID that was already added to the Supabase server. */
+ORGANIZATION_ID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
 
 run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor:
   network := net.open
@@ -37,19 +37,23 @@ run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor:
 
 test_create_device_in_fleet server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
   // Test without and with alias.
-  hardware_id1 := server_cli.create_device_in_fleet --device_id="" --fleet_id=FLEET_ID
+  hardware_id1 := server_cli.create_device_in_organization
+      --device_id=""
+      --organization_id=ORGANIZATION_ID
   data := backdoor.fetch_device_information --hardware_id=hardware_id1
   expect_equals hardware_id1 data[0]
-  expect_equals FLEET_ID data[1]
+  expect_equals ORGANIZATION_ID data[1]
   // The alias is auto-filled to some UUID in the postgres database.
   // TODO(florian): check that this is always the case? (in which case we would
   // need to fix the http server).
 
-  hardware_id2 := server_cli.create_device_in_fleet --device_id="Testy" --fleet_id=FLEET_ID
+  hardware_id2 := server_cli.create_device_in_organization
+      --device_id="Testy"
+      --organization_id=ORGANIZATION_ID
   sleep --ms=200
   data = backdoor.fetch_device_information --hardware_id=hardware_id2
   expect_equals hardware_id2 data[0]
-  expect_equals FLEET_ID data[1]
+  expect_equals ORGANIZATION_ID data[1]
   expect_equals "Testy" data[2]
 
   return hardware_id2

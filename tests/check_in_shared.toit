@@ -21,7 +21,9 @@ run_test --insert_device/bool:
   with_http_broker: | broker_config/ServerConfig |
     with_http_artemis_server: | server/HttpArtemisServer artemis_server_config/ServerConfig |
       if insert_device:
-        server.devices[device_id] = DeviceEntry device_id --alias="no-alias" --fleet="no-fleet"
+        server.devices[device_id] = DeviceEntry device_id
+            --alias="test-alias"
+            --organization_id="test-organization"
 
       checkin_latch := monitor.Latch
       server.listeners.add:: | state/string command/string data/any |

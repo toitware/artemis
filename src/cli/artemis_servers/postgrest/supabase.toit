@@ -26,9 +26,9 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   close -> none:
     // TODO(florian): we need a newer http client to be able to close it.
 
-  create_device_in_fleet --fleet_id/string --device_id/string -> string:
+  create_device_in_organization --organization_id/string --device_id/string -> string:
     map := {
-      "fleet": fleet_id,
+      "organization_id": organization_id,
     }
     if device_id != "": map["alias"] = device_id
     payload := json.encode map
@@ -48,7 +48,7 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
 
   notify_created --hardware_id/string -> none:
     map := {
-      "device": hardware_id,
+      "device_id": hardware_id,
       "data": { "type": "created" }
     }
     payload := json.encode map

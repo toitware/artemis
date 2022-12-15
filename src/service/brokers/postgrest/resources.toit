@@ -70,7 +70,7 @@ class ResourceManagerPostgrest implements ResourceManager:
     headers.add "Prefer" "resolution=merge-duplicates"
     headers.add "Prefer" "return=headers-only"
     map := {
-      "device" : device_id,
+      "device_id" : device_id,
       "status" : status,
     }
     payload := json.encode map

@@ -25,9 +25,9 @@ main args:
 class DeviceEntry:
   id/string
   alias/string
-  fleet/string
+  organization_id/string
 
-  constructor .id --.alias --.fleet:
+  constructor .id --.alias --.organization_id:
 
 class EventEntry:
   device_id/string
@@ -57,7 +57,7 @@ class HttpArtemisServer extends HttpServer:
 
   run_command command/string data -> any:
     if command == "check-in": return store_event data
-    if command == "create-device-in-fleet": return create_device_in_fleet data
+    if command == "create-device-in-organization": return create_device_in_organization data
     if command == "notify-created": return store_event data
     else:
       throw "BAD COMMAND $command"
@@ -70,10 +70,12 @@ class HttpArtemisServer extends HttpServer:
     events.add
         EventEntry device_id --data=data["data"]
 
-  create_device_in_fleet data/Map:
-    fleet_id := data["fleet"]
+  create_device_in_organization data/Map:
+    organization_id := data["organization_id"]
     alias := data.get "alias"
 
     hardware_id := "$(uuid.uuid5 "" "hardware_id - $Time.monotonic_us")"
-    devices[hardware_id] = DeviceEntry hardware_id --alias=(alias or "") --fleet=fleet_id
+    devices[hardware_id] = DeviceEntry hardware_id
+        --alias=(alias or "")
+        --organization_id=organization_id
     return hardware_id

@@ -18,7 +18,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
     ]
     return [
       entry[0]["id"],
-      entry[0]["fleet"],
+      entry[0]["organization_id"],
       entry[0]["alias"],
     ]
 
@@ -48,6 +48,6 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
       network.close
 
 main:
-  server_config := get_supabase_config --sub_directory="supabase_toitware"
+  server_config := get_supabase_config --sub_directory="../supabase_artemis"
   backdoor := SupabaseBackdoor server_config
   run_test server_config backdoor

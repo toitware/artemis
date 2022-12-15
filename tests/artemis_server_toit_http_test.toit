@@ -16,7 +16,7 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
     entry/DeviceEntry := server_.devices[hardware_id]
     return [
       entry.id,
-      entry.fleet,
+      entry.organization_id,
       entry.alias,
     ]
 

@@ -23,18 +23,18 @@ interface ArtemisServerCli:
   close -> none
 
   /**
-  Adds a new device to the fleet with the given $fleet_id.
+  Adds a new device to the organization with the given $organization_id.
 
   Takes a $device_id, representing the user's chose name for the device.
   The $device_id may be empty.
   Returns a unique ID.
   */
-  create_device_in_fleet --fleet_id/string --device_id/string -> string
+  create_device_in_organization --organization_id/string --device_id/string -> string
 
   /**
   Notifies the server that the device with the given $hardware_id was created.
 
-  This operation is mostly for debugging purposes, as the $create_device_in_fleet
+  This operation is mostly for debugging purposes, as the $create_device_in_organization
     already has a similar effect.
   */
   notify_created --hardware_id/string
