@@ -1,0 +1,6 @@
+name: supabase
+description: A supabase client for Toit
+dependencies:
+  http:
+    url: github.com/toitlang/pkg-http
+    version: ^1.9.3

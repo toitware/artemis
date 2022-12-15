@@ -3,12 +3,12 @@
 import log
 import net
 import monitor
+import supabase
 
 import .resources
 import ..broker
 
 import ...check_in show check_in
-import ....shared.supabase as supabase
 import ....shared.server_config
 
 IDLE_TIMEOUT  ::= Duration --m=10

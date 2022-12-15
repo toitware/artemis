@@ -1,5 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import supabase
+
 abstract class ServerConfig:
   name/string
   config_/Map
@@ -54,7 +56,7 @@ abstract class ServerConfig:
   abstract is_certificate_text_ field/string -> bool
   abstract fill_certificate_texts [certificate_getter] -> none
 
-class ServerConfigSupabase extends ServerConfig:
+class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
   static DEFAULT_POLL_INTERVAL ::= Duration --s=20
 
   constructor name/string config/Map:

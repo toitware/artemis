@@ -1,11 +1,11 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import net
+import supabase
 
 import .supabase_local_server
 import .artemis_server_test_base
 import artemis.shared.server_config show ServerConfigSupabase
-import artemis.shared.supabase
 
 class SupabaseBackdoor implements ArtemisServerBackdoor:
   server_config_/ServerConfigSupabase
@@ -38,10 +38,10 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 
   query_ table/string filters/List=[] -> List?:
     network := net.open
-    supabase_client/supabase.SupabaseClient? := null
+    supabase_client/supabase.Client? := null
     try:
       http_client := supabase.create_client network server_config_ --certificate_provider=:unreachable
-      supabase_client = supabase.SupabaseClient http_client server_config_
+      supabase_client = supabase.Client http_client server_config_
       return supabase_client.query table filters
     finally:
       if supabase_client: supabase_client.close
