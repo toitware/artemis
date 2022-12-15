@@ -25,10 +25,9 @@ class BrokerServiceSupabase implements BrokerService:
     check_in network logger_
     idle_.unlock  // We're always idle when we're just connecting.
 
-    client := supabase.create_client network broker_
+    client := supabase.Client network --server_config=broker_
         --certificate_provider=: "UNSUPPORTED"
-    headers := supabase.create_headers broker_
-    resources := ResourceManagerSupabase client broker_.host headers
+    resources := ResourceManagerSupabase client
 
     disconnected := monitor.Latch
     handle_task/Task? := ?
@@ -36,7 +35,7 @@ class BrokerServiceSupabase implements BrokerService:
       try:
         while true:
           with_timeout IDLE_TIMEOUT: idle_.enter
-          info := resources.fetch_json "devices" [ "id=eq.$(device_id)" ]
+          info := client.rest.select "devices" --filters=[ "id=eq.$(device_id)" ]
           new_config/Map? := null
           if info and info.size == 1 and info[0] is Map and info[0].contains "config":
             new_config = info[0]["config"]

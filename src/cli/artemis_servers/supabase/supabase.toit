@@ -12,56 +12,35 @@ import ...device
 import ....shared.server_config
 
 class ArtemisServerCliSupabase implements ArtemisServerCli:
-  client_/http.Client
+  client_/supabase.Client? := ?
   server_config_/ServerConfigSupabase
 
   constructor network/net.Interface .server_config_/ServerConfigSupabase:
-    client_ = supabase.create_client network server_config_
+    client_ = supabase.Client network --server_config=server_config_
         --certificate_provider=: certificate_roots.MAP[it]
 
-  is_closed -> bool:
-    // TODO(florian): we need a newer http client to be able to
-    // ask whether it's closed.
-    return false
+  close:
+    if client_:
+      client_.close
+      client_ = null
 
-  close -> none:
-    // TODO(florian): we need a newer http client to be able to close it.
+  is_closed -> bool:
+    return client_ == null
 
   create_device_in_organization --organization_id/string --device_id/string -> Device:
-    map := {
+    payload := {
       "organization_id": organization_id,
     }
-    if device_id != "": map["alias"] = device_id
-    payload := json.encode map
+    if device_id != "": payload["alias"] = device_id
 
-    headers := supabase.create_headers server_config_
-    headers.add "Prefer" "return=representation"
-    table := "devices"
-    response := client_.post payload
-        --host=server_config_.host
-        --headers=headers
-        --path="/rest/v1/$table"
-
-    if response.status_code != 201:
-      throw "Unable to create device identity"
-    decoded_row := (json.decode_stream response.body).first
+    inserted := client_.rest.insert "devices" payload
     return Device
-        --hardware_id=decoded_row["id"]
-        --id=decoded_row["alias"]
-        --organization_id=decoded_row["organization_id"]
+        --hardware_id=inserted["id"]
+        --id=inserted["alias"]
+        --organization_id=inserted["organization_id"]
 
   notify_created --hardware_id/string -> none:
-    map := {
+    client_.rest.insert "events" --no-return_inserted {
       "device_id": hardware_id,
       "data": { "type": "created" }
     }
-    payload := json.encode map
-
-    headers := supabase.create_headers server_config_
-    table := "events"
-    response := client_.post payload
-        --host=server_config_.host
-        --headers=headers
-        --path="/rest/v1/$table"
-    if response.status_code != 201:
-      throw "Unable to insert 'created' event."
