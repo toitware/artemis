@@ -2,6 +2,7 @@
 // Use of this source code is governed by an MIT-style license that can be
 // found in the LICENSE file.
 
+import bytes
 import http
 import net
 import net.x509
@@ -212,6 +213,14 @@ class Client:
     if method == http.GET:
       if payload: throw "GET requests cannot have a payload"
       response = http_client_.get host_ path --headers=headers
+    else if method == "PATCH":
+      // TODO(florian): the http client should support PATCH.
+      encoded := json_encoding.encode payload
+      headers.set "Content-Type" "application/json"
+      connection := http_client_.new_connection_ host_ null --auto_close
+      request := connection.new_request "PATCH" path headers
+      request.body = bytes.Reader encoded
+      response = request.send
     else:
       payload = payload or {:}
 
@@ -390,6 +399,23 @@ class PostgRest:
     if return_inserted:
       return response.size == 0 ? null : response[0]
     return null
+
+  /**
+  Performs an 'update' operation on a table.
+  */
+  update table/string payload/Map --filters/List -> none:
+    // TODO(florian): the filters need to be URL encoded.
+    query_filters := filters.join "&"
+    // We are not using the response. Use the minimal response.
+    headers := http.Headers
+    headers.add "Prefer" RETURN_MINIMAL_
+    client_.request_
+        --method="PATCH"
+        --headers=headers
+        --path="/rest/v1/$table"
+        --payload=payload
+        --parse_response_json=false
+        --query=query_filters
 
   /**
   Performs an 'upsert' operation on a table.
