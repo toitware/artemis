@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import host.directory
+import artemis.cli.config as cli
 import artemis.shared.server_config
 import ..tools.http_servers.broker as http_servers
 import ..tools.http_servers.artemis_server as http_servers
@@ -12,6 +13,13 @@ with_tmp_directory [block]:
     block.call tmp_dir
   finally:
     directory.rmdir --recursive tmp_dir
+
+with_tmp_config [block]:
+  with_tmp_directory: | directory |
+    config_path := "$directory/config"
+    config := cli.read_config_file config_path --init=: it
+
+    block.call config
 
 /**
 Starts a local http broker and calls the given $block with a

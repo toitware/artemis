@@ -7,6 +7,7 @@ import encoding.json
 import supabase
 
 import ..artemis_server
+import ...config
 import ...device
 
 import ....shared.server_config
@@ -15,8 +16,9 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   client_/supabase.Client? := ?
   server_config_/ServerConfigSupabase
 
-  constructor network/net.Interface .server_config_/ServerConfigSupabase:
-    client_ = supabase.Client network --server_config=server_config_
+  constructor network/net.Interface .server_config_/ServerConfigSupabase config/Config:
+    local_storage := ConfigLocalStorage config --auth_key="$(CONFIG_SERVER_AUTHS_KEY).$(server_config_.name)"
+    client_ = supabase.Client network --server_config=server_config_ --local_storage=local_storage
         --certificate_provider=: certificate_roots.MAP[it]
 
   close:

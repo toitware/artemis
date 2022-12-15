@@ -6,6 +6,8 @@ import certificate_roots
 import crypto.sha256
 import encoding.base64
 
+export ServerConfig
+
 /**
 Reads the server configuration with the given $server_name from the $config.
 */
@@ -14,8 +16,8 @@ get_server_from_config config/Config server_name/string? default_key/string -> S
   // We keep the name "broker" here, as the CLI user should only ever deal with
   // the term "broker". Internally we use it also to configure the Artemis server.
   if not servers: throw "No brokers configured"
-  if not server_name: server_name = servers.get default_key
-  if not server_name: throw "No default broker configured"
+  if not server_name: server_name = config.get default_key
+  if not server_name: throw "No default broker configured $default_key"
   json_map := servers.get server_name
   if not json_map: throw "No broker named $server_name"
 

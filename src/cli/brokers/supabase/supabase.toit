@@ -9,10 +9,12 @@ import reader
 import supabase
 
 import ..broker
+import ...config
 import ....shared.server_config
 
-create_broker_cli_supabase server_config/ServerConfigSupabase -> BrokerCliSupabase:
-  supabase_client := supabase.Client --server_config=server_config
+create_broker_cli_supabase server_config/ServerConfigSupabase config/Config -> BrokerCliSupabase:
+  local_storage := ConfigLocalStorage config --auth_key="$(CONFIG_SERVER_AUTHS_KEY).$(server_config.name)"
+  supabase_client := supabase.Client --server_config=server_config --local_storage=local_storage
       --certificate_provider=: certificate_roots.MAP[it]
   id := "supabase/$server_config.host"
   return BrokerCliSupabase supabase_client --id=id

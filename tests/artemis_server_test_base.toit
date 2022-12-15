@@ -11,6 +11,8 @@ import artemis.cli.artemis_servers.artemis_server show ArtemisServerCli
 import artemis.service.artemis_servers.artemis_server show ArtemisServerService
 import artemis.shared.server_config show ServerConfig
 
+import .utils
+
 interface ArtemisServerBackdoor:
   /**
   Fetches the information of the device with the given $hardware_id.
@@ -27,12 +29,13 @@ interface ArtemisServerBackdoor:
 ORGANIZATION_ID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
 
 run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor:
-  network := net.open
-  server_cli := ArtemisServerCli network server_config
-  hardware_id := test_create_device_in_fleet server_cli backdoor
-  test_notify_created server_cli backdoor --hardware_id=hardware_id
-  server_service := ArtemisServerService server_config --hardware_id=hardware_id
-  test_check_in network server_service backdoor --hardware_id=hardware_id
+  with_tmp_config: | config |
+    network := net.open
+    server_cli := ArtemisServerCli network server_config config
+    hardware_id := test_create_device_in_fleet server_cli backdoor
+    test_notify_created server_cli backdoor --hardware_id=hardware_id
+    server_service := ArtemisServerService server_config --hardware_id=hardware_id
+    test_check_in network server_service backdoor --hardware_id=hardware_id
 
 
 test_create_device_in_fleet server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:

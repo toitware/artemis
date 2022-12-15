@@ -26,15 +26,15 @@ create_config_commands config/Config cache/Cache -> List:
 create_server_config_commands config/Config -> List:
   config_broker_cmd := cli.Command "broker"
       --short_help="Configure the Artemis brokers."
+      --options=[
+        cli.Flag "artemis"
+            --short_help="Manipulate the config of the Artemis server."
+            --hidden
+      ]
 
   config_broker_cmd.add
       cli.Command "use"
           --short_help="Set the default broker."
-          --options=[
-            cli.Flag "artemis"
-                --short_help="Sets the Artemis server."
-                --hidden
-          ]
           --rest=[
             cli.OptionString "name"
                 --short_help="The name of the broker."
@@ -45,10 +45,6 @@ create_server_config_commands config/Config -> List:
   config_broker_cmd.add
       cli.Command "default"
           --short_help="Print the default broker."
-          --options=[
-            cli.Flag "artemis"
-                --short_help="Print the default Artemis server."
-                --hidden]
           --run=:: print_default_broker it config
 
   add_cmd := cli.Command "add"
