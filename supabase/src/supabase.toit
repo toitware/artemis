@@ -217,8 +217,7 @@ class Client:
       // TODO(florian): the http client should support PATCH.
       encoded := json_encoding.encode payload
       headers.set "Content-Type" "application/json"
-      connection := http_client_.new_connection_ host_ null --auto_close
-      request := connection.new_request "PATCH" path headers
+      request := http_client_.new_request "PATCH" host_ path --headers=headers
       request.body = bytes.Reader encoded
       response = request.send
     else:
