@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import certificate_roots
 import net
 import monitor
 import http
@@ -7,10 +8,22 @@ import encoding.json
 import reader
 
 import ..broker
-import ....shared.postgrest
+import ....shared.supabase as supabase
+import ....shared.supabase show create_headers create_client
+import ....shared.server_config
 
-class BrokerCliPostgrest implements BrokerCli:
-  client_/PostgrestClient? := null
+export create_headers create_client
+
+create_broker_cli_supabase server_config/ServerConfigSupabase -> BrokerCliSupabase:
+  network := net.open
+  http_client := supabase.create_client network server_config
+      --certificate_provider=: certificate_roots.MAP[it]
+  supabase_client := supabase.SupabaseClient http_client server_config
+  id := "supabase/$server_config.host"
+  return BrokerCliSupabase supabase_client network --id=id
+
+class BrokerCliSupabase implements BrokerCli:
+  client_/supabase.SupabaseClient? := null
   network_/net.Interface? := null
   /** See $BrokerCli.id. */
   id/string
@@ -65,9 +78,9 @@ class BrokerCliPostgrest implements BrokerCli:
     return content
 
   print_status -> none:
-    print_on_stderr_ "The Postgrest client does not support 'status'"
+    print_on_stderr_ "The Supabase client does not support 'status'"
     exit 1
 
   watch_presence -> none:
-    print_on_stderr_ "The Postgrest client does not support 'watch-presence'"
+    print_on_stderr_ "The Supabase client does not support 'watch-presence'"
     exit 1

@@ -44,7 +44,7 @@ test_create_device_in_fleet server_cli/ArtemisServerCli backdoor/ArtemisServerBa
   data := backdoor.fetch_device_information --hardware_id=hardware_id1
   expect_equals hardware_id1 data[0]
   expect_equals ORGANIZATION_ID data[1]
-  // The alias is auto-filled to some UUID in the postgres database.
+  // The alias is auto-filled to some UUID in the supabase database.
   // TODO(florian): check that this is always the case? (in which case we would
   // need to fix the http server).
 

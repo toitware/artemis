@@ -4,7 +4,7 @@ import host.file
 import encoding.json
 import ...shared.server_config
 import .mqtt.base
-import .postgrest.supabase
+import .supabase
 import .http.base
 
 /**

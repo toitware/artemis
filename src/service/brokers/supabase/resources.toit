@@ -6,9 +6,9 @@ import http.status_codes
 import encoding.json
 
 import ..broker
-import ....shared.postgrest as postgres
+import ....shared.supabase as supabase
 
-class ResourceManagerPostgrest implements ResourceManager:
+class ResourceManagerSupabase implements ResourceManager:
   client_/http.Client
   headers_/http.Headers
   host_/string
@@ -61,7 +61,7 @@ class ResourceManagerPostgrest implements ResourceManager:
   fetch_json table/string filters/List=[] -> List?:
     // TODO(kasper): This needs cleanup. It feels annoying that we
     // cannot use the SupabaseClient abstraction here.
-    return postgres.query_ client_ host_ headers_ table filters
+    return supabase.query_ client_ host_ headers_ table filters
 
   report_status device_id/string status/Map -> none:
     // TODO(kasper): This needs cleanup. It feels annoying that we

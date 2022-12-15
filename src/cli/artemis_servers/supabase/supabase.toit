@@ -9,7 +9,7 @@ import ..artemis_server
 import ...device
 
 import ....shared.server_config
-import ....shared.postgrest as supabase
+import ....shared.supabase as supabase
 
 class ArtemisServerCliSupabase implements ArtemisServerCli:
   client_/http.Client

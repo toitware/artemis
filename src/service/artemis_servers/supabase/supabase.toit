@@ -8,7 +8,7 @@ import encoding.json
 import ..artemis_server
 
 import ....shared.server_config
-import ....shared.postgrest as supabase
+import ....shared.supabase as supabase
 
 class ArtemisServerServiceSupabase implements ArtemisServerService:
   server_config_/ServerConfigSupabase

@@ -11,9 +11,8 @@ import artemis.cli.brokers.mqtt.base show BrokerCliMqtt
 import artemis.service.brokers.mqtt.synchronize show BrokerServiceMqtt
 import artemis.cli.brokers.http.base show BrokerCliHttp
 import artemis.service.brokers.http.synchronize show BrokerServiceHttp
-import artemis.cli.brokers.postgrest.base show BrokerCliPostgrest
-import artemis.cli.brokers.postgrest.supabase show create_broker_cli_supabase
-import artemis.service.brokers.postgrest.synchronize show BrokerServicePostgrest
+import artemis.cli.brokers.supabase show BrokerCliSupabase create_broker_cli_supabase
+import artemis.service.brokers.supabase.synchronize show BrokerServiceSupabase
 import artemis.shared.server_config show ServerConfigSupabase
 import ..tools.http_servers.broker as http_broker
 import .mqtt_broker_mosquitto
@@ -38,7 +37,7 @@ with_brokers broker_id [block]:
   else if broker_id == "supabase-local":
     // Here we are only interested in customer brokers.
     server_config := get_supabase_config --sub_directory="supabase_customer"
-    with_postgrest_brokers_ logger broker_id server_config block
+    with_supabase_brokers_ logger broker_id server_config block
   else:
     throw "Unknown broker $broker_id"
 
@@ -74,13 +73,13 @@ with_http_toit_brokers_ logger/log.Logger broker_id/string [block]:
     broker.close
     broker_task.cancel
 
-with_postgrest_brokers_
+with_supabase_brokers_
     logger/log.Logger
     broker_id/string
     server_config/ServerConfigSupabase
     [block]:
   server_config.config_["poll_interval"] = 1000 // us.
-  broker_service := BrokerServicePostgrest logger server_config
+  broker_service := BrokerServiceSupabase logger server_config
   broker_cli := create_broker_cli_supabase server_config
   try:
     block.call logger broker_id broker_cli broker_service

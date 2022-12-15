@@ -8,12 +8,12 @@ import .resources
 import ..broker
 
 import ...check_in show check_in
-import ....shared.postgrest as supabase
+import ....shared.supabase as supabase
 import ....shared.server_config
 
 IDLE_TIMEOUT  ::= Duration --m=10
 
-class BrokerServicePostgrest implements BrokerService:
+class BrokerServiceSupabase implements BrokerService:
   logger_/log.Logger
   broker_/ServerConfigSupabase
   idle_/monitor.Gate ::= monitor.Gate
@@ -28,7 +28,7 @@ class BrokerServicePostgrest implements BrokerService:
     client := supabase.create_client network broker_
         --certificate_provider=: "UNSUPPORTED"
     headers := supabase.create_headers broker_
-    resources := ResourceManagerPostgrest client broker_.host headers
+    resources := ResourceManagerSupabase client broker_.host headers
 
     disconnected := monitor.Latch
     handle_task/Task? := ?

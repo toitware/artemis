@@ -4,7 +4,7 @@ import encoding.tison
 import log
 import reader show SizedReader  // For toitdoc.
 
-import .postgrest.synchronize show BrokerServicePostgrest
+import .supabase.synchronize show BrokerServiceSupabase
 import .mqtt.synchronize show BrokerServiceMqtt
 import .http.synchronize show BrokerServiceHttp
 
@@ -60,7 +60,7 @@ An interface to communicate with the CLI through a broker.
 interface BrokerService:
   constructor logger/log.Logger server_config/ServerConfig:
     if server_config is ServerConfigSupabase:
-      return BrokerServicePostgrest logger (server_config as ServerConfigSupabase)
+      return BrokerServiceSupabase logger (server_config as ServerConfigSupabase)
     else if server_config is ServerConfigMqtt:
       return BrokerServiceMqtt logger --server_config=(server_config as ServerConfigMqtt)
     else if server_config is ServerConfigHttpToit:
