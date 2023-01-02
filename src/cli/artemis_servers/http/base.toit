@@ -8,6 +8,7 @@ import net
 import encoding.json
 
 import ..artemis_server
+import ...device
 
 import ....shared.server_config
 
@@ -26,13 +27,17 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
   close -> none:
     // TODO(florian): we need a newer http client to be able to close it.
 
-  create_device_in_organization --organization_id/string --device_id/string -> string:
+  create_device_in_organization --organization_id/string --device_id/string -> Device:
     map := {
       "organization_id": organization_id,
     }
     if device_id != "": map["alias"] = device_id
 
-    return send_request_ "create-device-in-organization" map
+    device_info := send_request_ "create-device-in-organization" map
+    return Device
+        --hardware_id=device_info["hardware_id"]
+        --id=device_info["id"]
+        --organization_id=device_info["organization_id"]
 
   notify_created --hardware_id/string -> none:
     send_request_ "notify-created" {

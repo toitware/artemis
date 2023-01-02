@@ -6,6 +6,7 @@ import net
 import encoding.json
 
 import ..artemis_server
+import ...device
 
 import ....shared.server_config
 import ....shared.postgrest as supabase
@@ -26,7 +27,7 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   close -> none:
     // TODO(florian): we need a newer http client to be able to close it.
 
-  create_device_in_organization --organization_id/string --device_id/string -> string:
+  create_device_in_organization --organization_id/string --device_id/string -> Device:
     map := {
       "organization_id": organization_id,
     }
@@ -44,7 +45,10 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     if response.status_code != 201:
       throw "Unable to create device identity"
     decoded_row := (json.decode_stream response.body).first
-    return decoded_row["id"]
+    return Device
+        --hardware_id=decoded_row["id"]
+        --id=decoded_row["alias"]
+        --organization_id=decoded_row["organization_id"]
 
   notify_created --hardware_id/string -> none:
     map := {

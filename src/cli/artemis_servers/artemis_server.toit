@@ -6,6 +6,7 @@ import net
 import .postgrest.supabase show ArtemisServerCliSupabase
 import .http.base show ArtemisServerCliHttpToit
 import ...shared.server_config
+import ..device
 
 /**
 An abstraction for the Artemis server.
@@ -25,11 +26,10 @@ interface ArtemisServerCli:
   /**
   Adds a new device to the organization with the given $organization_id.
 
-  Takes a $device_id, representing the user's chose name for the device.
+  Takes a $device_id, representing the user's chosen name for the device.
   The $device_id may be empty.
-  Returns a unique ID.
   */
-  create_device_in_organization --organization_id/string --device_id/string -> string
+  create_device_in_organization --organization_id/string --device_id/string -> Device
 
   /**
   Notifies the server that the device with the given $hardware_id was created.
