@@ -7,7 +7,6 @@ import expect show *
 import supabase
 import .utils
 
-
 main:
   with_test_cli
       --artemis_type="supabase"
