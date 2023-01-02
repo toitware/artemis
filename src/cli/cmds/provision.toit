@@ -52,7 +52,7 @@ create_identity config/Config parsed/cli.Parsed:
 
   network := net.open
   try:
-    server := ArtemisServerCli network artemis_broker
+    server := ArtemisServerCli network artemis_broker config
     device := server.create_device_in_organization --organization_id=organization_id --device_id=device_id
 
     // If the device id was not specified, use the one returned by the server.

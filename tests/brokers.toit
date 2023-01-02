@@ -18,6 +18,7 @@ import ..tools.http_servers.broker as http_broker
 import .mqtt_broker_mosquitto
 import .mqtt_broker_toit
 import .supabase_local_server
+import .utils
 
 /**
 Starts the broker with the given $broker_id and calls the given [block] with
@@ -78,11 +79,12 @@ with_supabase_brokers_
     broker_id/string
     server_config/ServerConfigSupabase
     [block]:
-  server_config.config_["poll_interval"] = 1000 // us.
-  broker_service := BrokerServiceSupabase logger server_config
-  broker_cli := create_broker_cli_supabase server_config
-  try:
-    block.call logger broker_id broker_cli broker_service
-  finally:
-    broker_cli.close
+  with_tmp_config: | config |
+    server_config.config_["poll_interval"] = 1000 // us.
+    broker_service := BrokerServiceSupabase logger server_config
+    broker_cli := create_broker_cli_supabase server_config config
+    try:
+      block.call logger broker_id broker_cli broker_service
+    finally:
+      broker_cli.close
 

@@ -1,4 +1,6 @@
-// Copyright (C) 2022 Toitware ApS. All rights reserved.
+// Copyright (C) 2022 Toitware ApS.
+// Use of this source code is governed by an MIT-style license that can be
+// found in the LICENSE file.
 
 import http
 import net
@@ -7,6 +9,8 @@ import http.status_codes
 import encoding.json as json_encoding
 import encoding.url as url_encoding
 import reader show SizedReader
+
+import .auth
 
 interface ServerConfig:
   host -> string
@@ -27,6 +31,8 @@ For example, the Postgres backend is available through the $rest getter, and
 */
 class Client:
   http_client_/http.Client? := null
+  local_storage_/LocalStorage
+  session_/Session_? := null
 
   /**
   The used network interface.
@@ -49,8 +55,13 @@ class Client:
 
   rest_/PostgRest? := null
   storage_/Storage? := null
+  auth_/Auth? := null
 
-  constructor network/net.Interface?=null --host/string --anon/string:
+
+  constructor network/net.Interface?=null
+      --host/string
+      --anon/string
+      --local_storage/LocalStorage=NoLocalStorage:
     host_ = host
     anon_ = anon
 
@@ -59,7 +70,17 @@ class Client:
 
     http_client_ = http.Client network
 
-  constructor.tls network/net.Interface?=null --host/string --anon/string --root_certificates/List:
+    local_storage_ = local_storage
+    if local_storage_.has_auth:
+      session_ = Session_.from_json local_storage_.get_auth
+      // TODO(florian): no need to refresh if the token is still valid.
+      auth.refresh_token
+
+  constructor.tls network/net.Interface?=null
+      --host/string
+      --anon/string
+      --root_certificates/List
+      --local_storage/LocalStorage=NoLocalStorage:
     host_ = host
     anon_ = anon
 
@@ -68,16 +89,31 @@ class Client:
 
     http_client_ = http.Client.tls network --root_certificates=root_certificates
 
-  constructor network/net.Interface?=null --server_config/ServerConfig [--certificate_provider]:
+    local_storage_ = local_storage
+    if local_storage_.has_auth:
+      session_ = Session_.from_json local_storage_.get_auth
+      // TODO(florian): no need to refresh if the token is still valid.
+      auth.refresh_token
+
+  constructor network/net.Interface?=null
+      --server_config/ServerConfig
+      --local_storage/LocalStorage=NoLocalStorage
+      [--certificate_provider]:
     root_certificate_text := server_config.certificate_text
     if not root_certificate_text and server_config.certificate_name:
       root_certificate_text = certificate_provider.call server_config.certificate_name
     if root_certificate_text:
       certificate := x509.Certificate.parse root_certificate_text
-      return Client.tls network --host=server_config.host --anon=server_config.anon
+      return Client.tls network
+          --local_storage=local_storage
+          --host=server_config.host
+          --anon=server_config.anon
           --root_certificates=[certificate]
     else:
-      return Client network --host=server_config.host --anon=server_config.anon
+      return Client network
+          --host=server_config.host
+          --anon=server_config.anon
+          --local_storage=local_storage
 
   close -> none:
     // TODO(florian): call close on the http client (when that's possible).
@@ -97,6 +133,17 @@ class Client:
   storage -> Storage:
     if not storage_: storage_ = Storage this
     return storage_
+
+  auth -> Auth:
+    if not auth_: auth_ = Auth this
+    return auth_
+
+  set_session_ session/Session_?:
+    session_ = session
+    if session:
+      local_storage_.set_auth session.to_json
+    else:
+      local_storage_.remove_auth
 
   // TODO(florian): remove this functionality, and create a more flexible 'query'
   // function on the client instead.
@@ -139,7 +186,8 @@ class Client:
     headers = headers ? headers.copy : http.Headers
 
     if not bearer:
-      bearer = anon_
+      if not session_: bearer = anon_
+      else: bearer = session_.access_token
     headers.set "Authorization" "Bearer $bearer"
 
     headers.add "apikey" anon_
@@ -229,6 +277,45 @@ class Client:
     // TODO(florian): this shouldn't be necessary in the latest http package.
     response.body.read  // Make sure we drain the body.
     return result
+
+/**
+An interface to store authentication information locally.
+
+On desktops this should be the config file.
+On mobile this could be something like HiveDB/Isar.
+*/
+interface LocalStorage:
+  /**
+  Whether the storage contains any authorization information.
+  */
+  has_auth -> bool
+
+  /**
+  Returns the stored authorization information.
+  If none exists, returns null.
+  */
+  get_auth -> any?
+
+  /**
+  Sets the authorization information to $value.
+
+  The $value must be JSON-encodable.
+  */
+  set_auth value/any -> none
+
+  /**
+  Removes any authorization information.
+  */
+  remove_auth -> none
+
+/**
+A simple implementation of $LocalStorage that simply discards all data.
+*/
+class NoLocalStorage implements LocalStorage:
+  has_auth -> bool: return false
+  get_auth -> any?: return null
+  set_auth value/any: return
+  remove_auth -> none: return
 
 /**
 A client for the PostgREST API.

@@ -23,8 +23,8 @@ packages:
     hash: 01d8c8f76eef979ca455a760b3330f8f826fa881
   pkg-host:
     url: github.com/toitlang/pkg-host
-    version: 1.8.0
-    hash: e4cd984198becfe5e016b15ba8951d1b26255a33
+    version: 1.8.1
+    hash: 7f0cc4280065fb18ee09d3803f12180cec852d32
   pkg-http:
     url: github.com/toitlang/pkg-http
     version: 1.9.3
@@ -36,6 +36,7 @@ packages:
   supabase:
     path: supabase
     prefixes:
+      host: pkg-host
       http: pkg-http
   toit-cert-roots:
     url: github.com/toitware/toit-cert-roots

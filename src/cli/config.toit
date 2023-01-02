@@ -17,11 +17,36 @@ import host.file
 import host.directory
 import encoding.json
 import writer
+import supabase
 
 APP_NAME ::= "artemis"
 CONFIG_BROKER_DEFAULT_KEY ::= "server.broker.default"
 CONFIG_ARTEMIS_DEFAULT_KEY ::= "server.artemis.default"
 CONFIG_SERVERS_KEY ::= "servers"
+CONFIG_SERVER_AUTHS_KEY ::= "auths"
+
+class ConfigLocalStorage implements supabase.LocalStorage:
+  config_/Config
+  auth_key_/string
+
+  constructor .config_ --auth_key/string="":
+    auth_key_ = auth_key
+
+  has_auth -> bool:
+    return config_.contains auth_key_
+
+  get_auth -> any?:
+    return config_.get auth_key_
+
+  set_auth value/any:
+    config_[auth_key_] = value
+    config_.write
+
+  remove_auth -> none:
+    config_.remove auth_key_
+    config_.write
+
+/*------ TODO(florian): the code below should be moved into the CLI package. ------*/
 
 class Config:
   path/string
@@ -55,6 +80,18 @@ class Config:
       if current is not Map: throw "Cannot set $key: Path contains non-map."
       current = current.get it --init=: {:}
     current[parts.last] = value
+
+  /**
+  Removes the value for the given $key.
+  */
+  remove key/string -> none:
+    parts := key.split "."
+    current := data
+    parts[.. parts.size - 1].do:
+      if current is not Map: return
+      if current.contains it: current = current[it]
+      else: return
+    current.remove parts.last
 
   /**
   Gets the value for the given $key.

@@ -2,6 +2,7 @@
 
 import host.file
 import encoding.json
+import ..config
 import ...shared.server_config
 import .mqtt.base
 import .supabase
@@ -15,9 +16,9 @@ interface BrokerCli:
   // At the moment we require the connection to be open when artemis receives the
   // broker.
 
-  constructor server_config/ServerConfig:
+  constructor server_config/ServerConfig config/Config:
     if server_config is ServerConfigSupabase:
-      return create_broker_cli_supabase (server_config as ServerConfigSupabase)
+      return create_broker_cli_supabase (server_config as ServerConfigSupabase) config
     if server_config is ServerConfigMqtt:
       return create_broker_cli_mqtt (server_config as ServerConfigMqtt)
     if server_config is ServerConfigHttpToit:
