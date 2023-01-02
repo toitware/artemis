@@ -87,7 +87,7 @@ class Config:
   remove key/string -> none:
     parts := key.split "."
     current := data
-    parts[parts.size - 1].do:
+    parts[.. parts.size - 1].do:
       if current is not Map: return
       if current.contains it: current = current[it]
       else: return
