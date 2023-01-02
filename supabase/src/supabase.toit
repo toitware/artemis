@@ -44,27 +44,56 @@ query_ client/http.Client host/string headers/http.Headers table/string filters/
   while data := body.read: null // DRAIN!
   return result
 
+/**
+A client for the Supabase API.
+
+Supabase provides several different APIs under one umbrella.
+
+A frontend ('Kong'), takes the requests and forwards them to the correct
+  backend.
+Each supported backend is available through a different getter.
+For example, the Postgres backend is available through the $rest getter, and
+  the storage backend is available through $storage.
+*/
 class Client:
-  client_/http.Client? := null
+  http_client_/http.Client? := null
   broker_/ServerConfig
 
-  constructor .client_ .broker_:
+  rest_/PostgRest? := null
+  storage_/Storage? := null
+
+  constructor .http_client_ .broker_:
 
   close -> none:
-    client_ = null
+    // TODO(florian): call close on the http client? (when that's possible).
+    // TODO(florian): add closing in a finalizer.
+    http_client_ = null
 
   is_closed -> bool:
-    return client_ == null
+    return http_client_ == null
+
+  rest -> PostgRest:
+    if not rest_: rest_ = PostgRest this
+    return rest_
+
+  storage -> Storage:
+    if not storage_: storage_ = Storage this
+    return storage_
+
+class PostgRest:
+  client_/Client
+
+  constructor .client_:
 
   query table/string filters/List -> List?:
-    headers := create_headers broker_
-    return query_ client_ broker_.host headers table filters
+    headers := create_headers client_.broker_
+    return query_ client_.http_client_ client_.broker_.host headers table filters
 
   update_entry table/string --upsert/bool payload/ByteArray:
-    headers := create_headers broker_
+    headers := create_headers client_.broker_
     if upsert: headers.add "Prefer" "resolution=merge-duplicates"
-    response := client_.post payload
-        --host=broker_.host
+    response := client_.http_client_.post payload
+        --host=client_.broker_.host
         --headers=headers
         --path="/rest/v1/$table"
     // 201 is changed one entry.
@@ -72,12 +101,17 @@ class Client:
     while data := body.read: null // DRAIN!
     if response.status_code != 201: throw "UGH ($response.status_code)"
 
+class Storage:
+  client_/Client
+
+  constructor .client_:
+
   upload_resource --path/string --content/ByteArray:
-    headers := create_headers broker_
+    headers := create_headers client_.broker_
     headers.add "Content-Type" "application/octet-stream"
     headers.add "x-upsert" "true"
-    response := client_.post content
-        --host=broker_.host
+    response := client_.http_client_.post content
+        --host=client_.broker_.host
         --headers=headers
         --path="/storage/v1/object/$path"
     // 200 is accepted!
@@ -86,8 +120,8 @@ class Client:
     if response.status_code != 200: throw "UGH ($response.status_code)"
 
   download_resource --path/string [block] -> none:
-    headers := create_headers broker_
-    response := client_.get broker_.host "/storage/v1/object/$path"
+    headers := create_headers client_.broker_
+    response := client_.http_client_.get client_.broker_.host "/storage/v1/object/$path"
         --headers=headers
     body := response.body
     try:

@@ -41,7 +41,7 @@ class BrokerCliSupabase implements BrokerCli:
   device_update_config --device_id/string [block]:
     // TODO(kasper): Share more of this code with the corresponding
     // code in the service.
-    info := client_.query "devices" [
+    info := client_.rest.query "devices" [
       "id=eq.$(device_id)",
     ]
     if not info: throw "Device not found"
@@ -57,7 +57,7 @@ class BrokerCliSupabase implements BrokerCli:
     }
 
     payload := json.encode map
-    client_.update_entry "devices" --upsert payload
+    client_.rest.update_entry "devices" --upsert payload
 
   upload_image --app_id/string --bits/int content/ByteArray -> none:
     upload_resource_ "assets/images/$app_id.$bits" content
@@ -68,11 +68,11 @@ class BrokerCliSupabase implements BrokerCli:
     upload_resource_ "assets/firmware/$firmware_id" content
 
   upload_resource_ path/string content/ByteArray -> none:
-    client_.upload_resource --path=path --content=content
+    client_.storage.upload_resource --path=path --content=content
 
   download_firmware --id/string -> ByteArray:
     content := #[]
-    client_.download_resource --path="assets/firmware/$id": | reader/reader.Reader |
+    client_.storage.download_resource --path="assets/firmware/$id": | reader/reader.Reader |
       while data := reader.read:
         content += data
     return content
