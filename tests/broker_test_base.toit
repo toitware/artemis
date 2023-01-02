@@ -134,7 +134,9 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
 
 test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  DEVICE_ID ::= "test-id-upload-image"
+  DEVICE_ID ::= broker_cli is BrokerCliSupabase
+      ? SUPABASE_DEVICE_UUID
+      : "test-id-upload-image"
 
   2.repeat: | iteration |
     APP_ID ::= "test-app-$iteration"
@@ -161,7 +163,9 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
 
 test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  DEVICE_ID ::= "test-id-upload-firmware"
+  DEVICE_ID ::= broker_cli is BrokerCliSupabase
+      ? SUPABASE_DEVICE_UUID
+      : "test-id-upload-firmware"
 
   3.repeat: | iteration |
     FIRMWARE_ID ::= "test-app-$iteration"

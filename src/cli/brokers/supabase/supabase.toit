@@ -7,12 +7,9 @@ import http
 import encoding.json
 import reader
 import supabase
-import supabase show create_headers create_client
 
 import ..broker
 import ....shared.server_config
-
-export create_headers create_client
 
 create_broker_cli_supabase server_config/ServerConfigSupabase -> BrokerCliSupabase:
   supabase_client := supabase.Client --server_config=server_config
@@ -36,9 +33,7 @@ class BrokerCliSupabase implements BrokerCli:
     return client_ == null
 
   device_update_config --device_id/string [block]:
-    // TODO(kasper): Share more of this code with the corresponding
-    // code in the service.
-    info := client_.rest.query "devices" [
+    info := client_.rest.select "devices" --filters=[
       "id=eq.$(device_id)",
     ]
     if not info: throw "Device not found"
@@ -48,28 +43,22 @@ class BrokerCliSupabase implements BrokerCli:
 
     new_config := block.call old_config
 
-    map := {
+    client_.rest.upsert "devices" {
       "id"     : device_id,
       "config" : new_config,
     }
 
-    payload := json.encode map
-    client_.rest.update_entry "devices" --upsert payload
-
   upload_image --app_id/string --bits/int content/ByteArray -> none:
-    upload_resource_ "assets/images/$app_id.$bits" content
+    client_.storage.upload --path="assets/images/$app_id.$bits" --content=content
 
   upload_firmware --firmware_id/string parts/List -> none:
     content := #[]
     parts.do: | part/ByteArray | content += part  // TODO(kasper): Avoid all this copying.
-    upload_resource_ "assets/firmware/$firmware_id" content
-
-  upload_resource_ path/string content/ByteArray -> none:
-    client_.storage.upload_resource --path=path --content=content
+    client_.storage.upload --path="assets/firmware/$firmware_id" --content=content
 
   download_firmware --id/string -> ByteArray:
     content := #[]
-    client_.storage.download_resource --path="assets/firmware/$id": | reader/reader.Reader |
+    client_.storage.download --path="assets/firmware/$id": | reader/reader.Reader |
       while data := reader.read:
         content += data
     return content

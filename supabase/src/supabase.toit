@@ -4,45 +4,15 @@ import http
 import net
 import net.x509
 import http.status_codes
-import encoding.json
+import encoding.json as json_encoding
+import encoding.url as url_encoding
+import reader show SizedReader
 
 interface ServerConfig:
   host -> string
   anon -> string
   certificate_name -> string?
   certificate_text -> string?
-
-create_client -> http.Client
-    network/net.Interface
-    server_config/ServerConfig
-    [--certificate_provider]:
-  root_certificate_text := server_config.certificate_text
-  if not root_certificate_text and server_config.certificate_name:
-    root_certificate_text = certificate_provider.call server_config.certificate_name
-  if root_certificate_text:
-    certificate := x509.Certificate.parse root_certificate_text
-    return http.Client.tls network --root_certificates=[certificate]
-  else:
-    return http.Client network
-
-create_headers server_config/ServerConfig -> http.Headers:
-  anon := server_config.anon
-  headers := http.Headers
-  headers.add "apikey" anon
-  // By default the bearer is the anon-key. This can be overridden.
-  headers.add "Authorization" "Bearer $anon"
-  return headers
-
-query_ client/http.Client host/string headers/http.Headers table/string filters/List=[] -> List?:
-  filter := filters.is_empty ? "" : "?$(filters.join "&")"
-  path := "/rest/v1/$table$filter"
-  response := client.get host --headers=headers "$path"
-  body := response.body
-  result := null
-  if response.status_code == status_codes.STATUS_OK:
-    result = json.decode_stream body
-  while data := body.read: null // DRAIN!
-  return result
 
 /**
 A client for the Supabase API.
@@ -137,34 +107,239 @@ class Client:
     headers.add "Authorization" "Bearer $anon_"
     return headers
 
+  is_success_status_code_ code/int -> bool:
+    return 200 <= code <= 299
 
+  /**
+  Does a request to the Supabase API, and returns the response without
+    parsing it.
+
+  It is the responsibility of the caller to drain the response.
+
+  Query parameters can be provided in two ways:
+  - with the $query parameter is a string that is appended to the path. It must
+    be properly URL encoded (also known as percent-encoding), or
+  - with the $query_parameters parameter, which is a map from keys to values.
+    The value for each key must be a string or a list of strings. In the latter
+    case, each value is added as a separate query parameter.
+  It is an error to provide both $query and $query_parameters.
+  */
+  request_ --raw_response/bool -> http.Response
+      --path/string
+      --method/string
+      --bearer/string? = null
+      --query/string? = null
+      --query_parameters/Map? = null
+      --headers/http.Headers? = null
+      --payload/Map? = null:
+
+    if query and query_parameters:
+      throw "Cannot provide both query and query_parameters"
+
+    headers = headers ? headers.copy : http.Headers
+
+    if not bearer:
+      bearer = anon_
+    headers.set "Authorization" "Bearer $bearer"
+
+    headers.add "apikey" anon_
+
+    question_mark_pos := path.index_of "?"
+    if question_mark_pos >= 0:
+      // Replace the existing query parameters with ours.
+      path = path[..question_mark_pos]
+    if query_parameters:
+      encoded_params := []
+      query_parameters.do: | key value |
+        encoded_key := url_encoding.encode key
+        if value is List:
+          value.do:
+            encoded_params.add "$encoded_key=$(url_encoding.encode it)"
+        else:
+          encoded_params.add "$encoded_key=$(url_encoding.encode value)"
+      path = "$path?$(encoded_params.join "&")"
+    else if query:
+      path = "$path?$query"
+
+    response/http.Response := ?
+    if method == http.GET:
+      if payload: throw "GET requests cannot have a payload"
+      response = http_client_.get host_ path --headers=headers
+    else:
+      payload = payload or {:}
+
+      if method != http.POST: throw "UNIMPLEMENTED"
+      response = http_client_.post_json payload
+          --host=host_
+          --path=path
+          --headers=headers
+
+    return response
+
+  /**
+  Variant of $(request_ --raw_response --path --method).
+
+  Does a request to the Supabase API, and extracts the response.
+  If $parse_response_json is true, then parses the response as a JSON
+    object.
+  Otherwise returns it as a byte array.
+  */
+  request_ -> any
+      --path/string
+      --method/string
+      --bearer/string? = null
+      --query/string? = null
+      --query_parameters/Map? = null
+      --headers/http.Headers? = null
+      --parse_response_json/bool = true
+      --payload/Map? = null:
+    response := request_
+        --raw_response
+        --path=path
+        --method=method
+        --bearer=bearer
+        --query=query
+        --query_parameters=query_parameters
+        --headers=headers
+        --payload=payload
+
+    if not is_success_status_code_ response.status_code:
+      message := ""
+
+      body_bytes := #[]
+      while chunk := response.body.read: body_bytes += chunk
+
+      exception := catch:
+        decoded := json_encoding.decode body_bytes
+        message = decoded.get "msg" or
+            decoded.get "message" or
+            decoded.get "error_description" or
+            decoded.get "error" or
+            body_bytes.to_string_non_throwing
+      if exception:
+        message = body_bytes.to_string_non_throwing
+      throw "FAILED: $response.status_code - $message"
+
+    if not parse_response_json:
+      result_bytes := #[]
+      while chunk := response.body.read: result_bytes += chunk
+      return result_bytes.to_string_non_throwing
+
+    result := json_encoding.decode_stream response.body
+    // TODO(florian): this shouldn't be necessary in the latest http package.
+    response.body.read  // Make sure we drain the body.
+    return result
+
+/**
+A client for the PostgREST API.
+
+PostgREST uses 'GET', 'POST', 'PATCH', 'PUT', and 'DELETE' requests to
+  perform CRUD operations on tables.
+
+- 'GET' requests are used to retrieve rows from a table.
+- 'POST' requests are used to insert rows into a table.
+- 'PATCH' requests are used to update rows in a table.
+- 'PUT' requests are used to replace a single row in a table.
+- 'DELETE' requests are used to delete rows from a table.
+*/
 class PostgRest:
+  /**
+  For 'POST' requests (inserts), the response is empty, and only
+    contains a 'Location' header with the primary key of the newly
+    inserted row.
+  This return preference must not be used for other requests.
+
+  Note that this return preference leads to a permission error if the
+    table is only write-only.
+  */
+  static RETURN_HEADER_ONLY_ ::= "header-only"
+  /**
+  The response is the full representation.
+
+  This return preference is allowed for 'POST', 'PATCH', 'DELETE' and
+    'PUT' requests.
+  */
+  static RETURN_REPRESENTATION_ ::= "representation"
+  /**
+  The response does not include the 'Location' header, as would be
+    the case with 'RETURN_HEADER_ONLY'. This return preference must
+    be used when writing into a table that is write-only.
+
+  This return preference is allowed for 'POST', 'PATCH', 'DELETE' and
+    'PUT' requests.
+  */
+  static RETURN_MINIMAL_ ::= "minimal"
+
   client_/Client
 
   constructor .client_:
 
-  query table/string filters/List -> List?:
-    headers := client_.create_headers_
-    return query_ client_.http_client_ client_.host_ headers table filters
+  /**
+  Returns a list of rows that match the filters.
+  */
+  select table/string --filters/List=[] -> List:
+    // TODO(florian): the filters need to be URL encoded.
+    query_filters := filters.join "&"
+    return client_.request_
+        --method=http.GET
+        --path="/rest/v1/$table"
+        --query=query_filters
 
-  update_entry table/string --upsert/bool payload/ByteArray:
-    headers := client_.create_headers_
-    if upsert: headers.add "Prefer" "resolution=merge-duplicates"
-    response := client_.http_client_.post payload
-        --host=client_.host_
+  /**
+  Inserts a new row to the table.
+
+  If the row would violate a unique constraint, then the operation fails.
+
+  If $return_inserted is true, then returns the inserted row.
+  */
+  insert table/string payload/Map --return_inserted/bool=true -> Map?:
+    headers := http.Headers
+    headers.add "Prefer" "return=$(return_inserted ? RETURN_REPRESENTATION_ : RETURN_MINIMAL_)"
+    response := client_.request_
+        --method=http.POST
         --headers=headers
         --path="/rest/v1/$table"
-    // 201 is changed one entry.
-    body := response.body
-    while data := body.read: null // DRAIN!
-    if response.status_code != 201: throw "UGH ($response.status_code)"
+        --payload=payload
+        --parse_response_json=return_inserted
+    if return_inserted:
+      return response.size == 0 ? null : response[0]
+    return null
+
+  /**
+  Performs an 'upsert' operation on a table.
+
+  The word "upsert" is a combination of "update" and "insert".
+  If adding a row would violate a unique constraint, then the row is
+    updated instead.
+  */
+  upsert table/string payload/Map --ignore_duplicates/bool=false -> none:
+    // TODO(florian): add support for '--on_conflict'.
+    // In that case the conflict detection is on the column given by
+    // on_column (which must be 'UNIQUE').
+    // Verify this, and add the parameter.
+    headers := http.Headers
+    preference := ignore_duplicates
+        ? "resolution=ignore-duplicates"
+        : "resolution=merge-duplicates"
+    headers.add "Prefer" preference
+    // We are not using the response. Use the minimal response.
+    headers.add "Prefer" RETURN_MINIMAL_
+    client_.request_
+        --method=http.POST
+        --headers=headers
+        --path="/rest/v1/$table"
+        --payload=payload
+        --parse_response_json=false
 
 class Storage:
   client_/Client
 
   constructor .client_:
 
-  upload_resource --path/string --content/ByteArray:
+  /**
+  Uploads data to the storage.
+  */
+  upload --path/string --content/ByteArray:
     headers := client_.create_headers_
     headers.add "Content-Type" "application/octet-stream"
     headers.add "x-upsert" "true"
@@ -177,14 +352,56 @@ class Storage:
     while data := body.read: null // DRAIN!
     if response.status_code != 200: throw "UGH ($response.status_code)"
 
-  download_resource --path/string [block] -> none:
-    headers := client_.create_headers_
-    response := client_.http_client_.get client_.host_ "/storage/v1/object/$path"
+  /**
+  Downloads the data stored in $path from the storage.
+  */
+  download --path/string -> ByteArray:
+    download --path=path: | reader/SizedReader |
+      result := ByteArray reader.size
+      offset := 0
+      while chunk := reader.read:
+        result.replace offset chunk
+        offset += chunk.size
+      return result
+    unreachable
+
+  /**
+  Downloads the data stored in $path from the storage.
+
+  Calls the given $block with a $SizedReader and the total size of the resource. If
+    the download is not partial, then the total size is equal to the size of the
+    $SizedReader.
+  */
+  download --path/string --offset/int=0 --size/int?=null [block] -> none:
+    partial := false
+    headers/http.Headers? := null
+    if offset != 0 or size:
+      partial = true
+      end := size ? "$(offset + size - 1)" : ""
+      headers = http.Headers
+      headers.add "Range" "bytes=$offset-$end"
+    response := client_.request_ --raw_response
+        --method=http.GET
+        --path="/storage/v1/object/$path"
         --headers=headers
-    body := response.body
-    try:
-      // 200 is accepted!
-      if response.status_code != 200: throw "UGH ($response.status_code)"
-      block.call body
-    finally:
+    // Check the status code. The correct result depends on whether
+    // or not we're doing a partial fetch.
+    status := response.status_code
+    body := response.body as SizedReader
+    okay := status == 200 or (partial and status == 206)
+    if not okay:
       while data := body.read: null // DRAIN!
+      throw "Not found ($status)"
+    // We got a response we can use. If it is partial we
+    // need to decode the response header to find the
+    // total size.
+    if partial and status != 200:
+      // TODO(kasper): Try to avoid doing this for all parts.
+      // We only really need to do it for the first.
+      range := response.headers.single "Content-Range"
+      divider := range.index_of "/"
+      total_size := int.parse range[divider + 1..range.size]
+      block.call body total_size
+    else:
+      block.call body body.size
+    while data := body.read: null // DRAIN!
