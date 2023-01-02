@@ -111,6 +111,7 @@ class Client:
 
   close -> none:
     // TODO(florian): call close on the http client (when that's possible).
+    // TODO(florian): add closing in a finalizer.
     http_client_ = null
     if network_:
       network_.close
