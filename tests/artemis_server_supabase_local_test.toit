@@ -5,7 +5,7 @@ import net
 import .supabase_local_server
 import .artemis_server_test_base
 import artemis.shared.server_config show ServerConfigSupabase
-import artemis.shared.postgrest
+import artemis.shared.supabase
 
 class SupabaseBackdoor implements ArtemisServerBackdoor:
   server_config_/ServerConfigSupabase
@@ -38,10 +38,10 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 
   query_ table/string filters/List=[] -> List?:
     network := net.open
-    supabase_client/postgrest.SupabaseClient? := null
+    supabase_client/supabase.SupabaseClient? := null
     try:
-      http_client := postgrest.create_client network server_config_ --certificate_provider=:unreachable
-      supabase_client = postgrest.SupabaseClient http_client server_config_
+      http_client := supabase.create_client network server_config_ --certificate_provider=:unreachable
+      supabase_client = supabase.SupabaseClient http_client server_config_
       return supabase_client.query table filters
     finally:
       if supabase_client: supabase_client.close

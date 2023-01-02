@@ -8,7 +8,6 @@ import .utils
 import .jobs
 
 import ..shared.server_config
-import ..shared.postgrest as supabase
 
 
 INTERVAL_ ::= Duration --m=20

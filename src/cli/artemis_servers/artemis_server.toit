@@ -3,7 +3,7 @@
 import log
 import net
 
-import .postgrest.supabase show ArtemisServerCliSupabase
+import .supabase show ArtemisServerCliSupabase
 import .http.base show ArtemisServerCliHttpToit
 import ...shared.server_config
 import ..device

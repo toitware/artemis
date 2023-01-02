@@ -7,13 +7,13 @@ import reader show SizedReader
 import artemis.cli.brokers.broker
 import artemis.service.brokers.broker
 import artemis.cli.brokers.mqtt.base as mqtt_broker
-import artemis.cli.brokers.postgrest.base as postgrest_broker
+import artemis.cli.brokers.supabase show BrokerCliSupabase
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
 
 import .brokers
 import .utils
 
-POSTGREST_DEVICE_UUID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
+SUPABASE_DEVICE_UUID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
 
 run_test broker_id/string:
   with_brokers broker_id: | logger name broker_cli broker_service |
@@ -45,10 +45,10 @@ class TestEventHandler implements broker.EventHandler:
     channel.send (TestEvent "nop")
 
 test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  // When running the postgrest test we need a device ID that is
+  // When running the supabase test we need a device ID that is
   // a valid UUID, and that is in the database.
-  DEVICE_ID ::= broker_cli is postgrest_broker.BrokerCliPostgrest
-      ? POSTGREST_DEVICE_UUID
+  DEVICE_ID ::= broker_cli is BrokerCliSupabase
+      ? SUPABASE_DEVICE_UUID
       : "test-id-config"
   3.repeat: | test_iteration |
     test_handler := TestEventHandler

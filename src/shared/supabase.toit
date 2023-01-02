@@ -8,7 +8,7 @@ import encoding.json
 import .server_config
 
 /**
-Postgres and Supabase functionality.
+Supabase functionality.
 
 This library contains functionality and constants that are shared between
   the CLI and the service.
@@ -49,16 +49,7 @@ query_ client/http.Client host/string headers/http.Headers table/string filters/
   while data := body.read: null // DRAIN!
   return result
 
-interface PostgrestClient:
-  close -> none
-  is_closed -> bool
-
-  query table/string filters/List -> List?
-  update_entry table/string --upsert/bool payload/ByteArray
-  upload_resource --path/string --content/ByteArray
-  download_resource --path/string [block] -> none
-
-class SupabaseClient implements PostgrestClient:
+class SupabaseClient:
   client_/http.Client? := null
   broker_/ServerConfigSupabase
   host_/string
