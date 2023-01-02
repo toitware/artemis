@@ -73,7 +73,7 @@ class ServerConfigSupabase extends ServerConfig:
       "poll_interval": poll_interval.in_us,
     }
     if root_certificate_name:
-      config["root_certificate_name"] = root_certificate_name
+      config["certificate_name"] = root_certificate_name
     return ServerConfigSupabase name config
 
   host -> string:
