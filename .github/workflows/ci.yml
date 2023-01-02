@@ -85,6 +85,8 @@ jobs:
 
       - name: Install Supabase
         uses: supabase/setup-cli@v1
+        with:
+          version: latest
 
       - name: Start Supabase - Toitware
         shell: bash
