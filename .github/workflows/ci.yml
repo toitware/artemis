@@ -85,6 +85,10 @@ jobs:
 
       - name: Install Supabase
         uses: supabase/setup-cli@v1
+        with:
+          # We would like to use 'latest' here, but that runs into a rate limit of Github.
+          # See https://github.com/supabase/setup-cli/issues/106
+          version: 1.24.0
 
       - name: Start Supabase - Toitware
         shell: bash
