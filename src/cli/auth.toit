@@ -1,10 +1,7 @@
-import http
-import log
-import net
-import host.pipe
-import monitor
-import encoding.url as url_encoding
-import encoding.json as json_encoding
+// Copyright (C) 2022 Toitware ApS.
+// Use of this source code is governed by an MIT-style license that can be
+// found in the LICENSE file.
+
 import certificate_roots
 import supabase
 
@@ -15,7 +12,6 @@ sign_in server_config/ServerConfig config/Config -> none:
   if server_config is not ServerConfigSupabase:
     throw "Unsupported broker type."
 
-  print "server_config: $server_config.config_"
   supabase_config := server_config as ServerConfigSupabase
 
   local_storage := ConfigLocalStorage config
