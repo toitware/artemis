@@ -24,41 +24,39 @@ interface ArtemisServerBackdoor:
   /** Whether there exists a '$type'-event for the given $hardware_id. */
   has_event --hardware_id/string --type/string -> bool
 
-
-/** An organization ID that was already added to the Supabase server. */
-ORGANIZATION_ID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
-
-run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor:
+run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor
+    [--authenticate]:
   with_tmp_config: | config |
     network := net.open
+    authenticate.call config
     server_cli := ArtemisServerCli network server_config config
-    hardware_id := test_create_device_in_fleet server_cli backdoor
+    hardware_id := test_create_device_in_organization server_cli backdoor
     test_notify_created server_cli backdoor --hardware_id=hardware_id
     server_service := ArtemisServerService server_config --hardware_id=hardware_id
     test_check_in network server_service backdoor --hardware_id=hardware_id
 
 
-test_create_device_in_fleet server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
+test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
   // Test without and with alias.
   device1 := server_cli.create_device_in_organization
       --device_id=""
-      --organization_id=ORGANIZATION_ID
+      --organization_id=TEST_ORGANIZATION_UUID
   hardware_id1 := device1.hardware_id
   data := backdoor.fetch_device_information --hardware_id=hardware_id1
   expect_equals hardware_id1 data[0]
-  expect_equals ORGANIZATION_ID data[1]
+  expect_equals TEST_ORGANIZATION_UUID data[1]
   // The alias is auto-filled to some UUID in the supabase database.
   // TODO(florian): check that this is always the case? (in which case we would
   // need to fix the http server).
 
   device2 := server_cli.create_device_in_organization
       --device_id="Testy"
-      --organization_id=ORGANIZATION_ID
+      --organization_id=TEST_ORGANIZATION_UUID
   sleep --ms=200
   hardware_id2 := device2.hardware_id
   data = backdoor.fetch_device_information --hardware_id=hardware_id2
   expect_equals hardware_id2 data[0]
-  expect_equals ORGANIZATION_ID data[1]
+  expect_equals TEST_ORGANIZATION_UUID data[1]
   expect_equals "Testy" data[2]
 
   return hardware_id2

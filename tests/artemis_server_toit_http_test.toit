@@ -30,4 +30,4 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
 main:
   with_http_artemis_server: | server/HttpArtemisServer server_config/ServerConfigHttpToit |
     backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
-    run_test server_config backdoor
+    run_test server_config backdoor  --authenticate=: null

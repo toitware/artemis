@@ -1,3 +1,5 @@
+-- Copyright (C) 2022 Toitware ApS. All rights reserved.
+
 -- Create tables.
 -- Make sure that tables with foreign keys are created after their foreign tables.
 
