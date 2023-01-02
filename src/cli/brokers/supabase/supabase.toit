@@ -15,25 +15,22 @@ import ....shared.server_config
 export create_headers create_client
 
 create_broker_cli_supabase server_config/ServerConfigSupabase -> BrokerCliSupabase:
-  network := net.open
-  http_client := supabase.create_client network server_config
+  supabase_client := supabase.Client --server_config=server_config
       --certificate_provider=: certificate_roots.MAP[it]
-  supabase_client := supabase.Client http_client server_config
   id := "supabase/$server_config.host"
-  return BrokerCliSupabase supabase_client network --id=id
+  return BrokerCliSupabase supabase_client --id=id
 
 class BrokerCliSupabase implements BrokerCli:
   client_/supabase.Client? := null
-  network_/net.Interface? := null
   /** See $BrokerCli.id. */
   id/string
 
-  constructor --.id/string .client_ .network_:
+  constructor --.id/string .client_:
 
   close:
-    client_ = null
-    if network_: network_.close
-    network_ = null
+    if client_:
+      client_.close
+      client_ = null
 
   is_closed -> bool:
     return client_ == null
