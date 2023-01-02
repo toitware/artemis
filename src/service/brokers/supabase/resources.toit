@@ -6,7 +6,7 @@ import http.status_codes
 import encoding.json
 
 import ..broker
-import ....shared.supabase as supabase
+import supabase
 
 class ResourceManagerSupabase implements ResourceManager:
   client_/http.Client
@@ -60,12 +60,12 @@ class ResourceManagerSupabase implements ResourceManager:
 
   fetch_json table/string filters/List=[] -> List?:
     // TODO(kasper): This needs cleanup. It feels annoying that we
-    // cannot use the SupabaseClient abstraction here.
+    // cannot use the Client abstraction here.
     return supabase.query_ client_ host_ headers_ table filters
 
   report_status device_id/string status/Map -> none:
     // TODO(kasper): This needs cleanup. It feels annoying that we
-    // cannot use the SupabaseClient abstraction here.
+    // cannot use the Client abstraction here.
     headers := headers_.copy
     headers.add "Prefer" "resolution=merge-duplicates"
     headers.add "Prefer" "return=headers-only"

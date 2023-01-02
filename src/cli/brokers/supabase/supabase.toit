@@ -6,10 +6,10 @@ import monitor
 import http
 import encoding.json
 import reader
+import supabase
+import supabase show create_headers create_client
 
 import ..broker
-import ....shared.supabase as supabase
-import ....shared.supabase show create_headers create_client
 import ....shared.server_config
 
 export create_headers create_client
@@ -18,12 +18,12 @@ create_broker_cli_supabase server_config/ServerConfigSupabase -> BrokerCliSupaba
   network := net.open
   http_client := supabase.create_client network server_config
       --certificate_provider=: certificate_roots.MAP[it]
-  supabase_client := supabase.SupabaseClient http_client server_config
+  supabase_client := supabase.Client http_client server_config
   id := "supabase/$server_config.host"
   return BrokerCliSupabase supabase_client network --id=id
 
 class BrokerCliSupabase implements BrokerCli:
-  client_/supabase.SupabaseClient? := null
+  client_/supabase.Client? := null
   network_/net.Interface? := null
   /** See $BrokerCli.id. */
   id/string

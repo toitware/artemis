@@ -13,3 +13,5 @@ dependencies:
   mqtt:
     url: github.com/toitware/mqtt
     version: ^2.0.4
+  supabase:
+    path: ../supabase

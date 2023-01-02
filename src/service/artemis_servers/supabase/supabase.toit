@@ -4,11 +4,11 @@ import http
 import log
 import net
 import encoding.json
+import supabase
 
 import ..artemis_server
 
 import ....shared.server_config
-import ....shared.supabase as supabase
 
 class ArtemisServerServiceSupabase implements ArtemisServerService:
   server_config_/ServerConfigSupabase

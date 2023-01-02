@@ -4,12 +4,12 @@ import certificate_roots
 import http
 import net
 import encoding.json
+import supabase
 
 import ..artemis_server
 import ...device
 
 import ....shared.server_config
-import ....shared.supabase as supabase
 
 class ArtemisServerCliSupabase implements ArtemisServerCli:
   client_/http.Client
