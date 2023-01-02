@@ -20,7 +20,9 @@ create_auth_commands config/Config cache/Cache -> List:
   broker_log_in_cmd := cli.Command "login"
       --short_help="Log in to the broker."
       --options=[
-        cli.OptionString "broker" --short_help="The broker to log in to."
+        cli.OptionString "broker" --short_help="The broker to log in to.",
+        cli.OptionString "username" --short_help="The username for a password-based login.",
+        cli.OptionString "password" --short_help="The password for a password-based login.",
       ]
       --run=:: sign_in --broker it config
   broker_cmd.add broker_log_in_cmd
@@ -38,10 +40,36 @@ create_auth_commands config/Config cache/Cache -> List:
       --short_help="Authenticate against the Artemis server."
   auth_cmd.add artemis_cmd
 
+  sign_up_cmd := cli.Command "signup"
+      --short_help="Sign up for an Artemis account with email and password."
+      --long_help="""
+      Sign up for an Artemis account.
+
+      The usual way of signing up is to use oauth2. This command is only
+      needed if a password-based login is required.
+
+      If the account with the given email already exists, then the login
+      options are merged, and both the password and oauth2 login methods
+      are available.
+      """
+      --options=[
+        cli.OptionString "server" --hidden --short_help="The server to sign up for.",
+        cli.OptionString "email"
+            --short_help="The email address for the account."
+            --required,
+        cli.OptionString "password"
+            --short_help="The password for the account."
+            --required,
+      ]
+      --run=:: sign_up it config
+  artemis_cmd.add sign_up_cmd
+
   log_in_cmd := cli.Command "login"
       --short_help="Log in to the Artemis server."
       --options=[
-        cli.OptionString "server" --hidden --short_help="The server to log in to."
+        cli.OptionString "server" --hidden --short_help="The server to log in to.",
+        cli.OptionString "email" --short_help="The email for a password-based login.",
+        cli.OptionString "password" --short_help="The password for a password-based login.",
       ]
       --run=:: sign_in --no-broker it config
   artemis_cmd.add log_in_cmd
@@ -63,8 +91,24 @@ sign_in --broker/bool parsed/cli.Parsed config/Config:
     server_config = get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
   else:
     server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
-  auth.sign_in server_config config
+
+  if parsed.was_provided "email" or parsed.was_provided "password":
+    email := parsed["email"]
+    password := parsed["password"]
+    if not (email and password):
+      throw "email and password must be provided together."
+    auth.sign_in server_config config --email=email --password=password
+  else:
+    auth.sign_in server_config config
   print "Successfully authenticated."
+
+sign_up parsed/cli.Parsed config/Config:
+  server_config := get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
+  email := parsed["email"]
+  password := parsed["password"]
+
+  auth.sign_up server_config --email=email --password=password
+  print "Successfully signed up. Check your email for a verification link."
 
 refresh --broker/bool parsed/cli.Parsed config/Config:
   server_config/ServerConfig := ?
