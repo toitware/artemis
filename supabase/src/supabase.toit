@@ -30,9 +30,9 @@ class Client:
 
   /**
   The used network interface.
-  This field is only set, if the $close function should close the network_.
+  This field is only set, if the $close function should close the network.
   */
-  network_/net.Interface? := null
+  network_to_close_/net.Interface? := null
 
   /**
   The host of the Supabase project.
@@ -55,7 +55,7 @@ class Client:
     anon_ = anon
 
     if not network:
-      network = network_ = net.open
+      network = network_to_close_ = net.open
 
     http_client_ = http.Client network
 
@@ -64,7 +64,7 @@ class Client:
     anon_ = anon
 
     if not network:
-      network = network_ = net.open
+      network = network_to_close_ = net.open
 
     http_client_ = http.Client.tls network --root_certificates=root_certificates
 
@@ -81,10 +81,11 @@ class Client:
 
   close -> none:
     // TODO(florian): call close on the http client (when that's possible).
+    // TODO(florian): add closing in a finalizer.
     http_client_ = null
-    if network_:
-      network_.close
-      network_ = null
+    if network_to_close_:
+      network_to_close_.close
+      network_to_close_ = null
 
   is_closed -> bool:
     return http_client_ == null
