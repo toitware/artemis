@@ -19,6 +19,9 @@ import encoding.json
 import writer
 
 APP_NAME ::= "artemis"
+CONFIG_BROKER_DEFAULT_KEY ::= "server.broker.default"
+CONFIG_ARTEMIS_DEFAULT_KEY ::= "server.artemis.default"
+CONFIG_SERVERS_KEY ::= "servers"
 
 class Config:
   path/string

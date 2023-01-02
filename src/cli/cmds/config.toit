@@ -27,8 +27,37 @@ create_server_config_commands config/Config -> List:
   config_broker_cmd := cli.Command "broker"
       --short_help="Configure the Artemis brokers."
 
+  config_broker_cmd.add
+      cli.Command "use"
+          --short_help="Set the default broker."
+          --options=[
+            cli.Flag "artemis"
+                --short_help="Sets the Artemis server."
+                --hidden
+          ]
+          --rest=[
+            cli.OptionString "name"
+                --short_help="The name of the broker."
+                --required,
+          ]
+          --run=:: use_server it config
+
+  config_broker_cmd.add
+      cli.Command "default"
+          --short_help="Print the default broker."
+          --options=[
+            cli.Flag "artemis"
+                --short_help="Print the default Artemis server."
+                --hidden]
+          --run=:: print_default_broker it config
+
   add_cmd := cli.Command "add"
       --short_help="Adds a broker."
+      --options=[
+        cli.Flag "default"
+            --default=true
+            --short_help="Set the broker as the default broker.",
+      ]
 
   config_broker_cmd.add add_cmd
 
@@ -37,7 +66,7 @@ create_server_config_commands config/Config -> List:
           --short_help="Adds a Supabase broker."
           --options=[
             cli.OptionString "certificate"
-                --short_help="The certificate to use for the broker."
+                --short_help="The certificate to use for the broker.",
           ]
           --rest=[
             cli.OptionString "name"
@@ -52,7 +81,6 @@ create_server_config_commands config/Config -> List:
           ]
           --run=:: add_supabase it config
 
-
   add_cmd.add
       cli.Command "mqtt"
           --short_help="Adds an MQTT broker."
@@ -64,7 +92,7 @@ create_server_config_commands config/Config -> List:
                 --type="file",
             cli.OptionString "client-private-key"
                 --short_help="The private key of the client."
-                --type="file"
+                --type="file",
           ]
           --rest=[
             cli.OptionString "name"
@@ -83,6 +111,19 @@ create_server_config_commands config/Config -> List:
 
 print_config config/Config:
   throw "UNIMPLEMENTED"
+
+use_server parsed/cli.Parsed config/Config:
+  name := parsed["name"]
+  if not has_server_in_config config name:
+    throw "Unknown broker $name."
+  config[parsed["artemis"] ? CONFIG_ARTEMIS_DEFAULT_KEY : CONFIG_BROKER_DEFAULT_KEY] = name
+  config.write
+
+print_default_broker parsed/cli.Parsed config/Config:
+  key := parsed["artemis"] ? CONFIG_ARTEMIS_DEFAULT_KEY : CONFIG_BROKER_DEFAULT_KEY
+  default_server := config.get key
+  if default_server: print default_server
+  else: print "No default broker."
 
 get_certificate_ name/string -> string:
   certificate := certificate_roots.MAP.get name
@@ -109,9 +150,12 @@ add_supabase parsed/cli.Parsed config/Config:
       --root_certificate_name=certificate_name
 
   add_server_to_config config supabase_config
+  if parsed["default"]:
+    config[CONFIG_BROKER_DEFAULT_KEY] = name
   config.write
 
   print "Added broker $name"
+
 
 add_mqtt parsed/cli.Parsed config/Config:
   name := parsed["name"]
@@ -137,6 +181,8 @@ add_mqtt parsed/cli.Parsed config/Config:
       --client_private_key=client_private_key
 
   add_server_to_config config mqtt_config
+  if parsed["default"]:
+    config[CONFIG_BROKER_DEFAULT_KEY] = name
   config.write
 
   print "Added broker $name"

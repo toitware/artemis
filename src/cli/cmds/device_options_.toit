@@ -18,5 +18,5 @@ device_options -> List:
   ]
 
 create_broker_from_cli_args config/Config parsed/cli.Parsed -> BrokerCli:
-  server_config := get_server_from_config config parsed["broker"]
+  server_config := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
   return BrokerCli server_config

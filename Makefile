@@ -35,17 +35,21 @@ AWS_CLIENT_PRIVATE_KEY_PATH := aws/client-key.pem
 add-default-brokers: add-supabase-artemis add-supabase-toitware-testing add-mqtt-aws
 
 add-supabase-artemis:
-	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
+	# Adds the Toitware supabase Artemis server and makes it the default.
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add --no-default supabase \
 		--certificate="$(ARTEMIS_CERTIFICATE)" \
 		artemis $(ARTEMIS_HOST) "$(ARTEMIS_ANON)"
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker use --artemis artemis
 
 add-supabase-toitware-testing:
+	# Adds the Toitware supabase server and makes it the default.
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
 		--certificate="$(TOITWARE_TESTING_CERTIFICATE)" \
 		toitware-testing $(TOITWARE_TESTING_HOST) "$(TOITWARE_TESTING_ANON)"
 
 add-mqtt-aws:
-	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add mqtt \
+	# Adds the AWS MQTT broker *without* making it the default
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add --no-default mqtt \
 		--root-certificate "$(AWS_ROOT_CERTIFICATE)" \
 		--client-certificate "$(AWS_CLIENT_CERTIFICATE_PATH)" \
 		--client-private-key "$(AWS_CLIENT_PRIVATE_KEY_PATH)" \

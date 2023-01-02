@@ -72,8 +72,8 @@ create_firmware_commands config/Config cache/Cache -> List:
 
 create_firmware config/Config cache/Cache parsed/cli.Parsed -> none:
   output_path := parsed["output"]
-  broker_config := get_server_from_config config parsed["broker"]
-  artemis_server_config := get_server_from_config config parsed["broker.artemis"]
+  broker_config := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
+  artemis_server_config := get_server_from_config config parsed["broker.artemis"] CONFIG_ARTEMIS_DEFAULT_KEY
 
   deduplicated_certificates := {:}
   broker_json := server_config_to_service_json broker_config deduplicated_certificates
