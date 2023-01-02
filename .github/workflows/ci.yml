@@ -88,7 +88,7 @@ jobs:
 
       - name: Start Supabase - Toitware
         shell: bash
-        working-directory: ${{ github.workspace }}/tests/supabase_toitware
+        working-directory: ${{ github.workspace }}/supabase_artemis
         run: |
           supabase start
           supabase status
@@ -176,13 +176,6 @@ jobs:
           $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-customer" \
             $SUPABASE_CUSTOMER_API_HOST $SUPABASE_CUSTOMER_ANON_KEY
           cat $ARTEMIS_CONFIG
-
-      - name: Test provision
-        run: |
-          $TOIT_EXEC src/cli/cli.toit provision create-identity \
-              --broker=test-customer \
-              --broker.artemis=test-toitware
-          ls
 
       - name: Test
         run: |

@@ -26,13 +26,13 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
   close -> none:
     // TODO(florian): we need a newer http client to be able to close it.
 
-  create_device_in_fleet --fleet_id/string --device_id/string -> string:
+  create_device_in_organization --organization_id/string --device_id/string -> string:
     map := {
-      "fleet": fleet_id,
+      "organization_id": organization_id,
     }
     if device_id != "": map["alias"] = device_id
 
-    return send_request_ "create-device-in-fleet" map
+    return send_request_ "create-device-in-organization" map
 
   notify_created --hardware_id/string -> none:
     send_request_ "notify-created" {
