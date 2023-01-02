@@ -5,6 +5,9 @@ import host.os
 import host.directory
 import artemis.shared.server_config show ServerConfigSupabase
 
+SUPABASE_CUSTOMER ::= "supabase_customer"
+SUPABASE_ARTEMIS ::= "../supabase_artemis"
+
 get_supabase_config --sub_directory/string -> ServerConfigSupabase:
   // Here we are only interested in customer brokers.
   // We need to move into the customer-supabase directory to get its configuration.
@@ -33,4 +36,5 @@ get_supabase_config --sub_directory/string -> ServerConfigSupabase:
 
   host := api_url.trim --left "http://"
   print "HOST: $host ANON_KEY: $anon_key"
-  return ServerConfigSupabase sub_directory --host=host --anon=anon_key
+  name := sub_directory.trim --left "../"
+  return ServerConfigSupabase name --host=host --anon=anon_key
