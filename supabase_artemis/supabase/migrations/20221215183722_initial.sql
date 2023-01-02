@@ -139,7 +139,7 @@ CREATE TRIGGER create_admin_after_new_organization AFTER INSERT ON public.organi
 -- Functions
 -- Note that this function is defined as SECURITY DEFINER, so it will run with high privileges.
 -- Since this isn't a trigger function, it can be invoked through RPC calls.
-CREATE FUNCTION is_member_of(_organization_id uuid)
+CREATE FUNCTION is_auth_member_of_org(_organization_id uuid)
   RETURNS boolean
   LANGUAGE sql
   SECURITY DEFINER
@@ -152,7 +152,7 @@ CREATE FUNCTION is_member_of(_organization_id uuid)
     )
   $function$;
 
-CREATE FUNCTION is_admin_of(_organization_id uuid)
+CREATE FUNCTION is_auth_admin_of_org(_organization_id uuid)
   RETURNS boolean
   LANGUAGE sql
   SECURITY DEFINER
@@ -195,33 +195,33 @@ CREATE POLICY "Admins can do everything to organization"
   ON public.organizations
   FOR ALL
   TO authenticated
-  USING (is_admin_of(id));
+  USING (is_auth_admin_of_org(id));
 
 CREATE POLICY "Members can read organization"
   ON public.organizations
   FOR SELECT
   TO authenticated
-  USING (is_member_of(id));
+  USING (is_auth_member_of_org(id));
 
 CREATE POLICY "Admins can modify roles"
   ON public.roles
   FOR ALL
   TO authenticated
-  USING (is_admin_of(organization_id))
-  WITH CHECK (is_admin_of(organization_id));
+  USING (is_auth_admin_of_org(organization_id))
+  WITH CHECK (is_auth_admin_of_org(organization_id));
 
 CREATE POLICY "Users can see members of the orgs they are a member of"
   ON public.roles
   FOR SELECT
   TO authenticated
-  USING (is_member_of(organization_id));
+  USING (is_auth_member_of_org(organization_id));
 
 CREATE POLICY "User must be in org of device"
   ON public.devices
   FOR ALL
   TO authenticated
-  USING (is_member_of(organization_id))
-  WITH CHECK (is_member_of(organization_id));
+  USING (is_auth_member_of_org(organization_id))
+  WITH CHECK (is_auth_member_of_org(organization_id));
 
 -- The foreign key relation will disallow entries for devices that don't exist.
 CREATE POLICY "Enable insert of events to everyone"
