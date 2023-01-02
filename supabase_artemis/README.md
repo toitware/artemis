@@ -19,7 +19,7 @@ Use the supabase client (AUR: supabase-bin) to connect to the project:
 ```
 supabase login
 # For the next command:
-# - Create a token (it's for your account), and
+# - create a token (it's for your account), and
 # - use the database password from our bitwarden vault.
 supabase link --project-ref uelhwhbsyumuqhbukich
 ```
