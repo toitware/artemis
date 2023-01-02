@@ -150,9 +150,6 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     broker_cli.upload_image --app_id=APP_ID --bits=32 content_32
     broker_cli.upload_image --app_id=APP_ID --bits=64 content_64
 
-    // Give the system time to expose the uploaded data.
-    sleep --ms=500
-
     test_handler := TestEventHandler
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler: | resources/broker.ResourceManager |
       resources.fetch_image APP_ID: | reader/SizedReader |
@@ -183,9 +180,6 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         chunks.add content[from..to]
 
     broker_cli.upload_firmware --firmware_id=FIRMWARE_ID chunks
-
-    // Give the system time to expose the uploaded data.
-    sleep --ms=500
 
     if broker_cli is not mqtt_broker.BrokerCliMqtt:
       // Downloading a firmware isn't implemented for the MQTT broker.
