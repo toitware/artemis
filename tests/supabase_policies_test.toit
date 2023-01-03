@@ -21,8 +21,9 @@ main:
         client1 := supabase.Client --server_config=artemis_broker --certificate_provider=:unreachable
         client2 := supabase.Client --server_config=artemis_broker --certificate_provider=:unreachable
         client3 := supabase.Client --server_config=artemis_broker --certificate_provider=:unreachable
+        client4 := supabase.Client --server_config=artemis_broker --certificate_provider=:unreachable
 
-        [ client1, client2, client3 ].do:
+        [ client1, client2, client3, client4 ].do:
           email := "$(random)@toit.io"
           password := "password"
           it.auth.sign_up --email=email --password=password
@@ -278,6 +279,38 @@ main:
           "id=eq.$organization3_id",
         ]
         expect_equals "New name client3" organizations3[0]["name"]
+
+        // Members can see the events of their devices.
+        device1_events := client1.rest.select "events" --filters=[
+          "device_id=eq.$device1["id"]",
+        ]
+        expect_equals 0 device1_events.size
+
+        // Anon can insert into events, as long as the device_id is valid.
+        // Note that we have to use the --no-return_inserted flag, because
+        // anon can't see the inserted event.
+        client_anon.rest.insert "events" --no-return_inserted {
+          "device_id": device1["id"],
+          "data": { "type": "test"},
+        }
+
+        // Now we have one event.
+        device1_events = client1.rest.select "events" --filters=[
+          "device_id=eq.$device1["id"]",
+        ]
+        expect_equals 1 device1_events.size
+
+        // Anon can't see the events.
+        device1_events = client_anon.rest.select "events" --filters=[
+          "device_id=eq.$device1["id"]",
+        ]
+        expect_equals 0 device1_events.size
+
+        // Client4 can't see the events of device1.
+        device1_events = client4.rest.select "events" --filters=[
+          "device_id=eq.$device1["id"]",
+        ]
+        expect_equals 0 device1_events.size
 
 expect_throws --contains/string [block]:
   exception := catch: block.call

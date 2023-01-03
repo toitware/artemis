@@ -5,7 +5,11 @@ import supabase
 
 import .supabase_local_server
 import .artemis_server_test_base
+import .utils
 import artemis.shared.server_config show ServerConfigSupabase
+import artemis.cli.config as cli
+import artemis.cli.server_config as cli_server_config
+import artemis.cli.auth as cli_auth
 
 class SupabaseBackdoor implements ArtemisServerBackdoor:
   server_config_/ServerConfigSupabase
@@ -26,7 +30,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
     // For simplicity just run through all entries.
     // In the test-setup we should not have that many.
     entries := query_ "events" [
-      "device=eq.$hardware_id",
+      "device_id=eq.$hardware_id",
     ]
     if not entries: return false
     entries.do:
@@ -40,9 +44,16 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
     network := net.open
     supabase_client/supabase.Client? := null
     try:
-      http_client := supabase.create_client network server_config_ --certificate_provider=:unreachable
-      supabase_client = supabase.Client http_client server_config_
-      return supabase_client.query table filters
+      supabase_client = supabase.Client
+          --server_config=server_config_
+          --certificate_provider=: unreachable
+      // We might need to use the service_role key at some point, to
+      // have more access. For now we have access to all the data we need.
+      supabase_client.auth.sign_in
+          --email=TEST_EXAMPLE_COM_EMAIL
+          --password=TEST_EXAMPLE_COM_PASSWORD
+
+      return supabase_client.rest.select table --filters=filters
     finally:
       if supabase_client: supabase_client.close
       network.close
@@ -50,4 +61,6 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 main:
   server_config := get_supabase_config --sub_directory=SUPABASE_ARTEMIS
   backdoor := SupabaseBackdoor server_config
-  run_test server_config backdoor
+  run_test server_config backdoor --authenticate=: | config |
+    cli_auth.sign_in server_config config --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
+

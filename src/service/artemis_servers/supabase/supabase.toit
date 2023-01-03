@@ -24,10 +24,11 @@ class ArtemisServerServiceSupabase implements ArtemisServerService:
           --certificate_provider=: throw "UNSUPPORTED"
 
       client.rest.insert "events" --no-return_inserted {
-        "device": hardware_id_,
+        "device_id": hardware_id_,
         "data": { "type": "ping" }
       }
       return true
 
     // Something went wrong.
+    logger.info "Failed to check in with supabase."
     return false
