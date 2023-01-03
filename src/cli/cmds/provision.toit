@@ -28,6 +28,12 @@ create_provision_commands config/Config cache/Cache -> List:
       --options=broker_options + [
         cli.OptionString "device-id"
             --default="",
+        cli.OptionString "output-directory"
+            --short_name="d"
+            --short_help="Directory to write the identity file to.",
+        cli.OptionString "output"
+            --short_name="o"
+            --short_help="File to write the identity to.",
         // TODO(kasper): This option should be given through some
         // sort of auth-based mechanism.
         cli.OptionString "organization-id"
@@ -39,6 +45,11 @@ create_provision_commands config/Config cache/Cache -> List:
   return [provision_cmd]
 
 create_identity config/Config parsed/cli.Parsed:
+  output_file := parsed["output"]
+  output_dir := parsed["output-directory"]
+  if output_file and output_dir:
+    throw "Cannot specify both --output-file and --output-directory"
+
   organization_id := parsed["organization-id"]
   device_id := parsed["device-id"]
   broker_generic := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
@@ -62,18 +73,32 @@ create_identity config/Config parsed/cli.Parsed:
     // Insert an initial event mostly for testing purposes.
     server.notify_created --hardware_id=hardware_id
 
+    output_path := ?
+    if output_file:
+      output_path = output_file
+    else if output_dir:
+      output_path = "$output_dir/$(device_id).identity"
+    else:
+      output_path = "$(device_id).identity"
+
     // Finally create the identity output file.
-    create_identity_file device_id organization_id hardware_id broker artemis_broker
+    create_identity_file
+        --device_id=device_id
+        --organization_id=organization_id
+        --hardware_id=hardware_id
+        --server_config=broker
+        --artemis_server_config=artemis_broker
+        --output_path=output_path
   finally:
     network.close
 
 create_identity_file -> none
-    device_id/string
-    organization_id/string
-    hardware_id/string
-    server_config/ServerConfigSupabase
-    artemis_server_config/ServerConfigSupabase:
-  output_path := "$(device_id).identity"
+    --device_id/string
+    --organization_id/string
+    --hardware_id/string
+    --server_config/ServerConfigSupabase
+    --artemis_server_config/ServerConfigSupabase
+    --output_path/string:
 
   // A map from id to deduplicated certificate.
   deduplicated_certificates := {:}
