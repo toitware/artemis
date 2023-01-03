@@ -7,23 +7,24 @@ import host.file
 import ..server_config
 import ..cache
 import ..config
+import ..ui
 import ...shared.server_config
 
-create_config_commands config/Config cache/Cache -> List:
+create_config_commands config/Config cache/Cache ui/Ui -> List:
   config_cmd := cli.Command "config"
       --short_help="Configure Artemis tool."
 
   print_cmd := cli.Command "print"
       --short_help="Print the current configuration."
-      --run=:: print_config config
+      --run=:: print_config config ui
 
   config_cmd.add print_cmd
 
-  (create_server_config_commands config).do: config_cmd.add it
+  (create_server_config_commands config ui).do: config_cmd.add it
 
   return [config_cmd]
 
-create_server_config_commands config/Config -> List:
+create_server_config_commands config/Config ui/Ui -> List:
   config_broker_cmd := cli.Command "broker"
       --short_help="Configure the Artemis brokers."
       --options=[
@@ -45,7 +46,7 @@ create_server_config_commands config/Config -> List:
   config_broker_cmd.add
       cli.Command "default"
           --short_help="Print the default broker."
-          --run=:: print_default_broker it config
+          --run=:: print_default_broker it config ui
 
   add_cmd := cli.Command "add"
       --short_help="Adds a broker."
@@ -75,7 +76,7 @@ create_server_config_commands config/Config -> List:
                 --short_help="The key for anonymous access."
                 --required,
           ]
-          --run=:: add_supabase it config
+          --run=:: add_supabase it config ui
 
   add_cmd.add
       cli.Command "mqtt"
@@ -101,11 +102,11 @@ create_server_config_commands config/Config -> List:
                 --short_help="The port of the broker."
                 --required,
           ]
-          --run=:: add_mqtt it config
+          --run=:: add_mqtt it config ui
 
   return [config_broker_cmd]
 
-print_config config/Config:
+print_config config/Config ui/Ui:
   throw "UNIMPLEMENTED"
 
 use_server parsed/cli.Parsed config/Config:
@@ -115,22 +116,21 @@ use_server parsed/cli.Parsed config/Config:
   config[parsed["artemis"] ? CONFIG_ARTEMIS_DEFAULT_KEY : CONFIG_BROKER_DEFAULT_KEY] = name
   config.write
 
-print_default_broker parsed/cli.Parsed config/Config:
+print_default_broker parsed/cli.Parsed config/Config ui/Ui:
   key := parsed["artemis"] ? CONFIG_ARTEMIS_DEFAULT_KEY : CONFIG_BROKER_DEFAULT_KEY
   default_server := config.get key
-  if default_server: print default_server
-  else: print "No default broker."
+  if default_server: ui.info default_server
+  else: ui.info "No default broker."
 
-get_certificate_ name/string -> string:
+get_certificate_ name/string ui/Ui -> string:
   certificate := certificate_roots.MAP.get name
   if certificate: return certificate
-  print "Unknown certificate."
-  print "Available certificates:"
-  certificate_roots.MAP.do --keys:
-    print "  $it"
+  ui.error "Unknown certificate."
+  ui.info_list --title="Available certificates:"
+      certificate_roots.MAP.keys
   throw "Unknown certificate"
 
-add_supabase parsed/cli.Parsed config/Config:
+add_supabase parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
   host := parsed["host"]
   anon := parsed["anon"]
@@ -150,10 +150,10 @@ add_supabase parsed/cli.Parsed config/Config:
     config[CONFIG_BROKER_DEFAULT_KEY] = name
   config.write
 
-  print "Added broker $name"
+  ui.info "Added broker $name"
 
 
-add_mqtt parsed/cli.Parsed config/Config:
+add_mqtt parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
   host := parsed["host"]
   port := parsed["port"]
@@ -181,5 +181,5 @@ add_mqtt parsed/cli.Parsed config/Config:
     config[CONFIG_BROKER_DEFAULT_KEY] = name
   config.write
 
-  print "Added broker $name"
+  ui.info "Added broker $name"
 

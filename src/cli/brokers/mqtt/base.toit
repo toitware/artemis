@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import log
 import monitor
 import mqtt
 import mqtt.transport as mqtt
@@ -10,6 +11,7 @@ import tls
 import certificate_roots
 
 import ..broker
+import ...ui
 import ....shared.mqtt
 import ....shared.server_config
 
@@ -72,15 +74,16 @@ class BrokerCliMqtt implements BrokerCli:
       writer := ubjson.decode payload
       if not writer:
         others = 0
-        print "$(%08d Time.monotonic_us): Trying to acquire lock"
+        // TODO(florian): Make this real 'log' entries.
+        log.default.info "$(%08d Time.monotonic_us): Trying to acquire lock"
         client.publish topic_lock (ubjson.encode me)  --qos=1 --retain
       else if writer == me:
         if others == 0:
-          print "$(%08d Time.monotonic_us): Acquired lock"
+          log.default.info "$(%08d Time.monotonic_us): Acquired lock"
           locked.set me
         else:
           // Someone else locked this before us. Just wait.
-          print "$(%08d Time.monotonic_us): Another writer acquired the lock"
+          log.default.info "$(%08d Time.monotonic_us): Another writer acquired the lock"
       else:
         others++
 
@@ -93,7 +96,7 @@ class BrokerCliMqtt implements BrokerCli:
         locked.get
     if exception == DEADLINE_EXCEEDED_ERROR and others == 0:
       // We assume that nobody has taken the lock so far.
-      print "$(%08d Time.monotonic_us): Trying to initialize writer lock"
+      log.default.info "$(%08d Time.monotonic_us): Trying to initialize writer lock"
       client.publish topic_lock (ubjson.encode me) --qos=1 --retain
 
       exception = catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
@@ -109,7 +112,7 @@ class BrokerCliMqtt implements BrokerCli:
       // We didn't get the lock.
       // TODO(florian): in theory we might just now get the lock. However, we
       // will not release it. This could lead to a bad state.
-      print "$(%08d Time.monotonic_us): Timed out waiting for writer lock"
+      log.default.info "$(%08d Time.monotonic_us): Timed out waiting for writer lock"
       return
 
     try:
@@ -133,7 +136,7 @@ class BrokerCliMqtt implements BrokerCli:
         with_timeout --ms=retain_timeout_ms:
           config = config_channel.receive
       if exception == DEADLINE_EXCEEDED_ERROR:
-        print "$(%08d Time.monotonic_us): Trying to initialize config"
+        log.default.info "$(%08d Time.monotonic_us): Trying to initialize config"
         client.publish topic_config (ubjson.encode {"revision": 0}) --qos=1 --retain
         client.publish topic_revision (ubjson.encode 0) --qos=1 --retain
 
@@ -141,7 +144,7 @@ class BrokerCliMqtt implements BrokerCli:
           with_timeout --ms=retain_timeout_ms:
             config = config_channel.receive
         if exception == DEADLINE_EXCEEDED_ERROR:
-          print "$(%08d Time.monotonic_us): Timed out waiting for config"
+          log.default.info "$(%08d Time.monotonic_us): Timed out waiting for config"
           return
 
       old_revision := revision_channel.receive
@@ -162,11 +165,11 @@ class BrokerCliMqtt implements BrokerCli:
       if revision_channel.receive != revision:
         throw "FATAL: Wrong revision in updated config"
 
-      print "Updated config to $config"
+      log.default.info "Updated config to $config"
 
     finally:
       critical_do:
-        print "$(%08d Time.monotonic_us): Releasing lock"
+        log.default.info "$(%08d Time.monotonic_us): Releasing lock"
         client.publish topic_lock (ubjson.encode null) --retain
 
   upload_image --app_id/string --bits/int content/ByteArray -> none:
@@ -194,7 +197,7 @@ class BrokerCliMqtt implements BrokerCli:
     }
     upload_resource_ path manifest
 
-  print_status --device_id/string -> none:
+  print_status --device_id/string --ui/Ui -> none:
     topic_presence := topic_presence_for_ device_id
     topic_config := topic_config_for_ device_id
 
@@ -206,14 +209,14 @@ class BrokerCliMqtt implements BrokerCli:
         status.set payload.to_string
       client.subscribe topic_config:: | topic/string payload/ByteArray |
         config.set (ubjson.decode payload)
-      print "Device: $device_id"
-      print "  $status.get"
-      print "  $config.get"
+      ui.info "Device: $device_id"
+      ui.info "  $status.get"
+      ui.info "  $config.get"
 
-  watch_presence -> none:
+  watch_presence --ui/Ui -> none:
     client := client_
     client.subscribe "toit/devices/presence/#":: | topic/string payload/ByteArray |
       device_name := (topic.split "/").last
-      print "$(%08d Time.monotonic_us): $device_name: $payload.to_string"
+      ui.info "$(%08d Time.monotonic_us): $device_name: $payload.to_string"
     // Wait forever.
     (monitor.Latch).get

@@ -8,8 +8,9 @@ import ..cache
 import ..config
 import ..auth as auth
 import ..server_config
+import ..ui
 
-create_auth_commands config/Config cache/Cache -> List:
+create_auth_commands config/Config cache/Cache ui/Ui -> List:
   auth_cmd := cli.Command "auth"
       --short_help="Authenticate against the Artemis server or the broker."
 
@@ -24,7 +25,7 @@ create_auth_commands config/Config cache/Cache -> List:
         cli.OptionString "username" --short_help="The username for a password-based login.",
         cli.OptionString "password" --short_help="The password for a password-based login.",
       ]
-      --run=:: sign_in --broker it config
+      --run=:: sign_in --broker it config ui
   broker_cmd.add broker_log_in_cmd
 
   broker_refresh_cmd := cli.Command "refresh"
@@ -33,7 +34,7 @@ create_auth_commands config/Config cache/Cache -> List:
       --options=[
         cli.OptionString "broker" --short_help="The broker to use."
       ]
-      --run=:: refresh --broker it config
+      --run=:: refresh --broker it config ui
   broker_cmd.add broker_refresh_cmd
 
   artemis_cmd := cli.Command "artemis"
@@ -61,7 +62,7 @@ create_auth_commands config/Config cache/Cache -> List:
             --short_help="The password for the account."
             --required,
       ]
-      --run=:: sign_up it config
+      --run=:: sign_up it config ui
   artemis_cmd.add sign_up_cmd
 
   log_in_cmd := cli.Command "login"
@@ -71,7 +72,7 @@ create_auth_commands config/Config cache/Cache -> List:
         cli.OptionString "email" --short_help="The email for a password-based login.",
         cli.OptionString "password" --short_help="The password for a password-based login.",
       ]
-      --run=:: sign_in --no-broker it config
+      --run=:: sign_in --no-broker it config ui
   artemis_cmd.add log_in_cmd
 
   refresh_cmd := cli.Command "refresh"
@@ -80,12 +81,12 @@ create_auth_commands config/Config cache/Cache -> List:
       --options=[
         cli.OptionString "server" --short_help="The server to use."
       ]
-      --run=:: refresh --no-broker it config
+      --run=:: refresh --no-broker it config ui
   artemis_cmd.add refresh_cmd
 
   return [auth_cmd]
 
-sign_in --broker/bool parsed/cli.Parsed config/Config:
+sign_in --broker/bool parsed/cli.Parsed config/Config ui/Ui:
   server_config/ServerConfig := ?
   if broker:
     server_config = get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
@@ -99,22 +100,22 @@ sign_in --broker/bool parsed/cli.Parsed config/Config:
       throw "email and password must be provided together."
     auth.sign_in server_config config --email=email --password=password
   else:
-    auth.sign_in server_config config
-  print "Successfully authenticated."
+    auth.sign_in server_config config --ui=ui
+  ui.info "Successfully authenticated."
 
-sign_up parsed/cli.Parsed config/Config:
+sign_up parsed/cli.Parsed config/Config ui/Ui:
   server_config := get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
   email := parsed["email"]
   password := parsed["password"]
 
   auth.sign_up server_config --email=email --password=password
-  print "Successfully signed up. Check your email for a verification link."
+  ui.info "Successfully signed up. Check your email for a verification link."
 
-refresh --broker/bool parsed/cli.Parsed config/Config:
+refresh --broker/bool parsed/cli.Parsed config/Config ui/Ui:
   server_config/ServerConfig := ?
   if broker:
     server_config = get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
   else:
     server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
   auth.refresh_token server_config config
-  print "Successfully refreshed."
+  ui.info "Successfully refreshed."
