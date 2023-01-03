@@ -9,6 +9,7 @@ import supabase
 import ..artemis_server
 import ...config
 import ...device
+import ...organization
 
 import ....shared.server_config
 
@@ -46,3 +47,11 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
       "device_id": hardware_id,
       "data": { "type": "created" }
     }
+
+  get_organizations -> List:
+    organizations := client_.rest.select "organizations"
+    return organizations.map: Organization.from_map it
+
+  create_organization name/string -> Organization:
+    inserted := client_.rest.insert "organizations" { "name": name }
+    return Organization.from_map inserted
