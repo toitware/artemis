@@ -28,7 +28,7 @@ create_provision_commands config/Config cache/Cache -> List:
       --options=broker_options + [
         cli.OptionString "device-id"
             --default="",
-        cli.OptionString "output-dir"
+        cli.OptionString "output-directory"
             --short_name="d"
             --short_help="Directory to write the identity file to.",
         cli.OptionString "output"
@@ -46,9 +46,9 @@ create_provision_commands config/Config cache/Cache -> List:
 
 create_identity config/Config parsed/cli.Parsed:
   output_file := parsed["output"]
-  output_dir := parsed["output-dir"]
+  output_dir := parsed["output-directory"]
   if output_file and output_dir:
-    throw "Cannot specify both --output-file and --output-dir"
+    throw "Cannot specify both --output-file and --output-directory"
 
   organization_id := parsed["organization-id"]
   device_id := parsed["device-id"]

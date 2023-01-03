@@ -34,7 +34,7 @@ run_test test_cli/TestCli:
       "provision",
       "create-identity",
       "--organization-id", TEST_ORGANIZATION_UUID,
-      "--output-dir", tmp_dir,
+      "--output-directory", tmp_dir,
     ]
     files := directory.DirectoryStream tmp_dir
     identity_file := files.next
