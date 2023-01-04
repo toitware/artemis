@@ -9,6 +9,7 @@ import encoding.json
 
 import ..artemis_server
 import ...device
+import ...organization
 
 import ....shared.server_config
 
@@ -44,6 +45,16 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       "hardware_id": hardware_id,
       "data": { "type": "created" },
     }
+
+  get_organizations -> List:
+    organizations := send_request_ "get-organizations" {:}
+    return organizations.map: Organization.from_map it
+
+  create_organization name/string -> Organization:
+    organization := send_request_ "create-organization" {
+      "name": name,
+    }
+    return Organization.from_map organization
 
   send_request_ command/string data/Map -> any:
     encoded := ubjson.encode {

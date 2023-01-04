@@ -35,6 +35,8 @@ run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor
     server_service := ArtemisServerService server_config --hardware_id=hardware_id
     test_check_in network server_service backdoor --hardware_id=hardware_id
 
+    test_organizations server_cli backdoor
+
 
 test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
   // Test without and with alias.
@@ -73,3 +75,23 @@ test_check_in network/net.Interface
   expect_not (backdoor.has_event --hardware_id=hardware_id --type="ping")
   server_service.check_in network log.default
   expect (backdoor.has_event --hardware_id=hardware_id --type="ping")
+
+test_organizations server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
+  original_orgs := server_cli.get_organizations
+
+  // For now we can't be sure that there aren't other organizations from
+  // previous runs of the test.
+  // Just ensure that there is at least one.
+  expect original_orgs.size >= 1  // The prefilled organization.
+  expect (original_orgs.any: it.id == TEST_ORGANIZATION_UUID)
+
+  org := server_cli.create_organization "Testy"
+  expect_equals "Testy" org.name
+  expect_not_equals "" org.id
+  expect_not (original_orgs.any: it.id == org.id)
+
+  new_orgs := server_cli.get_organizations
+  expect_equals (original_orgs.size + 1) new_orgs.size
+  original_orgs.do: | old_org |
+    expect (new_orgs.any: it.id == old_org.id)
+  expect (new_orgs.any: it.id == org.id)

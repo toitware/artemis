@@ -60,6 +60,16 @@ class HttpArtemisServer extends HttpServer:
     if command == "create-device-in-organization":
       return create_device_in_organization data
     if command == "notify-created": return store_event data
+    if command == "get-organizations":
+      result := []
+      organizations.do: | id name |
+        result.add {"id": id, "name": name}
+      return result
+    if command == "create-organization":
+      id := "$(uuid.uuid5 "" "organization_id - $Time.monotonic_us")"
+      organizations[id] = data["name"]
+      return {"id": id, "name": data["name"]}
+
     else:
       throw "BAD COMMAND $command"
 
