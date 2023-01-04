@@ -15,10 +15,11 @@ import ..cache
 import ..config
 import ..sdk
 import ..server_config
+import ..ui
 
 import ...service.run.host show run_host
 
-create_firmware_commands config/Config cache/Cache -> List:
+create_firmware_commands config/Config cache/Cache ui/Ui -> List:
   firmware_cmd := cli.Command "firmware"
 
   create_cmd := cli.Command "create"
@@ -29,7 +30,7 @@ create_firmware_commands config/Config cache/Cache -> List:
             --type="file"
             --required
       ]
-      --run=:: create_firmware config cache it
+      --run=:: create_firmware it config cache
 
   flash_cmd := cli.Command "flash"
       --short_help="Flash the initial firmware on a device."
@@ -52,7 +53,7 @@ create_firmware_commands config/Config cache/Cache -> List:
             --short_help="Firmware envelope to flash."
             --required,
       ]
-      --run=:: flash_firmware config cache it
+      --run=:: flash_firmware it config cache ui
 
   update_cmd := cli.Command "update"
       --short_help="Update the firmware on a device."
@@ -63,14 +64,14 @@ create_firmware_commands config/Config cache/Cache -> List:
             --short_help="Firmware envelope to install."
             --required,
       ]
-      --run=:: update_firmware config cache it
+      --run=:: update_firmware it config cache ui
 
   firmware_cmd.add create_cmd
   firmware_cmd.add flash_cmd
   firmware_cmd.add update_cmd
   return [firmware_cmd]
 
-create_firmware config/Config cache/Cache parsed/cli.Parsed -> none:
+create_firmware parsed/cli.Parsed config/Config cache/Cache -> none:
   output_path := parsed["output"]
   broker_config := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
   artemis_server_config := get_server_from_config config parsed["broker.artemis"] CONFIG_ARTEMIS_DEFAULT_KEY
@@ -121,7 +122,7 @@ create_firmware config/Config cache/Cache parsed/cli.Parsed -> none:
     system_uuid ::= uuid.uuid5 "system.uuid" "$(random 1_000_000)-$Time.now-$Time.monotonic_us"
     run_firmware_tool ["-e", output_path, "property", "set", "uuid", system_uuid.stringify]
 
-flash_firmware config/Config cache/Cache parsed/cli.Parsed:
+flash_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   firmware_path := parsed["firmware"]
   identity_path := parsed["identity"]
 
@@ -142,6 +143,7 @@ flash_firmware config/Config cache/Cache parsed/cli.Parsed:
       --wifi=wifi
       --device_id=device_id
       --firmware_path=firmware_path
+      --ui=ui
   artemis.close
   broker.close
 
@@ -153,7 +155,7 @@ flash_firmware config/Config cache/Cache parsed/cli.Parsed:
     return
 
   if not parsed["port"]:
-    print "No --port option given."
+    ui.error "No --port option given."
     exit 1
   port/string := parsed["port"]
   baud/string? := parsed["baud"]
@@ -173,13 +175,13 @@ flash_firmware config/Config cache/Cache parsed/cli.Parsed:
     if baud: arguments.add_all ["--baud", baud]
     run_firmware_tool arguments
 
-update_firmware config/Config cache/Cache parsed/cli.Parsed:
+update_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_selector := parsed["device"]
   firmware_path := parsed["firmware"]
 
   broker := create_broker_from_cli_args config parsed
   artemis := Artemis broker cache
   device_id := artemis.device_selector_to_id device_selector
-  artemis.firmware_update --device_id=device_id --firmware_path=firmware_path
+  artemis.firmware_update --device_id=device_id --firmware_path=firmware_path --ui=ui
   artemis.close
   broker.close

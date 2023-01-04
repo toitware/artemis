@@ -6,9 +6,10 @@ import certificate_roots
 import supabase
 
 import .config
+import .ui
 import ..shared.server_config
 
-sign_in server_config/ServerConfig config/Config -> none:
+sign_in server_config/ServerConfig config/Config --ui/Ui -> none:
   if server_config is not ServerConfigSupabase:
     throw "Unsupported broker type."
 
@@ -23,7 +24,7 @@ sign_in server_config/ServerConfig config/Config -> none:
         --local_storage=local_storage
         --server_config=supabase_config
         --certificate_provider=: certificate_roots.MAP[it]
-    client.auth.sign_in --provider="github"
+    client.auth.sign_in --provider="github" --ui=ui
   finally:
     if client: client.close
 

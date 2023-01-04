@@ -93,7 +93,7 @@ class Auth:
         --token_type=response["token_type"]
     client_.set_session_ session
 
-  sign_in --provider/string -> none:
+  sign_in --provider/string --ui/Ui -> none:
     network := net.open
     try:
       server_socket := network.tcp_listen 0
@@ -104,7 +104,7 @@ class Auth:
           --redirect_url="http://localhost:$port/auth"
           --provider="github"
 
-      print "Please authenticate at $authenticate_url"
+      ui.info "Please authenticate at $authenticate_url"
       catch:
         if platform == PLATFORM_LINUX:
           pipe.backticks "xdg-open" authenticate_url

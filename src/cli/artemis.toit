@@ -4,6 +4,7 @@ import crypto.sha256
 import host.file
 import uuid
 import bytes
+import log
 import reader
 import writer
 import system.firmware
@@ -21,6 +22,7 @@ import .utils.patch_build show build_diff_patch build_trivial_patch
 import ..shared.utils.patch show Patcher PatchObserver
 
 import .brokers.broker
+import .ui
 
 /**
 Manages devices that have an Artemis service running on them.
@@ -59,7 +61,7 @@ class Artemis:
         store.move tmp_dir
 
     broker_.device_update_config --device_id=device_id: | config/Map |
-      print "$(%08d Time.monotonic_us): Installing app: $app_name"
+      log.info "$(%08d Time.monotonic_us): Installing app: $app_name"
       apps := config.get "apps" --if_absent=: {:}
       apps[app_name] = {"id": id, "random": (random 1000)}
       config["apps"] = apps
@@ -67,14 +69,14 @@ class Artemis:
 
   app_uninstall --device_id/string --app_name/string:
     broker_.device_update_config --device_id=device_id: | config/Map |
-      print "$(%08d Time.monotonic_us): Uninstalling app: $app_name"
+      log.info "$(%08d Time.monotonic_us): Uninstalling app: $app_name"
       apps := config.get "apps"
       if apps: apps.remove app_name
       config
 
   config_set_max_offline --device_id/string --max_offline_seconds/int:
     broker_.device_update_config --device_id=device_id: | config/Map |
-      print "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline_seconds)"
+      log.info "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline_seconds)"
       if max_offline_seconds > 0:
         config["max-offline"] = max_offline_seconds
       else:
@@ -85,7 +87,8 @@ class Artemis:
       --identity/Map
       --wifi/Map
       --device_id/string
-      --firmware_path/string:
+      --firmware_path/string
+      --ui/Ui:
     with_tmp_directory: | tmp/string |
       artemis_assets_path := "$tmp/artemis.assets"
       run_firmware_tool [
@@ -98,10 +101,10 @@ class Artemis:
 
       // TODO(kasper): Clean this up and provide a better error message.
       if not is_same_broker "broker" identity tmp artemis_assets_path:
-        print "not the same broker"
+        ui.error "not the same broker"
         exit 1
       if not is_same_broker "artemis.broker" identity tmp artemis_assets_path:
-        print "not the same artemis broker"
+        ui.error "not the same artemis broker"
         exit 1
 
     firmware/Firmware? := null
@@ -123,7 +126,7 @@ class Artemis:
 
     return firmware
 
-  firmware_update --device_id/string --firmware_path/string -> none:
+  firmware_update --device_id/string --firmware_path/string --ui/Ui -> none:
     broker_.device_update_config --device_id=device_id: | config/Map |
       upgrade_from/Firmware? := null
       existing := config.get "firmware"
@@ -134,7 +137,7 @@ class Artemis:
       if device:
         existing_id := device.get "device_id"
         if device_id != existing_id:
-          print "Warning: Device id was wrong; expected $device_id but was $existing_id."
+          ui.error "Device id was wrong; expected $device_id but was $existing_id."
           device = null
 
       if not device:
@@ -145,7 +148,7 @@ class Artemis:
       if upgrade_from: wifi = upgrade_from.config "wifi"
       if not wifi:
         // Device has no way to connect.
-        print "Warning: Device has no way to connect."
+        ui.error "Device has no way to connect."
 
       upgrade_to := compute_firmware_update_
           --device=device

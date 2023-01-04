@@ -10,6 +10,7 @@ import artemis.cli.config as cli
 import artemis.shared.server_config
 import artemis.service
 import artemis.service.device show Device
+import artemis.cli.ui show ConsoleUi
 import ..tools.http_servers.broker as http_servers
 import ..tools.http_servers.artemis_server as http_servers
 import monitor
@@ -83,14 +84,24 @@ with_http_artemis_server [block]:
     server.close
     server_task.cancel
 
+// TODO(florian): Maybe it's better to use a simplified version of the
+//   the UI, so it's easier to match against it. We probably want the
+//   default version of the console UI to be simpler anyway.
+class TestUi extends ConsoleUi:
+  stdout := ""
+
+  print_ str/string:
+    stdout += "$str\n"
+
 class TestCli:
   config/cli.Config
   cache/cli.Cache
-
   constructor .config .cache:
 
-  run args:
-    cli.main args --config=config --cache=cache
+  run args -> string:
+    ui := TestUi
+    cli.main args --config=config --cache=cache --ui=ui
+    return ui.stdout
 
 /**
 Starts the artemis server and broker.

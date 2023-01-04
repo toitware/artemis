@@ -5,9 +5,10 @@ import cli
 import ..artemis
 import ..config
 import ..cache
+import ..ui
 import .device_options_
 
-create_app_commands config/Config cache/Cache -> List:
+create_app_commands config/Config cache/Cache ui/Ui -> List:
   install_cmd := cli.Command "install"
       --short_help="Install an app on a device."
       --options=device_options

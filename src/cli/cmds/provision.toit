@@ -15,13 +15,14 @@ import ..server_config
 import ..cache
 import ..config
 import ..device
+import ..ui
 import ..artemis_servers.artemis_server show ArtemisServerCli
 
 import .broker_options_
 
 import ...shared.server_config
 
-create_provision_commands config/Config cache/Cache -> List:
+create_provision_commands config/Config cache/Cache ui/Ui -> List:
   provision_cmd := cli.Command "provision"
 
   create_identity_cmd := cli.Command "create-identity"
@@ -39,12 +40,12 @@ create_provision_commands config/Config cache/Cache -> List:
         cli.OptionString "organization-id"
             --default="4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
       ]
-      --run=:: create_identity config it
+      --run=:: create_identity it config ui
 
   provision_cmd.add create_identity_cmd
   return [provision_cmd]
 
-create_identity config/Config parsed/cli.Parsed:
+create_identity parsed/cli.Parsed  config/Config ui/Ui:
   output_file := parsed["output"]
   output_dir := parsed["output-directory"]
   if output_file and output_dir:
@@ -89,6 +90,7 @@ create_identity config/Config parsed/cli.Parsed:
         --server_config=broker
         --artemis_server_config=artemis_broker
         --output_path=output_path
+        --ui=ui
   finally:
     network.close
 
@@ -98,7 +100,8 @@ create_identity_file -> none
     --hardware_id/string
     --server_config/ServerConfigSupabase
     --artemis_server_config/ServerConfigSupabase
-    --output_path/string:
+    --output_path/string
+    --ui/Ui:
 
   // A map from id to deduplicated certificate.
   deduplicated_certificates := {:}
@@ -121,7 +124,7 @@ create_identity_file -> none
     identity[name] = content
 
   write_ubjson_to_file output_path identity
-  print "Created device identity => $output_path"
+  ui.info "Created device identity => $output_path"
 
 add_certificate_assets assets_path/string tmp/string certificates/Map -> none:
   // Add the certificates as distinct assets, so we can load them without

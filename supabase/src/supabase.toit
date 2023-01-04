@@ -20,6 +20,12 @@ interface ServerConfig:
   certificate_text -> string?
 
 /**
+An interface for interactions with the user.
+*/
+interface Ui:
+  info str/string
+
+/**
 A client for the Supabase API.
 
 Supabase provides several different APIs under one umbrella.
