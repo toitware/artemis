@@ -75,15 +75,15 @@ class BrokerCliMqtt implements BrokerCli:
       if not writer:
         others = 0
         // TODO(florian): Make this real 'log' entries.
-        log.default.info "$(%08d Time.monotonic_us): Trying to acquire lock"
+        log.info "$(%08d Time.monotonic_us): Trying to acquire lock"
         client.publish topic_lock (ubjson.encode me)  --qos=1 --retain
       else if writer == me:
         if others == 0:
-          log.default.info "$(%08d Time.monotonic_us): Acquired lock"
+          log.info "$(%08d Time.monotonic_us): Acquired lock"
           locked.set me
         else:
           // Someone else locked this before us. Just wait.
-          log.default.info "$(%08d Time.monotonic_us): Another writer acquired the lock"
+          log.info "$(%08d Time.monotonic_us): Another writer acquired the lock"
       else:
         others++
 
@@ -96,7 +96,7 @@ class BrokerCliMqtt implements BrokerCli:
         locked.get
     if exception == DEADLINE_EXCEEDED_ERROR and others == 0:
       // We assume that nobody has taken the lock so far.
-      log.default.info "$(%08d Time.monotonic_us): Trying to initialize writer lock"
+      log.info "$(%08d Time.monotonic_us): Trying to initialize writer lock"
       client.publish topic_lock (ubjson.encode me) --qos=1 --retain
 
       exception = catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
@@ -112,7 +112,7 @@ class BrokerCliMqtt implements BrokerCli:
       // We didn't get the lock.
       // TODO(florian): in theory we might just now get the lock. However, we
       // will not release it. This could lead to a bad state.
-      log.default.info "$(%08d Time.monotonic_us): Timed out waiting for writer lock"
+      log.info "$(%08d Time.monotonic_us): Timed out waiting for writer lock"
       return
 
     try:
@@ -136,7 +136,7 @@ class BrokerCliMqtt implements BrokerCli:
         with_timeout --ms=retain_timeout_ms:
           config = config_channel.receive
       if exception == DEADLINE_EXCEEDED_ERROR:
-        log.default.info "$(%08d Time.monotonic_us): Trying to initialize config"
+        log.info "$(%08d Time.monotonic_us): Trying to initialize config"
         client.publish topic_config (ubjson.encode {"revision": 0}) --qos=1 --retain
         client.publish topic_revision (ubjson.encode 0) --qos=1 --retain
 
@@ -144,7 +144,7 @@ class BrokerCliMqtt implements BrokerCli:
           with_timeout --ms=retain_timeout_ms:
             config = config_channel.receive
         if exception == DEADLINE_EXCEEDED_ERROR:
-          log.default.info "$(%08d Time.monotonic_us): Timed out waiting for config"
+          log.info "$(%08d Time.monotonic_us): Timed out waiting for config"
           return
 
       old_revision := revision_channel.receive
@@ -165,11 +165,11 @@ class BrokerCliMqtt implements BrokerCli:
       if revision_channel.receive != revision:
         throw "FATAL: Wrong revision in updated config"
 
-      log.default.info "Updated config to $config"
+      log.info "Updated config to $config"
 
     finally:
       critical_do:
-        log.default.info "$(%08d Time.monotonic_us): Releasing lock"
+        log.info "$(%08d Time.monotonic_us): Releasing lock"
         client.publish topic_lock (ubjson.encode null) --retain
 
   upload_image --app_id/string --bits/int content/ByteArray -> none:

@@ -61,7 +61,7 @@ class Artemis:
         store.move tmp_dir
 
     broker_.device_update_config --device_id=device_id: | config/Map |
-      log.default.info "$(%08d Time.monotonic_us): Installing app: $app_name"
+      log.info "$(%08d Time.monotonic_us): Installing app: $app_name"
       apps := config.get "apps" --if_absent=: {:}
       apps[app_name] = {"id": id, "random": (random 1000)}
       config["apps"] = apps
@@ -69,14 +69,14 @@ class Artemis:
 
   app_uninstall --device_id/string --app_name/string:
     broker_.device_update_config --device_id=device_id: | config/Map |
-      log.default.info "$(%08d Time.monotonic_us): Uninstalling app: $app_name"
+      log.info "$(%08d Time.monotonic_us): Uninstalling app: $app_name"
       apps := config.get "apps"
       if apps: apps.remove app_name
       config
 
   config_set_max_offline --device_id/string --max_offline_seconds/int:
     broker_.device_update_config --device_id=device_id: | config/Map |
-      log.default.info "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline_seconds)"
+      log.info "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline_seconds)"
       if max_offline_seconds > 0:
         config["max-offline"] = max_offline_seconds
       else:
