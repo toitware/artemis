@@ -35,7 +35,7 @@ run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor
     server_service := ArtemisServerService server_config --hardware_id=hardware_id
     test_check_in network server_service backdoor --hardware_id=hardware_id
 
-    test_orgs server_cli backdoor
+    test_organizations server_cli backdoor
 
 
 test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
@@ -76,7 +76,7 @@ test_check_in network/net.Interface
   server_service.check_in network log.default
   expect (backdoor.has_event --hardware_id=hardware_id --type="ping")
 
-test_orgs server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
+test_organizations server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   original_orgs := server_cli.get_organizations
 
   // For now we can't be sure that there aren't other organizations from
