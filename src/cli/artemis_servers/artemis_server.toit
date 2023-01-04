@@ -41,7 +41,11 @@ interface ArtemisServerCli:
   */
   notify_created --hardware_id/string
 
-  /** Fetches list of $Organization s  the user has access to. */
+  /**
+  Fetches list of organizations the user has access to.
+
+  The returned list contains instances of type $Organization.
+  */
   get_organizations -> List
 
   /** Creates a new organization with the given $name. */
