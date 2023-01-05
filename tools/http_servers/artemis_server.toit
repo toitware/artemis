@@ -81,9 +81,8 @@ class HttpArtemisServer extends HttpServer:
       return result
     if command == "get-organization-details":
       organization_id := data["id"]
-      if not organizations.contains organization_id: return null
-      organization := organizations[organization_id]
-      return organization.to_json
+      organization := organizations.get organization_id
+      return organization and organization.to_json
     if command == "create-organization":
       id := "$(uuid.uuid5 "" "organization_id - $Time.monotonic_us")"
       organization := add_organization id data["name"]
