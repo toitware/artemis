@@ -35,7 +35,6 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
 
   return [org_cmd]
 
-
 list_orgs parsed/cli.Parsed config/Config ui/Ui -> none:
   server_config/ServerConfig := ?
   server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
