@@ -50,6 +50,13 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     organizations := send_request_ "get-organizations" {:}
     return organizations.map: Organization.from_map it
 
+  get_organization id -> DetailedOrganization?:
+    organization := send_request_ "get-organization-details" {
+      "id": id,
+    }
+    if organization == null: return null
+    return DetailedOrganization.from_map organization
+
   create_organization name/string -> Organization:
     organization := send_request_ "create-organization" {
       "name": name,

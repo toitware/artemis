@@ -29,6 +29,6 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
 
 main:
   with_http_artemis_server: | server/HttpArtemisServer server_config/ServerConfigHttpToit |
-    server.organizations[TEST_ORGANIZATION_UUID] = "Test org"
+    server.add_organization TEST_ORGANIZATION_UUID TEST_ORGANIZATION_NAME
     backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
     run_test server_config backdoor  --authenticate=: null

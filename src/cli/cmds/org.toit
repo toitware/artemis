@@ -31,7 +31,18 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: create_org it config ui
   org_cmd.add create_cmd
 
-  // TODO(florian): add 'show', 'use', 'default', 'delete', and member commands.
+  show_cmd := cli.Command "show"
+      --short_help="Show details of an organization."
+      --rest=[
+        // TODO(florian): would be nice to accept a name here as well.
+        cli.OptionString "id"
+            --short_help="ID of the organization."
+            --required,
+      ]
+      --run=:: show_org it config ui
+  org_cmd.add show_cmd
+
+  // TODO(florian): add 'use', 'default', 'delete', and member commands.
 
   return [org_cmd]
 
@@ -51,3 +62,15 @@ create_org parsed/cli.Parsed config/Config ui/Ui -> none:
   with_server server_config config: | server/ArtemisServerCli |
     org := server.create_organization parsed["name"]
     ui.info "Created organization $org.id - $org.name"
+
+show_org parsed/cli.Parsed config/Config ui/Ui -> none:
+  server_config/ServerConfig := ?
+  server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
+
+  with_server server_config config: | server/ArtemisServerCli |
+    org := server.get_organization parsed["id"]
+    ui.info_map {
+      "ID": org.id,
+      "Name": org.name,
+      "Created": org.created_at,
+    }

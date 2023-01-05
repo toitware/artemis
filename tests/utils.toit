@@ -31,6 +31,7 @@ DEMO_EXAMPLE_COM_PASSWORD ::= "password"
 DEMO_EXAMPLE_COM_UUID ::= "d9064bb5-1501-4ec9-bfee-21ab74d645b8"
 
 /** Preseeded "Test Organization". */
+TEST_ORGANIZATION_NAME ::= "Test Organization"
 TEST_ORGANIZATION_UUID ::= "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
 
 /** Preseeded test device in $TEST_ORGANIZATION_UUID. */

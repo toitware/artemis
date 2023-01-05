@@ -48,6 +48,13 @@ interface ArtemisServerCli:
   */
   get_organizations -> List
 
+  /**
+  Fetches the organizations with the given $id.
+
+  Returns null if the organization doesn't exist.
+  */
+  get_organization id/string -> DetailedOrganization?
+
   /** Creates a new organization with the given $name. */
   create_organization name/string -> Organization
 

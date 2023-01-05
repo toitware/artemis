@@ -38,10 +38,24 @@ class EventEntry:
   stringify -> string:
     return "EventEntry($device_id, $data)"
 
+class OrganizationEntry:
+  id/string
+  name/string
+  created_at/Time
+
+  constructor .id --.name --.created_at:
+
+  to_json -> Map:
+    return {
+      "id": id,
+      "name": name,
+      "created_at": created_at.stringify,
+    }
+
 class HttpArtemisServer extends HttpServer:
   static DEVICE_NOT_FOUND ::= 0
 
-  /** Map from ID to name. */
+  /** Map from ID to $OrganizationEntry. */
   organizations/Map := {:}
   /** Map from fleet-ID to organization ID. */
   fleets/Map := {:}
@@ -62,13 +76,18 @@ class HttpArtemisServer extends HttpServer:
     if command == "notify-created": return store_event data
     if command == "get-organizations":
       result := []
-      organizations.do: | id name |
-        result.add {"id": id, "name": name}
+      organizations.do: | _ entry/OrganizationEntry |
+        result.add {"id": entry.id, "name": entry.name}
       return result
+    if command == "get-organization-details":
+      organization_id := data["id"]
+      organization := organizations.get organization_id
+      return organization and organization.to_json
     if command == "create-organization":
       id := "$(uuid.uuid5 "" "organization_id - $Time.monotonic_us")"
-      organizations[id] = data["name"]
-      return {"id": id, "name": data["name"]}
+      organization := add_organization id data["name"]
+      organizations[id] = organization
+      return organization.to_json
 
     else:
       throw "BAD COMMAND $command"
@@ -95,3 +114,8 @@ class HttpArtemisServer extends HttpServer:
       "id": device_id,
       "organization_id": organization_id,
     }
+
+  add_organization id/string name/string -> OrganizationEntry:
+    organization := OrganizationEntry id --name=name --created_at=Time.now
+    organizations[id] = organization
+    return organization
