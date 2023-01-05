@@ -32,12 +32,15 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
   org_cmd.add create_cmd
 
   show_cmd := cli.Command "show"
-      --short_help="Show details of an organization."
-      --rest=[
+      --long_help="""
+        Show details of an organization.
+
+        If no ID is given, shows the default organization.
+        """
+      --options=[
         // TODO(florian): would be nice to accept a name here as well.
         cli.OptionString "id"
             --short_help="ID of the organization."
-            --required,
       ]
       --run=:: show_org it config ui
   org_cmd.add show_cmd
@@ -84,8 +87,14 @@ create_org parsed/cli.Parsed config/Config ui/Ui -> none:
     ui.info "Created organization $org.id - $org.name"
 
 show_org parsed/cli.Parsed config/Config ui/Ui -> none:
+  id := parsed["id"]
+  if not id:
+    id = config.get CONFIG_ORGANIZATION_DEFAULT
+    if not id:
+      ui.error "No default organization set."
+      exit 1
   with_org_server parsed config: | server/ArtemisServerCli |
-    print_org parsed["id"] server ui
+    print_org id server ui
 
 print_org id/string server/ArtemisServerCli ui/Ui -> none:
   org := server.get_organization id

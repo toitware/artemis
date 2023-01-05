@@ -69,7 +69,7 @@ run_test test_cli/TestCli:
       expect (original_lines.contains line)
 
   // Test 'org show'.
-  show_output := test_cli.run [ "org", "show", id ]
+  show_output := test_cli.run [ "org", "show", "--id", id ]
   expect (show_output.contains "Testy")
   expect (show_output.contains id)
   // Find the 'Created' output.
@@ -99,3 +99,8 @@ run_test test_cli/TestCli:
 
   default_id_only := test_cli.run [ "org", "default", "--id-only" ]
   expect (default_id_only.trim == id)
+
+  // Once a default organization is set, we can use 'org show' without arguments.
+  show_default_output := test_cli.run [ "org", "show" ]
+  expect (show_default_output.contains "Testy")
+  expect (show_default_output.contains id)
