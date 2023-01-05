@@ -50,3 +50,13 @@ interface ArtemisServerCli:
 
   /** Creates a new organization with the given $name. */
   create_organization name/string -> Organization
+
+with_server server_config/ServerConfig config/Config [block]:
+  network := net.open
+  server/ArtemisServerCli? := null
+  try:
+    server = ArtemisServerCli network server_config config
+    block.call server
+  finally:
+    if server: server.close
+    network.close
