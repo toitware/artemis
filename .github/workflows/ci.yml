@@ -131,6 +131,13 @@ jobs:
           echo "SUPABASE_CUSTOMER_API_HOST=$API_HOST" >> $GITHUB_ENV
           echo "SUPABASE_CUSTOMER_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
+      - name: Start Supabase - Supabase test
+        shell: bash
+        working-directory: ${{ github.workspace }}/tests/supabase_test
+        run: |
+          supabase start
+          supabase status
+
       - uses: suisei-cn/actions-download-file@v1
         name: Download Toit
         with:
