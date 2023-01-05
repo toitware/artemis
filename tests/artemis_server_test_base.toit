@@ -4,6 +4,7 @@ import expect show *
 import host.directory
 import log
 import net
+import uuid
 
 import .supabase_local_server
 
@@ -95,3 +96,11 @@ test_organizations server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   original_orgs.do: | old_org |
     expect (new_orgs.any: it.id == old_org.id)
   expect (new_orgs.any: it.id == org.id)
+
+  detailed := server_cli.get_organization org.id
+  expect_equals org.id detailed.id
+  expect_equals org.name detailed.name
+  expect (detailed.created_at < Time.now)
+
+  non_existent := server_cli.get_organization (uuid.uuid5 "non" "existent").stringify
+  expect_null non_existent
