@@ -83,3 +83,19 @@ run_test test_cli/TestCli:
   // Give the test some slack.
   expect (created_time >= test_start - (Duration --s=2))
   expect (created_time <= Time.now)
+
+  // Test 'org use' and 'org default'.
+  // TODO(florian): test no-default and bad default organization.
+  // Currently we can't do that, as the program exits with 'exit 1' in that
+  // case and we wouldn't be able to stop that.
+
+  use_output := test_cli.run [ "org", "use", id ]
+  expect (use_output.contains "set to")
+  expect (use_output.contains "Testy")
+
+  default_output := test_cli.run [ "org", "default"]
+  expect (default_output.contains "Name: Testy")
+  expect (default_output.contains "ID: $id")
+
+  default_id_only := test_cli.run [ "org", "default", "--id-only" ]
+  expect (default_id_only.trim == id)
