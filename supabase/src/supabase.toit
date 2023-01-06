@@ -9,7 +9,7 @@ import net.x509
 import http.status_codes
 import encoding.json as json_encoding
 import encoding.url as url_encoding
-import reader show SizedReader
+import reader show SizedReader BufferedReader
 
 import .auth
 
@@ -220,11 +220,11 @@ class Client:
     if method == http.GET:
       if payload: throw "GET requests cannot have a payload"
       response = http_client_.get host_ path --headers=headers
-    else if method == "PATCH":
+    else if method == "PATCH" or method == http.DELETE:
       // TODO(florian): the http client should support PATCH.
       encoded := json_encoding.encode payload
       headers.set "Content-Type" "application/json"
-      request := http_client_.new_request "PATCH" host_ path --headers=headers
+      request := http_client_.new_request method host_ path --headers=headers
       request.body = bytes.Reader encoded
       response = request.send
     else:
@@ -287,7 +287,14 @@ class Client:
       while chunk := response.body.read: result_bytes += chunk
       return result_bytes.to_string_non_throwing
 
-    result := json_encoding.decode_stream response.body
+    // Still check whether there is a response.
+    // When performing an RPC we can't know in advance whether the function
+    // returns something or not.
+    buffered_reader := BufferedReader response.body
+    if not buffered_reader.can_ensure 1:
+      return null
+
+    result := json_encoding.decode_stream buffered_reader
     // TODO(florian): this shouldn't be necessary in the latest http package.
     response.body.read  // Make sure we drain the body.
     return result
@@ -448,6 +455,33 @@ class PostgRest:
         --path="/rest/v1/$table"
         --payload=payload
         --parse_response_json=false
+
+  /**
+  Deletes all rows that match the filters.
+
+  If no filters are given, then all rows are deleted.
+  */
+  delete table/string --filters/List -> none:
+    // TODO(florian): the filters need to be URL encoded.
+    query_filters := filters.join "&"
+    // We are not using the response. Use the minimal response.
+    headers := http.Headers
+    headers.add "Prefer" RETURN_MINIMAL_
+    client_.request_
+        --method=http.DELETE
+        --headers=headers
+        --path="/rest/v1/$table"
+        --parse_response_json=false
+        --query=query_filters
+
+  /**
+  Performs a remote procedure call (RPC).
+  */
+  rpc name/string payload/Map -> any:
+    return client_.request_
+        --method=http.POST
+        --path="/rest/v1/rpc/$name"
+        --payload=payload
 
 class Storage:
   client_/Client
