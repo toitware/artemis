@@ -288,7 +288,7 @@ class Client:
       return result_bytes.to_string_non_throwing
 
     // Still check whether there is a response.
-    // When calling an RPC we can't know in advance whether the function
+    // When performing an RPC we can't know in advance whether the function
     // returns something or not.
     buffered_reader := BufferedReader response.body
     if not buffered_reader.can_ensure 1:
@@ -475,7 +475,7 @@ class PostgRest:
         --query=query_filters
 
   /**
-  Performs an RPC call.
+  Performs a remote procedure call (RPC).
   */
   rpc name/string payload/Map -> any:
     return client_.request_
