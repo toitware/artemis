@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Toitware ApS.
+// Copyright (C) 2023 Toitware ApS.
 
 import supabase
 import .supabase_local_server
@@ -45,15 +45,15 @@ test_rest client/supabase.Client:
     "name": "test",
     "value": 11,
   }
-  expect row["name"] == "test"
-  expect row["value"] == 11
+  expect_equals "test" row["name"]
+  expect_equals 11 row["value"]
   valid_id := row["id"]
 
   // Check that select sees the new row.
   rows = client.rest.select TEST_TABLE
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "test"
-  expect rows[0]["value"] == 11
+  expect_equals "test" rows[0]["name"]
+  expect_equals 11 rows[0]["value"]
 
   // Update the row.
   client.rest.update TEST_TABLE --filters=[
@@ -64,8 +64,8 @@ test_rest client/supabase.Client:
   // Check that the update succeeded.
   rows = client.rest.select TEST_TABLE
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "test"
-  expect rows[0]["value"] == 12
+  expect_equals "test" rows[0]["name"]
+  expect_equals 12 rows[0]["value"]
 
   // We can also use 'upsert' to update the row.
   client.rest.upsert TEST_TABLE {
@@ -76,8 +76,8 @@ test_rest client/supabase.Client:
   // Check that the update succeeded.
   rows = client.rest.select TEST_TABLE
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "test"
-  expect rows[0]["value"] == 13
+  expect_equals "test" rows[0]["name"]
+  expect_equals 13 rows[0]["value"]
 
   // Alternatively, we can also ignore duplicates.
   client.rest.upsert TEST_TABLE --ignore_duplicates {
@@ -88,8 +88,8 @@ test_rest client/supabase.Client:
   // Check that the update didn't do anything (ignoring the duplicate).
   rows = client.rest.select TEST_TABLE
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "test"
-  expect rows[0]["value"] == 13
+  expect_equals "test" rows[0]["name"]
+  expect_equals 13 rows[0]["value"]
 
   // Upsert also works for inserting new rows.
   client.rest.upsert TEST_TABLE {
@@ -100,22 +100,22 @@ test_rest client/supabase.Client:
   rows = client.rest.select TEST_TABLE
   expect_equals 2 rows.size
   if rows[0]["name"] == "test":
-    expect rows[0]["value"] == 13
-    expect rows[1]["name"] == "test2"
-    expect rows[1]["value"] == 14
+    expect_equals 13 rows[0]["value"]
+    expect_equals "test2" rows[1]["name"]
+    expect_equals 14 rows[1]["value"]
   else:
-    expect rows[0]["name"] == "test2"
-    expect rows[0]["value"] == 14
-    expect rows[1]["name"] == "test"
-    expect rows[1]["value"] == 13
+    expect_equals "test2" rows[0]["name"]
+    expect_equals 14 rows[0]["value"]
+    expect_equals "test" rows[1]["name"]
+    expect_equals 13 rows[1]["value"]
 
   // Use select with filters.
   rows = client.rest.select TEST_TABLE --filters=[
     "value=eq.14",
   ]
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "test2"
-  expect rows[0]["value"] == 14
+  expect_equals "test2" rows[0]["name"]
+  expect_equals 14 rows[0]["value"]
 
   // Check insert without returning the result.
   inserted := client.rest.insert TEST_TABLE --no-return_inserted {
@@ -128,8 +128,8 @@ test_rest client/supabase.Client:
     "name=eq.test3",
   ]
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "test3"
-  expect rows[0]["value"] == 15
+  expect_equals "test3" rows[0]["name"]
+  expect_equals 15 rows[0]["value"]
 
   // We can't use the default 'insert' for writing into a table we can't read.
   expect_throws --contains="policy":
@@ -153,8 +153,8 @@ test_rest client/supabase.Client:
   // Check that the insert succeeded.
   rows = client.rest.select TEST_TABLE2_VIEW
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "test 99"
-  expect rows[0]["other_id"] == valid_id
+  expect_equals "test 99" rows[0]["name"]
+  expect_equals valid_id rows[0]["other_id"]
 
   /*
   Reminder: test_table now has the following entries:
@@ -176,8 +176,8 @@ test_rest client/supabase.Client:
     "value=eq.100",
   ]
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "test"
-  expect rows[0]["value"] == 100
+  expect_equals "test" rows[0]["name"]
+  expect_equals 100 rows[0]["value"]
 
   // Test update of multiple rows.
   client.rest.update TEST_TABLE --filters=[
@@ -191,14 +191,14 @@ test_rest client/supabase.Client:
   ]
   expect_equals 2 rows.size
   if rows[0]["name"] == "test2":
-    expect rows[0]["value"] == 200
-    expect rows[1]["name"] == "test3"
-    expect rows[1]["value"] == 200
+    expect_equals 200 rows[0]["value"]
+    expect_equals "test3" rows[1]["name"]
+    expect_equals 200 rows[1]["value"]
   else:
-    expect rows[0]["name"] == "test3"
-    expect rows[0]["value"] == 200
-    expect rows[1]["name"] == "test2"
-    expect rows[1]["value"] == 200
+    expect_equals "test3" rows[0]["name"]
+    expect_equals 200 rows[0]["value"]
+    expect_equals "test2" rows[1]["name"]
+    expect_equals 200 rows[1]["value"]
 
   // Test delete.
   client.rest.delete TEST_TABLE --filters=[
@@ -213,14 +213,14 @@ test_rest client/supabase.Client:
   rows = client.rest.select TEST_TABLE
   expect_equals 2 rows.size
   if rows[0]["name"] == "test2":
-    expect rows[0]["value"] == 200
-    expect rows[1]["name"] == "test3"
-    expect rows[1]["value"] == 200
+    expect_equals 200 rows[0]["value"]
+    expect_equals "test3" rows[1]["name"]
+    expect_equals 200 rows[1]["value"]
   else:
-    expect rows[0]["name"] == "test3"
-    expect rows[0]["value"] == 200
-    expect rows[1]["name"] == "test2"
-    expect rows[1]["value"] == 200
+    expect_equals "test3" rows[0]["name"]
+    expect_equals 200 rows[0]["value"]
+    expect_equals "test2" rows[1]["name"]
+    expect_equals 200 rows[1]["value"]
 
   // Put one more row into the table.
   client.rest.insert TEST_TABLE {
@@ -235,10 +235,10 @@ test_rest client/supabase.Client:
   // Check that the delete succeeded.
   rows = client.rest.select TEST_TABLE
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "test4"
-  expect rows[0]["value"] == 300
+  expect_equals "test4" rows[0]["name"]
+  expect_equals 300 rows[0]["value"]
 
-  // Test rpc calls.
+  // Test RPCs.
   result := client.rest.rpc RPC_ADD_42 {:}
   expect_null result
   // Check that the table now has the 42 entry.
@@ -246,7 +246,7 @@ test_rest client/supabase.Client:
     "value=eq.42",
   ]
   expect_equals 1 rows.size
-  expect rows[0]["name"] == "rpc"
+  expect_equals "rpc" rows[0]["name"]
 
 
   result = client.rest.rpc RPC_SUM {
