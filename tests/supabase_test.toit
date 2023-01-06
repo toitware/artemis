@@ -20,7 +20,8 @@ main:
 
   try:
     test_rest client
-    // TODO(florian): write tests for storage and auth.
+    test_auth client
+    // TODO(florian): write tests for storage.
   finally:
     client.close
 
@@ -254,3 +255,58 @@ test_rest client/supabase.Client:
     "b": 2,
   }
   expect_equals 3 result
+
+AUTH_PASSWORD ::= "123456"
+
+AUTH_TABLE := "test_table3"
+
+test_auth client/supabase.Client:
+  email := "test-$random@toit.io"
+  // The testing supabase server has 'enable_confirmations = false',
+  // which means that we can sign up without worrying that emails
+  // are sent.
+  client.auth.sign_up --email=email --password=AUTH_PASSWORD
+
+  // Log in.
+  client.auth.sign_in --email=email --password=AUTH_PASSWORD
+
+  // Check that we are logged in.
+  current_user := client.auth.get_current_user
+  expect_equals email current_user["email"]
+  user_id := current_user["id"]
+
+  // Verify that we send the user id with rest requests.
+  rows := client.rest.select AUTH_TABLE
+  expect rows.is_empty
+
+  // Insert a row.
+  inserted := client.rest.insert AUTH_TABLE {
+    "id": user_id,
+    "value": 13,
+  }
+  expect_equals user_id inserted["id"]
+  expect_equals 13 inserted["value"]
+
+  // Check that the insert succeeded.
+  rows = client.rest.select AUTH_TABLE
+  expect_equals 1 rows.size
+  expect_equals user_id rows[0]["id"]
+  expect_equals 13 rows[0]["value"]
+
+  // TODO(florian): there doesn't seem to be a way to change the email
+  // without triggering a confirmation email.
+  // Even with the confirmation mail, I didn't get it to work.
+  /*
+  email2 := "test-$random@toit.io"
+  client.auth.update_user {
+    "email": email2,
+  }
+  */
+
+  // TODO(florian): add log out and test it here.
+  // For now just hackishly remove the session.
+  client.session_ = null
+
+  // Check that we are now anonymous and can see the entry in the test table.
+  rows = client.rest.select AUTH_TABLE
+  expect rows.is_empty

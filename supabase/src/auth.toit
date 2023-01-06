@@ -170,6 +170,27 @@ class Auth:
         --token_type=response["token_type"]
     client_.set_session_ session
 
+  /**
+  Returns the currently authenticated user.
+  */
+  // TODO(florian): We should have this information cached when we sign in.
+  get_current_user -> Map?:
+    if client_.session_ == null: throw "No session available."
+    response := client_.request_
+        --method=http.GET
+        --path="/auth/v1/user"
+    return response
+
+  /**
+  Updates the currently authenticated user.
+  */
+  update_user data/Map -> none:
+    if client_.session_ == null: throw "No session available."
+    client_.request_
+        --method=http.PUT
+        --path="/auth/v1/user"
+        --payload=data
+
 class Session_:
   access_token/string
 
