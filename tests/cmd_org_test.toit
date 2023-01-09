@@ -104,3 +104,51 @@ run_test test_cli/TestCli:
   show_default_output := test_cli.run [ "org", "show" ]
   expect (show_default_output.contains "Testy")
   expect (show_default_output.contains id)
+
+  // Test member functions.
+  // members {add, list, remove, set-role}
+  // roles "admin", "member"
+
+  list_output := test_cli.run [ "org", "members", "list" ]
+  expect (list_output.contains TEST_EXAMPLE_COM_UUID)
+  expect (list_output.contains "admin")
+  expect_not (list_output.contains DEMO_EXAMPLE_COM_UUID)
+
+  test_cli.run [ "org", "members", "add", DEMO_EXAMPLE_COM_UUID ]
+  list_output = test_cli.run [ "org", "members", "list" ]
+  lines := list_output.split "\n"
+  found_test_user := false
+  found_demo_user := false
+  lines.do: | line |
+    if line.contains TEST_EXAMPLE_COM_EMAIL:
+      found_test_user = true
+      expect (line.contains "admin")
+    if line.contains DEMO_EXAMPLE_COM_EMAIL:
+      found_demo_user = true
+      expect (line.contains "member")
+  expect found_test_user
+  expect found_demo_user
+
+  // Change the demo user's role.
+  test_cli.run [ "org", "members", "set-role", DEMO_EXAMPLE_COM_UUID, "admin" ]
+  list_output = test_cli.run [ "org", "members", "list" ]
+  lines = list_output.split "\n"
+  found_test_user = false
+  found_demo_user = false
+  lines.do: | line |
+    if line.contains TEST_EXAMPLE_COM_EMAIL:
+      found_test_user = true
+      expect (line.contains "admin")
+    if line.contains DEMO_EXAMPLE_COM_EMAIL:
+      found_demo_user = true
+      expect (line.contains "admin")
+  expect found_test_user
+  expect found_demo_user
+
+  // Remove the demo user.
+  test_cli.run [ "org", "members", "remove", DEMO_EXAMPLE_COM_UUID ]
+  list_output = test_cli.run [ "org", "members", "list" ]
+  expect_not (list_output.contains DEMO_EXAMPLE_COM_EMAIL)
+
+  // TODO(florian): test that we can't remove ourself without '--force'.
+  // Currently that's not possible as we would 'exit 1'.

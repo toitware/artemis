@@ -48,12 +48,15 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
       "data": { "type": "created" }
     }
 
+  get_current_user_id -> string:
+    return client_.auth.get_current_user["id"]
+
   get_organizations -> List:
     // TODO(florian): we only need the id and the name.
     organizations := client_.rest.select "organizations"
     return organizations.map: Organization.from_map it
 
-  get_organization id -> DetailedOrganization?:
+  get_organization id/string -> DetailedOrganization?:
     organizations := client_.rest.select "organizations" --filters=[
       "id=eq.$id"
     ]
@@ -63,6 +66,34 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   create_organization name/string -> Organization:
     inserted := client_.rest.insert "organizations" { "name": name }
     return Organization.from_map inserted
+
+  get_organization_members id/string -> List:
+    members := client_.rest.select "roles" --filters=[
+      "organization_id=eq.$id"
+    ]
+    return members.map: {
+      "id": it["user_id"],
+      "role": it["role"],
+    }
+
+  organization_member_add --organization_id/string --user_id/string --role/string:
+    client_.rest.insert "roles" {
+      "organization_id": organization_id,
+      "user_id": user_id,
+      "role": role,
+    }
+
+  organization_member_remove --organization_id/string --user_id/string:
+    client_.rest.delete "roles" --filters=[
+      "organization_id=eq.$organization_id",
+      "user_id=eq.$user_id",
+    ]
+
+  organization_member_set_role --organization_id/string --user_id/string --role/string:
+    client_.rest.update "roles" --filters=[
+      "organization_id=eq.$organization_id",
+      "user_id=eq.$user_id",
+    ] { "role": role }
 
   get_profile --user_id/string?=null -> Map?:
     if not user_id:
