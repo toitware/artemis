@@ -298,7 +298,7 @@ test_auth client/supabase.Client:
   // Even with the confirmation mail, I didn't get it to work.
   /*
   email2 := "test-$random@toit.io"
-  client.auth.update_user {
+  client.auth.update_current_user {
     "email": email2,
   }
   */

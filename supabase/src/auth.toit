@@ -184,7 +184,7 @@ class Auth:
   /**
   Updates the currently authenticated user.
   */
-  update_user data/Map -> none:
+  update_current_user data/Map -> none:
     if client_.session_ == null: throw "No session available."
     client_.request_
         --method=http.PUT
