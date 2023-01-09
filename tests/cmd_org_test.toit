@@ -69,7 +69,7 @@ run_test test_cli/TestCli:
       expect (original_lines.contains line)
 
   // Test 'org show'.
-  show_output := test_cli.run [ "org", "show", "--id", id ]
+  show_output := test_cli.run [ "org", "show", "--org-id", id ]
   expect (show_output.contains "Testy")
   expect (show_output.contains id)
   // Find the 'Created' output.
