@@ -14,6 +14,7 @@ import .cmds.device_config
 import .cmds.provision
 import .cmds.auth
 import .cmds.org
+import .cmds.profile
 
 // TODO:
 //  - groups of devices
@@ -43,5 +44,6 @@ main args --config/Config --cache/Cache --ui/Ui:
   (create_provision_commands config cache ui).do: root_cmd.add it
   (create_auth_commands config cache ui).do: root_cmd.add it
   (create_org_commands config cache ui).do: root_cmd.add it
+  (create_profile_commands config cache ui).do: root_cmd.add it
 
   root_cmd.run args

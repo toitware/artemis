@@ -84,3 +84,13 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       throw "Broker error: $(decoded.get "error")"
 
     return decoded["data"]
+
+  get_profile --user_id/string?=null -> Map?:
+    return send_request_ "get-profile" {
+      "id": user_id,
+    }
+
+  update_profile --name/string -> none:
+    send_request_ "update-profile" {
+      "name": name,
+    }

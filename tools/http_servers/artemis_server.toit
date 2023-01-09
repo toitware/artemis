@@ -52,6 +52,20 @@ class OrganizationEntry:
       "created_at": created_at.stringify,
     }
 
+class User:
+  id/string
+  email/string := ?
+  name/string := ?
+
+  constructor .id --.email --.name:
+
+  to_json -> Map:
+    return {
+      "id": id,
+      "email": email,
+      "name": name,
+    }
+
 class HttpArtemisServer extends HttpServer:
   static DEVICE_NOT_FOUND ::= 0
 
@@ -64,7 +78,12 @@ class HttpArtemisServer extends HttpServer:
   /** List of $EventEntry. */
   events/List := []
 
+  /** Map from ID to $User. */
+  users/Map := {:}
+
   errors/List := []
+
+  current_user/string? := null
 
   constructor port/int:
     super port
@@ -88,6 +107,10 @@ class HttpArtemisServer extends HttpServer:
       organization := add_organization id data["name"]
       organizations[id] = organization
       return organization.to_json
+    if command == "get-profile":
+      return get_profile (data.get "id")
+    if command == "update-profile":
+      return update_profile data
 
     else:
       throw "BAD COMMAND $command"
@@ -119,3 +142,28 @@ class HttpArtemisServer extends HttpServer:
     organization := OrganizationEntry id --name=name --created_at=Time.now
     organizations[id] = organization
     return organization
+
+  create_user --email/string --name/string --id/string?=null
+      --set_current/bool=false -> string:
+    if not id: id = "$(uuid.uuid5 "" "user_id - $Time.monotonic_us")"
+    if set_current: current_user = id
+    user := User id --email=email --name=name
+    users[id] = user
+    return id
+
+  set_current_user id/string:
+    current_user = id
+
+  get_profile id/string? -> Map?:
+    if not id:
+      if not current_user: throw "Not logged in"
+      id = current_user
+    user := users.get id
+    return user and user.to_json
+
+  update_profile data/Map:
+    if not current_user: throw "Not logged in"
+    user := users.get current_user
+    if not user: throw "User not found"
+    if data.contains "name": user.name = data["name"]
+    if data.contains "email": user.email = data["email"]

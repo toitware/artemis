@@ -2,7 +2,7 @@
 
 import net
 
-import ..tools.http_servers.artemis_server show HttpArtemisServer DeviceEntry EventEntry
+import ..tools.http_servers.artemis_server show HttpArtemisServer DeviceEntry EventEntry User
 import .artemis_server_test_base
 import artemis.shared.server_config show ServerConfigHttpToit
 import .utils
@@ -31,4 +31,9 @@ main:
   with_http_artemis_server: | server/HttpArtemisServer server_config/ServerConfigHttpToit |
     server.add_organization TEST_ORGANIZATION_UUID TEST_ORGANIZATION_NAME
     backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
-    run_test server_config backdoor  --authenticate=: null
+    run_test server_config backdoor  --authenticate=:
+      server.create_user --name="Test User"
+          --email=TEST_EXAMPLE_COM_EMAIL
+          --set_current
+      server.create_user --name="Test User2"
+          --email=DEMO_EXAMPLE_COM_EMAIL

@@ -63,3 +63,22 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   create_organization name/string -> Organization:
     inserted := client_.rest.insert "organizations" { "name": name }
     return Organization.from_map inserted
+
+  get_profile --user_id/string?=null -> Map?:
+    if not user_id:
+      // TODO(florian): we should have the current user cached.
+      current_user := client_.auth.get_current_user
+      user_id = current_user["id"]
+    result := client_.rest.select "profiles_with_email" --filters=[
+      "id=eq.$user_id"
+    ]
+    if result.is_empty: return null
+    return result[0]
+
+  update_profile --name/string -> none:
+    // TODO(florian): we should have the current user cached.
+    current_user := client_.auth.get_current_user
+    user_id := current_user["id"]
+    client_.rest.update "profiles" --filters=[
+      "id=eq.$user_id"
+    ] { "name": name }

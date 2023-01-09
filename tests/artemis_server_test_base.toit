@@ -37,6 +37,7 @@ run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor
     test_check_in network server_service backdoor --hardware_id=hardware_id
 
     test_organizations server_cli backdoor
+    test_profile server_cli backdoor
 
 
 test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
@@ -102,5 +103,25 @@ test_organizations server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   expect_equals org.name detailed.name
   expect (detailed.created_at < Time.now)
 
-  non_existent := server_cli.get_organization (uuid.uuid5 "non" "existent").stringify
+  non_existent := server_cli.get_organization NON_EXISTENT_UUID
   expect_null non_existent
+
+test_profile server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
+  profile := server_cli.get_profile
+  // If we have run the test before, we can't know what value the profile
+  // currently has.
+
+  server_cli.update_profile --name="Test User updated"
+  profile = server_cli.get_profile
+  expect_equals "Test User updated" profile["name"]
+  id := profile["id"]
+
+  profile2 := server_cli.get_profile --user_id=id
+  expect_equals profile["id"] profile2["id"]
+  expect_equals profile["name"] profile2["name"]
+  expect_equals profile["email"] profile2["email"]
+
+  profile_non_existent := server_cli.get_profile --user_id=NON_EXISTENT_UUID
+  expect_null profile_non_existent
+
+  // TODO(florian): test getting the profile of a different user.
