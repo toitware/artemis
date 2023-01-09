@@ -220,7 +220,7 @@ class Client:
     if method == http.GET:
       if payload: throw "GET requests cannot have a payload"
       response = http_client_.get host_ path --headers=headers
-    else if method == "PATCH" or method == http.DELETE:
+    else if method == "PATCH" or method == http.DELETE or method == http.PUT:
       // TODO(florian): the http client should support PATCH.
       encoded := json_encoding.encode payload
       headers.set "Content-Type" "application/json"

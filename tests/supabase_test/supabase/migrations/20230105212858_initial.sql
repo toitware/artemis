@@ -40,3 +40,18 @@ RETURNS int
 AS $$
   SELECT a + b;
 $$ LANGUAGE SQL;
+
+-- For testing that the authentication works.
+
+CREATE TABLE test_table3 (
+  id uuid PRIMARY KEY REFERENCES auth.users(id),
+  value int NOT NULL
+);
+
+ALTER TABLE test_table3 ENABLE ROW LEVEL SECURITY;
+
+-- Users can access their own row.
+CREATE POLICY test_table3_self_access ON test_table3
+  FOR ALL
+  USING (id = auth.uid())
+  WITH CHECK (id = auth.uid());
