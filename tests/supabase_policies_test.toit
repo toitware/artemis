@@ -5,6 +5,7 @@ import artemis.cli.server_config as cli_server_config
 import artemis.shared.server_config show ServerConfigSupabase
 import expect show *
 import supabase
+import uuid
 import .utils
 
 main:
@@ -490,6 +491,105 @@ main:
 
         roles1 := client1.rest.select "roles"
         expect_equals 2 roles1.size
+
+        client_admin := supabase.Client --server_config=artemis_broker --certificate_provider=:unreachable
+        client_admin.auth.sign_in
+            --email="test-admin@toit.io"
+            --password="password"
+
+        // Admins can change the sdk table.
+        // All other users (including auth) can only see it.
+
+        // Clear the sdk table for simplicity.
+        client_admin.rest.delete "sdks" --filters=[]
+        sdks := client_admin.rest.select "sdks"
+        expect_equals 0 sdks.size
+
+        // Admin can insert.
+        sdk := client_admin.rest.insert "sdks" {
+          "version": "1.0.0",
+        }
+        expect_equals "1.0.0" sdk["version"]
+        sdkv1_id := sdk["id"]
+
+        // Only one entry per version is allowed in the table.
+        expect_throws --contains="unique": client_admin.rest.insert "sdks" {
+          "version": "1.0.0",
+        }
+
+        // Check that auth and anon can see it.
+        sdks = client_anon.rest.select "sdks"
+        expect_equals 1 sdks.size
+        expect_equals "1.0.0" sdks[0]["version"]
+
+        sdks = client1.rest.select "sdks"
+        expect_equals 1 sdks.size
+        expect_equals "1.0.0" sdks[0]["version"]
+
+        // Neither anon, nor auth can insert.
+        expect_throws --contains="policy": client_anon.rest.insert "sdks" {
+          "version": "2.0.0",
+        }
+        expect_throws --contains="policy": client1.rest.insert "sdks" {
+          "version": "2.0.0",
+        }
+
+        // Same is true for service snapshots.
+        // Clear the table for simplicity.
+        client_admin.rest.delete "service_snapshots" --filters=[]
+        service_snapshots := client_admin.rest.select "service_snapshots"
+        expect_equals 0 service_snapshots.size
+
+        snapshot_name := "test-$(random).snapshot"
+
+        // Admin can insert.
+        service_snapshot := client_admin.rest.insert "service_snapshots" {
+          "sdk_id": sdkv1_id,
+          "service_version": "0.0.9",
+          "snapshot_name": snapshot_name,
+        }
+        expect_equals sdkv1_id service_snapshot["sdk_id"]
+        expect_equals "0.0.9" service_snapshot["service_version"]
+        expect_equals snapshot_name service_snapshot["snapshot_name"]
+        service_snapshot_id := service_snapshot["id"]
+
+        // Check that auth and anon can see it.
+        service_snapshots = client_anon.rest.select "service_snapshots"
+        expect_equals 1 service_snapshots.size
+        expect_equals sdkv1_id service_snapshots[0]["sdk_id"]
+        expect_equals "0.0.9" service_snapshots[0]["service_version"]
+        expect_equals snapshot_name service_snapshots[0]["snapshot_name"]
+
+        service_snapshots = client1.rest.select "service_snapshots"
+        expect_equals 1 service_snapshots.size
+        expect_equals sdkv1_id service_snapshots[0]["sdk_id"]
+        expect_equals "0.0.9" service_snapshots[0]["service_version"]
+        expect_equals snapshot_name service_snapshots[0]["snapshot_name"]
+
+        // Neither anon, nor auth can insert.
+        expect_throws --contains="policy": client_anon.rest.insert "service_snapshots" {
+          "sdk_id": sdkv1_id,
+          "service_version": "0.0.9",
+          "snapshot_name": snapshot_name,
+        }
+        expect_throws --contains="policy": client1.rest.insert "service_snapshots" {
+          "sdk_id": sdkv1_id,
+          "service_version": "0.0.9",
+          "snapshot_name": snapshot_name,
+        }
+
+        // Admins can write to the storage.
+        // All other users (including auth) can only see it.
+        BUCKET ::= "service-snapshots"
+        client_admin.storage.upload
+            --path="$BUCKET/$snapshot_name"
+            --content="test".to_byte_array
+
+        // Check that auth and anon can see it.
+        expect_equals "test".to_byte_array
+            client_anon.storage.download --path="$BUCKET/$snapshot_name"
+        expect_equals "test".to_byte_array
+            client1.storage.download --path="$BUCKET/$snapshot_name"
 
 expect_throws --contains/string [block]:
   exception := catch: block.call
