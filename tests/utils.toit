@@ -3,6 +3,7 @@
 import log
 import host.directory
 import host.pipe
+import uuid
 import artemis.cli
 import artemis.cli.server_config as cli_server_config
 import artemis.cli.cache as cli
@@ -37,6 +38,8 @@ TEST_ORGANIZATION_UUID ::= "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
 /** Preseeded test device in $TEST_ORGANIZATION_UUID. */
 TEST_DEVICE_UUID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
 TEST_DEVICE_ALIAS ::= "191149e5-a95b-47b1-80dd-b149f953d272"
+
+NON_EXISTENT_UUID ::= (uuid.uuid5 "non" "existent").stringify
 
 with_tmp_directory [block]:
   tmp_dir := directory.mkdtemp "/tmp/artemis-test-"

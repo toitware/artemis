@@ -58,6 +58,20 @@ interface ArtemisServerCli:
   /** Creates a new organization with the given $name. */
   create_organization name/string -> Organization
 
+  /**
+  Gets the profile of the user with the given ID.
+
+  If no user ID is given, the profile of the current user is returned.
+  Returns null, if no user with the given ID exists.
+  */
+  get_profile --user_id/string?=null -> Map?
+
+  /**
+  Updates the profile of the current user.
+  */
+  // TODO(florian): add support for changing the email.
+  update_profile --name/string
+
 with_server server_config/ServerConfig config/Config [block]:
   network := net.open
   server/ArtemisServerCli? := null
