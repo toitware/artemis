@@ -126,6 +126,24 @@ run_test test_cli/TestCli:
     if line.contains DEMO_EXAMPLE_COM_EMAIL:
       found_demo_user = true
       expect (line.contains "member")
+      // By default 'list' also contains the name.
+      expect (line.contains DEMO_EXAMPLE_COM_NAME)
+  expect found_test_user
+  expect found_demo_user
+
+  // Test 'org members list --id-only'.
+  list_output = test_cli.run [ "org", "members", "list", "--id-only" ]
+  lines = list_output.split "\n"
+  found_test_user = false
+  found_demo_user = false
+  lines.do: | line |
+    if line.contains TEST_EXAMPLE_COM_UUID:
+      found_test_user = true
+      expect_not (line.contains "admin")
+    if line.contains DEMO_EXAMPLE_COM_UUID:
+      found_demo_user = true
+      expect_not (line.contains "member")
+      expect_not (line.contains DEMO_EXAMPLE_COM_NAME)
   expect found_test_user
   expect found_demo_user
 

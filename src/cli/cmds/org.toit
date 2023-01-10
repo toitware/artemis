@@ -195,7 +195,7 @@ member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
     members := server.get_organization_members org_id
     if parsed["id-only"]:
       ui.info_table --header=["ID"]
-          members.map: [ it.id ]
+          members.map: [ it["id"] ]
       return
     profiles := members.map: server.get_profile --user_id=it["id"]
     ui.info_table --header=["ID", "Role", "Name", "Email"]
