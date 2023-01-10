@@ -39,7 +39,7 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         // TODO(florian): would be nice to accept a name here as well.
-        cli.OptionString "id"
+        cli.OptionString "org-id"
             --short_help="ID of the organization."
       ]
       --run=:: show_org it config ui
@@ -52,7 +52,7 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
         If no ID is given, clears the default organization.
         """
       --rest=[
-        cli.OptionString "id"
+        cli.OptionString "org-id"
             --short_help="ID of the organization."
       ]
       --run=:: use_org it config cache ui
@@ -87,17 +87,17 @@ create_org parsed/cli.Parsed config/Config ui/Ui -> none:
     ui.info "Created organization $org.id - $org.name"
 
 show_org parsed/cli.Parsed config/Config ui/Ui -> none:
-  id := parsed["id"]
-  if not id:
-    id = config.get CONFIG_ORGANIZATION_DEFAULT
-    if not id:
+  org_id := parsed["org-id"]
+  if not org_id:
+    org_id = config.get CONFIG_ORGANIZATION_DEFAULT
+    if not org_id:
       ui.error "No default organization set."
       exit 1
   with_org_server parsed config: | server/ArtemisServerCli |
-    print_org id server ui
+    print_org org_id server ui
 
-print_org id/string server/ArtemisServerCli ui/Ui -> none:
-  org := server.get_organization id
+print_org org_id/string server/ArtemisServerCli ui/Ui -> none:
+  org := server.get_organization org_id
   ui.info_map {
     "ID": org.id,
     "Name": org.name,
@@ -105,15 +105,15 @@ print_org id/string server/ArtemisServerCli ui/Ui -> none:
   }
 
 use_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
-  id := parsed["id"]
-  if not id:
+  org_id := parsed["org-id"]
+  if not org_id:
     config.remove CONFIG_ORGANIZATION_DEFAULT
     config.write
     ui.info "Default organization cleared."
     return
 
   with_org_server parsed config: | server/ArtemisServerCli |
-    org := server.get_organization id
+    org := server.get_organization org_id
     if not org:
       ui.error "Organization not found."
       exit 1
@@ -125,14 +125,14 @@ use_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
 default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   id_only := parsed["id-only"]
 
-  organization_id := config.get CONFIG_ORGANIZATION_DEFAULT
-  if not organization_id:
+  org_id := config.get CONFIG_ORGANIZATION_DEFAULT
+  if not org_id:
     ui.error "No default organization set."
     exit 1
 
   if id_only:
-    ui.info "$organization_id"
+    ui.info "$org_id"
     return
 
   with_org_server parsed config: | server/ArtemisServerCli |
-    print_org organization_id server ui
+    print_org org_id server ui
