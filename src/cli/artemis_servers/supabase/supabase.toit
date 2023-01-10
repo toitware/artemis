@@ -110,6 +110,6 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     // TODO(florian): we should have the current user cached.
     current_user := client_.auth.get_current_user
     user_id := current_user["id"]
-    client_.rest.update "profiles" --filters=[
+    client_.rest.update "profiles"  { "name": name } --filters=[
       "id=eq.$user_id"
-    ] { "name": name }
+    ]
