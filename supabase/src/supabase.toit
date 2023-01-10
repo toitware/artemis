@@ -152,15 +152,6 @@ class Client:
     else:
       local_storage_.remove_auth
 
-  // TODO(florian): remove this functionality, and create a more flexible 'query'
-  // function on the client instead.
-  create_headers_ -> http.Headers:
-    headers := http.Headers
-    headers.add "apikey" anon_
-    // By default the bearer is the anon-key. This can be overridden.
-    headers.add "Authorization" "Bearer $anon_"
-    return headers
-
   is_success_status_code_ code/int -> bool:
     return 200 <= code <= 299
 
@@ -185,7 +176,7 @@ class Client:
       --query/string? = null
       --query_parameters/Map? = null
       --headers/http.Headers? = null
-      --payload/Map? = null:
+      --payload/any = null:
 
     if query and query_parameters:
       throw "Cannot provide both query and query_parameters"
@@ -222,19 +213,24 @@ class Client:
       response = http_client_.get host_ path --headers=headers
     else if method == "PATCH" or method == http.DELETE or method == http.PUT:
       // TODO(florian): the http client should support PATCH.
+      // TODO(florian): we should only do this if the payload is a Map.
       encoded := json_encoding.encode payload
       headers.set "Content-Type" "application/json"
       request := http_client_.new_request method host_ path --headers=headers
       request.body = bytes.Reader encoded
       response = request.send
     else:
-      payload = payload or {:}
-
       if method != http.POST: throw "UNIMPLEMENTED"
-      response = http_client_.post_json payload
-          --host=host_
-          --path=path
-          --headers=headers
+      if payload is Map:
+        response = http_client_.post_json payload
+            --host=host_
+            --path=path
+            --headers=headers
+      else:
+        response = http_client_.post payload
+            --host=host_
+            --path=path
+            --headers=headers
 
     return response
 
@@ -254,7 +250,7 @@ class Client:
       --query_parameters/Map? = null
       --headers/http.Headers? = null
       --parse_response_json/bool = true
-      --payload/Map? = null:
+      --payload/any = null:
     response := request_
         --raw_response
         --path=path
@@ -488,21 +484,23 @@ class Storage:
 
   constructor .client_:
 
+  // TODO(florian): add support for changing and deleting.
+  // TODO(florian): add support for 'get_public_url'.
+  //    should be as simple as "$url/storage/v1/object/public/$path"
+
   /**
   Uploads data to the storage.
   */
-  upload --path/string --content/ByteArray:
-    headers := client_.create_headers_
-    headers.add "Content-Type" "application/octet-stream"
+  upload --path/string --content/ByteArray -> none:
+    headers := http.Headers
     headers.add "x-upsert" "true"
-    response := client_.http_client_.post content
-        --host=client_.host_
+    headers.add "Content-Type" "application/octet-stream"
+    client_.request_
+        --method=http.POST
         --headers=headers
         --path="/storage/v1/object/$path"
-    // 200 is accepted!
-    body := response.body
-    while data := body.read: null // DRAIN!
-    if response.status_code != 200: throw "UGH ($response.status_code)"
+        --payload=content
+        --parse_response_json=false
 
   /**
   Downloads the data stored in $path from the storage.
