@@ -145,7 +145,7 @@ class HttpArtemisServer extends HttpServer:
 
   create_user --email/string --name/string --id/string?=null
       --set_current/bool=false -> string:
-    if not id: id = "$(uuid.uuid5 "" "user_id - $Time.monotonic_us")"
+    if not id: id = (uuid.uuid5 "" "user_id - $Time.monotonic_us").stringify
     if set_current: current_user = id
     user := User id --email=email --name=name
     users[id] = user

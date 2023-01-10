@@ -11,13 +11,13 @@ import ..artemis_servers.artemis_server show with_server ArtemisServerCli
 
 create_profile_commands config/Config cache/Cache ui/Ui -> List:
   profile_cmd := cli.Command "profile"
-      --short_help="Manage the profile."
+      --short_help="Manage the user profile."
       --options=[
         cli.OptionString "server" --hidden --short_help="The server to use.",
       ]
 
   show_cmd := cli.Command "show"
-      --short_help="Shows the profile"
+      --short_help="Shows the profile."
       --run=:: show_profile it config ui
   profile_cmd.add show_cmd
 
@@ -33,8 +33,7 @@ create_profile_commands config/Config cache/Cache ui/Ui -> List:
   return [profile_cmd]
 
 with_profile_server parsed/cli.Parsed config/Config [block]:
-  server_config/ServerConfig := ?
-  server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
+  server_config := get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
 
   with_server server_config config block
 
