@@ -472,6 +472,25 @@ main:
         }
         expect_null rpc_response
 
+        // Client 3 can remove itself from the org, even though it
+        // is not an admin.
+        client3.rest.delete "roles" --filters=[
+          "organization_id=eq.$organization_id",
+          "user_id=eq.$user_id3",
+        ]
+
+        /****************************************************************
+        organization_id:
+          client1 is admin.
+          client2 is admin.
+
+        organization3_id:
+          client3 is admin.
+        ****************************************************************/
+
+        roles1 := client1.rest.select "roles"
+        expect_equals 2 roles1.size
+
 expect_throws --contains/string [block]:
   exception := catch: block.call
   expect_not_null exception

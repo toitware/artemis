@@ -106,6 +106,69 @@ test_organizations server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   non_existent := server_cli.get_organization NON_EXISTENT_UUID
   expect_null non_existent
 
+  // Test member functions.
+  current_user_id := TEST_EXAMPLE_COM_UUID
+  demo_user_id := DEMO_EXAMPLE_COM_UUID
+
+  members := server_cli.get_organization_members org.id
+  expect_equals 1 members.size
+  expect_equals current_user_id members[0]["id"]
+  expect_equals "admin" members[0]["role"]
+
+  // Add a new member.
+  server_cli.organization_member_add
+      --organization_id=org.id
+      --user_id=demo_user_id
+      --role="member"
+  members = server_cli.get_organization_members org.id
+  expect_equals 2 members.size
+  expect members[0]["id"] != members[1]["id"]
+  members.do: | member |
+    if member["id"] == current_user_id:
+      expect_equals "admin" member["role"]
+    else:
+      expect_equals demo_user_id member["id"]
+      expect_equals "member" member["role"]
+
+  // Update the role of the new member.
+  server_cli.organization_member_set_role
+      --organization_id=org.id
+      --user_id=demo_user_id
+      --role="admin"
+  members = server_cli.get_organization_members org.id
+  expect_equals 2 members.size
+  expect members[0]["id"] != members[1]["id"]
+  members.do: | member |
+    id := member["id"]
+    expect (id == current_user_id or id == demo_user_id)
+    expect_equals "admin" member["role"]
+
+  // Remove the new member.
+  server_cli.organization_member_remove
+      --organization_id=org.id
+      --user_id=demo_user_id
+
+  members = server_cli.get_organization_members org.id
+  expect_equals 1 members.size
+  expect_equals current_user_id members[0]["id"]
+  expect_equals "admin" members[0]["role"]
+
+  // Add the new member with admin role.
+  server_cli.organization_member_add
+      --organization_id=org.id
+      --user_id=demo_user_id
+      --role="admin"
+  members = server_cli.get_organization_members org.id
+  expect_equals 2 members.size
+  expect members[0]["id"] != members[1]["id"]
+  members.do: | member |
+    id := member["id"]
+    expect (id == current_user_id or id == demo_user_id)
+    expect_equals "admin" member["role"]
+
+  // Keep the demo user in the same organization as the test user,
+  // so we can read the user's profile in 'test_profile'
+
 test_profile server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   profile := server_cli.get_profile
   // If we have run the test before, we can't know what value the profile
@@ -124,4 +187,7 @@ test_profile server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   profile_non_existent := server_cli.get_profile --user_id=NON_EXISTENT_UUID
   expect_null profile_non_existent
 
-  // TODO(florian): test getting the profile of a different user.
+  // The following test requires that we have added the demo user
+  // and test user into the same organization.
+  profile_demo := server_cli.get_profile --user_id=DEMO_EXAMPLE_COM_UUID
+  expect_equals DEMO_EXAMPLE_COM_NAME profile_demo["name"]

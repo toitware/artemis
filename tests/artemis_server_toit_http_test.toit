@@ -32,8 +32,10 @@ main:
     server.add_organization TEST_ORGANIZATION_UUID TEST_ORGANIZATION_NAME
     backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
     run_test server_config backdoor  --authenticate=:
-      server.create_user --name="Test User"
+      server.create_user --name=TEST_EXAMPLE_COM_NAME
           --email=TEST_EXAMPLE_COM_EMAIL
+          --id=TEST_EXAMPLE_COM_UUID
           --set_current
-      server.create_user --name="Test User2"
+      server.create_user --name=DEMO_EXAMPLE_COM_NAME
           --email=DEMO_EXAMPLE_COM_EMAIL
+          --id=DEMO_EXAMPLE_COM_UUID

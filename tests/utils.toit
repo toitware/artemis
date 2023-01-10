@@ -25,11 +25,13 @@ export Device
 TEST_EXAMPLE_COM_EMAIL ::= "test@example.com"
 TEST_EXAMPLE_COM_PASSWORD ::= "password"
 TEST_EXAMPLE_COM_UUID ::= "f76629c5-a070-4bbc-9918-64beaea48848"
+TEST_EXAMPLE_COM_NAME ::= "Test User"
 
 /** demo@example.com is a member of the $TEST_ORGANIZATION_UUID. */
 DEMO_EXAMPLE_COM_EMAIL ::= "demo@example.com"
 DEMO_EXAMPLE_COM_PASSWORD ::= "password"
 DEMO_EXAMPLE_COM_UUID ::= "d9064bb5-1501-4ec9-bfee-21ab74d645b8"
+DEMO_EXAMPLE_COM_NAME ::= "Demo User"
 
 /** Preseeded "Test Organization". */
 TEST_ORGANIZATION_NAME ::= "Test Organization"

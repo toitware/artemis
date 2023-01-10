@@ -46,6 +46,9 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       "data": { "type": "created" },
     }
 
+  get_current_user_id -> string:
+    return send_request_ "get-current-user-id" {:}
+
   get_organizations -> List:
     organizations := send_request_ "get-organizations" {:}
     return organizations.map: Organization.from_map it
@@ -62,6 +65,31 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       "name": name,
     }
     return Organization.from_map organization
+
+  get_organization_members id/string -> List:
+    return send_request_ "get-organization-members" {
+      "id": id,
+    }
+
+  organization_member_add --organization_id/string --user_id/string --role/string:
+    send_request_ "organization-member-add" {
+      "organization_id": organization_id,
+      "user_id": user_id,
+      "role": role,
+    }
+
+  organization_member_remove --organization_id/string --user_id/string:
+    send_request_ "organization-member-remove" {
+      "organization_id": organization_id,
+      "user_id": user_id,
+    }
+
+  organization_member_set_role --organization_id/string --user_id/string --role/string:
+    send_request_ "organization-member-set-role" {
+      "organization_id": organization_id,
+      "user_id": user_id,
+      "role": role,
+    }
 
   get_profile --user_id/string?=null -> Map?:
     return send_request_ "get-profile" {

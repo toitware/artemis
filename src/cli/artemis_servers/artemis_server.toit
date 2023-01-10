@@ -41,6 +41,9 @@ interface ArtemisServerCli:
   */
   notify_created --hardware_id/string
 
+  /** Returns the used-id of the authenticated user. */
+  get_current_user_id -> string
+
   /**
   Fetches list of organizations the user has access to.
 
@@ -57,6 +60,31 @@ interface ArtemisServerCli:
 
   /** Creates a new organization with the given $name. */
   create_organization name/string -> Organization
+
+  /**
+  Gets a list of members.
+
+  Each entry is a map consisting of the "id" and "role".
+  */
+  get_organization_members id/string -> List
+
+  /**
+  Adds the user with $user_id as a new member to the organization
+    with $organization_id.
+  */
+  organization_member_add --organization_id/string --user_id/string --role/string
+
+  /**
+  Removes the user with $user_id from the organization with
+    $organization_id.
+  */
+  organization_member_remove --organization_id/string --user_id/string
+
+  /**
+  Updates the role of the user with $user_id in the organization
+    with $organization_id.
+  */
+  organization_member_set_role --organization_id/string --user_id/string --role/string
 
   /**
   Gets the profile of the user with the given ID.
