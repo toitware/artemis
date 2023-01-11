@@ -21,7 +21,7 @@ main:
   try:
     test_rest client
     test_auth client
-    // TODO(florian): write tests for storage.
+    test_storage config
   finally:
     client.close
 
@@ -310,3 +310,44 @@ test_auth client/supabase.Client:
   // Check that we are now anonymous and can see the entry in the test table.
   rows = client.rest.select AUTH_TABLE
   expect rows.is_empty
+
+TEST_BUCKET ::= "test-bucket"
+
+test_storage config/supabase.ServerConfig:
+  client_anon := supabase.Client --server_config=config
+      --certificate_provider=: unreachable
+
+  email := "test-$random@toit.io"
+
+  client_auth := supabase.Client --server_config=config
+      --certificate_provider=: unreachable
+  client_auth.auth.sign_up --email=email --password=AUTH_PASSWORD
+  client_auth.auth.sign_in --email=email --password=AUTH_PASSWORD
+
+  file_name := "test-file-$(random).txt"
+  content := "Hello world!".to_byte_array
+
+  // Anon and authenticated can download, but only authenticated can
+  //   upload, delete and change.
+  client_auth.storage.upload --path="$TEST_BUCKET/$file_name" --content=content
+
+  // Both can download.
+  downloaded := client_auth.storage.download --path="$TEST_BUCKET/$file_name"
+  expect_equals content downloaded
+
+  downloaded = client_anon.storage.download --path="$TEST_BUCKET/$file_name"
+  expect_equals content downloaded
+
+  // Only authenticated can change the file.
+  content2 := "Hello world 2!".to_byte_array
+  client_auth.storage.upload --path="$TEST_BUCKET/$file_name" --content=content2
+
+  downloaded = client_auth.storage.download --path="$TEST_BUCKET/$file_name"
+  expect_equals content2 downloaded
+
+  downloaded = client_anon.storage.download --path="$TEST_BUCKET/$file_name"
+  expect_equals content2 downloaded
+
+
+  client_anon.close
+  client_auth.close
