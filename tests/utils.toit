@@ -33,6 +33,11 @@ DEMO_EXAMPLE_COM_PASSWORD ::= "password"
 DEMO_EXAMPLE_COM_UUID ::= "d9064bb5-1501-4ec9-bfee-21ab74d645b8"
 DEMO_EXAMPLE_COM_NAME ::= "Demo User"
 
+ADMIN_EMAIL ::= "test-admin@toit.io"
+ADMIN_PASSWORD ::= "password"
+ADMIN_UUID ::= "6ac69de5-7b56-4153-a31c-7b4e29bbcbcf"
+ADMIN_NAME ::= "Admin User"
+
 /** Preseeded "Test Organization". */
 TEST_ORGANIZATION_NAME ::= "Test Organization"
 TEST_ORGANIZATION_UUID ::= "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
