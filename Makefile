@@ -17,12 +17,14 @@ install-pkgs: rebuild-cmake
 test: install-pkgs rebuild-cmake
 	(cd build && ninja check)
 
-ARTEMIS_HOST := uelhwhbsyumuqhbukich.supabase.co
-ARTEMIS_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlbGh3aGJzeXVtdXFoYnVraWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjM1OTU0NDYsImV4cCI6MTk3OTE3MTQ0Nn0.X6yvaUJDoN0Zk1xjYy_Ap-w6NhCc5BtyWnh5zGdoPFo
+# From https://app.supabase.com/project/voisfafsfolxhqpkudzd/settings/auth
+ARTEMIS_HOST := voisfafsfolxhqpkudzd.supabase.co
+ARTEMIS_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvaXNmYWZzZm9seGhxcGt1ZHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQyNDEsImV4cCI6MTk4ODk1MDI0MX0.dmfxNl5WssxnZ8jpvGJeryg4Fd47fOcrlZ8iGrHj2e4
 ARTEMIS_CERTIFICATE := Baltimore CyberTrust Root
 
-TOITWARE_TESTING_HOST := fjdivzfiphllkyxczmgw.supabase.co
-TOITWARE_TESTING_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqZGl2emZpcGhsbGt5eGN6bWd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjQ5NTQxMjIsImV4cCI6MTk4MDUzMDEyMn0.ge4XAeh3xEHQokn-ayPKi1N0cQO_c8bhBzLli-I9bqU
+# From https://app.supabase.com/project/ghquchonjtjzuuxfmaub/settings/api
+TOITWARE_TESTING_HOST := ghquchonjtjzuuxfmaub.supabase.co
+TOITWARE_TESTING_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdocXVjaG9uanRqenV1eGZtYXViIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQ4ODIsImV4cCI6MTk4ODk1MDg4Mn0.bJB3EdVwFN34yk50JLHv8Pw5IA5gqtEJrXU1MtjEWGc
 TOITWARE_TESTING_CERTIFICATE := Baltimore CyberTrust Root
 
 AWS_HOST := a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com

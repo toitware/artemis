@@ -21,7 +21,7 @@ supabase login
 # For the next command:
 # - create a token (it's for your account), and
 # - use the database password from our bitwarden vault.
-supabase link --project-ref uelhwhbsyumuqhbukich
+supabase link --project-ref voisfafsfolxhqpkudzd
 ```
 
 There are two options to modify the DB:
@@ -88,7 +88,7 @@ In summary, if `supabase db remote commit` doesn't work, try the following:
 supabase db diff --linked --use-migra -f <name>  # a simple name like "feature_x"
 ```
 That generates a new file in the migrations folder. Then go to
-https://app.supabase.com/project/uelhwhbsyumuqhbukich/editor/18031 and
+https://app.supabase.com/project/voisfafsfolxhqpkudzd/editor/27000 and
 update the version there.
 
 Note: I haven't tested this. If you did, please update this file.
