@@ -70,7 +70,7 @@ CREATE TABLE public.artemis_services (
 
 ALTER TABLE public.artemis_services ENABLE ROW LEVEL SECURITY;
 
--- Add a policy that allows admins to modifiy the service table.
+-- Add a policy that allows admins to modify the service table.
 CREATE POLICY "Admins can modify the service table"
     ON public.artemis_services
     FOR ALL
