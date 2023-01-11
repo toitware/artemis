@@ -60,52 +60,80 @@ CREATE POLICY "Anon and auth users can see the SDK table"
     TO anon, authenticated
     USING(true);
 
--- A table with all service snapshots for a given SDK version.
-CREATE TABLE public.service_snapshots (
+-- A table with all supported service versions.
+CREATE TABLE public.artemis_services (
     "id" BIGSERIAL PRIMARY KEY,
-    "sdk_id" BIGINT NOT NULL REFERENCES sdks(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    "service_version" "text" NOT NULL,
-    "snapshot_name" "text" NOT NULL UNIQUE,
-    "created_at" "timestamptz" NOT NULL DEFAULT now(),
-    UNIQUE ("sdk_id", "service_version")
+    "version" "text" NOT NULL UNIQUE,
+    -- We will probably add more information about the services in the future.
+    "created_at" "timestamptz" NOT NULL DEFAULT now()
 );
 
-ALTER TABLE public.service_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.artemis_services ENABLE ROW LEVEL SECURITY;
 
--- Add a policy that allows admins to modifiy the service builds table.
-CREATE POLICY "Admins can modify the service builds table"
-    ON public.service_snapshots
+-- Add a policy that allows admins to modifiy the service table.
+CREATE POLICY "Admins can modify the service table"
+    ON public.artemis_services
     FOR ALL
     TO authenticated
     USING (is_artemis_admin())
     WITH CHECK (is_artemis_admin());
 
--- Anon and auth users can see the service builds table.
-CREATE POLICY "Anon and auth users can see the service builds table"
-    ON public.service_snapshots
+-- Anon and auth users can see the service table.
+CREATE POLICY "Anon and auth users can see the service table"
+    ON public.artemis_services
     FOR SELECT
     TO anon, authenticated
     USING(true);
 
--- A bucket for storing service snapshots.
-INSERT INTO storage.buckets (id, name, public)
-    VALUES ('service-snapshots', 'service-snapshots', true);
+-- A table with all service images.
+CREATE TABLE public.service_images (
+    "id" BIGSERIAL PRIMARY KEY,
+    "sdk_id" BIGINT NOT NULL REFERENCES sdks(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    "service_id" BIGINT NOT NULL REFERENCES artemis_services(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    -- The ID of the image, which can be used to find it in the storage.
+    "image" "text" NOT NULL UNIQUE,
+    "created_at" "timestamptz" NOT NULL DEFAULT now(),
+    UNIQUE ("sdk_id", "service_id")
+);
 
--- Give admins permissions for service snapshots.
-CREATE POLICY "Admins can change service snapshots"
+ALTER TABLE public.service_images ENABLE ROW LEVEL SECURITY;
+
+-- Add a policy that allows admins to modifiy the images table.
+CREATE POLICY "Admins can modify the service-images table"
+    ON public.service_images
+    FOR ALL
+    TO authenticated
+    USING (is_artemis_admin())
+    WITH CHECK (is_artemis_admin());
+
+-- Anon and auth users can see the images table.
+CREATE POLICY "Anon and auth users can see the service-images table"
+    ON public.service_images
+    FOR SELECT
+    TO anon, authenticated
+    USING(true);
+
+-- A bucket for storing service images.
+INSERT INTO storage.buckets (id, name, public)
+    VALUES ('service-images', 'service-images', true);
+
+-- Give admins permissions for service images.
+CREATE POLICY "Admins can change service images"
     ON storage.objects
     FOR ALL
     TO authenticated
-    USING (bucket_id = 'service-snapshots' AND is_artemis_admin())
-    WITH CHECK (bucket_id = 'service-snapshots' AND is_artemis_admin());
+    USING (bucket_id = 'service-images' AND is_artemis_admin())
+    WITH CHECK (bucket_id = 'service-images' AND is_artemis_admin());
 
--- All users can read service snapshots.
--- The snapshots are public, but then we need to use the public URL.
+-- All users can read service images.
+-- The images are public, but then we need to use the public URL.
 -- This way, we can also read the file using API calls.
-CREATE POLICY "All users can read service snapshots"
+CREATE POLICY "All users can read service images"
     ON storage.objects
     FOR SELECT
     TO anon, authenticated
-    USING (bucket_id = 'service-snapshots');
+    USING (bucket_id = 'service-images');
