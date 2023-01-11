@@ -25,6 +25,18 @@ interface ArtemisServerBackdoor:
   /** Whether there exists a '$type'-event for the given $hardware_id. */
   has_event --hardware_id/string --type/string -> bool
 
+  /**
+  Installs the given images.
+
+  The $images parameter is a list of maps, each containing the
+    following entries:
+  - sdk_version: The SDK version of the image.
+  - service_version: The service version of the image.
+  - image: The image identifier.
+  - content: The image content (a byte array).
+  */
+  install_service_images images/List
+
 run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor
     [--authenticate]:
   with_tmp_config: | config |
@@ -38,6 +50,7 @@ run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor
 
     test_organizations server_cli backdoor
     test_profile server_cli backdoor
+    test_sdk server_cli backdoor
 
 
 test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
@@ -191,3 +204,85 @@ test_profile server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   // and test user into the same organization.
   profile_demo := server_cli.get_profile --user_id=DEMO_EXAMPLE_COM_UUID
   expect_equals DEMO_EXAMPLE_COM_NAME profile_demo["name"]
+
+test_sdk server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
+  SDK_V1 ::= "v2.0.0-alpha.46"
+  SDK_V2 ::= "v2.0.0-alpha.47"
+  SERVICE_V1 ::= "v0.0.1"
+  SERVICE_V2 ::= "v0.0.2"
+
+  IMAGE_V1_V1 ::= "foobar"
+  IMAGE_V2_V1 ::= "toto"
+  IMAGE_V2_V2 ::= "titi"
+
+  CONTENT_V1_V1 ::= "foobar_content".to_byte_array
+  CONTENT_V2_V1 ::= "toto_content".to_byte_array
+  CONTENT_V2_V2 ::= "titi_content".to_byte_array
+
+  test_images := [
+    {
+      "sdk_version": SDK_V1,
+      "service_version": SERVICE_V1,
+      "image": IMAGE_V1_V1,
+      "content": CONTENT_V1_V1,
+    },
+    {
+      "sdk_version": SDK_V2,
+      "service_version": SERVICE_V1,
+      "image": IMAGE_V2_V1,
+      "content": CONTENT_V2_V1,
+    },
+    {
+      "sdk_version": SDK_V2,
+      "service_version": SERVICE_V2,
+      "image": IMAGE_V2_V2,
+      "content": CONTENT_V2_V2,
+    },
+  ]
+  backdoor.install_service_images test_images
+
+  images := server_cli.list_sdk_service_versions
+  expect_equals test_images.size images.size
+
+  test_images.do: | test_image |
+    filtered_image := images.filter: | image |
+      image["sdk_version"] == test_image["sdk_version"] and
+        image["service_version"] == test_image["service_version"]
+    expect_equals 1 filtered_image.size
+    image := filtered_image[0]["image"]
+    expect_equals test_image["image"] image
+
+    downloaded_content := server_cli.download_service_image image
+    expect_equals test_image["content"] downloaded_content
+
+  // Test that the filters on list_sdk_service_versions work.
+  images = server_cli.list_sdk_service_versions --sdk_version=SDK_V1
+  expect_equals 1 images.size
+  expect_equals SDK_V1 images[0]["sdk_version"]
+  expect_equals SERVICE_V1 images[0]["service_version"]
+
+  images = server_cli.list_sdk_service_versions --sdk_version=SDK_V2
+  expect_equals 2 images.size
+  images.do: | image |
+    expect_equals SDK_V2 image["sdk_version"]
+    expect (image["service_version"] == SERVICE_V1 or
+        image["service_version"] == SERVICE_V2)
+
+  images = server_cli.list_sdk_service_versions --service_version=SERVICE_V1
+  expect_equals 2 images.size
+  images.do: | image |
+    expect_equals SERVICE_V1 image["service_version"]
+    expect (image["sdk_version"] == SDK_V1 or
+        image["sdk_version"] == SDK_V2)
+
+  images = server_cli.list_sdk_service_versions --service_version=SERVICE_V2
+  expect_equals 1 images.size
+  expect_equals SERVICE_V2 images[0]["service_version"]
+  expect_equals SDK_V2 images[0]["sdk_version"]
+
+  images = server_cli.list_sdk_service_versions
+      --sdk_version=SDK_V2
+      --service_version=SERVICE_V1
+  expect_equals 1 images.size
+  expect_equals SERVICE_V1 images[0]["service_version"]
+  expect_equals SDK_V2 images[0]["sdk_version"]
