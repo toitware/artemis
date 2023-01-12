@@ -140,7 +140,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
     if not entries: return false
     entries.do:
       if it["data"] is Map and
-          (it["data"].get "type" == type):
+          (it["data"].get "type") == type:
         return true
     return false
 
