@@ -13,8 +13,9 @@ import artemis.cli.auth as cli_auth
 
 class SupabaseBackdoor implements ArtemisServerBackdoor:
   server_config_/ServerConfigSupabase
+  service_key_/string
 
-  constructor .server_config_:
+  constructor .server_config_ .service_key_:
 
   fetch_device_information --hardware_id/string -> List:
     entry := query_ "devices" [
@@ -40,27 +41,63 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
         return true
     return false
 
+  install_service_images images/List -> none:
+    with_backdoor_client_: | client/supabase.Client |
+      // Clear the sdks, service-versions and images table.
+      client.rest.delete "sdks" --filters=[]
+      client.rest.delete "artemis_services" --filters=[]
+      client.rest.delete "service_images" --filters=[]
+
+      sdk_versions := {:}
+      service_versions := {:}
+
+      images.do: | entry/Map |
+        sdk_version := entry["sdk_version"]
+        service_version := entry["service_version"]
+        image := entry["image"]
+        content := entry["content"]
+
+        sdk_id := sdk_versions.get sdk_version --init=:
+          print "adding sdk version $sdk_version"
+          new_entry := client.rest.insert "sdks" {
+            "version": sdk_version,
+          }
+          new_entry["id"]
+        service_id := service_versions.get service_version --init=:
+          new_entry := client.rest.insert "artemis_services" {
+            "version": service_version,
+          }
+          new_entry["id"]
+
+        client.rest.insert "service_images" {
+          "sdk_id": sdk_id,
+          "service_id": service_id,
+          "image": image,
+        }
+
+        client.storage.upload --path="service-images/$image" --content=content
+
   query_ table/string filters/List=[] -> List?:
+    with_backdoor_client_: | client/supabase.Client |
+      return client.rest.select table --filters=filters
+    unreachable
+
+  with_backdoor_client_ [block]:
     network := net.open
     supabase_client/supabase.Client? := null
     try:
       supabase_client = supabase.Client
-          --server_config=server_config_
-          --certificate_provider=: unreachable
-      // We might need to use the service_role key at some point, to
-      // have more access. For now we have access to all the data we need.
-      supabase_client.auth.sign_in
-          --email=TEST_EXAMPLE_COM_EMAIL
-          --password=TEST_EXAMPLE_COM_PASSWORD
-
-      return supabase_client.rest.select table --filters=filters
+          --host=server_config_.host
+          --anon=service_key_
+      block.call supabase_client
     finally:
       if supabase_client: supabase_client.close
       network.close
 
 main:
   server_config := get_supabase_config --sub_directory=SUPABASE_ARTEMIS
-  backdoor := SupabaseBackdoor server_config
+  service_key := get_supabase_service_key --sub_directory=SUPABASE_ARTEMIS
+  backdoor := SupabaseBackdoor server_config service_key
   run_test server_config backdoor --authenticate=: | config |
     cli_auth.sign_in server_config config --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
 

@@ -6,6 +6,7 @@ import http
 import log
 import net
 import encoding.json
+import encoding.base64
 
 import ..artemis_server
 import ...device
@@ -100,6 +101,18 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     send_request_ "update-profile" {
       "name": name,
     }
+
+  list_sdk_service_versions --sdk_version/string?=null --service_version/string?=null -> List:
+    return send_request_ "list-sdk-service-versions" {
+      "sdk_version": sdk_version,
+      "service_version": service_version,
+    }
+
+  download_service_image image/string -> ByteArray:
+    encoded_image := send_request_ "download-service-image" {
+      "image": image,
+    }
+    return base64.decode encoded_image
 
   send_request_ command/string data/Map -> any:
     encoded := ubjson.encode {

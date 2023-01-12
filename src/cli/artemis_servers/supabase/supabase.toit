@@ -113,3 +113,12 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     client_.rest.update "profiles"  { "name": name } --filters=[
       "id=eq.$user_id"
     ]
+
+  list_sdk_service_versions --sdk_version/string?=null --service_version/string?=null -> List:
+    filters := []
+    if sdk_version: filters.add "sdk_version=eq.$sdk_version"
+    if service_version: filters.add "service_version=eq.$service_version"
+    return client_.rest.select "sdk_service_versions" --filters=filters
+
+  download_service_image image/string -> ByteArray:
+    return client_.storage.download --path="service-images/$image"

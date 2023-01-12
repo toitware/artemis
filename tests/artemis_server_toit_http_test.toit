@@ -27,6 +27,20 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
         return true
     return false
 
+  install_service_images images/List -> none:
+    image_binaries := {:}
+    sdk_service_versions := []
+    images.do: | entry/Map |
+      sdk_service_versions.add {
+        "sdk_version": entry["sdk_version"],
+        "service_version": entry["service_version"],
+        "image": entry["image"],
+      }
+      image_binaries[entry["image"]] = entry["content"]
+
+    server_.sdk_service_versions = sdk_service_versions
+    server_.image_binaries = image_binaries
+
 main:
   with_http_artemis_server: | server/HttpArtemisServer server_config/ServerConfigHttpToit |
     server.add_organization TEST_ORGANIZATION_UUID TEST_ORGANIZATION_NAME

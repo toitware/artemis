@@ -100,6 +100,27 @@ interface ArtemisServerCli:
   // TODO(florian): add support for changing the email.
   update_profile --name/string
 
+  /**
+  List all SDK/service version combinations.
+
+  Returns a list of maps with the following keys:
+  - "sdk_version": the SDK version
+  - "service_version": the service version
+  - "image": the name of the image
+
+  If provided, the given $sdk_version and $service_version can be
+    used to filter the results.
+  */
+  list_sdk_service_versions --sdk_version/string?=null --service_version/string?=null -> List
+
+  /**
+  Downloads the given $image.
+
+  The $image must be a valid image name, as returned by
+    $list_sdk_service_versions.
+  */
+  download_service_image image/string -> ByteArray
+
 with_server server_config/ServerConfig config/Config [block]:
   network := net.open
   server/ArtemisServerCli? := null

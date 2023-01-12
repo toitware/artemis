@@ -2,6 +2,7 @@
 
 import cli
 import uuid
+import encoding.base64
 
 import .base
 
@@ -84,6 +85,9 @@ class HttpArtemisServer extends HttpServer:
 
   errors/List := []
 
+  sdk_service_versions := []
+  image_binaries := {:}
+
   current_user/string? := null
 
   constructor port/int:
@@ -124,6 +128,10 @@ class HttpArtemisServer extends HttpServer:
       return get_profile (data.get "id")
     if command == "update-profile":
       return update_profile data
+    if command == "list-sdk-service-versions":
+      return list_sdk_service_versions data
+    if command == "download-service-image":
+      return download_service_image data
 
     else:
       throw "BAD COMMAND $command"
@@ -268,3 +276,21 @@ class HttpArtemisServer extends HttpServer:
     if not user: throw "User not found"
     if data.contains "name": user.name = data["name"]
     if data.contains "email": user.email = data["email"]
+
+  list_sdk_service_versions data/Map -> List:
+    sdk_version := data.get "sdk_version"
+    service_version := data.get "service_version"
+
+    if sdk_version or service_version:
+      // Only return matching versions.
+      return sdk_service_versions.filter: | entry/Map |
+        if sdk_version and entry["sdk_version"] != sdk_version:
+          continue.filter false
+        if service_version and entry["service_version"] != service_version:
+          continue.filter false
+        true
+    return sdk_service_versions
+
+  download_service_image data/Map -> string:
+    image := data["image"]
+    return base64.encode image_binaries[image]
