@@ -16,7 +16,6 @@ import artemis.service.artemis_servers.artemis_server show ArtemisServerService
 import artemis.shared.server_config show ServerConfig
 import artemis.cli.auth as cli_auth
 
-
 main args:
   type := "http"
   if not args.is_empty and args[0] == "--supabase":

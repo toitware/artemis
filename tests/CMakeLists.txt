@@ -55,7 +55,7 @@ foreach(file ${TESTS})
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
-    if ("${file}" MATCHES "slow.toit")
+    if ("${file}" MATCHES "_slow.toit")
       set_tests_properties(${test_name} PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
     else()
       set_tests_properties(${test_name} PROPERTIES TIMEOUT ${TEST_TIMEOUT})

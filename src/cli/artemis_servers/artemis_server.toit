@@ -103,7 +103,7 @@ interface ArtemisServerCli:
   /**
   List all SDK/service version combinations.
 
-  Returns a list of maps with the following keys
+  Returns a list of maps with the following keys:
   - "sdk_version": the SDK version
   - "service_version": the service version
   - "image": the name of the image
