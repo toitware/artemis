@@ -109,10 +109,10 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     }
 
   download_service_image image/string -> ByteArray:
-    image64 := send_request_ "download-service-image" {
+    encoded_image := send_request_ "download-service-image" {
       "image": image,
     }
-    return base64.decode image64
+    return base64.decode encoded_image
 
   send_request_ command/string data/Map -> any:
     encoded := ubjson.encode {
