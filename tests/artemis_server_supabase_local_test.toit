@@ -94,7 +94,6 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
       if supabase_client: supabase_client.close
       network.close
 
-
 main:
   server_config := get_supabase_config --sub_directory=SUPABASE_ARTEMIS
   service_key := get_supabase_service_key --sub_directory=SUPABASE_ARTEMIS
