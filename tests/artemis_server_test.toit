@@ -1,44 +1,35 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+// TEST_FLAGS: --supabase --http
+
 import expect show *
 import host.directory
 import log
 import net
 import uuid
 
-import .supabase_local_server
+import .artemis_server
+import .utils
 
 import artemis.cli.artemis_servers.artemis_server show ArtemisServerCli
 import artemis.service.artemis_servers.artemis_server show ArtemisServerService
 import artemis.shared.server_config show ServerConfig
+import artemis.cli.auth as cli_auth
 
-import .utils
+main args:
+  type := "http"
+  if not args.is_empty and args[0] == "--supabase":
+    type = "supabase"
+  with_artemis_server --type=type: | artemis_server/TestArtemisServer |
+      run_test artemis_server --authenticate=: | config |
+        if type == "supabase":
+          cli_auth.sign_in artemis_server.server_config config
+              --email=TEST_EXAMPLE_COM_EMAIL
+              --password=TEST_EXAMPLE_COM_PASSWORD
 
-interface ArtemisServerBackdoor:
-  /**
-  Fetches the information of the device with the given $hardware_id.
-
-  Returns a list of [hardware_id, fleet_id, alias]. If no alias exists, uses "" instead.
-  */
-  fetch_device_information --hardware_id/string -> List
-
-  /** Whether there exists a '$type'-event for the given $hardware_id. */
-  has_event --hardware_id/string --type/string -> bool
-
-  /**
-  Installs the given images.
-
-  The $images parameter is a list of maps, each containing the
-    following entries:
-  - sdk_version: The SDK version of the image.
-  - service_version: The service version of the image.
-  - image: The image identifier.
-  - content: The image content (a byte array).
-  */
-  install_service_images images/List
-
-run_test server_config/ServerConfig backdoor/ArtemisServerBackdoor
-    [--authenticate]:
+run_test artemis_server/TestArtemisServer [--authenticate]:
+  server_config := artemis_server.server_config
+  backdoor := artemis_server.backdoor
   with_tmp_config: | config |
     network := net.open
     authenticate.call config

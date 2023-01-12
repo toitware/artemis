@@ -22,25 +22,47 @@ include(fail.cmake OPTIONAL)
 message("Failing tests: ${FAILING_TESTS}")
 message("Skipped tests: ${SKIP_TESTS}")
 
+function(extract_test_flags file result)
+  file(READ "${file}" content)
+  string(REGEX MATCHALL "// TEST_FLAGS: ([^\n]*)" flags "${content}")
+  string(REPLACE " " ";" flags "${CMAKE_MATCH_1}")
+  set(${result} "${flags}" PARENT_SCOPE)
+endfunction()
+
 foreach(file ${TESTS})
-  set(test_name "/tests/${file}")
-  if("${test_name}" IN_LIST SKIP_TESTS)
-    continue()
+  extract_test_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" flags)
+  if (NOT flags)
+    set(flags "--dummy")
   endif()
 
-  add_test(
-    NAME "${test_name}"
-    COMMAND "${TOITRUN}" "${file}"
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  )
+  foreach (flag ${flags})
+    set(test_name "/tests/${file}")
+    if (${flag} MATCHES "--dummy")
+      set(flag "")
+    endif()
 
-  if ("${file}" MATCHES "slow.toit")
-    set_tests_properties(${test_name} PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
-  else()
-    set_tests_properties(${test_name} PROPERTIES TIMEOUT ${TEST_TIMEOUT})
-  endif()
+    if (NOT "${flag}" STREQUAL "")
+      set(test_name "${test_name}${flag}")
+    endif()
 
-  if("${test_name}" IN_LIST FAILING_TESTS)
-    set_tests_properties("${test_name}" PROPERTIES WILL_FAIL TRUE)
-  endif()
+    if("${test_name}" IN_LIST SKIP_TESTS)
+      continue()
+    endif()
+
+    add_test(
+      NAME "${test_name}"
+      COMMAND "${TOITRUN}" "${file}" ${flag}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    if ("${file}" MATCHES "_slow.toit")
+      set_tests_properties(${test_name} PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
+    else()
+      set_tests_properties(${test_name} PROPERTIES TIMEOUT ${TEST_TIMEOUT})
+    endif()
+
+    if("${test_name}" IN_LIST FAILING_TESTS)
+      set_tests_properties("${test_name}" PROPERTIES WILL_FAIL TRUE)
+    endif()
+  endforeach()
 endforeach()

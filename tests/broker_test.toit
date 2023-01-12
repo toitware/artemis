@@ -1,5 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+// TEST_FLAGS: --http-toit --mosquitto --supabase-local --toit-mqtt
+
 import expect show *
 import log
 import monitor
@@ -14,6 +16,11 @@ import .brokers
 import .utils
 
 SUPABASE_DEVICE_UUID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
+
+main args:
+  if args.is_empty: args = ["--http-toit"]
+  broker_id := args[0][2..]
+  run_test broker_id
 
 run_test broker_id/string:
   with_brokers broker_id: | logger name broker_cli broker_service |

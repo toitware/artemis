@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import expect show *
 import log
 import host.directory
 import host.pipe
@@ -18,6 +19,7 @@ import monitor
 import .brokers
 import .supabase_local_server
 import .mqtt_broker_mosquitto
+import .artemis_server
 
 export Device
 
@@ -80,21 +82,6 @@ with_http_broker [block]:
     broker.close
     broker_task.cancel
 
-with_http_artemis_server [block]:
-  server := http_servers.HttpArtemisServer 0
-  port_latch := monitor.Latch
-  server_task := task:: server.start port_latch
-
-  server_config := server_config.ServerConfigHttpToit "test-artemis-server"
-      --host="localhost"
-      --port=port_latch.get
-
-  try:
-    block.call server server_config
-  finally:
-    server.close
-    server_task.cancel
-
 // TODO(florian): Maybe it's better to use a simplified version of the
 //   the UI, so it's easier to match against it. We probably want the
 //   default version of the console UI to be simpler anyway.
@@ -107,7 +94,9 @@ class TestUi extends ConsoleUi:
 class TestCli:
   config/cli.Config
   cache/cli.Cache
-  constructor .config .cache:
+  artemis_backdoor/ArtemisServerBackdoor
+
+  constructor .config .cache .artemis_backdoor:
 
   run args -> string:
     ui := TestUi
@@ -133,29 +122,17 @@ with_test_cli
     --start_device_artemis/bool=true
     --device_id=TEST_DEVICE_UUID
     [block]:
-  if artemis_type == "supabase":
-    server_config := get_supabase_config --sub_directory=SUPABASE_ARTEMIS
+  with_artemis_server --type=artemis_type: | artemis_server |
     with_test_cli
-        --artemis_config=server_config
+        --artemis_server=artemis_server
         broker_type
         --logger=logger
         --start_device_artemis=start_device_artemis
         --device_id=device_id
         block
-  else if artemis_type == "http":
-    with_http_artemis_server: | server server_config |
-      with_test_cli
-          --artemis_config=server_config
-          broker_type
-          --logger=logger
-          --start_device_artemis=start_device_artemis
-          --device_id=device_id
-          block
-  else:
-    throw "Unknown artemis_type $artemis_type"
 
 with_test_cli
-    --artemis_config/server_config.ServerConfig
+    --artemis_server/TestArtemisServer
     broker_type
     --logger/log.Logger
     --start_device_artemis/bool=true
@@ -164,7 +141,7 @@ with_test_cli
   if broker_type == "supabase":
     server_config := get_supabase_config --sub_directory=SUPABASE_CUSTOMER
     with_test_cli
-        --artemis_config=artemis_config
+        --artemis_server=artemis_server
         --broker_config=server_config
         --logger=logger
         --start_device_artemis=start_device_artemis
@@ -173,7 +150,7 @@ with_test_cli
   else if broker_type == "http":
     with_http_broker: | server_config |
       with_test_cli
-          --artemis_config=artemis_config
+          --artemis_server=artemis_server
           --broker_config=server_config
           --logger=logger
           --start_device_artemis=start_device_artemis
@@ -186,7 +163,7 @@ with_test_cli
     throw "Unknown broker_type $broker_type"
 
 with_test_cli
-    --artemis_config/server_config.ServerConfig
+    --artemis_server/TestArtemisServer
     --broker_config/server_config.ServerConfig
     --logger/log.Logger
     --start_device_artemis/bool=true
@@ -200,6 +177,7 @@ with_test_cli
     directory.mkdir cache_dir
     cache := cli.Cache --app_name="artemis-test" --path=cache_dir
 
+    artemis_config := artemis_server.server_config
     cli_server_config.add_server_to_config config artemis_config
     cli_server_config.add_server_to_config config broker_config
 
@@ -213,7 +191,7 @@ with_test_cli
         service.run_artemis device broker_config --no-start_ntp
 
     try:
-      test_cli := TestCli config cache
+      test_cli := TestCli config cache artemis_server.backdoor
       test_cli.run ["config", "broker", "--artemis", "use", artemis_config.name]
       test_cli.run ["config", "broker", "use", broker_config.name]
       block.call test_cli device
