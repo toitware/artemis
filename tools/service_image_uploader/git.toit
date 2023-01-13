@@ -35,6 +35,7 @@ class Git:
         // TODO(florian): the following "copy" shouldn't be necessary, but
         // the pipe.backticks command currently only accepts "real" strings
         // and "ref" could be a string-slice.
+        // Same for the copies below.
         "checkout", ref.copy,
         "-q",
       ]
@@ -46,10 +47,10 @@ class Git:
   tag --commit/string --name/string --repository_root/string=current_repository_root:
     pipe.backticks [
       "git",
-      "-C", current_repository_root,
+      "-C", repository_root.copy,
       "tag",
-      name,
-      commit,
+      name.copy,
+      commit.copy,
     ]
 
   /**
@@ -59,8 +60,8 @@ class Git:
     if not delete: throw "INVALID_ARGUMENT"
     pipe.backticks [
       "git",
-      "-C", current_repository_root,
+      "-C", repository_root.copy,
       "tag",
       "-d",
-      name,
+      name.copy,
     ]
