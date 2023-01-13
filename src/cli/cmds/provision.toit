@@ -54,7 +54,7 @@ create_identity parsed/cli.Parsed config/Config ui/Ui:
     organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
     if not organization_id:
       ui.error "No default organization set."
-      exit 1
+      ui.abort
 
   device_id := parsed["device-id"]
   broker_generic := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
