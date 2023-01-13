@@ -35,23 +35,27 @@ create_provision_commands config/Config cache/Cache ui/Ui -> List:
         cli.OptionString "output"
             --short_name="o"
             --short_help="File to write the identity to.",
-        // TODO(kasper): This option should be given through some
-        // sort of auth-based mechanism.
         cli.OptionString "organization-id"
-            --default="4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
+            --short_help="The organization to use."
       ]
       --run=:: create_identity it config ui
 
   provision_cmd.add create_identity_cmd
   return [provision_cmd]
 
-create_identity parsed/cli.Parsed  config/Config ui/Ui:
+create_identity parsed/cli.Parsed config/Config ui/Ui:
   output_file := parsed["output"]
   output_dir := parsed["output-directory"]
   if output_file and output_dir:
     throw "Cannot specify both --output-file and --output-directory"
 
   organization_id := parsed["organization-id"]
+  if not organization_id:
+    organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
+    if not organization_id:
+      ui.error "No default organization set."
+      exit 1
+
   device_id := parsed["device-id"]
   broker_generic := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
   artemis_broker_generic := get_server_from_config config parsed["broker.artemis"] CONFIG_ARTEMIS_DEFAULT_KEY

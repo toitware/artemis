@@ -42,10 +42,21 @@ run_test test_cli/TestCli:
     expect_null files.next
 
     id_file := "$tmp_dir/id"
+
+    // Test an error when the organization id isn't set.
+    test_cli.run --expect_exit_1 [
+      "provision",
+      "create-identity",
+      "-o", id_file,
+    ]
+
+    test_cli.run [
+      "org", "use", TEST_ORGANIZATION_UUID,
+    ]
+
     test_cli.run [
       "provision",
       "create-identity",
-      "--organization-id", TEST_ORGANIZATION_UUID,
       "-o", id_file,
     ]
     expect (file.is_file id_file)
