@@ -53,18 +53,12 @@ create_identity parsed/cli.Parsed  config/Config ui/Ui:
 
   organization_id := parsed["organization-id"]
   device_id := parsed["device-id"]
-  broker_generic := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
-  artemis_broker_generic := get_server_from_config config parsed["broker.artemis"] CONFIG_ARTEMIS_DEFAULT_KEY
-
-  if broker_generic is not ServerConfigSupabase: throw "unsupported broker"
-  if artemis_broker_generic is not ServerConfigSupabase: throw "unsupported artemis broker"
-
-  broker := broker_generic as ServerConfigSupabase
-  artemis_broker := artemis_broker_generic as ServerConfigSupabase
+  broker_config := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
+  artemis_config := get_server_from_config config parsed["broker.artemis"] CONFIG_ARTEMIS_DEFAULT_KEY
 
   network := net.open
   try:
-    server := ArtemisServerCli network artemis_broker config
+    server := ArtemisServerCli network artemis_config config
     server.ensure_authenticated:
       ui.error "Not logged in"
       // TODO(florian): another PR is already out that changes this to 'ui.abort'
@@ -92,8 +86,8 @@ create_identity parsed/cli.Parsed  config/Config ui/Ui:
         --device_id=device_id
         --organization_id=organization_id
         --hardware_id=hardware_id
-        --server_config=broker
-        --artemis_server_config=artemis_broker
+        --server_config=broker_config
+        --artemis_server_config=artemis_config
         --output_path=output_path
         --ui=ui
   finally:
@@ -103,8 +97,8 @@ create_identity_file -> none
     --device_id/string
     --organization_id/string
     --hardware_id/string
-    --server_config/ServerConfigSupabase
-    --artemis_server_config/ServerConfigSupabase
+    --server_config/ServerConfig
+    --artemis_server_config/ServerConfig
     --output_path/string
     --ui/Ui:
 
@@ -112,7 +106,7 @@ create_identity_file -> none
   deduplicated_certificates := {:}
 
   broker_json := server_config_to_service_json server_config deduplicated_certificates
-  artemis_broker_json := server_config_to_service_json artemis_server_config deduplicated_certificates
+  artemis_json := server_config_to_service_json artemis_server_config deduplicated_certificates
 
   identity ::= {
     "artemis.device": {
@@ -120,7 +114,7 @@ create_identity_file -> none
       "organization_id" : organization_id,
       "hardware_id"     : hardware_id,
     },
-    "artemis.broker": artemis_broker_json,
+    "artemis.broker": artemis_json,
     "broker": broker_json,
   }
 
