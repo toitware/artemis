@@ -30,6 +30,9 @@ interface Ui implements supabase.Ui cli.Ui:
 
   abort
 
+global_print_ str/string:
+  print str
+
 class ConsoleUi implements Ui:
   error str/string:
     print_ "Error: $str"
@@ -86,7 +89,7 @@ class ConsoleUi implements Ui:
         print_ "$indentation$key: $value"
 
   print_ str/string:
-    print str
+    global_print_ str
 
   abort -> none:
     exit 1
