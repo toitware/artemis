@@ -7,6 +7,7 @@ import ..config
 import ..cache
 import ..server_config
 import ..ui
+import ..organization
 import ..artemis_servers.artemis_server show with_server ArtemisServerCli
 
 create_org_commands config/Config cache/Cache ui/Ui -> List:
@@ -136,7 +137,7 @@ with_org_server_id parsed/cli.Parsed config/Config ui/Ui [block]:
     org_id = config.get CONFIG_ORGANIZATION_DEFAULT
     if not org_id:
       ui.error "No default organization set."
-      exit 1
+      ui.abort
 
   with_org_server parsed config: | server |
     block.call server org_id
@@ -165,11 +166,12 @@ print_org org_id/string server/ArtemisServerCli ui/Ui -> none:
   }
 
 use_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
-  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string|
-    org := server.get_organization org_id
-    if not org:
+  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string |
+    org/DetailedOrganization? := null
+    exception := catch: org = server.get_organization org_id
+    if exception or not org:
       ui.error "Organization not found."
-      exit 1
+      ui.abort
 
     config[CONFIG_ORGANIZATION_DEFAULT] = org.id
     config.write
@@ -181,7 +183,7 @@ default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   org_id := config.get CONFIG_ORGANIZATION_DEFAULT
   if not org_id:
     ui.error "No default organization set."
-    exit 1
+    ui.abort
 
   if id_only:
     ui.info "$org_id"
@@ -226,7 +228,7 @@ member_remove parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
       current_user_id := server.get_current_user_id
       if user_id == current_user_id:
         ui.error "Use '--force' to remove yourself from an organization."
-        exit 1
+        ui.abort
     server.organization_member_remove --organization_id=org_id --user_id=user_id
     ui.info "Removed user $user_id from organization $org_id."
 

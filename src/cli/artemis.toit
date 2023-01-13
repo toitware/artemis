@@ -102,10 +102,10 @@ class Artemis:
       // TODO(kasper): Clean this up and provide a better error message.
       if not is_same_broker "broker" identity tmp artemis_assets_path:
         ui.error "not the same broker"
-        exit 1
+        ui.abort
       if not is_same_broker "artemis.broker" identity tmp artemis_assets_path:
         ui.error "not the same artemis broker"
-        exit 1
+        ui.abort
 
     firmware/Firmware? := null
     broker_.device_update_config --device_id=device_id: | config/Map |

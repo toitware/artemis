@@ -156,7 +156,7 @@ flash_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   if not parsed["port"]:
     ui.error "No --port option given."
-    exit 1
+    ui.abort
   port/string := parsed["port"]
   baud/string? := parsed["baud"]
 
