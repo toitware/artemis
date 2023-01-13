@@ -88,46 +88,38 @@ class HttpArtemisServer extends HttpServer:
   sdk_service_versions := []
   image_binaries := {:}
 
-  current_user/string? := null
-
   constructor port/int:
     super port
 
-  run_command command/string data -> any:
+  run_command command/string data user_id/string? -> any:
+    print "Request $command for $user_id"
+    if user_id and not users.contains user_id:
+      throw "User not found: $user_id"
+
     if command == "check-in": return store_event data
     if command == "create-device-in-organization":
       return create_device_in_organization data
     if command == "notify-created": return store_event data
-    if command == "get-current-user-id": return current_user
-    // TODO(florian): move the code into separate functions.
+    if command == "sign-up": return sign_up data
+    if command == "sign-in": return sign_in data
     if command == "get-organizations":
-      result := []
-      organizations.do: | _ entry/OrganizationEntry |
-        result.add {"id": entry.id, "name": entry.name}
-      return result
+      return get_organizations data user_id
     if command == "get-organization-details":
-      organization_id := data["id"]
-      organization := organizations.get organization_id
-      return organization and organization.to_json
+      return get_organization_details data user_id
     if command == "create-organization":
-      if not current_user: throw "Not logged in"
-      id := "$(uuid.uuid5 "" "organization_id - $Time.monotonic_us")"
-      organization := add_organization id data["name"]
-      organization.members[current_user] = "admin"
-      organizations[id] = organization
-      return organization.to_json
+      return create_organization data user_id
     if command == "get-organization-members":
       return get_organization_members data
     if command == "organization-member-add":
-      return organization_member_add data
+      return organization_member_add data user_id
     if command == "organization-member-remove":
       return organization_member_remove data
     if command == "organization-member-set-role":
-      return organization_member_set_role data
+      return organization_member_set_role data user_id
     if command == "get-profile":
-      return get_profile (data.get "id")
+      return get_profile data user_id
     if command == "update-profile":
-      return update_profile data
+      return update_profile data user_id
     if command == "list-sdk-service-versions":
       return list_sdk_service_versions data
     if command == "download-service-image":
@@ -159,21 +151,41 @@ class HttpArtemisServer extends HttpServer:
       "organization_id": organization_id,
     }
 
-  add_organization id/string name/string -> OrganizationEntry:
-    organization := OrganizationEntry id --name=name --created_at=Time.now
-    organizations[id] = organization
-    return organization
-
-  create_user --email/string --name/string --id/string?=null
-      --set_current/bool=false -> string:
+  create_user --email/string --name/string --id/string?=null -> string:
     if not id: id = (uuid.uuid5 "" "user_id - $Time.monotonic_us").stringify
-    if set_current: current_user = id
     user := User id --email=email --name=name
     users[id] = user
     return id
 
-  set_current_user id/string:
-    current_user = id
+  get_organizations data/Map user_id/string? -> List:
+    result := []
+    if not user_id: return result
+    organizations.do: | _ entry/OrganizationEntry |
+      if entry.members.contains user_id:
+        result.add {"id": entry.id, "name": entry.name}
+    return result
+
+  get_organization_details data/Map user_id/string? -> Map?:
+    organization_id := data["id"]
+    organization := organizations.get organization_id
+    if not organization: return null
+    if not user_id or not organization.members.contains user_id:
+      throw "Not a member of this organization"
+    return organization.to_json
+
+  create_organization data/Map user_id/string? -> Map:
+    if not user_id: throw "Not logged in"
+    id := "$(uuid.uuid5 "" "organization_id - $Time.monotonic_us")"
+    name := data["name"]
+    organization := create_organization --id=id --name=name --admin_id=user_id
+    return organization.to_json
+
+  create_organization --id/string --name/string --admin_id/string -> OrganizationEntry:
+    organization := OrganizationEntry id --name=name --created_at=Time.now
+    organizations[id] = organization
+    organization.members[admin_id] = "admin"
+    organizations[id] = organization
+    return organization
 
   get_organization_members data/Map -> List:
     organization_id := data["id"]
@@ -187,21 +199,24 @@ class HttpArtemisServer extends HttpServer:
       }
     return result
 
-  organization_member_add data/Map:
+  organization_member_add data/Map authenticated_user_id/string?:
     organization_id := data["organization_id"]
     user_id := data["user_id"]
     role := data["role"]
     organization_member_add
         --organization_id=organization_id
         --user_id=user_id
+        --authenticated_user_id=authenticated_user_id
         --role=role
     return null
 
   organization_member_add
+      --authenticated_user_id/string?
       --organization_id/string
       --user_id/string
       --role/string
       --admin_check/bool=true:
+    if not authenticated_user_id: throw "Not logged in"
     organization := organizations.get organization_id
     if not organization: throw "Organization not found"
     user := users.get user_id
@@ -210,7 +225,7 @@ class HttpArtemisServer extends HttpServer:
       throw "Invalid role $role"
     if organization.members.contains user_id:
       throw "User already a member of organization"
-    if admin_check and ((organization.members.get current_user) != "admin"):
+    if admin_check and ((organization.members.get authenticated_user_id) != "admin"):
       throw "Not an admin"
     organization.members[user_id] = role
 
@@ -236,16 +251,18 @@ class HttpArtemisServer extends HttpServer:
     organization.members.remove user_id
     return null
 
-  organization_member_set_role data/Map:
+  organization_member_set_role data/Map authenticated_user_id/string?:
     organization_id := data["organization_id"]
     user_id := data["user_id"]
     role := data["role"]
     organization_member_set_role
+        --authenticated_user_id=authenticated_user_id
         --organization_id=organization_id
         --user_id=user_id
         --role=role
 
   organization_member_set_role
+      --authenticated_user_id/string?
       --organization_id/string
       --user_id/string
       --role/string
@@ -258,21 +275,22 @@ class HttpArtemisServer extends HttpServer:
       throw "Invalid role $role"
     if not organization.members.contains user_id:
       throw "User not a member of organization"
-    if not current_user: throw "Not logged in"
-    if admin_check and ((organization.members.get current_user) != "admin"):
+    if not authenticated_user_id: throw "Not logged in"
+    if admin_check and ((organization.members.get authenticated_user_id) != "admin"):
       throw "Not an admin"
     organization.members[user_id] = role
 
-  get_profile id/string? -> Map?:
+  get_profile data/Map authenticated_user_id/string? -> Map?:
+    id/string? := data["id"]
     if not id:
-      if not current_user: throw "Not logged in"
-      id = current_user
+      if not authenticated_user_id: throw "Not logged in"
+      id = authenticated_user_id
     user := users.get id
     return user and user.to_json
 
-  update_profile data/Map:
-    if not current_user: throw "Not logged in"
-    user := users.get current_user
+  update_profile data/Map user_id/string?:
+    if not user_id: throw "Not logged in"
+    user := users.get user_id
     if not user: throw "User not found"
     if data.contains "name": user.name = data["name"]
     if data.contains "email": user.email = data["email"]
@@ -294,3 +312,23 @@ class HttpArtemisServer extends HttpServer:
   download_service_image data/Map -> string:
     image := data["image"]
     return base64.encode image_binaries[image]
+
+  sign_up data/Map:
+    email := data["email"]
+    password := data["password"]
+    if not email or not password:
+      throw "Missing email, password"
+    users.do: | _ user/User |
+      if user.email == email:
+        throw "Email already in use"
+    user_id := create_user --email=email --name=email
+
+  sign_in data/Map:
+    email := data["email"]
+    password := data["password"]
+    if not email or not password:
+      throw "Missing email, password"
+    users.do: | _ user/User |
+      if user.email == email:
+        return user.id
+    throw "Invalid email or password"

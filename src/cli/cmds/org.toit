@@ -124,11 +124,16 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
 
   return [org_cmd]
 
-with_org_server parsed/cli.Parsed config/Config [block]:
+with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
   server_config/ServerConfig := ?
   server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
 
-  with_server server_config config block
+  with_server server_config config: | server/ArtemisServerCli |
+    server.ensure_authenticated:
+      ui.error "Not logged in."
+      // TODO(florian): another PR is already out that changes this to 'ui.abort'
+      exit 1
+    block.call server
 
 with_org_server_id parsed/cli.Parsed config/Config ui/Ui [block]:
   org_id := parsed["org-id"]
@@ -138,17 +143,17 @@ with_org_server_id parsed/cli.Parsed config/Config ui/Ui [block]:
       ui.error "No default organization set."
       exit 1
 
-  with_org_server parsed config: | server |
+  with_org_server parsed config ui: | server |
     block.call server org_id
 
 list_orgs parsed/cli.Parsed config/Config ui/Ui -> none:
-  with_org_server parsed config: | server/ArtemisServerCli |
+  with_org_server parsed config ui: | server/ArtemisServerCli |
     orgs := server.get_organizations
     ui.info_table --header=["ID", "Name"]
         orgs.map: [ it.id, it.name ]
 
 create_org parsed/cli.Parsed config/Config ui/Ui -> none:
-  with_org_server parsed config: | server/ArtemisServerCli |
+  with_org_server parsed config ui: | server/ArtemisServerCli |
     org := server.create_organization parsed["name"]
     ui.info "Created organization $org.id - $org.name"
 
@@ -187,7 +192,7 @@ default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
     ui.info "$org_id"
     return
 
-  with_org_server parsed config: | server/ArtemisServerCli |
+  with_org_server parsed config ui: | server/ArtemisServerCli |
     print_org org_id server ui
 
 member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:

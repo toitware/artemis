@@ -95,15 +95,18 @@ with_http_artemis_server [block]:
       --host="localhost"
       --port=port_latch.get
 
-  server.add_organization TEST_ORGANIZATION_UUID TEST_ORGANIZATION_NAME
+  server.create_organization
+      --id=TEST_ORGANIZATION_UUID
+      --name=TEST_ORGANIZATION_NAME
+      --admin_id=TEST_EXAMPLE_COM_UUID
 
   server.create_user --name=TEST_EXAMPLE_COM_NAME
       --email=TEST_EXAMPLE_COM_EMAIL
       --id=TEST_EXAMPLE_COM_UUID
-      --set_current
   server.create_user --name=DEMO_EXAMPLE_COM_NAME
       --email=DEMO_EXAMPLE_COM_EMAIL
       --id=DEMO_EXAMPLE_COM_UUID
+
 
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
 
@@ -113,7 +116,6 @@ with_http_artemis_server [block]:
   finally:
     server.close
     server_task.cancel
-
 
 class SupabaseBackdoor implements ArtemisServerBackdoor:
   server_config_/ServerConfigSupabase
@@ -147,9 +149,10 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
   install_service_images images/List -> none:
     with_backdoor_client_: | client/supabase.Client |
       // Clear the sdks, service-versions and images table.
-      client.rest.delete "sdks" --filters=[]
-      client.rest.delete "artemis_services" --filters=[]
-      client.rest.delete "service_images" --filters=[]
+      // Deletes require a where clause, so we use a filter that matches all IDs.
+      client.rest.delete "sdks" --filters=["id=gte.0"]
+      client.rest.delete "artemis_services" --filters=["id=gte.0"]
+      client.rest.delete "service_images" --filters=["id=gte.0"]
 
       sdk_versions := {:}
       service_versions := {:}

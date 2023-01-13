@@ -6,9 +6,12 @@ import host.file
 
 import ..cache
 import ..config
-import ..auth as auth
+import ..auth show Authenticatable
 import ..server_config
 import ..ui
+import ..artemis_servers.artemis_server show with_server ArtemisServerCli
+import ..brokers.broker show with_broker BrokerCli
+
 
 create_auth_commands config/Config cache/Cache ui/Ui -> List:
   auth_cmd := cli.Command "auth"
@@ -27,15 +30,6 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
       ]
       --run=:: sign_in --broker it config ui
   broker_cmd.add broker_log_in_cmd
-
-  broker_refresh_cmd := cli.Command "refresh"
-      --short_help="Refresh the authentication token."
-      --hidden
-      --options=[
-        cli.OptionString "broker" --short_help="The broker to use."
-      ]
-      --run=:: refresh --broker it config ui
-  broker_cmd.add broker_refresh_cmd
 
   artemis_cmd := cli.Command "artemis"
       --short_help="Authenticate against the Artemis server."
@@ -75,47 +69,48 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: sign_in --no-broker it config ui
   artemis_cmd.add log_in_cmd
 
-  refresh_cmd := cli.Command "refresh"
-      --short_help="Refresh the authentication token."
-      --hidden
-      --options=[
-        cli.OptionString "server" --short_help="The server to use."
-      ]
-      --run=:: refresh --no-broker it config ui
-  artemis_cmd.add refresh_cmd
-
   return [auth_cmd]
 
-sign_in --broker/bool parsed/cli.Parsed config/Config ui/Ui:
+with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
+  server_config/ServerConfig := ?
+  server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
+
+  with_server server_config config: | server/ArtemisServerCli |
+    server.ensure_authenticated:
+      ui.error "Not logged in."
+      // TODO(florian): another PR is already out that changes this to 'ui.abort'
+      exit 1
+    block.call server
+
+with_authenticatable --broker/bool parsed/cli.Parsed config/Config ui/Ui [block]:
   server_config/ServerConfig := ?
   if broker:
     server_config = get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
+    with_broker server_config config: | broker/BrokerCli |
+      block.call broker
   else:
     server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
+    with_server server_config config: | server/ArtemisServerCli |
+      block.call server
 
-  if parsed.was_provided "email" or parsed.was_provided "password":
+
+sign_in --broker/bool parsed/cli.Parsed config/Config ui/Ui:
+  with_authenticatable --broker=broker parsed config ui: | authenticatable/Authenticatable |
+    if parsed.was_provided "email" or parsed.was_provided "password":
+      email := parsed["email"]
+      password := parsed["password"]
+      if not (email and password):
+        throw "email and password must be provided together."
+      authenticatable.sign_in --email=email --password=password
+    else:
+      authenticatable.sign_in --provider="github" --ui=ui
+    ui.info "Successfully authenticated."
+
+sign_up parsed/cli.Parsed config/Config ui/Ui:
+  with_authenticatable --broker=false parsed config ui: | authenticatable/Authenticatable |
     email := parsed["email"]
     password := parsed["password"]
     if not (email and password):
       throw "email and password must be provided together."
-    auth.sign_in server_config config --email=email --password=password
-  else:
-    auth.sign_in server_config config --ui=ui
-  ui.info "Successfully authenticated."
-
-sign_up parsed/cli.Parsed config/Config ui/Ui:
-  server_config := get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
-  email := parsed["email"]
-  password := parsed["password"]
-
-  auth.sign_up server_config --email=email --password=password
-  ui.info "Successfully signed up. Check your email for a verification link."
-
-refresh --broker/bool parsed/cli.Parsed config/Config ui/Ui:
-  server_config/ServerConfig := ?
-  if broker:
-    server_config = get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
-  else:
-    server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
-  auth.refresh_token server_config config
-  ui.info "Successfully refreshed."
+    authenticatable.sign_up --email=email --password=password
+    ui.info "Successfully signed up. Check your email for a verification link."

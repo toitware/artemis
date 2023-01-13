@@ -6,24 +6,48 @@ import net
 import .supabase show ArtemisServerCliSupabase
 import .http.base show ArtemisServerCliHttpToit
 import ...shared.server_config
+import ..auth
 import ..config
 import ..device
 import ..organization
+import ..ui
 
 /**
 An abstraction for the Artemis server.
 */
-interface ArtemisServerCli:
+interface ArtemisServerCli implements Authenticatable:
   constructor network/net.Interface server_config/ServerConfig config/Config:
     if server_config is ServerConfigSupabase:
       return ArtemisServerCliSupabase network (server_config as ServerConfigSupabase) config
     if server_config is ServerConfigHttpToit:
-      return ArtemisServerCliHttpToit network (server_config as ServerConfigHttpToit)
+      return ArtemisServerCliHttpToit network (server_config as ServerConfigHttpToit) config
     throw "UNSUPPORTED ARTEMIS SERVER CONFIG"
 
   is_closed -> bool
 
   close -> none
+
+  /**
+  Ensures that the user is authenticated.
+
+  If the user is not authenticated, the $block is called.
+  */
+  ensure_authenticated [block]
+
+  /**
+  Signs the user up with the given $email and $password.
+  */
+  sign_up --email/string --password/string
+
+  /**
+  Signs the user in with the given $email and $password.
+  */
+  sign_in --email/string --password/string
+
+  /**
+  Signs the user in using OAuth.
+  */
+  sign_in --provider/string --ui/Ui
 
   /**
   Adds a new device to the organization with the given $organization_id.

@@ -5,6 +5,7 @@ import http
 import net
 
 import ..broker
+import ...ui
 import ....shared.server_config
 
 create_broker_cli_http_toit server_config/ServerConfigHttpToit -> BrokerCliHttp:
@@ -27,6 +28,22 @@ class BrokerCliHttp implements BrokerCli:
 
   is_closed -> bool:
     return network_ == null
+
+  ensure_authenticated [block]:
+    // For simplicity do nothing.
+    // This way we can use the same tests for all brokers.
+
+  sign_up --email/string --password/string:
+    // For simplicity do nothing.
+    // This way we can use the same tests for all brokers.
+
+  sign_in --email/string --password/string:
+    // For simplicity do nothing.
+    // This way we can use the same tests for all brokers.
+
+  sign_in --provider/string --ui/Ui:
+    // For simplicity do nothing.
+    // This way we can use the same tests for all brokers.
 
   send_request_ command/string data/Map -> any:
     if is_closed: throw "CLOSED"

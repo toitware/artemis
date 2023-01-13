@@ -21,9 +21,8 @@ main args:
   if not args.is_empty and args[0] == "--supabase":
     type = "supabase"
   with_artemis_server --type=type: | artemis_server/TestArtemisServer |
-      run_test artemis_server --authenticate=: | config |
-        if type == "supabase":
-          cli_auth.sign_in artemis_server.server_config config
+      run_test artemis_server --authenticate=: | server/ArtemisServerCli |
+        server.sign_in
               --email=TEST_EXAMPLE_COM_EMAIL
               --password=TEST_EXAMPLE_COM_PASSWORD
 
@@ -32,8 +31,8 @@ run_test artemis_server/TestArtemisServer [--authenticate]:
   backdoor := artemis_server.backdoor
   with_tmp_config: | config |
     network := net.open
-    authenticate.call config
     server_cli := ArtemisServerCli network server_config config
+    authenticate.call server_cli
     hardware_id := test_create_device_in_organization server_cli backdoor
     test_notify_created server_cli backdoor --hardware_id=hardware_id
     server_service := ArtemisServerService server_config --hardware_id=hardware_id
@@ -42,7 +41,6 @@ run_test artemis_server/TestArtemisServer [--authenticate]:
     test_organizations server_cli backdoor
     test_profile server_cli backdoor
     test_sdk server_cli backdoor
-
 
 test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
   // Test without and with alias.

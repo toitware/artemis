@@ -58,6 +58,22 @@ class BrokerCliMqtt implements BrokerCli:
   is_closed -> bool:
     return client_ == null
 
+  ensure_authenticated [block]:
+    // For simplicity do nothing.
+    // This way we can use the same tests for all brokers.
+
+  sign_up --email/string --password/string:
+    // For simplicity do nothing.
+    // This way we can use the same tests for all brokers.
+
+  sign_in --email/string --password/string:
+    // For simplicity do nothing.
+    // This way we can use the same tests for all brokers.
+
+  sign_in --provider/string --ui/Ui:
+    // For simplicity do nothing.
+    // This way we can use the same tests for all brokers.
+
   device_update_config --device_id/string [block] -> none:
     client := client_
     topic_lock := topic_lock_for_ device_id

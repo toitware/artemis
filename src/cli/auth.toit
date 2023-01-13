@@ -2,82 +2,27 @@
 // Use of this source code is governed by an MIT-style license that can be
 // found in the LICENSE file.
 
-import certificate_roots
-import supabase
-
-import .config
 import .ui
-import ..shared.server_config
 
-sign_in server_config/ServerConfig config/Config --ui/Ui -> none:
-  if server_config is not ServerConfigSupabase:
-    throw "Unsupported broker type."
+interface Authenticatable:
+  /**
+  Ensures that the user is authenticated.
 
-  supabase_config := server_config as ServerConfigSupabase
+  If the user is not authenticated, the $block is called.
+  */
+  ensure_authenticated [block]
 
-  local_storage := ConfigLocalStorage config
-      --auth_key="$(CONFIG_SERVER_AUTHS_KEY).$(server_config.name)"
+  /**
+  Signs the user up with the given $email and $password.
+  */
+  sign_up --email/string --password/string
 
-  client/supabase.Client? := null
-  try:
-    client = supabase.Client
-        --local_storage=local_storage
-        --server_config=supabase_config
-        --certificate_provider=: certificate_roots.MAP[it]
-    client.auth.sign_in --provider="github" --ui=ui
-  finally:
-    if client: client.close
+  /**
+  Signs the user in with the given $email and $password.
+  */
+  sign_in --email/string --password/string
 
-refresh_token server_config/ServerConfig config/Config -> none:
-  if server_config is not ServerConfigSupabase:
-    throw "Unsupported broker type."
-
-  supabase_config := server_config as ServerConfigSupabase
-
-  local_storage := ConfigLocalStorage config
-      --auth_key="$(CONFIG_SERVER_AUTHS_KEY).$(server_config.name)"
-
-  client/supabase.Client? := null
-  try:
-    client = supabase.Client
-        --local_storage=local_storage
-        --server_config=supabase_config
-        --certificate_provider=: certificate_roots.MAP[it]
-    client.auth.refresh_token
-  finally:
-    if client: client.close
-
-sign_up server_config/ServerConfig --email/string --password/string -> none:
-  if server_config is not ServerConfigSupabase:
-    throw "Unsupported broker type."
-
-  supabase_config := server_config as ServerConfigSupabase
-
-  client/supabase.Client? := null
-  try:
-    client = supabase.Client
-        --server_config=supabase_config
-        --certificate_provider=: certificate_roots.MAP[it]
-    client.auth.sign_up --email=email --password=password
-  finally:
-    if client: client.close
-
-sign_in server_config/ServerConfig config/Config --email/string --password/string -> none:
-  if server_config is not ServerConfigSupabase:
-    throw "Unsupported broker type."
-
-  supabase_config := server_config as ServerConfigSupabase
-
-  local_storage := ConfigLocalStorage config
-      --auth_key="$(CONFIG_SERVER_AUTHS_KEY).$(server_config.name)"
-
-  client/supabase.Client? := null
-  try:
-    client = supabase.Client
-        --local_storage=local_storage
-        --server_config=supabase_config
-        --certificate_provider=: certificate_roots.MAP[it]
-    client.auth.sign_in --email=email --password=password
-  finally:
-    if client: client.close
-
+  /**
+  Signs the user in using OAuth.
+  */
+  sign_in --provider/string --ui/Ui

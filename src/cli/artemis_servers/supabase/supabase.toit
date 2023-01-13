@@ -10,6 +10,7 @@ import ..artemis_server
 import ...config
 import ...device
 import ...organization
+import ...ui
 
 import ....shared.server_config
 
@@ -29,6 +30,18 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
 
   is_closed -> bool:
     return client_ == null
+
+  ensure_authenticated [block]:
+    client_.ensure_authenticated block
+
+  sign_up --email/string --password/string:
+    client_.auth.sign_up --email=email --password=password
+
+  sign_in --email/string --password/string:
+    client_.auth.sign_in --email=email --password=password
+
+  sign_in --provider/string --ui/Ui:
+    client_.auth.sign_in --provider=provider --ui=ui
 
   create_device_in_organization --organization_id/string --device_id/string -> Device:
     payload := {
