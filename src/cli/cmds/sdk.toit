@@ -19,8 +19,8 @@ create_sdk_commands config/Config cache/Cache ui/Ui -> List:
   list_cmd := cli.Command "list"
       --short_help="List supported SDKs."
       --options=[
-        cli.OptionString "sdk_version" --short_help="The SDK version to list.",
-        cli.OptionString "service_version" --short_help="The service version to list.",
+        cli.OptionString "sdk-version" --short_help="The SDK version to list.",
+        cli.OptionString "service-version" --short_help="The service version to list.",
       ]
       --run=:: list_sdks it config ui
   sdk_cmd.add list_cmd
@@ -33,8 +33,8 @@ with_sdk_server parsed/cli.Parsed config/Config [block]:
   with_server server_config config block
 
 list_sdks parsed/cli.Parsed config/Config ui/Ui:
-  sdk_version := parsed["sdk_version"]
-  service_version := parsed["service_version"]
+  sdk_version := parsed["sdk-version"]
+  service_version := parsed["service-version"]
 
   with_sdk_server parsed config: | server/ArtemisServerCli |
     versions := server.list_sdk_service_versions
