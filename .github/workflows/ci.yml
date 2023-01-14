@@ -21,7 +21,7 @@ jobs:
           submodules: true
           # We have a test that wants to tag a specific commit.
           # As such we need to fetch all history.
-          fetch-depth: ''
+          fetch-depth: 0
 
 
       - name: Setup Jaguar and Toit
