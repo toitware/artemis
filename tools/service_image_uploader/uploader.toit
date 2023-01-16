@@ -30,7 +30,7 @@ main args:
 main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   cmd := cli.Command "uploader"
       --long_help="""
-        Builds and uploads the Artemise-service image.
+        Builds and uploads the Artemis service image.
 
         Downloads the SDK if necessary.
 
@@ -49,7 +49,7 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
           out code. The full version string is then '<service-version>-<timestamp>',
           where the timestamp is the time when the build was started.
 
-        The built image is then upload to the Artemis server.
+        The built image is then uploaded to the Artemis server.
         """
       --options=[
         cli.OptionString "sdk-version"
@@ -97,7 +97,7 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       ui.info "Cloning repository and checking out $(commit or service_version)."
       clone_dir := "$tmp_dir/artemis"
       git.clone root --out=clone_dir --ref=(commit or service_version)
-      ui.info "Downloading packages"
+      ui.info "Downloading packages."
       sdk.download_packages clone_dir
       service_source_path = "$clone_dir/$SERVICE_PATH_IN_REPOSITORY"
 
@@ -105,11 +105,11 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       if commit: full_service_version += "-$commit"
 
     ar_file := "$tmp_dir/service.ar"
-    ui.info "Creating image archive"
+    ui.info "Creating image archive."
     create_image_archive service_source_path --sdk=sdk --out=ar_file
 
     with_supabase_client parsed config: | client/supabase.Client |
-      ui.info "Uploading image archive"
+      ui.info "Uploading image archive."
 
       // TODO(florian): share constants with the CLI.
       sdk_ids := client.rest.select "sdks" --filters=[
@@ -149,7 +149,7 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
           --path="service-images/$image_id"
           --content=(file.read_content ar_file)
 
-      ui.info "Successfully uploaded $full_service_version into service-images/$image_id"
+      ui.info "Successfully uploaded $full_service_version into service-images/$image_id."
 
 create_image_archive service_source_path/string --sdk/Sdk --out/string:
   ar_stream := file.Stream.for_write out

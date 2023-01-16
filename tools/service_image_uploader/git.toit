@@ -39,7 +39,7 @@ class Git:
         "checkout", ref.copy,
         "-q",
       ]
-      print "checkout done"
+      print "Checkout done"
 
   /**
   Tags the given $commit with the given tag $name.
