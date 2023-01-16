@@ -12,6 +12,7 @@ import artemis.shared.server_config show ServerConfig
 import host.directory
 import host.file
 import expect show *
+import uuid
 import .utils
 
 main:
@@ -85,15 +86,34 @@ run_test test_cli/TestCli:
   expect (created_time <= Time.now)
 
   // Test 'org use' and 'org default'.
-  // TODO(florian): test no-default and bad default organization.
-  // Currently we can't do that, as the program exits with 'exit 1' in that
-  // case and we wouldn't be able to stop that.
+
+  default_output := test_cli.run --expect_exit_1 [ "org", "default"]
+  expect (default_output.contains "No default organization set")
+
+  bad_use_output := test_cli.run --expect_exit_1 [ "org", "use", "bad_id" ]
+  expect (bad_use_output.contains "Organization not found")
+
+  UNKNOWN_UUID ::= (uuid.uuid5 "unknown" "unknown").stringify
+  bad_use_output = test_cli.run --expect_exit_1 [ "org", "use", UNKNOWN_UUID]
+  expect (bad_use_output.contains "Organization not found")
+
+  // The default org is still not set.
+  default_output = test_cli.run --expect_exit_1 [ "org", "default"]
+  expect (default_output.contains "No default organization set")
 
   use_output := test_cli.run [ "org", "use", id ]
   expect (use_output.contains "set to")
   expect (use_output.contains "Testy")
 
-  default_output := test_cli.run [ "org", "default"]
+  default_output = test_cli.run [ "org", "default"]
+  expect (default_output.contains "Name: Testy")
+  expect (default_output.contains "ID: $id")
+
+  // Another bad setting doesn't change the default.
+  bad_use_output = test_cli.run --expect_exit_1 [ "org", "use", "bad_id" ]
+  expect (bad_use_output.contains "Organization not found")
+
+  default_output = test_cli.run [ "org", "default"]
   expect (default_output.contains "Name: Testy")
   expect (default_output.contains "ID: $id")
 
