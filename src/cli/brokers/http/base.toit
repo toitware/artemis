@@ -41,7 +41,7 @@ class BrokerCliHttp implements BrokerCli:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
-  sign_in --provider/string --ui/Ui:
+  sign_in --provider/string --ui/Ui --open_browser/bool:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 

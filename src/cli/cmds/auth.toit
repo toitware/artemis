@@ -27,6 +27,9 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
         cli.OptionString "broker" --short_help="The broker to log in to.",
         cli.OptionString "username" --short_help="The username for a password-based login.",
         cli.OptionString "password" --short_help="The password for a password-based login.",
+        cli.Flag "open-browser"
+            --default=true
+            --short_help="Automatically open the browser for oauth authentication.",
       ]
       --run=:: sign_in --broker it config ui
   broker_cmd.add broker_log_in_cmd
@@ -65,6 +68,9 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
         cli.OptionString "server" --hidden --short_help="The server to log in to.",
         cli.OptionString "email" --short_help="The email for a password-based login.",
         cli.OptionString "password" --short_help="The password for a password-based login.",
+        cli.Flag "open-browser"
+            --default=true
+            --short_help="Automatically open the browser for oauth authentication.",
       ]
       --run=:: sign_in --no-broker it config ui
   artemis_cmd.add log_in_cmd
@@ -101,9 +107,14 @@ sign_in --broker/bool parsed/cli.Parsed config/Config ui/Ui:
       password := parsed["password"]
       if not (email and password):
         throw "email and password must be provided together."
+      if parsed.was_provided "open-browser":
+        throw "'--open-browser' is not supported for password-based login"
       authenticatable.sign_in --email=email --password=password
     else:
-      authenticatable.sign_in --provider="github" --ui=ui
+      authenticatable.sign_in
+          --provider="github"
+          --ui=ui
+          --open_browser=parsed["open-browser"]
     ui.info "Successfully authenticated."
 
 sign_up parsed/cli.Parsed config/Config ui/Ui:

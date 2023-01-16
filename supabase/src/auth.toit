@@ -93,7 +93,7 @@ class Auth:
         --token_type=response["token_type"]
     client_.set_session_ session
 
-  sign_in --provider/string --ui/Ui -> none:
+  sign_in --provider/string --ui/Ui --open_browser/bool=true -> none:
     network := net.open
     try:
       server_socket := network.tcp_listen 0
@@ -105,13 +105,14 @@ class Auth:
           --provider="github"
 
       ui.info "Please authenticate at $authenticate_url"
-      catch:
-        if platform == PLATFORM_LINUX:
-          pipe.backticks "xdg-open" authenticate_url
-        else if platform == PLATFORM_MACOS:
-          pipe.backticks "open" authenticate_url
-        else if platform == PLATFORM_WINDOWS:
-          pipe.backticks "start" authenticate_url
+      if open_browser:
+        catch:
+          if platform == PLATFORM_LINUX:
+            pipe.backticks "xdg-open" authenticate_url
+          else if platform == PLATFORM_MACOS:
+            pipe.backticks "open" authenticate_url
+          else if platform == PLATFORM_WINDOWS:
+            pipe.backticks "start" authenticate_url
 
       session_latch := monitor.Latch
       server_task := task::

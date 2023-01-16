@@ -40,8 +40,8 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   sign_in --email/string --password/string:
     client_.auth.sign_in --email=email --password=password
 
-  sign_in --provider/string --ui/Ui:
-    client_.auth.sign_in --provider=provider --ui=ui
+  sign_in --provider/string --ui/Ui --open_browser/bool:
+    client_.auth.sign_in --provider=provider --ui=ui --open_browser=open_browser
 
   create_device_in_organization --organization_id/string --device_id/string -> Device:
     payload := {
