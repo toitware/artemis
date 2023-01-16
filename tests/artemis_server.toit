@@ -107,7 +107,6 @@ with_http_artemis_server [block]:
       --email=DEMO_EXAMPLE_COM_EMAIL
       --id=DEMO_EXAMPLE_COM_UUID
 
-
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
 
   test_server := TestArtemisServer server_config backdoor
