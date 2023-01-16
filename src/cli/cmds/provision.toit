@@ -65,8 +65,7 @@ create_identity parsed/cli.Parsed config/Config ui/Ui:
     server := ArtemisServerCli network artemis_config config
     server.ensure_authenticated:
       ui.error "Not logged in"
-      // TODO(florian): another PR is already out that changes this to 'ui.abort'
-      exit 1
+      ui.abort
 
     device := server.create_device_in_organization --organization_id=organization_id --device_id=device_id
 

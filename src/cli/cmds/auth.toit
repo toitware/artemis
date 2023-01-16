@@ -78,8 +78,7 @@ with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
   with_server server_config config: | server/ArtemisServerCli |
     server.ensure_authenticated:
       ui.error "Not logged in."
-      // TODO(florian): another PR is already out that changes this to 'ui.abort'
-      exit 1
+      ui.abort
     block.call server
 
 with_authenticatable --broker/bool parsed/cli.Parsed config/Config ui/Ui [block]:

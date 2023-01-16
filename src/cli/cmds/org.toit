@@ -100,12 +100,14 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
 
   member_remove_cmd := cli.Command "remove"
       --short_help="Remove a member from an organization."
+      --options=[
+          cli.Flag "force" --short_name="f"
+            --short_help="Force removal even if the user is self.",
+      ]
       --rest=[
         cli.OptionString "user-id"
             --short_help="ID of the user to remove."
             --required,
-        cli.Flag "force" --short_name="f"
-            --short_help="Force removal even if the user is self."
       ]
       --run=:: member_remove it config cache ui
   member_cmd.add member_remove_cmd
@@ -132,8 +134,7 @@ with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
   with_server server_config config: | server/ArtemisServerCli |
     server.ensure_authenticated:
       ui.error "Not logged in."
-      // TODO(florian): another PR is already out that changes this to 'ui.abort'
-      exit 1
+      ui.abort
     block.call server
 
 with_org_server_id parsed/cli.Parsed config/Config ui/Ui [block]:
