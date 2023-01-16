@@ -196,5 +196,12 @@ run_test test_cli/TestCli:
   list_output = test_cli.run [ "org", "members", "list" ]
   expect_not (list_output.contains DEMO_EXAMPLE_COM_EMAIL)
 
-  // TODO(florian): test that we can't remove ourself without '--force'.
-  // Currently that's not possible as we would 'exit 1'.
+  // We can't remove ourselves without '--force'.
+  test_cli.run --expect_exit_1 [ "org", "members", "remove", TEST_EXAMPLE_COM_UUID ]
+  list_output = test_cli.run [ "org", "members", "list" ]
+  expect (list_output.contains TEST_EXAMPLE_COM_EMAIL)
+
+  // Remove ourselves with '--force'.
+  test_cli.run [ "org", "members", "remove", "--force", TEST_EXAMPLE_COM_UUID ]
+  list_output = test_cli.run [ "org", "members", "list" ]
+  expect_not (list_output.contains TEST_EXAMPLE_COM_EMAIL)
