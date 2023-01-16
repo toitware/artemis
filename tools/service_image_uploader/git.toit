@@ -25,21 +25,21 @@ class Git:
     pipe.backticks [
       "git",
       "clone",
-      url,
-      out
-    ]
-    if ref:
-      pipe.backticks [
-        "git",
-        "-C", out,
         // TODO(florian): the following "copy" shouldn't be necessary, but
         // the pipe.backticks command currently only accepts "real" strings
         // and "ref" could be a string-slice.
         // Same for the copies below.
+      url.copy,
+      out.copy
+    ]
+    if ref:
+      pipe.backticks [
+        "git",
+        "-C", out.copy,
         "checkout", ref.copy,
         "-q",
       ]
-      print "checkout done"
+      print "Checkout done"
 
   /**
   Tags the given $commit with the given tag $name.
