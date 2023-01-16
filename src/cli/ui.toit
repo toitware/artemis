@@ -30,6 +30,12 @@ interface Ui implements supabase.Ui cli.Ui:
 
   abort
 
+/**
+Prints the given $str using $print.
+
+This function is necessary, as $ConsoleUi has its own 'print' method,
+  which shadows the global one.
+*/
 global_print_ str/string:
   print str
 
