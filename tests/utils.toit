@@ -88,7 +88,7 @@ class TestExit:
 //   the UI, so it's easier to match against it. We probably want the
 //   default version of the console UI to be simpler anyway.
 class TestUi extends ConsoleUi:
-  stdout := ""
+  stdout/string := ""
 
   print_ str/string:
     stdout += "$str\n"
