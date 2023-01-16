@@ -139,21 +139,23 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       image_id := (uuid.uuid5 "artemis"
           "$Time.monotonic_us $sdk_version $full_service_version").stringify
 
+      client.storage.upload
+          --path="service-images/$image_id"
+          --content=(file.read_content ar_file)
+
       client.rest.insert "service_images" {
         "sdk_id": sdk_id,
         "service_id": service_id,
         "image": image_id,
       }
 
-      client.storage.upload
-          --path="service-images/$image_id"
-          --content=(file.read_content ar_file)
-
       ui.info "Successfully uploaded $full_service_version into service-images/$image_id."
 
 create_image_archive service_source_path/string --sdk/Sdk --out/string:
   ar_stream := file.Stream.for_write out
   ar_writer := ar.ArWriter ar_stream
+
+  ar_writer.add "artemis" """{ "magic": "🐅", "version": 1 }"""
 
   with_tmp_directory: | tmp_dir/string |
     snapshot_path := "$tmp_dir/service.snapshot"
