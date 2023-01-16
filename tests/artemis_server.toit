@@ -147,9 +147,10 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
   install_service_images images/List -> none:
     with_backdoor_client_: | client/supabase.Client |
       // Clear the sdks, service-versions and images table.
-      client.rest.delete "sdks" --filters=[]
-      client.rest.delete "artemis_services" --filters=[]
-      client.rest.delete "service_images" --filters=[]
+      // Deletes require a where clause, so we use a filter that matches all IDs.
+      client.rest.delete "sdks" --filters=["id=gte.0"]
+      client.rest.delete "artemis_services" --filters=["id=gte.0"]
+      client.rest.delete "service_images" --filters=["id=gte.0"]
 
       sdk_versions := {:}
       service_versions := {:}
