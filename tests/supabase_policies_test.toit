@@ -494,7 +494,8 @@ main:
     // All other users (including auth) can only see it.
 
     // Clear the sdk table for simplicity.
-    client_admin.rest.delete "sdks" --filters=[]
+    // Delete requires a where clause, so we use a filter that is always true.
+    client_admin.rest.delete "sdks" --filters=["id=gte.0"]
     sdks := client_admin.rest.select "sdks"
     expect_equals 0 sdks.size
 
@@ -532,7 +533,8 @@ main:
     // All other users (including auth) can only see it.
 
     // Clear the sdk table for simplicity.
-    client_admin.rest.delete "artemis_services" --filters=[]
+    // Delete requires a where clause, so we use a filter that is always true.
+    client_admin.rest.delete "artemis_services" --filters=["id=gte.0"]
     artemis_services := client_admin.rest.select "artemis_services"
     expect_equals 0 artemis_services.size
 
@@ -570,7 +572,8 @@ main:
     // All other users (including auth) can only see it.
 
     // Clear the table for simplicity.
-    client_admin.rest.delete "service_images" --filters=[]
+    // Delete requires a where clause, so we use a filter that is always true.
+    client_admin.rest.delete "service_images" --filters=["id=gte.0"]
     images := client_admin.rest.select "service_images"
     expect_equals 0 images.size
 
