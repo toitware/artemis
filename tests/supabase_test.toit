@@ -35,7 +35,8 @@ RPC_SUM ::= "rpc_sum"
 
 test_rest client/supabase.Client:
   // Clear the test table in case we have leftovers from a previous run.
-  client.rest.delete TEST_TABLE --filters=[]
+  // Delete requires a where clause, so we use a filter that is always true.
+  client.rest.delete TEST_TABLE --filters=["id=gte.0"]
 
   // The table should be empty now.
   rows := client.rest.select TEST_TABLE

@@ -91,7 +91,6 @@ interface BrokerCli implements Authenticatable:
   */
   download_firmware --id/string -> ByteArray
 
-
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config
   try:
