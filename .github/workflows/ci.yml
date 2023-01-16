@@ -19,6 +19,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
+          # We have a test that wants to tag a specific commit.
+          # As such we need to fetch all history.
+          fetch-depth: 0
+
 
       - name: Setup Jaguar and Toit
         shell: bash
@@ -86,7 +90,7 @@ jobs:
       - name: Install Supabase
         uses: supabase/setup-cli@v1
         with:
-          version: 1.28.3
+          version: 1.30.0
 
       - name: Start Supabase - Toitware
         shell: bash
@@ -136,7 +140,7 @@ jobs:
           supabase start
           supabase status
 
-      - uses: suisei-cn/actions-download-file@v1
+      - uses: suisei-cn/actions-download-file@v1.3.0
         name: Download Toit
         with:
           url: ${{ env.JAGUAR_URL }}

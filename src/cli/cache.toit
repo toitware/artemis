@@ -1,5 +1,11 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import host.os
+import host.file
+import host.directory
+import encoding.json
+import writer
+
 /**
 Handles cached files.
 
@@ -10,11 +16,7 @@ To simplify testing, the environment variable '<app-name>_CACHE_DIR' can be used
   override the cache directory.
 */
 
-import host.os
-import host.file
-import host.directory
-import encoding.json
-import writer
+SDK_PATH ::= "sdks"
 
 /**
 A class to manage objects that can be downloaded or generated, but should

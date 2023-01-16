@@ -3,13 +3,14 @@
 // TODO(florian): move this library to the cli package.
 
 import supabase
+import cli
 
 /**
 A class for handling input/output from the user.
 
 The Ui class is used to display text to the user and to get input from the user.
 */
-interface Ui implements supabase.Ui:
+interface Ui implements supabase.Ui cli.Ui:
   /** Reports an error. */
   error str/string
 
@@ -25,9 +26,25 @@ interface Ui implements supabase.Ui:
   /** Reports information in a structured way. */
   info_map map/Map
 
+  print str/string
+
+  abort
+
+/**
+Prints the given $str using $print.
+
+This function is necessary, as $ConsoleUi has its own 'print' method,
+  which shadows the global one.
+*/
+global_print_ str/string:
+  print str
+
 class ConsoleUi implements Ui:
   error str/string:
     print_ "Error: $str"
+
+  print str/string:
+    print_ str
 
   info str/string:
     print_ str
@@ -78,4 +95,7 @@ class ConsoleUi implements Ui:
         print_ "$indentation$key: $value"
 
   print_ str/string:
-    print str
+    global_print_ str
+
+  abort -> none:
+    exit 1

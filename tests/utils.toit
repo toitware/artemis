@@ -82,14 +82,19 @@ with_http_broker [block]:
     broker.close
     broker_task.cancel
 
+class TestExit:
+
 // TODO(florian): Maybe it's better to use a simplified version of the
 //   the UI, so it's easier to match against it. We probably want the
 //   default version of the console UI to be simpler anyway.
 class TestUi extends ConsoleUi:
-  stdout := ""
+  stdout/string := ""
 
   print_ str/string:
     stdout += "$str\n"
+
+  abort:
+    throw TestExit
 
 class TestCli:
   config/cli.Config
@@ -98,9 +103,12 @@ class TestCli:
 
   constructor .config .cache .artemis_backdoor:
 
-  run args -> string:
+  run args --expect_exit_1/bool=false -> string:
     ui := TestUi
-    cli.main args --config=config --cache=cache --ui=ui
+    exception := catch --unwind=(: not expect_exit_1 or it is not TestExit):
+      cli.main args --config=config --cache=cache --ui=ui
+    if expect_exit_1 and not exception:
+      throw "Expected exit 1, but got exit 0"
     return ui.stdout
 
 /**

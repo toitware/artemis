@@ -103,3 +103,77 @@ run_test test_cli/TestCli:
   expect found_v1_v1
   expect found_v2_v1
   expect found_v2_v2
+
+  // Test filtering.
+  output = test_cli.run [ "sdk", "list", "--sdk-version", SDK_V2 ]
+  /*
+  ┌─────────────────┬─────────────────┐
+  │ SDK Version       Service Version │
+  ├─────────────────┼─────────────────┤
+  │ v2.0.0-alpha.47   v0.0.1          │
+  │ v2.0.0-alpha.47   v0.0.2          │
+  └─────────────────┴─────────────────┘
+  */
+  lines = output.split "\n"
+  found_v1_v1 = false
+  found_v2_v1 = false
+  found_v2_v2 = false
+  lines.do: | line/string |
+    if line.contains SDK_V1 and line.contains SERVICE_V1:
+      found_v1_v1 = true
+    if line.contains SDK_V2 and line.contains SERVICE_V1:
+      found_v2_v1 = true
+    if line.contains SDK_V2 and line.contains SERVICE_V2:
+      found_v2_v2 = true
+  expect_not found_v1_v1
+  expect found_v2_v1
+  expect found_v2_v2
+
+  // Same for service version.
+  output = test_cli.run [ "sdk", "list", "--service-version", SERVICE_V1 ]
+  /*
+  ┌─────────────────┬─────────────────┐
+  │ SDK Version       Service Version │
+  ├─────────────────┼─────────────────┤
+  │ v2.0.0-alpha.46   v0.0.1          │
+  │ v2.0.0-alpha.47   v0.0.1          │
+  └─────────────────┴─────────────────┘
+  */
+  lines = output.split "\n"
+  found_v1_v1 = false
+  found_v2_v1 = false
+  found_v2_v2 = false
+  lines.do: | line/string |
+    if line.contains SDK_V1 and line.contains SERVICE_V1:
+      found_v1_v1 = true
+    if line.contains SDK_V2 and line.contains SERVICE_V1:
+      found_v2_v1 = true
+    if line.contains SDK_V2 and line.contains SERVICE_V2:
+      found_v2_v2 = true
+  expect found_v1_v1
+  expect found_v2_v1
+  expect_not found_v2_v2
+
+  // Test sdk and service version.
+  output = test_cli.run [ "sdk", "list", "--sdk-version", SDK_V2, "--service-version", SERVICE_V1 ]
+  /*
+  ┌─────────────────┬─────────────────┐
+  │ SDK Version       Service Version │
+  ├─────────────────┼─────────────────┤
+  │ v2.0.0-alpha.47   v0.0.1          │
+  └─────────────────┴─────────────────┘
+  */
+  lines = output.split "\n"
+  found_v1_v1 = false
+  found_v2_v1 = false
+  found_v2_v2 = false
+  lines.do: | line/string |
+    if line.contains SDK_V1 and line.contains SERVICE_V1:
+      found_v1_v1 = true
+    if line.contains SDK_V2 and line.contains SERVICE_V1:
+      found_v2_v1 = true
+    if line.contains SDK_V2 and line.contains SERVICE_V2:
+      found_v2_v2 = true
+  expect_not found_v1_v1
+  expect found_v2_v1
+  expect_not found_v2_v2
