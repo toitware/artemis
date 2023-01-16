@@ -2,7 +2,10 @@
 
 import host.file
 import encoding.json
+import net
+import ..auth
 import ..config
+import ..ui
 import ...shared.server_config
 import .mqtt.base
 import .supabase
@@ -11,7 +14,7 @@ import .http.base
 /**
 Responsible for allowing the Artemis CLI to talk to Artemis services on devices.
 */
-interface BrokerCli:
+interface BrokerCli implements Authenticatable:
   // TODO(florian): we probably want to add a `connect` function to this interface.
   // At the moment we require the connection to be open when artemis receives the
   // broker.
@@ -36,6 +39,28 @@ interface BrokerCli:
   May contain "/", in which case the cache will use subdirectories.
   */
   id -> string
+
+  /**
+  Ensures that the user is authenticated.
+
+  If the user is not authenticated, the $block is called.
+  */
+  ensure_authenticated [block]
+
+  /**
+  Signs the user up with the given $email and $password.
+  */
+  sign_up --email/string --password/string
+
+  /**
+  Signs the user in with the given $email and $password.
+  */
+  sign_in --email/string --password/string
+
+  /**
+  Signs the user in using OAuth.
+  */
+  sign_in --provider/string --ui/Ui
 
   /**
   Invokes the $block with the current configuration (a Map) of $device_id and
@@ -65,3 +90,10 @@ interface BrokerCli:
   Downloads a firmware chunk. Ugly interface.
   */
   download_firmware --id/string -> ByteArray
+
+with_broker server_config/ServerConfig config/Config [block]:
+  broker := BrokerCli server_config config
+  try:
+    block.call broker
+  finally:
+    broker.close

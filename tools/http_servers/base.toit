@@ -26,7 +26,7 @@ abstract class HttpServer:
       socket_.close
       socket_ = null
 
-  abstract run_command command/string data/any -> any
+  abstract run_command command/string data/any user_id/string? -> any
 
   /**
   Starts the server in a blocking way.
@@ -49,9 +49,10 @@ abstract class HttpServer:
 
       command := message["command"]
       data := message["data"]
+      user_id := message.get "user_id"
 
-      listeners.do: it.call "pre" command data
-      reply_ command writer: run_command command data
+      listeners.do: it.call "pre" command data user_id
+      reply_ command writer: run_command command data user_id
 
   reply_ command/string writer/http.ResponseWriter [block]:
     response_data := null

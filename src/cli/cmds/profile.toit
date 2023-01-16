@@ -32,14 +32,19 @@ create_profile_commands config/Config cache/Cache ui/Ui -> List:
 
   return [profile_cmd]
 
-with_profile_server parsed/cli.Parsed config/Config [block]:
+with_profile_server parsed/cli.Parsed config/Config ui/Ui [block]:
   server_config := get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
 
-  with_server server_config config block
+  with_server server_config config: | server/ArtemisServerCli |
+    server.ensure_authenticated:
+      ui.error "Not logged in."
+      // TODO(florian): another PR is already out that changes this to 'ui.abort'
+      exit 1
+    block.call server
 
 show_profile parsed/cli.Parsed config/Config ui/Ui:
-  with_profile_server parsed config: | client/ArtemisServerCli |
-    profile := client.get_profile
+  with_profile_server parsed config ui: | server/ArtemisServerCli |
+    profile := server.get_profile
     // We recreate the map, so we don't show unnecessary entries.
     ui.info_map {
       "id": profile["id"],
@@ -48,6 +53,6 @@ show_profile parsed/cli.Parsed config/Config ui/Ui:
     }
 
 update_profile parsed/cli.Parsed config/Config ui/Ui:
-  with_profile_server parsed config: | client/ArtemisServerCli |
-    client.update_profile --name=parsed["name"]
+  with_profile_server parsed config ui: | server/ArtemisServerCli |
+    server.update_profile --name=parsed["name"]
     ui.info "Profile updated."

@@ -95,12 +95,14 @@ with_http_artemis_server [block]:
       --host="localhost"
       --port=port_latch.get
 
-  server.add_organization TEST_ORGANIZATION_UUID TEST_ORGANIZATION_NAME
+  server.create_organization
+      --id=TEST_ORGANIZATION_UUID
+      --name=TEST_ORGANIZATION_NAME
+      --admin_id=TEST_EXAMPLE_COM_UUID
 
   server.create_user --name=TEST_EXAMPLE_COM_NAME
       --email=TEST_EXAMPLE_COM_EMAIL
       --id=TEST_EXAMPLE_COM_UUID
-      --set_current
   server.create_user --name=DEMO_EXAMPLE_COM_NAME
       --email=DEMO_EXAMPLE_COM_EMAIL
       --id=DEMO_EXAMPLE_COM_UUID
@@ -113,7 +115,6 @@ with_http_artemis_server [block]:
   finally:
     server.close
     server_task.cancel
-
 
 class SupabaseBackdoor implements ArtemisServerBackdoor:
   server_config_/ServerConfigSupabase

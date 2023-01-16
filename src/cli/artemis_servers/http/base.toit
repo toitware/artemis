@@ -9,16 +9,20 @@ import encoding.json
 import encoding.base64
 
 import ..artemis_server
+import ...config
 import ...device
 import ...organization
+import ...ui
 
 import ....shared.server_config
 
 class ArtemisServerCliHttpToit implements ArtemisServerCli:
   client_/http.Client
   server_config_/ServerConfigHttpToit
+  current_user_id_/string? := null
+  config_/Config
 
-  constructor network/net.Interface .server_config_/ServerConfigHttpToit:
+  constructor network/net.Interface .server_config_/ServerConfigHttpToit .config_/Config:
     client_ = http.Client network
 
   is_closed -> bool:
@@ -28,6 +32,31 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
 
   close -> none:
     // TODO(florian): we need a newer http client to be able to close it.
+
+  ensure_authenticated [block]:
+    if current_user_id_: return
+    user_id := config_.get "$(CONFIG_SERVER_AUTHS_KEY).$(server_config_.name)"
+    if user_id:
+      current_user_id_ = user_id
+      return
+    block.call
+
+  sign_up --email/string --password/string:
+    send_request_ "sign-up" {
+      "email": email,
+      "password": password,
+    }
+
+  sign_in --email/string --password/string:
+    id := send_request_ "sign-in" {
+      "email": email,
+      "password": password,
+    }
+    current_user_id_ = id
+    config_["$(CONFIG_SERVER_AUTHS_KEY).$(server_config_.name)"] = id
+
+  sign_in --provider/string --ui/Ui:
+    throw "UNIMPLEMENTED"
 
   create_device_in_organization --organization_id/string --device_id/string -> Device:
     map := {
@@ -48,7 +77,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     }
 
   get_current_user_id -> string:
-    return send_request_ "get-current-user-id" {:}
+    return current_user_id_
 
   get_organizations -> List:
     organizations := send_request_ "get-organizations" {:}
@@ -115,10 +144,13 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     return base64.decode encoded_image
 
   send_request_ command/string data/Map -> any:
-    encoded := ubjson.encode {
+    payload := {
       "command": command,
       "data": data,
     }
+    if current_user_id_ != null:
+      payload["user_id"] = current_user_id_
+    encoded := ubjson.encode payload
     response := client_.post encoded
         --host=server_config_.host
         --port=server_config_.port

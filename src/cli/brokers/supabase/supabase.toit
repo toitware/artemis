@@ -10,6 +10,7 @@ import supabase
 
 import ..broker
 import ...config
+import ...ui
 import ....shared.server_config
 
 create_broker_cli_supabase server_config/ServerConfigSupabase config/Config -> BrokerCliSupabase:
@@ -33,6 +34,18 @@ class BrokerCliSupabase implements BrokerCli:
 
   is_closed -> bool:
     return client_ == null
+
+  ensure_authenticated [block]:
+    client_.ensure_authenticated block
+
+  sign_up --email/string --password/string:
+    client_.auth.sign_up --email=email --password=password
+
+  sign_in --email/string --password/string:
+    client_.auth.sign_in --email=email --password=password
+
+  sign_in --provider/string --ui/Ui:
+    client_.auth.sign_in --provider=provider --ui=ui
 
   device_update_config --device_id/string [block]:
     info := client_.rest.select "devices" --filters=[

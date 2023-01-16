@@ -97,10 +97,6 @@ class Client:
     http_client_ = http.Client.tls network --root_certificates=root_certificates
 
     local_storage_ = local_storage
-    if local_storage_.has_auth:
-      session_ = Session_.from_json local_storage_.get_auth
-      // TODO(florian): no need to refresh if the token is still valid.
-      auth.refresh_token
 
   constructor network/net.Interface?=null
       --server_config/ServerConfig
@@ -121,6 +117,39 @@ class Client:
           --host=server_config.host
           --anon=server_config.anon
           --local_storage=local_storage
+
+  /**
+  Ensures that the user is authenticated.
+
+  If a session is stored in the local storage, it is used to authenticate the
+    user.
+
+  If no session is stored, or the refresh failed, calls the given $block with $auth
+    as argument. This can be used to sign in the user, using $Auth.sign_in.
+
+  # Examples
+  A simple example where the user is signed in using email and password:
+  ```
+  client.ensure_authenticated:
+    it.sign_in --email="email" --password="password"
+  ```
+
+  Or, using oauth:
+  ```
+  client.ensure_authenticated:
+    it.sign_in --provider="github" --ui=ui
+  ```
+  */
+  ensure_authenticated [block]:
+    exception := catch:
+      if local_storage_.has_auth:
+        session_ = Session_.from_json local_storage_.get_auth
+        // TODO(florian): no need to refresh if the token is still valid.
+        auth.refresh_token
+    if exception:
+      // Clear the stored session, and run the block for a fresh authentication.
+      local_storage_.remove_auth
+      block.call auth
 
   close -> none:
     // TODO(florian): call close on the http client (when that's possible).

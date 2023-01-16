@@ -45,7 +45,7 @@ class HttpBroker extends HttpServer:
   constructor port/int:
     super port
 
-  run_command command/string data -> any:
+  run_command command/string data _ -> any:
     if command == "get_config": return get_config data
     else if command == "update_config": return update_config data
     else if command == "upload_image": return upload_image data
