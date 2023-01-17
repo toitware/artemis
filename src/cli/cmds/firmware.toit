@@ -13,7 +13,7 @@ import .device_options_
 import ..artemis
 import ..cache
 import ..config
-import ..sdk
+import ..jaguar
 import ..server_config
 import ..ui
 import ..utils

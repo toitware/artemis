@@ -15,7 +15,7 @@ import encoding.json
 import encoding.hex
 
 import .cache as cache
-import .sdk
+import .jaguar
 
 import .utils
 import .utils.patch_build show build_diff_patch build_trivial_patch

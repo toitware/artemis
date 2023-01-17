@@ -9,7 +9,7 @@ import http
 import net
 import writer
 
-import ..sdk
+import ..jaguar
 
 import ..server_config
 import ..cache
