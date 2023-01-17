@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import certificate_roots
-import artemis.cli.cache as cli
+import .cache as cli
 import host.file
 import host.pipe
 import http
@@ -9,7 +9,7 @@ import log
 import net
 import writer show Writer
 
-import artemis.cli.cache show SDK_PATH
+import .cache show SDK_PATH
 import .utils
 
 class Sdk:
