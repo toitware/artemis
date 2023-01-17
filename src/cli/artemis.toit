@@ -22,6 +22,8 @@ import .utils.patch_build show build_diff_patch build_trivial_patch
 import ..shared.utils.patch show Patcher PatchObserver
 
 import .brokers.broker
+import .program
+import .sdk
 import .ui
 
 /**
@@ -30,8 +32,12 @@ Manages devices that have an Artemis service running on them.
 class Artemis:
   broker_/BrokerCli
   cache_/cache.Cache
+  sdk_/Sdk
 
-  constructor .broker_ .cache_:
+  constructor .broker_ .cache_ --sdk/Sdk?=null:
+    // TODO(florian): make the sdk non-optional.
+    if not sdk: sdk = Sdk
+    sdk_ = sdk
 
   close:
     // Do nothing for now.
@@ -47,7 +53,7 @@ class Artemis:
     return "$broker_.id/images/$id"
 
   app_install --device_id/string --app_name/string --application_path/string:
-    program := CompiledProgram.application application_path
+    program := CompiledProgram.application application_path --sdk=sdk_
     id := program.id
     cache_id := image_cache_id_ id
     cache_.get_directory_path cache_id: | store/cache.DirectoryStore |
@@ -91,7 +97,7 @@ class Artemis:
       --ui/Ui:
     with_tmp_directory: | tmp/string |
       artemis_assets_path := "$tmp/artemis.assets"
-      run_firmware_tool [
+      sdk_.run_firmware_tool [
         "-e", firmware_path,
         "container", "extract",
         "-o", artemis_assets_path,
@@ -100,10 +106,10 @@ class Artemis:
       ]
 
       // TODO(kasper): Clean this up and provide a better error message.
-      if not is_same_broker "broker" identity tmp artemis_assets_path:
+      if not is_same_broker "broker" identity tmp artemis_assets_path sdk_:
         ui.error "not the same broker"
         ui.abort
-      if not is_same_broker "artemis.broker" identity tmp artemis_assets_path:
+      if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk_:
         ui.error "not the same artemis broker"
         ui.abort
 
@@ -162,7 +168,7 @@ class Artemis:
 
   // TODO(kasper): Turn this into a static method on Firmware?
   compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string -> Firmware:
-    unconfigured := extract_firmware_ envelope_path null
+    unconfigured := extract_firmware_ envelope_path null sdk_
     encoded := unconfigured.encoded
     while true:
       config := ubjson.encode {
@@ -171,7 +177,7 @@ class Artemis:
         "parts"          : encoded,
       }
 
-      configured := extract_firmware_ envelope_path config
+      configured := extract_firmware_ envelope_path config sdk_
       if configured.encoded == encoded:
         return Firmware configured config
       encoded = configured.encoded
@@ -368,7 +374,7 @@ class FirmwarePartConfig extends FirmwarePart:
   encode -> Map:
     return { "from": from, "to": to, "type": "config" }
 
-extract_firmware_ envelope_path/string config/ByteArray? -> FirmwareContent:
+extract_firmware_ envelope_path/string config/ByteArray? sdk/Sdk -> FirmwareContent:
   extract/Map? := null
   with_tmp_directory: | tmp/string |
     firmware_ubjson_path := "$tmp/firmware.ubjson"
@@ -378,7 +384,7 @@ extract_firmware_ envelope_path/string config/ByteArray? -> FirmwareContent:
       write_blob_to_file config_path config
       arguments += ["--config", config_path]
 
-    run_firmware_tool arguments
+    sdk.run_firmware_tool arguments
     extract = ubjson.decode (file.read_content firmware_ubjson_path)
 
   bits := extract["binary"]
@@ -399,9 +405,9 @@ extract_firmware_ envelope_path/string config/ByteArray? -> FirmwareContent:
 
   return FirmwareContent --bits=bits --parts=parts --checksum=checksum
 
-is_same_broker broker/string identity/Map tmp/string assets_path/string -> bool:
+is_same_broker broker/string identity/Map tmp/string assets_path/string sdk/Sdk -> bool:
   broker_path := "$tmp/broker.json"
-  run_assets_tool [
+  sdk.run_assets_tool [
     "-e", assets_path,
     "get", "--format=tison",
     "-o", broker_path,
