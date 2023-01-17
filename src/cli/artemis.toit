@@ -16,8 +16,8 @@ import encoding.hex
 
 import .cache as cache
 import .sdk
-import .cmds.provision show write_blob_to_file write_json_to_file write_ubjson_to_file
 
+import .utils
 import .utils.patch_build show build_diff_patch build_trivial_patch
 import ..shared.utils.patch show Patcher PatchObserver
 

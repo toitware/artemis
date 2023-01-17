@@ -16,6 +16,7 @@ import ..config
 import ..sdk
 import ..server_config
 import ..ui
+import ..utils
 
 import ...service.run.host show run_host
 
@@ -31,6 +32,7 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
             --required
       ]
       --run=:: create_firmware it config cache
+  firmware_cmd.add create_cmd
 
   flash_cmd := cli.Command "flash"
       --short_help="Flash the initial firmware on a device."
@@ -54,6 +56,7 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --run=:: flash_firmware it config cache ui
+  firmware_cmd.add flash_cmd
 
   update_cmd := cli.Command "update"
       --short_help="Update the firmware on a device."
@@ -65,10 +68,8 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --run=:: update_firmware it config cache ui
-
-  firmware_cmd.add create_cmd
-  firmware_cmd.add flash_cmd
   firmware_cmd.add update_cmd
+
   return [firmware_cmd]
 
 create_firmware parsed/cli.Parsed config/Config cache/Cache -> none:

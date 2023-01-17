@@ -16,6 +16,7 @@ import ..cache
 import ..config
 import ..device
 import ..ui
+import ..utils
 import ..artemis_servers.artemis_server show ArtemisServerCli
 
 import .broker_options_
@@ -134,18 +135,3 @@ add_certificate_assets assets_path/string tmp/string certificates/Map -> none:
   certificates.do: | name/string value |
     write_blob_to_file "$tmp/$name" value
     run_assets_tool ["-e", assets_path, "add", name, "$tmp/$name"]
-
-write_blob_to_file path/string value -> none:
-  stream := file.Stream.for_write path
-  try:
-    writer := writer.Writer stream
-    writer.write value
-  finally:
-    stream.close
-
-write_json_to_file path/string value/any -> none:
-  write_blob_to_file path (json.encode value)
-
-write_ubjson_to_file path/string value/any -> none:
-  encoded := base64.encode (ubjson.encode value)
-  write_blob_to_file path encoded
