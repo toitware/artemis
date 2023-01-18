@@ -1,5 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import ar
 import certificate_roots
 import .cache as cli
 import host.file
@@ -8,14 +9,27 @@ import http
 import log
 import net
 import writer show Writer
+import uuid
 
 import .cache show SDK_PATH
+import .jaguar
 import .utils
 
 class Sdk:
   sdk_path/string
 
+  // TODO(florian): remove default constructor.
+  constructor:
+    path := resolve_jaguar_sdk_path
+    if not path:
+      // TODO(florian): improve this.
+      throw "Could not find the Toit SDK."
+    sdk_path = path
+
   constructor .sdk_path:
+
+  is_source_build -> bool:
+    return sdk_path.ends_with "build/host"
 
   compile_to_snapshot path/string --out/string -> none:
     pipe.backticks [
@@ -43,6 +57,26 @@ class Sdk:
       "install",
       "--project-root=$dir",
     ]
+
+  run_assets_tool arguments/List -> none:
+    pipe.run_program [tools_executable "assets"] + arguments
+
+  run_firmware_tool arguments/List -> none:
+    pipe.run_program [tools_executable "firmware"] + arguments
+
+  run_toit_compile arguments/List -> none:
+    pipe.run_program [bin_executable "toit.compile"] + arguments
+
+  run_snapshot_to_image_tool arguments/List -> none:
+    pipe.run_program [tools_executable "snapshot_to_image"] + arguments
+
+  tools_executable name/string -> string:
+    return "$sdk_path/tools/$name$exe_extension"
+
+  bin_executable name/string -> string:
+    return "$sdk_path/bin/$name$exe_extension"
+
+  static exe_extension ::= (platform == PLATFORM_WINDOWS) ? ".exe" : ""
 
 sdk_url version/string -> string:
   platform_str/string := ?

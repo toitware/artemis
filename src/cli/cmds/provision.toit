@@ -15,6 +15,7 @@ import ..server_config
 import ..cache
 import ..config
 import ..device
+import ..sdk
 import ..ui
 import ..utils
 import ..artemis_servers.artemis_server show ArtemisServerCli
@@ -129,9 +130,9 @@ create_identity_file -> none
   write_ubjson_to_file output_path identity
   ui.info "Created device identity => $output_path"
 
-add_certificate_assets assets_path/string tmp/string certificates/Map -> none:
+add_certificate_assets assets_path/string tmp/string certificates/Map sdk/Sdk -> none:
   // Add the certificates as distinct assets, so we can load them without
   // copying them into writable memory.
   certificates.do: | name/string value |
     write_blob_to_file "$tmp/$name" value
-    run_assets_tool ["-e", assets_path, "add", name, "$tmp/$name"]
+    sdk.run_assets_tool ["-e", assets_path, "add", name, "$tmp/$name"]
