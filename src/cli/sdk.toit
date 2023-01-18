@@ -7,6 +7,8 @@ import host.pipe
 import host.os
 import uuid
 
+import .utils
+
 IS_SOURCE_BUILD              ::= resolve_is_source_build_
 PATH_FIRMWARE_ENVELOPE_ESP32 ::= resolve_firmware_envelope_path_ "esp32"
 
@@ -26,13 +28,6 @@ run_toit_compile arguments/List -> none:
 
 run_snapshot_to_image_tool arguments/List -> none:
   pipe.run_program [PATH_SNAPSHOT_TO_IMAGE_TOOL_] + arguments
-
-with_tmp_directory [block]:
-  tmpdir := directory.mkdtemp "/tmp/artemis-"
-  try:
-    block.call tmpdir
-  finally:
-    directory.rmdir --recursive tmpdir
 
 cache_snapshot path/string -> none:
   if not os.env.contains "HOME": return
