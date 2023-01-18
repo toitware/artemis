@@ -8,12 +8,12 @@ import cli
 import artemis.cli.config as cli
 import artemis.cli.cache as cli
 import artemis.cli.ui as ui
+import artemis.cli.sdk show *
 import host.file
 import uuid
 import supabase
 
 import .git
-import .sdk
 import .utils
 
 main args:
