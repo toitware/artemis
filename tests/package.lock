@@ -1,4 +1,4 @@
-sdk: ^1.6.10
+sdk: ^2.0.0-alpha.35
 prefixes:
   ar: pkg-ar
   artemis: ..
@@ -22,16 +22,16 @@ packages:
       supabase: supabase
   mqtt:
     url: github.com/toitware/mqtt
-    version: 2.0.4
-    hash: 81cd43e7383eccdbf07360cda3d03e9b862fa280
+    version: 2.1.1
+    hash: 49eab960bb1c27245bfc52e72f6f1ec840492abb
   pkg-ar:
     url: github.com/toitlang/pkg-ar
     version: 1.0.0
     hash: 175bcdfd59b2597c0825ef8765a20498a7e6a2db
   pkg-cli:
     url: github.com/toitlang/pkg-cli
-    version: 1.0.0
-    hash: 01d8c8f76eef979ca455a760b3330f8f826fa881
+    version: 1.2.0
+    hash: 0e2adab3ab434c597be60438ccf64008f703ad9c
   pkg-host:
     url: github.com/toitlang/pkg-host
     version: 1.8.1
