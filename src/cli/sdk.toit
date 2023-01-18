@@ -17,6 +17,7 @@ import .utils
 
 class Sdk:
   sdk_path/string
+  version/string
 
   // TODO(florian): remove default constructor.
   constructor:
@@ -25,8 +26,9 @@ class Sdk:
       // TODO(florian): improve this.
       throw "Could not find the Toit SDK."
     sdk_path = path
+    version = (pipe.backticks "$sdk_path/bin/toit.compile" "--version").trim
 
-  constructor .sdk_path:
+  constructor .sdk_path .version:
 
   is_source_build -> bool:
     return sdk_path.ends_with "build/host"
@@ -116,7 +118,7 @@ get_sdk version/string --cache/cli.Cache -> Sdk:
         untar "$tmp_dir/toit.tar.gz" --target=final_out_dir
         store.move "$final_out_dir/toit"
 
-  return Sdk path
+  return Sdk path version
 
 untar path/string --target/string:
   pipe.backticks [
