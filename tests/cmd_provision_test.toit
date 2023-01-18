@@ -60,7 +60,7 @@ run_test test_cli/TestCli:
     ]
 
     test_cli.run [
-      "org", "use", TEST_ORGANIZATION_UUID,
+      "org", "default", TEST_ORGANIZATION_UUID,
     ]
 
     test_cli.run [
