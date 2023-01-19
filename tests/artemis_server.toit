@@ -40,6 +40,18 @@ interface ArtemisServerBackdoor:
   */
   install_service_images images/List
 
+  /**
+  Creates a new device in the given $organization_id.
+
+  Returns the hardware id of the created device.
+  */
+  create_device --organization_id/string -> string
+
+  /**
+  Removes the device with the given $device_id.
+  */
+  remove_device device_id/string -> none
+
 with_artemis_server --type/string [block]:
   if type == "supabase":
     server_config := get_supabase_config --sub_directory=SUPABASE_ARTEMIS
@@ -85,6 +97,15 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
 
     server.sdk_service_versions = sdk_service_versions
     server.image_binaries = image_binaries
+
+  create_device --organization_id/string -> string:
+    response := server.create_device_in_organization {
+      "organization_id": organization_id,
+    }
+    return response["id"]
+
+  remove_device device_id/string -> none:
+    server.remove_device device_id
 
 with_http_artemis_server [block]:
   server := http_servers.HttpArtemisServer 0
@@ -180,6 +201,18 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
         }
 
         client.storage.upload --path="service-images/$image" --content=content
+
+  create_device --organization_id/string -> string:
+    with_backdoor_client_: | client/supabase.Client |
+      response := client.rest.insert "devices" {
+        "organization_id": organization_id,
+      }
+      return response["id"]
+    unreachable
+
+  remove_device device_id/string -> none:
+    with_backdoor_client_: | client/supabase.Client |
+      client.rest.delete "devices" --filters=["id=eq.$device_id"]
 
   query_ table/string filters/List=[] -> List?:
     with_backdoor_client_: | client/supabase.Client |
