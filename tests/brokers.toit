@@ -80,7 +80,7 @@ with_supabase_brokers_
     server_config/ServerConfigSupabase
     [block]:
   with_tmp_config: | config |
-    server_config.config_["poll_interval"] = 1000 // us.
+    server_config.poll_interval = Duration --ms=1
     broker_service := BrokerServiceSupabase logger server_config
     broker_cli := create_broker_cli_supabase server_config config
     try:

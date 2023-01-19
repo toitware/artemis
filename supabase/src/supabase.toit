@@ -16,8 +16,8 @@ import .auth
 interface ServerConfig:
   host -> string
   anon -> string
-  certificate_name -> string?
-  certificate_text -> string?
+  root_certificate_name -> string?
+  root_certificate_text -> string?
 
 /**
 An interface for interactions with the user.
@@ -102,9 +102,9 @@ class Client:
       --server_config/ServerConfig
       --local_storage/LocalStorage=NoLocalStorage
       [--certificate_provider]:
-    root_certificate_text := server_config.certificate_text
-    if not root_certificate_text and server_config.certificate_name:
-      root_certificate_text = certificate_provider.call server_config.certificate_name
+    root_certificate_text := server_config.root_certificate_text
+    if not root_certificate_text and server_config.root_certificate_name:
+      root_certificate_text = certificate_provider.call server_config.root_certificate_name
     if root_certificate_text:
       certificate := x509.Certificate.parse root_certificate_text
       return Client.tls network

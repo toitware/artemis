@@ -190,7 +190,7 @@ add_mqtt parsed/cli.Parsed config/Config ui/Ui:
       --host=host
       --port=port
       --root_certificate_name=root_certificate_name
-      --client_certificate=client_certificate
+      --client_certificate_text=client_certificate
       --client_private_key=client_private_key
 
   add_server_to_config config mqtt_config
