@@ -200,8 +200,8 @@ with_test_cli
 
     try:
       test_cli := TestCli config cache artemis_server.backdoor
-      test_cli.run ["config", "broker", "--artemis", "use", artemis_config.name]
-      test_cli.run ["config", "broker", "use", broker_config.name]
+      test_cli.run ["config", "broker", "--artemis", "default", artemis_config.name]
+      test_cli.run ["config", "broker", "default", broker_config.name]
       block.call test_cli device
     finally:
       if artemis_task: artemis_task.cancel

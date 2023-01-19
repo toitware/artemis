@@ -34,19 +34,24 @@ create_server_config_commands config/Config ui/Ui -> List:
       ]
 
   config_broker_cmd.add
-      cli.Command "use"
-          --short_help="Set the default broker."
+      cli.Command "default"
+          --long_help="""
+            Show or set the default broker.
+
+            If no broker is specified, the current default broker is shown.
+            If a broker is specified, it is set as the default broker.
+
+            If the '--clear' flag is specified, clears the default broker.
+            """
+          --options=[
+            cli.Flag "clear"
+                --short_help="Clear the default broker.",
+          ]
           --rest=[
             cli.OptionString "name"
                 --short_help="The name of the broker."
-                --required,
           ]
-          --run=:: use_server it config
-
-  config_broker_cmd.add
-      cli.Command "default"
-          --short_help="Print the default broker."
-          --run=:: print_default_broker it config ui
+          --run=:: default_server it config ui
 
   add_cmd := cli.Command "add"
       --short_help="Adds a broker."
@@ -109,18 +114,30 @@ create_server_config_commands config/Config ui/Ui -> List:
 print_config config/Config ui/Ui:
   throw "UNIMPLEMENTED"
 
-use_server parsed/cli.Parsed config/Config:
-  name := parsed["name"]
-  if not has_server_in_config config name:
-    throw "Unknown broker $name."
-  config[parsed["artemis"] ? CONFIG_ARTEMIS_DEFAULT_KEY : CONFIG_BROKER_DEFAULT_KEY] = name
-  config.write
+default_server parsed/cli.Parsed config/Config ui/Ui:
+  config_key := parsed["artemis"] ? CONFIG_ARTEMIS_DEFAULT_KEY : CONFIG_BROKER_DEFAULT_KEY
 
-print_default_broker parsed/cli.Parsed config/Config ui/Ui:
-  key := parsed["artemis"] ? CONFIG_ARTEMIS_DEFAULT_KEY : CONFIG_BROKER_DEFAULT_KEY
-  default_server := config.get key
-  if default_server: ui.info default_server
-  else: ui.info "No default broker."
+  if parsed["clear"]:
+    config.remove config_key
+    config.write
+    return
+
+  name := parsed["name"]
+  if not name:
+    default_server := config.get config_key
+    if default_server:
+      ui.info default_server
+    else:
+      ui.error "No default broker."
+      ui.abort
+    return
+
+  if not has_server_in_config config name:
+    ui.error "Unknown broker $name."
+    ui.abort
+
+  config[config_key] = name
+  config.write
 
 get_certificate_ name/string ui/Ui -> string:
   certificate := certificate_roots.MAP.get name

@@ -98,18 +98,18 @@ run_test test_cli/TestCli:
   default_output := test_cli.run --expect_exit_1 [ "org", "default"]
   expect (default_output.contains "No default organization set")
 
-  bad_use_output := test_cli.run --expect_exit_1 [ "org", "use", "bad_id" ]
+  bad_use_output := test_cli.run --expect_exit_1 [ "org", "default", "bad_id" ]
   expect (bad_use_output.contains "Organization not found")
 
   UNKNOWN_UUID ::= (uuid.uuid5 "unknown" "unknown").stringify
-  bad_use_output = test_cli.run --expect_exit_1 [ "org", "use", UNKNOWN_UUID]
+  bad_use_output = test_cli.run --expect_exit_1 [ "org", "default", UNKNOWN_UUID]
   expect (bad_use_output.contains "Organization not found")
 
   // The default org is still not set.
   default_output = test_cli.run --expect_exit_1 [ "org", "default"]
   expect (default_output.contains "No default organization set")
 
-  use_output := test_cli.run [ "org", "use", id ]
+  use_output := test_cli.run [ "org", "default", id ]
   expect (use_output.contains "set to")
   expect (use_output.contains "Testy")
 
@@ -118,7 +118,7 @@ run_test test_cli/TestCli:
   expect (default_output.contains "ID: $id")
 
   // Another bad setting doesn't change the default.
-  bad_use_output = test_cli.run --expect_exit_1 [ "org", "use", "bad_id" ]
+  bad_use_output = test_cli.run --expect_exit_1 [ "org", "default", "bad_id" ]
   expect (bad_use_output.contains "Organization not found")
 
   default_output = test_cli.run [ "org", "default"]
