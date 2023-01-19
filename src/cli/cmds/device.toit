@@ -1,0 +1,176 @@
+// Copyright (C) 2023 Toitware ApS. All rights reserved.
+
+import cli
+
+import .broker_options_
+import ..cache
+import ..config
+import ..ui
+
+create_device_commands config/Config cache/Cache ui/Ui -> List:
+  cmd := cli.Command "device"
+      --short_help="Manage devices."
+
+  provision_cmd := cli.Command "provision"
+      --long_help="""
+        Provision a new device.
+
+        Registers a new device with the Toit cloud and writes the identity file
+        to the specified directory/file. The identity file is used
+        during flashing and allows the device to connect to the Toit cloud.
+
+        If a device-id is specified, the device will be registered with that
+        ID. Otherwise, a new ID will be generated.
+
+        If an organization-id is specified, the device will be registered with
+        that organization. Otherwise, the device will be registered with the
+        default organization.
+
+        The options '--output-directory' and '--output' are mutually exclusive.
+        """
+      --options= broker_options + [
+        cli.Option "device-id"
+            --type="uuid"
+            --short_name="d"
+            --short_help="The device ID to use.",
+        cli.Option "output-directory"
+            --type="directory"
+            --short_help="Directory to write the identity file to.",
+        cli.Option "output"
+            --type="out-file"
+            --short_name="o"
+            --short_help="File to write the identity to.",
+        cli.Option "organization-id"
+            --type="uuid"
+            --short_help="The organization to use."
+      ]
+      --run=:: provision it config cache ui
+  cmd.add provision_cmd
+
+  flash_cmd := cli.Command "flash"
+      --long_help="""
+        Flash the initial firmware on a device.
+
+        If an identity file is provided, uses it. Otherwise provisions first.
+
+        The configuration file contains the device configuration. It includes
+        the firmware version, installed applications, connection settings,
+        etc. See 'configuration-format' for more information.
+
+        Unless '--no-default' is used, automatically makes this device the
+        new default device.
+        """
+      --options=broker_options + [
+        cli.Option "identity"
+            --short_help="The identity file that was created during provisioning."
+            --type="file",
+        cli.Option "configuration"
+            --type="file"
+            --short_help="The configuration of the device."
+            --required,
+        cli.Flag "default"
+            --default=true
+            --short_help="Make this device the default device.",
+        cli.Option "port"
+            --short_name="p",
+        cli.Option "baud",
+        cli.Flag "simulate"
+            --default=false,
+      ]
+      --run=:: flash it config cache ui
+  cmd.add flash_cmd
+
+  default_cmd := cli.Command "default"
+      --long_help="""
+        Show or set the default device.
+
+        If no ID is given, shows the current default device.
+        If an ID is given, sets the default device.
+
+        If the '--clear' flag is specified, clears the default device.
+        """
+      --options=[
+        cli.Flag "id-only" --short_help="Only show the ID of the default device.",
+        cli.Flag "clear"
+            --short_help="Clear the default device.",
+      ]
+      --rest=[
+        cli.Option "device-id"
+            --short_name="d"
+            --short_help="ID of the device."
+      ]
+      --run=:: default_device it config cache ui
+  cmd.add default_cmd
+
+  configuration_cmd := cli.Command "configuration"
+      --long_help="""
+        Show the configuration of the device.
+
+        If no ID is given, shows the configuration of the default device.
+
+        If the device's current configuration is different from the goal
+        configuration, both configurations are shown. Use '--goal' or
+        '--current' to only show one of them.
+        """
+      --options=[
+        cli.Option "device-id"
+            --short_name="d"
+            --short_help="ID of the device."
+            --type="uuid",
+        cli.Flag "goal"
+            --short_help="Show the goal configuration.",
+        cli.Flag "current"
+            --short_help="Show the current configuration.",
+      ]
+      --run=:: configuration it config cache ui
+  cmd.add configuration_cmd
+
+  configuration_format_cmd := cli.Command "configuration-format"
+      --short_help="Prints the format of the device configuration file."
+      --run=:: ui.info CONFIGURATION_FORMAT_HELP
+  cmd.add configuration_format_cmd
+
+  return [cmd]
+
+provision parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  throw "UNIMPLEMENTED"
+
+flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  throw "UNIMPLEMENTED"
+
+default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  throw "UNIMPLEMENTED"
+
+configuration parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  throw "UNIMPLEMENTED"
+
+CONFIGURATION_FORMAT_HELP ::= """
+        The format of the device configuration file.
+
+        The configuration file is a JSON file with the following entries:
+
+        'version': The version of the configuration file. Must be '1'.
+        'sdk': The SDK version to use. This is a string of the form
+            'major.minor.patch', e.g. '1.2.3'.
+        'artemis': The Artemis firmware version to use. This is a string of the
+            form 'major.minor.patch', e.g. '1.2.3'.
+        'max_offline_seconds': The maximum number of seconds the device can be
+            offline before it attempts to connect to the broker to sync.
+        'connections': a list of connections, each of which must be a
+            connection object. See below for the format of a connection object.
+        'apps': a list of applications, each of which must be an application
+            object. See below for the format of an application object.
+
+
+        A connection object consists of the following entries:
+        'type': The type of the connection. Must be 'wifi'.
+
+        For 'wifi' connections:
+        'ssid': The SSID of the network to connect to.
+        'password': The password of the network to connect to.
+
+
+        An application object consists of the following entries:
+        'name': The name of the application.
+        'path': The path to the application's entry point or to its snapshot.
+        """
