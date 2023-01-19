@@ -43,7 +43,7 @@ interface ArtemisServerBackdoor:
   /**
   Creates a new device in the given $organization_id.
 
-  Returns the hardware id of the created device.
+  Returns the device id of the created device.
   */
   create_device --organization_id/string -> string
 
