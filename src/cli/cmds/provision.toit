@@ -124,7 +124,7 @@ create_identity_file -> none
   }
 
   // Add the necessary certificates to the identity.
-  deduplicated_certificates.do: | name/string content/ByteArray |
+  deduplicated_certificates.do: | name/string content/string |
     identity[name] = content
 
   write_ubjson_to_file output_path identity

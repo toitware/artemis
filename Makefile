@@ -41,7 +41,7 @@ add-supabase-artemis:
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add --no-default supabase \
 		--certificate="$(ARTEMIS_CERTIFICATE)" \
 		artemis $(ARTEMIS_HOST) "$(ARTEMIS_ANON)"
-	$(TOIT_RUN_BIN) src/cli/cli.toit config broker use --artemis artemis
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis
 
 add-supabase-toitware-testing:
 	# Adds the Toitware supabase server and makes it the default.
