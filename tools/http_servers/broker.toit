@@ -97,7 +97,7 @@ class HttpBroker extends HttpServer:
   get_event data/Map:
     device_id := data["device_id"]
     known_revision := data["state_revision"]
-    current_revision := state_revision.get device_id --init=:0
+    current_revision := state_revision.get device_id --if_absent=:0
 
     if current_revision != known_revision:
       // The client and the server are out of sync. Inform the client that it needs
@@ -112,7 +112,7 @@ class HttpBroker extends HttpServer:
     event_type := latch.get
     message := {
       "event_type": event_type,
-      "state_revision": ++state_revision[device_id],
+      "state_revision": state_revision[device_id],
     }
     if event_type == "config_updated":
       message["config"] = configs[device_id]
@@ -124,6 +124,7 @@ class HttpBroker extends HttpServer:
 
   notify_device device_id/string event_type/string:
     latch/monitor.Latch? := waiting_for_events.get device_id
+    state_revision.update device_id --if_absent=0: it + 1
     if latch:
       waiting_for_events.remove device_id
       latch.set event_type
