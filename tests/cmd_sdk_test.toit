@@ -177,3 +177,27 @@ run_test test_cli/TestCli:
   expect_not found_v1_v1
   expect found_v2_v1
   expect_not found_v2_v2
+
+  // Test default sdk version.
+  output = test_cli.run --expect_exit_1 [ "sdk", "default" ]
+  expect (output.contains "No default SDK version set")
+
+  // Set default sdk version to invalid version.
+  output = test_cli.run --expect_exit_1 [ "sdk", "default", "v1.0.0" ]
+  expect (output.contains "Unsupported SDK version v1.0.0")
+
+  // Set it to a valid version.
+  output = test_cli.run [ "sdk", "default", SDK_V2 ]
+  expect (output.contains "Default SDK version set to v2.0.0-alpha.47")
+
+  // Change it to another valid version.
+  output = test_cli.run [ "sdk", "default", SDK_V1 ]
+  expect (output.contains "Default SDK version set to v2.0.0-alpha.46")
+
+  // Clear the default.
+  output = test_cli.run [ "sdk", "default", "--clear" ]
+  expect (output.contains "Default SDK version cleared")
+
+  // No default sdk anymore.
+  output = test_cli.run --expect_exit_1 [ "sdk", "default" ]
+  expect (output.contains "No default SDK version set")
