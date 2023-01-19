@@ -1,10 +1,10 @@
 // Copyright (C) 2022 Toitware ApS.
 
-// TEST_FLAGS: --supabase-server|--http_broker --http-server|--http_broker --supabase-server|--supabase_broker --http-server|--supabase_broker
+// TEST_FLAGS: --supabase-server|--http-broker --http-server|--http-broker --supabase-server|--supabase-broker --http-server|--supabase-broker
 import .utils
 
 main args:
-  if args.is_empty: args = ["--http-server", "--http_broker"]
+  if args.is_empty: args = ["--http-server", "--http-broker"]
 
   artemis_type/string := ?
   if args.contains "--supabase-server":  artemis_type = "supabase"
@@ -12,8 +12,8 @@ main args:
   else: throw "Unknown artemis type: $args[0]"
 
   broker_type/string := ?
-  if args.contains "--supabase_broker":  broker_type = "supabase"
-  else if args.contains "--http_broker": broker_type = "http"
+  if args.contains "--supabase-broker":  broker_type = "supabase"
+  else if args.contains "--http-broker": broker_type = "http"
   else: throw "Unknown broker type: $args[1]"
 
   with_test_cli
