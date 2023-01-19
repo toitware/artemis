@@ -6,7 +6,6 @@ import encoding.ubjson
 import encoding.base64
 import uuid
 
-import .provision
 import .broker_options_
 import .device_options_
 
@@ -145,52 +144,53 @@ flash_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   // TODO(florian): get the SDK correctly.
   sdk := Sdk
 
-  broker := create_broker_from_cli_args config parsed
-  artemis := Artemis broker cache
-  firmware := artemis.firmware_create
-      --identity=identity
-      --wifi=wifi
-      --device_id=device_id
-      --firmware_path=firmware_path
-      --ui=ui
-  artemis.close
-  broker.close
-
-  if parsed["simulate"]:
-    run_host
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    firmware := artemis.firmware_create
         --identity=identity
-        --encoded=firmware.encoded
-        --bits=firmware.content.bits
-    return
+        --wifi=wifi
+        --device_id=device_id
+        --firmware_path=firmware_path
+        --ui=ui
 
-  if not parsed["port"]:
-    ui.error "No --port option given."
-    ui.abort
-  port/string := parsed["port"]
-  baud/string? := parsed["baud"]
+    if parsed["simulate"]:
+      run_host
+          --identity=identity
+          --encoded=firmware.encoded
+          --bits=firmware.content.bits
+      return
 
-  // TODO(kasper): We should add an option to the flashing tool
-  // that verifies that the hash of the output bits are the
-  // expected ones -- or a flag that allows us to just pass
-  // the bits in through a file.
-  with_tmp_directory: | tmp/string |
-    config_path := "$tmp/config.ubjson"
-    write_blob_to_file config_path firmware.config
-    arguments := [
-      "-e", firmware_path,
-      "flash", "--port", port,
-      "--config", config_path,
-    ]
-    if baud: arguments.add_all ["--baud", baud]
-    sdk.run_firmware_tool arguments
+    if not parsed["port"]:
+      ui.error "No --port option given."
+      ui.abort
+    port/string := parsed["port"]
+    baud/string? := parsed["baud"]
+
+    // TODO(kasper): We should add an option to the flashing tool
+    // that verifies that the hash of the output bits are the
+    // expected ones -- or a flag that allows us to just pass
+    // the bits in through a file.
+    with_tmp_directory: | tmp/string |
+      config_path := "$tmp/config.ubjson"
+      write_blob_to_file config_path firmware.config
+      arguments := [
+        "-e", firmware_path,
+        "flash", "--port", port,
+        "--config", config_path,
+      ]
+      if baud: arguments.add_all ["--baud", baud]
+      sdk.run_firmware_tool arguments
 
 update_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_selector := parsed["device"]
   firmware_path := parsed["firmware"]
 
-  broker := create_broker_from_cli_args config parsed
-  artemis := Artemis broker cache
-  device_id := artemis.device_selector_to_id device_selector
-  artemis.firmware_update --device_id=device_id --firmware_path=firmware_path --ui=ui
-  artemis.close
-  broker.close
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    device_id := artemis.device_selector_to_id device_selector
+    artemis.firmware_update --device_id=device_id --firmware_path=firmware_path --ui=ui
+
+add_certificate_assets assets_path/string tmp/string certificates/Map sdk/Sdk -> none:
+  // Add the certificates as distinct assets, so we can load them without
+  // copying them into writable memory.
+  certificates.do: | name/string value |
+    write_blob_to_file "$tmp/$name" value
+    sdk.run_assets_tool ["-e", assets_path, "add", name, "$tmp/$name"]

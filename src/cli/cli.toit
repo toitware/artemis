@@ -12,7 +12,6 @@ import .cmds.firmware
 import .cmds.status
 import .cmds.device
 import .cmds.device_config
-import .cmds.provision
 import .cmds.auth
 import .cmds.org
 import .cmds.profile
@@ -43,7 +42,6 @@ main args --config/Config --cache/Cache --ui/Ui:
   (create_firmware_commands config cache ui).do: root_cmd.add it
   (create_device_config_commands config cache ui).do: root_cmd.add it
   (create_status_commands config cache ui).do: root_cmd.add it
-  (create_provision_commands config cache ui).do: root_cmd.add it
   (create_auth_commands config cache ui).do: root_cmd.add it
   (create_org_commands config cache ui).do: root_cmd.add it
   (create_profile_commands config cache ui).do: root_cmd.add it

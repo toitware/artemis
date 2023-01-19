@@ -1,10 +1,13 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli
+import uuid
 
 import .broker_options_
+import ..artemis
 import ..cache
 import ..config
+import ..server_config
 import ..ui
 
 create_device_commands config/Config cache/Cache ui/Ui -> List:
@@ -132,8 +135,49 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
   return [cmd]
 
+with_artemis parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
+  broker_config := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
+  artemis_config := get_server_from_config config parsed["broker.artemis"] CONFIG_ARTEMIS_DEFAULT_KEY
+
+  artemis := Artemis --config=config --cache=cache --ui=ui \
+      --broker_config=broker_config --artemis_config=artemis_config
+
+  try:
+    block.call artemis
+  finally:
+    artemis.close
+
 provision parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  throw "UNIMPLEMENTED"
+  device_id := parsed["device-id"]
+  output_directory := parsed["output-directory"]
+  output := parsed["output"]
+  organization_id := parsed["organization-id"]
+
+  if not device_id:
+    device_id = (uuid.uuid5 "Device ID" "$Time.now $random").stringify
+
+  if output_directory and output:
+    ui.error "The options '--output-directory' and '--output' are mutually exclusive."
+    ui.abort
+
+  if not output_directory and not output:
+    output_directory = "."
+  if not output:
+    output = "$output_directory/$(device_id).identity"
+
+  if not organization_id:
+    organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
+    if not organization_id:
+      ui.error "No organization ID specified and no default organization ID set."
+      ui.abort
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    artemis.provision
+        --device_id=device_id
+        --out_path=output
+        --organization_id=organization_id
+    ui.info "Successfully provisioned device $device_id."
+    ui.info "Created $output."
 
 flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   throw "UNIMPLEMENTED"
