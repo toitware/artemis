@@ -49,6 +49,9 @@ foreach(file ${TESTS})
       continue()
     endif()
 
+    # Split the flags at "|".
+    string(REPLACE "|" ";" flag "${flag}")
+
     add_test(
       NAME "${test_name}"
       COMMAND "${TOITRUN}" "${file}" ${flag}
