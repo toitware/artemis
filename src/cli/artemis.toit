@@ -99,7 +99,7 @@ class Artemis:
   /**
   Provisions a device.
 
-  Contacts the artemis server and creates a new device entry with the
+  Contacts the Artemis server and creates a new device entry with the
     given $device_id (used as "alias" on the server side) in the
     organization with the given $organization_id.
 
