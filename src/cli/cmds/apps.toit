@@ -6,12 +6,13 @@ import ..artemis
 import ..config
 import ..cache
 import ..ui
+import .broker_options_
 import .device_options_
 
 create_app_commands config/Config cache/Cache ui/Ui -> List:
   install_cmd := cli.Command "install"
       --short_help="Install an app on a device."
-      --options=device_options
+      --options=broker_options + device_options
       --rest=[
         cli.OptionString "app-name"
             --short_help="Name of the app to install."
@@ -21,41 +22,35 @@ create_app_commands config/Config cache/Cache ui/Ui -> List:
             --type="input-file"
             --required,
       ]
-      --run=:: install_app config cache it
+      --run=:: install_app it config cache ui
 
   uninstall_cmd := cli.Command "uninstall"
       --long_help="Uninstall an app from a device."
-      --options=device_options
+      --options=broker_options + device_options
       --rest=[
         cli.OptionString "app-name"
             --short_help="Name of the app to uninstall.",
       ]
-      --run=:: uninstall_app config cache it
+      --run=:: uninstall_app it config cache ui
 
   return [
     install_cmd,
     uninstall_cmd,
   ]
 
-install_app config/Config cache/Cache parsed/cli.Parsed:
+install_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   app_name := parsed["app-name"]
   device_selector := parsed["device"]
   application_path :=parsed["application"]
 
-  broker := create_broker_from_cli_args config parsed
-  artemis := Artemis broker cache
-  device_id := artemis.device_selector_to_id device_selector
-  artemis.app_install --device_id=device_id --app_name=app_name --application_path=application_path
-  artemis.close
-  broker.close
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    device_id := artemis.device_selector_to_id device_selector
+    artemis.app_install --device_id=device_id --app_name=app_name --application_path=application_path
 
-uninstall_app config/Config cache/Cache parsed/cli.Parsed:
+uninstall_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   app_name := parsed["app-name"]
   device_selector := parsed["device"]
 
-  broker := create_broker_from_cli_args config parsed
-  artemis := Artemis broker cache
-  device_id := artemis.device_selector_to_id device_selector
-  artemis.app_uninstall --device_id=device_id --app_name=app_name
-  artemis.close
-  broker.close
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    device_id := artemis.device_selector_to_id device_selector
+    artemis.app_uninstall --device_id=device_id --app_name=app_name

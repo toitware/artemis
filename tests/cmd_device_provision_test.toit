@@ -13,6 +13,7 @@ import artemis.service.device show Device
 import artemis.shared.server_config show ServerConfig
 import host.directory
 import host.file
+import uuid
 import expect show *
 import .utils
 
@@ -40,8 +41,8 @@ run_test test_cli/TestCli:
     ]
 
     test_cli.run [
+      "device",
       "provision",
-      "create-identity",
       "--organization-id", TEST_ORGANIZATION_UUID,
       "--output-directory", tmp_dir,
     ]
@@ -54,8 +55,8 @@ run_test test_cli/TestCli:
 
     // Test an error when the organization id isn't set.
     test_cli.run --expect_exit_1 [
+      "device",
       "provision",
-      "create-identity",
       "-o", id_file,
     ]
 
@@ -64,8 +65,18 @@ run_test test_cli/TestCli:
     ]
 
     test_cli.run [
+      "device",
       "provision",
-      "create-identity",
       "-o", id_file,
     ]
     expect (file.is_file id_file)
+
+    // Test with a given id.
+    test_id := (uuid.uuid5 "provision-test" "$Time.now $random").stringify
+    test_cli.run [
+      "device",
+      "provision",
+      "--output-directory", tmp_dir,
+      "--device_id", test_id,
+    ]
+    expect (file.is_file "$tmp_dir/$(test_id).identity")
