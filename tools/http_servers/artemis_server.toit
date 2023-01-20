@@ -151,6 +151,9 @@ class HttpArtemisServer extends HttpServer:
       "organization_id": organization_id,
     }
 
+  remove_device device_id/string -> none:
+    devices.remove device_id
+
   create_user --email/string --name/string --id/string?=null -> string:
     if not id: id = (uuid.uuid5 "" "user_id - $Time.monotonic_us").stringify
     user := User id --email=email --name=name

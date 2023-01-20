@@ -114,8 +114,8 @@ class TestCli:
 /**
 Starts the artemis server and broker.
 
-If $start_device_artemis is true also starts a service-task running Artemis with
-  $device_id as device ID.
+If $start_device_artemis is true creates a new device in the default
+  test organization and starts a service_task running Artemis.
 Neither the 'check_in', nor the firmware service are set up.
 
 Calls the given $block with a $TestCli instance and a $Device/null.
@@ -128,7 +128,6 @@ with_test_cli
     --broker_type/string="http"
     --logger/log.Logger=log.default
     --start_device_artemis/bool=true
-    --device_id=TEST_DEVICE_UUID
     [block]:
   with_artemis_server --type=artemis_type: | artemis_server |
     with_test_cli
@@ -136,7 +135,6 @@ with_test_cli
         broker_type
         --logger=logger
         --start_device_artemis=start_device_artemis
-        --device_id=device_id
         block
 
 with_test_cli
@@ -144,7 +142,6 @@ with_test_cli
     broker_type
     --logger/log.Logger
     --start_device_artemis/bool=true
-    --device_id=TEST_DEVICE_UUID
     [block]:
   if broker_type == "supabase":
     server_config := get_supabase_config --sub_directory=SUPABASE_CUSTOMER
@@ -153,7 +150,6 @@ with_test_cli
         --broker_config=server_config
         --logger=logger
         --start_device_artemis=start_device_artemis
-        --device_id=device_id
         block
   else if broker_type == "http":
     with_http_broker: | server_config |
@@ -162,7 +158,6 @@ with_test_cli
           --broker_config=server_config
           --logger=logger
           --start_device_artemis=start_device_artemis
-          --device_id=device_id
           block
   else if broker_type == "mosquitto":
     with_mosquitto --logger=logger: | host/string port/int |
@@ -175,7 +170,6 @@ with_test_cli
     --broker_config/server_config.ServerConfig
     --logger/log.Logger
     --start_device_artemis/bool=true
-    --device_id=TEST_DEVICE_UUID
     [block]:
 
   with_tmp_directory: | tmp_dir |
@@ -193,6 +187,8 @@ with_test_cli
     device/Device? := null
 
     if start_device_artemis:
+      device_id := artemis_server.backdoor.create_device
+          --organization_id=TEST_ORGANIZATION_UUID
       device = Device --id=device_id --firmware="foo"
 
       artemis_task = task::
@@ -205,4 +201,5 @@ with_test_cli
       block.call test_cli device
     finally:
       if artemis_task: artemis_task.cancel
+      if device: artemis_server.backdoor.remove_device device.id
       directory.rmdir --recursive cache_dir
