@@ -1,0 +1,71 @@
+#!/usr/bin/env toit.run
+
+// Copyright (C) 2023 Toitware ApS. All rights reserved.
+
+import cli
+// TODO(florian): these should come from the cli package.
+import artemis.cli.config as cli
+import artemis.cli.cache as cli
+import artemis.cli.ui as ui
+import artemis.cli.sdk show *
+import host.file
+import supabase
+
+import .snapshot
+import .utils
+
+main args:
+  // Use the same config as the CLI.
+  // This way we get the same server configurations and oauth tokens.
+  config := cli.read_config
+  // Use the same cache as the CLI.
+  // This way we can reuse the SDKs.
+  cache := cli.Cache --app_name="artemis"
+  ui := ui.ConsoleUi
+
+  main --config=config --cache=cache --ui=ui args
+
+main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
+  cmd := cli.Command "downloader"
+      --long_help="""
+        Downloads snapshots from the Artemis server and stores them in the Jaguar cache.
+        """
+      --options=[
+        cli.OptionString "sdk-version"
+            --short_help="The version of the SDK to use.",
+        cli.OptionString "service-version"
+            --short_help="The version of the service to use.",
+        cli.OptionString "output-directory"
+            --short_help="The directory to store the downloaded snapshots in.",
+        cli.OptionString "server"
+            --short_help="The server to download from.",
+      ]
+      --run=:: download config cache ui it
+  cmd.run args
+
+download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
+  sdk_version := parsed["sdk-version"]
+  service_version := parsed["service-version"]
+  output_directory := parsed["output-directory"]
+
+  with_supabase_client parsed config: | client/supabase.Client |
+    client.ensure_authenticated: it.sign_in --provider="github" --ui=ui
+
+    // Get a list of snapshots to download.
+    filters := []
+    if sdk_version: filters.add "sdk_version=eq.$sdk_version"
+    if service_version: filters.add "service_version=eq.$service_version"
+    service_images := client.rest.select "sdk_service_versions" --filters=filters
+    ui.info "Downloading snapshots for:"
+    ui.info_table --header=[ "SDK", "Service" ]
+      service_images.map: | row | [ row["sdk_version"], row["service_version"] ]
+
+    service_images.do: | row |
+      image := row["image"]
+      cache_key := "snapshot-downloader/$image"
+      snapshot := cache.get cache_key: | store/cli.FileStore |
+        ui.info "Downloading $row["sdk_version"]-$row["service_version"]"
+        store.save (client.storage.download --path="service-snapshots/$image")
+
+      uuid := cache_snapshot snapshot --output_directory=output_directory
+      ui.info "Wrote $uuid"

@@ -632,16 +632,36 @@ main:
 
     // Admins can write to the storage.
     // All other users (including auth) can only see it.
-    BUCKET ::= "service-images"
+    IMAGE_BUCKET ::= "service-images"
     client_admin.storage.upload
-        --path="$BUCKET/$image"
+        --path="$IMAGE_BUCKET/$image"
         --content="test".to_byte_array
 
     // Check that auth and anon can see it.
     expect_equals "test".to_byte_array
-        client_anon.storage.download --path="$BUCKET/$image"
+        client_anon.storage.download --path="$IMAGE_BUCKET/$image"
     expect_equals "test".to_byte_array
-        client1.storage.download --path="$BUCKET/$image"
+        client1.storage.download --path="$IMAGE_BUCKET/$image"
+
+    snapshot := "test-$(random).snapshot"
+
+    // Admins can read and write to the snapshot storage.
+    // All other users (including auth) can not see it.
+    SNAPSHOT_BUCKET ::= "service-snapshots"
+    client_admin.storage.upload
+        --path="$SNAPSHOT_BUCKET/$snapshot"
+        --content="test snapshot".to_byte_array
+
+    // Check that admin can see it, but auth and anon can not see it.
+    expect_equals "test snapshot".to_byte_array
+        client_admin.storage.download --path="$SNAPSHOT_BUCKET/$snapshot"
+
+    expect_throws --contains="Not found":
+      client_anon.storage.download --path="$SNAPSHOT_BUCKET/$image"
+    expect_throws --contains="Not found":
+      client1.storage.download --path="$SNAPSHOT_BUCKET/$image"
+
+    // TODO(florian): add a test that the public URI doesn't work either.
 
 expect_throws --contains/string [block]:
   exception := catch: block.call

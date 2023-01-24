@@ -14,6 +14,7 @@ import uuid
 import supabase
 
 import .git
+import .snapshot
 import .utils
 
 main args:
@@ -64,6 +65,8 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --short_help="The server to upload to.",
         cli.Flag "local"
             --short_help="Build the service from the checked out code of the current repository.",
+        cli.OptionString "snapshot-directory"
+            --short_help="The directory to store the snapshot in.",
       ]
       --run=:: build_and_upload config cache ui it
   cmd.run args
@@ -75,6 +78,7 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   service_version := parsed["service-version"]
   commit := parsed["commit"]
   use_local := parsed["local"]
+  snapshot_directory := parsed["snapshot-directory"]
 
   git := Git
   // Get the SDK.
@@ -105,13 +109,17 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       if commit: full_service_version += "-$commit"
 
     ar_file := "$tmp_dir/service.ar"
-    ui.info "Creating image archive."
-    create_image_archive service_source_path --sdk=sdk --out=ar_file
+    ui.info "Creating snapshot."
+
+    snapshot_path := "$tmp_dir/service.snapshot"
+    sdk.compile_to_snapshot service_source_path --out=snapshot_path
+
+    create_image_archive snapshot_path --sdk=sdk --out=ar_file
 
     with_supabase_client parsed config: | client/supabase.Client |
-      ui.info "Uploading image archive."
-
       client.ensure_authenticated: it.sign_in --provider="github" --ui=ui
+
+      ui.info "Uploading image archive."
 
       // TODO(florian): share constants with the CLI.
       sdk_ids := client.rest.select "sdks" --filters=[
@@ -153,16 +161,22 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
       ui.info "Successfully uploaded $full_service_version into service-images/$image_id."
 
-create_image_archive service_source_path/string --sdk/Sdk --out/string:
+      ui.info "Uploading snapshot."
+      client.storage.upload
+        --path="service-snapshots/$image_id"
+        --content=(file.read_content snapshot_path)
+      ui.info "Successfully uploaded the snapshot."
+
+      cache_snapshot (file.read_content snapshot_path)
+          --output_directory=snapshot_directory
+
+create_image_archive snapshot_path/string --sdk/Sdk --out/string:
   ar_stream := file.Stream.for_write out
   ar_writer := ar.ArWriter ar_stream
 
   ar_writer.add "artemis" """{ "magic": "🐅", "version": 1 }"""
 
   with_tmp_directory: | tmp_dir/string |
-    snapshot_path := "$tmp_dir/service.snapshot"
-    sdk.compile_to_snapshot service_source_path --out=snapshot_path
-
     [32, 64].do: | bits |
       // Note that 'ar' file names can only be 15 characters long.
       image_name := "service-$(bits).img"
