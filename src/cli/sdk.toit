@@ -60,6 +60,55 @@ class Sdk:
       "--project-root=$dir",
     ]
 
+  assets_create --output_path/string assets/Map:
+    run_assets_tool [ "-e", output_path, "create" ]
+    with_tmp_directory: | tmp_dir |
+      assets.do: | asset_name/string asset_description/Map |
+        asset_path/string := ?
+        if asset_description.contains "json":
+          asset_path = "$tmp_dir/$(asset_name).json"
+          write_json_to_file asset_path asset_description["json"]
+        else if asset_description.contains "blob":
+          asset_path = "$tmp_dir/$(asset_name).blob"
+          write_blob_to_file asset_path asset_description["blob"]
+        else if asset_description.contains "path":
+          asset_path = asset_description["path"]
+        else:
+          throw "Invalid asset description: $asset_description"
+        format := asset_description["format"]
+        run_assets_tool [
+          "-e", output_path,
+          "add",
+          "--format", format,
+          asset_name,
+          asset_path,
+        ]
+
+  /**
+  Installs the container $name in the given $envelope.
+
+  The $envelope, the $image and its $assets must be paths to files.
+  */
+  firmware_add_container name/string --envelope/string --assets/string --image/string:
+    run_firmware_tool [
+      "container", "install",
+      "-e", envelope,
+      "--assets", assets,
+      name,
+      image,
+    ]
+
+  /**
+  Sets the property $name to $value in the given $envelope.
+  */
+  firmware_set_property name/string value/string --envelope/string:
+    run_firmware_tool [
+      "property", "set",
+      "-e", envelope,
+      name,
+      value,
+    ]
+
   run_assets_tool arguments/List -> none:
     pipe.run_program [tools_executable "assets"] + arguments
 
@@ -80,6 +129,11 @@ class Sdk:
 
   static exe_extension ::= (platform == PLATFORM_WINDOWS) ? ".exe" : ""
 
+/**
+Builds the URL of a released SDK with the given $version on Github.
+
+Choses the download URL based on the current platform.
+*/
 sdk_url version/string -> string:
   platform_str/string := ?
   if platform == PLATFORM_LINUX:
@@ -92,40 +146,13 @@ sdk_url version/string -> string:
   return "github.com/toitlang/toit/releases/download/$version/toit-$(platform_str).tar.gz"
 
 get_sdk version/string --cache/cli.Cache -> Sdk:
-  sdk_url := sdk_url version
+  url := sdk_url version
   sdk_key := "$SDK_PATH/$version"
   path := cache.get_directory_path sdk_key: | store/cli.DirectoryStore |
     with_tmp_directory: | tmp_dir |
-      network := net.open
-      client := http.Client.tls network
-          --root_certificates=certificate_roots.ALL
-      parts := sdk_url.split --at_first "/"
-      host := parts.first
-      path := parts.last
-      log.info "Downloading $sdk_url"
-      response := client.get host path
-      if response.status_code != 200:
-        throw "Failed to download $sdk_url: $response.status_code $response.status_message"
-      file := file.Stream.for_write "$tmp_dir/toit.tar.gz"
-      writer := Writer file
-      while chunk := response.body.read:
-        writer.write chunk
-      writer.close
-      // TODO(florian): closing should be idempotent.
-      // file.close
-
+      out_path := "$tmp_dir/toit.tar.gz"
+      download_url url --out_path=out_path
       store.with_tmp_directory: | final_out_dir/string |
-        untar "$tmp_dir/toit.tar.gz" --target=final_out_dir
+        untar out_path --target=final_out_dir
         store.move "$final_out_dir/toit"
-
   return Sdk path version
-
-untar path/string --target/string:
-  pipe.backticks [
-    // All modern tar versions automatically detect the compression.
-    // No need to provide `-z` or so.
-    "tar",
-    "x",            // Extract.
-    "-f", "$path",  // The file at 'path'
-    "-C", target,   // Extract to 'target'.
-  ]
