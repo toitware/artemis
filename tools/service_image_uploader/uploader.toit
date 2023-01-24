@@ -111,6 +111,8 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
     with_supabase_client parsed config: | client/supabase.Client |
       ui.info "Uploading image archive."
 
+      client.ensure_authenticated: it.sign_in --provider="github" --ui=ui
+
       // TODO(florian): share constants with the CLI.
       sdk_ids := client.rest.select "sdks" --filters=[
         "version=eq.$sdk_version",
