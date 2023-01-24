@@ -72,12 +72,14 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   root_certificate_text/string? := ?
 
   constructor.from_json name/string json/Map [--certificate_text_provider]:
+    root_text := json.get "root_certificate_text"
+    if root_text: root_text = certificate_text_provider.call root_text
     return ServerConfigSupabase name
         --host=json["host"]
         --anon=json["anon"]
         --poll_interval=Duration --us=json["poll_interval"]
         --root_certificate_name=json.get "root_certificate_name"
-        --root_certificate_text=json.get "root_certificate_text"
+        --root_certificate_text=root_text
 
   constructor name/string
       --.host
@@ -123,12 +125,16 @@ class ServerConfigMqtt extends ServerConfig:
   client_private_key/string?
 
   constructor.from_json name/string config/Map [--certificate_text_provider]:
+    root_text := config.get "root_certificate_text"
+    if root_text: root_text = certificate_text_provider.call root_text
+    client_text := config.get "client_certificate_text"
+    if client_text: client_text = certificate_text_provider.call client_text
     return ServerConfigMqtt name
         --host=config["host"]
         --port=config["port"]
         --root_certificate_name=config.get "root_certificate_name"
-        --root_certificate_text=config.get "root_certificate_text"
-        --client_certificate_text=config.get "client_certificate_text"
+        --root_certificate_text=root_text
+        --client_certificate_text=client_text
         --client_private_key=config.get "client_private_key"
 
   constructor name/string
