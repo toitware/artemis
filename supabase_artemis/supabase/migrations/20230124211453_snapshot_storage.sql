@@ -4,7 +4,7 @@
 INSERT INTO storage.buckets (id, name, public)
     VALUES ('service-snapshots', 'service-snapshots', false);
 
--- Give admins permissions for service images.
+-- Give admins permissions for service snapshots.
 CREATE POLICY "Admins have access to service snapshots"
     ON storage.objects
     FOR ALL
