@@ -175,7 +175,7 @@ extract_firmware_ envelope_path/string config/ByteArray? sdk/Sdk -> FirmwareCont
   return FirmwareContent --bits=bits --parts=parts --checksum=checksum
 
 /**
-Builds the URL for the firmware envelope for the given $version on Github.
+Builds the URL for the firmware envelope for the given $version on GitHub.
 */
 envelope_url version/string -> string:
   return "github.com/toitlang/toit/releases/download/$version/firmware-esp32.gz"

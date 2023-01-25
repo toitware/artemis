@@ -109,7 +109,7 @@ class Artemis:
         --sdk_version=sdk
         --service_version=service
     if versions.is_empty:
-      ui_.error "Unsupported SDK/Artemis versions."
+      ui_.error "Unsupported Artemis/SDK versions."
       ui_.abort
 
   /**
@@ -219,7 +219,7 @@ class Artemis:
       artemis_assets_path := "$tmp_dir/artemis.assets"
       sdk.assets_create --output_path=artemis_assets_path artemis_assets
 
-      // Get the prebuild Artemis service.
+      // Get the prebuilt Artemis service.
       artemis_service_image_path := get_service_image_path_
           --sdk=sdk_version
           --service=service_version
@@ -253,7 +253,7 @@ class Artemis:
       server := connected_artemis_server_
       entry := server.list_sdk_service_versions --sdk_version=sdk --service_version=service
       if entry.is_empty:
-        ui_.error "Unsupported SDK/Artemis versions."
+        ui_.error "Unsupported Artemis/SDK versions."
         ui_.abort
       image_name := entry.first["image"]
       service_image_bytes := server.download_service_image image_name

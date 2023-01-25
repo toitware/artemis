@@ -200,7 +200,7 @@ SPECIFICATION_FORMAT_HELP ::= """
   'version': The version of the specification file. Must be '1'.
   'sdk': The SDK version to use. This is a string of the form
       'major.minor.patch', e.g. '1.2.3'.
-  'artemis': The Artemis firmware version to use. This is a string of the
+  'artemis': The Artemis service version to use. This is a string of the
       form 'major.minor.patch', e.g. '1.2.3'.
   'max_offline_seconds': The maximum number of seconds the device can be
       offline before it attempts to connect to the broker to sync.

@@ -130,9 +130,9 @@ class Sdk:
   static exe_extension ::= (platform == PLATFORM_WINDOWS) ? ".exe" : ""
 
 /**
-Builds the URL of a released SDK with the given $version on Github.
+Builds the URL of a released SDK with the given $version on GitHub.
 
-Choses the download URL based on the current platform.
+Chooses the download URL based on the current platform.
 */
 sdk_url version/string -> string:
   platform_str/string := ?

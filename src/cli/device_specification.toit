@@ -13,7 +13,7 @@ This class contains the information needed to install/flash and
 
 Relevant data includes (but is not limited to):
 - the SDK version (which currently gives the firmware binary),
-- max off-line,
+- max offline,
 - connection information (Wi-Fi, cellular, ...),
 - installed applications.
 */
