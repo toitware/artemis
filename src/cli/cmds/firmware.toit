@@ -12,6 +12,7 @@ import .device_options_
 import ..artemis
 import ..cache
 import ..config
+import ..device_specification
 import ..jaguar as jaguar
 import ..sdk
 import ..server_config
@@ -31,8 +32,25 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
             --type="file"
             --required
       ]
+      --rest=[
+        cli.Option "device-specification"
+            --short_help="The device specification to use."
+            --type="file"
+            --required,
+      ]
       --run=:: create_firmware it config cache ui
   firmware_cmd.add create_cmd
+
+  create_orig_cmd := cli.Command "create-orig"
+      --short_help="Create firmware for flashing or updating."
+      --options=broker_options + [
+        cli.OptionString "output"
+            --short_name="o"
+            --type="file"
+            --required
+      ]
+      --run=:: create_orig_firmware it config cache ui
+  firmware_cmd.add create_orig_cmd
 
   flash_cmd := cli.Command "flash"
       --short_help="Flash the initial firmware on a device."
@@ -73,16 +91,27 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
   return [firmware_cmd]
 
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
+  specification_path := parsed["device-specification"]
+  specification_json := read_json specification_path
+  specification := DeviceSpecification.from_json specification_json
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    artemis.customize_envelope
+        --output_path=parsed["output"]
+        --device_specification=specification
+    ui.info "Firmware created."
+
+create_orig_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   output_path := parsed["output"]
   broker_config := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
   artemis_server_config := get_server_from_config config parsed["broker.artemis"] CONFIG_ARTEMIS_DEFAULT_KEY
+
+  // TODO(florian): get the sdk correctly.
+  sdk := Sdk
 
   deduplicated_certificates := {:}
   broker_json := server_config_to_service_json broker_config deduplicated_certificates
   artemis_broker_json := server_config_to_service_json artemis_server_config deduplicated_certificates
 
-  // TODO(florian): get the sdk correctly.
-  sdk := Sdk
 
   with_tmp_directory: | tmp/string |
     write_json_to_file "$tmp/broker.json" broker_json

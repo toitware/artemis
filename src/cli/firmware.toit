@@ -7,6 +7,8 @@ import encoding.ubjson
 import host.file
 
 import .sdk
+import .cache show ENVELOPE_PATH
+import .cache as cli
 import .utils
 import ..shared.utils.patch
 
@@ -171,3 +173,25 @@ extract_firmware_ envelope_path/string config/ByteArray? sdk/Sdk -> FirmwareCont
       parts.add (FirmwarePartPatch --to=to --from=from --bits=part)
 
   return FirmwareContent --bits=bits --parts=parts --checksum=checksum
+
+/**
+Builds the URL for the firmware envelope for the given $version on GitHub.
+*/
+envelope_url version/string -> string:
+  return "github.com/toitlang/toit/releases/download/$version/firmware-esp32.gz"
+
+/**
+Returns a path to the firmware envelope for the given $version.
+*/
+// TODO(florian): we probably want to create a class for the firmware
+// envelope.
+get_envelope version/string --cache/cli.Cache -> string:
+  url := envelope_url version
+  path := "firmware-esp32.envelope"
+  envelope_key := "$ENVELOPE_PATH/$version/$path"
+  return cache.get_file_path envelope_key: | store/cli.FileStore |
+    store.with_tmp_directory: | tmp_dir |
+      out_path := "$tmp_dir/$(path).gz"
+      download_url url --out_path=out_path
+      gunzip out_path
+      store.move "$tmp_dir/$path"
