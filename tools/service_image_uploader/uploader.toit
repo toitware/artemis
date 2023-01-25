@@ -13,6 +13,7 @@ import host.file
 import uuid
 import supabase
 
+import .client
 import .git
 import .snapshot
 import .utils
@@ -116,58 +117,20 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
     create_image_archive snapshot_path --sdk=sdk --out=ar_file
 
-    with_supabase_client parsed config: | client/supabase.Client |
-      client.ensure_authenticated: it.sign_in --provider="github" --ui=ui
-
-      ui.info "Uploading image archive."
-
-      // TODO(florian): share constants with the CLI.
-      sdk_ids := client.rest.select "sdks" --filters=[
-        "version=eq.$sdk_version",
-      ]
-      sdk_id := ?
-      if not sdk_ids.is_empty:
-        sdk_id = sdk_ids[0]["id"]
-      else:
-        inserted := client.rest.insert "sdks" {
-          "version": sdk_version,
-        }
-        sdk_id = inserted["id"]
-
-      service_ids := client.rest.select "artemis_services" --filters=[
-        "version=eq.$full_service_version",
-      ]
-      service_id := ?
-      if not service_ids.is_empty:
-        service_id = service_ids[0]["id"]
-      else:
-        inserted := client.rest.insert "artemis_services" {
-          "version": full_service_version,
-        }
-        service_id = inserted["id"]
-
+    with_upload_client parsed config ui: | client/UploadClient |
       image_id := (uuid.uuid5 "artemis"
           "$Time.monotonic_us $sdk_version $full_service_version").stringify
 
-      client.storage.upload
-          --path="service-images/$image_id"
-          --content=(file.read_content ar_file)
+      image_content := file.read_content ar_file
+      snapshot_content := file.read_content snapshot_path
+      client.upload
+          --sdk_version=sdk_version
+          --service_version=full_service_version
+          --image_id=image_id
+          --image_content=image_content
+          --snapshot=snapshot_content
 
-      client.rest.insert "service_images" {
-        "sdk_id": sdk_id,
-        "service_id": service_id,
-        "image": image_id,
-      }
-
-      ui.info "Successfully uploaded $full_service_version into service-images/$image_id."
-
-      ui.info "Uploading snapshot."
-      client.storage.upload
-        --path="service-snapshots/$image_id"
-        --content=(file.read_content snapshot_path)
-      ui.info "Successfully uploaded the snapshot."
-
-      cache_snapshot (file.read_content snapshot_path)
+      cache_snapshot snapshot_content
           --output_directory=snapshot_directory
 
 create_image_archive snapshot_path/string --sdk/Sdk --out/string:
