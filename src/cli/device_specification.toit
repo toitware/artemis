@@ -46,8 +46,6 @@ class DeviceSpecification:
     encoded := file.read_content path
     return DeviceSpecification.from_json (json.parse encoded.to_string)
 
-  // cook -> Firmware:
-
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
     if data["type"] == "wifi":
