@@ -21,8 +21,8 @@ get_server_from_config config/Config server_name/string? default_key/string -> S
   json_map := servers.get server_name
   if not json_map: throw "No broker named $server_name"
 
-  // Certificates weren't deduplicated. The block just returns 'it'.
-  return ServerConfig.from_json server_name json_map --certificate_text_provider=: it
+  return ServerConfig.from_json server_name json_map
+      --der_deserializer=: base64.decode it
 
 has_server_in_config config/Config server_name/string -> bool:
   servers := config.get CONFIG_SERVERS_KEY
@@ -31,22 +31,23 @@ has_server_in_config config/Config server_name/string -> bool:
 add_server_to_config config/Config server_config/ServerConfig:
   servers := config.get CONFIG_SERVERS_KEY --init=:{:}
 
-  // No need to deduplicate certificates. The block just returns 'it'.
-  json := server_config.to_json --certificate_deduplicator=: it
+  json := server_config.to_json --der_serializer=: base64.encode it
   servers[server_config.name] = json
 
 /**
 Serializes a certificate to a string.
 Deduplicates them in the process.
+
+Returns a map of key->ByteArray.
 */
-deduplicate_certificate certificate_string/string deduplicated_certificates/Map -> string:
+deduplicate_certificate certificate_der/ByteArray deduplicated_certificates/Map -> string:
   sha := sha256.Sha256
-  sha.add certificate_string
+  sha.add certificate_der
   certificate_key := "certificate-$(base64.encode sha.get[0..8])"
-  deduplicated_certificates[certificate_key] = certificate_string
+  deduplicated_certificates[certificate_key] = certificate_der
   return certificate_key
 
 server_config_to_service_json server_config/ServerConfig deduplicated_certificates/Map -> any:
-  server_config.fill_certificate_texts: certificate_roots.MAP[it]
-  return server_config.to_json --certificate_deduplicator=:
+  server_config.fill_certificate_ders: certificate_roots.MAP[it]
+  return server_config.to_json --der_serializer=:
     deduplicate_certificate it deduplicated_certificates

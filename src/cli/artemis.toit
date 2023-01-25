@@ -150,11 +150,11 @@ class Artemis:
       --device_id/string
       --organization_id/string
       --hardware_id/string:
-    // A map from id to deduplicated certificate.
-    deduplicated_certificates := {:}
+    // A map from id to der certificates.
+    der_certificates := {:}
 
-    broker_json := server_config_to_service_json broker_config_ deduplicated_certificates
-    artemis_json := server_config_to_service_json artemis_config_ deduplicated_certificates
+    broker_json := server_config_to_service_json broker_config_ der_certificates
+    artemis_json := server_config_to_service_json artemis_config_ der_certificates
 
     identity ::= {
       "artemis.device": {
@@ -167,7 +167,7 @@ class Artemis:
     }
 
     // Add the necessary certificates to the identity.
-    deduplicated_certificates.do: | name/string content/string |
+    der_certificates.do: | name/string content/ByteArray |
       // TODO(florian): the certificates should be in their own namespace.
       identity[name] = content
 
@@ -193,9 +193,9 @@ class Artemis:
 
     // Create the assets for the Artemis service.
     // TODO(florian): share this code with the identity creation code.
-    deduplicated_certificates := {:}
-    broker_json := server_config_to_service_json broker_config_ deduplicated_certificates
-    artemis_json := server_config_to_service_json artemis_config_ deduplicated_certificates
+    der_certificates := {:}
+    broker_json := server_config_to_service_json broker_config_ der_certificates
+    artemis_json := server_config_to_service_json artemis_config_ der_certificates
 
     with_tmp_directory: | tmp_dir |
       artemis_assets := {
@@ -210,7 +210,7 @@ class Artemis:
         },
       }
       // TODO(florian): the certificates should be in their own namespace.
-      deduplicated_certificates.do: | name/string value |
+      der_certificates.do: | name/string value/ByteArray |
         artemis_assets[name] = {
           "format": "binary",
           "blob": value,

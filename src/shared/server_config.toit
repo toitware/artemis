@@ -10,19 +10,19 @@ abstract class ServerConfig:
   /**
   Creates a new broker-config from a JSON map.
 
-  Calls the $certificate_text_provider to undo the deduplication operation of
+  Calls the $der_deserializer to undo the deduplication operation of
     $to_json.
   */
-  constructor.from_json name/string json_map/Map [--certificate_text_provider]:
+  constructor.from_json name/string json_map/Map [--der_deserializer]:
     // This is a bit fishy, as the constructors can already to validity checks
     // before we have recovered the content of fields that were deduplicated.
     config/ServerConfig := ?
     if json_map["type"] == "supabase":
       config = ServerConfigSupabase.from_json name json_map
-          --certificate_text_provider=certificate_text_provider
+          --der_deserializer=der_deserializer
     else if json_map["type"] == "mqtt":
       config = ServerConfigMqtt.from_json name json_map
-          --certificate_text_provider=certificate_text_provider
+          --der_deserializer=der_deserializer
     else if json_map["type"] == "toit-http":
       config = ServerConfigHttpToit.from_json name json_map
     else:
@@ -32,23 +32,23 @@ abstract class ServerConfig:
   abstract type -> string
 
   /**
-  Fills the certificate texts for all certificates where we only have the name.
+  Fills the certificate DERs for all certificates where we only have the name.
   */
-  abstract fill_certificate_texts [certificate_getter] -> none
+  abstract fill_certificate_ders [certificate_getter] -> none
 
   /**
   Serializes this configuration to a JSON map.
 
-  Uses the $certificate_deduplicator block to store larger certificates that
+  Uses the $der_serializer block to store larger certificates that
     should be deduplicated.
-  The $certificate_deduplicator is called with a certificate text, and must
+  The $der_serializer is called with a certificate DER, and must
     return a unique identifier for the certificate.
 
   # Inheritance
   The returned map must include a field "type" with the value returned by
     $type.
   */
-  abstract to_json [--certificate_deduplicator] -> Map
+  abstract to_json [--der_serializer] -> Map
 
 class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
   static DEFAULT_POLL_INTERVAL ::= Duration --s=20
@@ -60,49 +60,50 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   /**
   The name of the root certificate.
 
-  If both $root_certificate_text and $root_certificate_name are set, then $root_certificate_text is used.
+  If both $root_certificate_der and $root_certificate_name are set, then
+    $root_certificate_der is used.
   */
   root_certificate_name/string?
   /**
-  The text (usually starting with "-----BEGIN CERTIFICATE-----") of the root certificate.
+  The DER binary of the root certificate.
 
   On the devices not all certificates are available and inlining the required
-    texts reduces the size that is needed for certificates.
+    binaries reduces the size that is needed for certificates.
   */
-  root_certificate_text/string? := ?
+  root_certificate_der/ByteArray? := ?
 
-  constructor.from_json name/string json/Map [--certificate_text_provider]:
-    root_text := json.get "root_certificate_text"
-    if root_text: root_text = certificate_text_provider.call root_text
+  constructor.from_json name/string json/Map [--der_deserializer]:
+    root_der_id := json.get "root_certificate_der_id"
+    root_der/ByteArray? := root_der_id and (der_deserializer.call root_der_id)
     return ServerConfigSupabase name
         --host=json["host"]
         --anon=json["anon"]
         --poll_interval=Duration --us=json["poll_interval"]
         --root_certificate_name=json.get "root_certificate_name"
-        --root_certificate_text=root_text
+        --root_certificate_der=root_der
 
   constructor name/string
       --.host
       --.anon
       --.root_certificate_name=null
-      --.root_certificate_text=null
+      --.root_certificate_der=null
       --.poll_interval=DEFAULT_POLL_INTERVAL:
     super.from_sub_ name
 
   type -> string: return "supabase"
 
   is_secured -> bool:
-    return root_certificate_name != null or root_certificate_text != null
+    return root_certificate_name != null or root_certificate_der != null
 
   /**
   Fills the certificate text for the root certificate if there
     is a certificate name and no certificate text.
   */
-  fill_certificate_texts [certificate_getter] -> none:
-    if root_certificate_name and not root_certificate_text:
-      root_certificate_text = certificate_getter.call root_certificate_name
+  fill_certificate_ders [certificate_getter] -> none:
+    if root_certificate_name and not root_certificate_der:
+      root_certificate_der = certificate_getter.call root_certificate_name
 
-  to_json  [--certificate_deduplicator] -> Map:
+  to_json  [--der_serializer] -> Map:
     result := {
       "type": type,
       "host": host,
@@ -111,8 +112,8 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     }
     if root_certificate_name:
       result["root_certificate_name"] = root_certificate_name
-    if root_certificate_text:
-      result["root_certificate_text"] = certificate_deduplicator.call root_certificate_text
+    if root_certificate_der:
+      result["root_certificate_der_id"] = der_serializer.call root_certificate_der
     return result
 
 class ServerConfigMqtt extends ServerConfig:
@@ -120,43 +121,48 @@ class ServerConfigMqtt extends ServerConfig:
   port/int
 
   root_certificate_name/string?
-  root_certificate_text/string? := ?
-  client_certificate_text/string?
-  client_private_key/string?
+  root_certificate_der/ByteArray? := ?
+  client_certificate_der/ByteArray?
+  client_private_key_der/ByteArray?
 
-  constructor.from_json name/string config/Map [--certificate_text_provider]:
-    root_text := config.get "root_certificate_text"
-    if root_text: root_text = certificate_text_provider.call root_text
-    client_text := config.get "client_certificate_text"
-    if client_text: client_text = certificate_text_provider.call client_text
+  constructor.from_json name/string config/Map [--der_deserializer]:
+    root_der_id := config.get "root_certificate"
+    root_der/ByteArray? := root_der_id and (der_deserializer.call root_der_id)
+
+    client_der_id := config.get "client_certificate"
+    client_der/ByteArray? := client_der_id and (der_deserializer.call client_der_id)
+
+    private_key_der_id := config.get "client_private_key"
+    private_key_der/ByteArray? := private_key_der_id and (der_deserializer.call private_key_der_id)
+
     return ServerConfigMqtt name
         --host=config["host"]
         --port=config["port"]
         --root_certificate_name=config.get "root_certificate_name"
-        --root_certificate_text=root_text
-        --client_certificate_text=client_text
-        --client_private_key=config.get "client_private_key"
+        --root_certificate_der=root_der
+        --client_certificate_der=client_der
+        --client_private_key_der=private_key_der
 
   constructor name/string
       --.host
       --.port
       --.root_certificate_name=null
-      --.root_certificate_text=null
-      --.client_certificate_text=null
-      --.client_private_key=null:
-    if client_certificate_text and not client_private_key:
+      --.root_certificate_der=null
+      --.client_certificate_der=null
+      --.client_private_key_der=null:
+    if client_certificate_der and not client_private_key_der:
       throw "Missing client_private_key"
     super.from_sub_ name
 
   type -> string: return "mqtt"
 
   is_secured -> bool:
-    return root_certificate_name != null or root_certificate_text != null
+    return root_certificate_name != null or root_certificate_der != null
 
   has_client_certificate -> bool:
-    return client_certificate_text != null
+    return client_certificate_der != null
 
-  to_json [--certificate_deduplicator] -> Map:
+  to_json [--der_serializer] -> Map:
     result := {
       "type": type,
       "host": host,
@@ -164,17 +170,17 @@ class ServerConfigMqtt extends ServerConfig:
     }
     if root_certificate_name:
       result["root_certificate_name"] = root_certificate_name
-    if root_certificate_text:
-      result["root_certificate_text"] = certificate_deduplicator.call root_certificate_text
-    if client_certificate_text:
-      result["client_certificate_text"] = certificate_deduplicator.call client_certificate_text
-    if client_private_key:
-      result["client_private_key"] = client_private_key
+    if root_certificate_der:
+      result["root_certificate"] = der_serializer.call root_certificate_der
+    if client_certificate_der:
+      result["client_certificate"] = der_serializer.call client_certificate_der
+    if client_private_key_der:
+      result["client_private_key"] = der_serializer.call client_private_key_der
     return result
 
-  fill_certificate_texts [certificate_getter] -> none:
-    if root_certificate_name and not root_certificate_text:
-      root_certificate_text = certificate_getter.call root_certificate_name
+  fill_certificate_ders [certificate_getter] -> none:
+    if root_certificate_name and not root_certificate_der:
+      root_certificate_der = certificate_getter.call root_certificate_name
 
 /**
 A broker configuration for an HTTP-based broker.
@@ -197,11 +203,11 @@ class ServerConfigHttpToit extends ServerConfig:
 
   type -> string: return "toit-http"
 
-  to_json [--certificate_deduplicator] -> Map:
+  to_json [--der_serializer] -> Map:
     return {
       "type": type,
       "host": host,
       "port": port,
     }
 
-  fill_certificate_texts [certificate_getter] -> none:
+  fill_certificate_ders [certificate_getter] -> none:
