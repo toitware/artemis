@@ -54,6 +54,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     }
     current_user_id_ = id
     config_["$(CONFIG_SERVER_AUTHS_KEY).$(server_config_.name)"] = id
+    config_.write
 
   sign_in --provider/string --ui/Ui:
     throw "UNIMPLEMENTED"
