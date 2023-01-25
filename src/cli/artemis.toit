@@ -1,11 +1,13 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import ar
 import crypto.sha256
 import host.file
 import bytes
 import log
 import net
 import writer
+import uuid
 
 import encoding.base64
 import encoding.ubjson
@@ -13,6 +15,7 @@ import encoding.json
 
 import .cache as cache
 import .config
+import .device_specification
 
 import .utils
 import .utils.patch_build show build_diff_patch build_trivial_patch
@@ -97,6 +100,19 @@ class Artemis:
     return artemis_server_
 
   /**
+  Checks whether the given $sdk version and $service version is supported by
+    the Artemis server.
+  */
+  check_is_supported_version_ --sdk/string?=null --service/string?=null:
+    server := connected_artemis_server_ --authenticated
+    versions := server.list_sdk_service_versions
+        --sdk_version=sdk
+        --service_version=service
+    if versions.is_empty:
+      ui_.error "Unsupported Artemis/SDK versions."
+      ui_.abort
+
+  /**
   Provisions a device.
 
   Contacts the Artemis server and creates a new device entry with the
@@ -156,6 +172,94 @@ class Artemis:
       identity[name] = content
 
     write_ubjson_to_file out_path identity
+
+  /**
+  Customizes a generic Toit envelope with the given $device_specification.
+    Also installs the Artemis service.
+
+  The image is ready to be flashed together with the identity file.
+  */
+  customize_envelope
+      --device_specification/DeviceSpecification
+      --output_path/string:
+    sdk_version := device_specification.sdk_version
+    service_version := device_specification.artemis_version
+    check_is_supported_version_ --sdk=sdk_version --service=service_version
+
+    sdk := get_sdk sdk_version --cache=cache_
+    cached_envelope_path := get_envelope sdk_version --cache=cache_
+
+    copy_file --source=cached_envelope_path --target=output_path
+
+    // Create the assets for the Artemis service.
+    // TODO(florian): share this code with the identity creation code.
+    deduplicated_certificates := {:}
+    broker_json := server_config_to_service_json broker_config_ deduplicated_certificates
+    artemis_json := server_config_to_service_json artemis_config_ deduplicated_certificates
+
+    with_tmp_directory: | tmp_dir |
+      artemis_assets := {
+        // TODO(florian): share the keys of the assets with the Artemis service.
+        "broker": {
+          "format": "tison",
+          "json": broker_json,
+        },
+        "artemis.broker": {
+          "format": "tison",
+          "json": artemis_json,
+        },
+      }
+      // TODO(florian): the certificates should be in their own namespace.
+      deduplicated_certificates.do: | name/string value |
+        artemis_assets[name] = {
+          "format": "binary",
+          "blob": value,
+        }
+
+      artemis_assets_path := "$tmp_dir/artemis.assets"
+      sdk.assets_create --output_path=artemis_assets_path artemis_assets
+
+      // Get the prebuilt Artemis service.
+      artemis_service_image_path := get_service_image_path_
+          --sdk=sdk_version
+          --service=service_version
+
+      sdk.firmware_add_container "artemis" --envelope=output_path
+          --assets=artemis_assets_path
+          --image=artemis_service_image_path
+
+    // TODO(florian): install the applications. We will probably want to build
+    // an Artemis $Application when we do that (to reuse the code).
+
+    // TODO(florian): discuss this with Kasper.
+    // TODO(kasper): Base the uuid on the actual firmware bits and the Toit SDK version used
+    // to compile it. Maybe this can happen automatically somehow in tools/firmware?
+
+    // Finally, make it unique. The system uuid will have to be used when compiling
+    // code for the device in the future. This will prove that you know which versions
+    // went into the firmware image.
+    system_uuid ::= uuid.uuid5 "system.uuid" "$(random 1_000_000)-$Time.now-$Time.monotonic_us"
+    sdk.firmware_set_property "uuid" system_uuid.stringify --envelope=output_path
+
+  /**
+  Gets the Artemis service image for the given $sdk and $service versions.
+
+  Returns a path to the cached image.
+  */
+  get_service_image_path_ --sdk/string --service/string -> string:
+    // We are only saving the 32-bit version of the service.
+    service_key := "service/$service/$(sdk).image"
+    return cache_.get_file_path service_key: | store/cache.FileStore |
+      server := connected_artemis_server_
+      entry := server.list_sdk_service_versions --sdk_version=sdk --service_version=service
+      if entry.is_empty:
+        ui_.error "Unsupported Artemis/SDK versions."
+        ui_.abort
+      image_name := entry.first["image"]
+      service_image_bytes := server.download_service_image image_name
+      ar_reader := ar.ArReader.from_bytes service_image_bytes
+      ar_file := ar_reader.find "service-32.img"
+      store.save ar_file.content
 
   /**
   Maps a device selector (name or id) to its id.

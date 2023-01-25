@@ -56,9 +56,9 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
         If an identity file is provided, uses it. Otherwise provisions first.
 
-        The configuration file contains the device configuration. It includes
+        The specification file contains the device specification. It includes
         the firmware version, installed applications, connection settings,
-        etc. See 'configuration-format' for more information.
+        etc. See 'specification-format' for more information.
 
         Unless '--no-default' is used, automatically makes this device the
         new default device.
@@ -67,9 +67,9 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "identity"
             --short_help="The identity file that was created during provisioning."
             --type="file",
-        cli.Option "configuration"
+        cli.Option "specification"
             --type="file"
-            --short_help="The configuration of the device."
+            --short_help="The specification of the device."
             --required,
         cli.Flag "default"
             --default=true
@@ -114,6 +114,10 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         If the device's current configuration is different from the goal
         configuration, both configurations are shown. Use '--goal' or
         '--current' to only show one of them.
+
+        The configuration is distilled from the specification. In a
+        configuration the applications are compiled and their checksums
+        are known.
         """
       --options=[
         cli.Option "device-id"
@@ -128,10 +132,10 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: configuration it config cache ui
   cmd.add configuration_cmd
 
-  configuration_format_cmd := cli.Command "configuration-format"
-      --short_help="Prints the format of the device configuration file."
-      --run=:: ui.info CONFIGURATION_FORMAT_HELP
-  cmd.add configuration_format_cmd
+  specification_format_cmd := cli.Command "specification-format"
+      --short_help="Prints the format of the device specification file."
+      --run=:: ui.info SPECIFICATION_FORMAT_HELP
+  cmd.add specification_format_cmd
 
   return [cmd]
 
@@ -188,33 +192,33 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 configuration parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   throw "UNIMPLEMENTED"
 
-CONFIGURATION_FORMAT_HELP ::= """
-        The format of the device configuration file.
+SPECIFICATION_FORMAT_HELP ::= """
+  The format of the device specification file.
 
-        The configuration file is a JSON file with the following entries:
+  The specification file is a JSON file with the following entries:
 
-        'version': The version of the configuration file. Must be '1'.
-        'sdk': The SDK version to use. This is a string of the form
-            'major.minor.patch', e.g. '1.2.3'.
-        'artemis': The Artemis firmware version to use. This is a string of the
-            form 'major.minor.patch', e.g. '1.2.3'.
-        'max_offline_seconds': The maximum number of seconds the device can be
-            offline before it attempts to connect to the broker to sync.
-        'connections': a list of connections, each of which must be a
-            connection object. See below for the format of a connection object.
-        'apps': a list of applications, each of which must be an application
-            object. See below for the format of an application object.
-
-
-        A connection object consists of the following entries:
-        'type': The type of the connection. Must be 'wifi'.
-
-        For 'wifi' connections:
-        'ssid': The SSID of the network to connect to.
-        'password': The password of the network to connect to.
+  'version': The version of the specification file. Must be '1'.
+  'sdk': The SDK version to use. This is a string of the form
+      'major.minor.patch', e.g. '1.2.3'.
+  'artemis': The Artemis service version to use. This is a string of the
+      form 'major.minor.patch', e.g. '1.2.3'.
+  'max_offline_seconds': The maximum number of seconds the device can be
+      offline before it attempts to connect to the broker to sync.
+  'connections': a list of connections, each of which must be a
+      connection object. See below for the format of a connection object.
+  'apps': a list of applications, each of which must be an application
+      object. See below for the format of an application object.
 
 
-        An application object consists of the following entries:
-        'name': The name of the application.
-        'path': The path to the application's entry point or to its snapshot.
-        """
+  A connection object consists of the following entries:
+  'type': The type of the connection. Must be 'wifi'.
+
+  For 'wifi' connections:
+  'ssid': The SSID of the network to connect to.
+  'password': The password of the network to connect to.
+
+
+  An application object consists of the following entries:
+  'name': The name of the application.
+  'path': The path to the application's entry point or to its snapshot.
+  """

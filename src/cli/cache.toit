@@ -17,6 +17,7 @@ To simplify testing, the environment variable '<app-name>_CACHE_DIR' can be used
 */
 
 SDK_PATH ::= "sdks"
+ENVELOPE_PATH ::= "envelopes"
 
 /**
 A class to manage objects that can be downloaded or generated, but should
