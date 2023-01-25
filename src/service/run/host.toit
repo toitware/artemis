@@ -53,9 +53,15 @@ run_host --identity/Map --encoded/string --bits/ByteArray? -> none:
 
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
   identity["broker"] = tison.encode identity["broker"]
-
-  check_in_setup identity identity["artemis.device"]
-  device := Device --id=identity["device_id"] --firmware=encoded
+  // TODO(florian): remove this hackish way of converting the certificates
+  // to byte arrays.
+  identity.map --in_place: | key value |
+    key.starts_with "certificate-"
+        ? value.to_byte_array
+        : value
+  device_entry := identity["artemis.device"]
+  check_in_setup identity device_entry
+  device := Device --id=device_entry["device_id"] --firmware=encoded
   server_config := decode_server_config "broker" identity
   run_artemis device server_config
 

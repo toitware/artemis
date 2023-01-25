@@ -8,4 +8,5 @@ decode_server_config key/string assets/Map -> ServerConfig?:
   if not broker_entry: return null
   // We use the key as name for the broker configuration.
   return ServerConfig.from_json key broker_entry
-      --certificate_text_provider=: assets.get it
+      // TODO(florian): can we avoid to stringify the certificate?
+      --certificate_text_provider=: (assets.get it).to_string
