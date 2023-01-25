@@ -2,8 +2,10 @@
 
 import certificate_roots
 import cli
+import host.file
 import host.directory
 import supabase
+import writer show Writer
 
 import artemis.cli.config as cli
 import artemis.cli.config show
@@ -31,3 +33,12 @@ with_tmp_directory [block]:
     block.call tmp_dir
   finally:
     directory.rmdir --recursive tmp_dir
+
+write_file --path/string content:
+  stream := file.Stream.for_write path
+  writer := Writer stream
+  try:
+    writer.write content
+  finally:
+    writer.close
+    // TODO(florian): we would like to close the stream here.

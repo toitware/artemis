@@ -1,9 +1,12 @@
 // Copyright (C) 2022 Toitware ApS.
 
 import expect show *
+import host.directory
+import host.file
 
 import .utils
 import ..tools.service_image_uploader.uploader as uploader
+import ..tools.service_image_uploader.downloader as downloader
 import ..tools.service_image_uploader.git
 
 main:
@@ -22,85 +25,125 @@ SDK_VERSION ::= "v2.0.0-alpha.47"
 TEST_COMMIT ::= "58f2d290269fe497945b3faa921803c8ef56de8d"
 
 run_test test_cli/TestCli:
-  git := Git
+  with_tmp_directory: | tmp_dir/string |
+    git := Git
 
-  // Login using the CLI login.
-  // The uploader reuses the same credentials.
-  test_cli.run [
-    "auth", "artemis", "login",
-    "--email", ADMIN_EMAIL,
-    "--password", ADMIN_PASSWORD
-  ]
-
-  service_version := "v0.0.$(random)-TEST"
-
-  // The test-server could have already been used.
-  // We want to avoid duplicates, so we create a new version number.
-  // This means that we create a new tag every time we run this test.
-  // We try to remove it afterwards, but if the program is interrupted
-  // we might leave a tag behind. In that case it's safe to delete
-  // the tag manually.
-  git.tag --name=service_version --commit=TEST_COMMIT
-  try:
-    ui := TestUi
-    uploader.main
-        --config=test_cli.config
-        --cache=test_cli.cache
-        --ui=ui
-        [
-          "--sdk-version", SDK_VERSION,
-          "--service-version", service_version
-        ]
-
-    // Check that the service is available.
-    available_sdks := test_cli.run [
-      "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", service_version
+    // Login using the CLI login.
+    // The uploader reuses the same credentials.
+    test_cli.run [
+      "auth", "artemis", "login",
+      "--email", ADMIN_EMAIL,
+      "--password", ADMIN_PASSWORD
     ]
-    expect (available_sdks.contains service_version)
 
-    // Try with a specific commit.
-    commit_version := "$service_version-$(TEST_COMMIT)"
-    uploader.main
+    service_version := "v0.0.$(random)-TEST"
+
+    // The test-server could have already been used.
+    // We want to avoid duplicates, so we create a new version number.
+    // This means that we create a new tag every time we run this test.
+    // We try to remove it afterwards, but if the program is interrupted
+    // we might leave a tag behind. In that case it's safe to delete
+    // the tag manually.
+    git.tag --name=service_version --commit=TEST_COMMIT
+    try:
+      ui := TestUi
+      uploader.main
+          --config=test_cli.config
+          --cache=test_cli.cache
+          --ui=ui
+          [
+            "--sdk-version", SDK_VERSION,
+            "--service-version", service_version,
+            "--snapshot-directory", tmp_dir,
+          ]
+
+      // Check that the service is available.
+      available_sdks := test_cli.run [
+        "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", service_version
+      ]
+      expect (available_sdks.contains service_version)
+
+      // Try with a specific commit.
+      commit_version := "$service_version-$(TEST_COMMIT)"
+      uploader.main
+          --config=test_cli.config
+          --cache=test_cli.cache
+          --ui=ui
+          [
+            "--sdk-version", SDK_VERSION,
+            "--service-version", service_version,
+            "--commit", TEST_COMMIT,
+            "--snapshot-directory", tmp_dir,
+          ]
+
+      // Check that the service is available.
+      available_sdks = test_cli.run [
+        "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", commit_version
+      ]
+      expect (available_sdks.contains commit_version)
+
+      // Try with local.
+      ui = TestUi
+      uploader.main
+          --config=test_cli.config
+          --cache=test_cli.cache
+          --ui=ui
+          [
+            "--sdk-version", SDK_VERSION,
+            "--service-version", service_version,
+            "--local",
+            "--snapshot-directory", tmp_dir,
+          ]
+      // The version is now depending on the time.
+      // Extract it from the uploader output.
+      words := ui.stdout.split " "
+      local_version := ""
+      for i := 0; i < words.size; i++:
+        if words[i].starts_with "$service_version-":
+          local_version = words[i]
+          break
+      expect_not_equals "" local_version
+
+      // Check that the service is available.
+      available_sdks = test_cli.run [
+        "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", local_version
+      ]
+      expect (available_sdks.contains local_version)
+    finally:
+      git.tag --delete --name=service_version
+
+    // Check that three snapshots were written into the snapshot directory.
+    files_iterator := directory.DirectoryStream tmp_dir
+    files := []
+    while file_name := files_iterator.next: files.add file_name
+    files_iterator.close
+    expect_equals 3 files.size
+
+    // Delete the files.
+    files.do: file.delete "$tmp_dir/$it"
+
+    // Check that the files were deleted.
+    files_iterator = directory.DirectoryStream tmp_dir
+    files = []
+    while file_name := files_iterator.next: files.add file_name
+    files_iterator.close
+    expect_equals 0 files.size
+
+    // Download a service.
+    downloader.main
         --config=test_cli.config
         --cache=test_cli.cache
-        --ui=ui
+        --ui=TestUi
         [
           "--sdk-version", SDK_VERSION,
           "--service-version", service_version,
-          "--commit", TEST_COMMIT
+          "--output-directory", tmp_dir,
         ]
 
-    // Check that the service is available.
-    available_sdks = test_cli.run [
-      "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", commit_version
-    ]
-    expect (available_sdks.contains commit_version)
+    // Check that the file was downloaded.
+    files_iterator = directory.DirectoryStream tmp_dir
+    files = []
+    while file_name := files_iterator.next: files.add file_name
+    files_iterator.close
+    expect_equals 1 files.size
 
-    // Try with local.
-    ui = TestUi
-    uploader.main
-        --config=test_cli.config
-        --cache=test_cli.cache
-        --ui=ui
-        [
-          "--sdk-version", SDK_VERSION,
-          "--service-version", service_version,
-          "--local"
-        ]
-    // The version is now depending on the time.
-    // Extract it from the uploader output.
-    words := ui.stdout.split " "
-    local_version := ""
-    for i := 0; i < words.size; i++:
-      if words[i].starts_with "$service_version-":
-        local_version = words[i]
-        break
-    expect_not_equals "" local_version
-
-    // Check that the service is available.
-    available_sdks = test_cli.run [
-      "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", local_version
-    ]
-    expect (available_sdks.contains local_version)
-  finally:
-    git.tag --delete --name=service_version
