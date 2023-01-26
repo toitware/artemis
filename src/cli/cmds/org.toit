@@ -165,6 +165,9 @@ show_org parsed/cli.Parsed config/Config ui/Ui -> none:
 
 print_org org_id/string server/ArtemisServerCli ui/Ui -> none:
   org := server.get_organization org_id
+  if not org:
+    ui.error "Organization $org_id not found."
+    ui.abort
   ui.info_map {
     "ID": org.id,
     "Name": org.name,
@@ -172,6 +175,12 @@ print_org org_id/string server/ArtemisServerCli ui/Ui -> none:
   }
 
 default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
+  if parsed["clear"]:
+    config.remove CONFIG_ORGANIZATION_DEFAULT
+    config.write
+    ui.info "Default organization cleared."
+    return
+
   org_id := parsed["org-id"]
   if not org_id:
     id_only := parsed["id-only"]
@@ -188,12 +197,6 @@ default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
     with_org_server parsed config ui: | server/ArtemisServerCli |
       print_org org_id server ui
 
-    return
-
-  if parsed["clear"]:
-    config.remove CONFIG_ORGANIZATION_DEFAULT
-    config.write
-    ui.info "Default organization cleared."
     return
 
   with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string |
