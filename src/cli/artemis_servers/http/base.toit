@@ -56,7 +56,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     config_["$(CONFIG_SERVER_AUTHS_KEY).$(server_config_.name)"] = id
     config_.write
 
-  sign_in --provider/string --ui/Ui:
+  sign_in --provider/string --ui/Ui --open_browser/bool:
     throw "UNIMPLEMENTED"
 
   create_device_in_organization --organization_id/string --device_id/string -> Device:

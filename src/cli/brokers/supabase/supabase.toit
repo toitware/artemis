@@ -44,8 +44,11 @@ class BrokerCliSupabase implements BrokerCli:
   sign_in --email/string --password/string:
     client_.auth.sign_in --email=email --password=password
 
-  sign_in --provider/string --ui/Ui:
-    client_.auth.sign_in --provider=provider --ui=ui
+  sign_in --provider/string --ui/Ui --open_browser/bool:
+    client_.auth.sign_in
+        --provider=provider
+        --ui=ui
+        --open_browser=open_browser
 
   device_update_config --device_id/string [block]:
     info := client_.rest.select "devices" --filters=[

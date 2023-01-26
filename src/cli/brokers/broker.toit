@@ -60,7 +60,7 @@ interface BrokerCli implements Authenticatable:
   /**
   Signs the user in using OAuth.
   */
-  sign_in --provider/string --ui/Ui
+  sign_in --provider/string --ui/Ui --open_browser
 
   /**
   Invokes the $block with the current configuration (a Map) of $device_id and
