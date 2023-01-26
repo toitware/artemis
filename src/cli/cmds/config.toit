@@ -121,7 +121,6 @@ create_server_config_commands config/Config ui/Ui -> List:
             cli.Option "host"
                 --short_help="The host of the broker."
                 --short_name="h"
-                --type="string"
                 --default="localhost",
           ]
           --rest=[

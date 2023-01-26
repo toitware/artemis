@@ -10,7 +10,8 @@ import supabase
 
 import artemis.cli.config as cli
 import artemis.cli.ui as ui
-import artemis.cli.config show
+import artemis.cli.config
+  show
     CONFIG_ARTEMIS_DEFAULT_KEY
     CONFIG_SERVER_AUTHS_KEY
     ConfigLocalStorage
@@ -42,7 +43,8 @@ class UploadClientSupabase implements UploadClient:
   constructor .client_ --ui/ui.Ui:
     ui_ = ui
 
-  close: client_.close
+  close:
+    client_.close
 
   upload
       --sdk_version/string --service_version/string
