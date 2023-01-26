@@ -124,6 +124,8 @@ class HttpArtemisServer extends HttpServer:
       return list_sdk_service_versions data
     if command == "download-service-image":
       return download_service_image data
+    if command == "upload-service-image":
+      return upload_service_image data
 
     else:
       throw "BAD COMMAND $command"
@@ -311,6 +313,17 @@ class HttpArtemisServer extends HttpServer:
           continue.filter false
         true
     return sdk_service_versions
+
+  upload_service_image data/Map:
+    sdk_version := data["sdk_version"]
+    service_version := data["service_version"]
+    image_id := data["image_id"]
+    image_binaries[image_id] = base64.decode data["image_content"]
+    sdk_service_versions.add {
+      "sdk_version": sdk_version,
+      "service_version": service_version,
+      "image": image_id,
+    }
 
   download_service_image data/Map -> string:
     image := data["image"]

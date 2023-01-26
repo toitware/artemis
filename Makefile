@@ -57,6 +57,32 @@ add-mqtt-aws:
 		--client-private-key "$(AWS_CLIENT_PRIVATE_KEY_PATH)" \
 		aws $(AWS_HOST) $(AWS_PORT)
 
+.PHONY: add-local-http-brokers add-local-http-artemis add-local-http-broker
+add-local-http-brokers: add-local-http-artemis add-local-http-broker start-http
+
+add-local-http-artemis:
+	# Adds the local Artemis server and makes it the default.
+	# Use the public IP, so that we can flash devices which then can use
+	# the broker.
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add http \
+		--host=`ip route get 1 | head -n 1 | sed -E 's/.*src.* ([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+).*/\1/'` \
+		--port 4999 \
+		artemis-local-http
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis-local-http
+
+add-local-http-broker:
+	# Adds the local broker and makes it the default.
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add http \
+		--host=`ip route get 1 | head -n 1 | sed -E 's/.*src.* ([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+).*/\1/'` \
+		--port 4998 \
+		broker-local-http
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-http
+
+start-http:
+	@echo "Run the following commands in separate terminals:"
+	@echo $(TOIT_RUN_BIN) tools/http_servers/artemis_server.toit -p 4999
+	@echo $(TOIT_RUN_BIN) tools/http_servers/broker.toit -p 4998 &
+
 # We rebuild the cmake file all the time.
 # We use "glob" in the cmakefile, and wouldn't otherwise notice if a new
 # file (for example a test) was added or removed.

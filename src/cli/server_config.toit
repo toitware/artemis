@@ -6,7 +6,7 @@ import certificate_roots
 import crypto.sha256
 import encoding.base64
 
-export ServerConfig
+export ServerConfig ServerConfigSupabase ServerConfigHttpToit
 
 /**
 Reads the server configuration with the given $server_name from the $config.

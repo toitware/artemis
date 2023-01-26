@@ -110,6 +110,27 @@ create_server_config_commands config/Config ui/Ui -> List:
           ]
           --run=:: add_mqtt it config ui
 
+  add_cmd.add
+      cli.Command "http"
+          --hidden
+          --short_help="Adds an HTTP broker."
+          --options=[
+            cli.OptionInt "port"
+                --short_help="The port of the broker."
+                --short_name="p"
+                --required,
+            cli.Option "host"
+                --short_help="The host of the broker."
+                --short_name="h"
+                --default="localhost",
+          ]
+          --rest=[
+            cli.OptionString "name"
+                --short_help="The name of the broker."
+                --required,
+          ]
+          --run=:: add_http it config ui
+
   return [config_broker_cmd]
 
 print_config config/Config ui/Ui:
@@ -213,3 +234,18 @@ add_mqtt parsed/cli.Parsed config/Config ui/Ui:
 
   ui.info "Added broker $name"
 
+add_http parsed/cli.Parsed config/Config ui/Ui:
+  name := parsed["name"]
+  host := parsed["host"]
+  port := parsed["port"]
+
+  http_config := ServerConfigHttpToit name
+      --host=host
+      --port=port
+
+  add_server_to_config config http_config
+  if parsed["default"]:
+    config[CONFIG_BROKER_DEFAULT_KEY] = name
+  config.write
+
+  ui.info "Added broker $name"
