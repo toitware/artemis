@@ -29,7 +29,7 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
         cli.OptionString "password" --short_help="The password for a password-based login.",
         cli.Flag "open-browser"
             --default=true
-            --short_help="Automatically open the browser for oauth authentication.",
+            --short_help="Automatically open the browser for OAuth authentication.",
       ]
       --run=:: sign_in --broker it config ui
   broker_cmd.add broker_log_in_cmd
@@ -70,7 +70,7 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
         cli.OptionString "password" --short_help="The password for a password-based login.",
         cli.Flag "open-browser"
             --default=true
-            --short_help="Automatically open the browser for oauth authentication.",
+            --short_help="Automatically open the browser for OAuth authentication.",
       ]
       --run=:: sign_in --no-broker it config ui
   artemis_cmd.add log_in_cmd
