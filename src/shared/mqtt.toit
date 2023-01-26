@@ -25,27 +25,27 @@ create_transport_from_server_config -> mqtt.Transport
     server_config/ServerConfigMqtt
     [--certificate_provider]:
 
-  root_certificate_text := server_config.root_certificate_text
-  if not root_certificate_text and server_config.root_certificate_name:
-    root_certificate_text = certificate_provider.call server_config.root_certificate_name
+  root_certificate_der := server_config.root_certificate_der
+  if not root_certificate_der and server_config.root_certificate_name:
+    root_certificate_der = certificate_provider.call server_config.root_certificate_name
   return create_transport network
       --host=server_config.host
       --port=server_config.port
-      --root_certificate_text=root_certificate_text
-      --client_certificate_text=server_config.client_certificate_text
-      --client_key=server_config.client_private_key
+      --root_certificate_der=root_certificate_der
+      --client_certificate_der=server_config.client_certificate_der
+      --client_key_der=server_config.client_private_key_der
 
 create_transport network/net.Interface -> mqtt.Transport
     --host/string
     --port/int
-    --root_certificate_text/string?=null
-    --client_certificate_text/string?=null
-    --client_key/string?=null:
-  if root_certificate_text:
+    --root_certificate_der/ByteArray?=null
+    --client_certificate_der/ByteArray?=null
+    --client_key_der/ByteArray?=null:
+  if root_certificate_der:
     client_certificate := null
-    if client_certificate_text:
-      client_certificate = tls.Certificate (x509.Certificate.parse client_certificate_text) client_key
-    root_certificate := x509.Certificate.parse root_certificate_text
+    if client_certificate_der:
+      client_certificate = tls.Certificate (x509.Certificate.parse client_certificate_der) client_key_der
+    root_certificate := x509.Certificate.parse root_certificate_der
     return mqtt.TcpTransport.tls network --host=host --port=port
         --server_name=host
         --root_certificates=[root_certificate]

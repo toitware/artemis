@@ -39,8 +39,11 @@ run_test --insert_device/bool:
         if command == "check-in" and state != "pre":
           checkin_latch.set [state, data]
 
+      artemis_json := artemis_server.server_config.to_json
+          --der_serializer=: throw "UNIMPLEMENTED"
+      encoded_artemis := tison.encode artemis_json
       assets := {
-        "artemis.broker": tison.encode (artemis_server.server_config.to_json --certificate_deduplicator=: it)
+        "artemis.broker": encoded_artemis
       }
       device_map := {
         "hardware_id": device_id

@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import encoding.base64
 import certificate_roots
 import cli
 import host.file
@@ -169,6 +170,18 @@ add_supabase parsed/cli.Parsed config/Config ui/Ui:
 
   ui.info "Added broker $name"
 
+/**
+Reads a certificate from a file or from the certificate store.
+
+Converts it to binary DER format.
+*/
+read_der_file_ path/string -> ByteArray:
+  text := (file.read_content path).to_string.trim
+  text = text.replace --all "\r" ""
+  lines := text.split "\n"
+  lines.filter --in_place: not it.starts_with "---"
+  combined := lines.join ""
+  return base64.decode combined
 
 add_mqtt parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
@@ -178,20 +191,20 @@ add_mqtt parsed/cli.Parsed config/Config ui/Ui:
   client_certificate_path := parsed["client-certificate"]
   client_private_key_path := parsed["client-private-key"]
 
-  client_certificate/string? := null
+  client_certificate_der/ByteArray? := null
   if client_certificate_path:
-    client_certificate = (file.read_content client_certificate_path).to_string
+    client_certificate_der = read_der_file_ client_certificate_path
 
-  client_private_key/string? := null
+  client_private_key_der/ByteArray? := null
   if client_private_key_path:
-    client_private_key = (file.read_content client_private_key_path).to_string
+    client_private_key_der = read_der_file_ client_private_key_path
 
   mqtt_config := ServerConfigMqtt name
       --host=host
       --port=port
       --root_certificate_name=root_certificate_name
-      --client_certificate_text=client_certificate
-      --client_private_key=client_private_key
+      --client_certificate_der=client_certificate_der
+      --client_private_key_der=client_private_key_der
 
   add_server_to_config config mqtt_config
   if parsed["default"]:

@@ -26,7 +26,7 @@ class BrokerServiceSupabase implements BrokerService:
     idle_.unlock  // We're always idle when we're just connecting.
 
     client := supabase.Client network --server_config=broker_
-        --certificate_provider=: "UNSUPPORTED"
+        --certificate_provider=: throw "UNSUPPORTED"
     resources := ResourceManagerSupabase client
 
     disconnected := monitor.Latch
