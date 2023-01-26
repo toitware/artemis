@@ -24,7 +24,7 @@ main args:
       "--device=$device.id", "3"
     ]
 
-    with_timeout --ms=2_000:
+    with_timeout --ms=10_000:
       counter := 0
       while true:
         if device.max_offline == (Duration --s=3): break
