@@ -38,16 +38,22 @@ add_server_to_config config/Config server_config/ServerConfig:
 Serializes a certificate to a string.
 Deduplicates them in the process.
 
-Returns a map of key->ByteArray.
+Stores the certificate in the $serialized_certificates map, which is of
+  type string -> ByteArray.
 */
-deduplicate_certificate certificate_der/ByteArray deduplicated_certificates/Map -> string:
+serialize_certificate certificate_der/ByteArray serialized_certificates/Map -> string:
   sha := sha256.Sha256
   sha.add certificate_der
   certificate_key := "certificate-$(base64.encode sha.get[0..8])"
-  deduplicated_certificates[certificate_key] = certificate_der
+  serialized_certificates[certificate_key] = certificate_der
   return certificate_key
 
-server_config_to_service_json server_config/ServerConfig deduplicated_certificates/Map -> any:
+/**
+Serializes the given $server_config as JSON.
+Replaces all certificates with an ID and stores the original bytes in the
+  $serialized_certificates map.
+*/
+server_config_to_service_json server_config/ServerConfig serialized_certificates/Map -> any:
   server_config.fill_certificate_ders: certificate_roots.MAP[it]
   return server_config.to_json --der_serializer=:
-    deduplicate_certificate it deduplicated_certificates
+    serialize_certificate it serialized_certificates

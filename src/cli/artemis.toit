@@ -150,7 +150,7 @@ class Artemis:
       --device_id/string
       --organization_id/string
       --hardware_id/string:
-    // A map from id to der certificates.
+    // A map from id to DER certificates.
     der_certificates := {:}
 
     broker_json := server_config_to_service_json broker_config_ der_certificates

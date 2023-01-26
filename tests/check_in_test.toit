@@ -2,7 +2,6 @@
 
 // TEST_FLAGS: --insert-device --no-insert-device
 
-import encoding.base64
 import encoding.tison
 import expect show *
 import monitor
