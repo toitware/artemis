@@ -228,15 +228,34 @@ class Artemis:
           --assets=artemis_assets_path
           --image=artemis_service_image_path
 
-    config := {
+    device_config := {
       "max-offline": device_specification.max_offline_seconds,
       "sdk_version": sdk_version,
     }
+    connections := device_specification.connections
+    connections.do: | connection/ConnectionInfo |
+      if connection.type == "wifi":
+        wifi := connection as WifiConnectionInfo
+        device_config["wifi"] = {
+          "ssid": wifi.ssid,
+          "password": wifi.password or "",
+        }
+      else:
+        ui_.error "Unsupported connection type: $connection.type"
+        ui_.abort
+
     // TODO(florian): install the applications. We will probably want to build
     // an Artemis $Application when we do that (to reuse the code).
-    // Don't forget to update the config.
+    // Don't forget to update the device_config.
 
-    sdk.firmware_set_property "config" (json.encode config).to_string --envelope=output_path
+    sdk.firmware_set_property "device_config" (json.encode device_config).to_string
+        --envelope=output_path
+
+    // Also store the device specification. We don't really need it, but it
+    // could be useful for debugging.
+    encoded_specification := (json.encode device_specification.to_json).to_string
+    sdk.firmware_set_property "device_specification" encoded_specification
+        --envelope=output_path
 
     // TODO(florian): discuss this with Kasper.
     // TODO(kasper): Base the uuid on the actual firmware bits and the Toit SDK version used

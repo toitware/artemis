@@ -46,12 +46,23 @@ class DeviceSpecification:
     encoded := file.read_content path
     return DeviceSpecification.from_json (json.parse encoded.to_string)
 
+  to_json -> Map:
+    return {
+      "version": 1,
+      "sdk_version": sdk_version,
+      "artemis_version": artemis_version,
+      "max_offline_seconds": max_offline_seconds,
+      "connections": connections.map: it.to_json,
+      "apps": apps.map: it.to_json,
+    }
+
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
     if data["type"] == "wifi":
       return WifiConnectionInfo.from_json data
     throw "Unknown connection type: $data["type"]"
 
+  type -> string
   to_json -> Map
 
 class WifiConnectionInfo implements ConnectionInfo:
@@ -63,8 +74,11 @@ class WifiConnectionInfo implements ConnectionInfo:
   constructor.from_json data/Map:
     return WifiConnectionInfo --ssid=data["ssid"] --password=data["password"]
 
+  type -> string:
+    return "wifi"
+
   to_json -> Map:
-    return {"type": "wifi", "ssid": ssid, "password": password}
+    return {"type": type, "ssid": ssid, "password": password}
 
 interface Application:
   static from_json data/Map -> Application:
