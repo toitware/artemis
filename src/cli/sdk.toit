@@ -121,6 +121,22 @@ class Sdk:
       name,
     ]).trim
 
+  /**
+  Flashes the given envelope to the device at $port with the given $baud_rate.
+
+  Combines the $envelope_path and $config_path into a single firmware while
+    flashing.
+  */
+  flash --envelope_path/string --config_path/string --port/string --baud_rate/string?:
+    args := [
+      "flash",
+      "-e", envelope_path,
+      "--config", config_path,
+      "--port", port,
+    ]
+    if baud_rate: args += [ "--baud", baud_rate ]
+    run_firmware_tool args
+
   run_assets_tool arguments/List -> none:
     pipe.run_program [tools_executable "assets"] + arguments
 

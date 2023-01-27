@@ -7,8 +7,11 @@ import .broker_options_
 import ..artemis
 import ..cache
 import ..config
+import ..device_specification
+import ..sdk
 import ..server_config
 import ..ui
+import ..utils
 
 create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
@@ -22,11 +25,11 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         to the specified directory/file. The identity file is used
         during flashing and allows the device to connect to the Toit cloud.
 
-        If a device-id is specified, the device will be registered with that
-        ID. Otherwise, a new ID will be generated.
+        If a device-id is specified, the device is registered with that
+        ID. Otherwise, a new ID is generated.
 
-        If an organization-id is specified, the device will be registered with
-        that organization. Otherwise, the device will be registered with the
+        If an organization-id is specified, the device is registered with
+        that organization. Otherwise, the device is registered with the
         default organization.
 
         The options '--output-directory' and '--output' are mutually exclusive.
@@ -52,9 +55,15 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
   flash_cmd := cli.Command "flash"
       --long_help="""
-        Flash the initial firmware on a device.
+        Registers a new device with the Toit cloud and flash the Artemis
+        firmware on a device.
 
-        If an identity file is provided, uses it. Otherwise provisions first.
+        If a device-id is specified, the device is registered with that
+        ID. Otherwise, a new ID is generated.
+
+        If an organization-id is specified, the device is registered with
+        that organization. Otherwise, the device is registered with the
+        default organization.
 
         The specification file contains the device specification. It includes
         the firmware version, installed applications, connection settings,
@@ -64,13 +73,17 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         new default device.
         """
       --options=broker_options + [
-        cli.Option "identity"
-            --short_help="The identity file that was created during provisioning."
-            --type="file",
         cli.Option "specification"
             --type="file"
             --short_help="The specification of the device."
             --required,
+        cli.Option "device-id"
+            --type="uuid"
+            --short_name="d"
+            --short_help="The device ID to use.",
+        cli.Option "organization-id"
+            --type="uuid"
+            --short_help="The organization to use.",
         cli.Flag "default"
             --default=true
             --short_help="Make this device the default device.",
@@ -184,7 +197,55 @@ provision parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Created $output."
 
 flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  throw "UNIMPLEMENTED"
+  device_id := parsed["device-id"]
+  organization_id := parsed["organization-id"]
+  specification_path := parsed["specification"]
+  port := parsed["port"]
+  baud := parsed["baud"]
+
+  if not device_id:
+    device_id = (uuid.uuid5 "Device ID" "$Time.now $random").stringify
+
+  if not organization_id:
+    organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
+    if not organization_id:
+      ui.error "No organization ID specified and no default organization ID set."
+      ui.abort
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    with_tmp_directory: | tmp_dir/string |
+      // Provision.
+      identity_file := "$tmp_dir/$(device_id).identity"
+      artemis.provision
+          --device_id=device_id
+          --out_path=identity_file
+          --organization_id=organization_id
+      ui.info "Successfully provisioned device $device_id."
+
+      // Customize.
+      specification_json := read_json specification_path
+      specification := DeviceSpecification.from_json specification_json
+      envelope_path := "$tmp_dir/$(device_id).envelope"
+      artemis.customize_envelope
+          --output_path=envelope_path
+          --device_specification=specification
+
+      // Make unique for the given device.
+      config_bytes := artemis.compute_envelope_config
+          --envelope_path=envelope_path
+          --identity_path=identity_file
+
+      config_path := "$tmp_dir/$(device_id).config"
+      write_blob_to_file config_path config_bytes
+
+      // Flash.
+      sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+      sdk := get_sdk sdk_version --cache=cache
+      sdk.flash
+          --envelope_path=envelope_path
+          --config_path=config_path
+          --port=port
+          --baud_rate=baud
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   throw "UNIMPLEMENTED"

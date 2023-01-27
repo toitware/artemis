@@ -14,6 +14,9 @@ interface Ui implements supabase.Ui cli.Ui:
   /** Reports an error. */
   error str/string
 
+  /** Reports a warning. */
+  warning str/string
+
   /** Reports information. */
   info str/string
 
@@ -42,6 +45,9 @@ global_print_ str/string:
 class ConsoleUi implements Ui:
   error str/string:
     print_ "Error: $str"
+
+  warning str/string:
+    print_ "Warning: $str"
 
   print str/string:
     print_ str
