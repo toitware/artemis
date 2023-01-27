@@ -257,6 +257,11 @@ class Artemis:
     sdk.firmware_set_property "device_specification" encoded_specification
         --envelope=output_path
 
+    // TODO(florian): envelopes should already know which SDK version they come
+    // from.
+    // Explicitly store the sdk_version in the firmware image.
+    Sdk.store_sdk_version_in --envelope=output_path sdk_version
+
     // TODO(florian): discuss this with Kasper.
     // TODO(kasper): Base the uuid on the actual firmware bits and the Toit SDK version used
     // to compile it. Maybe this can happen automatically somehow in tools/firmware?

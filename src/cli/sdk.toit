@@ -3,6 +3,7 @@
 import ar
 import certificate_roots
 import .cache as cli
+import encoding.json
 import host.file
 import host.pipe
 import http
@@ -109,6 +110,17 @@ class Sdk:
       value,
     ]
 
+  /**
+  Gets the property $name from the given $envelope.
+  */
+  firmware_get_property name/string --envelope/string -> string:
+    return (pipe.backticks [
+      "$sdk_path/tools/firmware",
+      "property", "get",
+      "-e", envelope,
+      name,
+    ]).trim
+
   run_assets_tool arguments/List -> none:
     pipe.run_program [tools_executable "assets"] + arguments
 
@@ -128,6 +140,24 @@ class Sdk:
     return "$sdk_path/bin/$name$exe_extension"
 
   static exe_extension ::= (platform == PLATFORM_WINDOWS) ? ".exe" : ""
+
+  /**
+  Extracts the SDK version from the given $envelope.
+  */
+  static get_sdk_version_from --envelope/string -> string:
+    // TODO(florian): we shouldn't use a non-versioned SDK here.
+    // Instead the sdk_version should be inside the envelope as an Ar-file.
+    return json.parse ((Sdk).firmware_get_property --envelope=envelope "sdk_version")
+
+  /**
+  Stores the given $sdk_version in the $envelope.
+  */
+  // TODO(florian): this shouldn't be necessary: the SDK version should
+  // already be stored in the envelope when it is created.
+  // It should also not be a property, as that would require us to use
+  // firmware tools to extract it.
+  static store_sdk_version_in --envelope/string sdk_version/string -> none:
+    (Sdk).firmware_set_property --envelope=envelope "sdk_version" (json.stringify sdk_version)
 
 /**
 Builds the URL of a released SDK with the given $version on GitHub.
