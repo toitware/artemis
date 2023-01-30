@@ -81,7 +81,7 @@ class UploadClientSupabase implements UploadClient:
 
     client_.storage.upload
         --path="service-images/$image_id"
-        --content=snapshot
+        --content=image_content
 
     client_.rest.insert "service_images" {
       "sdk_id": sdk_id,
