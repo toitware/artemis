@@ -259,7 +259,7 @@ class Artemis:
 
     // TODO(florian): envelopes should already know which SDK version they come
     // from.
-    // Explicitly store the sdk_version in the firmware image.
+    // Explicitly store the SDK version in the firmware image.
     Sdk.store_sdk_version_in --envelope=output_path sdk_version
 
     // TODO(florian): discuss this with Kasper.
