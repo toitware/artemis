@@ -143,7 +143,7 @@ class Artemis:
   Writes an identity file.
 
   This file is used to build a device image and needs to be given to
-    $flash.
+    $compute_envelope_config.
   */
   write_identity_file -> none
       --out_path/string
@@ -244,9 +244,6 @@ class Artemis:
         ui_.error "Unsupported connection type: $connection.type"
         ui_.abort
 
-    // TODO(florian): install the applications. We will probably want to build
-    // an Artemis $Application when we do that (to reuse the code).
-    // Don't forget to update the device_config.
 
     sdk.firmware_set_property "device-config" (json.encode device_config).to_string
         --envelope=output_path
@@ -262,15 +259,80 @@ class Artemis:
     // Explicitly store the SDK version in the firmware image.
     Sdk.store_sdk_version_in --envelope=output_path sdk_version
 
-    // TODO(florian): discuss this with Kasper.
-    // TODO(kasper): Base the uuid on the actual firmware bits and the Toit SDK version used
-    // to compile it. Maybe this can happen automatically somehow in tools/firmware?
-
     // Finally, make it unique. The system uuid will have to be used when compiling
     // code for the device in the future. This will prove that you know which versions
     // went into the firmware image.
     system_uuid ::= uuid.uuid5 "system.uuid" "$(random 1_000_000)-$Time.now-$Time.monotonic_us"
     sdk.firmware_set_property "uuid" system_uuid.stringify --envelope=output_path
+
+    // TODO(florian): Upload the bits to the cloud.
+
+  /**
+  Computes the configuration of the given envelope.
+
+  Combines the envelope ($envelope_path) and identity ($identity_path) into a
+    single firmware image and computes the configuration which depends on the
+    checksums of the individual parts.
+
+  In this context the configuration consists of the checksums of the individual
+    parts of the firmware image, combined with the configuration that was
+    stored in the envelope.
+  */
+  compute_envelope_config --envelope_path/string --identity_path/string -> ByteArray:
+    // Use the SDK from the envelope.
+    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+    sdk := get_sdk sdk_version --cache=cache_
+
+    // Extract the WiFi credentials from the envelope.
+    encoded_device_config := sdk.firmware_get_property "device_config" --envelope=envelope_path
+    device_config := json.decode encoded_device_config.to_byte_array
+    if not device_config.contains "wifi":
+      ui_.error "The envelope does not contain WiFi credentials."
+      ui_.abort
+    wifi_ssid := device_config["wifi"]["ssid"]
+    wifi_password := device_config["wifi"]["password"]
+
+    // Extract the device ID from the identity file.
+    // TODO(florian): abstract the identity management.
+    identity_raw := file.read_content identity_path
+
+    identity := ubjson.decode (base64.decode identity_raw)
+    device := identity["artemis.device"]
+    device_id := device["device_id"]
+
+    // Since we already have the identity content, check that the artemis server
+    // is the same.
+    // This is primarily a sanity check, and we might remove the broker from the
+    // identity file in the future. Since users are not supposed to be able to
+    // change the Artemis server, there wouldn't be much left of the check.
+    // TODO(florian): remove this check?
+    with_tmp_directory: | tmp/string |
+      artemis_assets_path := "$tmp/artemis.assets"
+      sdk.run_firmware_tool [
+        "-e", envelope_path,
+        "container", "extract",
+        "-o", artemis_assets_path,
+        "--part", "assets",
+        "artemis"
+      ]
+
+      if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
+        ui_.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
+      if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
+        ui_.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
+
+    // Cook the firmware.
+    // We don't actually need the full firmware for flashing, but we need to build it to
+    // compute the checksums.
+    firmware := cook_firmware_ --envelope_path=envelope_path --device=device
+        --wifi={
+          // TODO(florian): replace the hardcoded key constants.
+          "wifi.ssid": wifi_ssid,
+          "wifi.password": wifi_password,
+        }
+
+    // TODO(florian): we are losing the configuration we stored in the envelope.
+    return firmware.config
 
   /**
   Gets the Artemis service image for the given $sdk and $service versions.
@@ -369,7 +431,7 @@ class Artemis:
     firmware/Firmware? := null
     connected_broker_.device_update_config --device_id=device_id: | config/Map |
       device := identity["artemis.device"]
-      upgrade_to := compute_firmware_update_
+      upgrade_to := cook_firmware_
           --device=device
           --wifi=wifi
           --envelope_path=firmware_path
@@ -409,7 +471,7 @@ class Artemis:
         // Device has no way to connect.
         ui.error "Device has no way to connect."
 
-      upgrade_to := compute_firmware_update_
+      upgrade_to := cook_firmware_
           --device=device
           --wifi=wifi
           --envelope_path=firmware_path
@@ -419,8 +481,11 @@ class Artemis:
       config["firmware"] = upgrade_to.encoded
       config
 
-  // TODO(kasper): Turn this into a static method on Firmware?
-  compute_firmware_update_ --device/Map --wifi/Map --envelope_path/string -> Firmware:
+  /**
+
+  */
+  // TODO(florian): Move this closer to the firmware code.
+  cook_firmware_ --device/Map --wifi/Map --envelope_path/string -> Firmware:
     // TODO(florian): get the sdk as argument.
     sdk := Sdk
     unconfigured := extract_firmware_ envelope_path null sdk
