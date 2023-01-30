@@ -36,9 +36,9 @@ class DeviceSpecification:
       throw "Unsupported device specification version: $data["version"]"
 
     return DeviceSpecification
-      --sdk_version=data["sdk_version"]
-      --artemis_version=data["artemis_version"]
-      --max_offline_seconds=data["max_offline_seconds"]
+      --sdk_version=data["sdk-version"]
+      --artemis_version=data["artemis-version"]
+      --max_offline_seconds=data["max-offline-seconds"]
       --connections=data["connections"].map: ConnectionInfo.from_json it
       --apps=data["apps"].map: Application.from_json it
 
@@ -46,12 +46,23 @@ class DeviceSpecification:
     encoded := file.read_content path
     return DeviceSpecification.from_json (json.parse encoded.to_string)
 
+  to_json -> Map:
+    return {
+      "version": 1,
+      "sdk-version": sdk_version,
+      "artemis-version": artemis_version,
+      "max-offline-seconds": max_offline_seconds,
+      "connections": connections.map: it.to_json,
+      "apps": apps.map: it.to_json,
+    }
+
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
     if data["type"] == "wifi":
       return WifiConnectionInfo.from_json data
     throw "Unknown connection type: $data["type"]"
 
+  type -> string
   to_json -> Map
 
 class WifiConnectionInfo implements ConnectionInfo:
@@ -63,8 +74,11 @@ class WifiConnectionInfo implements ConnectionInfo:
   constructor.from_json data/Map:
     return WifiConnectionInfo --ssid=data["ssid"] --password=data["password"]
 
+  type -> string:
+    return "wifi"
+
   to_json -> Map:
-    return {"type": "wifi", "ssid": ssid, "password": password}
+    return {"type": type, "ssid": ssid, "password": password}
 
 interface Application:
   static from_json data/Map -> Application:
