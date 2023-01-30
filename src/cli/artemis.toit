@@ -168,7 +168,9 @@ class Artemis:
 
     // Add the necessary certificates to the identity.
     der_certificates.do: | name/string content/ByteArray |
-      // TODO(florian): the certificates should be in their own namespace.
+      // The 'server_config_to_service_json' function puts the certificates
+      // into their own namespace.
+      assert: name.starts_with "certificate-"
       identity[name] = content
 
     write_ubjson_to_file out_path identity
@@ -209,8 +211,10 @@ class Artemis:
           "json": artemis_json,
         },
       }
-      // TODO(florian): the certificates should be in their own namespace.
       der_certificates.do: | name/string value/ByteArray |
+        // The 'server_config_to_service_json' function puts the certificates
+        // into their own namespace.
+        assert: name.starts_with "certificate-"
         artemis_assets[name] = {
           "format": "binary",
           "blob": value,
