@@ -83,6 +83,27 @@ start-http:
 	@echo $(TOIT_RUN_BIN) tools/http_servers/artemis_server.toit -p 4999
 	@echo $(TOIT_RUN_BIN) tools/http_servers/broker.toit -p 4998 &
 
+.PHONY: add-local-supabase-brokers add-local-supabase-artemis add-local-supabase-broker
+add-local-supabase-brokers: add-local-supabase-artemis add-local-supabase-broker start_supabase
+
+add-local-supabase-artemis:
+	# Adds the local Artemis server and makes it the default.
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
+		artemis-local-supabase \
+		`$(TOIT_RUN_BIN) tests/supabase_local_server.toit supabase_artemis`
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis-local-supabase
+
+add-local-supabase-broker:
+	# Adds the local broker and makes it the default.
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
+		broker-local-supabase \
+		`$(TOIT_RUN_BIN) tests/supabase_local_server.toit tests/supabase_customer`
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-supabase
+
+start-supabase:
+	@echo "Start the docker containers by running 'supabase start' in"
+	@echo "./supabase_artemis and ./tests/supabase_customer"
+
 # We rebuild the cmake file all the time.
 # We use "glob" in the cmakefile, and wouldn't otherwise notice if a new
 # file (for example a test) was added or removed.
