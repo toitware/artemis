@@ -228,8 +228,15 @@ class Artemis:
           --assets=artemis_assets_path
           --image=artemis_service_image_path
 
+    config := {
+      "max-offline": device_specification.max_offline_seconds,
+      "sdk-version": sdk_version,
+    }
     // TODO(florian): install the applications. We will probably want to build
     // an Artemis $Application when we do that (to reuse the code).
+    // Don't forget to update the config.
+
+    sdk.firmware_set_property "config" (json.encode config).to_string --envelope=output_path
 
     // TODO(florian): discuss this with Kasper.
     // TODO(kasper): Base the uuid on the actual firmware bits and the Toit SDK version used
