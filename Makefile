@@ -84,7 +84,7 @@ start-http:
 	@echo $(TOIT_RUN_BIN) tools/http_servers/broker.toit -p 4998 &
 
 .PHONY: add-local-supabase-brokers add-local-supabase-artemis add-local-supabase-broker
-add-local-supabase-brokers: add-local-supabase-artemis add-local-supabase-broker
+add-local-supabase-brokers: add-local-supabase-artemis add-local-supabase-broker start_supabase
 
 add-local-supabase-artemis:
 	# Adds the local Artemis server and makes it the default.
