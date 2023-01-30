@@ -138,16 +138,20 @@ class Sdk:
     run_firmware_tool args
 
   run_assets_tool arguments/List -> none:
-    pipe.run_program [tools_executable "assets"] + arguments
+    exit_status := pipe.run_program [tools_executable "assets"] + arguments
+    if exit_status != 0: throw "assets tool failed with exit code $(pipe.exit_code exit_status)"
 
   run_firmware_tool arguments/List -> none:
-    pipe.run_program [tools_executable "firmware"] + arguments
+    exit_status := pipe.run_program [tools_executable "firmware"] + arguments
+    if exit_status != 0: throw "firmware tool failed with exit code $(pipe.exit_code exit_status)"
 
   run_toit_compile arguments/List -> none:
-    pipe.run_program [bin_executable "toit.compile"] + arguments
+    exit_status := pipe.run_program [bin_executable "toit.compile"] + arguments
+    if exit_status != 0: throw "toit.compile failed with exit code $(pipe.exit_code exit_status)"
 
   run_snapshot_to_image_tool arguments/List -> none:
-    pipe.run_program [tools_executable "snapshot_to_image"] + arguments
+    exit_status := pipe.run_program [tools_executable "snapshot_to_image"] + arguments
+    if exit_status != 0: throw "snapshot_to_image tool failed with exit code $(pipe.exit_code exit_status)"
 
   tools_executable name/string -> string:
     return "$sdk_path/tools/$name$exe_extension"
