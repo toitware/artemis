@@ -234,7 +234,7 @@ class Artemis:
 
     device_config := {
       "max-offline": device_specification.max_offline_seconds,
-      "sdk_version": sdk_version,
+      "sdk-version": sdk_version,
     }
     connections := device_specification.connections
     connections.do: | connection/ConnectionInfo |
@@ -249,18 +249,18 @@ class Artemis:
         ui_.abort
 
 
-    sdk.firmware_set_property "device_config" (json.encode device_config).to_string
+    sdk.firmware_set_property "device-config" (json.encode device_config).to_string
         --envelope=output_path
 
     // Also store the device specification. We don't really need it, but it
     // could be useful for debugging.
     encoded_specification := (json.encode device_specification.to_json).to_string
-    sdk.firmware_set_property "device_specification" encoded_specification
+    sdk.firmware_set_property "device-specification" encoded_specification
         --envelope=output_path
 
     // TODO(florian): envelopes should already know which SDK version they come
     // from.
-    // Explicitly store the sdk_version in the firmware image.
+    // Explicitly store the SDK version in the firmware image.
     Sdk.store_sdk_version_in --envelope=output_path sdk_version
 
     // Finally, make it unique. The system uuid will have to be used when compiling

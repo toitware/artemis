@@ -55,8 +55,8 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
   flash_cmd := cli.Command "flash"
       --long_help="""
-        Registers a new device with the Toit cloud and flash the Artemis
-        firmware on a device.
+        Registers a new device with the Toit cloud and flashes the Artemis
+        firmware on the device.
 
         If a device-id is specified, the device is registered with that
         ID. Otherwise, a new ID is generated.
