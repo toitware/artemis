@@ -288,7 +288,7 @@ class Artemis:
     sdk := get_sdk sdk_version --cache=cache_
 
     // Extract the WiFi credentials from the envelope.
-    encoded_device_config := sdk.firmware_get_property "device_config" --envelope=envelope_path
+    encoded_device_config := sdk.firmware_get_property "device-config" --envelope=envelope_path
     device_config := json.decode encoded_device_config.to_byte_array
     if not device_config.contains "wifi":
       ui_.error "The envelope does not contain WiFi credentials."
