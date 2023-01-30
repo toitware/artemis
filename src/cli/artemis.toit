@@ -248,13 +248,13 @@ class Artemis:
     // an Artemis $Application when we do that (to reuse the code).
     // Don't forget to update the device_config.
 
-    sdk.firmware_set_property "device_config" (json.encode device_config).to_string
+    sdk.firmware_set_property "device-config" (json.encode device_config).to_string
         --envelope=output_path
 
     // Also store the device specification. We don't really need it, but it
     // could be useful for debugging.
     encoded_specification := (json.encode device_specification.to_json).to_string
-    sdk.firmware_set_property "device_specification" encoded_specification
+    sdk.firmware_set_property "device-specification" encoded_specification
         --envelope=output_path
 
     // TODO(florian): discuss this with Kasper.
