@@ -230,7 +230,7 @@ class Artemis:
 
     device_config := {
       "max-offline": device_specification.max_offline_seconds,
-      "sdk_version": sdk_version,
+      "sdk-version": sdk_version,
     }
     connections := device_specification.connections
     connections.do: | connection/ConnectionInfo |
