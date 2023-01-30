@@ -36,9 +36,9 @@ class DeviceSpecification:
       throw "Unsupported device specification version: $data["version"]"
 
     return DeviceSpecification
-      --sdk_version=data["sdk_version"]
-      --artemis_version=data["artemis_version"]
-      --max_offline_seconds=data["max_offline_seconds"]
+      --sdk_version=data["sdk-version"]
+      --artemis_version=data["artemis-version"]
+      --max_offline_seconds=data["max-offline-seconds"]
       --connections=data["connections"].map: ConnectionInfo.from_json it
       --apps=data["apps"].map: Application.from_json it
 
@@ -49,9 +49,9 @@ class DeviceSpecification:
   to_json -> Map:
     return {
       "version": 1,
-      "sdk_version": sdk_version,
-      "artemis_version": artemis_version,
-      "max_offline_seconds": max_offline_seconds,
+      "sdk-version": sdk_version,
+      "artemis-version": artemis_version,
+      "max-offline-seconds": max_offline_seconds,
       "connections": connections.map: it.to_json,
       "apps": apps.map: it.to_json,
     }

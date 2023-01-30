@@ -167,7 +167,7 @@ class Sdk:
   static get_sdk_version_from --envelope/string -> string:
     // TODO(florian): we shouldn't use a non-versioned SDK here.
     // Instead the sdk_version should be inside the envelope as an Ar-file.
-    return json.parse ((Sdk).firmware_get_property --envelope=envelope "sdk_version")
+    return json.parse ((Sdk).firmware_get_property --envelope=envelope "sdk-version")
 
   /**
   Stores the given $sdk_version in the $envelope.
@@ -177,7 +177,7 @@ class Sdk:
   // It should also not be a property, as that would require us to use
   // firmware tools to extract it.
   static store_sdk_version_in --envelope/string sdk_version/string -> none:
-    (Sdk).firmware_set_property --envelope=envelope "sdk_version" (json.stringify sdk_version)
+    (Sdk).firmware_set_property --envelope=envelope "sdk-version" (json.stringify sdk_version)
 
 /**
 Builds the URL of a released SDK with the given $version on GitHub.
