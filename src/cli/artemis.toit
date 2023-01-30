@@ -230,7 +230,7 @@ class Artemis:
 
     config := {
       "max-offline": device_specification.max_offline_seconds,
-      "sdk_version": sdk_version,
+      "sdk-version": sdk_version,
     }
     // TODO(florian): install the applications. We will probably want to build
     // an Artemis $Application when we do that (to reuse the code).
