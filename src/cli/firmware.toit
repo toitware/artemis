@@ -80,6 +80,14 @@ class FirmwareContent:
     list := ubjson.decode encoded
     parts = list.map: FirmwarePart.encoded it
 
+  trivial_patches -> List:
+    result := []
+    parts.size.repeat: | index/int |
+      part := parts[index]
+      if part is FirmwarePartConfig: continue.repeat
+      result.add (FirmwarePatch --bits=part.bits --to=part.hash)
+    return result
+
 class PatchWriter implements PatchObserver:
   buffer/bytes.Buffer ::= bytes.Buffer
   size/int? := null
