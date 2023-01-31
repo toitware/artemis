@@ -137,7 +137,7 @@ class Sdk:
   /**
   Extracts the firmware from the given $envelope_path.
 
-  If $config_path is given, it is given to the firmware tool.
+  If $device_specific_path is given, it is given to the firmware tool.
 
   The returned map has the following structure:
   ```
@@ -158,7 +158,7 @@ class Sdk:
   }
   ```
   */
-  firmware_extract --envelope_path/string --config_path/string?=null -> Map:
+  firmware_extract --envelope_path/string --device_specific_path/string?=null -> Map:
     with_tmp_directory: | tmp_dir |
       firmware_ubjson_path := "$tmp_dir/firmware.ubjson"
       args := [
@@ -167,7 +167,7 @@ class Sdk:
         "--format", "ubjson",
         "--output", firmware_ubjson_path,
       ]
-      if config_path: args += [ "--config", config_path ]
+      if device_specific_path: args += [ "--config", device_specific_path ]
 
       run_firmware_tool args
       return ubjson.decode (file.read_content firmware_ubjson_path)

@@ -17,7 +17,7 @@ import ..shared.utils.patch
 A firmware for a specific device.
 
 Contains the generic $content which is shared among devices that use the same firmware version.
-In addition, it contains the $config which is unique to the device.
+In addition, it contains the $device_specific_data which is unique to the device.
 */
 class Firmware:
   /**
@@ -29,26 +29,65 @@ class Firmware:
   content/FirmwareContent
   /**
   An encoded description of this firmware.
-  Contains the $config, and a checksum of the $content.
+  Contains the $device_specific_data, and a checksum of the $content.
   */
   encoded/string
-  config/ByteArray
-  config_/Map
+  /**
+  The device-specific data.
 
-  constructor .content .config:
-    map := { "config": config, "checksum": content.checksum }
+  This data contains information such as the device ID, the organization ID,
+    the hardware ID and the wifi configuration. It also contains the "parts"
+    field which describes the individual parts of the firmware.
+  */
+  device_specific_data/ByteArray
+  /** A decoded version of the $device_specific_data. */
+  device_specific_data_/Map
+
+  constructor .content .device_specific_data:
+    map := { "config": device_specific_data, "checksum": content.checksum }
     encoded = base64.encode (ubjson.encode map)
-    config_ = ubjson.decode config
-    assert: config_["parts"] == content.encoded
+    device_specific_data_ = ubjson.decode device_specific_data
+    assert: device_specific_data_["parts"] == content.encoded_parts
 
   constructor.encoded .encoded:
     map := ubjson.decode (base64.decode encoded)
-    config = map["config"]
-    config_ = ubjson.decode config
-    content = FirmwareContent.encoded config_["parts"] --checksum=map["checksum"]
+    device_specific_data = map["config"]
+    device_specific_data_ = ubjson.decode device_specific_data
+    content = FirmwareContent.encoded device_specific_data_["parts"] --checksum=map["checksum"]
 
-  config key/string -> any:
-    return config_.get key
+  /**
+  Embets device-specific information ($device and $wifi) into a firmware
+    given by its $envelope_path.
+
+  Computes the "parts" which describes the individual parts of the
+    firmware. Most parts consist of a range, and the binary hash of its content.
+    Some parts, like the one containing the device-specific information only
+    contains its range. The parts description is then encoded with ubjson and
+    also stored in the device-specific information part (under the name "parts").
+
+  Since adding the encoded parts to the device-specific information part
+    may change the size of the part (and thus the ranges of the other parts),
+    the process is repeated until the encoded parts do not change anymore.
+  */
+  constructor --device/Map --wifi/Map --envelope_path/string --cache/cli.Cache:
+    unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache
+    encoded_parts := unconfigured.encoded_parts
+    while true:
+      device_specific := ubjson.encode {
+        "artemis.device" : device,
+        "wifi"           : wifi,
+        "parts"          : encoded_parts,
+      }
+
+      configured := FirmwareContent.from_envelope envelope_path
+          --device_specific=device_specific
+          --cache=cache
+      if configured.encoded_parts == encoded_parts:
+        return Firmware configured device_specific
+      encoded_parts = configured.encoded_parts
+
+  device_specific key/string -> any:
+    return device_specific_data_.get key
 
   patches from/Firmware? -> List:
     result := []
@@ -70,25 +109,27 @@ class FirmwareContent:
   bits/ByteArray?
   parts/List
   checksum/ByteArray
-  encoded/ByteArray
+  encoded_parts/ByteArray
 
   constructor --.bits --.parts --.checksum:
-    encoded = ubjson.encode (parts.map: it.encode)
+    encoded_parts = ubjson.encode (parts.map: it.encode)
 
-  constructor.encoded .encoded --.checksum:
+  constructor.encoded .encoded_parts --.checksum:
     bits = null
-    list := ubjson.decode encoded
+    list := ubjson.decode encoded_parts
     parts = list.map: FirmwarePart.encoded it
 
-  constructor.from_envelope envelope_path/string --config/ByteArray?=null --cache/cli.Cache:
+  constructor.from_envelope envelope_path/string --device_specific/ByteArray?=null --cache/cli.Cache:
     sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
     sdk := get_sdk sdk_version --cache=cache
     firmware_description/Map := {:}
-    if config:
+    if device_specific:
       with_tmp_directory: | tmp_dir/string |
-        config_path := tmp_dir + "/config"
-        write_blob_to_file config_path config
-        firmware_description = sdk.firmware_extract --envelope_path=envelope_path --config_path=config_path
+        device_specific_path := tmp_dir + "/device_specific"
+        write_blob_to_file device_specific_path device_specific
+        firmware_description = sdk.firmware_extract
+            --envelope_path=envelope_path
+            --device_specific_path=device_specific_path
     else:
       firmware_description = sdk.firmware_extract --envelope_path=envelope_path
 

@@ -200,7 +200,7 @@ flash_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     // the bits in through a file.
     with_tmp_directory: | tmp/string |
       config_path := "$tmp/config.ubjson"
-      write_blob_to_file config_path firmware.config
+      write_blob_to_file config_path firmware.device_specific_data
       arguments := [
         "-e", firmware_path,
         "flash", "--port", port,

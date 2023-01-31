@@ -143,7 +143,7 @@ class Artemis:
   Writes an identity file.
 
   This file is used to build a device image and needs to be given to
-    $compute_envelope_config.
+    $compute_device_specific_data.
   */
   write_identity_file -> none
       --out_path/string
@@ -305,7 +305,7 @@ class Artemis:
     firmware_content.trivial_patches.do: upload_ it
 
   /**
-  Computes the configuration of the given envelope.
+  Computes the device-specific data of the given envelope.
 
   Combines the envelope ($envelope_path) and identity ($identity_path) into a
     single firmware image and computes the configuration which depends on the
@@ -315,7 +315,7 @@ class Artemis:
     parts of the firmware image, combined with the configuration that was
     stored in the envelope.
   */
-  compute_envelope_config --envelope_path/string --identity_path/string -> ByteArray:
+  compute_device_specific_data --envelope_path/string --identity_path/string -> ByteArray:
     // Use the SDK from the envelope.
     sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
     sdk := get_sdk sdk_version --cache=cache_
@@ -358,15 +358,17 @@ class Artemis:
     // Cook the firmware.
     // We don't actually need the full firmware for flashing, but we need to build it to
     // compute the checksums.
-    firmware := cook_firmware_ --envelope_path=envelope_path --device=device
+    firmware := Firmware
+        --envelope_path=envelope_path
+        --device=device
+        --cache=cache_
         --wifi={
           // TODO(florian): replace the hardcoded key constants.
           "wifi.ssid": wifi_ssid,
           "wifi.password": wifi_password,
         }
 
-    // TODO(florian): we are losing the configuration we stored in the envelope.
-    return firmware.config
+    return firmware.device_specific_data
 
   /**
   Gets the Artemis service image for the given $sdk and $service versions.
@@ -465,10 +467,11 @@ class Artemis:
     firmware/Firmware? := null
     connected_broker_.device_update_config --device_id=device_id: | config/Map |
       device := identity["artemis.device"]
-      upgrade_to := cook_firmware_
+      upgrade_to := Firmware
           --device=device
           --wifi=wifi
           --envelope_path=firmware_path
+          --cache=cache_
 
       patches := upgrade_to.patches null
       patches.do: upload_ it
@@ -488,7 +491,7 @@ class Artemis:
       if existing: catch: upgrade_from = Firmware.encoded existing
 
       device := null
-      if upgrade_from: device = upgrade_from.config "artemis.device"
+      if upgrade_from: device = upgrade_from.device_specific "artemis.device"
       if device:
         existing_id := device.get "device_id"
         if device_id != existing_id:
@@ -500,39 +503,21 @@ class Artemis:
         throw "Unclaimed device. Cannot proceed without an identity file."
 
       wifi := null
-      if upgrade_from: wifi = upgrade_from.config "wifi"
+      if upgrade_from: wifi = upgrade_from.device_specific "wifi"
       if not wifi:
         // Device has no way to connect.
         ui.error "Device has no way to connect."
 
-      upgrade_to := cook_firmware_
+      upgrade_to := Firmware
           --device=device
           --wifi=wifi
           --envelope_path=firmware_path
+          --cache=cache_
 
       patches := upgrade_to.patches upgrade_from
       patches.do: upload_ it
       config["firmware"] = upgrade_to.encoded
       config
-
-  /**
-
-  */
-  // TODO(florian): Move this closer to the firmware code.
-  cook_firmware_ --device/Map --wifi/Map --envelope_path/string -> Firmware:
-    unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache_
-    encoded := unconfigured.encoded
-    while true:
-      config := ubjson.encode {
-        "artemis.device" : device,
-        "wifi"           : wifi,
-        "parts"          : encoded,
-      }
-
-      configured := FirmwareContent.from_envelope envelope_path --config=config --cache=cache_
-      if configured.encoded == encoded:
-        return Firmware configured config
-      encoded = configured.encoded
 
   upload_ patch/FirmwarePatch -> none:
     trivial_id := id_ --to=patch.to_
