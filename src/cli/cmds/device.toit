@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli
+import encoding.base64
 import uuid
 
 import .broker_options_
@@ -8,10 +9,12 @@ import ..artemis
 import ..cache
 import ..config
 import ..device_specification
+import ..firmware
 import ..sdk
 import ..server_config
 import ..ui
 import ..utils
+import ...service.run.host show run_host
 
 create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
@@ -88,9 +91,11 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --default=true
             --short_help="Make this device the default device.",
         cli.Option "port"
-            --short_name="p",
+            --short_name="p"
+            --required,
         cli.Option "baud",
         cli.Flag "simulate"
+            --hidden
             --default=false,
       ]
       --run=:: flash it config cache ui
@@ -202,6 +207,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   specification_path := parsed["specification"]
   port := parsed["port"]
   baud := parsed["baud"]
+  simulate := parsed["simulate"]
 
   if not device_id:
     device_id = (uuid.uuid5 "Device ID" "$Time.now $random").stringify
@@ -238,14 +244,27 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       config_path := "$tmp_dir/$(device_id).config"
       write_blob_to_file config_path config_bytes
 
-      // Flash.
-      sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-      sdk := get_sdk sdk_version --cache=cache
-      sdk.flash
-          --envelope_path=envelope_path
-          --config_path=config_path
-          --port=port
-          --baud_rate=baud
+      if not simulate:
+        // Flash.
+        sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+        sdk := get_sdk sdk_version --cache=cache
+        sdk.flash
+            --envelope_path=envelope_path
+            --config_path=config_path
+            --port=port
+            --baud_rate=baud
+      else:
+        ui.info "Simulating flash."
+        ui.info "Envelope: $envelope_path"
+        ui.info "Config: $config_path"
+        ui.info "Using the local Artemis service and not the one specified in the specification."
+        firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache
+        identity := read_base64_ubjson identity_file
+        run_host
+            --identity=identity
+            --encoded=base64.encode config_bytes
+            --bits=firmware_content.bits
+
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   throw "UNIMPLEMENTED"
