@@ -80,6 +80,37 @@ class FirmwareContent:
     list := ubjson.decode encoded
     parts = list.map: FirmwarePart.encoded it
 
+  constructor.from_envelope envelope_path/string --config/ByteArray?=null --cache/cli.Cache:
+    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+    sdk := get_sdk sdk_version --cache=cache
+    firmware_description/Map := {:}
+    if config:
+      with_tmp_directory: | tmp_dir/string |
+        config_path := tmp_dir + "/config"
+        write_blob_to_file config_path config
+        firmware_description = sdk.firmware_extract --envelope_path=envelope_path --config_path=config_path
+    else:
+      firmware_description = sdk.firmware_extract --envelope_path=envelope_path
+
+    bits := firmware_description["binary"]
+    checksum/ByteArray? := null
+
+    parts := []
+    firmware_description["parts"].do: | entry/Map |
+      from := entry["from"]
+      to := entry["to"]
+      part_bits := bits[from..to]
+      type := entry["type"]
+
+      if type == "config":
+        parts.add (FirmwarePartConfig --from=from --to=to)
+      else if type == "checksum":
+        checksum = part_bits
+      else:
+        parts.add (FirmwarePartPatch --from=from --to=to --bits=part_bits)
+
+    return FirmwareContent --bits=bits --parts=parts --checksum=checksum
+
   trivial_patches -> List:
     result := []
     parts.size.repeat: | index/int |
@@ -150,37 +181,6 @@ class FirmwarePartConfig extends FirmwarePart:
 
   encode -> Map:
     return { "from": from, "to": to, "type": "config" }
-
-extract_firmware_ envelope_path/string config/ByteArray? sdk/Sdk -> FirmwareContent:
-  extract/Map? := null
-  with_tmp_directory: | tmp/string |
-    firmware_ubjson_path := "$tmp/firmware.ubjson"
-    arguments := ["-e", envelope_path, "extract", "-o", firmware_ubjson_path, "--format=ubjson"]
-    if config:
-      config_path := "$tmp/config.json"
-      write_blob_to_file config_path config
-      arguments += ["--config", config_path]
-
-    sdk.run_firmware_tool arguments
-    extract = ubjson.decode (file.read_content firmware_ubjson_path)
-
-  bits := extract["binary"]
-  parts := []
-  checksum/ByteArray? := null
-
-  extract["parts"].do: | entry/Map |
-    from := entry["from"]
-    to := entry["to"]
-    part := bits[from..to]
-
-    if entry["type"] == "config":
-      parts.add (FirmwarePartConfig --to=to --from=from)
-    else if entry["type"] == "checksum":
-      checksum = part
-    else:
-      parts.add (FirmwarePartPatch --to=to --from=from --bits=part)
-
-  return FirmwareContent --bits=bits --parts=parts --checksum=checksum
 
 /**
 Builds the URL for the firmware envelope for the given $version on GitHub.
