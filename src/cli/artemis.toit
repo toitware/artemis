@@ -173,7 +173,7 @@ class Artemis:
       assert: name.starts_with "certificate-"
       identity[name] = content
 
-    write_ubjson_to_file out_path identity
+    write_base64_ubjson_to_file out_path identity
 
   /**
   Customizes a generic Toit envelope with the given $device_specification.
@@ -192,6 +192,32 @@ class Artemis:
     cached_envelope_path := get_envelope sdk_version --cache=cache_
 
     copy_file --source=cached_envelope_path --target=output_path
+
+    device_config := {
+      "max-offline": device_specification.max_offline_seconds,
+      "sdk-version": sdk_version,
+    }
+
+    wifi_connection/Map? := null
+
+    connections := device_specification.connections
+    connections.do: | connection/ConnectionInfo |
+      if connection.type == "wifi":
+        wifi := connection as WifiConnectionInfo
+        wifi_connection = {
+          "ssid": wifi.ssid,
+          "password": wifi.password or "",
+        }
+        // TODO(florian): should device configurations be stored in
+        // the Artemis asset?
+        device_config["wifi"] = wifi_connection
+      else:
+        ui_.error "Unsupported connection type: $connection.type"
+        ui_.abort
+
+    if not wifi_connection:
+      ui_.error "No wifi connection configured."
+      ui_.abort
 
     // Create the assets for the Artemis service.
     // TODO(florian): share this code with the identity creation code.
@@ -220,6 +246,11 @@ class Artemis:
           "blob": value,
         }
 
+      artemis_assets["device-config"] = {
+        "format": "ubjson",
+        "json": device_config,
+      }
+
       artemis_assets_path := "$tmp_dir/artemis.assets"
       sdk.assets_create --output_path=artemis_assets_path artemis_assets
 
@@ -246,24 +277,7 @@ class Artemis:
         sdk.firmware_add_container name --envelope=output_path --image=image_path
         ui_.info "Added app '$name' to envelope."
 
-    device_config := {
-      "max-offline": device_specification.max_offline_seconds,
-      "sdk-version": sdk_version,
-    }
-    connections := device_specification.connections
-    connections.do: | connection/ConnectionInfo |
-      if connection.type == "wifi":
-        wifi := connection as WifiConnectionInfo
-        device_config["wifi"] = {
-          "ssid": wifi.ssid,
-          "password": wifi.password or "",
-        }
-      else:
-        ui_.error "Unsupported connection type: $connection.type"
-        ui_.abort
-
-
-    sdk.firmware_set_property "device-config" (json.encode device_config).to_string
+    sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
         --envelope=output_path
 
     // Also store the device specification. We don't really need it, but it
@@ -307,13 +321,10 @@ class Artemis:
     sdk := get_sdk sdk_version --cache=cache_
 
     // Extract the WiFi credentials from the envelope.
-    encoded_device_config := sdk.firmware_get_property "device-config" --envelope=envelope_path
-    device_config := json.decode encoded_device_config.to_byte_array
-    if not device_config.contains "wifi":
-      ui_.error "The envelope does not contain WiFi credentials."
-      ui_.abort
-    wifi_ssid := device_config["wifi"]["ssid"]
-    wifi_password := device_config["wifi"]["password"]
+    encoded_wifi_config := sdk.firmware_get_property "wifi-config" --envelope=envelope_path
+    wifi_config := json.parse encoded_wifi_config
+    wifi_ssid := wifi_config["ssid"]
+    wifi_password := wifi_config["password"]
 
     // Extract the device ID from the identity file.
     // TODO(florian): abstract the identity management.

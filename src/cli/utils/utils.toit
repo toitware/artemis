@@ -31,6 +31,10 @@ write_json_to_file path/string value/any -> none:
   write_blob_to_file path (json.encode value)
 
 write_ubjson_to_file path/string value/any -> none:
+  encoded := ubjson.encode value
+  write_blob_to_file path encoded
+
+write_base64_ubjson_to_file path/string value/any -> none:
   encoded := base64.encode (ubjson.encode value)
   write_blob_to_file path encoded
 
