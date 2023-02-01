@@ -1,10 +1,13 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import ar
 import bytes
 import crypto.sha256
 import encoding.base64
 import encoding.ubjson
 import host.file
+import host.os
+import uuid
 
 import .sdk
 import .cache show ENVELOPE_PATH
@@ -230,11 +233,38 @@ envelope_url version/string -> string:
   return "github.com/toitlang/toit/releases/download/$version/firmware-esp32.gz"
 
 /**
+Stores the given $snapshot in the user's snapshot directory.
+
+This way, the monitor can find it and automatically decode stacktraces.
+
+Returns the UUID of the snapshot.
+*/
+cache_snapshot snapshot/ByteArray --output_directory/string?=null -> string:
+  ar_reader := ar.ArReader.from_bytes snapshot
+  ar_file := ar_reader.find "uuid"
+  if not ar_file: throw "No uuid file in snapshot."
+  uuid := (uuid.Uuid (ar_file.content)).stringify
+
+  out_path/string := ?
+  if output_directory:
+    out_path = "$output_directory/$(uuid).snapshot"
+  else:
+    home := os.env.get "HOME"
+    if not home: throw "No home directory."
+    out_path = "$home/.cache/jaguar/snapshots/$(uuid).snapshot"
+
+  write_blob_to_file out_path snapshot
+  return uuid
+
+/**
 Returns a path to the firmware envelope for the given $version.
+
+If $cache_system_snapshot is true, then copies the contained system snapshot
+  into the cache.
 */
 // TODO(florian): we probably want to create a class for the firmware
 // envelope.
-get_envelope version/string --cache/cli.Cache -> string:
+get_envelope version/string --cache/cli.Cache --cache_system_snapshot/bool=true -> string:
   url := envelope_url version
   path := "firmware-esp32.envelope"
   envelope_key := "$ENVELOPE_PATH/$version/$path"
@@ -243,4 +273,9 @@ get_envelope version/string --cache/cli.Cache -> string:
       out_path := "$tmp_dir/$(path).gz"
       download_url url --out_path=out_path
       gunzip out_path
+      if cache_system_snapshot:
+        ar_reader := ar.ArReader.from_bytes (file.read_content "$tmp_dir/$path")
+        ar_file := ar_reader.find "system"
+        if not ar_file: throw "No system snapshot in envelope."
+        cache_snapshot ar_file.content
       store.move "$tmp_dir/$path"
