@@ -244,7 +244,7 @@ cached_snapshot_path uuid/string --output_directory/string? -> string:
 /**
 Stores the given $snapshot in the user's snapshot directory.
 
-This way, the monitor can find it and automatically decode stacktraces.
+This way, the monitor can find it and automatically decode stack traces.
 
 Returns the UUID of the snapshot.
 */
