@@ -81,6 +81,12 @@ class BrokerCliSupabase implements BrokerCli:
         content += data
     return content
 
+  notify_created --device_id/string -> none:
+    print "Inserting new device: $device_id"
+    client_.rest.insert "devices" {
+      "id" : device_id,
+    }
+
   print_status -> none:
     print_on_stderr_ "The Supabase client does not support 'status'"
     exit 1
