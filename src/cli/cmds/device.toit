@@ -208,6 +208,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   port := parsed["port"]
   baud := parsed["baud"]
   simulate := parsed["simulate"]
+  should_make_default := parsed["default"]
 
   if not device_id:
     device_id = (uuid.uuid5 "Device ID" "$Time.now $random").stringify
@@ -253,6 +254,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --config_path=config_path
             --port=port
             --baud_rate=baud
+        if should_make_default: make_default_ device_id config ui
       else:
         ui.info "Simulating flash."
         ui.info "Envelope: $envelope_path"
@@ -260,14 +262,36 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.info "Using the local Artemis service and not the one specified in the specification."
         firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache
         identity := read_base64_ubjson identity_file
+        if should_make_default: make_default_ device_id config ui
         run_host
             --identity=identity
             --encoded=base64.encode config_bytes
             --bits=firmware_content.bits
 
-
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  throw "UNIMPLEMENTED"
+  if parsed["clear"]:
+    config.remove CONFIG_DEVICE_DEFAULT_KEY
+    config.write
+    ui.info "Default device cleared."
+    return
+
+  device_id := parsed["device-id"]
+  if not device_id:
+    device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
+    if not device_id:
+      ui.error "No default device set."
+      ui.abort
+
+    ui.info "$device_id"
+    return
+
+  // TODO(florian): make sure the device exists.
+  make_default_ device_id config ui
+
+make_default_ device_id/string config/Config ui/Ui:
+  config[CONFIG_DEVICE_DEFAULT_KEY] = device_id
+  config.write
+  ui.info "Default device set to $device_id"
 
 configuration parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   throw "UNIMPLEMENTED"

@@ -20,6 +20,7 @@ import writer
 import supabase
 
 APP_NAME ::= "artemis"
+CONFIG_DEVICE_DEFAULT_KEY ::= "device.default"
 CONFIG_BROKER_DEFAULT_KEY ::= "server.broker.default"
 CONFIG_ARTEMIS_DEFAULT_KEY ::= "server.artemis.default"
 CONFIG_SDK_DEFAULT_KEY ::= "sdk.default"
