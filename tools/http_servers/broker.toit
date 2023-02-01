@@ -71,13 +71,13 @@ class HttpBroker extends HttpServer:
 
   upload_image data/Map:
     app_id := data["app_id"]
-    bits := data["bits"]
-    images["$app_id-$bits"] = data["content"]
+    word_size := data["word_size"]
+    images["$app_id-$word_size"] = data["content"]
 
   download_image data/Map:
     app_id := data["app_id"]
-    bits := data["bits"]
-    return images["$app_id-$bits"]
+    word_size := data["word_size"]
+    return images["$app_id-$word_size"]
 
   upload_firmware data/Map:
     firmware_id := data["firmware_id"]

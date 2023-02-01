@@ -74,10 +74,10 @@ interface BrokerCli implements Authenticatable:
   /**
   Uploads an application image with the given $app_id so that a device can fetch it.
 
-  There may be multiple images for the same $app_id, that differ in the $bits size.
-    Generally $bits is either 32 or 64.
+  There may be multiple images for the same $app_id, that differ in the $word_size.
+    Generally $word_size is either 32 or 64.
   */
-  upload_image --app_id/string --bits/int content/ByteArray -> none
+  upload_image --app_id/string --word_size/int content/ByteArray -> none
 
   /**
   Uploads a firmware with the given $firmware_id so that a device can fetch it.

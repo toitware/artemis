@@ -72,10 +72,10 @@ class BrokerCliHttp implements BrokerCli:
     new := block.call (old or {:})
     send_request_ "update_config" {"device_id": device_id, "config": new}
 
-  upload_image --app_id/string --bits/int content/ByteArray -> none:
+  upload_image --app_id/string --word_size/int content/ByteArray -> none:
     send_request_ "upload_image" {
       "app_id": app_id,
-      "bits": bits,
+      "word_size": word_size,
       "content": content,
     }
 
