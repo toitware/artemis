@@ -434,52 +434,6 @@ class Artemis:
         config.remove "max-offline"
       config
 
-  firmware_create -> Firmware
-      --identity/Map
-      --wifi/Map
-      --device_id/string
-      --firmware_path/string
-      --ui/Ui:
-    // TODO(florian): get the sdk as argument.
-    sdk := Sdk
-    with_tmp_directory: | tmp/string |
-      artemis_assets_path := "$tmp/artemis.assets"
-      sdk.run_firmware_tool [
-        "-e", firmware_path,
-        "container", "extract",
-        "-o", artemis_assets_path,
-        "--part", "assets",
-        "artemis"
-      ]
-
-      // TODO(kasper): Clean this up and provide a better error message.
-      if not is_same_broker "broker" identity tmp artemis_assets_path sdk:
-        ui.error "not the same broker"
-        ui.abort
-      if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
-        ui.error "not the same artemis broker"
-        ui.abort
-
-    firmware/Firmware? := null
-    connected_broker_.device_update_config --device_id=device_id: | config/Map |
-      device := identity["artemis.device"]
-      upgrade_to := Firmware
-          --device=device
-          --wifi=wifi
-          --envelope_path=firmware_path
-          --cache=cache_
-
-      patches := upgrade_to.patches null
-      patches.do: upload_ it
-      firmware = upgrade_to
-
-      // TODO(kasper): We actually don't have to update the device configuration
-      // stored in the online database unless we think it may contain garbage.
-      config["firmware"] = upgrade_to.encoded
-      config
-
-    return firmware
-
   firmware_update --device_id/string --firmware_path/string --ui/Ui -> none:
     connected_broker_.device_update_config --device_id=device_id: | config/Map |
       upgrade_from/Firmware? := null
