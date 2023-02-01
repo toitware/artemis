@@ -262,19 +262,15 @@ class Artemis:
 
       sdk.firmware_add_container "artemis" --envelope=output_path
           --assets=artemis_assets_path
-          --image=artemis_service_image_path
+          --app_path=artemis_service_image_path
 
       // Store the apps in the envelope.
       device_specification.apps.do: | name/string app/Application |
         snapshot_app := to_snapshot_app_ app --tmp_dir=tmp_dir --sdk=sdk
-        image_path := "$tmp_dir/$(name).image"
-        // TODO(florian): we should get the bits from the envelope.
-        sdk.compile_snapshot_to_image
-            --bits=32
-            --snapshot_path=snapshot_app.snapshot_path
-            --out=image_path
         // TODO(florian): add support for assets.
-        sdk.firmware_add_container name --envelope=output_path --image=image_path
+        sdk.firmware_add_container name
+            --envelope=output_path
+            --app_path=snapshot_app.snapshot_path
         ui_.info "Added app '$name' to envelope."
 
     sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
