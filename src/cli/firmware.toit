@@ -232,6 +232,15 @@ Builds the URL for the firmware envelope for the given $version on GitHub.
 envelope_url version/string -> string:
   return "github.com/toitlang/toit/releases/download/$version/firmware-esp32.gz"
 
+cached_snapshot_path uuid/string --output_directory/string? -> string:
+  if output_directory:
+    return "$output_directory/$(uuid).snapshot"
+  else:
+    home := os.env.get "HOME"
+    if not home: throw "No home directory."
+    return "$home/.cache/jaguar/snapshots/$(uuid).snapshot"
+
+
 /**
 Stores the given $snapshot in the user's snapshot directory.
 
@@ -244,17 +253,23 @@ cache_snapshot snapshot/ByteArray --output_directory/string?=null -> string:
   ar_file := ar_reader.find "uuid"
   if not ar_file: throw "No uuid file in snapshot."
   uuid := (uuid.Uuid (ar_file.content)).stringify
-
-  out_path/string := ?
-  if output_directory:
-    out_path = "$output_directory/$(uuid).snapshot"
-  else:
-    home := os.env.get "HOME"
-    if not home: throw "No home directory."
-    out_path = "$home/.cache/jaguar/snapshots/$(uuid).snapshot"
-
+  out_path := cached_snapshot_path uuid --output_directory=output_directory
   write_blob_to_file out_path snapshot
   return uuid
+
+/**
+Stores the snapshots inside the envelope in the user's snapshot directory.
+*/
+cache_snapshots --envelope/string --output_directory/string?=null --cache/cli.Cache:
+  sdk := Sdk --envelope=envelope --cache=cache
+  containers := sdk.firmware_list_containers --envelope_path=envelope
+  containers.do: | name/string description/Map |
+    if description["kind"] == "snapshot":
+      id := description["id"]
+      sdk.firmware_extract_container
+          --envelope_path=envelope
+          --name=name
+          --output_path=(cached_snapshot_path id --output_directory=output_directory)
 
 /**
 Returns a path to the firmware envelope for the given $version.
@@ -277,5 +292,4 @@ get_envelope version/string --cache/cli.Cache --cache_system_snapshot/bool=true 
         ar_reader := ar.ArReader.from_bytes (file.read_content "$tmp_dir/$path")
         ar_file := ar_reader.find "system"
         if not ar_file: throw "No system snapshot in envelope."
-        cache_snapshot ar_file.content
       store.move "$tmp_dir/$path"

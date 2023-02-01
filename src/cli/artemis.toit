@@ -300,6 +300,9 @@ class Artemis:
     firmware_content := FirmwareContent.from_envelope output_path --cache=cache_
     firmware_content.trivial_patches.do: upload_ it
 
+    // For convenience save all snapshots in the user's cache.
+    cache_snapshots --envelope=output_path --cache=cache_
+
   /**
   Computes the device-specific data of the given envelope.
 
