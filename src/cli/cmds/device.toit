@@ -237,7 +237,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --device_specification=specification
 
       // Make unique for the given device.
-      config_bytes := artemis.compute_envelope_config
+      config_bytes := artemis.compute_device_specific_data
           --envelope_path=envelope_path
           --identity_path=identity_file
 
