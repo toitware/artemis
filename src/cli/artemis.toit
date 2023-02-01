@@ -316,9 +316,23 @@ class Artemis:
     stored in the envelope.
   */
   compute_device_specific_data --envelope_path/string --identity_path/string -> ByteArray:
+    return compute_device_specific_data
+        --envelope_path=envelope_path
+        --identity_path=identity_path
+        --cache=cache_
+        --ui=ui_
+
+  /**
+  Static variant of $(compute_device_specific_data --envelope_path --identity_path).
+  */
+  static compute_device_specific_data
+      --envelope_path/string
+      --identity_path/string
+      --cache/cache.Cache
+      --ui/Ui:
     // Use the SDK from the envelope.
     sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-    sdk := get_sdk sdk_version --cache=cache_
+    sdk := get_sdk sdk_version --cache=cache
 
     // Extract the WiFi credentials from the envelope.
     encoded_wifi_config := sdk.firmware_get_property "wifi-config" --envelope=envelope_path
@@ -351,9 +365,9 @@ class Artemis:
       ]
 
       if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
-        ui_.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
+        ui.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
       if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
-        ui_.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
+        ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
 
     // Cook the firmware.
     // We don't actually need the full firmware for flashing, but we need to build it to
@@ -361,7 +375,7 @@ class Artemis:
     firmware := Firmware
         --envelope_path=envelope_path
         --device=device
-        --cache=cache_
+        --cache=cache
         --wifi={
           // TODO(florian): replace the hardcoded key constants.
           "wifi.ssid": wifi_ssid,

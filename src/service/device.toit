@@ -21,11 +21,9 @@ class Device:
   /** See $max_offline. */
   max_offline_/Duration? := null
 
-  constructor --.id --firmware/string:
-    config_ = {
-      "firmware": firmware,
-    }
-    firmware_ = firmware
+  constructor --.id --config/Map:
+    config_ = config
+    firmware_ = config["firmware"]
 
   /**
   The max-offline as a Duration.

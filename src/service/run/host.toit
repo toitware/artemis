@@ -21,43 +21,68 @@ import ..utils show decode_server_config
 import ..service show run_artemis
 import ..check_in show check_in_setup
 import ..device
+import ...cli.sdk
+import ...cli.cache as cli
+import ...cli.ui show Ui ConsoleUi
+import ...cli.utils
+import ...cli.firmware as fw
+import ...cli.artemis show Artemis
 
 main arguments:
+  cache := cli.Cache --app_name="artemis"
+  ui := ConsoleUi
   root_cmd := cli.Command "root"
       --options=[
-        cli.OptionString "firmware"
+        cli.OptionString "envelope"
+            --type="file"
             --required,
         cli.OptionString "identity"
             --type="file"
             --required,
-        cli.OptionString "old"
-            --type="file",
       ]
-      --run=:: run it
+      --run=:: run_host
+          --envelope_path=it["envelope"]
+          --identity_path=it["identity"]
+          --cache=cache
+          --ui=ui
   root_cmd.run arguments
 
-run parsed/cli.Parsed -> none:
-  bits := null
-  if parsed["old"]: bits = file.read_content parsed["old"]
+run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui -> none:
+  identity := read_base64_ubjson identity_path
 
-  identity_raw := file.read_content parsed["identity"]
-  identity := ubjson.decode (base64.decode identity_raw)
-  run_host
-      --identity=identity
-      --encoded=parsed["firmware"]
-      --bits=bits
+  config_bytes := Artemis.compute_device_specific_data
+      --envelope_path=envelope_path
+      --identity_path=identity_path
+      --cache=cache
+      --ui=ui
+  encoded_config := base64.encode config_bytes
 
-run_host --identity/Map --encoded/string --bits/ByteArray? -> none:
-  service := FirmwareServiceDefinition bits
-  service.install
+  sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+  sdk := get_sdk sdk_version --cache=cache
+  with_tmp_directory: | tmp_dir/string |
+    asset_path := "$tmp_dir/artemis_asset"
+    sdk.firmware_extract_container --assets
+        --name="artemis"
+        --envelope_path=envelope_path
+        --output_path=asset_path
+    config_asset := sdk.assets_extract
+        --name="device-config"
+        --assets_path=asset_path
+    config := json.decode config_asset
 
-  identity["artemis.broker"] = tison.encode identity["artemis.broker"]
-  identity["broker"] = tison.encode identity["broker"]
-  device_entry := identity["artemis.device"]
-  check_in_setup identity device_entry
-  device := Device --id=device_entry["device_id"] --firmware=encoded
-  server_config := decode_server_config "broker" identity
-  run_artemis device server_config
+    content := fw.FirmwareContent.from_envelope envelope_path --cache=cache
+    config["firmware"] = encoded_config
+
+    service := FirmwareServiceDefinition content.bits
+    service.install
+
+    identity["artemis.broker"] = tison.encode identity["artemis.broker"]
+    identity["broker"] = tison.encode identity["broker"]
+    device_entry := identity["artemis.device"]
+    check_in_setup identity device_entry
+    device := Device --id=device_entry["device_id"] --config=config
+    server_config := decode_server_config "broker" identity
+    run_artemis device server_config
 
 // --------------------------------------------------------------------------
 

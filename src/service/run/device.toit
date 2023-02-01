@@ -11,23 +11,30 @@ import ..check_in show check_in_setup
 import ..service show run_artemis
 import ..device
 
+device_specific_ name/string -> any:
+  return firmware.config[name]
+
 main arguments:
-  decoded ::= assets.decode
-  server_config := decode_server_config "broker" decoded
+  artemis_assets ::= assets.decode
+  server_config := decode_server_config "broker" artemis_assets
 
-  check_in_setup decoded firmware.config["artemis.device"]
+  artemis_device := device_specific_ "artemis.device"
+  device_id := artemis_device["device_id"]
 
-  firmware_description := ubjson.decode firmware.config["parts"]
+  check_in_setup artemis_assets artemis_device
+
+  firmware_description := ubjson.decode (device_specific_ "parts")
   end := firmware_description.last["to"]
-
-  update := ubjson.encode {
+  firmware_ubjson := ubjson.encode {
     "config"   : firmware.config.ubjson,
     "checksum" : checksum end,
   }
+  firmware_encoded := base64.encode firmware_ubjson
 
-  device_id := firmware.config["artemis.device"]["device_id"]
-  firmware := base64.encode update
-  device := Device --id=device_id --firmware=firmware
+  config := ubjson.decode (artemis_assets["device-config"])
+  config["firmware"] = firmware_encoded
+
+  device := Device --id=device_id --config=config
   run_artemis device server_config
 
 checksum end/int -> ByteArray:

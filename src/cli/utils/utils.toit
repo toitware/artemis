@@ -4,6 +4,7 @@ import certificate_roots
 import encoding.base64
 import encoding.json
 import encoding.ubjson
+import encoding.tison
 import http
 import host.directory
 import host.file
@@ -48,6 +49,10 @@ read_json path/string -> any:
 read_ubjson path/string -> any:
   data := file.read_content path
   return ubjson.decode data
+
+read_tison path/string -> any:
+  data := file.read_content path
+  return tison.decode data
 
 read_base64_ubjson path/string -> any:
   data := file.read_content path
