@@ -271,15 +271,19 @@ cache_snapshots --envelope/string --output_directory/string?=null --cache/cli.Ca
           --name=name
           --output_path=(cached_snapshot_path id --output_directory=output_directory)
 
+// A forwarding function to work around the shadowing in 'get_envelope'.
+cache_snapshots_ --envelope/string --cache/cli.Cache:
+  cache_snapshots --envelope=envelope --cache=cache
+
 /**
 Returns a path to the firmware envelope for the given $version.
 
-If $cache_system_snapshot is true, then copies the contained system snapshot
+If $cache_snapshots is true, then copies the contained snapshots
   into the cache.
 */
 // TODO(florian): we probably want to create a class for the firmware
 // envelope.
-get_envelope version/string --cache/cli.Cache --cache_system_snapshot/bool=true -> string:
+get_envelope version/string --cache/cli.Cache --cache_snapshots/bool=true -> string:
   url := envelope_url version
   path := "firmware-esp32.envelope"
   envelope_key := "$ENVELOPE_PATH/$version/$path"
@@ -288,8 +292,7 @@ get_envelope version/string --cache/cli.Cache --cache_system_snapshot/bool=true 
       out_path := "$tmp_dir/$(path).gz"
       download_url url --out_path=out_path
       gunzip out_path
-      if cache_system_snapshot:
-        ar_reader := ar.ArReader.from_bytes (file.read_content "$tmp_dir/$path")
-        ar_file := ar_reader.find "system"
-        if not ar_file: throw "No system snapshot in envelope."
-      store.move "$tmp_dir/$path"
+      envelope_path := "$tmp_dir/$path"
+      if cache_snapshots:
+        cache_snapshots_ --envelope=envelope_path --cache=cache
+      store.move envelope_path

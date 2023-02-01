@@ -206,7 +206,6 @@ class Sdk:
       "--part", assets ? "assets" : "image",
       name,
     ]
-    if assets: args += [ "--assets" ]
     run_firmware_tool args
 
   /**
