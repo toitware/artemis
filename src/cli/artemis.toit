@@ -14,6 +14,7 @@ import encoding.ubjson
 import encoding.json
 
 import .cache as cache
+import .cache show service_image_cache_key
 import .config
 import .device_specification
 
@@ -376,7 +377,7 @@ class Artemis:
   */
   get_service_image_path_ --sdk/string --service/string --word_size/int -> string:
     if word_size != 32 and word_size != 64: throw "INVALID_ARGUMENT"
-    service_key := "service/$service/$(sdk).image"
+    service_key := service_image_cache_key --service_version=service --sdk_version=sdk
     return cache_.get_file_path service_key: | store/cache.FileStore |
       server := connected_artemis_server_
       entry := server.list_sdk_service_versions --sdk_version=sdk --service_version=service

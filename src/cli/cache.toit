@@ -18,6 +18,8 @@ To simplify testing, the environment variable '<app-name>_CACHE_DIR' can be used
 
 SDK_PATH ::= "sdks"
 ENVELOPE_PATH ::= "envelopes"
+service_image_cache_key --service_version/string --sdk_version/string -> string:
+  return "service/$service_version/$(sdk_version).image"
 
 /**
 A class to manage objects that can be downloaded or generated, but should
@@ -52,6 +54,16 @@ class Cache:
   Creates a new cache using the given $path as the cache directory.
   */
   constructor --.app_name --.path:
+
+  /**
+  Removes the cache entry with the given $key.
+  */
+  remove key/string -> none:
+    key_path := key_path_ key
+    if file.is_file key_path:
+      file.delete key_path
+    else if file.is_directory key_path:
+      directory.rmdir --recursive key_path
 
   /**
   Whether the cache contains the given $key.
