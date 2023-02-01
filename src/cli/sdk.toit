@@ -4,6 +4,7 @@ import ar
 import certificate_roots
 import .cache as cli
 import encoding.json
+import encoding.ubjson
 import host.file
 import host.pipe
 import http
@@ -120,6 +121,45 @@ class Sdk:
       "-e", envelope,
       name,
     ]).trim
+
+  /**
+  Extracts the firmware from the given $envelope_path.
+
+  If $config_path is given, it is given to the firmware tool.
+
+  The returned map has the following structure:
+  ```
+  {
+    // The binary bits of the firmware.
+    // All other offsets are relative to this.
+    "binary": <binary>
+    parts: [
+      {
+        // The offset of the part in the binary.
+        "from": <int>
+        "to": <int>
+        // The type of the part.
+        "type": "binary" | "images" | "config" | "checksum" |
+      },
+      ...
+    ]
+  }
+  ```
+  */
+  firmware_extract --envelope_path/string --config_path/string?=null -> Map:
+    with_tmp_directory: | tmp_dir |
+      firmware_ubjson_path := "$tmp_dir/firmware.ubjson"
+      args := [
+        "extract",
+        "-e", envelope_path,
+        "--format", "ubjson",
+        "--output", firmware_ubjson_path,
+      ]
+      if config_path: args += [ "--config", config_path ]
+
+      run_firmware_tool args
+      return ubjson.decode (file.read_content firmware_ubjson_path)
+    unreachable
 
   /**
   Flashes the given envelope to the device at $port with the given $baud_rate.

@@ -273,7 +273,7 @@ class Artemis:
     // Once the firmware is used in an updating process (either to or from it), we
     // need it. In that case we use it to compute binary diffs. It can also be
     // used directly from the devices to download the firmware directly.
-    firmware_content := extract_firmware_ output_path null sdk
+    firmware_content := FirmwareContent.from_envelope output_path --cache=cache_
     firmware_content.trivial_patches.do: upload_ it
 
   /**
@@ -495,9 +495,7 @@ class Artemis:
   */
   // TODO(florian): Move this closer to the firmware code.
   cook_firmware_ --device/Map --wifi/Map --envelope_path/string -> Firmware:
-    // TODO(florian): get the sdk as argument.
-    sdk := Sdk
-    unconfigured := extract_firmware_ envelope_path null sdk
+    unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache_
     encoded := unconfigured.encoded
     while true:
       config := ubjson.encode {
@@ -506,7 +504,7 @@ class Artemis:
         "parts"          : encoded,
       }
 
-      configured := extract_firmware_ envelope_path config sdk
+      configured := FirmwareContent.from_envelope envelope_path --config=config --cache=cache_
       if configured.encoded == encoded:
         return Firmware configured config
       encoded = configured.encoded
