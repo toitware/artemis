@@ -45,6 +45,14 @@ read_json path/string -> any:
   finally:
     stream.close
 
+read_ubjson path/string -> any:
+  data := file.read_content path
+  return ubjson.decode data
+
+read_base64_ubjson path/string -> any:
+  data := file.read_content path
+  return ubjson.decode (base64.decode data)
+
 download_url url/string --out_path/string -> none:
   network := net.open
   client := http.Client.tls network
