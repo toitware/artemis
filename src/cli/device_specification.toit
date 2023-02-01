@@ -22,7 +22,7 @@ class DeviceSpecification:
   artemis_version/string
   max_offline_seconds/int
   connections/List  // Of $ConnectionInfo.
-  apps/List  // Of $Application.
+  apps/Map  // Of name -> $Application.
 
   constructor
       --.sdk_version
@@ -40,7 +40,7 @@ class DeviceSpecification:
       --artemis_version=data["artemis-version"]
       --max_offline_seconds=data["max-offline-seconds"]
       --connections=data["connections"].map: ConnectionInfo.from_json it
-      --apps=data["apps"].map: Application.from_json it
+      --apps=data["apps"].map: | _ app_description | Application.from_json app_description
 
   static parse path/string -> DeviceSpecification:
     encoded := file.read_content path
@@ -53,7 +53,7 @@ class DeviceSpecification:
       "artemis-version": artemis_version,
       "max-offline-seconds": max_offline_seconds,
       "connections": connections.map: it.to_json,
-      "apps": apps.map: it.to_json,
+      "apps": apps.map: | _ app/Application | app.to_json,
     }
 
 interface ConnectionInfo:
@@ -82,21 +82,39 @@ class WifiConnectionInfo implements ConnectionInfo:
 
 interface Application:
   static from_json data/Map -> Application:
-    type := data.get "type"
-    if not type: type = "path"
-    if data["type"] != "path":
-      throw "Unsupported application type: $data["type"]"
-    return ApplicationPath.from_json data
+    if data.contains "entrypoint":
+      return ApplicationPath.from_json data
+    if data.contains "snapshot":
+      return ApplicationSnapshot.from_json data
+    throw "Unsupported application: $data"
 
+  type -> string
   to_json -> Map
 
 class ApplicationPath implements Application:
-  entry_point/string
+  entrypoint/string
 
-  constructor --.entry_point:
+  constructor --.entrypoint:
 
   constructor.from_json data/Map:
-    return ApplicationPath --entry_point=data["entry_point"]
+    return ApplicationPath --entrypoint=data["entrypoint"]
+
+  type -> string:
+    return "path"
 
   to_json -> Map:
-    return {"type": "path", "entry_point": entry_point}
+    return { "entrypoint": entrypoint }
+
+class ApplicationSnapshot implements Application:
+  snapshot_path/string
+
+  constructor --.snapshot_path:
+
+  constructor.from_json data/Map:
+    return ApplicationSnapshot --snapshot_path=data["snapshot"]
+
+  type -> string:
+    return "snapshot"
+
+  to_json -> Map:
+    return { "snapshot": snapshot_path}

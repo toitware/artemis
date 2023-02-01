@@ -225,12 +225,22 @@ class Artemis:
 
       // Get the prebuilt Artemis service.
       artemis_service_image_path := get_service_image_path_
+          --bits=32  // TODO(florian): we should get the bits from the envelope.
           --sdk=sdk_version
           --service=service_version
 
       sdk.firmware_add_container "artemis" --envelope=output_path
           --assets=artemis_assets_path
-          --image=artemis_service_image_path
+          --app_path=artemis_service_image_path
+
+      // Store the apps in the envelope.
+      device_specification.apps.do: | name/string app/Application |
+        snapshot_app := to_snapshot_app_ app --tmp_dir=tmp_dir --sdk=sdk
+        // TODO(florian): add support for assets.
+        sdk.firmware_add_container name
+            --envelope=output_path
+            --app_path=snapshot_app.snapshot_path
+        ui_.info "Added app '$name' to envelope."
 
     device_config := {
       "max-offline": device_specification.max_offline_seconds,
@@ -348,8 +358,8 @@ class Artemis:
 
   Returns a path to the cached image.
   */
-  get_service_image_path_ --sdk/string --service/string -> string:
-    // We are only saving the 32-bit version of the service.
+  get_service_image_path_ --sdk/string --service/string --bits/int -> string:
+    if bits != 32 and bits != 64: throw "INVALID_ARGUMENT"
     service_key := "service/$service/$(sdk).image"
     return cache_.get_file_path service_key: | store/cache.FileStore |
       server := connected_artemis_server_
@@ -360,7 +370,7 @@ class Artemis:
       image_name := entry.first["image"]
       service_image_bytes := server.download_service_image image_name
       ar_reader := ar.ArReader.from_bytes service_image_bytes
-      ar_file := ar_reader.find "service-32.img"
+      ar_file := ar_reader.find "service-$(bits).img"
       store.save ar_file.content
 
   /**
@@ -583,3 +593,16 @@ is_same_broker broker/string identity/Map tmp/string assets_path/string sdk/Sdk 
   x := ((json.stringify identity["broker"]) + "\n").to_byte_array
   y := (file.read_content broker_path)
   return x == y
+
+to_snapshot_app_ app/Application --tmp_dir/string --sdk/Sdk -> ApplicationSnapshot:
+  if app.type == "snapshot":
+    // TODO(florian): verify that the snapshot's SDK is the same as the one we are using.
+    return app as ApplicationSnapshot
+  if app.type == "path":
+    entry_point := (app as ApplicationPath).entrypoint
+    snapshot_path := "$tmp_dir/snapshot"
+    sdk.compile_to_snapshot entry_point --out=snapshot_path
+    return ApplicationSnapshot --snapshot_path=snapshot_path
+
+  throw "Unknown application type: $app.type"
+

@@ -89,16 +89,29 @@ class Sdk:
   /**
   Installs the container $name in the given $envelope.
 
-  The $envelope, the $image and its $assets must be paths to files.
+  The $envelope, the $app_path and its $assets must be paths to files.
+  The parameter $app_path must point to a snapshot or image.
   */
-  firmware_add_container name/string --envelope/string --assets/string --image/string:
-    run_firmware_tool [
-      "container", "install",
-      "-e", envelope,
-      "--assets", assets,
-      name,
-      image,
-    ]
+  firmware_add_container name/string --app_path/string --envelope/string --assets/string?=null:
+    args := ?
+    if assets:
+      // TODO(florian): at the moment we can't just add the assets flags to
+      // the end, as the current SDK version (alpha-50) doesn't support that.
+      args = [
+        "container", "install",
+        "-e", envelope,
+        "--assets", assets,
+        name,
+        app_path,
+      ]
+    else:
+      args = [
+        "container", "install",
+        "-e", envelope,
+        name,
+        app_path,
+      ]
+    run_firmware_tool args
 
   /**
   Sets the property $name to $value in the given $envelope.
