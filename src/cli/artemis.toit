@@ -269,7 +269,12 @@ class Artemis:
     system_uuid ::= uuid.uuid5 "system.uuid" "$(random 1_000_000)-$Time.now-$Time.monotonic_us"
     sdk.firmware_set_property "uuid" system_uuid.stringify --envelope=output_path
 
-    // TODO(florian): Upload the bits to the cloud.
+    // Upload the trivial patches.
+    // Once the firmware is used in an updating process (either to or from it), we
+    // need it. In that case we use it to compute binary diffs. It can also be
+    // used directly from the devices to download the firmware directly.
+    firmware_content := extract_firmware_ output_path null sdk
+    firmware_content.trivial_patches.do: upload_ it
 
   /**
   Computes the configuration of the given envelope.
