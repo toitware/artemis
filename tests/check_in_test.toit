@@ -24,7 +24,9 @@ main args:
 // Calling `run_test` twice from the same test will thus not work.
 run_test --insert_device/bool:
   device_id := "test-device-check-in"
-  device := Device --id=device_id --firmware="foo"
+  device := Device --id=device_id --config={
+    "firmware": "foo",
+  }
   with_http_broker: | broker_config/ServerConfig |
     with_http_artemis_server: | artemis_server/TestArtemisServer |
       backdoor := artemis_server.backdoor as ToitHttpBackdoor
