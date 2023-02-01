@@ -256,7 +256,7 @@ class Artemis:
 
       // Get the prebuilt Artemis service.
       artemis_service_image_path := get_service_image_path_
-          --bits=32  // TODO(florian): we should get the bits from the envelope.
+          --word_size=32  // TODO(florian): we should get the bits from the envelope.
           --sdk=sdk_version
           --service=service_version
 
@@ -371,8 +371,8 @@ class Artemis:
 
   Returns a path to the cached image.
   */
-  get_service_image_path_ --sdk/string --service/string --bits/int -> string:
-    if bits != 32 and bits != 64: throw "INVALID_ARGUMENT"
+  get_service_image_path_ --sdk/string --service/string --word_size/int -> string:
+    if word_size != 32 and word_size != 64: throw "INVALID_ARGUMENT"
     service_key := "service/$service/$(sdk).image"
     return cache_.get_file_path service_key: | store/cache.FileStore |
       server := connected_artemis_server_
@@ -383,7 +383,7 @@ class Artemis:
       image_name := entry.first["image"]
       service_image_bytes := server.download_service_image image_name
       ar_reader := ar.ArReader.from_bytes service_image_bytes
-      ar_file := ar_reader.find "service-$(bits).img"
+      ar_file := ar_reader.find "service-$(word_size).img"
       store.save ar_file.content
 
   /**
@@ -405,9 +405,9 @@ class Artemis:
       store.with_tmp_directory: | tmp_dir |
         // TODO(florian): do we want to rely on the cache, or should we
         // do a check to see if the files are really uploaded?
-        connected_broker_.upload_image --app_id=id --bits=32 program.image32
+        connected_broker_.upload_image --app_id=id --word_size=32 program.image32
         file.write_content program.image32 --path="$tmp_dir/image32.bin"
-        connected_broker_.upload_image --app_id=id --bits=64 program.image64
+        connected_broker_.upload_image --app_id=id --word_size=64 program.image64
         file.write_content program.image64 --path="$tmp_dir/image64.bin"
         store.move tmp_dir
 

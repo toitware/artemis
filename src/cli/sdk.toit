@@ -43,15 +43,15 @@ class Sdk:
     ]
 
   compile_snapshot_to_image -> none
-      --bits/int
+      --word_size/int
       --snapshot_path/string
       --out/string:
-    if bits != 32 and bits != 64: throw "Unsupported bits: $bits"
+    if word_size != 32 and word_size != 64: throw "Unsupported word size: $word_size"
     pipe.backticks [
       "$sdk_path/tools/snapshot_to_image",
       "-o", out,
       "--binary",
-      bits == 32 ? "-m32" : "-m64",
+      word_size == 32 ? "-m32" : "-m64",
       snapshot_path,
     ]
 

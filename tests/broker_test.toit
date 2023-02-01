@@ -156,8 +156,8 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       content_32 = ("test-image 32" * 10_000).to_byte_array
       content_64 = ("test-image 64" * 10_000).to_byte_array
 
-    broker_cli.upload_image --app_id=APP_ID --bits=32 content_32
-    broker_cli.upload_image --app_id=APP_ID --bits=64 content_64
+    broker_cli.upload_image --app_id=APP_ID --word_size=32 content_32
+    broker_cli.upload_image --app_id=APP_ID --word_size=64 content_64
 
     test_handler := TestEventHandler
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler: | resources/broker.ResourceManager |

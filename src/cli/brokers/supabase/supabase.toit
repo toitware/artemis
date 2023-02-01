@@ -66,8 +66,8 @@ class BrokerCliSupabase implements BrokerCli:
       "config" : new_config,
     }
 
-  upload_image --app_id/string --bits/int content/ByteArray -> none:
-    client_.storage.upload --path="assets/images/$app_id.$bits" --content=content
+  upload_image --app_id/string --word_size/int content/ByteArray -> none:
+    client_.storage.upload --path="assets/images/$app_id.$word_size" --content=content
 
   upload_firmware --firmware_id/string parts/List -> none:
     content := #[]

@@ -140,14 +140,14 @@ create_image_archive snapshot_path/string --sdk/Sdk --out/string:
   ar_writer.add "artemis" """{ "magic": "🐅", "version": 1 }"""
 
   with_tmp_directory: | tmp_dir/string |
-    [32, 64].do: | bits |
+    [32, 64].do: | word_size |
       // Note that 'ar' file names can only be 15 characters long.
-      image_name := "service-$(bits).img"
+      image_name := "service-$(word_size).img"
       image_path := "$tmp_dir/$image_name"
       sdk.compile_snapshot_to_image
           --snapshot_path=snapshot_path
           --out=image_path
-          --bits=bits
+          --word_size=word_size
 
       ar_writer.add image_name (file.read_content image_path)
 

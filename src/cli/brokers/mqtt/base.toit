@@ -188,8 +188,8 @@ class BrokerCliMqtt implements BrokerCli:
         log.info "$(%08d Time.monotonic_us): Releasing lock"
         client.publish topic_lock (ubjson.encode null) --retain
 
-  upload_image --app_id/string --bits/int content/ByteArray -> none:
-    upload_resource_ "toit/apps/$app_id/image$bits" content
+  upload_image --app_id/string --word_size/int content/ByteArray -> none:
+    upload_resource_ "toit/apps/$app_id/image$word_size" content
 
   upload_firmware --firmware_id/string parts/List -> none:
     upload_resource_in_parts_ "toit/firmware/$firmware_id" parts
