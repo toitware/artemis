@@ -14,7 +14,7 @@ class ResourceManagerHttp implements ResourceManager:
   fetch_image id/string [block] -> none:
     response := connection_.send_request "download_image" {
       "app_id": id,
-      "bits": BITS_PER_WORD,
+      "word_size": BITS_PER_WORD,
     }
     image := response
     block.call (bytes.Reader image)
