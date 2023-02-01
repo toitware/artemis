@@ -216,7 +216,7 @@ class Artemis:
         ui_.abort
 
     if not wifi_connection:
-      ui_.error "No wifi connection configured."
+      ui_.error "No WiFi connection configured."
       ui_.abort
 
     // Create the assets for the Artemis service.
