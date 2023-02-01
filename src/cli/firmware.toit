@@ -154,10 +154,10 @@ class FirmwareContent:
 
   trivial_patches -> List:
     result := []
-    parts.size.repeat: | index/int |
-      part := parts[index]
-      if part is FirmwarePartConfig: continue.repeat
-      result.add (FirmwarePatch --bits=part.bits --to=part.hash)
+    parts.do: | part/FirmwarePart |
+      if part is FirmwarePartConfig: continue.do
+      patch_part := part as FirmwarePartPatch
+      result.add (FirmwarePatch --bits=patch_part.bits --to=patch_part.hash)
     return result
 
 class PatchWriter implements PatchObserver:
