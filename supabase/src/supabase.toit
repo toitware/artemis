@@ -78,10 +78,6 @@ class Client:
     http_client_ = http.Client network
 
     local_storage_ = local_storage
-    if local_storage_.has_auth:
-      session_ = Session_.from_json local_storage_.get_auth
-      // TODO(florian): no need to refresh if the token is still valid.
-      auth.refresh_token
 
   constructor.tls network/net.Interface?=null
       --host/string
