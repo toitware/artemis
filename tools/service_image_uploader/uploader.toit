@@ -7,6 +7,7 @@ import cli
 // TODO(florian): these should come from the cli package.
 import artemis.cli.config as cli
 import artemis.cli.cache as cli
+import artemis.cli.cache show service_image_cache_key
 import artemis.cli.firmware show cache_snapshot
 import artemis.cli.sdk show *
 import artemis.cli.ui as ui
@@ -48,8 +49,11 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
           and checking out the specified commit. The full version string
           (as seen in the database) is then '<service-version>-<commit>'.
         3. If '--local' is specified, builds the service from the checked
-          out code. The full version string is then '<service-version>-<timestamp>',
+          out code. If the 'service_version' starts with 'v' then the full
+          version string is '<service-version>-<timestamp>',
           where the timestamp is the time when the build was started.
+          Otherwise the full version string is '<service-version>'. The
+          latter should generally only be used for testing.
 
         The built image is then uploaded to the Artemis server.
         """
@@ -96,8 +100,14 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       // where the timestamp is the time when the build was started.
       service_source_path = "$root/$SERVICE_PATH_IN_REPOSITORY"
 
-      timestamp := Time.now.stringify
-      full_service_version = "$service_version-$timestamp"
+      if service_version.starts_with "v":
+        timestamp := Time.now.stringify
+        full_service_version = "$service_version-$timestamp"
+      else:
+        // Since we are reusing an ID, we need to remove the cached version.
+        full_service_version = service_version
+        cache.remove (service_image_cache_key --sdk_version=sdk_version
+            --service_version=full_service_version)
     else:
       ui.info "Cloning repository and checking out $(commit or service_version)."
       clone_dir := "$tmp_dir/artemis"

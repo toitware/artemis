@@ -83,11 +83,29 @@ class UploadClientSupabase implements UploadClient:
         --path="service-images/$image_id"
         --content=image_content
 
-    client_.rest.insert "service_images" {
-      "sdk_id": sdk_id,
-      "service_id": service_id,
-      "image": image_id,
-    }
+    // In theory we should be able to use 'upsert' here, but
+    // there are unique constraints on the columns that we
+    // are updating, and that makes things a bit more difficult.
+    // Given a complete Supabase API (and probably better Postgres
+    // knowledge) it should be possible, but just checking for
+    // the entry is significantly easier.
+    rows := client_.rest.select "service_images" --filters=[
+      "sdk_id=eq.$sdk_id",
+      "service_id=eq.$service_id",
+    ]
+    if rows.is_empty:
+      client_.rest.insert "service_images" {
+        "sdk_id": sdk_id,
+        "service_id": service_id,
+        "image": image_id,
+      }
+    else:
+      client_.rest.update "service_images" --filters=[
+        "sdk_id=eq.$sdk_id",
+        "service_id=eq.$service_id",
+      ] {
+        "image": image_id,
+      }
 
     ui_.info "Successfully uploaded $service_version into service-images/$image_id."
 
