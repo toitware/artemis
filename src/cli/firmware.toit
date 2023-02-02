@@ -240,7 +240,6 @@ cached_snapshot_path uuid/string --output_directory/string? -> string:
     if not home: throw "No home directory."
     return "$home/.cache/jaguar/snapshots/$(uuid).snapshot"
 
-
 /**
 Stores the given $snapshot in the user's snapshot directory.
 
