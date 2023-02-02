@@ -124,6 +124,11 @@ class Artemis:
   */
   provision --device_id/string --out_path/string --organization_id/string:
     server := connected_artemis_server_ --authenticated
+    // Get the broker just after the server, in case it needs to authenticate.
+    // We prefer to get an error message before we created a device on the
+    // Artemis server.
+    // TODO(florian): the broker should be authenticated.
+    broker := connected_broker_
 
     device := server.create_device_in_organization
         --device_id=device_id
@@ -134,7 +139,6 @@ class Artemis:
     // Insert an initial event mostly for testing purposes.
     server.notify_created --hardware_id=hardware_id
 
-    broker := connected_broker_ --authenticated
     broker.notify_created --device_id=device_id
 
     write_identity_file
