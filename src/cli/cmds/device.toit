@@ -245,10 +245,10 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       config_path := "$tmp_dir/$(device_id).config"
       write_blob_to_file config_path config_bytes
 
+      sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+      sdk := get_sdk sdk_version --cache=cache
       if not simulate:
         // Flash.
-        sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-        sdk := get_sdk sdk_version --cache=cache
         sdk.flash
             --envelope_path=envelope_path
             --config_path=config_path
@@ -257,16 +257,23 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         if should_make_default: make_default_ device_id config ui
       else:
         ui.info "Simulating flash."
-        ui.info "Envelope: $envelope_path"
-        ui.info "Config: $config_path"
         ui.info "Using the local Artemis service and not the one specified in the specification."
-        firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache
-        identity := read_base64_ubjson identity_file
-        if should_make_default: make_default_ device_id config ui
-        run_host
-            --identity=identity
-            --encoded=base64.encode config_bytes
-            --bits=firmware_content.bits
+        old_default := config.get CONFIG_ARTEMIS_DEFAULT_KEY
+        try:
+          identity := read_base64_ubjson identity_file
+          if should_make_default: make_default_ device_id config ui
+          run_host
+              --envelope_path=envelope_path
+              --identity_path=identity_file
+              --cache=cache
+              --ui=ui
+        finally:
+          if should_make_default:
+            if old_default:
+              config[CONFIG_ARTEMIS_DEFAULT_KEY] = old_default
+              config.write
+            else:
+              config.remove CONFIG_ARTEMIS_DEFAULT_KEY
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if parsed["clear"]:
