@@ -1,10 +1,13 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import ar
 import bytes
 import crypto.sha256
 import encoding.base64
 import encoding.ubjson
 import host.file
+import host.os
+import uuid
 
 import .sdk
 import .cache show ENVELOPE_PATH
@@ -229,12 +232,57 @@ Builds the URL for the firmware envelope for the given $version on GitHub.
 envelope_url version/string -> string:
   return "github.com/toitlang/toit/releases/download/$version/firmware-esp32.gz"
 
+cached_snapshot_path uuid/string --output_directory/string? -> string:
+  if output_directory:
+    return "$output_directory/$(uuid).snapshot"
+  else:
+    home := os.env.get "HOME"
+    if not home: throw "No home directory."
+    return "$home/.cache/jaguar/snapshots/$(uuid).snapshot"
+
+/**
+Stores the given $snapshot in the user's snapshot directory.
+
+This way, the monitor can find it and automatically decode stack traces.
+
+Returns the UUID of the snapshot.
+*/
+cache_snapshot snapshot/ByteArray --output_directory/string?=null -> string:
+  ar_reader := ar.ArReader.from_bytes snapshot
+  ar_file := ar_reader.find "uuid"
+  if not ar_file: throw "No uuid file in snapshot."
+  uuid := (uuid.Uuid (ar_file.content)).stringify
+  out_path := cached_snapshot_path uuid --output_directory=output_directory
+  write_blob_to_file out_path snapshot
+  return uuid
+
+/**
+Stores the snapshots inside the envelope in the user's snapshot directory.
+*/
+cache_snapshots --envelope/string --output_directory/string?=null --cache/cli.Cache:
+  sdk := Sdk --envelope=envelope --cache=cache
+  containers := sdk.firmware_list_containers --envelope_path=envelope
+  containers.do: | name/string description/Map |
+    if description["kind"] == "snapshot":
+      id := description["id"]
+      sdk.firmware_extract_container
+          --envelope_path=envelope
+          --name=name
+          --output_path=(cached_snapshot_path id --output_directory=output_directory)
+
+// A forwarding function to work around the shadowing in 'get_envelope'.
+cache_snapshots_ --envelope/string --cache/cli.Cache:
+  cache_snapshots --envelope=envelope --cache=cache
+
 /**
 Returns a path to the firmware envelope for the given $version.
+
+If $cache_snapshots is true, then copies the contained snapshots
+  into the cache.
 */
 // TODO(florian): we probably want to create a class for the firmware
 // envelope.
-get_envelope version/string --cache/cli.Cache -> string:
+get_envelope version/string --cache/cli.Cache --cache_snapshots/bool=true -> string:
   url := envelope_url version
   path := "firmware-esp32.envelope"
   envelope_key := "$ENVELOPE_PATH/$version/$path"
@@ -243,4 +291,7 @@ get_envelope version/string --cache/cli.Cache -> string:
       out_path := "$tmp_dir/$(path).gz"
       download_url url --out_path=out_path
       gunzip out_path
-      store.move "$tmp_dir/$path"
+      envelope_path := "$tmp_dir/$path"
+      if cache_snapshots:
+        cache_snapshots_ --envelope=envelope_path --cache=cache
+      store.move envelope_path

@@ -7,15 +7,15 @@ import cli
 // TODO(florian): these should come from the cli package.
 import artemis.cli.config as cli
 import artemis.cli.cache as cli
-import artemis.cli.ui as ui
+import artemis.cli.firmware show cache_snapshot
 import artemis.cli.sdk show *
+import artemis.cli.ui as ui
 import host.file
 import uuid
 import supabase
 
 import .client
 import .git
-import .snapshot
 import .utils
 
 main args:

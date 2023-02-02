@@ -32,6 +32,10 @@ class Sdk:
 
   constructor .sdk_path .version:
 
+  constructor --envelope/string --cache/cli.Cache:
+    sdk_version := get_sdk_version_from --envelope=envelope
+    return get_sdk sdk_version --cache=cache
+
   is_source_build -> bool:
     return sdk_path.ends_with "build/host"
 
@@ -173,6 +177,36 @@ class Sdk:
       run_firmware_tool args
       return ubjson.decode (file.read_content firmware_ubjson_path)
     unreachable
+
+  /**
+  Lists the containers inside the given $envelope_path.
+  Returns a map from container name to container description.
+  Each container description has the following fields:
+  - "kind": "snapshot" | "image"
+  - "id": the ID of the application.
+  */
+  firmware_list_containers --envelope_path/string -> Map:
+    return json.parse (pipe.backticks [
+      "$sdk_path/tools/firmware",
+      "container", "list",
+      "-e", envelope_path,
+    ])
+
+  /**
+  Extracts the container with the given $name from the $envelope_path and
+    stores it in $output_path.
+
+  If $assets is true, extracts the assets and not the application.
+  */
+  firmware_extract_container --envelope_path/string --name/string --assets/bool=false --output_path/string:
+    args := [
+      "container", "extract",
+      "-e", envelope_path,
+      "--output", output_path,
+      "--part", assets ? "assets" : "image",
+      name,
+    ]
+    run_firmware_tool args
 
   /**
   Flashes the given envelope to the device at $port with the given $baud_rate.
