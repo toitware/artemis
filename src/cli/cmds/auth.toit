@@ -22,6 +22,7 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
   auth_cmd.add broker_cmd
 
   broker_log_in_cmd := cli.Command "login"
+      --aliases=["signin"]
       --short_help="Log in to the broker."
       --options=[
         cli.OptionString "broker" --short_help="The broker to log in to.",
