@@ -39,10 +39,9 @@ class BrokerServiceSupabase implements BrokerService:
           new_config/Map? := null
           if info and info.size == 1 and info[0] is Map and info[0].contains "config":
             new_config = info[0]["config"]
-          else:
-            new_config = {:}
-          idle_.lock
-          callback.handle_update_config new_config resources
+          if new_config:
+            idle_.lock
+            callback.handle_update_config new_config resources
           sleep broker_.poll_interval
       finally:
         critical_do:
