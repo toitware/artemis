@@ -91,6 +91,11 @@ interface BrokerCli implements Authenticatable:
   */
   download_firmware --id/string -> ByteArray
 
+  /**
+  Informs the broker that a device with the given $device_id has been provisioned.
+  */
+  notify_created --device_id/string -> none
+
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config
   try:

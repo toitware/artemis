@@ -213,6 +213,9 @@ class BrokerCliMqtt implements BrokerCli:
     }
     upload_resource_ path manifest
 
+  notify_created --device_id/string -> none:
+    // Do nothing.
+
   print_status --device_id/string --ui/Ui -> none:
     topic_presence := topic_presence_for_ device_id
     topic_config := topic_config_for_ device_id

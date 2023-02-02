@@ -90,3 +90,6 @@ class BrokerCliHttp implements BrokerCli:
   download_firmware --id/string -> ByteArray:
     response := send_request_ "download_firmware" {"firmware_id": id}
     return response
+
+  notify_created --device_id/string -> none:
+    // Do nothing.
