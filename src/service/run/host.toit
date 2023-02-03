@@ -9,7 +9,7 @@ import crypto.sha256
 import system.assets
 import system.services
 
-import system.base.firmware show FirmwareWriter FirmwareServiceDefinitionBase
+import system.base.firmware show FirmwareWriter FirmwareServiceProviderBase
 
 import encoding.json
 import encoding.ubjson
@@ -73,7 +73,7 @@ run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui
     content := fw.FirmwareContent.from_envelope envelope_path --cache=cache
     config["firmware"] = encoded_config
 
-    service := FirmwareServiceDefinition content.bits
+    service := FirmwareServiceProvider content.bits
     service.install
 
     identity["artemis.broker"] = tison.encode identity["artemis.broker"]
@@ -86,7 +86,7 @@ run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui
 
 // --------------------------------------------------------------------------
 
-class FirmwareServiceDefinition extends FirmwareServiceDefinitionBase:
+class FirmwareServiceProvider extends FirmwareServiceProviderBase:
   content_/ByteArray?
 
   constructor .content_:
@@ -128,10 +128,10 @@ class FirmwareWriter_ extends services.ServiceResource implements FirmwareWriter
   view_/ByteArray? := null
   cursor_/int := 0
 
-  constructor service/FirmwareServiceDefinition client/int from/int to/int:
+  constructor provider/FirmwareServiceProvider client/int from/int to/int:
     if to > image.size: image = image + (ByteArray to - image.size: random 0x100)
     view_ = image[from..to]
-    super service client
+    super provider client
 
   write bytes/ByteArray from=0 to=bytes.size -> none:
     view_.replace cursor_ bytes[from..to]

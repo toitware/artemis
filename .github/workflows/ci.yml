@@ -30,7 +30,7 @@ jobs:
             BIN_EXTENSION=".exe"
           fi
 
-          JAGUAR_VERSION=v1.8.7
+          JAGUAR_VERSION=v1.9.0
           export "JAGUAR_VERSION=${JAGUAR_VERSION}"
 
           TOIT_SDK_DIR=$HOME/.cache/jaguar/sdk
