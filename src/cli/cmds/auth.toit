@@ -64,6 +64,7 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
   artemis_cmd.add sign_up_cmd
 
   log_in_cmd := cli.Command "login"
+      --aliases=["signin"]
       --short_help="Log in to the Artemis server."
       --options=[
         cli.OptionString "server" --hidden --short_help="The server to log in to.",
