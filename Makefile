@@ -84,7 +84,7 @@ start-http:
 	@echo $(TOIT_RUN_BIN) tools/http_servers/broker.toit -p 4998 &
 
 .PHONY: add-local-supabase-brokers add-local-supabase-artemis add-local-supabase-broker
-add-local-supabase-brokers: add-local-supabase-artemis add-local-supabase-broker start_supabase
+add-local-supabase-brokers: add-local-supabase-artemis add-local-supabase-broker start-supabase
 
 add-local-supabase-artemis:
 	# Adds the local Artemis server and makes it the default.
@@ -103,6 +103,11 @@ add-local-supabase-broker:
 start-supabase:
 	@echo "Start the docker containers by running 'supabase start' in"
 	@echo "./supabase_artemis and ./tests/supabase_customer"
+	@echo "Use the following command to log in as non-admin user"
+	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test@example.com --password password"
+	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit auth broker login --email test@example.com --password password"
+	@echo "Use the following command to log in as admin Artemis user"
+	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test-admin@toit.io --password password"
 
 # We rebuild the cmake file all the time.
 # We use "glob" in the cmakefile, and wouldn't otherwise notice if a new
