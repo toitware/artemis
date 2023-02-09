@@ -345,8 +345,9 @@ SPECIFICATION_FORMAT_HELP ::= """
       'major.minor.patch', e.g. '1.2.3'.
   'artemis': The Artemis service version to use. This is a string of the
       form 'major.minor.patch', e.g. '1.2.3'.
-  'max_offline_seconds': The maximum number of seconds the device can be
-      offline before it attempts to connect to the broker to sync.
+  'max_offline': The duration the device can be offline before it
+      attempts to connect to the broker to sync. Expressed as
+      string of the form '1h2m3s' or '1h 2m 3s'.
   'connections': a list of connections, each of which must be a
       connection object. See below for the format of a connection object.
   'apps': a list of applications, each of which must be an application
