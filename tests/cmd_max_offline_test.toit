@@ -26,8 +26,10 @@ main args:
     ]
 
     test_cli.run [
-      "set-max-offline",
-      "--device=$device.id", "3"
+      "device",
+      "transient",
+      "--device-id", device.id,
+      "set-max-offline", "3"
     ]
 
     with_timeout --ms=10_000:

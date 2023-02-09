@@ -5,6 +5,7 @@ import encoding.base64
 import uuid
 
 import .broker_options_
+import .device_transient
 import ..artemis
 import ..cache
 import ..config
@@ -176,6 +177,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: ui.info SPECIFICATION_FORMAT_HELP
   cmd.add specification_format_cmd
 
+  cmd.add (create_transient_command config cache ui)
   return [cmd]
 
 with_artemis parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
