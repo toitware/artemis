@@ -280,21 +280,13 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.info "Simulating flash."
         ui.info "Using the local Artemis service and not the one specified in the specification."
         old_default := config.get CONFIG_ARTEMIS_DEFAULT_KEY
-        try:
-          identity := read_base64_ubjson identity_file
-          if should_make_default: make_default_ device_id config ui
-          run_host
-              --envelope_path=envelope_path
-              --identity_path=identity_file
-              --cache=cache
-              --ui=ui
-        finally:
-          if should_make_default:
-            if old_default:
-              config[CONFIG_ARTEMIS_DEFAULT_KEY] = old_default
-              config.write
-            else:
-              config.remove CONFIG_ARTEMIS_DEFAULT_KEY
+        identity := read_base64_ubjson identity_file
+        if should_make_default: make_default_ device_id config ui
+        run_host
+            --envelope_path=envelope_path
+            --identity_path=identity_file
+            --cache=cache
+            --ui=ui
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
