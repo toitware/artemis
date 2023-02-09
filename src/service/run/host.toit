@@ -49,13 +49,14 @@ main arguments:
 
 run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui -> none:
   identity := read_base64_ubjson identity_path
+  device_identity := identity["artemis.device"]
 
-  config_bytes := Artemis.compute_device_specific_data
+  firmware := Artemis.compute_device_specific_firmware
       --envelope_path=envelope_path
-      --identity_path=identity_path
+      --device=device_identity
       --cache=cache
       --ui=ui
-  encoded_config := base64.encode config_bytes
+  encoded_firmware_description := firmware.encoded
 
   sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
   sdk := get_sdk sdk_version --cache=cache
@@ -71,16 +72,15 @@ run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui
     config := json.decode config_asset
 
     content := fw.FirmwareContent.from_envelope envelope_path --cache=cache
-    config["firmware"] = encoded_config
+    config["firmware"] = encoded_firmware_description
 
     service := FirmwareServiceProvider content.bits
     service.install
 
     identity["artemis.broker"] = tison.encode identity["artemis.broker"]
     identity["broker"] = tison.encode identity["broker"]
-    device_entry := identity["artemis.device"]
-    check_in_setup identity device_entry
-    device := Device --id=device_entry["device_id"] --firmware_state=config
+    check_in_setup identity device_identity
+    device := Device --id=device_identity["device_id"] --firmware_state=config
     server_config := decode_server_config "broker" identity
     run_artemis device server_config
 

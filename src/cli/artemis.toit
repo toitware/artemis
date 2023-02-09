@@ -310,6 +310,58 @@ class Artemis:
     cache_snapshots --envelope=output_path --cache=cache_
 
   /**
+  Updates the device $device_id with the firmware image at $envelope_path.
+  */
+  update --device_id/string --envelope_path/string:
+    connected_broker_.device_update_config --device_id=device_id: | config/Map |
+      existing := config.get "firmware"
+      if not existing:
+        // TODO(florian): try to get the current firmware from the status.
+        ui_.error "No old firmware configuration found for device $device_id."
+        ui_.abort
+
+      upgrade_from := Firmware.encoded existing
+      device := upgrade_from.device_specific "artemis.device"
+      if device["device_id"] != device_id:
+        ui_.error "The device id of the firmware image ($device.device_id) does not match the given device id ($device_id)."
+        ui_.abort
+      compute_updated_config
+          --device=device
+          --upgrade_from=upgrade_from
+          --envelope_path=envelope_path
+
+  compute_updated_config --device/Map --upgrade_from/Firmware? --envelope_path/string -> Map:
+    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+    sdk := get_sdk sdk_version --cache=cache_
+
+    with_tmp_directory: | tmp_dir/string |
+      assets_path := "$tmp_dir/assets"
+      sdk.firmware_extract_container
+          --name="artemis"  // TODO(florian): use constants for hard-coded names.
+          --assets
+          --envelope_path=envelope_path
+          --output_path=assets_path
+
+      config_asset := sdk.assets_extract
+          --name="device-config"
+          --assets_path=assets_path
+
+      new_config := json.decode config_asset
+
+      upgrade_to := compute_device_specific_firmware
+          --envelope_path=envelope_path
+          --device=device
+
+      // Compute the patches and upload them.
+      ui_.info "Computing and uploading patches."
+      patches := upgrade_to.patches upgrade_from
+      patches.do: upload_ it
+
+      new_config["firmware"] = upgrade_to.encoded
+      return new_config
+    unreachable
+
+  /**
   Computes the device-specific data of the given envelope.
 
   Combines the envelope ($envelope_path) and identity ($identity_path) into a
@@ -328,9 +380,9 @@ class Artemis:
         --ui=ui_
 
   /**
-  Static variant of $(compute_device_specific_data --envelope_path --identity_path).
+  Variant of $(compute_device_specific_data --envelope_path --identity_path).
   */
-  static compute_device_specific_data
+  static compute_device_specific_data -> ByteArray
       --envelope_path/string
       --identity_path/string
       --cache/cache.Cache
@@ -339,19 +391,12 @@ class Artemis:
     sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
     sdk := get_sdk sdk_version --cache=cache
 
-    // Extract the WiFi credentials from the envelope.
-    encoded_wifi_config := sdk.firmware_get_property "wifi-config" --envelope=envelope_path
-    wifi_config := json.parse encoded_wifi_config
-    wifi_ssid := wifi_config["ssid"]
-    wifi_password := wifi_config["password"]
-
     // Extract the device ID from the identity file.
     // TODO(florian): abstract the identity management.
     identity_raw := file.read_content identity_path
 
     identity := ubjson.decode (base64.decode identity_raw)
-    device := identity["artemis.device"]
-    device_id := device["device_id"]
+
 
     // Since we already have the identity content, check that the artemis server
     // is the same.
@@ -374,10 +419,53 @@ class Artemis:
       if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
         ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
 
+    device := identity["artemis.device"]
+
+    // We don't really need the full firmware and just the device-specific data,
+    // but by cooking the firmware we get the checksums correct.
+    firmware := compute_device_specific_firmware
+        --envelope_path=envelope_path
+        --device=device
+        --cache=cache
+        --ui=ui
+
+    return firmware.device_specific_data
+
+  /**
+  Creates a device-specific firmware image from the given envelope.
+  */
+  compute_device_specific_firmware -> Firmware
+      --envelope_path/string
+      --device/Map:
+    return compute_device_specific_firmware
+        --envelope_path=envelope_path
+        --device=device
+        --cache=cache_
+        --ui=ui_
+
+  /**
+  Variant of $(compute_device_specific_firmware --envelope_path --device).
+  */
+  static compute_device_specific_firmware -> Firmware
+      --envelope_path/string
+      --device/Map
+      --cache/cache.Cache
+      --ui/Ui:
+
+    // Use the SDK from the envelope.
+    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+    sdk := get_sdk sdk_version --cache=cache
+
+    // Extract the WiFi credentials from the envelope.
+    encoded_wifi_config := sdk.firmware_get_property "wifi-config" --envelope=envelope_path
+    wifi_config := json.parse encoded_wifi_config
+    wifi_ssid := wifi_config["ssid"]
+    wifi_password := wifi_config["password"]
+
+    device_id := device["device_id"]
+
     // Cook the firmware.
-    // We don't actually need the full firmware for flashing, but we need to build it to
-    // compute the checksums.
-    firmware := Firmware
+    return Firmware
         --envelope_path=envelope_path
         --device=device
         --cache=cache
@@ -386,8 +474,6 @@ class Artemis:
           "wifi.ssid": wifi_ssid,
           "wifi.password": wifi_password,
         }
-
-    return firmware.device_specific_data
 
   /**
   Gets the Artemis service image for the given $sdk and $service versions.
