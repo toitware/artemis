@@ -62,7 +62,7 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     test_handler := TestEventHandler
     if test_iteration == 2:
       // Send a config update while the service is not connected.
-      broker_cli.device_update_config --device_id=DEVICE_ID: | old |
+      broker_cli.device_update_goal --device_id=DEVICE_ID: | old |
         if test_iteration == 1:
           expect_equals "succeeded 2" old["test-entry"]
         old["test-entry"] = "succeeded while offline"
@@ -84,11 +84,13 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         // connects, thus not sending the initial empty config.
         event = test_handler.channel.receive
 
-      broker_cli.device_update_config --device_id=DEVICE_ID: | old |
+      broker_cli.device_update_goal --device_id=DEVICE_ID: | old |
         if test_iteration == 1:
           expect_equals "succeeded 2" old["test-entry"]
         else if test_iteration == 2:
           expect_equals "succeeded while offline" old["test-entry"]
+        if test_iteration == 0 and not old:
+          old = {:}
         old["test-entry"] = "succeeded 1"
         old
 
@@ -128,7 +130,7 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       event_config := event.value
       expect_equals "succeeded 1" event_config["test-entry"]
 
-      broker_cli.device_update_config --device_id=DEVICE_ID: | old |
+      broker_cli.device_update_goal --device_id=DEVICE_ID: | old |
         expect_equals "succeeded 1" old["test-entry"]
         old["test-entry"] = "succeeded 2"
         old
