@@ -40,8 +40,7 @@ class Sdk:
     return sdk_path.ends_with "build/host"
 
   compile_to_snapshot path/string --out/string -> none:
-    pipe.backticks [
-      "$sdk_path/bin/toit.compile",
+    run_toit_compile [
       "-w", "$out",
       path,
     ]
@@ -51,8 +50,7 @@ class Sdk:
       --snapshot_path/string
       --out/string:
     if word_size != 32 and word_size != 64: throw "Unsupported word size: $word_size"
-    pipe.backticks [
-      "$sdk_path/tools/snapshot_to_image",
+    run_snapshot_to_image_tool [
       "-o", out,
       "--binary",
       word_size == 32 ? "-m32" : "-m64",
@@ -60,8 +58,7 @@ class Sdk:
     ]
 
   download_packages dir/string -> none:
-    pipe.backticks [
-      "$sdk_path/bin/toit.pkg",
+    run_toit_pkg [
       "install",
       "--project-root=$dir",
     ]
@@ -237,6 +234,10 @@ class Sdk:
   run_toit_compile arguments/List -> none:
     exit_status := pipe.run_program [bin_executable "toit.compile"] + arguments
     if exit_status != 0: throw "toit.compile failed with exit code $(pipe.exit_code exit_status)"
+
+  run_toit_pkg arguments/List -> none:
+    exit_status := pipe.run_program [bin_executable "toit.pkg"] + arguments
+    if exit_status != 0: throw "toit.pkg failed with exit code $(pipe.exit_code exit_status)"
 
   run_snapshot_to_image_tool arguments/List -> none:
     exit_status := pipe.run_program [tools_executable "snapshot_to_image"] + arguments
