@@ -9,6 +9,7 @@ import artemis.cli.config as cli
 import artemis.cli.cache as cli
 import artemis.cli.cache show service_image_cache_key
 import artemis.cli.firmware show cache_snapshot
+import artemis.cli.git show Git
 import artemis.cli.sdk show *
 import artemis.cli.ui as ui
 import host.file
@@ -16,7 +17,6 @@ import uuid
 import supabase
 
 import .client
-import .git
 import .utils
 
 main args:

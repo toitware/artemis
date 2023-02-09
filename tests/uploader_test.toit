@@ -7,7 +7,7 @@ import host.file
 import .utils
 import ..tools.service_image_uploader.uploader as uploader
 import ..tools.service_image_uploader.downloader as downloader
-import ..tools.service_image_uploader.git
+import artemis.cli.git show Git
 
 main:
   // Start a TestCli, since that will set up everything the way we want.

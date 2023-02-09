@@ -363,7 +363,15 @@ SPECIFICATION_FORMAT_HELP ::= """
   'password': The password of the network to connect to.
 
 
-  An application object consists of the following entries:
-  'name': The name of the application.
-  'path': The path to the application's entry point or to its snapshot.
+  Applications entries are compiled to containers that are installed in
+  the firmware.
+  They always have a 'name' entry which is the name of the container.
+
+  Snapshot applications have a 'snapshot' entry which must be a path to the
+  snapshot file.
+
+  Source applications have an 'entrypoint' entry which must be a path to the
+  entrypoint file.
+  Source applications may also have a 'git' and 'branch' entry (which can be a
+  branch or tag) to checkout a git repository first.
   """

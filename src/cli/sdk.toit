@@ -223,6 +223,15 @@ class Sdk:
     if baud_rate: args += [ "--baud", baud_rate ]
     run_firmware_tool args
 
+  /**
+  Installs the dependencies of the project at $project_root.
+  */
+  pkg_install --project_root/string:
+    run_toit_pkg [
+      "install",
+      "--project-root", project_root,
+    ]
+
   run_assets_tool arguments/List -> none:
     exit_status := pipe.run_program [tools_executable "assets"] + arguments
     if exit_status != 0: throw "assets tool failed with exit code $(pipe.exit_code exit_status)"

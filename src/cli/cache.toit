@@ -18,6 +18,7 @@ To simplify testing, the environment variable '<app-name>_CACHE_DIR' can be used
 
 SDK_PATH ::= "sdks"
 ENVELOPE_PATH ::= "envelopes"
+GIT_APP_PATH ::= "git_app"
 service_image_cache_key --service_version/string --sdk_version/string -> string:
   return "service/$service_version/$(sdk_version).image"
 
