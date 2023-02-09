@@ -241,6 +241,18 @@ class Artemis:
     artemis_json := server_config_to_service_json artemis_config_ der_certificates
 
     with_tmp_directory: | tmp_dir |
+      // Store the containers in the envelope.
+      device_specification.containers.do: | name/string container/Container |
+        snapshot_path := "$tmp_dir/$(name).snapshot"
+        build_snapshot_ container --sdk=sdk --output_path=snapshot_path
+        // TODO(florian): add support for assets.
+        sdk.firmware_add_container name
+            --envelope=output_path
+            --program_path=snapshot_path
+        apps := device_config.get "apps" --init=:{:}
+        apps[name] = extract_id_from_snapshot snapshot_path
+        ui_.info "Added container '$name' to envelope."
+
       artemis_assets := {
         // TODO(florian): share the keys of the assets with the Artemis service.
         "broker": {
@@ -278,18 +290,6 @@ class Artemis:
       sdk.firmware_add_container "artemis" --envelope=output_path
           --assets=artemis_assets_path
           --program_path=artemis_service_image_path
-
-      // Store the containers in the envelope.
-      device_specification.containers.do: | name/string container/Container |
-        snapshot_path := "$tmp_dir/$(name).snapshot"
-        build_snapshot_ container --sdk=sdk --output_path=snapshot_path
-        // TODO(florian): add support for assets.
-        sdk.firmware_add_container name
-            --envelope=output_path
-            --program_path=snapshot_path
-        apps := device_config.get "apps" --init=:{:}
-        apps[name] = extract_id_from_snapshot snapshot_path
-        ui_.info "Added container '$name' to envelope."
 
     sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
         --envelope=output_path
