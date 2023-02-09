@@ -56,6 +56,8 @@ class TestEventHandler implements broker.EventHandler:
     channel.send (TestEvent "nop")
 
 test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+  broker_cli.notify_created --device_id=DEVICE_ID --state={:}
+
   3.repeat: | test_iteration |
     test_handler := TestEventHandler
     if test_iteration == 2:

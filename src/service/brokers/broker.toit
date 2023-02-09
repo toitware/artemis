@@ -37,7 +37,7 @@ interface ResourceManager:
 
   // TODO(kasper): Poor interface. We shouldn't need to pass
   // the device id here?
-  report_status device_id/string status/Map -> none
+  report_state device_id/string state/Map -> none
 
 /**
 The event handler, called when the broker has new information.

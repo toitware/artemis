@@ -35,13 +35,12 @@ class BrokerServiceSupabase implements BrokerService:
       try:
         while true:
           with_timeout IDLE_TIMEOUT: idle_.enter
-          info := client.rest.select "devices" --filters=[ "id=eq.$(device_id)" ]
-          new_config/Map? := null
-          if info and info.size == 1 and info[0] is Map and info[0].contains "config":
-            new_config = info[0]["config"]
-          if new_config:
+          new_goal := client.rest.rpc "get_goal" {
+            "_device_id": device_id,
+          }
+          if new_goal:
             idle_.lock
-            callback.handle_update_config new_config resources
+            callback.handle_update_config new_goal resources
           sleep broker_.poll_interval
       finally:
         critical_do:

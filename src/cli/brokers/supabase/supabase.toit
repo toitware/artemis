@@ -51,18 +51,18 @@ class BrokerCliSupabase implements BrokerCli:
         --open_browser=open_browser
 
   device_update_config --device_id/string [block]:
-    info := client_.rest.select "devices" --filters=[
-      "id=eq.$(device_id)",
+    info := client_.rest.select "goals" --filters=[
+      "device_id=eq.$(device_id)",
     ]
-    old_config/Map? := null
+    old_goal/Map? := null
     if info.size == 1 and info[0] is Map:
-      old_config = info[0].get "config"
+      old_goal = info[0].get "goal"
 
-    new_config := block.call (old_config or {:})
+    new_goal := block.call (old_goal or {:})
 
-    client_.rest.upsert "devices" {
-      "id"     : device_id,
-      "config" : new_config,
+    client_.rest.upsert "goals" {
+      "device_id"     : device_id,
+      "goal" : new_goal,
     }
 
   upload_image --app_id/string --word_size/int content/ByteArray -> none:
@@ -80,10 +80,10 @@ class BrokerCliSupabase implements BrokerCli:
         content += data
     return content
 
-  notify_created --device_id/string -> none:
-    print "Inserting new device: $device_id"
-    client_.rest.insert "devices" {
-      "id" : device_id,
+  notify_created --device_id/string --state/Map -> none:
+    client_.rest.rpc "new_provisioned" {
+      "_device_id" : device_id,
+      "_state" : state,
     }
 
   print_status -> none:

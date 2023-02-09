@@ -95,8 +95,10 @@ interface BrokerCli implements Authenticatable:
 
   /**
   Informs the broker that a device with the given $device_id has been provisioned.
+  The $state map is the initial state of the device. Until it connects to the
+    broker there is (probably) only identity information in it.
   */
-  notify_created --device_id/string -> none
+  notify_created --device_id/string --state/Map -> none
 
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config

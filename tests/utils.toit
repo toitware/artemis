@@ -16,10 +16,11 @@ import artemis.cli.ui show ConsoleUi
 import ..tools.http_servers.broker as http_servers
 import ..tools.http_servers.artemis_server as http_servers
 import monitor
+import .artemis_server
 import .brokers
+import .broker
 import .supabase_local_server
 import .mqtt_broker_mosquitto
-import .artemis_server
 
 export Device
 
@@ -143,31 +144,17 @@ with_test_cli
     --logger/log.Logger
     --start_device_artemis/bool=true
     [block]:
-  if broker_type == "supabase":
-    server_config := get_supabase_config --sub_directory=SUPABASE_CUSTOMER
+  with_broker --type=broker_type --logger=logger: | broker/TestBroker |
     with_test_cli
         --artemis_server=artemis_server
-        --broker_config=server_config
+        --broker=broker
         --logger=logger
         --start_device_artemis=start_device_artemis
         block
-  else if broker_type == "http":
-    with_http_broker: | server_config |
-      with_test_cli
-          --artemis_server=artemis_server
-          --broker_config=server_config
-          --logger=logger
-          --start_device_artemis=start_device_artemis
-          block
-  else if broker_type == "mosquitto":
-    with_mosquitto --logger=logger: | host/string port/int |
-      server_config := server_config.ServerConfigMqtt "mosquitto" --host=host --port=port
-  else:
-    throw "Unknown broker_type $broker_type"
 
 with_test_cli
     --artemis_server/TestArtemisServer
-    --broker_config/server_config.ServerConfig
+    --broker/TestBroker
     --logger/log.Logger
     --start_device_artemis/bool=true
     [block]:
@@ -180,15 +167,18 @@ with_test_cli
     cache := cli.Cache --app_name="artemis-test" --path=cache_dir
 
     artemis_config := artemis_server.server_config
+    broker_config := broker.server_config
     cli_server_config.add_server_to_config config artemis_config
     cli_server_config.add_server_to_config config broker_config
 
     artemis_task/Task? := null
     device/Device? := null
 
+    device_id := artemis_server.backdoor.create_device
+        --organization_id=TEST_ORGANIZATION_UUID
+    broker.backdoor.create_device --device_id=device_id
+
     if start_device_artemis:
-      device_id := artemis_server.backdoor.create_device
-          --organization_id=TEST_ORGANIZATION_UUID
       device = Device --id=device_id --firmware_state={
         "firmware": "foo"
       }

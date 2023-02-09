@@ -247,17 +247,17 @@ class SynchronizeJob extends Job implements EventHandler:
 
   This includes the firmware state, the current state and the goal state.
   */
-  report_status resources:
+  report_status resources/ResourceManager -> none:
     // TODO(florian): we should not send modifications all the time.
     // 1. if nothing changed, no need to send anything.
     // 2. if we got a new goal-state, we can delay reporting the status
     //    for a bit, to give the goal-state time to become the current
     //    state.
-    report := {
+    state := {
       "firmware-state": device_.firmware_state,
     }
     if device_.current_state:
-      report["current-state"] = device_.current_state
+      state["current-state"] = device_.current_state
     if device_.goal_state:
-      report["goal-state"] = device_.goal_state
-    resources.report_status device_.id report
+      state["goal-state"] = device_.goal_state
+    resources.report_state device_.id state

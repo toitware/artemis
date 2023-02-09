@@ -45,8 +45,8 @@ class ResourceManagerHttp implements ResourceManager:
       // The chunk up finished.
       break
 
-  report_status device_id/string status/Map -> none:
-    connection_.send_request "report_status" {
+  report_state device_id/string state/Map -> none:
+    connection_.send_request "report_state" {
       "device_id": device_id,
-      "status": status,
+      "state": state,
     }

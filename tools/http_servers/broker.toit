@@ -24,10 +24,10 @@ main args:
   root_cmd.run args
 
 class HttpBroker extends HttpServer:
-  configs := {:}
   images := {:}
   firmwares := {:}
-  device_status := {:}
+  device_states := {:}
+  device_goals := {:}
 
   // Map from device-id to latch.
   waiting_for_events/Map := {:}
@@ -46,27 +46,36 @@ class HttpBroker extends HttpServer:
     super port
 
   run_command command/string data _ -> any:
+    if command == "notify_created": return notify_created data
     if command == "get_config": return get_config data
-    else if command == "update_config": return update_config data
-    else if command == "upload_image": return upload_image data
-    else if command == "download_image": return download_image data
-    else if command == "upload_firmware": return upload_firmware data
-    else if command == "download_firmware": return download_firmware data
-    else if command == "report_status": return report_status data
-    else if command == "get_event": return get_event data
-    else:
-      print "Unknown command: $command"
-      throw "BAD COMMAND $command"
+    if command == "update_config": return update_config data
+    if command == "upload_image": return upload_image data
+    if command == "download_image": return download_image data
+    if command == "upload_firmware": return upload_firmware data
+    if command == "download_firmware": return download_firmware data
+    if command == "report_state": return report_state data
+    if command == "get_event": return get_event data
+    print "Unknown command: $command"
+    throw "BAD COMMAND $command"
+
+  notify_created data/Map:
+    device_id := data["device_id"]
+    state := data["state"]
+    device_states[device_id] = state
+
+  /** Backdoor for creating a new device. */
+  create_device --device_id/string --state/Map:
+    device_states[device_id] = state
 
   get_config data/Map -> Map?:
     device_id := data["device_id"]
-    config := configs.get device_id
+    config := device_goals.get device_id
     return config
 
   update_config data/Map:
     device_id := data["device_id"]
-    configs[device_id] = data["config"]
-    print "Updating config for $device_id to $configs[device_id] and notifying."
+    device_goals[device_id] = data["config"]
+    print "Updating config for $device_id to $device_goals[device_id] and notifying."
     notify_device device_id "config_updated"
 
   upload_image data/Map:
@@ -89,10 +98,10 @@ class HttpBroker extends HttpServer:
     firmware := firmwares[firmware_id]
     return firmware[offset..]
 
-  report_status data/Map:
+  report_state data/Map:
     device_id := data["device_id"]
-    device_status[device_id] = data["status"]
-    notify_device device_id "status_updated"
+    device_states[device_id] = data["state"]
+    notify_device device_id "state_updated"
 
   get_event data/Map:
     device_id := data["device_id"]
@@ -115,9 +124,9 @@ class HttpBroker extends HttpServer:
       "state_revision": state_revision[device_id],
     }
     if event_type == "config_updated":
-      message["config"] = configs[device_id]
-    else if event_type == "status_updated":
-      message["status"] = device_status[device_id]
+      message["config"] = device_goals[device_id]
+    else if event_type == "state_updated":
+      message["state"] = device_states[device_id]
     else:
       throw "Unknown event type: $event_type"
     return message
@@ -128,3 +137,9 @@ class HttpBroker extends HttpServer:
     if latch:
       waiting_for_events.remove device_id
       latch.set event_type
+
+  remove_device device_id/string:
+    device_states.remove device_id
+    device_goals.remove device_id
+    state_revision.remove device_id
+    waiting_for_events.remove device_id

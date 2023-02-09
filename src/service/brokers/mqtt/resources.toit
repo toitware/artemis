@@ -72,7 +72,7 @@ class ResourceManagerMqtt implements ResourceManager:
       monitors_.remove path
       monitor.done
 
-  report_status device_id/string status/Map -> none:
+  report_state device_id/string state/Map -> none:
     // TODO(kasper): Ignored for now.
 
 monitor ResourceMonitor_:

@@ -91,5 +91,8 @@ class BrokerCliHttp implements BrokerCli:
     response := send_request_ "download_firmware" {"firmware_id": id}
     return response
 
-  notify_created --device_id/string -> none:
-    // Do nothing.
+  notify_created --device_id/string --state/Map -> none:
+    send_request_ "notify_created" {
+      "device_id": device_id,
+      "state": state,
+    }
