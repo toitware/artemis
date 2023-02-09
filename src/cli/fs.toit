@@ -50,3 +50,23 @@ A path is relative if it is not rooted.
 */
 is_relative path/string -> bool:
   return not is_rooted path
+
+/**
+Strips the last component from a given $path.
+
+If a path ends with one or more separators removes them first.
+Returns "." if the path doesn't contain any path separators (after having
+  removed trailing separators).
+*/
+dirname path/string -> string:
+  search_path := path
+  if platform == PLATFORM_WINDOWS:
+    search_path = search_path.replace --all "\\" "/"
+  while true:
+    index := search_path.index_of --last "/"
+    if index < 0: return "."
+    if index != search_path.size - 1:
+      // Note that we return a slice of the original path here, not the
+      // search_path.
+      return path[0..index]
+    search_path = search_path[0..index]
