@@ -53,16 +53,16 @@ create_transport network/net.Interface -> mqtt.Transport
   else:
     return mqtt.TcpTransport network --host=host --port=port
 
-topic_config_for_ device_id/string -> string:
-  return "toit/devices/$device_id/config"
+topic_goal_for_ device_id/string -> string:
+  return "toit/devices/$device_id/goal"
 
 topic_lock_for_ device_id/string -> string:
-  config_topic := topic_config_for_ device_id
-  return "$config_topic/writer"
+  config_goal := topic_goal_for_ device_id
+  return "$config_goal/writer"
 
 topic_revision_for_ device_id/string -> string:
-  config_topic := topic_config_for_ device_id
-  return "$config_topic/revision"
+  config_goal := topic_goal_for_ device_id
+  return "$config_goal/revision"
 
 topic_presence_for_ device_id/string -> string:
   return "toit/devices/presence/$device_id"

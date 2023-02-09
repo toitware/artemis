@@ -68,10 +68,10 @@ class BrokerCliHttp implements BrokerCli:
     return decoded["data"]
 
   device_update_goal --device_id/string [block] -> none:
-    current_goal := send_request_ "get_config" {"device_id": device_id}
+    current_goal := send_request_ "get_goal" {"device_id": device_id}
     current_state := send_request_ "get_state" {"device_id": device_id}
     new_goal := block.call current_goal current_state
-    send_request_ "update_config" {"device_id": device_id, "config": new_goal}
+    send_request_ "update_goal" {"device_id": device_id, "goal": new_goal}
 
   upload_image --app_id/string --word_size/int content/ByteArray -> none:
     send_request_ "upload_image" {

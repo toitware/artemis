@@ -32,19 +32,19 @@ class BrokerServiceHttp implements BrokerService:
           "device_id": device_id,
           "state_revision": state_revision,
         }
-        if response["event_type"] == "config_updated":
-          callback.handle_update_config response["config"] resources
+        if response["event_type"] == "goal_updated":
+          callback.handle_goal response["goal"] resources
           state_revision = response["state_revision"]
         else if response["event_type"] == "out_of_sync":
           // We need to reconcile.
           // At the moment the only thing that we need to synchronize is the
-          // configuration.
+          // goal state.
           // TODO(florian): centralize the things that need to be synchronized.
-          config_response := connection_.send_request "get_config" {
+          goal_response := connection_.send_request "get_goal" {
             "device_id": device_id,
           }
-          if config_response:
-            callback.handle_update_config config_response resources
+          if goal_response:
+            callback.handle_goal goal_response resources
             state_revision = response["state_revision"]
         else:
           print "unknown event received: $response"

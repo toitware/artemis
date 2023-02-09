@@ -55,7 +55,7 @@ class SynchronizeJob extends Job implements EventHandler:
       // if we know that the broker isn't up to date.
       report_status resources
 
-      // The 'handle_update_config' only pushes actions into the
+      // The 'handle_goal' only pushes actions into the
       // 'actions_' channel.
       // This loop is responsible for actually executing the actions.
       // Note that some actions might create more actions. Specifically,
@@ -67,7 +67,7 @@ class SynchronizeJob extends Job implements EventHandler:
         // a 'break' will get us out of the loop.
         catch: with_timeout check_in_timeout: lambda = actions_.receive
         if not lambda:
-          // No action (by 'handle_update_config') was pushed into the channel.
+          // No action (by 'handle_goal') was pushed into the channel.
           break
         lambda.call
         if actions_.size > 0: continue
@@ -112,17 +112,17 @@ class SynchronizeJob extends Job implements EventHandler:
   This function is part of the $EventHandler interface and is called by the
     broker.
   */
-  handle_update_config new_config/Map resources/ResourceManager -> none:
+  handle_goal new_goal/Map resources/ResourceManager -> none:
     current_state := device_.current_state or device_.firmware_state
-    modification/Modification? := Modification.compute --from=current_state --to=new_config
+    modification/Modification? := Modification.compute --from=current_state --to=new_goal
     if not modification:
       device_.goal_state = null
       handle_nop
       return
-    device_.goal_state = new_config
+    device_.goal_state = new_goal
     report_status resources
 
-    logger_.info "config changed: $(Modification.stringify modification)"
+    logger_.info "goal state changed: $(Modification.stringify modification)"
 
     modification.on_value "firmware"
         --added=: | value |
@@ -150,7 +150,7 @@ class SynchronizeJob extends Job implements EventHandler:
           id = id or value is Map ? value.get Application.CONFIG_ID : null
           if id: bundle.add (action_app_uninstall_ key id)
         --modified=: | key nested/Modification |
-          value ::= new_config["apps"][key]  // TODO(kasper): This feels unfortunate.
+          value ::= new_goal["apps"][key]  // TODO(kasper): This feels unfortunate.
           id ::= value is Map ? value.get Application.CONFIG_ID : null
           handle_update_app_ bundle key id nested
 
@@ -158,7 +158,7 @@ class SynchronizeJob extends Job implements EventHandler:
         --added   =: bundle.add (action_set_max_offline_ it)
         --removed =: bundle.add (action_set_max_offline_ null)
 
-    actions_.send (commit new_config bundle)
+    actions_.send (commit new_goal bundle)
 
   handle_firmware_update_ resources/ResourceManager new/string -> none:
     actions_.send (action_firmware_update_ resources new)

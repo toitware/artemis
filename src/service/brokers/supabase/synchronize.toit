@@ -40,7 +40,7 @@ class BrokerServiceSupabase implements BrokerService:
           }
           if new_goal:
             idle_.lock
-            callback.handle_update_config new_goal resources
+            callback.handle_goal new_goal resources
           sleep broker_.poll_interval
       finally:
         critical_do:

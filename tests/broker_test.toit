@@ -38,7 +38,7 @@ run_test
 
   test_image broker_cli broker_service
   test_firmware broker_cli broker_service
-  test_config broker_cli broker_service
+  test_goal broker_cli broker_service
 
 class TestEvent:
   type/string
@@ -49,13 +49,13 @@ class TestEvent:
 class TestEventHandler implements broker.EventHandler:
   channel := monitor.Channel 10
 
-  handle_update_config new_config/Map? resources/broker.ResourceManager:
-    channel.send (TestEvent "update_config" new_config)
+  handle_goal goal/Map? resources/broker.ResourceManager:
+    channel.send (TestEvent "update_goal" goal)
 
   handle_nop:
     channel.send (TestEvent "nop")
 
-test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   broker_cli.notify_created --device_id=DEVICE_ID --state={:}
 
   3.repeat: | test_iteration |
@@ -74,14 +74,14 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       if broker_cli is mqtt_broker.BrokerCliMqtt:
         (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
 
-      // In the first iteration none of the brokers have a config yet.
-      // In the second iteration they already have a configuration.
+      // In the first iteration none of the brokers have a goal state yet.
+      // In the second iteration they already have a goal state.
       if broker_cli is not mqtt_broker.BrokerCliMqtt and test_iteration != 0:
         // All brokers, except the MQTT broker, immediately send a first initial
-        // config as soon as the service connects if they have a configuration.
-        // We need to wait for this initial configuration, so that the test isn't
+        // goal as soon as the service connects if they have a goal state.
+        // We need to wait for this initial goal state, so that the test isn't
         // flaky. Otherwise, the CLI could send an update before the service
-        // connects, thus not sending the initial empty config.
+        // connects, thus not sending the initial empty goal state.
         event = test_handler.channel.receive
 
       broker_cli.device_update_goal --device_id=DEVICE_ID: | old |
@@ -99,36 +99,36 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       if broker_cli is mqtt_broker.BrokerCliMqtt:
         event = test_handler.channel.receive
 
-      mqtt_already_has_updated_config := false
+      mqtt_already_has_updated_goal := false
       if test_iteration == 0:
-        // None of the brokers except MQTT have sent a config update yet.
+        // None of the brokers except MQTT have sent a goal-state update yet.
         if broker_cli is mqtt_broker.BrokerCliMqtt:
-          expect_equals "update_config" event.type
-          event_config := event.value
-          // When the CLI updates the config, it sends two config revisions in
+          expect_equals "update_goal" event.type
+          event_goal := event.value
+          // When the CLI updates the goal state, it sends two goal revisions in
           // rapid succession.
           // The service might not even see the first one.
-          mqtt_already_has_updated_config = event_config.contains "test-entry"
+          mqtt_already_has_updated_goal = event_goal.contains "test-entry"
       else if test_iteration == 1:
         if event.type == "nop":
-          // The MQTT broker doesn't send a config update when it can tell that
-          // the configuration hasn't changed in the meantime.
+          // The MQTT broker doesn't send a goal state update when it can tell that
+          // the goal state hasn't changed in the meantime.
           expect broker_cli is mqtt_broker.BrokerCliMqtt
         else:
-          expect_equals "update_config" event.type
-          event_config := event.value
-          expect_equals "succeeded 2" event_config["test-entry"]
+          expect_equals "update_goal" event.type
+          event_goal := event.value
+          expect_equals "succeeded 2" event_goal["test-entry"]
       else:
-        expect_equals "update_config" event.type
-        event_config := event.value
-        expect_equals "succeeded while offline" event_config["test-entry"]
+        expect_equals "update_goal" event.type
+        event_goal := event.value
+        expect_equals "succeeded while offline" event_goal["test-entry"]
 
       broker_service.on_idle
-      if not mqtt_already_has_updated_config:
+      if not mqtt_already_has_updated_goal:
         event = test_handler.channel.receive
-      expect_equals "update_config" event.type
-      event_config := event.value
-      expect_equals "succeeded 1" event_config["test-entry"]
+      expect_equals "update_goal" event.type
+      event_goal := event.value
+      expect_equals "succeeded 1" event_goal["test-entry"]
 
       broker_cli.device_update_goal --device_id=DEVICE_ID: | old |
         expect_equals "succeeded 1" old["test-entry"]
@@ -137,9 +137,9 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
       broker_service.on_idle
       event = test_handler.channel.receive
-      expect_equals "update_config" event.type
-      event_config = event.value
-      expect_equals "succeeded 2" event_config["test-entry"]
+      expect_equals "update_goal" event.type
+      event_goal = event.value
+      expect_equals "succeeded 2" event_goal["test-entry"]
 
       expect_equals 0 test_handler.channel.size
 

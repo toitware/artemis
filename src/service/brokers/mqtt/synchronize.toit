@@ -42,7 +42,7 @@ class BrokerServiceMqtt implements BrokerService:
     resources ::= ResourceManagerMqtt client
 
     topic_revision := topic_revision_for_ device_id
-    topic_config := topic_config_for_ device_id
+    topic_goal := topic_goal_for_ device_id
     topic_presence := topic_presence_for_ device_id
 
     sub_ack_latch := monitor.Latch
@@ -51,7 +51,7 @@ class BrokerServiceMqtt implements BrokerService:
     handle_task = task --background::
       try:
         subscribed_to_config := false
-        new_config/Map? := null
+        new_goal/Map? := null
         client.handle: | packet/mqtt.Packet |
           if packet is mqtt.PublishPacket:
             publish := packet as mqtt.PublishPacket
@@ -62,19 +62,19 @@ class BrokerServiceMqtt implements BrokerService:
                 revision_ = new_revision
                 if not subscribed_to_config:
                   subscribed_to_config = true
-                  client.subscribe topic_config
-                if new_config and revision_ == new_config["revision"]:
-                  callback.handle_update_config new_config resources
-                  new_config = null
+                  client.subscribe topic_goal
+                if new_goal and revision_ == new_goal["revision"]:
+                  callback.handle_goal new_goal resources
+                  new_goal = null
               else:
                 // Maybe we're done? We let the synchronization task
                 // know so it can react to the changed state.
                 callback.handle_nop
-            else if topic == topic_config:
-              new_config = ubjson.decode publish.payload
-              if revision_ == new_config["revision"]:
-                callback.handle_update_config new_config resources
-                new_config = null
+            else if topic == topic_goal:
+              new_goal = ubjson.decode publish.payload
+              if revision_ == new_goal["revision"]:
+                callback.handle_goal new_goal resources
+                new_goal = null
             else:
               known := resources.provide_resource topic: publish.payload_stream
               if not known: logger_.warn "unhandled publish packet" --tags={"topic": topic}

@@ -47,8 +47,8 @@ class HttpBroker extends HttpServer:
 
   run_command command/string data _ -> any:
     if command == "notify_created": return notify_created data
-    if command == "get_config": return get_config data
-    if command == "update_config": return update_config data
+    if command == "get_goal": return get_goal data
+    if command == "update_goal": return update_goal data
     if command == "upload_image": return upload_image data
     if command == "download_image": return download_image data
     if command == "upload_firmware": return upload_firmware data
@@ -68,16 +68,16 @@ class HttpBroker extends HttpServer:
   create_device --device_id/string --state/Map:
     device_states[device_id] = state
 
-  get_config data/Map -> Map?:
+  get_goal data/Map -> Map?:
     device_id := data["device_id"]
     config := device_goals.get device_id
     return config
 
-  update_config data/Map:
+  update_goal data/Map:
     device_id := data["device_id"]
-    device_goals[device_id] = data["config"]
-    print "Updating config for $device_id to $device_goals[device_id] and notifying."
-    notify_device device_id "config_updated"
+    device_goals[device_id] = data["goal"]
+    print "Updating goal state for $device_id to $device_goals[device_id] and notifying."
+    notify_device device_id "goal_updated"
 
   upload_image data/Map:
     app_id := data["app_id"]
@@ -128,8 +128,8 @@ class HttpBroker extends HttpServer:
       "event_type": event_type,
       "state_revision": state_revision[device_id],
     }
-    if event_type == "config_updated":
-      message["config"] = device_goals[device_id]
+    if event_type == "goal_updated":
+      message["goal"] = device_goals[device_id]
     else if event_type == "state_updated":
       message["state"] = device_states[device_id]
     else:
