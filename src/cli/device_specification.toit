@@ -3,7 +3,9 @@
 import encoding.json
 import host.file
 import .firmware
+import .sdk
 import .server_config
+import .utils
 
 /**
 A specification of a device.
@@ -95,6 +97,10 @@ interface Container:
       return ContainerSnapshot.from_json data
     throw "Unsupported container: $data"
 
+  /**
+  Builds a snapshot and stores it at the given $output_path.
+  */
+  build_snapshot --output_path/string --sdk/Sdk
   type -> string
   to_json -> Map
 
@@ -105,6 +111,9 @@ class ContainerPath implements Container:
 
   constructor.from_json data/Map:
     return ContainerPath --entrypoint=data["entrypoint"]
+
+  build_snapshot --output_path/string --sdk/Sdk:
+    sdk.compile_to_snapshot entrypoint --out=output_path
 
   type -> string:
     return "path"
@@ -119,6 +128,9 @@ class ContainerSnapshot implements Container:
 
   constructor.from_json data/Map:
     return ContainerSnapshot --snapshot_path=data["snapshot"]
+
+  build_snapshot --output_path/string --sdk/Sdk:
+    copy_file --source=snapshot_path --target=output_path
 
   type -> string:
     return "snapshot"

@@ -244,7 +244,7 @@ class Artemis:
       // Store the containers in the envelope.
       device_specification.containers.do: | name/string container/Container |
         snapshot_path := "$tmp_dir/$(name).snapshot"
-        build_snapshot_ container --sdk=sdk --output_path=snapshot_path
+        container.build_snapshot --sdk=sdk --output_path=snapshot_path
         // TODO(florian): add support for assets.
         sdk.firmware_add_container name
             --envelope=output_path
@@ -678,13 +678,3 @@ is_same_broker broker/string identity/Map tmp/string assets_path/string sdk/Sdk 
   x := ((json.stringify identity["broker"]) + "\n").to_byte_array
   y := (file.read_content broker_path)
   return x == y
-
-build_snapshot_ container/Container --output_path/string --sdk/Sdk:
-  if container.type == "snapshot":
-    copy_file --source=(container as ContainerSnapshot).snapshot_path --target=output_path
-  else if container.type == "path":
-    entry_point := (container as ContainerPath).entrypoint
-    sdk.compile_to_snapshot entry_point --out=output_path
-  else:
-    throw "Unknown container type: $container.type"
-
