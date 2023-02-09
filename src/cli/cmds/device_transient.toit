@@ -34,17 +34,60 @@ create_transient_command config/Config cache/Cache ui/Ui -> cli.Command:
       --run=:: set_max_offline it config cache ui
   cmd.add max_offline_cmd
 
+  install_cmd := cli.Command "install"
+      --short_help="Install an app on a device."
+      --rest=[
+        cli.OptionString "app-name"
+            --short_help="Name of the app to install."
+            --required,
+        cli.OptionString "application"
+            --short_help="Program to install."
+            --type="input-file"
+            --required,
+      ]
+      --run=:: install_app it config cache ui
+  cmd.add install_cmd
+
+  uninstall_cmd := cli.Command "uninstall"
+      --long_help="Uninstall an app from a device."
+      --rest=[
+        cli.OptionString "app-name"
+            --short_help="Name of the app to uninstall.",
+      ]
+      --run=:: uninstall_app it config cache ui
+  cmd.add uninstall_cmd
+
   return cmd
 
-set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+get_device_id parsed/cli.Parsed config/Config ui/Ui -> string:
   device_id := parsed["device-id"]
-  max_offline := parsed["max-offline"]
-
   if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
   if not device_id:
     ui.error "No device ID specified and no default device ID set."
     ui.abort
+  return device_id
+
+set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  max_offline := parsed["max-offline"]
+  device_id := get_device_id parsed config ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     artemis.config_set_max_offline --device_id=device_id --max_offline_seconds=max_offline
-    ui.info "Max offline time updated."
+    ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
+
+install_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  app_name := parsed["app-name"]
+  application_path :=parsed["application"]
+  device_id := get_device_id parsed config ui
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    artemis.app_install --device_id=device_id --app_name=app_name --application_path=application_path
+    ui.info "Request sent to broker. Application will be installed when device synchronizes."
+
+uninstall_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  app_name := parsed["app-name"]
+  device_id := get_device_id parsed config ui
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    artemis.app_uninstall --device_id=device_id --app_name=app_name
+    ui.info "Request sent to broker. Application will be uninstalled when device synchronizes."
