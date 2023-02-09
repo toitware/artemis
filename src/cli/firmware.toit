@@ -47,14 +47,14 @@ class Firmware:
   device_specific_data_/Map
 
   constructor .content .device_specific_data:
-    map := { "config": device_specific_data, "checksum": content.checksum }
+    map := { "device-specific": device_specific_data, "checksum": content.checksum }
     encoded = base64.encode (ubjson.encode map)
     device_specific_data_ = ubjson.decode device_specific_data
     assert: device_specific_data_["parts"] == content.encoded_parts
 
   constructor.encoded .encoded:
     map := ubjson.decode (base64.decode encoded)
-    device_specific_data = map["config"]
+    device_specific_data = map["device-specific"]
     device_specific_data_ = ubjson.decode device_specific_data
     content = FirmwareContent.encoded device_specific_data_["parts"] --checksum=map["checksum"]
 
