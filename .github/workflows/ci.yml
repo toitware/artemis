@@ -95,7 +95,7 @@ jobs:
         shell: bash
         working-directory: ${{ github.workspace }}/supabase_artemis
         run: |
-          supabase start
+          supabase start --ignore-health-check
           supabase status
 
           # Sample output of supabase status:
@@ -121,7 +121,7 @@ jobs:
         shell: bash
         working-directory: ${{ github.workspace }}/tests/supabase_customer
         run: |
-          supabase start
+          supabase start --ignore-health-check
           supabase status
 
           API_URL_LINE=$(supabase status | grep "API URL:")
@@ -136,7 +136,7 @@ jobs:
         shell: bash
         working-directory: ${{ github.workspace }}/tests/supabase_test
         run: |
-          supabase start
+          supabase start --ignore-health-check
           supabase status
 
       - uses: suisei-cn/actions-download-file@v1.3.0
