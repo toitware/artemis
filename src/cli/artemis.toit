@@ -280,6 +280,8 @@ class Artemis:
         sdk.firmware_add_container name
             --envelope=output_path
             --program_path=snapshot_path
+        apps := device_config.get "apps" --init=:{:}
+        apps[name] = extract_id_from_snapshot snapshot_path
         ui_.info "Added container '$name' to envelope."
 
     sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
@@ -290,11 +292,6 @@ class Artemis:
     encoded_specification := (json.encode device_specification.to_json).to_string
     sdk.firmware_set_property "device-specification" encoded_specification
         --envelope=output_path
-
-    // TODO(florian): envelopes should already know which SDK version they come
-    // from.
-    // Explicitly store the SDK version in the firmware image.
-    Sdk.store_sdk_version_in --envelope=output_path sdk_version
 
     // Finally, make it unique. The system uuid will have to be used when compiling
     // code for the device in the future. This will prove that you know which versions

@@ -17,7 +17,7 @@ class CompiledProgram:
     sdk_ = sdk
 
   constructor.application path/string --sdk/Sdk:
-    id/string? := extract_id_from_snapshot_ path
+    id/string? := extract_id_from_snapshot path
     if id: return CompiledProgram.snapshot path --id=id --sdk=sdk
     return  CompiledProgram.source path --sdk=sdk
 
@@ -30,7 +30,7 @@ class CompiledProgram:
 
   constructor.snapshot path/string --id/string?=null --sdk/Sdk:
     with_tmp_directory: | tmp/string |
-      id = id or extract_id_from_snapshot_ path
+      id = id or extract_id_from_snapshot path
       if not id:
         print_on_stderr_ "$path: Not a valid Toit snapshot"
         exit 1
@@ -44,7 +44,7 @@ class CompiledProgram:
           --sdk=sdk
     unreachable
 
-extract_id_from_snapshot_ snapshot_path/string -> string?:
+extract_id_from_snapshot snapshot_path/string -> string?:
   if not file.is_file snapshot_path:
     print_on_stderr_ "$snapshot_path: Not a file"
     exit 1

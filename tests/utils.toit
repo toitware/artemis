@@ -189,7 +189,7 @@ with_test_cli
     if start_device_artemis:
       device_id := artemis_server.backdoor.create_device
           --organization_id=TEST_ORGANIZATION_UUID
-      device = Device --id=device_id --config={
+      device = Device --id=device_id --firmware_state={
         "firmware": "foo"
       }
 

@@ -12,7 +12,7 @@ cache_snapshot path/string -> none:
   if not os.env.contains "HOME": return
   cache := "$(os.env["HOME"])/.cache/jaguar/snapshots"
   if not file.is_directory cache: return
-  id := extract_id_from_snapshot_ path
+  id := extract_id_from_snapshot path
   if not id: return
   pipe.run_program ["cp", "-f", path, "$cache/$(id).snapshot"]
 

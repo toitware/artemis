@@ -91,6 +91,28 @@ abstract class Modification:
       list.add "$key: $value_string"
     return "{ $(list.join ", ") }"
 
+/**
+Compares the JSON objects $a and $b and returns
+  whether they are equal.
+
+The comparison is done deeply, and nested objects are compared
+  recursively.
+*/
+json_equals a/any b/any -> bool:
+  if a is Map and b is Map:
+    if a.size != b.size: return false
+    a.do: | key value |
+      if not b.contains key: return false
+      if not json_equals value b[key]: return false
+    return true
+  else if a is List and b is List:
+    if a.size != b.size: return false
+    a.size.repeat: | i |
+      if not json_equals a[i] b[i]: return false
+    return true
+  else:
+    return identical a b
+
 // --------------------------------------------------------------------------
 
 abstract class Modification_ extends Modification:

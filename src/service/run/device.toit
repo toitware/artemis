@@ -34,7 +34,7 @@ main arguments:
   config := ubjson.decode (artemis_assets["device-config"])
   config["firmware"] = firmware_encoded
 
-  device := Device --id=device_id --config=config
+  device := Device --id=device_id --firmware_state=config
   run_artemis device server_config
 
 checksum end/int -> ByteArray:
