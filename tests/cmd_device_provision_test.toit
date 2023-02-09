@@ -41,6 +41,12 @@ run_test test_cli/TestCli:
     ]
 
     test_cli.run [
+      "auth", "broker", "login",
+      "--email", TEST_EXAMPLE_COM_EMAIL,
+      "--password", TEST_EXAMPLE_COM_PASSWORD,
+    ]
+
+    test_cli.run [
       "device",
       "provision",
       "--organization-id", TEST_ORGANIZATION_UUID,
