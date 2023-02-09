@@ -43,8 +43,9 @@ class BrokerServiceHttp implements BrokerService:
           config_response := connection_.send_request "get_config" {
             "device_id": device_id,
           }
-          callback.handle_update_config config_response resources
-          state_revision = response["state_revision"]
+          if config_response:
+            callback.handle_update_config config_response resources
+            state_revision = response["state_revision"]
         else:
           print "unknown event received: $response"
           callback.handle_nop

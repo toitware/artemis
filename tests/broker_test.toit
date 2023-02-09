@@ -9,13 +9,17 @@ import reader show SizedReader
 import artemis.cli.brokers.broker
 import artemis.service.brokers.broker
 import artemis.cli.brokers.mqtt.base as mqtt_broker
+import artemis.cli.brokers.http.base as http_broker
 import artemis.cli.brokers.supabase show BrokerCliSupabase
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
+import uuid
 
 import .brokers
 import .utils
 
-SUPABASE_DEVICE_UUID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
+// When running the supabase test we need a valid UUID that is not
+// already in the database.
+DEVICE_ID ::= (uuid.uuid5 "broker-test" "$(random)-$(Time.now)").stringify
 
 main args:
   if args.is_empty: args = ["--http-toit"]
@@ -52,11 +56,6 @@ class TestEventHandler implements broker.EventHandler:
     channel.send (TestEvent "nop")
 
 test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  // When running the supabase test we need a device ID that is
-  // a valid UUID, and that is in the database.
-  DEVICE_ID ::= broker_cli is BrokerCliSupabase
-      ? SUPABASE_DEVICE_UUID
-      : "test-id-config"
   3.repeat: | test_iteration |
     test_handler := TestEventHandler
     if test_iteration == 2:
@@ -69,15 +68,19 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler:
       event/TestEvent? := null
-      if broker_cli is not mqtt_broker.BrokerCliMqtt:
+
+      if broker_cli is mqtt_broker.BrokerCliMqtt:
+        (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
+
+      // In the first iteration none of the brokers have a config yet.
+      // In the second iteration they already have a configuration.
+      if broker_cli is not mqtt_broker.BrokerCliMqtt and test_iteration != 0:
         // All brokers, except the MQTT broker, immediately send a first initial
-        // config as soon as the service connects.
+        // config as soon as the service connects if they have a configuration.
         // We need to wait for this initial configuration, so that the test isn't
         // flaky. Otherwise, the CLI could send an update before the service
         // connects, thus not sending the initial empty config.
         event = test_handler.channel.receive
-      else:
-        (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
 
       broker_cli.device_update_config --device_id=DEVICE_ID: | old |
         if test_iteration == 1:
@@ -94,14 +97,13 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
       mqtt_already_has_updated_config := false
       if test_iteration == 0:
-        expect_equals "update_config" event.type
-        event_config := event.value
+        // None of the brokers except MQTT have sent a config update yet.
         if broker_cli is mqtt_broker.BrokerCliMqtt:
+          expect_equals "update_config" event.type
+          event_config := event.value
           // When the CLI updates the config, it sends two config revisions in
           // rapid succession.
           // The service might not even see the first one.
-          // Note that the MQTT broker thus must not be long running, as an old
-          // config entry would confuse the test.
           mqtt_already_has_updated_config = event_config.contains "test-entry"
       else if test_iteration == 1:
         if event.type == "nop":
@@ -141,10 +143,6 @@ test_config broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
 
 test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  DEVICE_ID ::= broker_cli is BrokerCliSupabase
-      ? SUPABASE_DEVICE_UUID
-      : "test-id-upload-image"
-
   2.repeat: | iteration |
     APP_ID ::= "test-app-$iteration"
     content_32 := ?
@@ -170,10 +168,6 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
 
 test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  DEVICE_ID ::= broker_cli is BrokerCliSupabase
-      ? SUPABASE_DEVICE_UUID
-      : "test-id-upload-firmware"
-
   3.repeat: | iteration |
     FIRMWARE_ID ::= "test-app-$iteration"
     content := ?

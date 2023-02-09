@@ -58,10 +58,10 @@ class HttpBroker extends HttpServer:
       print "Unknown command: $command"
       throw "BAD COMMAND $command"
 
-  get_config data/Map -> Map:
+  get_config data/Map -> Map?:
     device_id := data["device_id"]
     config := configs.get device_id
-    return config or {:}
+    return config
 
   update_config data/Map:
     device_id := data["device_id"]
