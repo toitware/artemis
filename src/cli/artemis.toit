@@ -571,13 +571,14 @@ class Artemis:
         file.write_content program.image64 --path="$tmp_dir/image64.bin"
         store.move tmp_dir
 
-    update_goal --device_id=device_id:
-      | config/Map |
-        log.info "$(%08d Time.monotonic_us): Installing app: $app_name"
-        apps := config.get "apps" --if_absent=: {:}
-        apps[app_name] = {"id": id, "random": (random 1000)}
-        config["apps"] = apps
-        config
+    update_goal --device_id=device_id: | current_goal/Map? firmware_state/Map? |
+      if not current_goal and not firmware_state: throw "No known firmware information for device."
+      new_goal := current_goal or firmware_state
+      log.info "$(%08d Time.monotonic_us): Installing app: $app_name"
+      apps := new_goal.get "apps" --if_absent=: {:}
+      apps[app_name] = {"id": id, "random": (random 1000)}
+      new_goal["apps"] = apps
+      new_goal
 
   app_uninstall --device_id/string --app_name/string:
     update_goal --device_id=device_id: | current_goal/Map? firmware_state/Map? |
