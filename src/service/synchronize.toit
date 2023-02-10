@@ -138,21 +138,20 @@ class SynchronizeJob extends Job implements EventHandler:
 
     bundle := []
     modification.on_map "apps"
-        --added=: | key value |
-          // An app just appeared in the configuration. If we got an id
-          // for it, we install it.
-          id ::= value is Map ? value.get Application.CONFIG_ID : null
-          if id: bundle.add (action_app_install_ key id)
-        --removed=: | key value |
+        --added=: | name id |
+          // An app just appeared in the configuration.
+          bundle.add (action_app_install_ name id)
+        --removed=: | name id |
           // An app disappeared completely from the configuration. We
-          // uninstall it, if we got an id for it.
-          id := value is string ? value : null
-          id = id or (value is Map ? value.get Application.CONFIG_ID : null)
-          if id: bundle.add (action_app_uninstall_ key id)
-        --modified=: | key nested/Modification |
-          value ::= new_goal["apps"][key]  // TODO(kasper): This feels unfortunate.
-          id ::= value is Map ? value.get Application.CONFIG_ID : null
-          handle_update_app_ bundle key id nested
+          // uninstall it.
+          bundle.add (action_app_uninstall_ name id)
+        --updated=: | name old_id new_id |
+          // An applications had its id (the code) updated. We uninstall
+          // the old version and install the new one.
+          // TODO(florian): it would be nicer to fetch the new version
+          // before uninstalling the old one.
+          bundle.add (action_app_uninstall_ name old_id)
+          bundle.add (action_app_install_ name new_id)
 
     modification.on_value "max-offline"
         --added   =: bundle.add (action_set_max_offline_ it)
@@ -163,32 +162,6 @@ class SynchronizeJob extends Job implements EventHandler:
 
   handle_firmware_update_ resources/ResourceManager new/string -> none:
     actions_.send (action_firmware_update_ resources new)
-
-  handle_update_app_ bundle/List name/string id/string? modification/Modification -> none:
-    modification.on_value "id"
-        --added=: | value |
-          // An application that existed in the configuration suddenly
-          // got an id. Great. Let's install it!
-          bundle.add (action_app_install_ name value)
-          return
-        --removed=: | value |
-          // Woops. We just lost the id for an application we already
-          // had in the configuration. We need to uninstall.
-          bundle.add (action_app_uninstall_ name value)
-          return
-        --updated=: | from to |
-          // An application had its id (the code) updated. We uninstall
-          // the old version and install the new one.
-          // TODO(florian): it feels nicer to fetch the new version
-          // before stopping the old one.
-          bundle.add (action_app_uninstall_ name from)
-          bundle.add (action_app_install_ name to)
-          return
-    // The configuration for the application was updated, but we didn't
-    // change its id, so the code for it is still valid. We add a pending
-    // action to make sure we let the application know of the change,
-    // possibly by restarting it.
-    if id: bundle.add (action_app_update_ name id)
 
   action_app_install_ name/string id/string -> Lambda:
     return::
@@ -208,20 +181,6 @@ class SynchronizeJob extends Job implements EventHandler:
       // TODO(florian): the 'uninstall' above only enqueues the installation.
       // We need to wait for its completion.
       device_.state_app_uninstall name id
-
-  action_app_update_ name/string id/string -> Lambda:
-    return::
-      application/Application? := applications_.get id
-      if not application:
-        // This should not happen, as we should have reached a
-        // different action_app handler.
-        logger_.error "application $name ($id) not found"
-      else:
-        applications_.update application
-        // TODO(florian): the 'update' above only enqueues the installation.
-        // We need to wait for its completion.
-      if application.is_complete:
-        device_.state_app_install_or_update name id
 
   action_app_fetch_ resources/ResourceManager -> Lambda:
     return::
