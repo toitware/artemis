@@ -330,7 +330,7 @@ class Artemis:
       upgrade_from := Firmware.encoded existing
       device := upgrade_from.device_specific "artemis.device"
       if device["device_id"] != device_id:
-        ui_.error "The device id of the firmware image ($device.device_id) does not match the given device id ($device_id)."
+        ui_.error "The device id of the firmware image ($device["device_id"]) does not match the given device id ($device_id)."
         ui_.abort
       compute_updated_config
           --device=device
