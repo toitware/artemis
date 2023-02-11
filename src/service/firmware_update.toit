@@ -131,9 +131,11 @@ class FirmwarePatcher_ implements PatchObserver:
 
     for i := 0; i < resource_urls.size; i++:
       resource_url := resource_urls[i]
-      exception := catch --unwind=(i == resource_urls.size - 1):
+      started_applying := false
+      exception := catch --unwind=(started_applying or i == resource_urls.size - 1):
         resources.fetch_firmware resource_url --offset=read_offset:
           | reader/SizedReader offset/int |
+            started_applying = true
             continuation := apply_ reader offset old_mapping
             if not continuation: return
             reposition_ continuation  // Returns the read offset to continue from.
