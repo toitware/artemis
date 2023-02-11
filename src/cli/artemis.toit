@@ -546,7 +546,7 @@ class Artemis:
 
       initial_state := firmware_state ? null : state
 
-      block.call firmware_state current_state known_goal current_goal initial_state
+      block.call current_goal firmware_state current_state known_goal initial_state
 
   /**
   Maps a device selector (name or id) to its id.
