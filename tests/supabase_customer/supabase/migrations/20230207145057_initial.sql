@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS devices
     state jsonb NOT NULL
 );
 
+ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
+
 -- The goal-states for each device.
 CREATE TABLE IF NOT EXISTS goals
 (
@@ -22,12 +24,15 @@ CREATE TABLE IF NOT EXISTS goals
     goal jsonb
 );
 
-insert into storage.buckets (id, name, public)
-values ('toit-artemis-assets', 'Toit artemis assets', true);
+ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
 
-create policy "Public Access"
-  on storage.objects for all
-  using (bucket_id = 'toit-artemis-assets');
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('toit-artemis-assets', 'Toit artemis assets', true);
+
+CREATE POLICY "Public read access"
+  ON storage.objects
+  FOR SELECT
+  USING (bucket_id = 'toit-artemis-assets');
 
 -- Informs the broker that a new device was provisioned.
 CREATE OR REPLACE FUNCTION new_provisioned(_device_id UUID, _state JSONB)
