@@ -111,7 +111,7 @@ class HttpBroker extends HttpServer:
   get_event data/Map:
     device_id := data["device_id"]
     known_revision := data["state_revision"]
-    current_revision := state_revision.get device_id --if_absent=:0
+    current_revision := state_revision.get device_id --init=:0
 
     if current_revision != known_revision:
       // The client and the server are out of sync. Inform the client that it needs
