@@ -206,12 +206,14 @@ class ContainerPath implements Container:
     cached_checkout := cache.get_directory_path git_key: | store/cli.DirectoryStore |
       store.with_tmp_directory: | tmp_dir/string |
         clone_dir := "$tmp_dir/clone"
-        git.clone
-            git_url
-            --ref=git_ref
+        git.init clone_dir --origin=git_url
+        git.config --repository_root=clone_dir
+            --key="advice.detachedHead"
+            --value="false"
+        git.fetch
+            --repository_root=clone_dir
             --depth=1
-            --out=clone_dir
-            --config={"advice.detachedHead": false}
+            --ref=git_ref
         store.move clone_dir
     // Make sure we have the ref we need in the cache.
     git.fetch --force --depth=1 --ref=git_ref --repository_root=cached_checkout
@@ -228,12 +230,15 @@ class ContainerPath implements Container:
       // aren't affected by changes to the cache.
       clone_dir := "$tmp_dir/clone"
       file_uri := "file://$(url_encoding.encode cached_checkout)"
-      git.clone
-          file_uri
-          --out=clone_dir
+      git.init clone_dir --origin=file_uri
+      git.config --repository_root=clone_dir
+          --key="advice.detachedHead"
+          --value="false"
+      git.fetch
+          --checkout
           --depth=1
+          --repository_root=clone_dir
           --ref=git_ref
-          --config={"advice.detachedHead": false}
       entrypoint_path := "$clone_dir/$entrypoint"
       if not file.is_file entrypoint_path:
         throw "No such file: $entrypoint_path"
