@@ -51,40 +51,38 @@ class BrokerCliSupabase implements BrokerCli:
         --open_browser=open_browser
 
   device_update_goal --device_id/string [block]:
-    goal_response := client_.rest.select "goals" --filters=[
-      "device_id=eq.$(device_id)",
-    ]
-    current_goal := goal_response.size == 1 ? goal_response[0]["goal"] : null
+    current_goal := client_.rest.rpc "toit_artemis.get_goal" {
+      "_device_id": device_id,
+    }
 
-    state_response := client_.rest.select "devices" --filters=[
-      "id=eq.$(device_id)",
-    ]
-    state := state_response.size == 1 ? state_response[0]["state"] : null
+    state := client_.rest.rpc "toit_artemis.get_state" {
+      "_device_id": device_id,
+    }
 
     new_goal := block.call current_goal state
 
-    client_.rest.upsert "goals" {
-      "device_id"     : device_id,
-      "goal" : new_goal,
+    client_.rest.rpc "toit_artemis.set_goal" {
+      "_device_id": device_id,
+      "_goal": new_goal,
     }
 
   upload_image --app_id/string --word_size/int content/ByteArray -> none:
-    client_.storage.upload --path="assets/images/$app_id.$word_size" --content=content
+    client_.storage.upload --path="toit-artemis-assets/images/$app_id.$word_size" --content=content
 
   upload_firmware --firmware_id/string parts/List -> none:
     content := #[]
     parts.do: | part/ByteArray | content += part  // TODO(kasper): Avoid all this copying.
-    client_.storage.upload --path="assets/firmware/$firmware_id" --content=content
+    client_.storage.upload --path="toit-artemis-assets/firmware/$firmware_id" --content=content
 
   download_firmware --id/string -> ByteArray:
     content := #[]
-    client_.storage.download --path="assets/firmware/$id": | reader/reader.Reader |
+    client_.storage.download --path="toit-artemis-assets/firmware/$id": | reader/reader.Reader |
       while data := reader.read:
         content += data
     return content
 
   notify_created --device_id/string --state/Map -> none:
-    client_.rest.rpc "new_provisioned" {
+    client_.rest.rpc "toit_artemis.new_provisioned" {
       "_device_id" : device_id,
       "_state" : state,
     }
