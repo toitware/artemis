@@ -4,6 +4,8 @@
 
 import ar
 import cli
+import encoding.url as url_encoding
+
 // TODO(florian): these should come from the cli package.
 import artemis.cli.config as cli
 import artemis.cli.cache as cli
@@ -111,7 +113,15 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
     else:
       ui.info "Cloning repository and checking out $(commit or service_version)."
       clone_dir := "$tmp_dir/artemis"
-      git.clone root --out=clone_dir --ref=(commit or service_version)
+      git.init clone_dir --origin="file://$(url_encoding.encode root)"
+      git.config --repository_root=clone_dir
+          --key="advice.detachedHead"
+          --value="false"
+      git.fetch
+          --checkout
+          --depth=1
+          --repository_root=clone_dir
+          --ref=(commit or service_version)
       ui.info "Downloading packages."
       sdk.download_packages clone_dir
       service_source_path = "$clone_dir/$SERVICE_PATH_IN_REPOSITORY"
