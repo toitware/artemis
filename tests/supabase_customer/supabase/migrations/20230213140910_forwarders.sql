@@ -58,3 +58,13 @@ BEGIN
     PERFORM toit_artemis.set_goal(_device_id, _goal);
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION public."toit_artemis.remove_device"(_device_id UUID)
+RETURNS VOID
+SECURITY INVOKER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM toit_artemis.remove_device(_device_id);
+END;
+$$;
