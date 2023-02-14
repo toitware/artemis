@@ -641,6 +641,10 @@ main:
         client_anon.storage.download --path="$IMAGE_BUCKET/$image"
     expect_equals "test".to_byte_array
         client1.storage.download --path="$IMAGE_BUCKET/$image"
+    expect_equals "test".to_byte_array
+        client_anon.storage.download --public --path="$IMAGE_BUCKET/$image"
+    expect_equals "test".to_byte_array
+        client1.storage.download --public --path="$IMAGE_BUCKET/$image"
 
     snapshot := "test-$(random).snapshot"
 
@@ -660,7 +664,12 @@ main:
     expect_throws --contains="Not found":
       client1.storage.download --path="$SNAPSHOT_BUCKET/$image"
 
-    // TODO(florian): add a test that the public URI doesn't work either.
+    // Auth and anon don't have public access either.
+    expect_throws --contains="Not found":
+      client_anon.storage.download --public --path="$SNAPSHOT_BUCKET/$image"
+    expect_throws --contains="Not found":
+      client1.storage.download --public --path="$SNAPSHOT_BUCKET/$image"
+
 
 expect_throws --contains/string [block]:
   exception := catch: block.call
