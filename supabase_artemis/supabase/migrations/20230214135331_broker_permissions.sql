@@ -4,7 +4,7 @@
 
 -- The provision device entries must reference devices in the public devices table.
 ALTER TABLE toit_artemis.devices
-  ADD CONSTRAINT fk_id FOREIGN KEY (id) REFERENCES public.devices (id)
+  ADD CONSTRAINT fk_id FOREIGN KEY (id) REFERENCES public.devices (alias)
   ON DELETE CASCADE;
 
 -- All devices can get their goal without authentication.
