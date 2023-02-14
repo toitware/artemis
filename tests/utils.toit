@@ -183,8 +183,9 @@ with_test_cli
     if start_device_artemis:
       device = Device
           --id=device_id
+          --organization_id=TEST_ORGANIZATION_UUID
           --firmware_state={
-            "firmware": encoded_firmware --device_id=device_id --organization_id=TEST_ORGANIZATION_UUID
+            "firmware": encoded_firmware --device_id=device_id
           }
 
       artemis_task = task::
@@ -202,7 +203,7 @@ with_test_cli
 
 encoded_firmware
     --device_id/string
-    --organization_id/string
+    --organization_id/string=TEST_ORGANIZATION_UUID
     --hardware_id/string=device_id:
   device_specific := ubjson.encode {
     "artemis.device": {
