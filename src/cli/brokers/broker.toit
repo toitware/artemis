@@ -5,6 +5,7 @@ import encoding.json
 import net
 import ..auth
 import ..config
+import ..device
 import ..ui
 import ...shared.server_config
 import .mqtt.base
@@ -65,19 +66,20 @@ interface BrokerCli implements Authenticatable:
   /**
   Updates the goal state of the device with the given $device_id.
 
-  The block is called with 2 arguments:
-  - the current goal state: the configuration that the broker currently sends
-    to the device. May be null if no goal state was set yet.
-  - the state: the state as reported by the device. If the device
-    hasn't reported its state yet, then the initial state (as stored
-    by $notify_created) is used.
+  The block is called with a $DetailedDevice as argument:
 
-  The $block should return a new configuration which replaces the actual goal state.
+  The $block must return a new configuration which replaces the actual goal state.
 
-  The $block is allowed to modify the given configuration but is still required
-    to return it.
+  The $block is allowed to modify the state maps of the $DetailedDevice, but is
+    still required to return the new configuration. It is not enough to just
+    modify the goal map of the $DetailedDevice.
   */
-  device_update_goal --device_id/string [block] -> none
+  update_goal --device_id/string [block] -> none
+
+  /**
+  Returns a detailed view of the device with the given $device_id.
+  */
+  get_device --device_id/string -> DetailedDevice?
 
   /**
   Uploads an application image with the given $app_id so that a device in

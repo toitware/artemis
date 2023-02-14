@@ -10,6 +10,7 @@ import supabase
 
 import ..broker
 import ...config
+import ...device
 import ...ui
 import ....shared.server_config
 
@@ -50,7 +51,20 @@ class BrokerCliSupabase implements BrokerCli:
         --ui=ui
         --open_browser=open_browser
 
-  device_update_goal --device_id/string [block]:
+  update_goal --device_id/string [block]:
+    // TODO(florian): should we take some locks here to avoid
+    // concurrent updates of the goal. Alternatively, we could
+
+    detailed_device := get_device --device_id=device_id
+
+    new_goal := block.call detailed_device
+
+    client_.rest.rpc "toit_artemis.set_goal" {
+      "_device_id": device_id,
+      "_goal": new_goal,
+    }
+
+  get_device --device_id/string:
     current_goal := client_.rest.rpc "toit_artemis.get_goal" {
       "_device_id": device_id,
     }
@@ -59,12 +73,7 @@ class BrokerCliSupabase implements BrokerCli:
       "_device_id": device_id,
     }
 
-    new_goal := block.call current_goal state
-
-    client_.rest.rpc "toit_artemis.set_goal" {
-      "_device_id": device_id,
-      "_goal": new_goal,
-    }
+    return DetailedDevice --goal=current_goal --state=state
 
   upload_image
       --organization_id/string

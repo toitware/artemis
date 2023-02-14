@@ -5,6 +5,7 @@ import http
 import net
 
 import ..broker
+import ...device
 import ...ui
 import ....shared.server_config
 
@@ -67,11 +68,15 @@ class BrokerCliHttp implements BrokerCli:
 
     return decoded["data"]
 
-  device_update_goal --device_id/string [block] -> none:
+  update_goal --device_id/string [block] -> none:
+    device := get_device --device_id=device_id
+    new_goal := block.call device
+    send_request_ "update_goal" {"device_id": device_id, "goal": new_goal}
+
+  get_device --device_id/string -> DetailedDevice:
     current_goal := send_request_ "get_goal" {"device_id": device_id}
     current_state := send_request_ "get_state" {"device_id": device_id}
-    new_goal := block.call current_goal current_state
-    send_request_ "update_goal" {"device_id": device_id, "goal": new_goal}
+    return DetailedDevice --goal=current_goal --state=current_state
 
   upload_image -> none
       --organization_id/string
