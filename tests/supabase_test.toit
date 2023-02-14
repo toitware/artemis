@@ -313,6 +313,7 @@ test_auth client/supabase.Client:
   expect rows.is_empty
 
 TEST_BUCKET ::= "test-bucket"
+TEST_BUCKET_PUBLIC ::= "test-bucket-public"
 
 test_storage config/supabase.ServerConfig:
   client_anon := supabase.Client --server_config=config
@@ -343,12 +344,33 @@ test_storage config/supabase.ServerConfig:
   content2 := "Hello world 2!".to_byte_array
   client_auth.storage.upload --path="$TEST_BUCKET/$file_name" --content=content2
 
+  content_bad := "BAD".to_byte_array
+  expect_throws --contains="policy":
+    client_anon.storage.upload --path="$TEST_BUCKET/$file_name" --content=content_bad
+
   downloaded = client_auth.storage.download --path="$TEST_BUCKET/$file_name"
   expect_equals content2 downloaded
 
   downloaded = client_anon.storage.download --path="$TEST_BUCKET/$file_name"
   expect_equals content2 downloaded
 
+  // Test storage with public bucket.
+  // Only authenticated can download/upload directly, but anon can
+  // download through the public URL.
+  client_auth.storage.upload --path="$TEST_BUCKET_PUBLIC/$file_name" --content=content
+
+  // Only authenticated can download.
+  downloaded = client_auth.storage.download --path="$TEST_BUCKET_PUBLIC/$file_name"
+  expect_equals content downloaded
+
+  // Anon can not download directly.
+  expect_throws --contains="Not found":
+    client_anon.storage.download --path="$TEST_BUCKET_PUBLIC/$file_name"
+
+  // Anon can download through the public URL.
+  downloaded = client_anon.storage.download --public
+      --path="$TEST_BUCKET_PUBLIC/$file_name"
+  expect_equals content downloaded
 
   client_anon.close
   client_auth.close
