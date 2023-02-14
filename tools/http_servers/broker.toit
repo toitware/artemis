@@ -80,23 +80,27 @@ class HttpBroker extends HttpServer:
     notify_device device_id "goal_updated"
 
   upload_image data/Map:
+    organization_id := data["organization_id"]
     app_id := data["app_id"]
     word_size := data["word_size"]
-    images["$app_id-$word_size"] = data["content"]
+    images["$(organization_id)-$(app_id)-$word_size"] = data["content"]
 
   download_image data/Map:
+    organization_id := data["organization_id"]
     app_id := data["app_id"]
     word_size := data["word_size"]
-    return images["$app_id-$word_size"]
+    return images["$(organization_id)-$(app_id)-$word_size"]
 
   upload_firmware data/Map:
+    organization_id := data["organization_id"]
     firmware_id := data["firmware_id"]
-    firmwares[firmware_id] = data["content"]
+    firmwares["$(organization_id)-$firmware_id"] = data["content"]
 
   download_firmware data/Map:
+    organization_id := data["organization_id"]
     firmware_id := data["firmware_id"]
     offset := (data.get "offset") or 0
-    firmware := firmwares[firmware_id]
+    firmware := firmwares["$(organization_id)-$firmware_id"]
     return firmware[offset..]
 
   report_state data/Map:

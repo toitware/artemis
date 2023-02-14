@@ -64,5 +64,8 @@ topic_revision_for_ device_id/string -> string:
   config_goal := topic_goal_for_ device_id
   return "$config_goal/revision"
 
+topic_state_for_ device_id/string -> string:
+  return "toit/devices/$device_id/state"
+
 topic_presence_for_ device_id/string -> string:
   return "toit/devices/presence/$device_id"

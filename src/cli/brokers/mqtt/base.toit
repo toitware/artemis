@@ -11,6 +11,7 @@ import tls
 import certificate_roots
 
 import ..broker
+import ...device
 import ...ui
 import ....shared.mqtt
 import ....shared.server_config
@@ -74,10 +75,11 @@ class BrokerCliMqtt implements BrokerCli:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
-  device_update_goal --device_id/string [block] -> none:
+  update_goal --device_id/string [block] -> none:
     client := client_
     topic_lock := topic_lock_for_ device_id
     topic_goal := topic_goal_for_ device_id
+    topic_state := topic_state_for_ device_id
     topic_revision := topic_revision_for_ device_id
 
     locked := monitor.Latch
@@ -135,6 +137,14 @@ class BrokerCliMqtt implements BrokerCli:
       // We send goal-state and revision changes with `--retain`.
       // As such we should get a packet as soon as we subscribe to the topics.
 
+      state := null
+      state_received_latch := monitor.Latch
+      client.subscribe topic_state:: | topic/string payload/ByteArray |
+        // We use the latest state we receive.
+        state = ubjson.decode payload
+        if not state_received_latch.has_value:
+          state_received_latch.set true
+
       client.subscribe topic_goal:: | topic/string payload/ByteArray |
         if not goal_channel.try_send (ubjson.decode payload):
           // TODO(kasper): Tell main task.
@@ -170,8 +180,14 @@ class BrokerCliMqtt implements BrokerCli:
       revision := old_revision + 1
       goal["writer"] = me
       goal["revision"] = revision
+
+      // TODO(florian): change the timeout depending on how long we already waited.
+      with_timeout --ms=retain_timeout_ms:
+        state_received_latch.get
+
       // TODO(florian): also get the current state of the device.
-      goal = block.call goal null
+      device := DetailedDevice --goal=goal --state=state
+      goal = block.call device
 
       // TODO(kasper): Maybe validate the goal?
       client.publish topic_goal (ubjson.encode goal) --qos=1 --retain
@@ -189,13 +205,20 @@ class BrokerCliMqtt implements BrokerCli:
         log.info "$(%08d Time.monotonic_us): Releasing lock"
         client.publish topic_lock (ubjson.encode null) --retain
 
-  upload_image --app_id/string --word_size/int content/ByteArray -> none:
-    upload_resource_ "toit/apps/$app_id/image$word_size" content
+  get_device --device_id/string -> DetailedDevice:
+    throw "UNIMPLEMENTED"
 
-  upload_firmware --firmware_id/string parts/List -> none:
-    upload_resource_in_parts_ "toit/firmware/$firmware_id" parts
+  upload_image -> none
+      --organization_id/string
+      --app_id/string
+      --word_size/int
+      content/ByteArray:
+    upload_resource_ "toit/$organization_id/apps/$app_id/image$word_size" content
 
-  download_firmware --id/string -> ByteArray:
+  upload_firmware --organization_id/string --firmware_id/string parts/List -> none:
+    upload_resource_in_parts_ "toit/$organization_id/firmware/$firmware_id" parts
+
+  download_firmware --organization_id/string --id/string -> ByteArray:
     unreachable
 
   upload_resource_ path/string content/ByteArray -> none:
@@ -215,7 +238,9 @@ class BrokerCliMqtt implements BrokerCli:
     upload_resource_ path manifest
 
   notify_created --device_id/string --state/Map -> none:
-    // Do nothing.
+    // Publish the state on the state topic.
+    topic := topic_state_for_ device_id
+    client_.publish topic (ubjson.encode state) --qos=1 --retain
 
   print_status --device_id/string --ui/Ui -> none:
     topic_presence := topic_presence_for_ device_id
