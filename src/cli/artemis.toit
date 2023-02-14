@@ -604,7 +604,7 @@ class Artemis:
   */
   diff_and_upload_ patch/FirmwarePatch --organization_id/string -> none:
     trivial_id := id_ --to=patch.to_
-    cache_key := "$connected_broker_.id/patches/$trivial_id"
+    cache_key := "$connected_broker_.id/$organization_id/patches/$trivial_id"
     // Unless it is already cached, always create/upload the trivial one.
     cache_.get cache_key: | store/cache.FileStore |
       trivial := build_trivial_patch patch.bits_
@@ -619,7 +619,7 @@ class Artemis:
     // Attempt to fetch the old trivial patch and use it to construct
     // the old bits so we can compute a diff from them.
     old_id := id_ --to=patch.from_
-    cache_key = "$connected_broker_.id/patches/$old_id"
+    cache_key = "$connected_broker_.id/$organization_id/patches/$old_id"
     trivial_old := cache_.get cache_key: | store/cache.FileStore |
       downloaded := null
       catch: downloaded = connected_broker_.download_firmware
@@ -643,7 +643,7 @@ class Artemis:
     if patch.from_ != sha.get: return
 
     diff_id := id_ --from=patch.from_ --to=patch.to_
-    cache_key = "$connected_broker_.id/patches/$diff_id"
+    cache_key = "$connected_broker_.id/$organization_id/patches/$diff_id"
     cache_.get cache_key: | store/cache.FileStore |
       // Build the diff and verify that we can apply it and get the
       // correct hash out before uploading it.

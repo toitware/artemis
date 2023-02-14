@@ -110,6 +110,9 @@ class HttpBroker extends HttpServer:
 
   get_state data/Map:
     device_id := data["device_id"]
+    return get_state --device_id=device_id
+
+  get_state --device_id/string -> Map?:
     return device_states.get device_id
 
   get_event data/Map:
