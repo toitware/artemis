@@ -38,8 +38,14 @@ main:
 
     client1.rest.rpc "toit_artemis.new_provisioned" {
       "_device_id": some_id,
-      "_state": {:},
+      "_state": { "created": "by user1"},
     }
+
+    // The device is now available to the authenticated client.
+    state := client1.rest.rpc "toit_artemis.get_state" {
+      "_device_id": some_id,
+    }
+    expect_equals "by user1" state["created"]
 
     // Provisioning a device twice should fail.
     expect_throws --contains="duplicate key":
@@ -62,7 +68,7 @@ main:
     }
 
     // The "get_state" function is only available to authenticated users.
-    state := client1.rest.rpc "toit_artemis.get_state" {
+    state = client1.rest.rpc "toit_artemis.get_state" {
       "_device_id": some_id,
     }
     expect_equals "by anon" state["updated"]
@@ -132,15 +138,23 @@ main:
         --path="$ASSETS_BUCKET/$storage_id"
         --content="test".to_byte_array
 
-    // Check that anon can see it.
+    // Check that anon can see it with public download.
     expect_equals "test".to_byte_array
+        client_anon.storage.download --public --path="$ASSETS_BUCKET/$storage_id"
+
+    // Anon doesn't see it with regular download.
+    expect_throws --contains="Not found":
         client_anon.storage.download --path="$ASSETS_BUCKET/$storage_id"
 
     // Check that anon can't update it.
     expect_throws --contains="row-level security":
-        client_anon.storage.upload
-            --path="$ASSETS_BUCKET/$storage_id"
-            --content="test".to_byte_array
+      client_anon.storage.upload
+          --path="$ASSETS_BUCKET/$storage_id"
+          --content="bad".to_byte_array
+
+    // Check that it's still the same.
+    expect_equals "test".to_byte_array
+        client_anon.storage.download --public --path="$ASSETS_BUCKET/$storage_id"
 
     storage_id2 := (uuid.uuid5 "storage" "id $random $Time.now").stringify
     // Check that anon can't write to it.
@@ -150,5 +164,8 @@ main:
             --content="test".to_byte_array
 
 expect_throws --contains/string [block]:
-  exception := catch: block.call
+  exception := catch:
+    block.call
+    print "Expected exception, but none was thrown."
+    expect false
   expect (exception.contains contains)

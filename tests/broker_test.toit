@@ -149,7 +149,6 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         // Skip them.
         while event.value == null:
           broker_service.on_idle
-          print "waiting for non-null"
           event = test_handler.channel.receive
       expect_equals "update_goal" event.type
       event_goal := event.value
