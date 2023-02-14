@@ -17,14 +17,14 @@ ALTER FUNCTION toit_artemis.get_goal SECURITY DEFINER;
 -- a big security hole.
 ALTER FUNCTION toit_artemis.update_state SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION is_auth_in_org_of_device(_device_id UUID)
+CREATE OR REPLACE FUNCTION is_auth_in_org_of_alias(_device_id UUID)
   RETURNS BOOLEAN
   SECURITY DEFINER
   LANGUAGE plpgsql
   AS $$
 BEGIN
   RETURN is_auth_member_of_org(
-    (SELECT organization_id FROM public.devices WHERE id = _device_id)
+    (SELECT organization_id FROM public.devices WHERE alias = _device_id)
   );
 END;
 $$;
@@ -34,15 +34,15 @@ CREATE POLICY "Authenticated have full access to devices of the orgs they are me
   ON toit_artemis.devices
   FOR ALL
   TO authenticated
-  USING (is_auth_in_org_of_device(id))
-  WITH CHECK (is_auth_in_org_of_device(id));
+  USING (is_auth_in_org_of_alias(id))
+  WITH CHECK (is_auth_in_org_of_alias(id));
 
 CREATE POLICY "Authenticated have full access to goals table of devices of the orgs they are member in"
   ON toit_artemis.goals
   FOR ALL
   TO authenticated
-  USING (is_auth_in_org_of_device(device_id))
-  WITH CHECK (is_auth_in_org_of_device(device_id));
+  USING (is_auth_in_org_of_alias(device_id))
+  WITH CHECK (is_auth_in_org_of_alias(device_id));
 
 CREATE POLICY "Authenticated have full access to storage in their orgs"
   ON storage.objects
