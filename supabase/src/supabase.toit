@@ -531,9 +531,11 @@ class Storage:
 
   /**
   Downloads the data stored in $path from the storage.
+
+  If $public is true, downloads the data through the public URL.
   */
-  download --path/string -> ByteArray:
-    download --path=path: | reader/SizedReader |
+  download --path/string --public/bool=false -> ByteArray:
+    download --path=path --public=public: | reader/SizedReader |
       result := ByteArray reader.size
       offset := 0
       while chunk := reader.read:
@@ -548,8 +550,10 @@ class Storage:
   Calls the given $block with a $SizedReader and the total size of the resource. If
     the download is not partial, then the total size is equal to the size of the
     $SizedReader.
+
+  If $public is true, downloads the data through the public URL.
   */
-  download --path/string --offset/int=0 --size/int?=null [block] -> none:
+  download --public/bool=false --path/string --offset/int=0 --size/int?=null [block] -> none:
     partial := false
     headers/http.Headers? := null
     if offset != 0 or size:
@@ -557,9 +561,12 @@ class Storage:
       end := size ? "$(offset + size - 1)" : ""
       headers = http.Headers
       headers.add "Range" "bytes=$offset-$end"
+    full_path := public
+        ? "storage/v1/object/public/$path"
+        : "storage/v1/object/$path"
     response := client_.request_ --raw_response
         --method=http.GET
-        --path="/storage/v1/object/$path"
+        --path=full_path
         --headers=headers
     // Check the status code. The correct result depends on whether
     // or not we're doing a partial fetch.
@@ -582,3 +589,9 @@ class Storage:
     else:
       block.call body body.size
     while data := body.read: null // DRAIN!
+
+  /**
+  Computes the public URL for the given $path.
+  */
+  public_url_for --path/string -> string:
+    return "$client_.host_/object/public/$path"
