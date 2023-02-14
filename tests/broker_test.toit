@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-// TEST_FLAGS: --http-toit --mosquitto --supabase-local --toit-mqtt
+// TEST_FLAGS: BROKER
 
 import expect show *
 import log
@@ -13,10 +13,16 @@ import artemis.cli.brokers.mqtt.base as mqtt_broker
 import artemis.cli.brokers.http.base as http_broker
 import artemis.cli.brokers.supabase show BrokerCliSupabase
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
+import supabase
 import supabase.auth as supabase
 import uuid
 
-import .brokers
+import .artemis_server
+  show
+    with_artemis_server
+    TestArtemisServer
+    SupabaseBackdoor
+import .broker
 import .utils
 
 // When running the supabase test we need a valid UUID that is not
@@ -25,12 +31,11 @@ DEVICE_ID ::= (uuid.uuid5 "broker-test" "$(random)-$(Time.now)").stringify
 DEVICE_HARDWARE_ID ::= (uuid.uuid5 "broker-test-hw" "$(random)-$(Time.now)").stringify
 
 main args:
-  if args.is_empty: args = ["--http-toit"]
-  broker_id := args[0][2..]
-  run_test broker_id
+  broker_type := broker_type_from_args args
+  run_test broker_type
 
-run_test broker_id/string:
-  with_brokers broker_id: | logger name broker_cli broker_service |
+run_test broker_type/string:
+  with_brokers --type=broker_type: | logger name broker_cli broker_service |
     run_test logger name broker_cli broker_service
 
 run_test
@@ -43,6 +48,16 @@ run_test
     // Make sure we are authenticated.
     broker_cli.ensure_authenticated: | auth/supabase.Auth |
       auth.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
+
+  if broker_name == "supabase-local-artemis":
+    // Make sure the device is in the database.
+    with_artemis_server --type="supabase": | server/TestArtemisServer |
+      backdoor := server.backdoor as SupabaseBackdoor
+      backdoor.with_backdoor_client_: | client/supabase.Client |
+        client.rest.insert "devices" {
+          "id": DEVICE_ID,
+          "organization_id": TEST_ORGANIZATION_UUID,
+        }
 
   test_image broker_cli broker_service
   test_firmware broker_cli broker_service

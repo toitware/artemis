@@ -19,7 +19,6 @@ import ..tools.http_servers.broker as http_servers
 import ..tools.http_servers.artemis_server as http_servers
 import monitor
 import .artemis_server
-import .brokers
 import .broker
 import .supabase_local_server
 import .mqtt_broker_mosquitto
@@ -235,3 +234,15 @@ encoded_firmware
     "device-specific": device_specific,
     "checksum": #[],
   })
+
+server_type_from_args args/List:
+  args.do: | arg |
+    if not arg.ends_with "-server": continue.do
+    return arg[2..].trim --right "-server"
+  return "http"
+
+broker_type_from_args args/List:
+  args.do: | arg |
+    if not arg.ends_with "-broker": continue.do
+    return arg[2..].trim --right "-broker"
+  return "http"

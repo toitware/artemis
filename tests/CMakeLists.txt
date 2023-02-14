@@ -22,50 +22,81 @@ include(fail.cmake OPTIONAL)
 message("Failing tests: ${FAILING_TESTS}")
 message("Skipped tests: ${SKIP_TESTS}")
 
-function(extract_test_flags file result)
+set (ARTEMIS_FLAGS "--supabase-server" "--http-server")
+set (BROKER_FLAGS
+      "--http-toit-broker"
+      "--mosquitto-broker"
+      # TODO(florian): reenable the toit MQTT server.
+      # "--toit-mqtt"
+      "--supabase-local-broker"
+      "--supabase-local-artemis-broker"
+    )
+
+function (takes_artemis_flags file result)
   file(READ "${file}" content)
-  string(REGEX MATCHALL "// TEST_FLAGS: ([^\n]*)" flags "${content}")
-  string(REPLACE " " ";" flags "${CMAKE_MATCH_1}")
-  set(${result} "${flags}" PARENT_SCOPE)
+  string(REGEX MATCH "// TEST_FLAGS:.*ARTEMIS" match "${content}")
+  # Return the match if there was one.
+  set(${result} ${match} PARENT_SCOPE)
+endfunction()
+
+function (takes_broker_flags file result)
+  file(READ "${file}" content)
+  string(REGEX MATCH "// TEST_FLAGS:.*BROKER" match "${content}")
+  # Return the match if there was one.
+  set(${result} ${match} PARENT_SCOPE)
 endfunction()
 
 foreach(file ${TESTS})
-  extract_test_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" flags)
-  if (NOT flags)
-    set(flags "--dummy")
+  takes_artemis_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" artemis_match)
+  takes_broker_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" broker_match)
+
+  if ("${artemis_match}" STREQUAL "")
+    set(TEST_ARTEMIS_FLAGS "--dummy")
+  else()
+    set(TEST_ARTEMIS_FLAGS ${ARTEMIS_FLAGS})
+  endif()
+  if ("${broker_match}" STREQUAL "")
+    set(TEST_BROKER_FLAGS "--dummy")
+  else()
+    set(TEST_BROKER_FLAGS ${BROKER_FLAGS})
   endif()
 
-  foreach (flag ${flags})
-    set(test_name "/tests/${file}")
-    if (${flag} MATCHES "--dummy")
-      set(flag "")
-    endif()
+  foreach (artemis_flag ${TEST_ARTEMIS_FLAGS})
+    foreach (broker_flag ${TEST_BROKER_FLAGS})
+      set(test_name "/tests/${file}")
+      if (${artemis_flag} MATCHES "--dummy")
+        set(artemis_flag "")
+      endif()
+      if (${broker_flag} MATCHES "--dummy")
+        set(broker_flag "")
+      endif()
+      if ("${broker_flag}" STREQUAL "--supabase-local-artemis-broker" AND NOT "${artemis_flag}" STREQUAL "--supabase-server")
+        # The supabase local broker requires the supabase server.
+        continue()
+      endif()
+      if (NOT "${artemis_flag}" STREQUAL "" OR NOT "${broker_flag}" STREQUAL "")
+        set(test_name "${test_name}${artemis_flag}${broker_flag}")
+      endif()
 
-    if (NOT "${flag}" STREQUAL "")
-      set(test_name "${test_name}${flag}")
-    endif()
+      if("${test_name}" IN_LIST SKIP_TESTS)
+        continue()
+      endif()
 
-    if("${test_name}" IN_LIST SKIP_TESTS)
-      continue()
-    endif()
+      add_test(
+        NAME "${test_name}"
+        COMMAND "${TOITRUN}" "${file}" ${artemis_flag} ${broker_flag}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      )
 
-    # Split the flags at "|".
-    string(REPLACE "|" ";" flag "${flag}")
+      if ("${file}" MATCHES "_slow.toit")
+        set_tests_properties(${test_name} PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
+      else()
+        set_tests_properties(${test_name} PROPERTIES TIMEOUT ${TEST_TIMEOUT})
+      endif()
 
-    add_test(
-      NAME "${test_name}"
-      COMMAND "${TOITRUN}" "${file}" ${flag}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-
-    if ("${file}" MATCHES "_slow.toit")
-      set_tests_properties(${test_name} PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
-    else()
-      set_tests_properties(${test_name} PROPERTIES TIMEOUT ${TEST_TIMEOUT})
-    endif()
-
-    if("${test_name}" IN_LIST FAILING_TESTS)
-      set_tests_properties("${test_name}" PROPERTIES WILL_FAIL TRUE)
-    endif()
+      if("${test_name}" IN_LIST FAILING_TESTS)
+        set_tests_properties("${test_name}" PROPERTIES WILL_FAIL TRUE)
+      endif()
+    endforeach()
   endforeach()
 endforeach()
