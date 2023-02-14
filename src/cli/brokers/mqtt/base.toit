@@ -77,10 +77,10 @@ class BrokerCliMqtt implements BrokerCli:
 
   update_goal --device_id/string [block] -> none:
     client := client_
-    topic_lock := topic_lock_for_ device_id
-    topic_goal := topic_goal_for_ device_id
-    topic_state := topic_state_for_ device_id
-    topic_revision := topic_revision_for_ device_id
+    topic_lock := topic_lock_for device_id
+    topic_goal := topic_goal_for device_id
+    topic_state := topic_state_for device_id
+    topic_revision := topic_revision_for device_id
 
     locked := monitor.Latch
     goal_channel := monitor.Channel 1
@@ -239,12 +239,12 @@ class BrokerCliMqtt implements BrokerCli:
 
   notify_created --device_id/string --state/Map -> none:
     // Publish the state on the state topic.
-    topic := topic_state_for_ device_id
+    topic := topic_state_for device_id
     client_.publish topic (ubjson.encode state) --qos=1 --retain
 
   print_status --device_id/string --ui/Ui -> none:
-    topic_presence := topic_presence_for_ device_id
-    topic_goal := topic_goal_for_ device_id
+    topic_presence := topic_presence_for device_id
+    topic_goal := topic_goal_for device_id
 
     with_timeout --ms=5_000:
       client := client_

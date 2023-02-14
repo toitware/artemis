@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import encoding.json
+import encoding.ubjson
 import log show Logger
 import monitor
 import mqtt
@@ -14,7 +15,15 @@ import ..tools.http_servers.broker show HttpBroker
 import ..tools.http_servers.broker as http_servers
 import artemis.shared.server_config
   show
-    ServerConfig ServerConfigHttpToit ServerConfigSupabase ServerConfigMqtt
+    ServerConfig
+    ServerConfigHttpToit
+    ServerConfigSupabase
+    ServerConfigMqtt
+import artemis.shared.mqtt
+  show
+    topic_state_for
+    topic_goal_for
+    topic_revision_for
 import .utils
 
 class TestBroker:
@@ -27,12 +36,17 @@ interface BrokerBackdoor:
   /**
   Creates a new device with the given $device_id and initial $state.
   */
-  create_device --device_id/string --state/Map={:} -> none
+  create_device --device_id/string --state/Map -> none
 
   /**
   Removes the device with the given $device_id.
   */
   remove_device device_id/string -> none
+
+  /**
+  Returns the reported state of the device.
+  */
+  get_state device_id/string -> Map?
 
 with_broker --type/string --logger/Logger [block]:
   if type == "supabase":
@@ -58,11 +72,14 @@ class ToitHttpBackdoor implements BrokerBackdoor:
 
   constructor .server:
 
-  create_device --device_id/string --state/Map={:}:
+  create_device --device_id/string --state/Map:
     server.create_device --device_id=device_id --state=state
 
   remove_device device_id/string -> none:
     server.remove_device device_id
+
+  get_state device_id/string -> Map?:
+    return server.get_state --device_id=device_id
 
 with_http_broker [block]:
   server := http_servers.HttpBroker 0
@@ -88,7 +105,7 @@ class SupabaseBackdoor implements BrokerBackdoor:
 
   constructor .server_config_ .service_key_:
 
-  create_device --device_id/string --state/Map={:}:
+  create_device --device_id/string --state/Map:
     with_backdoor_client_: | client/supabase.Client |
       client.rest.rpc "toit_artemis.new_provisioned" {
         "_device_id": device_id,
@@ -100,6 +117,13 @@ class SupabaseBackdoor implements BrokerBackdoor:
       client.rest.rpc "toit_artemis.remove_device" {
         "_device_id": device_id,
       }
+
+  get_state device_id/string -> Map?:
+    with_backdoor_client_: | client/supabase.Client |
+      return client.rest.rpc "toit_artemis.get_state" {
+        "_device_id": device_id,
+      }
+    unreachable
 
   with_backdoor_client_ [block]:
     network := net.open
@@ -120,11 +144,29 @@ class MqttBackdoor implements BrokerBackdoor:
   constructor .server_config_ --logger/Logger:
     logger_ = logger
 
-  create_device --device_id/string --state/Map={:}:
-    // TODO(florian): implement MQTT create-device.
+  create_device --device_id/string --state/Map:
+    with_backdoor_client_: | client/mqtt.Client |
+      topic := topic_state_for device_id
+      client.publish topic (ubjson.encode state) --retain --qos=1
 
   remove_device device_id/string -> none:
-    // TODO(florian): implement MQTT remove-device.
+    with_backdoor_client_: | client/mqtt.Client |
+      [
+        topic_state_for device_id,
+        topic_goal_for device_id,
+        topic_revision_for device_id,
+      ].do: client.publish it #[] --retain --qos=1
+
+  get_state device_id/string -> Map?:
+    state_latch := monitor.Latch
+    with_backdoor_client_: | client/mqtt.Client |
+      topic := topic_state_for device_id
+      client.subscribe topic:: | _ payload/ByteArray |
+        if not state_latch.has_value:
+          state_latch.set (ubjson.decode payload)
+        client.unsubscribe topic
+      return state_latch.get
+    unreachable
 
   with_backdoor_client_ [block]:
     network := net.open
