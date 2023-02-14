@@ -120,8 +120,9 @@ Starts the artemis server and broker.
 If $start_device_artemis is true creates a new device in the default
   test organization and starts a service_task running Artemis.
 Neither the 'check_in', nor the firmware service are set up.
+If $wait_for_device is true, waits for the device to report its state.
 
-Calls the given $block with a $TestCli instance and a $Device/null.
+Calls the given $block with a $TestCli instance and a $Device or null.
 
 If the type is supabase, uses the running supabase instances. Otherwise,
   creates fresh instances of the brokers.
@@ -131,6 +132,7 @@ with_test_cli
     --broker_type/string="http"
     --logger/log.Logger=log.default
     --start_device_artemis/bool=true
+    --wait_for_device/bool=true
     [block]:
   with_artemis_server --type=artemis_type: | artemis_server |
     with_test_cli
@@ -145,6 +147,7 @@ with_test_cli
     broker_type
     --logger/log.Logger
     --start_device_artemis/bool=true
+    --wait_for_device/bool=true
     [block]:
   with_broker --type=broker_type --logger=logger: | broker/TestBroker |
     with_test_cli
@@ -159,6 +162,7 @@ with_test_cli
     --broker/TestBroker
     --logger/log.Logger
     --start_device_artemis/bool=true
+    --wait_for_device/bool=true
     [block]:
 
   with_tmp_directory: | tmp_dir |
@@ -178,17 +182,32 @@ with_test_cli
 
     device_id := artemis_server.backdoor.create_device
         --organization_id=TEST_ORGANIZATION_UUID
-    broker.backdoor.create_device --device_id=device_id
+    initial_state := {
+      "identity": {
+        "device_id": device_id,
+        "organization_id": TEST_ORGANIZATION_UUID,
+        "hardware_id": device_id,
+      }
+    }
+
+    broker.backdoor.create_device --device_id=device_id --state=initial_state
 
     if start_device_artemis:
       device = Device
           --id=device_id
+          --organization_id=TEST_ORGANIZATION_UUID
           --firmware_state={
-            "firmware": encoded_firmware --device_id=device_id --organization_id=TEST_ORGANIZATION_UUID
+            "firmware": encoded_firmware --device_id=device_id
           }
 
       artemis_task = task::
         service.run_artemis device broker_config --no-start_ntp
+
+      // Wait until the device has reported its state.
+      if wait_for_device:
+        with_timeout --ms=2_000:
+          while not broker.backdoor.get_state device_id:
+            sleep --ms=100
 
     try:
       test_cli := TestCli config cache artemis_server.backdoor
@@ -202,7 +221,7 @@ with_test_cli
 
 encoded_firmware
     --device_id/string
-    --organization_id/string
+    --organization_id/string=TEST_ORGANIZATION_UUID
     --hardware_id/string=device_id:
   device_specific := ubjson.encode {
     "artemis.device": {

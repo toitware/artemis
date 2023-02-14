@@ -198,6 +198,7 @@ class Artemis:
   The image is ready to be flashed together with the identity file.
   */
   customize_envelope
+      --organization_id/string
       --device_specification/DeviceSpecification
       --output_path/string:
     sdk_version := device_specification.sdk_version
@@ -316,16 +317,23 @@ class Artemis:
     // need it. In that case we use it to compute binary diffs. It can also be
     // used directly from the devices to download the firmware directly.
     firmware_content := FirmwareContent.from_envelope output_path --cache=cache_
-    firmware_content.trivial_patches.do: diff_and_upload_ it
+    firmware_content.trivial_patches.do: diff_and_upload_ it --organization_id=organization_id
 
     // For convenience save all snapshots in the user's cache.
     cache_snapshots --envelope=output_path --cache=cache_
 
   /**
-  Updates the device $device_id with the firmware image at $envelope_path.
+  Updates the device $device_id with the given $device_specification.
   */
-  update --device_id/string --envelope_path/string:
+  update --device_id/string --device_specification/DeviceSpecification:
     update_goal --device_id=device_id: | device/DetailedDevice |
+      with_tmp_directory: | tmp_dir/string |
+        envelope_path := "$tmp_dir/$(device_id).envelope"
+        customize_envelope
+            --organization_id=device.organization_id
+            --output_path=envelope_path
+            --device_specification=device_specification
+
         known_encoded_firmwares := {}
         [
           device.goal,
@@ -387,7 +395,7 @@ class Artemis:
       ui_.info "Computing and uploading patches."
       upgrade_from.do: | old_firmware/Firmware |
         patches := upgrade_to.patches old_firmware
-        patches.do: diff_and_upload_ it
+        patches.do: diff_and_upload_ it  --organization_id=device.organization_id
 
       new_config["firmware"] = upgrade_to.encoded
       return new_config
@@ -542,18 +550,24 @@ class Artemis:
 
     program := CompiledProgram.application application_path --sdk=sdk
     id := program.id
-    cache_id := image_cache_id_ id
-    cache_.get_directory_path cache_id: | store/cache.DirectoryStore |
-      store.with_tmp_directory: | tmp_dir |
-        // TODO(florian): do we want to rely on the cache, or should we
-        // do a check to see if the files are really uploaded?
-        connected_broker_.upload_image --app_id=id --word_size=32 program.image32
-        file.write_content program.image32 --path="$tmp_dir/image32.bin"
-        connected_broker_.upload_image --app_id=id --word_size=64 program.image64
-        file.write_content program.image64 --path="$tmp_dir/image64.bin"
-        store.move tmp_dir
-
     update_goal --device_id=device_id: | device/DetailedDevice |
+      cache_id := image_cache_id_ id
+      cache_.get_directory_path cache_id: | store/cache.DirectoryStore |
+        store.with_tmp_directory: | tmp_dir |
+          // TODO(florian): do we want to rely on the cache, or should we
+          // do a check to see if the files are really uploaded?
+          connected_broker_.upload_image program.image32
+              --app_id=id
+              --organization_id=device.organization_id
+              --word_size=32
+          file.write_content program.image32 --path="$tmp_dir/image32.bin"
+          connected_broker_.upload_image  program.image64
+              --organization_id=device.organization_id
+              --app_id=id
+              --word_size=64
+          file.write_content program.image64 --path="$tmp_dir/image64.bin"
+          store.move tmp_dir
+
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
@@ -588,13 +602,15 @@ class Artemis:
   /**
   Computes patches and uploads them to the broker.
   */
-  diff_and_upload_ patch/FirmwarePatch -> none:
+  diff_and_upload_ patch/FirmwarePatch --organization_id/string -> none:
     trivial_id := id_ --to=patch.to_
-    cache_key := "$connected_broker_.id/patches/$trivial_id"
+    cache_key := "$connected_broker_.id/$organization_id/patches/$trivial_id"
     // Unless it is already cached, always create/upload the trivial one.
     cache_.get cache_key: | store/cache.FileStore |
       trivial := build_trivial_patch patch.bits_
-      connected_broker_.upload_firmware --firmware_id=trivial_id trivial
+      connected_broker_.upload_firmware trivial
+          --organization_id=organization_id
+          --firmware_id=trivial_id
       store.save_via_writer: | writer/writer.Writer |
         trivial.do: writer.write it
 
@@ -603,10 +619,12 @@ class Artemis:
     // Attempt to fetch the old trivial patch and use it to construct
     // the old bits so we can compute a diff from them.
     old_id := id_ --to=patch.from_
-    cache_key = "$connected_broker_.id/patches/$old_id"
+    cache_key = "$connected_broker_.id/$organization_id/patches/$old_id"
     trivial_old := cache_.get cache_key: | store/cache.FileStore |
       downloaded := null
-      catch: downloaded = connected_broker_.download_firmware --id=old_id
+      catch: downloaded = connected_broker_.download_firmware
+          --organization_id=organization_id
+          --id=old_id
       if not downloaded: return
       store.with_tmp_directory: | tmp_dir |
         file.write_content downloaded --path="$tmp_dir/patch"
@@ -625,13 +643,15 @@ class Artemis:
     if patch.from_ != sha.get: return
 
     diff_id := id_ --from=patch.from_ --to=patch.to_
-    cache_key = "$connected_broker_.id/patches/$diff_id"
+    cache_key = "$connected_broker_.id/$organization_id/patches/$diff_id"
     cache_.get cache_key: | store/cache.FileStore |
       // Build the diff and verify that we can apply it and get the
       // correct hash out before uploading it.
       diff := build_diff_patch old patch.bits_
       if patch.to_ != (compute_applied_hash_ diff old): return
-      connected_broker_.upload_firmware --firmware_id=diff_id diff
+      connected_broker_.upload_firmware diff
+          --organization_id=organization_id
+          --firmware_id=diff_id
       store.save_via_writer: | writer/writer.Writer |
         diff.do: writer.write it
 
