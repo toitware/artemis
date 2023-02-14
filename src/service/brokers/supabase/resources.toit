@@ -12,12 +12,14 @@ class ResourceManagerSupabase implements ResourceManager:
   client_/supabase.Client
   constructor .client_:
 
-  fetch_image id/string [block] -> none:
-    client_.storage.download --path="/toit-artemis-assets/images/$id.$BITS_PER_WORD" block
+  fetch_image id/string --organization_id/string [block] -> none:
+    client_.storage.download
+        --path="/toit-artemis-assets/$organization_id/images/$id.$BITS_PER_WORD"
+        block
 
-  fetch_firmware id/string --offset/int=0 [block] -> none:
+  fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none:
     PART_SIZE ::= 64 * 1024
-    path := "/toit-artemis-assets/firmware/$id"
+    path := "/toit-artemis-assets/$organization_id/firmware/$id"
     while true:
       client_.storage.download
           --path=path

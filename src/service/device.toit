@@ -14,6 +14,12 @@ class Device:
   This ID was chosen during provisioning and is unique.
   */
   id/string
+
+  /**
+  The organization ID of the device.
+  */
+  organization_id/string
+
   /**
   The configuration as given by the firmware.
 
@@ -53,7 +59,7 @@ class Device:
   */
   goal_state/Map? := null
 
-  constructor --.id --.firmware_state/Map:
+  constructor --.id --.organization_id --.firmware_state/Map:
 
   /**
   The current max-offline as a Duration.

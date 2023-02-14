@@ -14,7 +14,12 @@ import reader show SizedReader UNEXPECTED_END_OF_READER_EXCEPTION
 import .brokers.broker
 import ..shared.utils.patch
 
-firmware_update logger/log.Logger resources/ResourceManager --old/string --new/string -> none:
+firmware_update -> none
+    logger/log.Logger
+    resources/ResourceManager
+    --organization_id/string
+    --old/string
+    --new/string:
   old_firmware := Firmware.encoded old
   new_firmware := Firmware.encoded new
 
@@ -31,6 +36,7 @@ firmware_update logger/log.Logger resources/ResourceManager --old/string --new/s
       index := checkpoint ? checkpoint.read_part_index : 0
       read_offset := checkpoint ? checkpoint.read_offset : 0
       patcher := FirmwarePatcher_ logger old_mapping
+          --organization_id=organization_id
           --checkpoint=checkpoint
           --new=new_firmware
           --old=old_firmware
@@ -46,6 +52,7 @@ firmware_update logger/log.Logger resources/ResourceManager --old/string --new/s
 
 class FirmwarePatcher_ implements PatchObserver:
   logger_/log.Logger
+  organization_id_/string
   new_/Firmware
   old_/Firmware
   old_mapping_/firmware.FirmwareMapping?
@@ -61,7 +68,12 @@ class FirmwarePatcher_ implements PatchObserver:
   next_checkpoint_/Checkpoint? := null
   next_checkpoint_part_index_/int? := null
 
-  constructor .logger_ .old_mapping_ --checkpoint/Checkpoint? --new/Firmware --old/Firmware:
+  constructor .logger_ .old_mapping_
+      --organization_id/string
+      --checkpoint/Checkpoint?
+      --new/Firmware
+      --old/Firmware:
+    organization_id_ = organization_id
     old_ = old
     new_ = new
     reposition_ checkpoint
@@ -133,7 +145,9 @@ class FirmwarePatcher_ implements PatchObserver:
       resource_url := resource_urls[i]
       started_applying := false
       exception := catch --unwind=(started_applying or i == resource_urls.size - 1):
-        resources.fetch_firmware resource_url --offset=read_offset:
+        resources.fetch_firmware resource_url
+            --organization_id=organization_id_
+            --offset=read_offset:
           | reader/SizedReader offset/int |
             started_applying = true
             continuation := apply_ reader offset old_mapping

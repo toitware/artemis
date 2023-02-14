@@ -11,15 +11,16 @@ class ResourceManagerHttp implements ResourceManager:
 
   constructor .connection_:
 
-  fetch_image id/string [block] -> none:
+  fetch_image id/string --organization_id/string [block] -> none:
     response := connection_.send_request "download_image" {
+      "organization_id": organization_id,
       "app_id": id,
       "word_size": BITS_PER_WORD,
     }
     image := response
     block.call (bytes.Reader image)
 
-  fetch_firmware id/string --offset/int=0 [block] -> none:
+  fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none:
     PART_SIZE ::= 64 * 1024
 
     firmware := ?
@@ -27,6 +28,7 @@ class ResourceManagerHttp implements ResourceManager:
       firmware = last_firmware_
     else:
       firmware = connection_.send_request "download_firmware" {
+        "organization_id": organization_id,
         "firmware_id": id,
         "offset": offset,
       }

@@ -571,6 +571,7 @@ class Artemis:
   app_install --device_id/string --app_name/string --application_path/string:
     // TODO(florian): get the sdk from the device.
     sdk := Sdk
+
     program := CompiledProgram.application application_path --sdk=sdk
     id := program.id
     cache_id := image_cache_id_ id

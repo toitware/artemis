@@ -66,19 +66,24 @@ class BrokerCliSupabase implements BrokerCli:
       "_goal": new_goal,
     }
 
-  upload_image --app_id/string --word_size/int content/ByteArray -> none:
-    client_.storage.upload --path="toit-artemis-assets/images/$app_id.$word_size" --content=content
+  upload_image
+      --organization_id/string
+      --app_id/string
+      --word_size/int
+      content/ByteArray -> none:
+    client_.storage.upload --path="toit-artemis-assets/$organization_id/images/$app_id.$word_size" --content=content
 
-  upload_firmware --firmware_id/string parts/List -> none:
+  upload_firmware --organization_id/string --firmware_id/string parts/List -> none:
     content := #[]
     parts.do: | part/ByteArray | content += part  // TODO(kasper): Avoid all this copying.
-    client_.storage.upload --path="toit-artemis-assets/firmware/$firmware_id" --content=content
+    client_.storage.upload --path="toit-artemis-assets/$organization_id/firmware/$firmware_id" --content=content
 
-  download_firmware --id/string -> ByteArray:
+  download_firmware --organization_id/string --id/string -> ByteArray:
     content := #[]
-    client_.storage.download --path="toit-artemis-assets/firmware/$id": | reader/reader.Reader |
-      while data := reader.read:
-        content += data
+    client_.storage.download --path="toit-artemis-assets/$organization_id/firmware/$id":
+      | reader/reader.Reader |
+        while data := reader.read:
+          content += data
     return content
 
   notify_created --device_id/string --state/Map -> none:
