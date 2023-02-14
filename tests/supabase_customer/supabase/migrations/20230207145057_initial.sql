@@ -27,12 +27,7 @@ CREATE TABLE IF NOT EXISTS goals
 ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
 
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('toit-artemis-assets', 'Toit artemis assets', true);
-
-
-create policy "Public Access"
-  on storage.objects for all
-  using (bucket_id = 'toit-artemis-assets');
+VALUES ('toit-artemis-assets', 'toit-artemis-assets', true);
 
 -- Informs the broker that a new device was provisioned.
 CREATE OR REPLACE FUNCTION new_provisioned(_device_id UUID, _state JSONB)

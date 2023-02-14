@@ -14,6 +14,7 @@ class ResourceManagerSupabase implements ResourceManager:
 
   fetch_image id/string --organization_id/string [block] -> none:
     client_.storage.download
+        --public
         --path="/toit-artemis-assets/$organization_id/images/$id.$BITS_PER_WORD"
         block
 
@@ -22,6 +23,7 @@ class ResourceManagerSupabase implements ResourceManager:
     path := "/toit-artemis-assets/$organization_id/firmware/$id"
     while true:
       client_.storage.download
+          --public
           --path=path
           --offset=offset
           --size=PART_SIZE
