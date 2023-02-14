@@ -19,7 +19,7 @@ interface ResourceManager:
 
   Calls the $block with a $SizedReader.
   */
-  fetch_image id/string [block] -> none
+  fetch_image id/string --organization_id/string [block] -> none
 
   /**
   Downloads the firmware with the given $id.
@@ -33,7 +33,7 @@ interface ResourceManager:
 
   Depending on the implementation, there might be multiple calls to the block.
   */
-  fetch_firmware id/string --offset/int=0 [block] -> none
+  fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none
 
   // TODO(kasper): Poor interface. We shouldn't need to pass
   // the device id here?

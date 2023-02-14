@@ -1,5 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import encoding.ubjson
+import encoding.base64
 import expect show *
 import log
 import host.directory
@@ -179,9 +181,11 @@ with_test_cli
     broker.backdoor.create_device --device_id=device_id
 
     if start_device_artemis:
-      device = Device --id=device_id --firmware_state={
-        "firmware": "foo"
-      }
+      device = Device
+          --id=device_id
+          --firmware_state={
+            "firmware": encoded_firmware --device_id=device_id --organization_id=TEST_ORGANIZATION_UUID
+          }
 
       artemis_task = task::
         service.run_artemis device broker_config --no-start_ntp
@@ -195,3 +199,20 @@ with_test_cli
       if artemis_task: artemis_task.cancel
       if device: artemis_server.backdoor.remove_device device.id
       directory.rmdir --recursive cache_dir
+
+encoded_firmware
+    --device_id/string
+    --organization_id/string
+    --hardware_id/string=device_id:
+  device_specific := ubjson.encode {
+    "artemis.device": {
+      "device_id": device_id,
+      "organization_id": organization_id,
+      "hardware_id": hardware_id,
+    },
+    "parts": ubjson.encode [],
+  }
+  return base64.encode (ubjson.encode {
+    "device-specific": device_specific,
+    "checksum": #[],
+  })

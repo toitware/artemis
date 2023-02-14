@@ -1,5 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import .firmware
+
 class Device:
   /**
   The hardware ID of the device.
@@ -26,13 +28,75 @@ class Device:
   */
   organization_id/string
 
-  // TODO(florian): we also need a "broker-id" which uniquely identifies the
-  // device on the broker. This is necessary, if a broker is shared amongst
-  // multiple organizations.
-  // For example, one of Toitware's supabase projects (but not the Artemis
-  // project) could serve as a broker for customers. Since we don't synchronize
-  // the Artemis project with the broker we can't reuse the hardware-id in
-  // the broker. We would need to get a different unique token that identifies
-  // the device on the broker.
-
   constructor --.hardware_id --.id --.organization_id:
+
+/**
+A detailed version of the $Device class.
+*/
+class DetailedDevice extends Device:
+  /**
+  The state the device should try to reach.
+
+  This is the configuration that the broker currently sends to the device.
+  May be null if the device was never instructed to change state.
+  */
+  goal/Map?
+
+  /**
+  The goal state as reported by the device.
+
+  This might be different from the actual goal state if the device either
+    didn't yet receive the new goal state, or if the device didn't report its
+    current state yet.
+
+  May be null if the device has not reported a state yet, or if
+    the device already applied all the changes.
+  */
+  reported_state_goal/Map?
+
+  /**
+  The current state of the device.
+
+  If the "firmware" entry is not the same as the one in the
+    $reported_state_firmware, then the device has updated its firmware but
+    has not yet rebooted.
+
+  May be null if the device has not reported a state yet, or if
+    the device's firmware state is equal to the current state.
+  */
+  reported_state_current/Map?
+
+  /**
+  The device's firmware state.
+  May be null if the device has not reported a state yet.
+  */
+  reported_state_firmware/Map?
+
+  /**
+  Constructs a new detailed device from the current goal and the
+    reported state.
+  */
+  constructor --.goal/Map? --state/Map?:
+    reported_state_goal = state and state.get "goal-state"
+    reported_state_current = state and state.get "current-state"
+    reported_state_firmware = state and state.get "firmware-state"
+
+    initial_state := reported_state_firmware ? null : state
+    local_organization_id := ?
+    local_hardware_id := ?
+    local_id := ?
+
+    if initial_state:
+      identity := initial_state["identity"]
+      local_organization_id = identity["organization_id"]
+      local_hardware_id = identity["hardware_id"]
+      local_id = identity["device_id"]
+    else:
+      print "reported_state_firmware: $reported_state_firmware"
+      old_firmware := Firmware.encoded reported_state_firmware["firmware"]
+      device := old_firmware.device_specific "artemis.device"
+      local_organization_id = device["organization_id"]
+      local_hardware_id = device["hardware_id"]
+      local_id = device["device_id"]
+
+    super --hardware_id=local_hardware_id --id=local_id --organization_id=local_organization_id

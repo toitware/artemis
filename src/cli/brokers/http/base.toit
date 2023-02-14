@@ -5,6 +5,7 @@ import http
 import net
 
 import ..broker
+import ...device
 import ...ui
 import ....shared.server_config
 
@@ -67,29 +68,42 @@ class BrokerCliHttp implements BrokerCli:
 
     return decoded["data"]
 
-  device_update_goal --device_id/string [block] -> none:
-    current_goal := send_request_ "get_goal" {"device_id": device_id}
-    current_state := send_request_ "get_state" {"device_id": device_id}
-    new_goal := block.call current_goal current_state
+  update_goal --device_id/string [block] -> none:
+    device := get_device --device_id=device_id
+    new_goal := block.call device
     send_request_ "update_goal" {"device_id": device_id, "goal": new_goal}
 
-  upload_image --app_id/string --word_size/int content/ByteArray -> none:
+  get_device --device_id/string -> DetailedDevice:
+    current_goal := send_request_ "get_goal" {"device_id": device_id}
+    current_state := send_request_ "get_state" {"device_id": device_id}
+    return DetailedDevice --goal=current_goal --state=current_state
+
+  upload_image -> none
+      --organization_id/string
+      --app_id/string
+      --word_size/int
+      content/ByteArray:
     send_request_ "upload_image" {
+      "organization_id": organization_id,
       "app_id": app_id,
       "word_size": word_size,
       "content": content,
     }
 
-  upload_firmware --firmware_id/string chunks/List -> none:
+  upload_firmware --organization_id/string --firmware_id/string chunks/List -> none:
     firmware := #[]
     chunks.do: firmware += it
     send_request_ "upload_firmware" {
+      "organization_id": organization_id,
       "firmware_id": firmware_id,
       "content": firmware,
     }
 
-  download_firmware --id/string -> ByteArray:
-    response := send_request_ "download_firmware" {"firmware_id": id}
+  download_firmware --organization_id/string --id/string -> ByteArray:
+    response := send_request_ "download_firmware" {
+      "organization_id": organization_id,
+      "firmware_id": id,
+    }
     return response
 
   notify_created --device_id/string --state/Map -> none:
