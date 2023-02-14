@@ -134,4 +134,4 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     return client_.rest.select "sdk_service_versions" --filters=filters
 
   download_service_image image/string -> ByteArray:
-    return client_.storage.download --path="service-images/$image"
+    return client_.storage.download --public --path="service-images/$image"
