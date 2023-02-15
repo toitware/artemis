@@ -459,7 +459,11 @@ class Artemis:
       if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
         ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
 
-    device := identity["artemis.device"]
+    device_map := identity["artemis.device"]
+    device := Device
+        --hardware_id=device_map["hardware_id"]
+        --id=device_map["device_id"]
+        --organization_id=device_map["organization_id"]
 
     // We don't really need the full firmware and just the device-specific data,
     // but by cooking the firmware we get the checksums correct.
