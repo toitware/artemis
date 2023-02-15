@@ -92,8 +92,10 @@ run_test test_cli/TestCli:
 
   // Test 'org use' and 'org default'.
 
-  default_output := test_cli.run --expect_exit_1 [ "org", "default"]
-  expect (default_output.contains "No default organization set")
+  // The last created org is the default (since we didn't use --no-default).
+  default_output := test_cli.run [ "org", "default" ]
+  expect (default_output.contains "Name: Testy")
+  expect (default_output.contains "ID: $id")
 
   bad_use_output := test_cli.run --expect_exit_1 [ "org", "default", "bad_id" ]
   expect (bad_use_output.contains "Organization not found")
@@ -102,9 +104,20 @@ run_test test_cli/TestCli:
   bad_use_output = test_cli.run --expect_exit_1 [ "org", "default", UNKNOWN_UUID]
   expect (bad_use_output.contains "Organization not found")
 
-  // The default org is still not set.
-  default_output = test_cli.run --expect_exit_1 [ "org", "default"]
-  expect (default_output.contains "No default organization set")
+  // The default org is still set to Testy.
+  default_output = test_cli.run [ "org", "default" ]
+  expect (default_output.contains "Name: Testy")
+  expect (default_output.contains "ID: $id")
+
+
+  // Creating a new org with --no-default should not change the default.
+  create_output = test_cli.run [ "org", "create", "Testy2", "--no-default" ]
+  expect (create_output.contains "Created organization")
+  expect (create_output.contains "Testy2")
+
+  default_output = test_cli.run [ "org", "default" ]
+  expect (default_output.contains "Name: Testy")
+  expect (default_output.contains "ID: $id")
 
   use_output := test_cli.run [ "org", "default", id ]
   expect (use_output.contains "set to")
