@@ -1,0 +1,70 @@
+# Copyright (c) 2023, Toitware ApS.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sdk_version:
+        description: 'SDK version to use'
+        required: true
+        default: 'v2.0.0-alpha.52'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Toit
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" = "Windows" ]]; then
+            BIN_EXTENSION=".exe"
+          fi
+          echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
+
+          export TOIT_VERSION=${{ inputs.sdk_version }}
+          if [[ "$TOIT_VERSION" = "" ]]; then
+            TOIT_VERSION="v2.0.0-alpha.52"
+          fi
+
+          export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
+          echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
+
+          TOIT_SDK_DIR=$DOWNLOAD_DIR/toit
+          echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
+          echo "TPKG_EXEC=$TOIT_SDK_DIR/bin/toit.pkg$BIN_EXTENSION" >> $GITHUB_ENV
+
+          TOIT_SDK_FILE=toit-$(echo $RUNNER_OS | tr '[:upper:]' '[:lower:]').tar.gz
+          TOIT_SDK_BASE_URL=https://github.com/toitlang/toit/releases
+
+          echo "TOIT_SDK_URL=$TOIT_SDK_BASE_URL/download/$TOIT_VERSION/$TOIT_SDK_FILE" >> $GITHUB_ENV
+
+      - uses: suisei-cn/actions-download-file@v1.3.0
+        name: Download Toit
+        with:
+          url: ${{ env.TOIT_SDK_URL }}
+          target: ${{ env.DOWNLOAD_DIR }}
+
+      - name: Extract Toit - Linux
+        shell: bash
+        run: |
+          cd "$DOWNLOAD_DIR"
+          tar x -f *.tar.gz
+
+      - name: Build the CLI
+        shell: bash
+        run: |
+          # TODO(florian): we should integrate this into the Makefile.
+          $TPKG_EXEC install
+          $TOITC_EXEC -o artemis$BIN_EXTENSION src/cli/cli.toit
+
+      - name: Upload the CLI
+        uses: actions/upload-artifact@v3
+        with:
+          name: artemis-${{ runner.os }}
+          path: artemis${{ env.BIN_EXTENSION }}
