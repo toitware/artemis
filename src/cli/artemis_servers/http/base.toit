@@ -67,8 +67,8 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
 
     device_info := send_request_ "create-device-in-organization" map
     return Device
-        --hardware_id=device_info["hardware_id"]
-        --id=device_info["id"]
+        --hardware_id=device_info["id"]
+        --id=device_info["alias"]
         --organization_id=device_info["organization_id"]
 
   notify_created --hardware_id/string -> none:

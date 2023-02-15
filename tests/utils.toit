@@ -179,24 +179,26 @@ with_test_cli
     artemis_task/Task? := null
     device/Device? := null
 
-    device_id := artemis_server.backdoor.create_device
+    device_description := artemis_server.backdoor.create_device
         --organization_id=TEST_ORGANIZATION_UUID
+    hardware_id := device_description["id"]
+    alias_id := device_description["alias"]
     initial_state := {
       "identity": {
-        "device_id": device_id,
+        "device_id": alias_id,
         "organization_id": TEST_ORGANIZATION_UUID,
-        "hardware_id": device_id,
+        "hardware_id": hardware_id,
       }
     }
 
-    broker.backdoor.create_device --device_id=device_id --state=initial_state
+    broker.backdoor.create_device --device_id=alias_id --state=initial_state
 
     if start_device_artemis:
       device = Device
-          --id=device_id
+          --id=alias_id
           --organization_id=TEST_ORGANIZATION_UUID
           --firmware_state={
-            "firmware": encoded_firmware --device_id=device_id
+            "firmware": encoded_firmware --device_id=alias_id
           }
 
       artemis_task = task::
@@ -205,7 +207,7 @@ with_test_cli
       // Wait until the device has reported its state.
       if wait_for_device:
         with_timeout --ms=2_000:
-          while not broker.backdoor.get_state device_id:
+          while not broker.backdoor.get_state alias_id:
             sleep --ms=100
 
     try:

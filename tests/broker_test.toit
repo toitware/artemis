@@ -55,7 +55,7 @@ run_test
       backdoor := server.backdoor as SupabaseBackdoor
       backdoor.with_backdoor_client_: | client/supabase.Client |
         client.rest.insert "devices" {
-          "id": DEVICE_ID,
+          "alias": DEVICE_ID,
           "organization_id": TEST_ORGANIZATION_UUID,
         }
 

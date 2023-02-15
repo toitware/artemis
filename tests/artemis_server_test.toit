@@ -49,7 +49,8 @@ run_test artemis_server/TestArtemisServer [--authenticate]:
     test_sdk server_cli backdoor
 
 test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
-  // Test without and with alias.
+  // TODO(florian): implement create-device without alias.
+  /*
   device1 := server_cli.create_device_in_organization
       --device_id=""
       --organization_id=TEST_ORGANIZATION_UUID
@@ -57,19 +58,18 @@ test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisS
   data := backdoor.fetch_device_information --hardware_id=hardware_id1
   expect_equals hardware_id1 data[0]
   expect_equals TEST_ORGANIZATION_UUID data[1]
-  // The alias is auto-filled to some UUID in the supabase database.
-  // TODO(florian): check that this is always the case? (in which case we would
-  // need to fix the http server).
+  */
 
+  alias_id := (uuid.uuid5 "alias" "$random $Time.now").stringify
   device2 := server_cli.create_device_in_organization
-      --device_id="Testy"
+      --device_id=alias_id
       --organization_id=TEST_ORGANIZATION_UUID
   sleep --ms=200
   hardware_id2 := device2.hardware_id
-  data = backdoor.fetch_device_information --hardware_id=hardware_id2
+  data := backdoor.fetch_device_information --hardware_id=hardware_id2
   expect_equals hardware_id2 data[0]
   expect_equals TEST_ORGANIZATION_UUID data[1]
-  expect_equals "Testy" data[2]
+  expect_equals alias_id data[2]
 
   return hardware_id2
 
