@@ -28,25 +28,19 @@ main:
     }
     organization_id := organization["id"]
 
-    // TODO(florian): the server should return the alias.
-    device_id1 := (uuid.uuid5 "device" "1 $random $Time.now").stringify
     // Add the devices into the Artemis database.
     device1 := client1.rest.insert "devices" {
       "organization_id": organization_id,
-      "alias": device_id1,
     }
-
-    device_id2 := (uuid.uuid5 "device" "2 $random $Time.now").stringify
+    device_id1 := device1["alias"]
     device2 := client1.rest.insert "devices" {
       "organization_id": organization_id,
-      "alias": device_id2,
     }
-
-    device_id3 := (uuid.uuid5 "device" "3 $random $Time.now").stringify
+    device_id2 := device2["alias"]
     device3 := client1.rest.insert "devices" {
       "organization_id": organization_id,
-      "alias": device_id3,
     }
+    device_id3 := device3["alias"]
 
     run_shared_test
         --client1=client1

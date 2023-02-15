@@ -49,8 +49,7 @@ run_test artemis_server/TestArtemisServer [--authenticate]:
     test_sdk server_cli backdoor
 
 test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
-  // TODO(florian): implement create-device without alias.
-  /*
+  // Test without and with alias.
   device1 := server_cli.create_device_in_organization
       --device_id=""
       --organization_id=TEST_ORGANIZATION_UUID
@@ -58,7 +57,6 @@ test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisS
   data := backdoor.fetch_device_information --hardware_id=hardware_id1
   expect_equals hardware_id1 data[0]
   expect_equals TEST_ORGANIZATION_UUID data[1]
-  */
 
   alias_id := (uuid.uuid5 "alias" "$random $Time.now").stringify
   device2 := server_cli.create_device_in_organization
@@ -66,7 +64,7 @@ test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisS
       --organization_id=TEST_ORGANIZATION_UUID
   sleep --ms=200
   hardware_id2 := device2.hardware_id
-  data := backdoor.fetch_device_information --hardware_id=hardware_id2
+  data = backdoor.fetch_device_information --hardware_id=hardware_id2
   expect_equals hardware_id2 data[0]
   expect_equals TEST_ORGANIZATION_UUID data[1]
   expect_equals alias_id data[2]
