@@ -326,8 +326,8 @@ class Artemis:
   Updates the device $device_id with the given $device_specification.
   */
   update --device_id/string --device_specification/DeviceSpecification:
-    update_goal --device_id=device_id: | device/DetailedDevice |
-      with_tmp_directory: | tmp_dir/string |
+    with_tmp_directory: | tmp_dir/string |
+      update_goal --device_id=device_id: | device/DetailedDevice |
         envelope_path := "$tmp_dir/$(device_id).envelope"
         customize_envelope
             --organization_id=device.organization_id
