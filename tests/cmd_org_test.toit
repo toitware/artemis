@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS.
 
-// TEST_FLAGS: ARTEMIS
+// ARTEMIS_TEST_FLAGS: ARTEMIS
 
 import artemis.cli
 import artemis.cli.cache

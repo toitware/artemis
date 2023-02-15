@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-// TEST_FLAGS: BROKER
+// ARTEMIS_TEST_FLAGS: BROKER
 
 import expect show *
 import log

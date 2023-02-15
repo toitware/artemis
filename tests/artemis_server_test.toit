@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-// TEST_FLAGS: ARTEMIS
+// ARTEMIS_TEST_FLAGS: ARTEMIS
 
 import expect show *
 import host.directory
