@@ -79,7 +79,7 @@ class Device:
   Sets the max-offline of the current state.
   */
   state_set_max_offline new_max_offline/Duration?:
-    if not current_state: current_state = firmware_state.copy
+    if not current_state: current_state = deep_copy_ firmware_state
     if new_max_offline and new_max_offline > Duration.ZERO:
       current_state["max-offline"] = new_max_offline.in_s
     else:
@@ -90,7 +90,7 @@ class Device:
   Removes the program with the given $name and $id from the current state.
   */
   state_app_uninstall name/string id/string:
-    if not current_state: current_state = firmware_state.copy
+    if not current_state: current_state = deep_copy_ firmware_state
     if current_state.contains "apps" and (current_state["apps"].get name) == id:
       current_state["apps"].remove name
     simplify_
@@ -100,7 +100,7 @@ class Device:
   Adds or updates the program with the given $name and $id in the current state.
   */
   state_app_install_or_update name/string id/string:
-    if not current_state: current_state = firmware_state.copy
+    if not current_state: current_state = deep_copy_ firmware_state
     apps := current_state.get "apps" --init=: {:}
     apps[name] = id
     simplify_
@@ -112,7 +112,7 @@ class Device:
     A reboot is required to actually use the new firmware.
   */
   state_firmware_update new/string:
-    if not current_state: current_state = firmware_state.copy
+    if not current_state: current_state = deep_copy_ firmware_state
     current_state["firmware"] = new
     simplify_
 
@@ -133,3 +133,8 @@ class Device:
 
     if current_state and json_equals current_state firmware_state:
       current_state = null
+
+deep_copy_ map/Map -> Map:
+  return map.map: | key value |
+    if value is Map: deep_copy_ value
+    else: value
