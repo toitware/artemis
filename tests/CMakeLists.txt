@@ -19,9 +19,6 @@ add_custom_target(
 set(TEST_PREFIX "")
 include(fail.cmake OPTIONAL)
 
-message("Failing tests: ${FAILING_TESTS}")
-message("Skipped tests: ${SKIP_TESTS}")
-
 set (ARTEMIS_FLAGS "--supabase-server" "--http-server")
 set (BROKER_FLAGS
       "--http-toit-broker"
@@ -93,7 +90,6 @@ foreach(file ${TESTS})
     endforeach()
   endif()
 
-  message("Test ${file} with flags ${flags}")
   if (NOT flags)
     set(flags "--dummy")
   endif()
