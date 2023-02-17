@@ -270,15 +270,16 @@ class Artemis:
 
       sdk.firmware_add_container "artemis" --envelope=output_path
           --assets=artemis_assets_path
-          --container_path=artemis_service_image_path
+          --program_path=artemis_service_image_path
 
       // Store the containers in the envelope.
       device_specification.containers.do: | name/string container/Container |
-        snapshot_container := to_snapshot_container_ container --tmp_dir=tmp_dir --sdk=sdk
+        snapshot_path := "$tmp_dir/$(name).snapshot"
+        build_snapshot_ container --sdk=sdk --output_path=snapshot_path
         // TODO(florian): add support for assets.
         sdk.firmware_add_container name
             --envelope=output_path
-            --container_path=snapshot_container.snapshot_path
+            --program_path=snapshot_path
         ui_.info "Added container '$name' to envelope."
 
     sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
@@ -569,15 +570,12 @@ is_same_broker broker/string identity/Map tmp/string assets_path/string sdk/Sdk 
   y := (file.read_content broker_path)
   return x == y
 
-to_snapshot_container_ container/Container --tmp_dir/string --sdk/Sdk -> ContainerSnapshot:
+build_snapshot_ container/Container --output_path/string --sdk/Sdk:
   if container.type == "snapshot":
-    // TODO(florian): verify that the snapshot's SDK is the same as the one we are using.
-    return container as ContainerSnapshot
-  if container.type == "path":
+    copy_file --source=(container as ContainerSnapshot).snapshot_path --target=output_path
+  else if container.type == "path":
     entry_point := (container as ContainerPath).entrypoint
-    snapshot_path := "$tmp_dir/snapshot"
-    sdk.compile_to_snapshot entry_point --out=snapshot_path
-    return ContainerSnapshot --snapshot_path=snapshot_path
-
-  throw "Unknown container type: $container.type"
+    sdk.compile_to_snapshot entry_point --out=output_path
+  else:
+    throw "Unknown container type: $container.type"
 
