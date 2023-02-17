@@ -1,5 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import encoding.tison
+
 import ..shared.json_diff show json_equals
 
 /**
@@ -134,7 +136,5 @@ class Device:
     if current_state and json_equals current_state firmware_state:
       current_state = null
 
-deep_copy_ map/Map -> Map:
-  return map.map: | key value |
-    if value is Map: deep_copy_ value
-    else: value
+deep_copy_ o/any -> any:
+  return tison.decode (tison.encode o)
