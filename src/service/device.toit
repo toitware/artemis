@@ -137,4 +137,9 @@ class Device:
       current_state = null
 
 deep_copy_ o/any -> any:
-  return tison.decode (tison.encode o)
+  if o is Map:
+    return (o as Map).map: | _ value | deep_copy_ value
+  else if o is List:
+    return (o as List).map: deep_copy_ it
+  else:
+    return o
