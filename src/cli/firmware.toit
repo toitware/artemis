@@ -59,7 +59,7 @@ class Firmware:
     content = FirmwareContent.encoded device_specific_data_["parts"] --checksum=map["checksum"]
 
   /**
-  Embets device-specific information ($device and $wifi) into a firmware
+  Embeds device-specific information ($device and $wifi) into a firmware
     given by its $envelope_path.
 
   Computes the "parts" which describes the individual parts of the
