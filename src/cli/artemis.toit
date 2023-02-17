@@ -270,16 +270,16 @@ class Artemis:
 
       sdk.firmware_add_container "artemis" --envelope=output_path
           --assets=artemis_assets_path
-          --app_path=artemis_service_image_path
+          --container_path=artemis_service_image_path
 
-      // Store the apps in the envelope.
-      device_specification.apps.do: | name/string app/Application |
-        snapshot_app := to_snapshot_app_ app --tmp_dir=tmp_dir --sdk=sdk
+      // Store the containers in the envelope.
+      device_specification.containers.do: | name/string container/Container |
+        snapshot_container := to_snapshot_container_ container --tmp_dir=tmp_dir --sdk=sdk
         // TODO(florian): add support for assets.
         sdk.firmware_add_container name
             --envelope=output_path
-            --app_path=snapshot_app.snapshot_path
-        ui_.info "Added app '$name' to envelope."
+            --container_path=snapshot_container.snapshot_path
+        ui_.info "Added container '$name' to envelope."
 
     sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
         --envelope=output_path
@@ -569,15 +569,15 @@ is_same_broker broker/string identity/Map tmp/string assets_path/string sdk/Sdk 
   y := (file.read_content broker_path)
   return x == y
 
-to_snapshot_app_ app/Application --tmp_dir/string --sdk/Sdk -> ApplicationSnapshot:
-  if app.type == "snapshot":
+to_snapshot_container_ container/Container --tmp_dir/string --sdk/Sdk -> ContainerSnapshot:
+  if container.type == "snapshot":
     // TODO(florian): verify that the snapshot's SDK is the same as the one we are using.
-    return app as ApplicationSnapshot
-  if app.type == "path":
-    entry_point := (app as ApplicationPath).entrypoint
+    return container as ContainerSnapshot
+  if container.type == "path":
+    entry_point := (container as ContainerPath).entrypoint
     snapshot_path := "$tmp_dir/snapshot"
     sdk.compile_to_snapshot entry_point --out=snapshot_path
-    return ApplicationSnapshot --snapshot_path=snapshot_path
+    return ContainerSnapshot --snapshot_path=snapshot_path
 
-  throw "Unknown application type: $app.type"
+  throw "Unknown container type: $container.type"
 

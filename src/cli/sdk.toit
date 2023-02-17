@@ -106,10 +106,10 @@ class Sdk:
   /**
   Installs the container $name in the given $envelope.
 
-  The $envelope, the $app_path and its $assets must be paths to files.
-  The parameter $app_path must point to a snapshot or image.
+  The $envelope, the $container_path and its $assets must be paths to files.
+  The parameter $container_path must point to a snapshot or image.
   */
-  firmware_add_container name/string --app_path/string --envelope/string --assets/string?=null:
+  firmware_add_container name/string --container_path/string --envelope/string --assets/string?=null:
     args := ?
     if assets:
       // TODO(florian): at the moment we can't just add the assets flags to
@@ -119,14 +119,14 @@ class Sdk:
         "-e", envelope,
         "--assets", assets,
         name,
-        app_path,
+        container_path,
       ]
     else:
       args = [
         "container", "install",
         "-e", envelope,
         name,
-        app_path,
+        container_path,
       ]
     run_firmware_tool args
 
