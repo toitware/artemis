@@ -35,39 +35,40 @@ class SynchronizeJob extends Job implements EventHandler:
     super "synchronize"
 
   schedule now/JobTime -> JobTime?:
-    if not last_run or not device_.max_offline: return now
-    return min (check_in_schedule now) (last_run + device_.max_offline_)
+    max_offline := device_.max_offline
+    if not last_run or not max_offline: return now
+    return min (check_in_schedule now) (last_run + max_offline)
 
-  commit config/Map actions/List -> Lambda:
+  commit goal_state/Map actions/List -> Lambda:
     return ::
+      current_state := device_.current_state or device_.firmware_state
+      logger_.info "updating config" --tags={ "from": current_state , "to": goal_state }
       actions.do: it.call
-      logger_.info "updating config" --tags={ "from": device_.config , "to": config }
-      device_.config = config
-
-  // TODO(kasper): For now, we make it look like we've updated
-  // the firmware to avoid fetching the firmware over and over
-  // again. We should probably replace this with something that
-  // automatically populates our configuration with the right
-  // firmware id on boot.
-  fake_update_firmware id/string -> none:
-    device_.firmware = id
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.id}
     broker_.connect --device_id=device_.id --callback=this: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.id}
 
-      // TODO(kasper): Move this status reporting elsewhere. We shouldn't do
-      // it all the time for performance and bandwidth reasons.
-      resources.report_status device_.id {
-        "sdk"      : vm_sdk_version,
-        "firmware" : device_.firmware,
-      }
+      // TODO(florian): We don't need to report the status every time we
+      // connect. We only need to do this the first time we connect or
+      // if we know that the broker isn't up to date.
+      report_status resources
 
+      // The 'handle_update_config' only pushes actions into the
+      // 'actions_' channel.
+      // This loop is responsible for actually executing the actions.
+      // Note that some actions might create more actions. Specifically,
+      // we expect a single 'commit' action for a configuration update.
       while true:
         lambda/Lambda? := null
+        // The timeout is only relevant for the first iteration of the
+        // loop, or when max-offline is not set. In all other cases
+        // a 'break' will get us out of the loop.
         catch: with_timeout check_in_timeout: lambda = actions_.receive
-        if not lambda: break
+        if not lambda:
+          // No action (by 'handle_update_config') was pushed into the channel.
+          break
         lambda.call
         if actions_.size > 0: continue
 
@@ -89,22 +90,38 @@ class SynchronizeJob extends Job implements EventHandler:
           else:
             logger_.error "firmware update failed to validate"
 
+        // We have successfully finished processing all actions.
+        // Inform the broker.
+        report_status resources
+
         if device_.max_offline:
           logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
           break
         logger_.info "synchronized"
         broker_.on_idle
 
+
       logger_.info "disconnecting" --tags={"device": device_.id}
 
   handle_nop -> none:
     actions_.send ACTION_NOP_
 
+  /**
+  Handles new configurations.
+
+  This function is part of the $EventHandler interface and is called by the
+    broker.
+  */
   handle_update_config new_config/Map resources/ResourceManager -> none:
-    modification/Modification? := Modification.compute --from=device_.config --to=new_config
+    current_state := device_.current_state or device_.firmware_state
+    modification/Modification? := Modification.compute --from=current_state --to=new_config
     if not modification:
+      device_.goal_state = null
       handle_nop
       return
+    device_.goal_state = new_config
+    report_status resources
+
     logger_.info "config changed: $(Modification.stringify modification)"
 
     modification.on_value "firmware"
@@ -161,43 +178,86 @@ class SynchronizeJob extends Job implements EventHandler:
         --updated=: | from to |
           // An application had its id (the code) updated. We uninstall
           // the old version and install the new one.
+          // TODO(florian): it feels nicer to fetch the new version
+          // before stopping the old one.
           bundle.add (action_app_uninstall_ name from)
           bundle.add (action_app_install_ name to)
           return
     // The configuration for the application was updated, but we didn't
     // change its id, so the code for it is still valid. We add a pending
-    // action to make sure we let the application of the change possibly
-    // by restarting it.
+    // action to make sure we let the application know of the change,
+    // possibly by restarting it.
     if id: bundle.add (action_app_update_ name id)
 
   action_app_install_ name/string id/string -> Lambda:
-    return :: applications_.install (Application name id)
+    return::
+      // Installing an application doesn't really do much, unless
+      // the application is complete.
+      // As such we don't update the current state yet, but
+      // wait for the completion.
+      applications_.install (Application name id)
 
   action_app_uninstall_ name/string id/string -> Lambda:
-    return ::
+    return::
       application/Application? := applications_.get id
-      if application: applications_.uninstall application
+      if application:
+        applications_.uninstall application
+      else:
+        logger_.error "application $name ($id) not found"
+      // TODO(florian): the 'uninstall' above only enqueues the installation.
+      // We need to wait for its completion.
+      device_.state_app_uninstall name id
 
   action_app_update_ name/string id/string -> Lambda:
-    return ::
+    return::
       application/Application? := applications_.get id
-      if application: applications_.update application
+      if not application:
+        // This should not happen, as we should have reached a
+        // different action_app handler.
+        logger_.error "application $name ($id) not found"
+      else:
+        applications_.update application
+        // TODO(florian): the 'update' above only enqueues the installation.
+        // We need to wait for its completion.
+      if application.is_complete:
+        device_.state_app_install_or_update name id
 
   action_app_fetch_ resources/ResourceManager -> Lambda:
-    return ::
+    return::
       incomplete/Application? ::= applications_.first_incomplete
       if incomplete:
         resources.fetch_image incomplete.id: | reader/SizedReader |
           applications_.complete incomplete reader
+          device_.state_app_install_or_update incomplete.name incomplete.id
 
   action_set_max_offline_ value/any -> Lambda:
-    return :: device_.max_offline = (value is int) ? Duration --s=value : null
+    return:: device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
 
   action_firmware_update_ resources/ResourceManager new/string -> Lambda:
-    return ::
+    return::
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
       old := device_.firmware
       firmware_update logger_ resources --old=old --new=new
-      fake_update_firmware new  // TODO(kasper): Is this still fake?
+      device_.state_firmware_update new
       firmware.upgrade
+
+  /**
+  Sends the current device status to the broker.
+
+  This includes the firmware state, the current state and the goal state.
+  */
+  report_status resources:
+    // TODO(florian): we should not send modifications all the time.
+    // 1. if nothing changed, no need to send anything.
+    // 2. if we got a new goal-state, we can delay reporting the status
+    //    for a bit, to give the goal-state time to become the current
+    //    state.
+    report := {
+      "firmware-state": device_.firmware_state,
+    }
+    if device_.current_state:
+      report["current-state"] = device_.current_state
+    if device_.goal_state:
+      report["goal-state"] = device_.goal_state
+    resources.report_status device_.id report
