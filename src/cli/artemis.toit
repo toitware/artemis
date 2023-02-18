@@ -397,7 +397,6 @@ class Artemis:
 
     identity := ubjson.decode (base64.decode identity_raw)
 
-
     // Since we already have the identity content, check that the artemis server
     // is the same.
     // This is primarily a sanity check, and we might remove the broker from the
