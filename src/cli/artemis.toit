@@ -551,14 +551,8 @@ class Artemis:
 
       block.call current_goal firmware_state current_state known_goal initial_state
 
-  /**
-  Maps a device selector (name or id) to its id.
-  */
-  device_selector_to_id name/string -> string:
-    return name
-
   image_cache_id_ id/string -> string:
-    return "$broker_.id/images/$id"
+    return "$broker_config_.name/images/$id"
 
   app_install --device_id/string --app_name/string --application_path/string:
     // TODO(florian): get the sdk from the device.

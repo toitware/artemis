@@ -6,7 +6,6 @@ import .cache
 import .config
 import .ui
 
-import .cmds.apps
 import .cmds.config
 import .cmds.status
 import .cmds.device
@@ -35,7 +34,6 @@ main args --config/Config --cache/Cache --ui/Ui:
   // This might be easier, once the UI is integrated with the cli
   // package, as the package could then pass it to the commands after
   // it has parsed the UI flags.
-  (create_app_commands config cache ui).do: root_cmd.add it
   (create_config_commands config cache ui).do: root_cmd.add it
   (create_status_commands config cache ui).do: root_cmd.add it
   (create_auth_commands config cache ui).do: root_cmd.add it
