@@ -601,45 +601,9 @@ class Artemis:
         new_goal.remove "max-offline"
       new_goal
 
-  // TODO(florian): remove this function. (We have $update now).
-  firmware_update --device_id/string --firmware_path/string --ui/Ui -> none:
-    update_goal --device_id=device_id: | current_goal/Map? firmware_state/Map? |
-      if not current_goal and not firmware_state: throw "No known firmware information for device."
-      new_goal := current_goal or firmware_state
-
-      upgrade_from/Firmware? := null
-      existing := current_goal.get "firmware"
-      if existing: catch: upgrade_from = Firmware.encoded existing
-
-      device := null
-      if upgrade_from: device = upgrade_from.device_specific "artemis.device"
-      if device:
-        existing_id := device.get "device_id"
-        if device_id != existing_id:
-          ui.error "Device id was wrong; expected $device_id but was $existing_id."
-          device = null
-
-      if not device:
-        // Cannot proceed without an identity file.
-        throw "Unclaimed device. Cannot proceed without an identity file."
-
-      wifi := null
-      if upgrade_from: wifi = upgrade_from.device_specific "wifi"
-      if not wifi:
-        // Device has no way to connect.
-        ui.error "Device has no way to connect."
-
-      upgrade_to := Firmware
-          --device=device
-          --wifi=wifi
-          --envelope_path=firmware_path
-          --cache=cache_
-
-      patches := upgrade_to.patches upgrade_from
-      patches.do: upload_ it
-      new_goal["firmware"] = upgrade_to.encoded
-      new_goal
-
+  /**
+  Computes patches and uploads them to the broker.
+  */
   upload_ patch/FirmwarePatch -> none:
     trivial_id := id_ --to=patch.to_
     cache_key := "$connected_broker_.id/patches/$trivial_id"

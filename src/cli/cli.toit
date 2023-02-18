@@ -8,7 +8,6 @@ import .ui
 
 import .cmds.apps
 import .cmds.config
-import .cmds.firmware
 import .cmds.status
 import .cmds.device
 import .cmds.device_config
@@ -39,7 +38,6 @@ main args --config/Config --cache/Cache --ui/Ui:
   // it has parsed the UI flags.
   (create_app_commands config cache ui).do: root_cmd.add it
   (create_config_commands config cache ui).do: root_cmd.add it
-  (create_firmware_commands config cache ui).do: root_cmd.add it
   (create_device_config_commands config cache ui).do: root_cmd.add it
   (create_status_commands config cache ui).do: root_cmd.add it
   (create_auth_commands config cache ui).do: root_cmd.add it
