@@ -20,6 +20,12 @@ main args:
       --artemis_type=artemis_type
       --broker_type=broker_type: | test_cli/TestCli device/Device |
     test_cli.run [
+      "auth", "broker", "login",
+      "--email", TEST_EXAMPLE_COM_EMAIL,
+      "--password", TEST_EXAMPLE_COM_PASSWORD,
+    ]
+
+    test_cli.run [
       "set-max-offline",
       "--device=$device.id", "3"
     ]

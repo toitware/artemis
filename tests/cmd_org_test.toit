@@ -40,6 +40,12 @@ run_test test_cli/TestCli:
     "--password", TEST_EXAMPLE_COM_PASSWORD,
   ]
 
+  test_cli.run [
+    "auth", "broker", "login",
+    "--email", TEST_EXAMPLE_COM_EMAIL,
+    "--password", TEST_EXAMPLE_COM_PASSWORD,
+  ]
+
   output := test_cli.run [ "org", "list" ]
   /*
   We might have orgs from earlier runs.

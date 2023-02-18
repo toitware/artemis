@@ -74,9 +74,9 @@ class Artemis:
   /**
   Returns a connected broker, using the $broker_config_ to connect.
 
-  If $authenticated is true, calls $BrokerCli.ensure_authenticated.
+  If $authenticated is true (the default), calls $BrokerCli.ensure_authenticated.
   */
-  connected_broker_ --authenticated/bool=false -> BrokerCli:
+  connected_broker_ --authenticated/bool=true -> BrokerCli:
     if not broker_:
       broker_ = BrokerCli broker_config_ config_
     if authenticated:
@@ -88,9 +88,9 @@ class Artemis:
   /**
   Returns a connected broker, using the $artemis_config_ to connect.
 
-  If $authenticated is true, calls $ArtemisServerCli.ensure_authenticated.
+  If $authenticated is true (the default), calls $ArtemisServerCli.ensure_authenticated.
   */
-  connected_artemis_server_ --authenticated/bool=false -> ArtemisServerCli:
+  connected_artemis_server_ --authenticated/bool=true -> ArtemisServerCli:
     if not artemis_server_:
       connect_network_
       artemis_server_ = ArtemisServerCli network_ artemis_config_ config_
@@ -105,7 +105,7 @@ class Artemis:
     the Artemis server.
   */
   check_is_supported_version_ --sdk/string?=null --service/string?=null:
-    server := connected_artemis_server_ --authenticated
+    server := connected_artemis_server_
     versions := server.list_sdk_service_versions
         --sdk_version=sdk
         --service_version=service
@@ -123,11 +123,10 @@ class Artemis:
   Writes the identity file to $out_path.
   */
   provision --device_id/string --out_path/string --organization_id/string:
-    server := connected_artemis_server_ --authenticated
+    server := connected_artemis_server_
     // Get the broker just after the server, in case it needs to authenticate.
     // We prefer to get an error message before we created a device on the
     // Artemis server.
-    // TODO(florian): the broker should be authenticated.
     broker := connected_broker_
 
     device := server.create_device_in_organization
@@ -483,7 +482,7 @@ class Artemis:
     if word_size != 32 and word_size != 64: throw "INVALID_ARGUMENT"
     service_key := service_image_cache_key --service_version=service --sdk_version=sdk
     return cache_.get_file_path service_key: | store/cache.FileStore |
-      server := connected_artemis_server_
+      server := connected_artemis_server_ --no-authenticated
       entry := server.list_sdk_service_versions --sdk_version=sdk --service_version=service
       if entry.is_empty:
         ui_.error "Unsupported Artemis/SDK versions."

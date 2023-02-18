@@ -33,3 +33,4 @@ run_test test_cli/TestCli:
   ]
 
   output = test_cli.run [ "org", "list" ]
+  expect_not (output.contains "Not logged in")
