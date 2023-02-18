@@ -7,6 +7,7 @@ import host.file
 import .utils
 import ..tools.service_image_uploader.uploader as uploader
 import ..tools.service_image_uploader.downloader as downloader
+import artemis.shared.version show ARTEMIS_VERSION
 import artemis.cli.git show Git
 
 main:
@@ -18,7 +19,7 @@ main:
 
 // The SDK version that is used for this test.
 // It's safe to update the version to a newer version.
-SDK_VERSION ::= "v2.0.0-alpha.47"
+SDK_VERSION ::= "v2.0.0-alpha.52"
 
 // Just a commit that exists on main.
 // It's safe to update the commit to a newer version.
@@ -83,6 +84,9 @@ run_test test_cli/TestCli:
       expect (available_sdks.contains commit_version)
 
       // Try with local.
+
+      // With service version.
+      local_version := "$service_version-$Time.now"
       ui = TestUi
       uploader.main
           --config=test_cli.config
@@ -90,25 +94,35 @@ run_test test_cli/TestCli:
           --ui=ui
           [
             "--sdk-version", SDK_VERSION,
-            "--service-version", service_version,
+            "--service-version", local_version,
             "--local",
             "--snapshot-directory", tmp_dir,
           ]
-      // The version is now depending on the time.
-      // Extract it from the uploader output.
-      words := ui.stdout.split " "
-      local_version := ""
-      for i := 0; i < words.size; i++:
-        if words[i].starts_with "$service_version-":
-          local_version = words[i]
-          break
-      expect_not_equals "" local_version
 
       // Check that the service is available.
       available_sdks = test_cli.run [
         "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", local_version
       ]
       expect (available_sdks.contains local_version)
+
+      // Without service version.
+      ui = TestUi
+      uploader.main
+          --config=test_cli.config
+          --cache=test_cli.cache
+          --ui=ui
+          [
+            "--sdk-version", SDK_VERSION,
+            "--local",
+            "--snapshot-directory", tmp_dir,
+          ]
+      // The uploader should have used the $ARTEMIS_VERSION.
+
+      // Check that the service is available.
+      available_sdks = test_cli.run [
+        "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", ARTEMIS_VERSION
+      ]
+
     finally:
       git.tag --delete --name=service_version
 
