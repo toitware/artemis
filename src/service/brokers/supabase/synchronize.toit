@@ -35,7 +35,7 @@ class BrokerServiceSupabase implements BrokerService:
       try:
         while true:
           with_timeout IDLE_TIMEOUT: idle_.enter
-          new_goal := client.rest.rpc "get_goal" {
+          new_goal := client.rest.rpc "toit_artemis.get_goal" {
             "_device_id": device_id,
           }
           // An empty goal means that we should revert to the

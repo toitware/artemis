@@ -90,19 +90,16 @@ class SupabaseBackdoor implements BrokerBackdoor:
 
   create_device --device_id/string --state/Map={:}:
     with_backdoor_client_: | client/supabase.Client |
-      response := client.rest.insert "devices" {
-        "id": device_id,
-        "state": state,
+      client.rest.rpc "toit_artemis.new_provisioned" {
+        "_device_id": device_id,
+        "_state": state,
       }
 
   remove_device device_id/string -> none:
     with_backdoor_client_: | client/supabase.Client |
-      client.rest.delete "devices" --filters=["id=eq.$device_id"]
-
-  query_ table/string filters/List=[] -> List?:
-    with_backdoor_client_: | client/supabase.Client |
-      return client.rest.select table --filters=filters
-    unreachable
+      client.rest.rpc "toit_artemis.remove_device" {
+        "_device_id": device_id,
+      }
 
   with_backdoor_client_ [block]:
     network := net.open
