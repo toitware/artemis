@@ -62,7 +62,7 @@ class SynchronizeJob extends Job implements EventHandler:
       // we expect a single 'commit' action for a configuration update.
       while true:
         lambda/Lambda? := null
-        // The timeout is only relevent for the first iteration of the
+        // The timeout is only relevant for the first iteration of the
         // loop, or when max-offline is not set. In all other cases
         // a 'break' will get us out of the loop.
         catch: with_timeout check_in_timeout: lambda = actions_.receive
