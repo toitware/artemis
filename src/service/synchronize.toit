@@ -147,7 +147,7 @@ class SynchronizeJob extends Job implements EventHandler:
           // An app disappeared completely from the configuration. We
           // uninstall it, if we got an id for it.
           id := value is string ? value : null
-          id = id or value is Map ? value.get Application.CONFIG_ID : null
+          id = id or (value is Map ? value.get Application.CONFIG_ID : null)
           if id: bundle.add (action_app_uninstall_ key id)
         --modified=: | key nested/Modification |
           value ::= new_goal["apps"][key]  // TODO(kasper): This feels unfortunate.
