@@ -10,12 +10,15 @@ import ..artemis
 import ..cache
 import ..config
 import ..device_specification
+import ..device
 import ..firmware
+import ..organization
 import ..sdk
 import ..server_config
 import ..ui
 import ..utils
 import ...service.run.host show run_host
+import ...shared.json_diff show Modification
 
 create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
@@ -145,32 +148,20 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: default_device it config cache ui
   cmd.add default_cmd
 
-  configuration_cmd := cli.Command "configuration"
+  show_cmd := cli.Command "show"
       --long_help="""
-        Show the configuration of the device.
+        Show all available information about a device.
 
-        If no ID is given, shows the configuration of the default device.
-
-        If the device's current configuration is different from the goal
-        configuration, both configurations are shown. Use '--goal' or
-        '--current' to only show one of them.
-
-        The configuration is distilled from the specification. In a
-        configuration the applications are compiled and their checksums
-        are known.
+        If no ID is given, shows the information of the default device.
         """
-      --options=[
+      --options= broker_options + [
         cli.Option "device-id"
             --short_name="d"
             --short_help="ID of the device."
             --type="uuid",
-        cli.Flag "goal"
-            --short_help="Show the goal configuration.",
-        cli.Flag "current"
-            --short_help="Show the current configuration.",
       ]
-      --run=:: configuration it config cache ui
-  cmd.add configuration_cmd
+      --run=:: show it config cache ui
+  cmd.add show_cmd
 
   specification_format_cmd := cli.Command "specification-format"
       --short_help="Prints the format of the device specification file."
@@ -328,8 +319,151 @@ make_default_ device_id/string config/Config ui/Ui:
   config.write
   ui.info "Default device set to $device_id"
 
-configuration parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  throw "UNIMPLEMENTED"
+show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  device_id := parsed["device-id"]
+  if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
+  if not device_id:
+    ui.error "No device ID specified and no default device ID set."
+    ui.abort
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    broker := artemis.connected_broker
+    artemis_server := artemis.connected_artemis_server
+    device := broker.get_device --device_id=device_id
+    organization := artemis_server.get_organization device.organization_id
+    ui.info_structured
+        --json=: device_to_json_ device organization
+        --stdout=: print_device_ device organization it
+
+device_to_json_ device/DetailedDevice organization/DetailedOrganization:
+  return {
+    "id": device.id,
+    "organization_id": device.organization_id,
+    "organization_name": organization.name,
+    "goal": device.goal,
+    "reported_state_goal": device.reported_state_goal,
+    "reported_state_current": device.reported_state_current,
+    "reported_state_firmware": device.reported_state_firmware,
+  }
+
+print_device_ device/DetailedDevice organization/DetailedOrganization ui/Ui:
+  ui.print "Device ID: $device.id"
+  ui.print "Organization ID: $device.organization_id ($organization.name)"
+
+  if device.reported_state_firmware:
+    ui.print ""
+    ui.print "Firmware state as reported by the device:"
+    prettified := device.reported_state_firmware.map: | key value |
+      if key == "firmware": prettify_firmware value
+      else: value
+    print_map_ prettified ui --indentation=2
+
+  if device.reported_state_current:
+    modification := Modification.compute
+        --from=device.reported_state_firmware
+        --to=device.reported_state_current
+    if modification:
+      ui.print ""
+      ui.print "Current state modifications as reported by the device:"
+      print_modification_ modification --to=device.reported_state_current ui
+
+  if device.reported_state_goal:
+    diff_to := device.reported_state_current or device.reported_state_firmware
+    modification := Modification.compute
+        --from=diff_to
+        --to=device.reported_state_goal
+    ui.print ""
+    ui.print "Goal state modifications compared to the current state as reported by the device:"
+    print_modification_ modification --to=device.reported_state_goal ui
+
+  if device.goal:
+    if not device.reported_state_firmware:
+      // Hasn't checked in yet.
+      ui.print ""
+      ui.print "Goal state:"
+      prettified := device.goal.map: | key value |
+        if key == "firmware": prettify_firmware value
+        else: value
+      print_map_ prettified ui --indentation=2
+    else:
+      diff_to/Map := ?
+      diff_to_string/string := ?
+
+      if device.reported_state_goal:
+        diff_to = device.reported_state_goal
+        diff_to_string = "reported goal state"
+      else if device.reported_state_current:
+        diff_to = device.reported_state_current
+        diff_to_string = "reported current state"
+      else:
+        diff_to = device.reported_state_firmware
+        diff_to_string = "reported firmware state"
+
+      modification := Modification.compute
+          --from=diff_to
+          --to=device.goal
+      if modification == null:
+        ui.print ""
+        ui.print "Goal is the same as the $diff_to_string."
+      else:
+        ui.print ""
+        ui.print "Goal modifications compared to the $diff_to_string:"
+        print_modification_ modification --to=device.goal ui
+
+print_map_ map/Map ui/Ui --indentation/int=0:
+  indentation_str := " " * indentation
+  map.do: | key/string value |
+    if value is Map:
+      ui.print "$indentation_str$key:"
+      print_map_ value ui --indentation=indentation + 2
+    else:
+      ui.print "$indentation_str$key: $value"
+
+print_modification_ modification/Modification --to/Map ui/Ui:
+  modification.on_value "firmware"
+      --added=: ui.print   "  +firmware: $(prettify_firmware it)"
+      --removed=: ui.print "  -firmware"
+      --updated=: | _ to | ui.print "  firmware -> $(prettify_firmware to)"
+
+  modification.on_value "max-offline"
+      --added=: ui.print   "  +max-offline: $it"
+      --removed=: ui.print "  -max-offline"
+      --updated=: | _ to | ui.print "  max-offline -> $to"
+
+  has_app_changes := false
+  modification.on_value "apps"
+      --added=: has_app_changes = true
+      --removed=: has_app_changes = true
+      --updated=: has_app_changes = true
+
+  if has_app_changes:
+    ui.print "  apps:"
+    modification.on_map "apps"
+        --added=: | name id |
+          ui.print "    +$name ($id)"
+        --removed=: | name id |
+          ui.print "    -$name"
+        --updated=: | name id |
+          ui.print "    $name -> $id"
+
+  already_handled := { "firmware", "max-offline", "apps" }
+  modification.on_map
+      --added=: | name new_value |
+        if already_handled.contains name: continue.on_map
+        ui.print "  +$name: $new_value"
+      --removed=: | name _ |
+        if already_handled.contains name: continue.on_map
+        ui.print "  -$name"
+      --updated=: | name _ new_value |
+        if already_handled.contains name: continue.on_map
+        ui.print "  $name -> $new_value"
+      --modified=: | name _ |
+        if already_handled.contains name: continue.on_map
+        ui.print "  $name changed to $to[name]"
+
+prettify_firmware firmware/string -> string:
+  if firmware.size <= 80: return firmware
+  return firmware[0..40] + "..." + firmware[firmware.size - 40..]
 
 SPECIFICATION_FORMAT_HELP ::= """
   The format of the device specification file.

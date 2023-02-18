@@ -77,7 +77,7 @@ class Artemis:
 
   If $authenticated is true (the default), calls $BrokerCli.ensure_authenticated.
   */
-  connected_broker_ --authenticated/bool=true -> BrokerCli:
+  connected_broker --authenticated/bool=true -> BrokerCli:
     if not broker_:
       broker_ = BrokerCli broker_config_ config_
     if authenticated:
@@ -91,7 +91,7 @@ class Artemis:
 
   If $authenticated is true (the default), calls $ArtemisServerCli.ensure_authenticated.
   */
-  connected_artemis_server_ --authenticated/bool=true -> ArtemisServerCli:
+  connected_artemis_server --authenticated/bool=true -> ArtemisServerCli:
     if not artemis_server_:
       connect_network_
       artemis_server_ = ArtemisServerCli network_ artemis_config_ config_
@@ -106,7 +106,7 @@ class Artemis:
     the Artemis server.
   */
   check_is_supported_version_ --sdk/string?=null --service/string?=null:
-    server := connected_artemis_server_
+    server := connected_artemis_server
     versions := server.list_sdk_service_versions
         --sdk_version=sdk
         --service_version=service
@@ -124,11 +124,11 @@ class Artemis:
   Writes the identity file to $out_path.
   */
   provision --device_id/string --out_path/string --organization_id/string:
-    server := connected_artemis_server_
+    server := connected_artemis_server
     // Get the broker just after the server, in case it needs to authenticate.
     // We prefer to get an error message before we created a device on the
     // Artemis server.
-    broker := connected_broker_
+    broker := connected_broker
 
     device := server.create_device_in_organization
         --device_id=device_id
@@ -525,7 +525,7 @@ class Artemis:
     if word_size != 32 and word_size != 64: throw "INVALID_ARGUMENT"
     service_key := service_image_cache_key --service_version=service --sdk_version=sdk
     return cache_.get_file_path service_key: | store/cache.FileStore |
-      server := connected_artemis_server_ --no-authenticated
+      server := connected_artemis_server --no-authenticated
       entry := server.list_sdk_service_versions --sdk_version=sdk --service_version=service
       if entry.is_empty:
         ui_.error "Unsupported Artemis/SDK versions."
@@ -542,7 +542,7 @@ class Artemis:
   See $BrokerCli.update_goal.
   */
   update_goal --device_id/string [block]:
-    connected_broker_.update_goal --device_id=device_id block
+    connected_broker.update_goal --device_id=device_id block
 
   image_cache_id_ id/string -> string:
     return "$broker_config_.name/images/$id"
@@ -564,12 +564,12 @@ class Artemis:
         store.with_tmp_directory: | tmp_dir |
           // TODO(florian): do we want to rely on the cache, or should we
           // do a check to see if the files are really uploaded?
-          connected_broker_.upload_image program.image32
+          connected_broker.upload_image program.image32
               --app_id=id
               --organization_id=device.organization_id
               --word_size=32
           file.write_content program.image32 --path="$tmp_dir/image32.bin"
-          connected_broker_.upload_image  program.image64
+          connected_broker.upload_image  program.image64
               --organization_id=device.organization_id
               --app_id=id
               --word_size=64
@@ -612,11 +612,11 @@ class Artemis:
   */
   diff_and_upload_ patch/FirmwarePatch --organization_id/string -> none:
     trivial_id := id_ --to=patch.to_
-    cache_key := "$connected_broker_.id/$organization_id/patches/$trivial_id"
+    cache_key := "$connected_broker.id/$organization_id/patches/$trivial_id"
     // Unless it is already cached, always create/upload the trivial one.
     cache_.get cache_key: | store/cache.FileStore |
       trivial := build_trivial_patch patch.bits_
-      connected_broker_.upload_firmware trivial
+      connected_broker.upload_firmware trivial
           --organization_id=organization_id
           --firmware_id=trivial_id
       store.save_via_writer: | writer/writer.Writer |
@@ -627,10 +627,10 @@ class Artemis:
     // Attempt to fetch the old trivial patch and use it to construct
     // the old bits so we can compute a diff from them.
     old_id := id_ --to=patch.from_
-    cache_key = "$connected_broker_.id/$organization_id/patches/$old_id"
+    cache_key = "$connected_broker.id/$organization_id/patches/$old_id"
     trivial_old := cache_.get cache_key: | store/cache.FileStore |
       downloaded := null
-      catch: downloaded = connected_broker_.download_firmware
+      catch: downloaded = connected_broker.download_firmware
           --organization_id=organization_id
           --id=old_id
       if not downloaded: return
@@ -651,13 +651,13 @@ class Artemis:
     if patch.from_ != sha.get: return
 
     diff_id := id_ --from=patch.from_ --to=patch.to_
-    cache_key = "$connected_broker_.id/$organization_id/patches/$diff_id"
+    cache_key = "$connected_broker.id/$organization_id/patches/$diff_id"
     cache_.get cache_key: | store/cache.FileStore |
       // Build the diff and verify that we can apply it and get the
       // correct hash out before uploading it.
       diff := build_diff_patch old patch.bits_
       if patch.to_ != (compute_applied_hash_ diff old): return
-      connected_broker_.upload_firmware diff
+      connected_broker.upload_firmware diff
           --organization_id=organization_id
           --firmware_id=diff_id
       store.save_via_writer: | writer/writer.Writer |
