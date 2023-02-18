@@ -1,7 +1,5 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import encoding.tison
-
 import ..shared.json_diff show json_equals
 
 /**
