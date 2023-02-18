@@ -37,11 +37,11 @@ create_transient_command config/Config cache/Cache ui/Ui -> cli.Command:
   install_cmd := cli.Command "install"
       --short_help="Install an app on a device."
       --rest=[
-        cli.OptionString "app-name"
-            --short_help="Name of the app to install."
+        cli.OptionString "application-name"
+            --short_help="Name of the application to install."
             --required,
         cli.OptionString "application"
-            --short_help="Program to install."
+            --short_help="Application to install."
             --type="input-file"
             --required,
       ]
@@ -49,10 +49,10 @@ create_transient_command config/Config cache/Cache ui/Ui -> cli.Command:
   cmd.add install_cmd
 
   uninstall_cmd := cli.Command "uninstall"
-      --long_help="Uninstall an app from a device."
+      --long_help="Uninstall an application from a device."
       --rest=[
-        cli.OptionString "app-name"
-            --short_help="Name of the app to uninstall.",
+        cli.OptionString "application-name"
+            --short_help="Name of the application to uninstall.",
       ]
       --run=:: uninstall_app it config cache ui
   cmd.add uninstall_cmd
@@ -76,7 +76,7 @@ set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
 
 install_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  app_name := parsed["app-name"]
+  app_name := parsed["application-name"]
   application_path :=parsed["application"]
   device_id := get_device_id parsed config ui
 
@@ -85,7 +85,7 @@ install_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Request sent to broker. Application will be installed when device synchronizes."
 
 uninstall_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  app_name := parsed["app-name"]
+  app_name := parsed["application-name"]
   device_id := get_device_id parsed config ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
