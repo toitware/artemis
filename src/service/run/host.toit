@@ -80,7 +80,10 @@ run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui
     identity["artemis.broker"] = tison.encode identity["artemis.broker"]
     identity["broker"] = tison.encode identity["broker"]
     check_in_setup identity device_identity
-    device := Device --id=device_identity["device_id"] --firmware_state=config
+    device := Device
+        --id=device_identity["device_id"]
+        --organization_id=device_identity["organization_id"]
+        --firmware_state=config
     server_config := decode_server_config "broker" identity
     run_artemis device server_config
 

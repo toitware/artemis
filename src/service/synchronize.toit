@@ -195,9 +195,10 @@ class SynchronizeJob extends Job implements EventHandler:
     return::
       incomplete/Application? ::= applications_.first_incomplete
       if incomplete:
-        resources.fetch_image incomplete.id: | reader/SizedReader |
-          applications_.complete incomplete reader
-          device_.state_app_install_or_update incomplete.name incomplete.id
+        resources.fetch_image incomplete.id --organization_id=device_.organization_id:
+          | reader/SizedReader |
+            applications_.complete incomplete reader
+            device_.state_app_install_or_update incomplete.name incomplete.id
 
   action_set_max_offline_ value/any -> Lambda:
     return:: device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
@@ -207,7 +208,10 @@ class SynchronizeJob extends Job implements EventHandler:
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
       old := device_.firmware
-      firmware_update logger_ resources --old=old --new=new
+      firmware_update logger_ resources
+          --organization_id=device_.organization_id
+          --old=old
+          --new=new
       device_.state_firmware_update new
       firmware.upgrade
 

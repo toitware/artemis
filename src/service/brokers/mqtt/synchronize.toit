@@ -41,9 +41,9 @@ class BrokerServiceMqtt implements BrokerService:
 
     resources ::= ResourceManagerMqtt client
 
-    topic_revision := topic_revision_for_ device_id
-    topic_goal := topic_goal_for_ device_id
-    topic_presence := topic_presence_for_ device_id
+    topic_revision := topic_revision_for device_id
+    topic_goal := topic_goal_for device_id
+    topic_presence := topic_presence_for device_id
 
     sub_ack_latch := monitor.Latch
 
@@ -116,7 +116,7 @@ class BrokerServiceMqtt implements BrokerService:
     // Do nothing.
 
   connect_client_ --device_id/string client/mqtt.FullClient -> none:
-    topic_presence := topic_presence_for_ device_id
+    topic_presence := topic_presence_for device_id
 
     // On slower platforms where the overhead for processing packets is high,
     // we can avoid a number of unwanted retransmits from the broker by using

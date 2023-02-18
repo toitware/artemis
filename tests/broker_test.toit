@@ -178,18 +178,25 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       content_32 = ("test-image 32" * 10_000).to_byte_array
       content_64 = ("test-image 64" * 10_000).to_byte_array
 
-    broker_cli.upload_image --app_id=APP_ID --word_size=32 content_32
-    broker_cli.upload_image --app_id=APP_ID --word_size=64 content_64
+    broker_cli.upload_image content_32
+        --organization_id=TEST_ORGANIZATION_UUID
+        --app_id=APP_ID
+        --word_size=32
+    broker_cli.upload_image content_64
+        --organization_id=TEST_ORGANIZATION_UUID
+        --app_id=APP_ID
+        --word_size=64
 
     test_handler := TestEventHandler
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler: | resources/broker.ResourceManager |
-      resources.fetch_image APP_ID: | reader/SizedReader |
-        // TODO(florian): this only tests the download of the current platform. That is, on
-        // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
-        // also verify that the 32-bit image is correct.
-        data := #[]
-        while chunk := reader.read: data += chunk
-        expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
+      resources.fetch_image APP_ID --organization_id=TEST_ORGANIZATION_UUID:
+        | reader/SizedReader |
+          // TODO(florian): this only tests the download of the current platform. That is, on
+          // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
+          // also verify that the 32-bit image is correct.
+          data := #[]
+          while chunk := reader.read: data += chunk
+          expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
 
 test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   3.repeat: | iteration |
@@ -208,22 +215,27 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       List.chunk_up 0 content.size 1024: | from/int to/int |
         chunks.add content[from..to]
 
-    broker_cli.upload_firmware --firmware_id=FIRMWARE_ID chunks
+    broker_cli.upload_firmware chunks
+        --firmware_id=FIRMWARE_ID
+        --organization_id=TEST_ORGANIZATION_UUID
 
     if broker_cli is not mqtt_broker.BrokerCliMqtt:
       // Downloading a firmware isn't implemented for the MQTT broker.
-      downloaded_bytes := broker_cli.download_firmware --id=FIRMWARE_ID
+      downloaded_bytes := broker_cli.download_firmware
+          --id=FIRMWARE_ID
+          --organization_id=TEST_ORGANIZATION_UUID
       expect_bytes_equal content downloaded_bytes
 
     test_handler := TestEventHandler
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler: | resources/broker.ResourceManager |
       data := #[]
       offsets := []
-      resources.fetch_firmware FIRMWARE_ID: | reader/SizedReader offset |
-        expect_equals data.size offset
-        while chunk := reader.read: data += chunk
-        offsets.add offset
-        data.size  // Continue at data.size.
+      resources.fetch_firmware FIRMWARE_ID --organization_id=TEST_ORGANIZATION_UUID:
+        | reader/SizedReader offset |
+          expect_equals data.size offset
+          while chunk := reader.read: data += chunk
+          offsets.add offset
+          data.size  // Continue at data.size.
 
       expect_equals content data
 
@@ -232,19 +244,22 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         if offsets.size > 1:
           offset_index := offsets.size / 2
           current_offset := offsets[offset_index]
-          resources.fetch_firmware FIRMWARE_ID --offset=current_offset: | reader/SizedReader offset |
-            expect_equals current_offset offset
-            partial_data := #[]
-            while chunk := reader.read: partial_data += chunk
-            expect_bytes_equal content[current_offset..current_offset + partial_data.size] partial_data
+          resources.fetch_firmware FIRMWARE_ID
+              --organization_id=TEST_ORGANIZATION_UUID
+              --offset=current_offset:
+            | reader/SizedReader offset |
+              expect_equals current_offset offset
+              partial_data := #[]
+              while chunk := reader.read: partial_data += chunk
+              expect_bytes_equal content[current_offset..current_offset + partial_data.size] partial_data
 
-            // If we can, advance by 3 chunks.
-            if offset_index + 3 < offsets.size:
-              offset_index += 3
-              current_offset = offsets[offset_index]
-            else:
-              // Otherwise advance chunk by chunk.
-              // Once we reached the end, we won't be called again.
-              current_offset += partial_data.size
-            // Return the new offset.
-            current_offset
+              // If we can, advance by 3 chunks.
+              if offset_index + 3 < offsets.size:
+                offset_index += 3
+                current_offset = offsets[offset_index]
+              else:
+                // Otherwise advance chunk by chunk.
+                // Once we reached the end, we won't be called again.
+                current_offset += partial_data.size
+              // Return the new offset.
+              current_offset
