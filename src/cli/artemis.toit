@@ -548,12 +548,17 @@ class Artemis:
     return "$broker_config_.name/images/$id"
 
   app_install --device_id/string --app_name/string --application_path/string:
-    // TODO(florian): get the sdk from the device.
-    sdk := Sdk
-
-    program := CompiledProgram.application application_path --sdk=sdk
-    id := program.id
     update_goal --device_id=device_id: | device/DetailedDevice |
+      current_state := device.reported_state_current or device.reported_state_firmware
+      if not current_state:
+        ui_.error "Unknown device state."
+        ui_.abort
+      firmware := Firmware.encoded current_state["firmware"]
+      sdk_version := firmware.sdk_version
+      sdk := get_sdk sdk_version --cache=cache_
+      program := CompiledProgram.application application_path --sdk=sdk
+      id := program.id
+
       cache_id := image_cache_id_ id
       cache_.get_directory_path cache_id: | store/cache.DirectoryStore |
         store.with_tmp_directory: | tmp_dir |
