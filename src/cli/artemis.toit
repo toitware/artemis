@@ -244,7 +244,7 @@ class Artemis:
       // Store the containers in the envelope.
       device_specification.containers.do: | name/string container/Container |
         snapshot_path := "$tmp_dir/$(name).snapshot"
-        container.build_snapshot --sdk=sdk --output_path=snapshot_path
+        container.build_snapshot --sdk=sdk --output_path=snapshot_path --cache=cache_
         // TODO(florian): add support for assets.
         sdk.firmware_add_container name
             --envelope=output_path

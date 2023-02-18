@@ -1,11 +1,16 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import encoding.json
+import encoding.url as url_encoding
 import host.file
+import .cache as cli
+import .cache show GIT_APP_PATH
 import .firmware
 import .sdk
 import .server_config
 import .utils
+import .fs as fs
+import .git
 
 /**
 A specification of a device.
@@ -100,26 +105,97 @@ interface Container:
   /**
   Builds a snapshot and stores it at the given $output_path.
   */
-  build_snapshot --output_path/string --sdk/Sdk
+  build_snapshot --output_path/string --sdk/Sdk --cache/cli.Cache
   type -> string
   to_json -> Map
 
 class ContainerPath implements Container:
   entrypoint/string
+  git_url/string?
+  git_ref/string?
 
-  constructor --.entrypoint:
+  constructor --.entrypoint --.git_url --.git_ref:
+    if git_url and not git_ref:
+      throw "Git entry requires a branch/tag: $git_url"
+    if git_url and not fs.is_relative entrypoint:
+      throw "Git entry requires a relative path: $entrypoint"
 
   constructor.from_json data/Map:
-    return ContainerPath --entrypoint=data["entrypoint"]
+    return ContainerPath
+      --entrypoint=data["entrypoint"]
+      --git_ref=data.get "branch"
+      --git_url=data.get "git"
 
-  build_snapshot --output_path/string --sdk/Sdk:
-    sdk.compile_to_snapshot entrypoint --out=output_path
+  build_snapshot --output_path/string --sdk/Sdk --cache/cli.Cache:
+    if not git_url:
+      sdk.compile_to_snapshot entrypoint --out=output_path
+      return
+
+    git := Git
+    git_key := "$GIT_APP_PATH/$git_url"
+    cached_checkout := cache.get_directory_path git_key: | store/cli.DirectoryStore |
+      store.with_tmp_directory: | tmp_dir/string |
+        clone_dir := "$tmp_dir/clone"
+        git.init clone_dir --origin=git_url
+        git.config --repository_root=clone_dir
+            --key="advice.detachedHead"
+            --value="false"
+        git.fetch
+            --repository_root=clone_dir
+            --depth=1
+            --ref=git_ref
+        store.move clone_dir
+    // Make sure we have the ref we need in the cache.
+    git.fetch --force --depth=1 --ref=git_ref --repository_root=cached_checkout
+    // In case the remote updated the ref, update the local tag.
+    git.tag
+        --update
+        --name=git_ref
+        --ref="origin/$git_ref"
+        --repository_root=cached_checkout
+        --force
+
+    with_tmp_directory: | tmp_dir/string |
+      // Clone the repository to a temporary directory, so we
+      // aren't affected by changes to the cache.
+      clone_dir := "$tmp_dir/clone"
+      file_uri := "file://$(url_encoding.encode cached_checkout)"
+      git.init clone_dir --origin=file_uri
+      git.config --repository_root=clone_dir
+          --key="advice.detachedHead"
+          --value="false"
+      git.fetch
+          --checkout
+          --depth=1
+          --repository_root=clone_dir
+          --ref=git_ref
+      entrypoint_path := "$clone_dir/$entrypoint"
+      if not file.is_file entrypoint_path:
+        throw "No such file: $entrypoint_path"
+
+      package_yaml_path := "$clone_dir/package.yaml"
+      if not file.is_file package_yaml_path:
+        if file.is_directory package_yaml_path:
+          throw "package.yaml is a directory in $git_url"
+        // Create an empty package.yaml file, so that we can safely call
+        // toit.pkg without worrying that we use some file from a folder
+        // above our tmp directory.
+        write_blob_to_file package_yaml_path #[]
+
+      sdk.pkg_install --project_root=clone_dir
+
+      // TODO(florian): move into the clone_dir and compile from there.
+      // Otherwise we have unnecessary absolute paths in the snapshot.
+      sdk.compile_to_snapshot entrypoint_path --out=output_path
 
   type -> string:
     return "path"
 
   to_json -> Map:
-    return { "entrypoint": entrypoint }
+    result := { "entrypoint": entrypoint }
+    if git_url: result["git"] = git_url
+    if git_ref: result["branch"] = git_ref
+    return result
 
 class ContainerSnapshot implements Container:
   snapshot_path/string
@@ -129,7 +205,7 @@ class ContainerSnapshot implements Container:
   constructor.from_json data/Map:
     return ContainerSnapshot --snapshot_path=data["snapshot"]
 
-  build_snapshot --output_path/string --sdk/Sdk:
+  build_snapshot --output_path/string --sdk/Sdk --cache/cli.Cache:
     copy_file --source=snapshot_path --target=output_path
 
   type -> string:
