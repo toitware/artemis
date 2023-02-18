@@ -61,8 +61,8 @@ class BrokerCliSupabase implements BrokerCli:
     new_goal := block.call (old_goal or {:})
 
     client_.rest.upsert "goals" {
-      "device_id"     : device_id,
-      "goal" : new_goal,
+      "device_id": device_id,
+      "goal": new_goal,
     }
 
   upload_image --app_id/string --word_size/int content/ByteArray -> none:
