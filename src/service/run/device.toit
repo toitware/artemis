@@ -26,8 +26,8 @@ main arguments:
   firmware_description := ubjson.decode (device_specific_ "parts")
   end := firmware_description.last["to"]
   firmware_ubjson := ubjson.encode {
-    "config"   : firmware.config.ubjson,
-    "checksum" : checksum end,
+    "device-specific" : firmware.config.ubjson,
+    "checksum"        : checksum end,
   }
   encoded_firmware_description := base64.encode firmware_ubjson
 

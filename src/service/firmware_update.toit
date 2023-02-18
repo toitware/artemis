@@ -82,7 +82,7 @@ class FirmwarePatcher_ implements PatchObserver:
       type := part.get "type"
       if type == "config":
         assert: read_offset == 0
-        write_config_ part new_.config_encoded
+        write_device_specific_ part new_.device_specific_encoded
       else:
         // TODO(kasper): Find the old part based on name/type, not index.
         write_patched_ resources read_offset --new=part --old=old_.parts[index]
@@ -94,13 +94,13 @@ class FirmwarePatcher_ implements PatchObserver:
     writer_.commit
     Checkpoint.clear
 
-  write_config_ part/Map config/ByteArray -> none:
+  write_device_specific_ part/Map device_specific/ByteArray -> none:
     padded_size := part["to"] - part["from"]
     size := ByteArray 4
-    LITTLE_ENDIAN.put_uint32 size 0 config.size
+    LITTLE_ENDIAN.put_uint32 size 0 device_specific.size
     on_write size
-    on_write config
-    pad_ padded_size - (config.size + 4)
+    on_write device_specific
+    pad_ padded_size - (device_specific.size + 4)
 
   write_patched_ resources/ResourceManager read_offset/int --new/Map --old/Map -> none:
     new_hash := new["hash"]
@@ -222,15 +222,14 @@ class FirmwarePatcher_ implements PatchObserver:
 class Firmware:
   size/int
   parts/List
-  config/Map
-  config_encoded/ByteArray
+  device_specific_encoded/ByteArray
   checksum/ByteArray
 
   constructor.encoded encoded/string:
     decoded := ubjson.decode (base64.decode encoded)
-    config_encoded = decoded["config"]
-    config = ubjson.decode config_encoded
-    parts = ubjson.decode config["parts"]
+    device_specific_encoded = decoded["device-specific"]
+    device_specific := ubjson.decode device_specific_encoded
+    parts = ubjson.decode device_specific["parts"]
     checksum = decoded["checksum"]
     size = parts.last["to"] + checksum.size
 
