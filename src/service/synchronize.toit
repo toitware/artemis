@@ -157,6 +157,7 @@ class SynchronizeJob extends Job implements EventHandler:
     modification.on_value "max-offline"
         --added   =: bundle.add (action_set_max_offline_ it)
         --removed =: bundle.add (action_set_max_offline_ null)
+        --updated =: | _ to | bundle.add (action_set_max_offline_ to)
 
     actions_.send (commit new_goal bundle)
 
