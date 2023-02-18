@@ -55,7 +55,7 @@ interface BrokerBackdoor:
 
 with_broker --type/string --logger/Logger [block]:
   if type == "supabase-local" or type == "supabase-local-artemis":
-    sub_dir := type == "supabase-local" ? SUPABASE_CUSTOMER : SUPABASE_ARTEMIS
+    sub_dir := type == "supabase-local" ? SUPABASE_BROKER : SUPABASE_ARTEMIS
     server_config := get_supabase_config --sub_directory=sub_dir
     service_key := get_supabase_service_key --sub_directory=sub_dir
     server_config.poll_interval = Duration --ms=1

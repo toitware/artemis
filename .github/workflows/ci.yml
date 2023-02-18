@@ -117,9 +117,9 @@ jobs:
           echo "SUPABASE_TOITWARE_API_HOST=$API_HOST" >> $GITHUB_ENV
           echo "SUPABASE_TOITWARE_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
-      - name: Start Supabase - Customer
+      - name: Start Supabase - Broker
         shell: bash
-        working-directory: ${{ github.workspace }}/tests/supabase_customer
+        working-directory: ${{ github.workspace }}/supabase_broker
         run: |
           supabase start --ignore-health-check
           supabase status
@@ -129,8 +129,8 @@ jobs:
           API_HOST=${API_URL#*http://}
           ANON_KEY_LINE=$(supabase status | grep "anon key:")
           ANON_KEY=${ANON_KEY_LINE#*anon key: }
-          echo "SUPABASE_CUSTOMER_API_HOST=$API_HOST" >> $GITHUB_ENV
-          echo "SUPABASE_CUSTOMER_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
+          echo "SUPABASE_BROKER_API_HOST=$API_HOST" >> $GITHUB_ENV
+          echo "SUPABASE_BROKER_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
       - name: Start Supabase - Supabase test
         shell: bash
@@ -185,8 +185,8 @@ jobs:
         run: |
           $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-toitware" \
             $SUPABASE_TOITWARE_API_HOST $SUPABASE_TOITWARE_ANON_KEY
-          $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-customer" \
-            $SUPABASE_CUSTOMER_API_HOST $SUPABASE_CUSTOMER_ANON_KEY
+          $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-broker" \
+            $SUPABASE_BROKER_API_HOST $SUPABASE_BROKER_ANON_KEY
           cat $ARTEMIS_CONFIG
 
       - name: Test
