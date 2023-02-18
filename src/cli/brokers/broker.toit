@@ -72,9 +72,9 @@ interface BrokerCli implements Authenticatable:
     hasn't reported its state yet, then the initial state (as stored
     by $notify_created) is used.
 
-  The $block should return a new configuration which replaces the actual goal state.
+  The $block should return a new goal state which replaces the actual goal state.
 
-  The $block is allowed to modify the given configuration but is still required
+  The $block is allowed to modify the given goal state but is still required
     to return it.
   */
   device_update_goal --device_id/string [block] -> none
