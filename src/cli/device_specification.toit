@@ -30,15 +30,17 @@ class DeviceSpecification:
   max_offline_seconds/int
   connections/List  // Of $ConnectionInfo.
   containers/Map  // Of name -> $Container.
+  path/string
 
   constructor
+      --.path
       --.sdk_version
       --.artemis_version
       --.max_offline_seconds
       --.connections
       --.containers:
 
-  constructor.from_json data/Map:
+  constructor.from_json --path/string data/Map:
     if data["version"] != 1:
       throw "Unsupported device specification version: $data["version"]"
 
@@ -50,6 +52,7 @@ class DeviceSpecification:
           Container.from_json container_description
 
     return DeviceSpecification
+      --path=path
       --sdk_version=data["sdk-version"]
       --artemis_version=data["artemis-version"]
       --max_offline_seconds=data["max-offline-seconds"]
@@ -57,8 +60,14 @@ class DeviceSpecification:
       --containers=containers
 
   static parse path/string -> DeviceSpecification:
-    encoded := file.read_content path
-    return DeviceSpecification.from_json (json.parse encoded.to_string)
+    return DeviceSpecification.from_json --path=path (read_json path)
+
+  /**
+  Returns the path to which all other paths of this specification are
+    relative to.
+  */
+  relative_to -> string:
+    return fs.dirname path
 
   to_json -> Map:
     return {
@@ -104,8 +113,10 @@ interface Container:
 
   /**
   Builds a snapshot and stores it at the given $output_path.
+
+  All paths in the container are relative to $relative_to.
   */
-  build_snapshot --output_path/string --sdk/Sdk --cache/cli.Cache
+  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
   type -> string
   to_json -> Map
 
@@ -126,9 +137,12 @@ class ContainerPath implements Container:
       --git_ref=data.get "branch"
       --git_url=data.get "git"
 
-  build_snapshot --output_path/string --sdk/Sdk --cache/cli.Cache:
+  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache:
     if not git_url:
-      sdk.compile_to_snapshot entrypoint --out=output_path
+      path := entrypoint
+      if fs.is_relative path:
+        path = "$relative_to/$path"
+      sdk.compile_to_snapshot path --out=output_path
       return
 
     git := Git
@@ -188,6 +202,7 @@ class ContainerPath implements Container:
       // Otherwise we have unnecessary absolute paths in the snapshot.
       sdk.compile_to_snapshot entrypoint_path --out=output_path
 
+
   type -> string:
     return "path"
 
@@ -205,8 +220,11 @@ class ContainerSnapshot implements Container:
   constructor.from_json data/Map:
     return ContainerSnapshot --snapshot_path=data["snapshot"]
 
-  build_snapshot --output_path/string --sdk/Sdk --cache/cli.Cache:
-    copy_file --source=snapshot_path --target=output_path
+  build_snapshot --relative_to/string --output_path/string --sdk/Sdk --cache/cli.Cache:
+    path := snapshot_path
+    if fs.is_relative snapshot_path:
+      path = "$relative_to/$snapshot_path"
+    copy_file --source=path --target=output_path
 
   type -> string:
     return "snapshot"

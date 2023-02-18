@@ -251,8 +251,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.info "Successfully provisioned device $device_id."
 
       // Customize.
-      specification_json := read_json specification_path
-      specification := DeviceSpecification.from_json specification_json
+      specification := DeviceSpecification.parse specification_path
       envelope_path := "$tmp_dir/$(device_id).envelope"
       artemis.customize_envelope
           --output_path=envelope_path
@@ -300,8 +299,7 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with_artemis parsed config cache ui: | artemis/Artemis |
     with_tmp_directory: | tmp_dir/string |
       // Customize.
-      specification_json := read_json specification_path
-      specification := DeviceSpecification.from_json specification_json
+      specification := DeviceSpecification.parse specification_path
       envelope_path := "$tmp_dir/$(device_id).envelope"
       artemis.customize_envelope
           --output_path=envelope_path
