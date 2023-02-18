@@ -13,6 +13,8 @@ import .cmds.org
 import .cmds.profile
 import .cmds.sdk
 
+import ..shared.version
+
 // TODO:
 //  - groups of devices
 //  - device reject of configuration
@@ -24,10 +26,19 @@ main args:
   main args --config=config --cache=cache --ui=ui
 
 main args --config/Config --cache/Cache --ui/Ui:
+  if args.size == 1 and args[0] == "--version":
+    ui.info ARTEMIS_VERSION
+    return
+
   root_cmd := cli.Command "root"
       --long_help="""
       A fleet management system for Toit devices.
       """
+      --subcommands=[
+        cli.Command "version"
+            --long_help="Prints the version of the artemis tool."
+            --run=:: ui.info ARTEMIS_VERSION,
+      ]
 
   // TODO(florian): the ui should be configurable by flags.
   // This might be easier, once the UI is integrated with the cli
