@@ -99,6 +99,7 @@ The comparison is done deeply, and nested objects are compared
   recursively.
 */
 json_equals a/any b/any -> bool:
+  if identical a b: return true
   if a is Map and b is Map:
     if a.size != b.size: return false
     a.do: | key value |
@@ -111,7 +112,7 @@ json_equals a/any b/any -> bool:
       if not json_equals a[i] b[i]: return false
     return true
   else:
-    return identical a b
+    return false
 
 // --------------------------------------------------------------------------
 
@@ -213,7 +214,7 @@ compute_map_modification_ from/Map to/Map [modified] -> UpdatedMap_?:
       if identical from_value to_value:
         continue.do
       else if from_value is List and to_value is List:
-        if list_is_unmodified_ from_value to_value: continue.do
+        if json_equals from_value to_value: continue.do
         modified.call
         modification = Updated_ from_value to_value
       else if from_value is Map and to_value is Map:
@@ -232,25 +233,3 @@ compute_map_modification_ from/Map to/Map [modified] -> UpdatedMap_?:
     modifications = modifications or {:}
     modifications[from_key] = modification
   return modifications ? (UpdatedMap_ from to modifications) : null
-
-map_is_unmodified_ from/Map to/Map -> bool:
-  compute_map_modification_ from to: return false
-  return true
-
-list_is_unmodified_ from/List to/List -> bool:
-  size ::= from.size
-  if to.size != size: return false
-  size.repeat:
-    from_element ::= from[it]
-    to_element ::= to[it]
-    if identical from_element to_element:
-      // No change.
-    else if from_element is List and to_element is List:
-      if not list_is_unmodified_ from_element to_element:
-        return false
-    else if from_element is Map and to_element is Map:
-      if not map_is_unmodified_ from_element to_element:
-        return false
-    else:
-      return false
-  return true
