@@ -51,7 +51,6 @@ class Git:
   Inits a new Git repository in the given $repository_root.
 
   If $origin is given adds the given remote as "origin".
-
   */
   init repository_root/string --origin/string?=null:
     args := [
