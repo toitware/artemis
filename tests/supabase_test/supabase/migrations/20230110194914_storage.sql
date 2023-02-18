@@ -17,3 +17,13 @@ CREATE POLICY "Public can read"
     ON storage.objects
     FOR SELECT
     USING (bucket_id = 'test-bucket');
+
+INSERT INTO storage.buckets (id, name, public)
+    VALUES ('test-bucket-public', 'test-bucket-public', true);
+
+CREATE POLICY "Authenticated can modify public bucket"
+    ON storage.objects
+    FOR ALL
+    TO authenticated
+    USING (bucket_id = 'test-bucket-public')
+    WITH CHECK (bucket_id = 'test-bucket-public');
