@@ -2,6 +2,7 @@
 
 import monitor
 import net
+import uuid
 
 import supabase
 
@@ -43,9 +44,10 @@ interface ArtemisServerBackdoor:
   /**
   Creates a new device in the given $organization_id.
 
-  Returns the device id of the created device.
+  Returns a map with the device ID ("id"), and alias ID ("alias") of
+    the created device.
   */
-  create_device --organization_id/string -> string
+  create_device --organization_id/string -> Map
 
   /**
   Removes the device with the given $device_id.
@@ -98,11 +100,15 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
     server.sdk_service_versions = sdk_service_versions
     server.image_binaries = image_binaries
 
-  create_device --organization_id/string -> string:
+  create_device --organization_id/string -> Map:
+    // TODO(florian): the server should automatically generate an alias
+    // if none is given.
+    alias := (uuid.uuid5 "random" "alias $random $Time.now").stringify
     response := server.create_device_in_organization {
       "organization_id": organization_id,
+      "alias": alias,
     }
-    return response["id"]
+    return response
 
   remove_device device_id/string -> none:
     server.remove_device device_id
@@ -202,12 +208,14 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 
         client.storage.upload --path="service-images/$image" --content=content
 
-  create_device --organization_id/string -> string:
+  create_device --organization_id/string -> Map:
+    alias := (uuid.uuid5 "random" "alias $random $Time.now").stringify
     with_backdoor_client_: | client/supabase.Client |
       response := client.rest.insert "devices" {
         "organization_id": organization_id,
+        "alias": alias,
       }
-      return response["id"]
+      return response
     unreachable
 
   remove_device device_id/string -> none:

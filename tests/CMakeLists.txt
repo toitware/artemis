@@ -19,8 +19,29 @@ add_custom_target(
 set(TEST_PREFIX "")
 include(fail.cmake OPTIONAL)
 
-message("Failing tests: ${FAILING_TESTS}")
-message("Skipped tests: ${SKIP_TESTS}")
+set (ARTEMIS_FLAGS "--supabase-server" "--http-server")
+set (BROKER_FLAGS
+      "--http-toit-broker"
+      "--mosquitto-broker"
+      # TODO(florian): reenable the toit MQTT server.
+      # "--toit-mqtt"
+      "--supabase-local-broker"
+      "--supabase-local-artemis-broker"
+    )
+
+function (takes_artemis_flags file result)
+  file(READ "${file}" content)
+  string(REGEX MATCH "// ARTEMIS_TEST_FLAGS:.*ARTEMIS" match "${content}")
+  # Return the match if there was one.
+  set(${result} ${match} PARENT_SCOPE)
+endfunction()
+
+function (takes_broker_flags file result)
+  file(READ "${file}" content)
+  string(REGEX MATCH "// ARTEMIS_TEST_FLAGS:.*BROKER" match "${content}")
+  # Return the match if there was one.
+  set(${result} ${match} PARENT_SCOPE)
+endfunction()
 
 function(extract_test_flags file result)
   file(READ "${file}" content)
@@ -31,9 +52,48 @@ endfunction()
 
 foreach(file ${TESTS})
   extract_test_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" flags)
+  takes_artemis_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" artemis_match)
+  takes_broker_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" broker_match)
+
+  if (NOT "${artemis_match}" STREQUAL "" OR NOT "${broker_match}" STREQUAL "")
+    # Build the test flags from the artemis and broker flags.
+    if ("${artemis_match}" STREQUAL "")
+      set(TEST_ARTEMIS_FLAGS "--dummy")
+    else()
+      set(TEST_ARTEMIS_FLAGS ${ARTEMIS_FLAGS})
+    endif()
+    if ("${broker_match}" STREQUAL "")
+      set(TEST_BROKER_FLAGS "--dummy")
+    else()
+      set(TEST_BROKER_FLAGS ${BROKER_FLAGS})
+    endif()
+    foreach (artemis_flag ${TEST_ARTEMIS_FLAGS})
+      foreach (broker_flag ${TEST_BROKER_FLAGS})
+        if ("${broker_flag}" STREQUAL "--supabase-local-artemis-broker" AND NOT "${artemis_flag}" STREQUAL "--supabase-local")
+          # Skip the artemis broker test if the artemis server is not running.
+          continue()
+        endif()
+
+        if ("${artemis_flag}" STREQUAL "--dummy")
+          set(artemis_flag "")
+        endif()
+        if ("${broker_flag}" STREQUAL "--dummy")
+          set(broker_flag "")
+        endif()
+
+        if ("${flags}" STREQUAL "")
+          set(flags "${artemis_flag} ${broker_flag}")
+        else()
+          set(flags "${flags};${artemis_flag} ${broker_flag}")
+        endif()
+      endforeach()
+    endforeach()
+  endif()
+
   if (NOT flags)
     set(flags "--dummy")
   endif()
+
 
   foreach (flag ${flags})
     set(test_name "/tests/${file}")
@@ -42,15 +102,15 @@ foreach(file ${TESTS})
     endif()
 
     if (NOT "${flag}" STREQUAL "")
-      set(test_name "${test_name}${flag}")
+      set(test_name "${test_name} ${flag}")
     endif()
 
     if("${test_name}" IN_LIST SKIP_TESTS)
       continue()
     endif()
 
-    # Split the flags at "|".
-    string(REPLACE "|" ";" flag "${flag}")
+    # Split the flags at " ".
+    string(REPLACE " " ";" flag "${flag}")
 
     add_test(
       NAME "${test_name}"
@@ -69,3 +129,8 @@ foreach(file ${TESTS})
     endif()
   endforeach()
 endforeach()
+
+# Lock the artemis server to a single test for the following tests.
+# They use global properties interfering with the sdk table.
+set_tests_properties("/tests/uploader_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
+set_tests_properties("/tests/supabase_policies_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")

@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-// TEST_FLAGS: --supabase --http
+// ARTEMIS_TEST_FLAGS: ARTEMIS
 
 import expect show *
 import host.directory
@@ -17,10 +17,16 @@ import artemis.shared.server_config show ServerConfig
 import artemis.cli.auth as cli_auth
 
 main args:
-  type := "http"
-  if not args.is_empty and args[0] == "--supabase":
-    type = "supabase"
-  with_artemis_server --type=type: | artemis_server/TestArtemisServer |
+  server_type := ?
+  if args.is_empty:
+    server_type = "http"
+  else if args[0] == "--http-server":
+    server_type = "http"
+  else if args[0] == "--supabase-server":
+    server_type = "supabase"
+  else:
+    throw "Unknown server server type: $args[0]"
+  with_artemis_server --type=server_type: | artemis_server/TestArtemisServer |
       run_test artemis_server --authenticate=: | server/ArtemisServerCli |
         server.sign_in
               --email=TEST_EXAMPLE_COM_EMAIL

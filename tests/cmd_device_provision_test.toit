@@ -1,8 +1,6 @@
 // Copyright (C) 2022 Toitware ApS.
 
-// TEST_FLAGS: --supabase-server --http-server
-
-import .brokers
+// ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
 import artemis.cli
 import artemis.cli.cache
@@ -18,16 +16,9 @@ import expect show *
 import .utils
 
 main args:
-  if args.is_empty: args = ["--http-server"]
-
-  artemis_type/string := ?
-  if args[0] == "--supabase-server":  artemis_type = "supabase"
-  else if args[0] == "--http-server": artemis_type = "http"
-  else: throw "Unknown artemis type: $args[0]"
-
   with_test_cli
-      --artemis_type=artemis_type
-      --broker_type="supabase"
+      --artemis_type=server_type_from_args args
+      --broker_type=broker_type_from_args args
       --no-start_device_artemis
       : | test_cli/TestCli _ |
         run_test test_cli
