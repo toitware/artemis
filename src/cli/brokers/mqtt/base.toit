@@ -74,7 +74,7 @@ class BrokerCliMqtt implements BrokerCli:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
-  device_update_config --device_id/string [block] -> none:
+  device_update_goal --device_id/string [block] -> none:
     client := client_
     topic_lock := topic_lock_for_ device_id
     topic_config := topic_config_for_ device_id
@@ -170,7 +170,8 @@ class BrokerCliMqtt implements BrokerCli:
       revision := old_revision + 1
       config["writer"] = me
       config["revision"] = revision
-      config = block.call config
+      // TODO(florian): also get the current state of the device.
+      config = block.call config null
 
       // TODO(kasper): Maybe validate the config?
       client.publish topic_config (ubjson.encode config) --qos=1 --retain

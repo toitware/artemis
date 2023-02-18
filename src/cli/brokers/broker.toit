@@ -63,15 +63,21 @@ interface BrokerCli implements Authenticatable:
   sign_in --provider/string --ui/Ui --open_browser
 
   /**
-  Invokes the $block with the current configuration (a Map) of $device_id and
-    updates the device's configuration with the new map that is returned from the block.
+  Updates the goal state of the device with the given $device_id.
 
-  The block may be called with an empty map, if no configuration exists yet.
+  The block is called with 2 arguments:
+  - the current goal state: the configuration that the broker currently sends
+    to the device. May be null if no goal state was set yet.
+  - the state: the state as reported by the device. If the device
+    hasn't reported its state yet, then the initial state (as stored
+    by $notify_created) is used.
 
-  The $block is allowed to modify the given configuration but is still required
+  The $block should return a new goal state which replaces the actual goal state.
+
+  The $block is allowed to modify the given goal state but is still required
     to return it.
   */
-  device_update_config --device_id/string [block] -> none
+  device_update_goal --device_id/string [block] -> none
 
   /**
   Uploads an application image with the given $app_id so that a device can fetch it.

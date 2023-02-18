@@ -54,6 +54,7 @@ class HttpBroker extends HttpServer:
     if command == "upload_firmware": return upload_firmware data
     if command == "download_firmware": return download_firmware data
     if command == "report_state": return report_state data
+    if command == "get_state": return get_state data
     if command == "get_event": return get_event data
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
@@ -102,6 +103,10 @@ class HttpBroker extends HttpServer:
     device_id := data["device_id"]
     device_states[device_id] = data["state"]
     notify_device device_id "state_updated"
+
+  get_state data/Map:
+    device_id := data["device_id"]
+    return device_states.get device_id
 
   get_event data/Map:
     device_id := data["device_id"]

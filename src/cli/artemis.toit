@@ -320,24 +320,33 @@ class Artemis:
   Updates the device $device_id with the firmware image at $envelope_path.
   */
   update --device_id/string --envelope_path/string:
-    connected_broker_.device_update_config --device_id=device_id: | config/Map |
-      existing := config.get "firmware"
-      if not existing:
-        // TODO(florian): try to get the current firmware from the state.
-        ui_.error "No old firmware configuration found for device $device_id."
-        ui_.abort
+    update_goal --device_id=device_id:
+      | current_goal/Map? firmware_state/Map? current_state/Map? goal_state/Map? initial/Map? |
+        if not firmware_state and not current_goal:
+          // TODO(florian): use the other parameters
+          ui_.error "No old firmware configuration found for device $device_id."
+          ui_.abort
 
-      upgrade_from := Firmware.encoded existing
-      device := upgrade_from.device_specific "artemis.device"
-      if device["device_id"] != device_id:
-        ui_.error "The device id of the firmware image ($device["device_id"]) does not match the given device id ($device_id)."
-        ui_.abort
-      compute_updated_config
-          --device=device
-          --upgrade_from=upgrade_from
-          --envelope_path=envelope_path
+        existing := firmware_state ? firmware_state.get "firmware" : current_goal.get "firmware"
 
-  compute_updated_config --device/Map --upgrade_from/Firmware? --envelope_path/string -> Map:
+        upgrade_from := Firmware.encoded existing
+        device := upgrade_from.device_specific "artemis.device"
+        if device["device_id"] != device_id:
+          ui_.error "The device id of the firmware image ($device["device_id"]) does not match the given device id ($device_id)."
+          ui_.abort
+        compute_updated_goal
+            --device=device
+            --upgrade_from=upgrade_from
+            --envelope_path=envelope_path
+
+  /**
+  Computes the goal for the given $device, upgrading from $upgrade_from to the
+    firmware image at $envelope_path.
+
+  The return goal state will instruct the device to download the firmware image
+    and install it.
+  */
+  compute_updated_goal --device/Map --upgrade_from/Firmware? --envelope_path/string -> Map:
     sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
     sdk := get_sdk sdk_version --cache=cache_
 
@@ -502,6 +511,43 @@ class Artemis:
       store.save ar_file.content
 
   /**
+  Updates the goal state of the device with the given $device_id.
+
+  The block is called with 5 arguments:
+  - the current goal state: the configuration that the broker currently sends
+    to the device. May be null if no goal state was set yet.
+  - the firmware state: the configuration of the device's firmware when it
+    last reported its state. May be null if the device hasn't reported its
+    state yet.
+  - the current state: the configuration of the device when it last reported
+    its state. If the "firmware" entry is not the same as the one in the
+    firmware state, then the device has updated its firmware but has not
+    yet rebooted. May be null if the device hasn't reported its state yet, or
+    if the state is the same as for the firmware.
+  - the known goal state: the configuration the device last reported as its goal.
+    This might be different from the actual goal state if the device either
+    didn't yet receive the new goal state, or if the device didn't report its
+    current state yet. May be null if the device hasn't reported its state yet,
+    or if the state is the same as for the current state.
+  - the initial state: the initial status (as stored by $BrokerCli.notify_created).
+    Null, if the device has reported its state.
+
+  The $block should return a new configuration which replaces the actual goal state.
+
+  The $block is allowed to modify the given configuration but is still required
+    to return it.
+  */
+  update_goal --device_id/string [block] -> none:
+    connected_broker_.device_update_goal --device_id=device_id: | current_goal/Map? state/Map? |
+      firmware_state/Map? := state and state.get "firmware-state"
+      current_state/Map? := state and state.get "current-state"
+      known_goal/Map? := state and state.get "goal-state"
+
+      initial_state := firmware_state ? null : state
+
+      block.call current_goal firmware_state current_state known_goal initial_state
+
+  /**
   Maps a device selector (name or id) to its id.
   */
   device_selector_to_id name/string -> string:
@@ -526,33 +572,43 @@ class Artemis:
         file.write_content program.image64 --path="$tmp_dir/image64.bin"
         store.move tmp_dir
 
-    connected_broker_.device_update_config --device_id=device_id: | config/Map |
+    update_goal --device_id=device_id: | current_goal/Map? firmware_state/Map? |
+      if not current_goal and not firmware_state: throw "No known firmware information for device."
+      new_goal := current_goal or firmware_state
       log.info "$(%08d Time.monotonic_us): Installing app: $app_name"
-      apps := config.get "apps" --if_absent=: {:}
+      apps := new_goal.get "apps" --if_absent=: {:}
       apps[app_name] = {"id": id, "random": (random 1000)}
-      config["apps"] = apps
-      config
+      new_goal["apps"] = apps
+      new_goal
 
   app_uninstall --device_id/string --app_name/string:
-    connected_broker_.device_update_config --device_id=device_id: | config/Map |
+    update_goal --device_id=device_id: | current_goal/Map? firmware_state/Map? |
+      if not current_goal and not firmware_state: throw "No known firmware information for device."
+      new_goal := current_goal or firmware_state
       log.info "$(%08d Time.monotonic_us): Uninstalling app: $app_name"
-      apps := config.get "apps"
+      apps := new_goal.get "apps"
       if apps: apps.remove app_name
-      config
+      new_goal
 
   config_set_max_offline --device_id/string --max_offline_seconds/int:
-    connected_broker_.device_update_config --device_id=device_id: | config/Map |
+    update_goal --device_id=device_id: | current_goal/Map? firmware_state/Map? |
+      if not current_goal and not firmware_state: throw "No known firmware information for device."
+      new_goal := current_goal or firmware_state
       log.info "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline_seconds)"
       if max_offline_seconds > 0:
-        config["max-offline"] = max_offline_seconds
+        new_goal["max-offline"] = max_offline_seconds
       else:
-        config.remove "max-offline"
-      config
+        new_goal.remove "max-offline"
+      new_goal
 
+  // TODO(florian): remove this function. (We have $update now).
   firmware_update --device_id/string --firmware_path/string --ui/Ui -> none:
-    connected_broker_.device_update_config --device_id=device_id: | config/Map |
+    update_goal --device_id=device_id: | current_goal/Map? firmware_state/Map? |
+      if not current_goal and not firmware_state: throw "No known firmware information for device."
+      new_goal := current_goal or firmware_state
+
       upgrade_from/Firmware? := null
-      existing := config.get "firmware"
+      existing := current_goal.get "firmware"
       if existing: catch: upgrade_from = Firmware.encoded existing
 
       device := null
@@ -581,8 +637,8 @@ class Artemis:
 
       patches := upgrade_to.patches upgrade_from
       patches.do: upload_ it
-      config["firmware"] = upgrade_to.encoded
-      config
+      new_goal["firmware"] = upgrade_to.encoded
+      new_goal
 
   upload_ patch/FirmwarePatch -> none:
     trivial_id := id_ --to=patch.to_

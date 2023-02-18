@@ -50,15 +50,18 @@ class BrokerCliSupabase implements BrokerCli:
         --ui=ui
         --open_browser=open_browser
 
-  device_update_config --device_id/string [block]:
-    info := client_.rest.select "goals" --filters=[
+  device_update_goal --device_id/string [block]:
+    goal_response := client_.rest.select "goals" --filters=[
       "device_id=eq.$(device_id)",
     ]
-    old_goal/Map? := null
-    if info.size == 1 and info[0] is Map:
-      old_goal = info[0].get "goal"
+    current_goal := goal_response.size == 1 ? goal_response[0]["goal"] : null
 
-    new_goal := block.call (old_goal or {:})
+    state_response := client_.rest.select "devices" --filters=[
+      "id=eq.$(device_id)",
+    ]
+    state := state_response.size == 1 ? state_response[0]["state"] : null
+
+    new_goal := block.call current_goal state
 
     client_.rest.upsert "goals" {
       "device_id": device_id,
