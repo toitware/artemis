@@ -27,8 +27,8 @@ class ResourceManagerSupabase implements ResourceManager:
             offset = block.call reader offset
             if offset >= total_size: return
 
-  report_status device_id/string status/Map -> none:
-    client_.rest.upsert "reports" {
-      "device_id" : device_id,
-      "status" : status,
+  report_state device_id/string state/Map -> none:
+    client_.rest.rpc "update_state" {
+      "_device_id" : device_id,
+      "_state" : state,
     }

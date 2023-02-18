@@ -138,7 +138,15 @@ class Artemis:
     // Insert an initial event mostly for testing purposes.
     server.notify_created --hardware_id=hardware_id
 
-    broker.notify_created --device_id=device_id
+    identity := {
+      "device_id": device_id,
+      "organization_id": organization_id,
+      "hardware_id": hardware_id,
+    }
+    state := {
+      "identity": identity,
+    }
+    broker.notify_created --device_id=device_id --state=state
 
     write_identity_file
         --out_path=out_path
@@ -315,7 +323,7 @@ class Artemis:
     connected_broker_.device_update_config --device_id=device_id: | config/Map |
       existing := config.get "firmware"
       if not existing:
-        // TODO(florian): try to get the current firmware from the status.
+        // TODO(florian): try to get the current firmware from the state.
         ui_.error "No old firmware configuration found for device $device_id."
         ui_.abort
 

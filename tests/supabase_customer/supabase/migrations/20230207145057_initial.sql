@@ -1,21 +1,17 @@
 -- Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+-- The devices with their current state.
 CREATE TABLE IF NOT EXISTS public.devices
 (
-    id uuid NOT NULL DEFAULT uuid_generate_v4(),
-    config json DEFAULT NULL,
-    CONSTRAINT devices_pkey PRIMARY KEY (id)
+    id uuid NOT NULL PRIMARY KEY,
+    state jsonb NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.reports
+-- The goal-states for each device.
+CREATE TABLE IF NOT EXISTS public.goals
 (
-    id SERIAL PRIMARY KEY,
-    device_id uuid NOT NULL,
-    status json,
-    CONSTRAINT reports_device_id_fkey FOREIGN KEY (device_id)
-        REFERENCES public.devices (id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
+    device_id uuid PRIMARY KEY NOT NULL REFERENCES public.devices (id) ON DELETE CASCADE,
+    goal jsonb
 );
 
 insert into storage.buckets (id, name, public)
@@ -26,14 +22,40 @@ create policy "Public Access"
   using (bucket_id = 'assets');
 
 -- Informs the broker that a new device was provisioned.
-CREATE OR REPLACE FUNCTION new_provisioned(_device_id UUID)
+CREATE OR REPLACE FUNCTION new_provisioned(_device_id UUID, _state JSONB)
 RETURNS VOID
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    INSERT INTO devices (id, config)
-      VALUES (_device_id, NULL)
-      ON CONFLICT DO NOTHING;
+    INSERT INTO devices (id, state)
+      VALUES (_device_id, _state);
+END;
+$$;
+
+-- Updates the state of a device.
+-- We use a function, so that broker implementations can change the
+-- implementation without needing to change the clients.
+CREATE OR REPLACE FUNCTION update_state(_device_id UUID, _state JSONB)
+RETURNS VOID
+SECURITY INVOKER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE devices
+      SET state = _state
+      WHERE id = _device_id;
+END;
+$$;
+
+-- Returns the goal for a device.
+-- We use a function, so that devices need to know their own id.
+CREATE OR REPLACE FUNCTION get_goal(_device_id UUID)
+RETURNS JSONB
+SECURITY INVOKER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN (SELECT goal FROM goals WHERE device_id = _device_id);
 END;
 $$;
