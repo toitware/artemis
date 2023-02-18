@@ -101,6 +101,27 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: flash it config cache ui
   cmd.add flash_cmd
 
+  update_cmd := cli.Command "update"
+      --long_help="""
+        Updates the firmware on the device.
+
+        The specification file contains the device specification. It includes
+        the firmware version, installed applications, connection settings,
+        etc. See 'specification-format' for more information.
+        """
+      --options=broker_options + [
+        cli.Option "specification"
+            --type="file"
+            --short_help="The specification of the device."
+            --required,
+        cli.Option "device-id"
+            --type="uuid"
+            --short_name="d"
+            --short_help="The ID of the device.",
+      ]
+      --run=:: update it config cache ui
+  cmd.add update_cmd
+
   default_cmd := cli.Command "default"
       --long_help="""
         Show or set the default device.
@@ -274,6 +295,27 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
               config.write
             else:
               config.remove CONFIG_ARTEMIS_DEFAULT_KEY
+
+update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  device_id := parsed["device-id"]
+  specification_path := parsed["specification"]
+
+  if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
+  if not device_id:
+    ui.error "No device ID specified and no default device ID set."
+    ui.abort
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    with_tmp_directory: | tmp_dir/string |
+      // Customize.
+      specification_json := read_json specification_path
+      specification := DeviceSpecification.from_json specification_json
+      envelope_path := "$tmp_dir/$(device_id).envelope"
+      artemis.customize_envelope
+          --output_path=envelope_path
+          --device_specification=specification
+
+      artemis.update --device_id=device_id --envelope_path=envelope_path
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if parsed["clear"]:

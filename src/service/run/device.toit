@@ -29,10 +29,10 @@ main arguments:
     "config"   : firmware.config.ubjson,
     "checksum" : checksum end,
   }
-  firmware_encoded := base64.encode firmware_ubjson
+  encoded_firmware_description := base64.encode firmware_ubjson
 
   config := ubjson.decode (artemis_assets["device-config"])
-  config["firmware"] = firmware_encoded
+  config["firmware"] = encoded_firmware_description
 
   device := Device --id=device_id --firmware_state=config
   run_artemis device server_config

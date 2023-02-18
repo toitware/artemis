@@ -66,6 +66,8 @@ interface BrokerCli implements Authenticatable:
   Invokes the $block with the current configuration (a Map) of $device_id and
     updates the device's configuration with the new map that is returned from the block.
 
+  The block may be called with an empty map, if no configuration exists yet.
+
   The $block is allowed to modify the given configuration but is still required
     to return it.
   */

@@ -54,12 +54,11 @@ class BrokerCliSupabase implements BrokerCli:
     info := client_.rest.select "devices" --filters=[
       "id=eq.$(device_id)",
     ]
-    if not info: throw "Device not found"
-    old_config := {:}
+    old_config/Map? := null
     if info.size == 1 and info[0] is Map:
-      old_config = info[0].get "config" or old_config
+      old_config = info[0].get "config"
 
-    new_config := block.call old_config
+    new_config := block.call (old_config or {:})
 
     client_.rest.upsert "devices" {
       "id"     : device_id,
