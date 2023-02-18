@@ -26,7 +26,7 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
       --short_help="Log in to the broker."
       --options=[
         cli.OptionString "broker" --short_help="The broker to log in to.",
-        cli.OptionString "username" --short_help="The username for a password-based login.",
+        cli.OptionString "email" --short_help="The email for a password-based login.",
         cli.OptionString "password" --short_help="The password for a password-based login.",
         cli.Flag "open-browser"
             --default=true
