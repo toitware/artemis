@@ -29,6 +29,15 @@ interface Ui implements supabase.Ui cli.Ui:
   /** Reports information in a structured way. */
   info_map map/Map
 
+  /**
+  Reports the information of the given object.
+  Calls the correct block depending on which mode the UI is in.
+
+  If the UI should output JSON, then the $json block is called.
+  Otherwise, the $stdout block is called with the Ui object as argument.
+  */
+  info_structured [--json] [--stdout]
+
   print str/string
 
   abort
@@ -99,6 +108,9 @@ class ConsoleUi implements Ui:
         info_map value --indentation="$indentation  "
       else:
         print_ "$indentation$key: $value"
+
+  info_structured [--json] [--stdout]:
+    stdout.call this
 
   print_ str/string:
     global_print_ str
