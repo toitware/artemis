@@ -44,10 +44,10 @@ The event handler, called when the broker has new information.
 */
 interface EventHandler:
   /**
-  Called when the broker has a new configuration.
-  The configuration may not be different.
+  Called when the broker has a goal state.
+  The goal state may not be different.
   */
-  handle_update_config new_config/Map resources/ResourceManager
+  handle_goal goal/Map resources/ResourceManager
 
   /**
   // TODO(florian): add documentation.

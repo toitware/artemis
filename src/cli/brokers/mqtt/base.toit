@@ -77,11 +77,11 @@ class BrokerCliMqtt implements BrokerCli:
   device_update_goal --device_id/string [block] -> none:
     client := client_
     topic_lock := topic_lock_for_ device_id
-    topic_config := topic_config_for_ device_id
+    topic_goal := topic_goal_for_ device_id
     topic_revision := topic_revision_for_ device_id
 
     locked := monitor.Latch
-    config_channel := monitor.Channel 1
+    goal_channel := monitor.Channel 1
     revision_channel := monitor.Channel 1
     me := "cli-$(random 0x3fff_ffff)-$(Time.now.ns_part)"
 
@@ -132,57 +132,57 @@ class BrokerCliMqtt implements BrokerCli:
       return
 
     try:
-      // We send config and revision changes with `--retain`.
+      // We send goal-state and revision changes with `--retain`.
       // As such we should get a packet as soon as we subscribe to the topics.
 
-      client.subscribe topic_config:: | topic/string payload/ByteArray |
-        if not config_channel.try_send (ubjson.decode payload):
+      client.subscribe topic_goal:: | topic/string payload/ByteArray |
+        if not goal_channel.try_send (ubjson.decode payload):
           // TODO(kasper): Tell main task.
-          throw "FATAL: Received too many configs"
+          throw "FATAL: Received too many goal states"
 
       client.subscribe topic_revision:: | topic/string payload/ByteArray |
         if not revision_channel.try_send (ubjson.decode payload):
           // TODO(kasper): Tell main task.
           throw "FATAL: Received too many revision"
 
-      config := null
+      goal := null
       exception = catch
           --trace=(: it != DEADLINE_EXCEEDED_ERROR)
           --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
         with_timeout --ms=retain_timeout_ms:
-          config = config_channel.receive
+          goal = goal_channel.receive
       if exception == DEADLINE_EXCEEDED_ERROR:
-        log.info "$(%08d Time.monotonic_us): Trying to initialize config"
-        client.publish topic_config (ubjson.encode {"revision": 0}) --qos=1 --retain
+        log.info "$(%08d Time.monotonic_us): Trying to initialize goal"
+        client.publish topic_goal (ubjson.encode {"revision": 0}) --qos=1 --retain
         client.publish topic_revision (ubjson.encode 0) --qos=1 --retain
 
         exception = catch --trace --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
           with_timeout --ms=retain_timeout_ms:
-            config = config_channel.receive
+            goal = goal_channel.receive
         if exception == DEADLINE_EXCEEDED_ERROR:
-          log.info "$(%08d Time.monotonic_us): Timed out waiting for config"
+          log.info "$(%08d Time.monotonic_us): Timed out waiting for goal"
           return
 
       old_revision := revision_channel.receive
-      if old_revision != config["revision"]:
+      if old_revision != goal["revision"]:
         throw "FATAL: Revision mismatch"
 
       revision := old_revision + 1
-      config["writer"] = me
-      config["revision"] = revision
+      goal["writer"] = me
+      goal["revision"] = revision
       // TODO(florian): also get the current state of the device.
-      config = block.call config null
+      goal = block.call goal null
 
-      // TODO(kasper): Maybe validate the config?
-      client.publish topic_config (ubjson.encode config) --qos=1 --retain
-      if config_channel.receive["writer"] != me:
-        throw "FATAL: Wrong writer in updated config"
+      // TODO(kasper): Maybe validate the goal?
+      client.publish topic_goal (ubjson.encode goal) --qos=1 --retain
+      if goal_channel.receive["writer"] != me:
+        throw "FATAL: Wrong writer in updated goal"
 
       client.publish topic_revision (ubjson.encode revision) --qos=1 --retain
       if revision_channel.receive != revision:
-        throw "FATAL: Wrong revision in updated config"
+        throw "FATAL: Wrong revision in updated goal"
 
-      log.info "Updated config to $config"
+      log.info "Updated goal to $goal"
 
     finally:
       critical_do:
@@ -219,19 +219,19 @@ class BrokerCliMqtt implements BrokerCli:
 
   print_status --device_id/string --ui/Ui -> none:
     topic_presence := topic_presence_for_ device_id
-    topic_config := topic_config_for_ device_id
+    topic_goal := topic_goal_for_ device_id
 
     with_timeout --ms=5_000:
       client := client_
       status := monitor.Latch
-      config := monitor.Latch
+      goal := monitor.Latch
       client.subscribe topic_presence:: | topic/string payload/ByteArray |
         status.set payload.to_string
-      client.subscribe topic_config:: | topic/string payload/ByteArray |
-        config.set (ubjson.decode payload)
+      client.subscribe topic_goal:: | topic/string payload/ByteArray |
+        goal.set (ubjson.decode payload)
       ui.info "Device: $device_id"
       ui.info "  $status.get"
-      ui.info "  $config.get"
+      ui.info "  $goal.get"
 
   watch_presence --ui/Ui -> none:
     client := client_
