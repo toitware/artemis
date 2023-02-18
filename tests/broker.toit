@@ -71,11 +71,10 @@ with_broker --type/string --logger/Logger [block]:
       test_server := TestBroker server_config backdoor
       block.call test_server
   else if type == "toit-mqtt":
-    // TODO(florian): reenable the Toit MQTT broker.
-    // The service and cli currently need to be instantiated with
-    // --create_transport.
-    // However, that would add too many special cases.
-    throw "UNIMPLEMENTED"
+    with_toit_mqtt_broker --logger=logger: | server_config/ServerConfigMqtt |
+      backdoor := MqttBackdoor server_config --logger=logger
+      test_server := TestBroker server_config backdoor
+      block.call test_server
   else:
     throw "Unknown broker type: $type"
 

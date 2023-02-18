@@ -23,8 +23,7 @@ set (ARTEMIS_FLAGS "--supabase-server" "--http-server")
 set (BROKER_FLAGS
       "--http-toit-broker"
       "--mosquitto-broker"
-      # TODO(florian): reenable the toit MQTT server.
-      # "--toit-mqtt"
+      "--toit-mqtt-broker"
       "--supabase-local-broker"
       "--supabase-local-artemis-broker"
     )
