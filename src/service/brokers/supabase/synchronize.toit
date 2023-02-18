@@ -38,9 +38,10 @@ class BrokerServiceSupabase implements BrokerService:
           new_goal := client.rest.rpc "get_goal" {
             "_device_id": device_id,
           }
-          if new_goal:
-            idle_.lock
-            callback.handle_goal new_goal resources
+          // An empty goal means that we should revert to the
+          // firmware state. We must send it to `handle_goal`.
+          idle_.lock
+          callback.handle_goal new_goal resources
           sleep broker_.poll_interval
       finally:
         critical_do:

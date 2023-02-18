@@ -46,8 +46,10 @@ interface EventHandler:
   /**
   Called when the broker has a goal state.
   The goal state may not be different.
+  If the $goal is null, no goal exists and the device should use the
+    firmware state.
   */
-  handle_goal goal/Map resources/ResourceManager
+  handle_goal goal/Map? resources/ResourceManager
 
   /**
   // TODO(florian): add documentation.

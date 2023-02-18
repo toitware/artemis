@@ -126,6 +126,14 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       broker_service.on_idle
       if not mqtt_already_has_updated_goal:
         event = test_handler.channel.receive
+
+      if test_iteration == 0:
+        // The broker is allowed to send 'null' goals.
+        // Skip them.
+        while event.value == null:
+          broker_service.on_idle
+          print "waiting for non-null"
+          event = test_handler.channel.receive
       expect_equals "update_goal" event.type
       event_goal := event.value
       expect_equals "succeeded 1" event_goal["test-entry"]
