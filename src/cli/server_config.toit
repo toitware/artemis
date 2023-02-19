@@ -8,11 +8,19 @@ import encoding.base64
 
 export ServerConfig ServerConfigSupabase ServerConfigHttpToit
 
+DEFAULT_ARTEMIS_SERVER_CONFIG ::= ServerConfigSupabase
+    "Artemis"
+    --host="voisfafsfolxhqpkudzd.supabase.co"
+    --anon="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvaXNmYWZzZm9seGhxcGt1ZHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQyNDEsImV4cCI6MTk4ODk1MDI0MX0.dmfxNl5WssxnZ8jpvGJeryg4Fd47fOcrlZ8iGrHj2e4"
+    --root_certificate_name="Baltimore CyberTrust Root"
+
 /**
 Reads the server configuration with the given $server_name from the $config.
 */
 get_server_from_config config/Config server_name/string? default_key/string -> ServerConfig:
   servers := config.get CONFIG_SERVERS_KEY
+  if not servers and not server_name: return DEFAULT_ARTEMIS_SERVER_CONFIG
+
   // We keep the name "broker" here, as the CLI user should only ever deal with
   // the term "broker". Internally we use it also to configure the Artemis server.
   if not servers: throw "No brokers configured"
