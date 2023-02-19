@@ -6,7 +6,7 @@ import host.os
 import host.directory
 import artemis.shared.server_config show ServerConfigSupabase
 
-SUPABASE_CUSTOMER ::= "supabase_customer"
+SUPABASE_BROKER  ::= "../supabase_broker"
 SUPABASE_ARTEMIS ::= "../supabase_artemis"
 
 get_supabase_config --sub_directory/string -> ServerConfigSupabase:

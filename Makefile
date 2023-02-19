@@ -97,17 +97,20 @@ add-local-supabase-broker:
 	# Adds the local broker and makes it the default.
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
 		broker-local-supabase \
-		`$(TOIT_RUN_BIN) tests/supabase_local_server.toit tests/supabase_customer`
+		`$(TOIT_RUN_BIN) tests/supabase_local_server.toit supabase_broker`
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-supabase
 
 start-supabase:
 	@echo "Start the docker containers by running 'supabase start' in"
-	@echo "./supabase_artemis and ./tests/supabase_customer"
+	@echo "./supabase_artemis and ./supabase_broker"
 	@echo "Use the following command to log in as non-admin user"
 	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test@example.com --password password"
 	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit auth broker login --email test@example.com --password password"
 	@echo "Use the following command to log in as admin Artemis user"
 	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test-admin@toit.io --password password"
+	@echo "If you want to use the Artemis server as both broker and artemis server,"
+	@echo "run the following command:"
+	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis-local-supabase
 
 # We rebuild the cmake file all the time.
 # We use "glob" in the cmakefile, and wouldn't otherwise notice if a new
