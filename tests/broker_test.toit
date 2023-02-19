@@ -15,7 +15,6 @@ import artemis.cli.brokers.supabase show BrokerCliSupabase
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
 import supabase
 import supabase.auth as supabase
-import uuid
 
 import .artemis_server
   show
@@ -27,8 +26,8 @@ import .utils
 
 // When running the supabase test we need a valid UUID that is not
 // already in the database.
-DEVICE_ID ::= (uuid.uuid5 "broker-test" "$(random)-$(Time.now.ns_since_epoch)").stringify
-DEVICE_HARDWARE_ID ::= (uuid.uuid5 "broker-test-hw" "$(random)-$(Time.now.ns_since_epoch)").stringify
+DEVICE_ID ::= random_uuid_string
+DEVICE_HARDWARE_ID ::= random_uuid_string
 
 main args:
   broker_type := broker_type_from_args args

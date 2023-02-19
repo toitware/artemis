@@ -11,7 +11,6 @@ import artemis.service.device show Device
 import artemis.shared.server_config show ServerConfig
 import host.directory
 import host.file
-import uuid
 import expect show *
 import .utils
 
@@ -69,7 +68,7 @@ run_test test_cli/TestCli:
     expect (file.is_file id_file)
 
     // Test with a given id.
-    test_id := (uuid.uuid5 "provision-test" "$Time.now.ns_since_epoch $random").stringify
+    test_id := random_uuid_string
     test_cli.run [
       "device",
       "provision",
