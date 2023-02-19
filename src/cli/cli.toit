@@ -7,7 +7,6 @@ import .config
 import .ui
 
 import .cmds.config
-import .cmds.status
 import .cmds.device
 import .cmds.auth
 import .cmds.org
@@ -35,7 +34,6 @@ main args --config/Config --cache/Cache --ui/Ui:
   // package, as the package could then pass it to the commands after
   // it has parsed the UI flags.
   (create_config_commands config cache ui).do: root_cmd.add it
-  (create_status_commands config cache ui).do: root_cmd.add it
   (create_auth_commands config cache ui).do: root_cmd.add it
   (create_org_commands config cache ui).do: root_cmd.add it
   (create_profile_commands config cache ui).do: root_cmd.add it
