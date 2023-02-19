@@ -5,119 +5,52 @@ import log
 import mqtt.packets as mqtt
 import mqtt.broker as mqtt
 import mqtt.transport as mqtt
+import mqtt.tcp as mqtt
 import monitor
+import net
+import net.tcp
+import artemis.shared.server_config show ServerConfigMqtt
+import writer show Writer
 
 with_toit_mqtt_broker --logger/log.Logger [block]:
   server_transport := TestServerTransport
   broker := mqtt.Broker server_transport --logger=logger
   broker_task := task:: broker.start
+  port := server_transport.port
+  print "MQTT broker listening on port: $port"
 
   try:
-    block.call:: TestClientTransport server_transport
+    server_config := ServerConfigMqtt "toit-mqtt"
+        --host="localhost"
+        --port=port
+    block.call server_config
   finally:
     broker_task.cancel
-
-class TestClientTransport implements mqtt.Transport:
-  server_ /TestServerTransport
-  pipe_ /TestTransportPipe? := null
-
-  constructor .server_:
-    reconnect
-
-  write bytes/ByteArray -> int:
-    pipe_.client_write bytes
-    return bytes.size
-
-  read -> ByteArray?:
-    return pipe_.client_read
-
-  close -> none:
-    pipe_.client_close
-
-  supports_reconnect -> bool:
-    return true
-
-  reconnect -> none:
-    pipe_ = server_.connect
-
-  is_closed -> bool:
-    return pipe_.client_is_closed
-
-class TestBrokerTransport implements mqtt.BrokerTransport:
-  pipe_ /TestTransportPipe
-
-  constructor .pipe_:
-
-  write bytes/ByteArray -> int:
-    pipe_.broker_write bytes
-    return bytes.size
-
-  read -> ByteArray?:
-    return pipe_.broker_read
-
-  close -> none:
-    pipe_.broker_close
+    server_transport.close
 
 class TestServerTransport implements mqtt.ServerTransport:
-  channel_ /monitor.Channel := monitor.Channel 5
+  network_ /net.Interface? := ?
+  server_socket_ /tcp.ServerSocket? := ?
 
-  is_closed /bool := false
+  constructor:
+    network_ = net.open
+    server_socket_ = network_.tcp_listen 0
+
+  port -> int:
+    return server_socket_.local_address.port
 
   listen callback/Lambda -> none:
-    while pipe := channel_.receive:
-      callback.call (TestBrokerTransport pipe)
+    while true:
+      accepted := server_socket_.accept
+      if not accepted: continue
 
-  connect -> TestTransportPipe:
-    if is_closed:
-      throw "Transport is closed"
-
-    pipe := TestTransportPipe
-    channel_.send pipe
-    return pipe
+      client_transport := mqtt.TcpTransport accepted
+      callback.call client_transport
 
   close -> none:
-    is_closed = true
-    channel_.send null
-
-monitor TestTransportPipe:
-  client_to_broker_data_ /Deque := Deque
-  broker_to_client_data_ /Deque := Deque
-
-  closed_from_client_ /bool := false
-  closed_from_broker_ /bool := false
-
-  client_write bytes/ByteArray -> none:
-    if is_closed_: throw "CLOSED"
-    client_to_broker_data_.add bytes
-
-  client_read -> ByteArray?:
-    await: broker_to_client_data_.size > 0 or is_closed_
-    if closed_from_client_: throw "CLOSED"
-    if broker_to_client_data_.is_empty: return null
-    result := broker_to_client_data_.remove_first
-    return result
-
-  client_close:
-    closed_from_client_ = true
-
-  client_is_closed -> bool:
-    return is_closed_
-
-  broker_write bytes/ByteArray -> none:
-    if is_closed_: throw "CLOSED"
-    broker_to_client_data_.add bytes
-
-  broker_read -> ByteArray?:
-    await: client_to_broker_data_.size > 0 or is_closed_
-    if closed_from_broker_: throw "CLOSED"
-    if client_to_broker_data_.is_empty: return null
-    return client_to_broker_data_.remove_first
-
-  broker_close:
-    closed_from_broker_ = true
-
-  broker_is_closed -> bool:
-    return is_closed_
-
-  is_closed_ -> bool:
-    return closed_from_client_ or closed_from_broker_
+    if server_socket_:
+      server_socket_.close
+      server_socket_ = null
+    if network_:
+      network_.close
+      network_ = null
