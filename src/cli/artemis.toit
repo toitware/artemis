@@ -315,7 +315,7 @@ class Artemis:
     // need it. In that case we use it to compute binary diffs. It can also be
     // used directly from the devices to download the firmware directly.
     firmware_content := FirmwareContent.from_envelope output_path --cache=cache_
-    firmware_content.trivial_patches.do: upload_ it
+    firmware_content.trivial_patches.do: diff_and_upload_ it
 
     // For convenience save all snapshots in the user's cache.
     cache_snapshots --envelope=output_path --cache=cache_
@@ -388,7 +388,7 @@ class Artemis:
       ui_.info "Computing and uploading patches."
       upgrade_from.do: | old_firmware/Firmware |
         patches := upgrade_to.patches old_firmware
-        patches.do: upload_ it
+        patches.do: diff_and_upload_ it
 
       new_config["firmware"] = upgrade_to.encoded
       return new_config
@@ -615,7 +615,7 @@ class Artemis:
   /**
   Computes patches and uploads them to the broker.
   */
-  upload_ patch/FirmwarePatch -> none:
+  diff_and_upload_ patch/FirmwarePatch -> none:
     trivial_id := id_ --to=patch.to_
     cache_key := "$connected_broker_.id/patches/$trivial_id"
     // Unless it is already cached, always create/upload the trivial one.
