@@ -17,7 +17,7 @@ with_toit_mqtt_broker --logger/log.Logger [block]:
   broker := mqtt.Broker server_transport --logger=logger
   broker_task := task:: broker.start
   port := server_transport.port
-  print "Mqtt broker listening on port: $port"
+  print "MQTT broker listening on port: $port"
 
   try:
     server_config := ServerConfigMqtt "toit-mqtt"
