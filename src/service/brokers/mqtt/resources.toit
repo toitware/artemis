@@ -23,19 +23,19 @@ class ResourceManagerMqtt implements ResourceManager:
     monitor.provide block.call
     return true
 
-  fetch_image id/string [block] -> none:
-    fetch_resource_ "toit/apps/$id/image$BITS_PER_WORD" block
+  fetch_image id/string --organization_id/string [block] -> none:
+    fetch_resource_ "toit/$organization_id/apps/$id/image$BITS_PER_WORD" block
 
-  fetch_firmware id/string --offset/int=0 [block] -> none:
+  fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none:
     assert: offset == 0  // Other case isn't handled yet.
     total_size/int? := null
     parts/List? := null
-    fetch_resource_ "toit/firmware/$id": | reader/SizedReader |
+    fetch_resource_ "toit/$organization_id/firmware/$id": | reader/SizedReader |
       manifest := ubjson.decode (read_all_ reader)
       total_size = manifest["size"]
       parts = manifest["parts"]
     parts.do: | part_offset/int |
-      topic := "toit/firmware/$id/$part_offset"
+      topic := "toit/$organization_id/firmware/$id/$part_offset"
       fetch_resource_ topic: | reader/SizedReader |
         block.call reader part_offset
 

@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS goals
 insert into storage.buckets (id, name, public)
 values ('toit-artemis-assets', 'toit-artemis-assets', true);
 
+create policy "Public Access"
+  on storage.objects for all
+  using (bucket_id = 'toit-artemis-assets');
+
 -- Informs the broker that a new device was provisioned.
 CREATE OR REPLACE FUNCTION new_provisioned(_device_id UUID, _state JSONB)
 RETURNS VOID

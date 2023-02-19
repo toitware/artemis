@@ -82,24 +82,30 @@ interface BrokerCli implements Authenticatable:
   get_device --device_id/string -> DetailedDevice?
 
   /**
-  Uploads an application image with the given $app_id so that a device can fetch it.
+  Uploads an application image with the given $app_id so that a device in
+    $organization_id can fetch it.
 
   There may be multiple images for the same $app_id, that differ in the $word_size.
     Generally $word_size is either 32 or 64.
   */
-  upload_image --app_id/string --word_size/int content/ByteArray -> none
+  upload_image
+      --organization_id/string
+      --app_id/string
+      --word_size/int
+      content/ByteArray -> none
 
   /**
-  Uploads a firmware with the given $firmware_id so that a device can fetch it.
+  Uploads a firmware with the given $firmware_id so that a device in
+    $organization_id can fetch it.
 
   The $chunks are a list of byte arrays.
   */
-  upload_firmware --firmware_id/string chunks/List -> none
+  upload_firmware --organization_id/string --firmware_id/string chunks/List -> none
 
   /**
-  Downloads a firmware chunk. Ugly interface.
+  Downloads a firmware chunk inside the given $organization_id.
   */
-  download_firmware --id/string -> ByteArray
+  download_firmware --organization_id/string --id/string -> ByteArray
 
   /**
   Informs the broker that a device with the given $device_id has been provisioned.

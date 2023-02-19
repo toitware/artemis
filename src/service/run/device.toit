@@ -20,6 +20,7 @@ main arguments:
 
   artemis_device := device_specific_ "artemis.device"
   device_id := artemis_device["device_id"]
+  organization_id := artemis_device["organization_id"]
 
   check_in_setup artemis_assets artemis_device
 
@@ -34,7 +35,7 @@ main arguments:
   config := ubjson.decode (artemis_assets["device-config"])
   config["firmware"] = encoded_firmware_description
 
-  device := Device --id=device_id --firmware_state=config
+  device := Device --id=device_id --organization_id=organization_id --firmware_state=config
   run_artemis device server_config
 
 checksum end/int -> ByteArray:
