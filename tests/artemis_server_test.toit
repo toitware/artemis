@@ -6,7 +6,6 @@ import expect show *
 import host.directory
 import log
 import net
-import uuid
 
 import .artemis_server
 import .utils
@@ -58,7 +57,7 @@ test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisS
   expect_equals hardware_id1 data[0]
   expect_equals TEST_ORGANIZATION_UUID data[1]
 
-  alias_id := (uuid.uuid5 "alias" "$random $Time.now").stringify
+  alias_id := random_uuid_string
   device2 := server_cli.create_device_in_organization
       --device_id=alias_id
       --organization_id=TEST_ORGANIZATION_UUID
