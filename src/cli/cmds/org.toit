@@ -24,6 +24,11 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
 
   create_cmd := cli.Command "create"
       --short_help="Create a new organization."
+      --options=[
+        cli.Flag "default"
+            --default=true
+            --short_help="Make this organization the default.",
+      ]
       --rest=[
         cli.OptionString "name"
             --short_help="Name of the organization."
@@ -155,9 +160,11 @@ list_orgs parsed/cli.Parsed config/Config ui/Ui -> none:
         orgs.map: [ it.id, it.name ]
 
 create_org parsed/cli.Parsed config/Config ui/Ui -> none:
+  should_make_default := parsed["default"]
   with_org_server parsed config ui: | server/ArtemisServerCli |
     org := server.create_organization parsed["name"]
     ui.info "Created organization $org.id - $org.name"
+    if should_make_default: make_default_ org config ui
 
 show_org parsed/cli.Parsed config/Config ui/Ui -> none:
   with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string |
@@ -206,6 +213,9 @@ default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
       ui.error "Organization not found."
       ui.abort
 
+    make_default_ org config ui
+
+make_default_ org/Organization config/Config ui/Ui -> none:
     config[CONFIG_ORGANIZATION_DEFAULT] = org.id
     config.write
     ui.info "Default organization set to $org.id - $org.name"
