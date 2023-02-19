@@ -6,7 +6,6 @@ import artemis.shared.server_config show ServerConfigSupabase
 import expect show *
 import log
 import supabase
-import uuid
 import .broker
 import .supabase_broker_policies_shared
 

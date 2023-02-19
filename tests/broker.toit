@@ -64,7 +64,7 @@ with_broker --type/string --logger/Logger [block]:
     block.call test_server
   else if type == "http" or type == "http-toit":
     with_http_broker block
-  else if type == "mosquitto" or type == "mosquitto":
+  else if type == "mosquitto":
     with_mosquitto --logger=logger: | host/string port/int |
       server_config := ServerConfigMqtt "mosquitto" --host=host --port=port
       backdoor := MqttBackdoor server_config --logger=logger
