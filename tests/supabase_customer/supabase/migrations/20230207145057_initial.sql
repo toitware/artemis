@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS goals
 );
 
 insert into storage.buckets (id, name, public)
-values ('toit-artemis-assets', 'Toit artemis assets', true);
+values ('toit-artemis-assets', 'toit-artemis-assets', true);
 
 -- Informs the broker that a new device was provisioned.
 CREATE OR REPLACE FUNCTION new_provisioned(_device_id UUID, _state JSONB)
