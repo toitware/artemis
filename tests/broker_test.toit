@@ -13,6 +13,7 @@ import artemis.cli.brokers.mqtt.base as mqtt_broker
 import artemis.cli.brokers.http.base as http_broker
 import artemis.cli.brokers.supabase show BrokerCliSupabase
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
+import supabase.auth as supabase
 import uuid
 
 import .brokers
@@ -37,6 +38,11 @@ run_test
     broker_name/string
     broker_cli/broker.BrokerCli
     broker_service/broker.BrokerService:
+
+  if broker_cli is BrokerCliSupabase:
+    // Make sure we are authenticated.
+    broker_cli.ensure_authenticated: | auth/supabase.Auth |
+      auth.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
 
   test_image broker_cli broker_service
   test_firmware broker_cli broker_service
@@ -144,7 +150,6 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         // Skip them.
         while event.value == null:
           broker_service.on_idle
-          print "waiting for non-null"
           event = test_handler.channel.receive
       expect_equals "update_goal" event.type
       event_goal := event.value

@@ -5,7 +5,6 @@ import artemis.cli.server_config as cli_server_config
 import artemis.shared.server_config show ServerConfigSupabase
 import expect show *
 import supabase
-import uuid
 import .artemis_server
 
 main:
