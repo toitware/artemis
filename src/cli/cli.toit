@@ -26,6 +26,11 @@ main args:
   main args --config=config --cache=cache --ui=ui
 
 main args --config/Config --cache/Cache --ui/Ui:
+  // We don't want to add a `--version` option to the root command,
+  // as that would make the option available to all subcommands.
+  // Fundamentally, getting the version isn't really an option, but a
+  // command. The `--version` here is just for convenience, since many
+  // tools have it too.
   if args.size == 1 and args[0] == "--version":
     ui.info ARTEMIS_VERSION
     return
