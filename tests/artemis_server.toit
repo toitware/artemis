@@ -2,7 +2,6 @@
 
 import monitor
 import net
-import uuid
 
 import supabase
 
@@ -103,7 +102,7 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
   create_device --organization_id/string -> Map:
     // TODO(florian): the server should automatically generate an alias
     // if none is given.
-    alias := (uuid.uuid5 "random" "alias $random $Time.now").stringify
+    alias := random_uuid_string
     response := server.create_device_in_organization {
       "organization_id": organization_id,
       "alias": alias,
@@ -209,7 +208,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
         client.storage.upload --path="service-images/$image" --content=content
 
   create_device --organization_id/string -> Map:
-    alias := (uuid.uuid5 "random" "alias $random $Time.now").stringify
+    alias := random_uuid_string
     with_backdoor_client_: | client/supabase.Client |
       response := client.rest.insert "devices" {
         "organization_id": organization_id,

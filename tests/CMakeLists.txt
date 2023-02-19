@@ -94,7 +94,6 @@ foreach(file ${TESTS})
     set(flags "--dummy")
   endif()
 
-
   foreach (flag ${flags})
     set(test_name "/tests/${file}")
     if (${flag} MATCHES "--dummy")
