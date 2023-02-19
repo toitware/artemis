@@ -14,21 +14,11 @@ import writer show Writer
 import uuid
 
 import .cache show SDK_PATH
-import .jaguar
 import .utils
 
 class Sdk:
   sdk_path/string
   version/string
-
-  // TODO(florian): remove default constructor.
-  constructor:
-    path := resolve_jaguar_sdk_path
-    if not path:
-      // TODO(florian): improve this.
-      throw "Could not find the Toit SDK."
-    sdk_path = path
-    version = (pipe.backticks "$sdk_path/bin/toit.compile" "--version").trim
 
   constructor .sdk_path .version:
 

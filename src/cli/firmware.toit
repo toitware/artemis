@@ -41,16 +41,25 @@ class Firmware:
 
   This data contains information such as the device ID, the organization ID,
     the hardware ID and the wifi configuration. It also contains the "parts"
-    field which describes the individual parts of the firmware.
+    field which describes the individual parts of the firmware, and the sdk
+    version that was used to create the firmware.
   */
   device_specific_data/ByteArray
   /** A decoded version of the $device_specific_data. */
   device_specific_data_/Map
 
   constructor .content .device_specific_data:
-    map := { "device-specific": device_specific_data, "checksum": content.checksum }
+    map := {
+      "device-specific": device_specific_data,
+      "checksum": content.checksum }
     encoded = base64.encode (ubjson.encode map)
     device_specific_data_ = ubjson.decode device_specific_data
+    if not device_specific_data_.contains "artemis.device":
+      throw "Invalid device-specific data: Missing artemis.device"
+    if not device_specific_data_.contains "parts":
+      throw "Invalid device-specific data: Missing parts"
+    if not device_specific_data_.contains "sdk-version":
+      throw "Invalid device-specific data: Missing sdk-version"
     assert: device_specific_data_["parts"] == content.encoded_parts
 
   constructor.encoded .encoded:
@@ -74,6 +83,7 @@ class Firmware:
     the process is repeated until the encoded parts do not change anymore.
   */
   constructor --device/Device --wifi/Map --envelope_path/string --cache/cli.Cache:
+    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
     unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache
     encoded_parts := unconfigured.encoded_parts
     device_map := {
@@ -86,6 +96,8 @@ class Firmware:
         "artemis.device" : device_map,
         "wifi"           : wifi,
         "parts"          : encoded_parts,
+        // TODO(florian): this doesn't feel like it's a device-specific property.
+        "sdk-version"    : sdk_version,
       }
 
       configured := FirmwareContent.from_envelope envelope_path
@@ -104,6 +116,10 @@ class Firmware:
       --id=device_map["device_id"]
       --organization_id=device_map["organization_id"]
       --hardware_id=device_map["hardware_id"]
+
+  /** The sdk version that was used for this firmware. */
+  sdk_version -> string:
+    return device_specific "sdk-version"
 
   patches from/Firmware? -> List:
     result := []

@@ -231,6 +231,7 @@ encoded_firmware
       "hardware_id": hardware_id,
     },
     "parts": ubjson.encode [],
+    "sdk-version": "v2.0.0-alpha.52",
   }
   return base64.encode (ubjson.encode {
     "device-specific": device_specific,
