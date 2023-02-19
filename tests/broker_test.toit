@@ -7,6 +7,7 @@ import log
 import monitor
 import reader show SizedReader
 import artemis.cli.brokers.broker
+import artemis.cli.device show DetailedDevice
 import artemis.service.brokers.broker
 import artemis.cli.brokers.mqtt.base as mqtt_broker
 import artemis.cli.brokers.http.base as http_broker
@@ -20,6 +21,7 @@ import .utils
 // When running the supabase test we need a valid UUID that is not
 // already in the database.
 DEVICE_ID ::= (uuid.uuid5 "broker-test" "$(random)-$(Time.now)").stringify
+DEVICE_HARDWARE_ID ::= (uuid.uuid5 "broker-test-hw" "$(random)-$(Time.now)").stringify
 
 main args:
   if args.is_empty: args = ["--http-toit"]
@@ -56,17 +58,25 @@ class TestEventHandler implements broker.EventHandler:
     channel.send (TestEvent "nop")
 
 test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  broker_cli.notify_created --device_id=DEVICE_ID --state={:}
+  identity := {
+    "device_id": DEVICE_ID,
+    "organization_id": TEST_ORGANIZATION_UUID,
+    "hardware_id": DEVICE_HARDWARE_ID,
+  }
+  state := {
+    "identity": identity,
+  }
+  broker_cli.notify_created --device_id=DEVICE_ID --state=state
 
   3.repeat: | test_iteration |
     test_handler := TestEventHandler
     if test_iteration == 2:
       // Send a config update while the service is not connected.
-      broker_cli.device_update_goal --device_id=DEVICE_ID: | old |
+      broker_cli.update_goal --device_id=DEVICE_ID: | device/DetailedDevice |
         if test_iteration == 1:
-          expect_equals "succeeded 2" old["test-entry"]
-        old["test-entry"] = "succeeded while offline"
-        old
+          expect_equals "succeeded 2" device.goal["test-entry"]
+        device.goal["test-entry"] = "succeeded while offline"
+        device.goal
 
     broker_service.connect --device_id=DEVICE_ID --callback=test_handler:
       event/TestEvent? := null
@@ -84,7 +94,8 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         // connects, thus not sending the initial empty goal state.
         event = test_handler.channel.receive
 
-      broker_cli.device_update_goal --device_id=DEVICE_ID: | old |
+      broker_cli.update_goal --device_id=DEVICE_ID: | device/DetailedDevice |
+        old := device.goal
         if test_iteration == 1:
           expect_equals "succeeded 2" old["test-entry"]
         else if test_iteration == 2:
@@ -139,7 +150,8 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       event_goal := event.value
       expect_equals "succeeded 1" event_goal["test-entry"]
 
-      broker_cli.device_update_goal --device_id=DEVICE_ID: | old |
+      broker_cli.update_goal --device_id=DEVICE_ID: | device/DetailedDevice |
+        old := device.goal
         expect_equals "succeeded 1" old["test-entry"]
         old["test-entry"] = "succeeded 2"
         old

@@ -12,6 +12,7 @@ import uuid
 import .sdk
 import .cache show ENVELOPE_PATH
 import .cache as cli
+import .device
 import .utils
 import ..shared.utils.patch
 
@@ -72,12 +73,17 @@ class Firmware:
     may change the size of the part (and thus the ranges of the other parts),
     the process is repeated until the encoded parts do not change anymore.
   */
-  constructor --device/Map --wifi/Map --envelope_path/string --cache/cli.Cache:
+  constructor --device/Device --wifi/Map --envelope_path/string --cache/cli.Cache:
     unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache
     encoded_parts := unconfigured.encoded_parts
+    device_map := {
+      "device_id":       device.id,
+      "organization_id": device.organization_id,
+      "hardware_id":     device.hardware_id,
+    }
     while true:
       device_specific := ubjson.encode {
-        "artemis.device" : device,
+        "artemis.device" : device_map,
         "wifi"           : wifi,
         "parts"          : encoded_parts,
       }
@@ -91,6 +97,13 @@ class Firmware:
 
   device_specific key/string -> any:
     return device_specific_data_.get key
+
+  device -> Device:
+    device_map := device_specific "artemis.device"
+    return Device
+      --id=device_map["device_id"]
+      --organization_id=device_map["organization_id"]
+      --hardware_id=device_map["hardware_id"]
 
   patches from/Firmware? -> List:
     result := []
