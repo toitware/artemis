@@ -8,6 +8,20 @@ set(TOITRUN "toit.run" CACHE FILEPATH "The executable used to run the tests")
 set(TOITC "toit.compile" CACHE FILEPATH "The executable used to compile executables")
 set(TOITPKG "toit.pkg" CACHE FILEPATH "The executable used to install the packages")
 
+set(ARTEMIS_GIT_VERSION "$ENV{ARTEMIS_GIT_VERSION}")
+if ("${ARTEMIS_GIT_VERSION}" STREQUAL "")
+  include(tools/gitversion.cmake)
+  # The Git version is only computed when cmake generates the Ninja files, but
+  # that should be good enough.
+  compute_git_version(ARTEMIS_GIT_VERSION)
+endif()
+
+# Replace the version in src/shared/version.toit.
+configure_file(
+  src/shared/version.toit.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/shared/version.toit
+  @ONLY)
+
 include("tools/toit.cmake")
 
 # The package.yaml is located here, so we need to add the project here.
