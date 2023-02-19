@@ -166,7 +166,6 @@ create_org parsed/cli.Parsed config/Config ui/Ui -> none:
     ui.info "Created organization $org.id - $org.name"
     if should_make_default: make_default_ org config ui
 
-
 show_org parsed/cli.Parsed config/Config ui/Ui -> none:
   with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string |
     print_org org_id server ui
