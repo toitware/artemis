@@ -43,9 +43,11 @@ class BrokerServiceHttp implements BrokerService:
           goal_response := connection_.send_request "get_goal" {
             "device_id": device_id,
           }
-          if goal_response:
-            callback.handle_goal goal_response resources
-            state_revision = response["state_revision"]
+          // Even if the goal-response is empty, notify the callback, since
+          // an empty goal means that the device should revert to the firmware
+          // state.
+          callback.handle_goal goal_response resources
+          state_revision = response["state_revision"]
         else:
           print "unknown event received: $response"
           callback.handle_nop
