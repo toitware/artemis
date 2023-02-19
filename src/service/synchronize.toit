@@ -115,7 +115,7 @@ class SynchronizeJob extends Job implements EventHandler:
   handle_goal new_goal/Map? resources/ResourceManager -> none:
     if not new_goal and not device_.current_state:
       // The new goal indicates that we should use the firmware state.
-      // Since there is no current_state, we are currently cleanly
+      // Since there is no current state, we are currently cleanly
       // running the firmware state.
       device_.goal_state = null
       handle_nop
