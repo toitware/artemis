@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS.
 
+// TODO(florian): these are now ignored.
 // TEST_FLAGS: --insert-device --no-insert-device
 
 import encoding.tison
@@ -7,7 +8,6 @@ import expect show *
 import monitor
 
 import .artemis_server
-import .brokers
 import .utils
 
 import artemis.service

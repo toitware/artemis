@@ -3,13 +3,18 @@
 import encoding.json
 import encoding.ubjson
 import log show Logger
+import log
 import monitor
 import mqtt
 import net
 
 import supabase
 
+import artemis.cli.brokers.broker show BrokerCli
+import artemis.service.brokers.broker show BrokerService
+
 import .mqtt_broker_mosquitto
+import .mqtt_broker_toit
 import .supabase_local_server
 import ..tools.http_servers.broker show HttpBroker
 import ..tools.http_servers.broker as http_servers
@@ -49,15 +54,15 @@ interface BrokerBackdoor:
   get_state device_id/string -> Map?
 
 with_broker --type/string --logger/Logger [block]:
-  if type == "supabase" or type == "artemis-supabase":
-    sub_dir := type == "supabase" ? SUPABASE_CUSTOMER : SUPABASE_ARTEMIS
+  if type == "supabase-local" or type == "supabase-local-artemis":
+    sub_dir := type == "supabase-local" ? SUPABASE_CUSTOMER : SUPABASE_ARTEMIS
     server_config := get_supabase_config --sub_directory=sub_dir
     service_key := get_supabase_service_key --sub_directory=sub_dir
     server_config.poll_interval = Duration --ms=1
     backdoor := SupabaseBackdoor server_config service_key
     test_server := TestBroker server_config backdoor
     block.call test_server
-  else if type == "http":
+  else if type == "http" or type == "http-toit":
     with_http_broker block
   else if type == "mosquitto":
     with_mosquitto --logger=logger: | host/string port/int |
@@ -65,8 +70,32 @@ with_broker --type/string --logger/Logger [block]:
       backdoor := MqttBackdoor server_config --logger=logger
       test_server := TestBroker server_config backdoor
       block.call test_server
+  else if type == "toit-mqtt":
+    // TODO(florian): reenable the Toit MQTT broker.
+    // The service and cli currently need to be instantiated with
+    // --create_transport.
+    // However, that would add too many special cases.
+    throw "UNIMPLEMENTED"
   else:
-    throw "Unknown Artemis server type: $type"
+    throw "Unknown broker type: $type"
+
+/**
+Starts the broker of the given type and calls the given [block] with
+  the $type, the broker-cli, and broker-service.
+*/
+with_brokers --type/string [block]:
+  logger := log.default.with_name "testing-$type"
+  with_broker --type=type --logger=logger: | broker/TestBroker |
+    with_tmp_config: | config |
+      broker_cli/BrokerCli? := null
+      broker_service/BrokerService? := null
+      try:
+        broker_cli = BrokerCli broker.server_config config
+        broker_service = BrokerService logger broker.server_config
+        block.call logger type broker_cli broker_service
+      finally:
+        if broker_cli: broker_cli.close
+
 
 class ToitHttpBackdoor implements BrokerBackdoor:
   server/HttpBroker

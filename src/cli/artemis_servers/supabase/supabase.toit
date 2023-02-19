@@ -47,6 +47,7 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     payload := {
       "organization_id": organization_id,
     }
+
     if device_id != "": payload["alias"] = device_id
 
     inserted := client_.rest.insert "devices" payload

@@ -6,12 +6,12 @@ import artemis.shared.server_config show ServerConfigSupabase
 import expect show *
 import log
 import supabase
-import uuid
 import .broker
 import .supabase_broker_policies_shared
+import .utils
 
 main:
-  with_broker --type="artemis-supabase" --logger=log.default: | broker/TestBroker |
+  with_broker --type="supabase-local-artemis" --logger=log.default: | broker/TestBroker |
     server_config := broker.server_config as ServerConfigSupabase
     client_anon := supabase.Client --server_config=server_config --certificate_provider=:unreachable
     client1 := supabase.Client --server_config=server_config --certificate_provider=:unreachable
@@ -52,7 +52,7 @@ main:
     // We can't add a device to an organization if it's not in the public
     // devices table.
 
-    non_existent := (uuid.uuid5 "non" "existent $random $Time.now.ns_since_epoch").stringify
+    non_existent := random_uuid_string
 
     expect_throws --contains="row-level security":
       client1.rest.rpc "toit_artemis.new_provisioned" {

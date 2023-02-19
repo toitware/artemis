@@ -6,12 +6,11 @@ import artemis.shared.server_config show ServerConfigSupabase
 import expect show *
 import log
 import supabase
-import uuid
 import .broker
 import .supabase_broker_policies_shared
 
 main:
-  with_broker --type="supabase" --logger=log.default: | broker/TestBroker |
+  with_broker --type="supabase-local" --logger=log.default: | broker/TestBroker |
     server_config := broker.server_config as ServerConfigSupabase
     client_anon := supabase.Client --server_config=server_config --certificate_provider=:unreachable
     client1 := supabase.Client --server_config=server_config --certificate_provider=:unreachable

@@ -148,8 +148,8 @@ class HttpArtemisServer extends HttpServer:
         --alias=device_id
         --organization_id=organization_id
     return {
-      "hardware_id": hardware_id,
-      "id": device_id,
+      "id": hardware_id,
+      "alias": device_id,
       "organization_id": organization_id,
     }
 
