@@ -52,7 +52,7 @@ main:
     // We can't add a device to an organization if it's not in the public
     // devices table.
 
-    non_existent := (uuid.uuid5 "non" "existent $random $Time.now").stringify
+    non_existent := (uuid.uuid5 "non" "existent $random $Time.now.ns_since_epoch").stringify
 
     expect_throws --contains="row-level security":
       client1.rest.rpc "toit_artemis.new_provisioned" {

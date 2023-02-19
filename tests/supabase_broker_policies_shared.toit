@@ -16,11 +16,11 @@ run_shared_test
     --client1/supabase.Client
     --client_anon/supabase.Client
     --organization_id/string=TEST_ORGANIZATION_UUID
-    --device_id1=(uuid.uuid5 "some" "id $random $Time.now").stringify
-    --device_id2=(uuid.uuid5 "other" "id $random $Time.now").stringify:
+    --device_id1=(uuid.uuid5 "some" "id $random $Time.now.ns_since_epoch").stringify
+    --device_id2=(uuid.uuid5 "other" "id $random $Time.now.ns_since_epoch").stringify:
 
   // We only need to worry about the functions that have been copied to the public schema.
-  // The tables themselves are inaccessible from the public POSTGREST.
+  // The tables themselves are inaccessible from the public PostgREST.
   // Each user should only be able to see their own profile.
 
   // The "toit_artemis.new_provisioned" function is only accessible to
@@ -33,7 +33,7 @@ run_shared_test
 
   client1.rest.rpc "toit_artemis.new_provisioned" {
     "_device_id": device_id1,
-    "_state": { "created": "by user1"},
+    "_state": { "created": "by user1" },
   }
 
   // The device is now available to the authenticated client.
@@ -123,7 +123,7 @@ run_shared_test
   }
   expect_null state
 
-  storage_id := (uuid.uuid5 "storage" "id $random $Time.now").stringify
+  storage_id := (uuid.uuid5 "storage" "id $random $Time.now.ns_since_epoch").stringify
   path := "$ASSETS_BUCKET/$organization_id/$storage_id"
 
   // Authenticated can write to the storage.
@@ -150,7 +150,7 @@ run_shared_test
   expect_equals "test".to_byte_array
       client_anon.storage.download --public --path=path
 
-  storage_id2 := (uuid.uuid5 "storage" "id $random $Time.now").stringify
+  storage_id2 := (uuid.uuid5 "storage" "id $random $Time.now.ns_since_epoch").stringify
   path2 := "$ASSETS_BUCKET/$organization_id/$storage_id2"
   // Check that anon can't write to it.
   expect_throws --contains="row-level security":

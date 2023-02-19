@@ -69,7 +69,7 @@ run_test test_cli/TestCli:
     expect (file.is_file id_file)
 
     // Test with a given id.
-    test_id := (uuid.uuid5 "provision-test" "$Time.now $random").stringify
+    test_id := (uuid.uuid5 "provision-test" "$Time.now.ns_since_epoch $random").stringify
     test_cli.run [
       "device",
       "provision",
