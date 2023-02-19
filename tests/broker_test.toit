@@ -21,8 +21,8 @@ import .utils
 
 // When running the supabase test we need a valid UUID that is not
 // already in the database.
-DEVICE_ID ::= (uuid.uuid5 "broker-test" "$(random)-$(Time.now)").stringify
-DEVICE_HARDWARE_ID ::= (uuid.uuid5 "broker-test-hw" "$(random)-$(Time.now)").stringify
+DEVICE_ID ::= (uuid.uuid5 "broker-test" "$(random)-$(Time.now.ns_since_epoch)").stringify
+DEVICE_HARDWARE_ID ::= (uuid.uuid5 "broker-test-hw" "$(random)-$(Time.now.ns_since_epoch)").stringify
 
 main args:
   if args.is_empty: args = ["--http-toit"]

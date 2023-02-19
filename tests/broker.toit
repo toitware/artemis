@@ -49,9 +49,10 @@ interface BrokerBackdoor:
   get_state device_id/string -> Map?
 
 with_broker --type/string --logger/Logger [block]:
-  if type == "supabase":
-    server_config := get_supabase_config --sub_directory=SUPABASE_CUSTOMER
-    service_key := get_supabase_service_key --sub_directory=SUPABASE_CUSTOMER
+  if type == "supabase" or type == "artemis-supabase":
+    sub_dir := type == "supabase" ? SUPABASE_CUSTOMER : SUPABASE_ARTEMIS
+    server_config := get_supabase_config --sub_directory=sub_dir
+    service_key := get_supabase_service_key --sub_directory=sub_dir
     server_config.poll_interval = Duration --ms=1
     backdoor := SupabaseBackdoor server_config service_key
     test_server := TestBroker server_config backdoor
