@@ -3,7 +3,11 @@
 TOIT_RUN_BIN?=toit.run
 
 .PHONY: all
-all: test
+all: build
+
+.PHONY: build
+build: rebuild-cmake install-pkgs
+	(cd build && ninja build)
 
 .PHONY: build/host/CMakeCache.txt
 build/CMakeCache.txt:
