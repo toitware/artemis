@@ -264,19 +264,36 @@ class Sdk:
   Extracts the SDK version from the given $envelope.
   */
   static get_sdk_version_from --envelope/string -> string:
-    // TODO(florian): we shouldn't use a non-versioned SDK here.
-    // Instead the sdk_version should be inside the envelope as an Ar-file.
-    return json.parse ((Sdk).firmware_get_property --envelope=envelope "sdk-version")
+    reader := ar.ArReader.from_bytes (file.read_content envelope)
+    file := reader.find "\$sdk-version"
+    if file == null: throw "SDK version not found in envelope."
+    return file.content.to_string
 
   /**
   Stores the given $sdk_version in the $envelope.
   */
   // TODO(florian): this shouldn't be necessary: the SDK version should
   // already be stored in the envelope when it is created.
-  // It should also not be a property, as that would require us to use
-  // firmware tools to extract it.
   static store_sdk_version_in --envelope/string sdk_version/string -> none:
-    (Sdk).firmware_set_property --envelope=envelope "sdk-version" (json.stringify sdk_version)
+    envelope_content := file.read_content envelope
+    reader := ar.ArReader.from_bytes envelope_content
+    if file := reader.find "\$sdk-version":
+      if file.content.to_string != sdk_version:
+        throw "SDK version mismatch: $sdk_version != $file.content.to_string"
+      return
+
+    reader = ar.ArReader.from_bytes envelope_content
+    with_tmp_directory: | tmp_dir |
+      tmp_envelope := "$tmp_dir/envelope"
+      output := file.Stream.for_write tmp_envelope
+      try:
+        writer := ar.ArWriter output
+        while file := reader.next:
+          writer.add file.name file.content
+        writer.add "\$sdk-version" sdk_version.to_byte_array
+      finally:
+        output.close
+      copy_file --source=tmp_envelope --target=envelope
 
 /**
 Builds the URL of a released SDK with the given $version on GitHub.
