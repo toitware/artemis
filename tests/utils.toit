@@ -248,3 +248,6 @@ broker_type_from_args args/List:
     if not arg.ends_with "-broker": continue.do
     return arg[2..].trim --right "-broker"
   return "http"
+
+random_uuid_string -> string:
+  return (uuid.uuid5 "random" "uuid $Time.now.ns_since_epoch $random").stringify
