@@ -15,7 +15,6 @@ import artemis.cli.brokers.supabase show BrokerCliSupabase
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
 import supabase
 import supabase.auth as supabase
-import uuid
 
 import .artemis_server
   show
@@ -27,8 +26,8 @@ import .utils
 
 // When running the supabase test we need a valid UUID that is not
 // already in the database.
-DEVICE_ID ::= (uuid.uuid5 "broker-test" "$(random)-$(Time.now)").stringify
-DEVICE_HARDWARE_ID ::= (uuid.uuid5 "broker-test-hw" "$(random)-$(Time.now)").stringify
+DEVICE_ID ::= random_uuid_string
+DEVICE_HARDWARE_ID ::= random_uuid_string
 
 main args:
   broker_type := broker_type_from_args args
@@ -160,7 +159,8 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         event = test_handler.channel.receive
 
       if test_iteration == 0:
-        // The broker is allowed to send 'null' goals.
+        // The broker is allowed to send 'null' goals, indicating that
+        // the device should stick with its current firmware state.
         // Skip them.
         while event.value == null:
           broker_service.on_idle
