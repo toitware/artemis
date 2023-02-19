@@ -121,17 +121,27 @@ class FirmwarePatcher_ implements PatchObserver:
       return
 
     new_id := base64.encode new_hash --url_mode
-    resource := null
+    resource_urls := []
     if old_mapping:
       old_id := base64.encode old_hash --url_mode
-      resource = "$new_id/$old_id"
-    else:
-      resource = "$new_id/none"
+      resource_urls.add "$new_id/$old_id"
 
-    resources.fetch_firmware resource --offset=read_offset: | reader/SizedReader offset/int |
-      continuation := apply_ reader offset old_mapping
-      if not continuation: return
-      reposition_ continuation  // Returns the read offset to continue from.
+    // We might not find the old->new patch. Use the 'none' patch as a fallback.
+    resource_urls.add "$new_id/none"
+
+    for i := 0; i < resource_urls.size; i++:
+      resource_url := resource_urls[i]
+      started_applying := false
+      exception := catch --unwind=(started_applying or i == resource_urls.size - 1):
+        resources.fetch_firmware resource_url --offset=read_offset:
+          | reader/SizedReader offset/int |
+            started_applying = true
+            continuation := apply_ reader offset old_mapping
+            if not continuation: return
+            reposition_ continuation  // Returns the read offset to continue from.
+      if not exception: return
+      logger_.warn "firmware update: failed to fetch patch"
+          --tags={"url": resource_url, "error": exception}
 
   apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping? -> Checkpoint?:
     binary_patcher := Patcher reader old_mapping --patch_offset=offset
