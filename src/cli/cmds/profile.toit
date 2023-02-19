@@ -25,7 +25,7 @@ create_profile_commands config/Config cache/Cache ui/Ui -> List:
       --short_help="Updates the profile."
       --options=[
         cli.OptionString "name",
-        cli.OptionString "email",
+        // TODO(florian): support changing the email.
       ]
       --run=:: update_profile it config ui
   profile_cmd.add update_cmd
@@ -52,6 +52,11 @@ show_profile parsed/cli.Parsed config/Config ui/Ui:
     }
 
 update_profile parsed/cli.Parsed config/Config ui/Ui:
+  name := parsed["name"]
+  if not name:
+    ui.error "No name specified."
+    ui.abort
+
   with_profile_server parsed config ui: | server/ArtemisServerCli |
-    server.update_profile --name=parsed["name"]
+    server.update_profile --name=name
     ui.info "Profile updated."
