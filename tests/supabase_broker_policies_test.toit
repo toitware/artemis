@@ -25,7 +25,7 @@ main:
     some_id2 ::= (uuid.uuid5 "some" "id $random $Time.now").stringify
 
     // We only need to worry about the functions that have been copied to the public schema.
-    // The tables themselves are inaccessible from the public POSTGREST.
+    // The tables themselves are inaccessible from the public PostgREST.
     // Each user should only be able to see their own profile.
 
     // The "toit_artemis.new_provisioned" function is only accessible to
@@ -38,7 +38,7 @@ main:
 
     client1.rest.rpc "toit_artemis.new_provisioned" {
       "_device_id": some_id,
-      "_state": { "created": "by user1"},
+      "_state": { "created": "by user1" },
     }
 
     // The device is now available to the authenticated client.
