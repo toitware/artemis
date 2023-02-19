@@ -55,8 +55,6 @@ This is the service that contacts the Toitware backend to report that a
   certain device is online and using Artemis.
 */
 check_in_setup assets/Map device/Map -> none:
-  // For simplicity we are reusing the broker configurations for
-  // the customer brokers for the Artemis-server configurations.
   server_config := decode_server_config "artemis.broker" assets
   if not server_config: return
 
