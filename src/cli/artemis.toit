@@ -326,31 +326,43 @@ class Artemis:
   update --device_id/string --envelope_path/string:
     update_goal --device_id=device_id:
       | current_goal/Map? firmware_state/Map? current_state/Map? goal_state/Map? initial/Map? |
-        if not firmware_state and not current_goal:
-          // TODO(florian): use the other parameters
-          ui_.error "No old firmware configuration found for device $device_id."
+        if initial:
+          // TODO(florian): Implement initial.
+          ui_.error "Updating from initial state not yet implemented"
           ui_.abort
 
-        existing := firmware_state ? firmware_state.get "firmware" : current_goal.get "firmware"
+        known_encoded_firmwares := {}
+        [current_goal, firmware_state, current_state, goal_state].do: | state/Map? |
+          // The device might be running this firmware.
+          if state: known_encoded_firmwares.add state["firmware"]
 
-        upgrade_from := Firmware.encoded existing
-        device := upgrade_from.device_specific "artemis.device"
-        if device["device_id"] != device_id:
-          ui_.error "The device id of the firmware image ($device["device_id"]) does not match the given device id ($device_id)."
-          ui_.abort
+        if known_encoded_firmwares.is_empty:
+          // Should not happen.
+          ui_.error "No old firmware found for device '$device_id'."
+
+        upgrade_from := []
+        device/Map? := null
+        known_encoded_firmwares.do: | encoded/string |
+          old_firmware := Firmware.encoded encoded
+          device = old_firmware.device_specific "artemis.device"
+          if device["device_id"] != device_id:
+            ui_.error "The device id of the firmware image ($device["device_id"]) does not match the given device id ($device_id)."
+            ui_.abort
+          upgrade_from.add old_firmware
+
         compute_updated_goal
             --device=device
             --upgrade_from=upgrade_from
             --envelope_path=envelope_path
 
   /**
-  Computes the goal for the given $device, upgrading from $upgrade_from to the
-    firmware image at $envelope_path.
+  Computes the goal for the given $device, upgrading from the $upgrade_from
+    firmwares to the firmware image at $envelope_path.
 
   The return goal state will instruct the device to download the firmware image
     and install it.
   */
-  compute_updated_goal --device/Map --upgrade_from/Firmware? --envelope_path/string -> Map:
+  compute_updated_goal --device/Map --upgrade_from/List --envelope_path/string -> Map:
     sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
     sdk := get_sdk sdk_version --cache=cache_
 
@@ -374,8 +386,9 @@ class Artemis:
 
       // Compute the patches and upload them.
       ui_.info "Computing and uploading patches."
-      patches := upgrade_to.patches upgrade_from
-      patches.do: upload_ it
+      upgrade_from.do: | old_firmware/Firmware |
+        patches := upgrade_to.patches old_firmware
+        patches.do: upload_ it
 
       new_config["firmware"] = upgrade_to.encoded
       return new_config
