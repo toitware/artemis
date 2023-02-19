@@ -139,7 +139,8 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         event = test_handler.channel.receive
 
       if test_iteration == 0:
-        // The broker is allowed to send 'null' goals.
+        // The broker is allowed to send 'null' goals, indicating that
+        // the device should stick with its current firmware state.
         // Skip them.
         while event.value == null:
           broker_service.on_idle

@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS goals
 );
 
 insert into storage.buckets (id, name, public)
-values ('toit-artemis-assets', 'Toit artemis assets', true);
+values ('toit-artemis-assets', 'toit-artemis-assets', true);
 
 create policy "Public Access"
   on storage.objects for all
