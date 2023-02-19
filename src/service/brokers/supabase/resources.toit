@@ -13,11 +13,11 @@ class ResourceManagerSupabase implements ResourceManager:
   constructor .client_:
 
   fetch_image id/string [block] -> none:
-    client_.storage.download --path="/assets/images/$id.$BITS_PER_WORD" block
+    client_.storage.download --path="/toit-artemis-assets/images/$id.$BITS_PER_WORD" block
 
   fetch_firmware id/string --offset/int=0 [block] -> none:
     PART_SIZE ::= 64 * 1024
-    path := "/assets/firmware/$id"
+    path := "/toit-artemis-assets/firmware/$id"
     while true:
       client_.storage.download
           --path=path
@@ -28,7 +28,7 @@ class ResourceManagerSupabase implements ResourceManager:
             if offset >= total_size: return
 
   report_state device_id/string state/Map -> none:
-    client_.rest.rpc "update_state" {
+    client_.rest.rpc "toit_artemis.update_state" {
       "_device_id" : device_id,
       "_state" : state,
     }
