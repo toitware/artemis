@@ -14,6 +14,7 @@ import artemis.cli.firmware show cache_snapshot
 import artemis.cli.git show Git
 import artemis.cli.sdk show *
 import artemis.cli.ui as ui
+import artemis.shared.version show ARTEMIS_VERSION
 import host.file
 import uuid
 import supabase
@@ -42,7 +43,7 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         The service is taken from this repository.
 
         There are three ways to specify which code should be built:
-        1. If just '--service-version' is specified, the code of the
+        1. If '--service-version' is specified, the code of the
           specified version is built, by cloning this repository
           into a temporary directory and checking out the specified
           version.
@@ -51,11 +52,8 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
           and checking out the specified commit. The full version string
           (as seen in the database) is then '<service-version>-<commit>'.
         3. If '--local' is specified, builds the service from the checked
-          out code. If the 'service_version' starts with 'v' then the full
-          version string is '<service-version>-<timestamp>',
-          where the timestamp is the time when the build was started.
-          Otherwise the full version string is '<service-version>'. The
-          latter should generally only be used for testing.
+          out code. If no service-version is provided, uses the one in the
+          version.toit file.
 
         The built image is then uploaded to the Artemis server.
         """
@@ -64,8 +62,7 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --short_help="The version of the SDK to use."
             --required,
         cli.OptionString "service-version"
-            --short_help="The version of the service to use."
-            --required,
+            --short_help="The version of the service to use.",
         cli.OptionString "commit"
             --short_help="The commit to build.",
         cli.OptionString "server"
@@ -102,14 +99,10 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       // where the timestamp is the time when the build was started.
       service_source_path = "$root/$SERVICE_PATH_IN_REPOSITORY"
 
-      if service_version.starts_with "v":
-        timestamp := Time.now.stringify
-        full_service_version = "$service_version-$timestamp"
-      else:
-        // Since we are reusing an ID, we need to remove the cached version.
-        full_service_version = service_version
-        cache.remove (service_image_cache_key --sdk_version=sdk_version
-            --service_version=full_service_version)
+      // Since we are reusing an ID, we need to remove the cached version.
+      full_service_version = service_version or ARTEMIS_VERSION
+      cache.remove (service_image_cache_key --sdk_version=sdk_version
+          --service_version=full_service_version)
     else:
       ui.info "Cloning repository and checking out $(commit or service_version)."
       clone_dir := "$tmp_dir/artemis"
