@@ -45,12 +45,7 @@ class ApplicationManager:
     scheduler_.remove_job application
     logger_.info "uninstall" --tags=application.tags
 
-  update application/Application:
-    logger_.info "update (unimplemented)" --tags=application.tags
-
 class Application extends Job:
-  static CONFIG_ID ::= "id"
-
   id/string
   container_/uuid.Uuid? := null
 

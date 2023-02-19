@@ -575,7 +575,7 @@ class Artemis:
       new_goal := current_goal or firmware_state
       log.info "$(%08d Time.monotonic_us): Installing app: $app_name"
       apps := new_goal.get "apps" --if_absent=: {:}
-      apps[app_name] = {"id": id, "random": (random 1000)}
+      apps[app_name] = id
       new_goal["apps"] = apps
       new_goal
 
