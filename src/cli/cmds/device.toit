@@ -234,6 +234,11 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
+    org := artemis.connected_artemis_server.get_organization organization_id
+    if not org:
+      ui.error "Organization $organization_id does not exist."
+      ui.abort
+
     with_tmp_directory: | tmp_dir/string |
       // Provision.
       identity_file := "$tmp_dir/$(device_id).identity"
