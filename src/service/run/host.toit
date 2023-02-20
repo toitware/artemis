@@ -27,6 +27,7 @@ import ...cli.ui show Ui ConsoleUi
 import ...cli.utils
 import ...cli.firmware as fw
 import ...cli.artemis show Artemis
+import ...cli.device as artemis_device
 
 main arguments:
   cache := cli.Cache --app_name="artemis"
@@ -51,9 +52,14 @@ run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui
   identity := read_base64_ubjson identity_path
   device_identity := identity["artemis.device"]
 
+  artemis_device := artemis_device.Device
+      --hardware_id=device_identity["hardware_id"]
+      --organization_id=device_identity["organization_id"]
+      --id=device_identity["device_id"]
+
   firmware := Artemis.compute_device_specific_firmware
       --envelope_path=envelope_path
-      --device=device_identity
+      --device=artemis_device
       --cache=cache
       --ui=ui
   encoded_firmware_description := firmware.encoded
