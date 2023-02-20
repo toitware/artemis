@@ -106,7 +106,6 @@ class HttpBroker extends HttpServer:
   report_state data/Map:
     device_id := data["device_id"]
     device_states[device_id] = data["state"]
-    notify_device device_id "state_updated"
 
   get_state data/Map:
     device_id := data["device_id"]
