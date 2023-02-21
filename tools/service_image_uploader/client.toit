@@ -158,10 +158,7 @@ class UploadClientHttp implements UploadClient:
     }
 
   upload --snapshot_uuid/string cli_snapshot/ByteArray:
-    send_request_ "upload-cli-snapshot" {
-      "snapshot_uuid": snapshot_uuid,
-      "snapshot_content": base64.encode cli_snapshot,
-    }
+    throw "UNIMPLEMENTED"
 
   // TODO(florian): share this code with the cli and the service.
   send_request_ command/string data/Map -> any:
