@@ -8,7 +8,9 @@ on:
       sdk_version:
         description: 'SDK version to use'
         required: true
-        default: 'v2.0.0-alpha.52'
+        default: 'v2.0.0-alpha.54'
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -61,12 +63,10 @@ jobs:
       - name: Build the CLI
         shell: bash
         run: |
-          # TODO(florian): we should integrate this into the Makefile.
-          $TPKG_EXEC install
-          $TOITC_EXEC -o artemis$BIN_EXTENSION src/cli/cli.toit
+          make
 
       - name: Upload the CLI
         uses: actions/upload-artifact@v3
         with:
           name: artemis-${{ runner.os }}
-          path: artemis${{ env.BIN_EXTENSION }}
+          path: build/bin/artemis${{ env.BIN_EXTENSION }}
