@@ -319,6 +319,11 @@ class HttpArtemisServer extends HttpServer:
     service_version := data["service_version"]
     image_id := data["image_id"]
     image_binaries[image_id] = base64.decode data["image_content"]
+    // Update any existing entry if there is already one.
+    sdk_service_versions.do: | entry/Map |
+      if entry["sdk_version"] == sdk_version and entry["service_version"] == service_version:
+        entry["image"] = image_id
+        return
     sdk_service_versions.add {
       "sdk_version": sdk_version,
       "service_version": service_version,
