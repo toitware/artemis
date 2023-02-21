@@ -27,6 +27,8 @@ interface UploadClient:
       --image_id/string --image_content/ByteArray
       --snapshot/ByteArray
 
+  upload --snapshot_uuid/string cli_snapshot/ByteArray
+
 with_upload_client parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
   server_config := get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
   if server_config is ServerConfigSupabase:
@@ -115,6 +117,11 @@ class UploadClientSupabase implements UploadClient:
       --content=snapshot
     ui_.info "Successfully uploaded the snapshot."
 
+  upload --snapshot_uuid/string cli_snapshot/ByteArray:
+    client_.storage.upload
+      --path="cli-snapshots/$snapshot_uuid"
+      --content=cli_snapshot
+
 with_upload_client_supabase parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
   with_supabase_client parsed config: | client/supabase.Client |
     upload_client := UploadClientSupabase client --ui=ui
@@ -148,6 +155,12 @@ class UploadClientHttp implements UploadClient:
       "service_version": service_version,
       "image_id": image_id,
       "image_content": base64.encode image_content,
+    }
+
+  upload --snapshot_uuid/string cli_snapshot/ByteArray:
+    send_request_ "upload-cli-snapshot" {
+      "snapshot_uuid": snapshot_uuid,
+      "snapshot_content": base64.encode cli_snapshot,
     }
 
   // TODO(florian): share this code with the cli and the service.

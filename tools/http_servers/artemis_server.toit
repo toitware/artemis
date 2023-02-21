@@ -88,6 +88,8 @@ class HttpArtemisServer extends HttpServer:
   sdk_service_versions := []
   image_binaries := {:}
 
+  cli_snapshots := {:}
+
   constructor port/int:
     super port
 
@@ -126,6 +128,8 @@ class HttpArtemisServer extends HttpServer:
       return download_service_image data
     if command == "upload-service-image":
       return upload_service_image data
+    if command == "upload-cli-snapshot":
+      return upload_cli_snapshot data
 
     else:
       throw "BAD COMMAND $command"
@@ -333,6 +337,12 @@ class HttpArtemisServer extends HttpServer:
   download_service_image data/Map -> string:
     image := data["image"]
     return base64.encode image_binaries[image]
+
+  upload_cli_snapshot data/Map:
+    uuid := data["snapshot_uuid"]
+    encoded_content := data["snapshot_content"]
+    content := base64.decode encoded_content
+    cli_snapshots[uuid] = content
 
   sign_up data/Map:
     email := data["email"]

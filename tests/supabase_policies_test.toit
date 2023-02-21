@@ -650,25 +650,27 @@ main:
 
     // Admins can read and write to the snapshot storage.
     // All other users (including auth) can not see it.
-    SNAPSHOT_BUCKET ::= "service-snapshots"
-    client_admin.storage.upload
-        --path="$SNAPSHOT_BUCKET/$snapshot"
-        --content="test snapshot".to_byte_array
+    SNAPSHOT_BUCKETS ::= [ "service-snapshots", "cli-snapshots" ]
 
-    // Check that admin can see it, but auth and anon can not see it.
-    expect_equals "test snapshot".to_byte_array
-        client_admin.storage.download --path="$SNAPSHOT_BUCKET/$snapshot"
+    SNAPSHOT_BUCKETS.do: | bucket/string |
+      client_admin.storage.upload
+          --path="$bucket/$snapshot"
+          --content="test snapshot".to_byte_array
 
-    expect_throws --contains="Not found":
-      client_anon.storage.download --path="$SNAPSHOT_BUCKET/$image"
-    expect_throws --contains="Not found":
-      client1.storage.download --path="$SNAPSHOT_BUCKET/$image"
+      // Check that admin can see it, but auth and anon can not see it.
+      expect_equals "test snapshot".to_byte_array
+          client_admin.storage.download --path="$bucket/$snapshot"
 
-    // Auth and anon don't have public access either.
-    expect_throws --contains="Not found":
-      client_anon.storage.download --public --path="$SNAPSHOT_BUCKET/$image"
-    expect_throws --contains="Not found":
-      client1.storage.download --public --path="$SNAPSHOT_BUCKET/$image"
+      expect_throws --contains="Not found":
+        client_anon.storage.download --path="$bucket/$image"
+      expect_throws --contains="Not found":
+        client1.storage.download --path="$bucket/$image"
+
+      // Auth and anon don't have public access either.
+      expect_throws --contains="Not found":
+        client_anon.storage.download --public --path="$bucket/$image"
+      expect_throws --contains="Not found":
+        client1.storage.download --public --path="$bucket/$image"
 
 
 expect_throws --contains/string [block]:

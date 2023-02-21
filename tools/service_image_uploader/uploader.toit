@@ -36,6 +36,29 @@ main args:
 main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   cmd := cli.Command "uploader"
       --long_help="""
+        Administrative tool to upload CLI snapshots and Artemis service
+        images to the Artemis server.
+
+        Make sure to be authenticated against the Artemis server.
+        """
+
+  cli_snapshot_cmd := cli.Command "cli-snapshot"
+      --long_help="""
+        Uploads the CLI snapshot to the Artemis server.
+
+        After downloading it again with the downloader, allows to
+        decode CLI system messages.
+        """
+      --rest=[
+        cli.OptionString "snapshot"
+            --short_help="The snapshot to upload."
+            --type="file",
+      ]
+      --run=:: upload_cli_snapshot config cache ui it
+  cmd.add cli_snapshot_cmd
+
+  service_cmd := cli.Command "service"
+      --long_help="""
         Builds and uploads the Artemis service image.
 
         Downloads the SDK if necessary.
@@ -73,6 +96,8 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --short_help="The directory to store the snapshot in.",
       ]
       --run=:: build_and_upload config cache ui it
+  cmd.add service_cmd
+
   cmd.run args
 
 SERVICE_PATH_IN_REPOSITORY ::= "src/service/run/device.toit"
@@ -165,3 +190,11 @@ create_image_archive snapshot_path/string --sdk/Sdk --out/string:
       ar_writer.add image_name (file.read_content image_path)
 
     ar_stream.close
+
+upload_cli_snapshot config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
+  snapshot := parsed["snapshot"]
+  with_upload_client parsed config ui: | client/UploadClient |
+    snapshot_content := file.read_content snapshot
+    uuid := extract_snapshot_uuid_ snapshot_content
+    client.upload snapshot_content --snapshot_uuid=uuid
+    cache_snapshot snapshot_content
