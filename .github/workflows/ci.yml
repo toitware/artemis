@@ -25,42 +25,40 @@ jobs:
           # As such we need to fetch all history.
           fetch-depth: 0
 
-      - name: Setup Jaguar and Toit
+      - name: Setup Toit
         shell: bash
         run: |
           if [[ "$RUNNER_OS" = "Windows" ]]; then
             BIN_EXTENSION=".exe"
           fi
+          echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
 
-          JAGUAR_VERSION=v1.9.0
-          export "JAGUAR_VERSION=${JAGUAR_VERSION}"
-
-          TOIT_SDK_DIR=$HOME/.cache/jaguar/sdk
-          echo "TOIT_EXEC=$TOIT_SDK_DIR/bin/toit.run$BIN_EXTENSION" >> $GITHUB_ENV
-          echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
-          echo "TPKG_EXEC=$TOIT_SDK_DIR/bin/toit.pkg$BIN_EXTENSION" >> $GITHUB_ENV
+          export TOIT_VERSION="v2.0.0-alpha.54"
 
           export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
 
-          if [[ "$RUNNER_OS" = "Linux" ]]; then
-            JAGUAR_FILE=jag_linux.tgz
-          elif [[ "$RUNNER_OS" = "macOS" ]]; then
-            JAGUAR_FILE=jag_macos.zip
-          elif [[ "$RUNNER_OS" = "Windows" ]]; then
-            JAGUAR_FILE=jag_windows.zip
-          else
-            echo "UNSUPPORTED RUNNER: $RUNNER_OS"
-            exit 1
-          fi
+          TOIT_SDK_DIR=$DOWNLOAD_DIR/toit
+          echo "TOIT_EXEC=$TOIT_SDK_DIR/bin/toit.run$BIN_EXTENSION" >> $GITHUB_ENV
+          echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
+          echo "TPKG_EXEC=$TOIT_SDK_DIR/bin/toit.pkg$BIN_EXTENSION" >> $GITHUB_ENV
 
-          JAGUAR_BASE_URL=https://github.com/toitlang/jaguar/releases
+          TOIT_SDK_FILE=toit-$(echo $RUNNER_OS | tr '[:upper:]' '[:lower:]').tar.gz
+          TOIT_SDK_BASE_URL=https://github.com/toitlang/toit/releases
 
-          if [[ $JAGUAR_VERSION = latest ]]; then
-            echo "JAGUAR_URL=$JAGUAR_BASE_URL/latest/download/$JAGUAR_FILE" >> $GITHUB_ENV
-          else
-            echo "JAGUAR_URL=$JAGUAR_BASE_URL/download/$JAGUAR_VERSION/$JAGUAR_FILE" >> $GITHUB_ENV
-          fi
+          echo "TOIT_SDK_URL=$TOIT_SDK_BASE_URL/download/$TOIT_VERSION/$TOIT_SDK_FILE" >> $GITHUB_ENV
+
+      - uses: suisei-cn/actions-download-file@v1.3.0
+        name: Download Toit
+        with:
+          url: ${{ env.TOIT_SDK_URL }}
+          target: ${{ env.DOWNLOAD_DIR }}
+
+      - name: Extract Toit
+        shell: bash
+        run: |
+          cd "$DOWNLOAD_DIR"
+          tar x -f *.tar.gz
 
       - name: Setup environment
         shell: bash
@@ -140,37 +138,6 @@ jobs:
         run: |
           supabase start --ignore-health-check
           supabase status
-
-      - uses: suisei-cn/actions-download-file@v1.3.0
-        name: Download Toit
-        with:
-          url: ${{ env.JAGUAR_URL }}
-          target: ${{ env.DOWNLOAD_DIR }}
-
-      - name: Extract Jaguar - Linux
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          cd "$DOWNLOAD_DIR"
-          tar x -f *.tgz
-      - name: Extract Jaguar - macOS
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          cd "$DOWNLOAD_DIR"
-          unzip *.zip
-      - name: Extract Jaguar - Windows
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          cd "$DOWNLOAD_DIR"
-          unzip *.zip
-
-      - name: Setup Jaguar
-        run: |
-          cd "$DOWNLOAD_DIR"
-          ./jag config analytics disable
-          ./jag setup --no-analytics
 
       - name: Run cmake
         shell: bash
