@@ -590,6 +590,34 @@ class Storage:
       block.call body body.size
     while data := body.read: null // DRAIN!
 
+  list path/string -> List:
+    if path == "":
+      return list_buckets_
+    first_slash := path.index_of "/"
+    if first_slash == -1:
+      return list_ --bucket=path
+    bucket := path[0..first_slash]
+    prefix := path[first_slash + 1..path.size]
+    return list_ --bucket=bucket --prefix=prefix
+
+  list_ --bucket/string --prefix/string?=null -> List:
+    query := ""
+    if prefix:
+      query = "prefix=$prefix"
+    response := client_.request_
+        --method=http.GET
+        --path="/storage/v1/bucket/$bucket"
+        --parse_response_json=true
+        --query=query
+    return response
+
+  list_buckets_ -> List:
+    response := client_.request_
+        --method=http.GET
+        --path="/storage/v1/bucket"
+        --parse_response_json=true
+    return response
+
   /**
   Computes the public URL for the given $path.
   */

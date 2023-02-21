@@ -372,5 +372,11 @@ test_storage config/supabase.ServerConfig:
       --path="$TEST_BUCKET_PUBLIC/$file_name"
   expect_equals content downloaded
 
+  print (client_auth.storage.list "")
+  print (client_auth.storage.list "$TEST_BUCKET")
+  print (client_auth.storage.list "$TEST_BUCKET_PUBLIC")
+  // print (client_auth.storage.list "$TEST_BUCKET")
+  // print (client_auth.storage.list "$TEST_BUCKET_PUBLIC")
+
   client_anon.close
   client_auth.close
