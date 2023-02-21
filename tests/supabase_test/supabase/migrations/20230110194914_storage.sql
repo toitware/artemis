@@ -27,3 +27,9 @@ CREATE POLICY "Authenticated can modify public bucket"
     TO authenticated
     USING (bucket_id = 'test-bucket-public')
     WITH CHECK (bucket_id = 'test-bucket-public');
+
+CREATE POLICY "Auth can see all buckets"
+    ON storage.buckets
+    FOR SELECT
+    TO authenticated
+    USING (true);

@@ -372,11 +372,34 @@ test_storage config/supabase.ServerConfig:
       --path="$TEST_BUCKET_PUBLIC/$file_name"
   expect_equals content downloaded
 
-  print (client_auth.storage.list "")
-  print (client_auth.storage.list "$TEST_BUCKET")
-  print (client_auth.storage.list "$TEST_BUCKET_PUBLIC")
-  // print (client_auth.storage.list "$TEST_BUCKET")
-  // print (client_auth.storage.list "$TEST_BUCKET_PUBLIC")
+  auth_buckets := client_auth.storage.list_buckets
+  expect_equals 2 auth_buckets.size
+  expect (auth_buckets.any: it["name"] == "$TEST_BUCKET")
+  expect (auth_buckets.any: it["name"] == "$TEST_BUCKET_PUBLIC")
+
+  anon_buckets := client_anon.storage.list_buckets
+  expect anon_buckets.is_empty
+
+  items := client_auth.storage.list "$TEST_BUCKET"
+  // The test might have been run before, in which case we might
+  // have older files in it as well.
+  expect items.size > 0
+  expect (items.any: it["name"] == "$file_name")
+
+  items = client_auth.storage.list "$TEST_BUCKET_PUBLIC"
+  // The test might have been run before, in which case we might
+  // have older files in it as well.
+  expect items.size > 0
+  expect (items.any: it["name"] == "$file_name")
+
+  items = client_anon.storage.list "$TEST_BUCKET"
+  // Anon can read directly.
+  expect items.size > 0
+  expect (items.any: it["name"] == "$file_name")
+
+  items = client_anon.storage.list "$TEST_BUCKET_PUBLIC"
+  // Anon can't list.
+  expect items.is_empty
 
   client_anon.close
   client_auth.close
