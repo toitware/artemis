@@ -4,6 +4,8 @@ name: Build
 
 on:
   workflow_dispatch:
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -93,7 +95,71 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: artemis-${{ runner.os }}
+          name: artemis-${{ env.SYSTEM }}
           path: |
             build/bin/artemis${{ env.BIN_EXTENSION }}
             build/snapshots/artemis-${{ env.ARTEMIS_UUID }}.snapshot
+
+  sign_artemis_windows:
+    runs-on: windows-signing
+    needs: [build]
+    if: github.event_name == 'release'
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: artemis-windows
+          path: build
+
+      - name: Sign artemis
+        working-directory: ./build/bin
+        run: |
+          signtool sign /debug /n "Toitware ApS" /t http://timestamp.digicert.com/ $PWD/artemis.exe
+          powershell Compress-Archive -Force artemis.exe artemis.zip
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artemis-signed-windows
+          path: build
+
+  sign_artemis_macos:
+    runs-on: macos-latest
+    needs: [build]
+    if: github.event_name == 'release'
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: artemis-macos
+          path: build
+
+      - name: Setup binary rights
+        run: |
+          chmod +x build/bin/artemis
+
+      - name: Import signing keychain
+        uses: apple-actions/import-codesign-certs@v1
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+
+      - name: Install gon via HomeBrew for code signing and app notarization
+        run: |
+          brew tap mitchellh/gon
+          brew install mitchellh/gon/gon
+
+      - name: Sign the mac binaries with Gon
+        env:
+          AC_USERNAME: ${{ secrets.AC_USERNAME }}
+          AC_PASSWORD: ${{ secrets.AC_PASSWORD }}
+        run: |
+          gon -log-level=debug -log-json tools/gon.json
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artemis-signed-macos
+          path: build
