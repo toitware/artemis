@@ -591,6 +591,40 @@ class Storage:
     while data := body.read: null // DRAIN!
 
   /**
+  Returns a list of all buckets.
+  */
+  list_buckets -> List:
+    return client_.request_
+        --method=http.GET
+        --path="/storage/v1/bucket"
+        --parse_response_json=true
+
+  /**
+  Returns a list of all objects at the given path.
+  The path must not be empty.
+  */
+  list path/string -> List:
+    if path == "": throw "INVALID_ARGUMENT"
+    first_slash := path.index_of "/"
+    bucket/string := ?
+    prefix/string := ?
+    if first_slash == -1:
+      bucket = path
+      prefix = ""
+    else:
+      bucket = path[0..first_slash]
+      prefix = path[first_slash + 1..path.size]
+
+    payload := {
+      "prefix": prefix,
+    }
+    return client_.request_
+        --method=http.POST
+        --path="/storage/v1/object/list/$bucket"
+        --parse_response_json=true
+        --payload=payload
+
+  /**
   Computes the public URL for the given $path.
   */
   public_url_for --path/string -> string:
