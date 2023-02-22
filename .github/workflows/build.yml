@@ -92,6 +92,22 @@ jobs:
           echo "ARTEMIS_UUID=$UUID" >> $GITHUB_ENV
           mv build/snapshots/artemis.snapshot build/snapshots/artemis-$UUID.snapshot
 
+      - name: Sign in to Artemis
+        shell: bash
+        env:
+          ARTEMIS_EMAIL: leon@toit.io
+          ARTEMIS_PASSWORD: ${{ secrets.LEON_ARTEMIS_PW }}
+        run: |
+          # We log in with the Artemis executable.
+          # It will set the authentication in the config file which is also
+          # used by the uploader.
+          build/bin/artemis$BIN_EXTENSION auth artemis login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
+
+      - name: Upload snapshot to Artemis
+        shell: bash
+        run: |
+          build/bin/uploader$BIN_EXTENSION cli-snapshot build/snapshots/*.snapshot
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
