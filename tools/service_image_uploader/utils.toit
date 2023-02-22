@@ -1,11 +1,13 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import ar
 import certificate_roots
 import cli
 import host.file
 import host.directory
 import supabase
 import writer show Writer
+import uuid
 
 import artemis.cli.config as cli
 import artemis.cli.config show
@@ -42,3 +44,9 @@ write_file --path/string content:
   finally:
     writer.close
     // TODO(florian): we would like to close the stream here.
+
+extract_snapshot_uuid_ snapshot/ByteArray -> string:
+  ar_reader := ar.ArReader.from_bytes snapshot
+  ar_file := ar_reader.find "uuid"
+  if not ar_file: throw "No uuid file in snapshot."
+  return (uuid.Uuid (ar_file.content)).stringify
