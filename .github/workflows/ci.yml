@@ -145,19 +145,6 @@ jobs:
           make rebuild-cmake
           cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
 
-      - name: Install packages
-        run: |
-          make install-pkgs
-
-      - name: Setup local brokers
-        shell: bash
-        run: |
-          $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-toitware" \
-            $SUPABASE_TOITWARE_API_HOST $SUPABASE_TOITWARE_ANON_KEY
-          $TOIT_EXEC src/cli/cli.toit config broker add supabase "test-broker" \
-            $SUPABASE_BROKER_API_HOST $SUPABASE_BROKER_ANON_KEY
-          cat $ARTEMIS_CONFIG
-
       - name: Test
         run: |
           make test
