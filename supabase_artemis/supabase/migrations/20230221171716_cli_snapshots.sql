@@ -4,8 +4,8 @@
 INSERT INTO storage.buckets (id, name, public)
     VALUES ('cli-snapshots', 'cli-snapshots', false);
 
--- Give admins permissions for service snapshots.
-CREATE POLICY "Admins have access to service snapshots"
+-- Give admins permissions for CLI snapshots.
+CREATE POLICY "Admins have access to CLI snapshots"
     ON storage.objects
     FOR ALL
     TO authenticated
