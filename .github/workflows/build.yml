@@ -9,11 +9,9 @@ on:
 
 env:
   SUPPORTED_SDK_VERSIONS: |
-    (
-      "v2.0.0-alpha.52"
-      "v2.0.0-alpha.53"
-      "v2.0.0-alpha.54"
-    )
+      v2.0.0-alpha.52
+      v2.0.0-alpha.53
+      v2.0.0-alpha.54
 
 jobs:
   build:
