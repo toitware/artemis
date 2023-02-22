@@ -114,7 +114,7 @@ start-supabase:
 	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test-admin@toit.io --password password"
 	@echo "If you want to use the Artemis server as both broker and artemis server,"
 	@echo "run the following command:"
-	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis-local-supabase
+	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis-local-supabase"
 
 # We rebuild the cmake file all the time.
 # We use "glob" in the cmakefile, and wouldn't otherwise notice if a new
