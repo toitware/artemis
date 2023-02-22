@@ -29,8 +29,8 @@ jobs:
       - name: Debug supported SDK versions
         shell: bash
         run: |
-          echo "Supported SDK versions: ${SUPPORTED_SDK_VERSIONS[@]}"
-          for version in "${SUPPORTED_SDK_VERSIONS[@]}"; do
+          echo "Supported SDK versions: $SUPPORTED_SDK_VERSIONS"
+          for version in $SUPPORTED_SDK_VERSIONS; do
             echo "Version: $version"
           done
           exit 1
