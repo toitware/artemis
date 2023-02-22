@@ -219,3 +219,13 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
           file_glob: true
+
+      - name: Create public release
+        env:
+          GITHUB_TOKEN: ${{ secrets.LEON_ARTEMIS_RELEASE_PAT }}
+        run: |
+          gh release create ${{ github.ref }} \
+            -R toitware/artemis-releases \
+            -t "Artemis ${{ github.ref }}" \
+            -n "${{ github.description }}" \
+            release-assets/*
