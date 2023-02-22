@@ -4,8 +4,6 @@ name: CI
 
 on:
   push:
-  release:
-    types: [published]
 
 jobs:
   build:
