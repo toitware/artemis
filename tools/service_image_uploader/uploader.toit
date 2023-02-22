@@ -204,7 +204,6 @@ upload_cli_snapshot config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed
   with_upload_client parsed config ui: | client/UploadClient |
     uuid := extract_snapshot_uuid_ snapshot_content
     client.upload snapshot_content --snapshot_uuid=uuid
-    cache_snapshot snapshot_content
 
   cache_snapshot snapshot_content
       --output_directory=snapshot_directory
