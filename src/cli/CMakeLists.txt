@@ -6,18 +6,17 @@ set(ARTEMIS_SNAPSHOT "${CMAKE_BINARY_DIR}/snapshots/artemis.snapshot")
 set(ARTEMIS_DEP_EXE "${CMAKE_CURRENT_BINARY_DIR}/artemis_exe.toit.dep")
 set(ARTEMIS_DEP_SNAPSHOT "${CMAKE_CURRENT_BINARY_DIR}/artemis_snapshot.toit.dep")
 
-ADD_TOIT_EXE(
-  ${ARTEMIS_SOURCE}
-  ${ARTEMIS_EXE}
-  ${ARTEMIS_DEP_EXE}
-  ""
-)
-
 ADD_TOIT_SNAPSHOT(
   ${ARTEMIS_SOURCE}
   ${ARTEMIS_SNAPSHOT}
   ${ARTEMIS_DEP_SNAPSHOT}
   ""
+)
+
+add_custom_command(
+  OUTPUT ${ARTEMIS_EXE}
+  COMMAND ${TOITC} --strip -o ${ARTEMIS_EXE} ${ARTEMIS_SNAPSHOT}
+  DEPENDS ${ARTEMIS_SNAPSHOT}
 )
 
 add_custom_target(
