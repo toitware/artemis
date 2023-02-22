@@ -31,7 +31,7 @@ jobs:
 
           export TOIT_VERSION=${{ inputs.sdk_version }}
           if [[ "$TOIT_VERSION" = "" ]]; then
-            TOIT_VERSION="v2.0.0-alpha.52"
+            TOIT_VERSION="v2.0.0-alpha.54"
           fi
 
           export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
