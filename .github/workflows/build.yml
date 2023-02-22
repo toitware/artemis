@@ -21,7 +21,11 @@ jobs:
       - name: Setup constants
         shell: bash
         run: |
-          echo "SUPPORTED_SDK_VERSIONS=(v2.0.0-alpha.52 v2.0.0-alpha.53 v2.0.0-alpha.54)" >> $GITHUB_ENV
+          echo "SUPPORTED_SDK_VERSIONS=(\
+            v2.0.0-alpha.52 \
+            v2.0.0-alpha.53 \
+            v2.0.0-alpha.54 \
+          )" >> $GITHUB_ENV
 
       - name: Setup Toit
         shell: bash
