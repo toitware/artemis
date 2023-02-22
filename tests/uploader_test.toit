@@ -53,6 +53,7 @@ run_test test_cli/TestCli:
           --cache=test_cli.cache
           --ui=ui
           [
+            "service",
             "--sdk-version", SDK_VERSION,
             "--service-version", service_version,
             "--snapshot-directory", tmp_dir,
@@ -71,6 +72,7 @@ run_test test_cli/TestCli:
           --cache=test_cli.cache
           --ui=ui
           [
+            "service",
             "--sdk-version", SDK_VERSION,
             "--service-version", service_version,
             "--commit", TEST_COMMIT,
@@ -93,6 +95,7 @@ run_test test_cli/TestCli:
           --cache=test_cli.cache
           --ui=ui
           [
+            "service",
             "--sdk-version", SDK_VERSION,
             "--service-version", local_version,
             "--local",
@@ -112,6 +115,7 @@ run_test test_cli/TestCli:
           --cache=test_cli.cache
           --ui=ui
           [
+            "service",
             "--sdk-version", SDK_VERSION,
             "--local",
             "--snapshot-directory", tmp_dir,
