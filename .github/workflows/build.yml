@@ -11,7 +11,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os: [ ubuntu-latest ]
 
     runs-on: ${{ matrix.os }}
 
@@ -100,72 +100,9 @@ jobs:
             build/bin/artemis${{ env.BIN_EXTENSION }}
             build/snapshots/artemis-${{ env.ARTEMIS_UUID }}.snapshot
 
-  sign_artemis_windows:
-    runs-on: windows-signing
-    needs: [build]
-    if: github.event_name == 'release'
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/download-artifact@v3
-        with:
-          name: artemis-windows
-          path: build
-
-      - name: Sign artemis
-        working-directory: ./build/bin
-        run: |
-          signtool sign /debug /n "Toitware ApS" /t http://timestamp.digicert.com/ $PWD/artemis.exe
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: artemis-signed-windows
-          path: build
-
-  sign_artemis_macos:
-    runs-on: macos-latest
-    needs: [build]
-    if: github.event_name == 'release'
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/download-artifact@v3
-        with:
-          name: artemis-macos
-          path: build
-
-      - name: Setup binary rights
-        run: |
-          chmod +x build/bin/artemis
-
-      - name: Import signing keychain
-        uses: apple-actions/import-codesign-certs@v1
-        with:
-          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE }}
-          p12-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-
-      - name: Install gon via HomeBrew for code signing and app notarization
-        run: |
-          brew tap mitchellh/gon
-          brew install mitchellh/gon/gon
-
-      - name: Sign the mac binaries with Gon
-        env:
-          AC_USERNAME: ${{ secrets.AC_USERNAME }}
-          AC_PASSWORD: ${{ secrets.AC_PASSWORD }}
-        run: |
-          gon -log-level=debug -log-json tools/gon.json
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: artemis-signed-macos
-          path: build
-
   do_release:
     runs-on: ubuntu-latest
-    needs: [sign_artemis_windows, sign_artemis_macos]
+    # needs: [sign_artemis_windows, sign_artemis_macos]
     if: github.event_name == 'release'
     steps:
       - uses: actions/checkout@v3
@@ -176,23 +113,6 @@ jobs:
           name: artemis-linux
           path: build-linux
 
-      - name: Download signed Windows artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: artemis-signed-windows
-          path: build-windows
-
-      - name: Download signed macOS artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: artemis-signed-macos
-          path: build-macos
-
-      - name: Debug list
-        shell: bash
-        run: |
-          find .
-
       - name: Create archives
         shell: bash
         run: |
@@ -202,23 +122,6 @@ jobs:
           mv build-linux/bin/artemis artemis-linux
           chmod +x artemis-linux/artemis
           tar -czf release-assets/artemis-linux.tar.gz artemis-linux
-
-          mkdir artemis-windows
-          zip release-assets/artemis-windows.zip build-windows/bin/artemis.exe
-
-          mkdir artemis-macos
-          mv build-macos/artemis.dmg release-assets/artemis.dmg
-          mv build-macos/artemis.zip release-assets/artemis-macos.zip
-
-      - name: Upload release artifacts as assets
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: |
-            release-assets/*
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
 
       - name: Create public release
         env:
