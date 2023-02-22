@@ -76,6 +76,12 @@ jobs:
           choco install ninja
           ninja --version
 
+      - name: Run cmake
+        shell: bash
+        run: |
+          make rebuild-cmake
+          cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
+
       - name: Build the CLI
         shell: bash
         run: |
