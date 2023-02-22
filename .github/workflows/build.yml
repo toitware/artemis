@@ -116,7 +116,6 @@ jobs:
         working-directory: ./build/bin
         run: |
           signtool sign /debug /n "Toitware ApS" /t http://timestamp.digicert.com/ $PWD/artemis.exe
-          powershell Compress-Archive -Force artemis.exe artemis.zip
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
