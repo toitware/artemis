@@ -113,7 +113,7 @@ jobs:
         shell: bash
         run: |
           # No need to cache the snapshots in a local snapshot directory.
-          mkdir tmp_snapshots
+          mkdir -p tmp_snapshots
           build/bin/uploader$BIN_EXTENSION cli-snapshot \
             --snapshot-directory tmp_snapshots \
             build/snapshots/*.snapshot
@@ -122,10 +122,13 @@ jobs:
         if: runner.os == 'Linux' && github.event_name == 'release'
         shell: bash
         run: |
+          # No need to cache the snapshots in a local snapshot directory.
+          mkdir -p tmp_snapshots
           for version in $SUPPORTED_SDK_VERSIONS; do
             # For each supported SDK version, build the locally checked out
             # version of the service and upload it to Artemis.
             build/bin/uploader service \
+                --snapshot-directory tmp_snapshots \
                 --sdk-version $version \
                 --service-version ${{ github.event.release.tag_name }} \
                 --local
