@@ -41,6 +41,12 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
 
         Make sure to be authenticated against the Artemis server.
         """
+      --options=[
+        cli.OptionString "server"
+            --short_help="The server to upload to.",
+        cli.OptionString "snapshot-directory"
+            --short_help="The directory to store the snapshot in.",
+      ]
 
   cli_snapshot_cmd := cli.Command "cli-snapshot"
       --long_help="""
@@ -48,11 +54,14 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
 
         After downloading it again with the downloader, allows to
         decode CLI system messages.
+
+        Also copies the snapshot into the snapshot directory.
         """
       --rest=[
         cli.OptionString "snapshot"
             --short_help="The snapshot to upload."
-            --type="file",
+            --type="file"
+            --required,
       ]
       --run=:: upload_cli_snapshot config cache ui it
   cmd.add cli_snapshot_cmd
@@ -88,12 +97,8 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --short_help="The version of the service to use.",
         cli.OptionString "commit"
             --short_help="The commit to build.",
-        cli.OptionString "server"
-            --short_help="The server to upload to.",
         cli.Flag "local"
             --short_help="Build the service from the checked out code of the current repository.",
-        cli.OptionString "snapshot-directory"
-            --short_help="The directory to store the snapshot in.",
       ]
       --run=:: build_and_upload config cache ui it
   cmd.add service_cmd
@@ -193,8 +198,13 @@ create_image_archive snapshot_path/string --sdk/Sdk --out/string:
 
 upload_cli_snapshot config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   snapshot := parsed["snapshot"]
+  snapshot_directory := parsed["snapshot-directory"]
+
+  snapshot_content := file.read_content snapshot
   with_upload_client parsed config ui: | client/UploadClient |
-    snapshot_content := file.read_content snapshot
     uuid := extract_snapshot_uuid_ snapshot_content
     client.upload snapshot_content --snapshot_uuid=uuid
     cache_snapshot snapshot_content
+
+  cache_snapshot snapshot_content
+      --output_directory=snapshot_directory

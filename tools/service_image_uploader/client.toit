@@ -118,6 +118,7 @@ class UploadClientSupabase implements UploadClient:
     ui_.info "Successfully uploaded the snapshot."
 
   upload --snapshot_uuid/string cli_snapshot/ByteArray:
+    client_.ensure_authenticated: it.sign_in --provider="github" --ui=ui_
     client_.storage.upload
       --path="cli-snapshots/$snapshot_uuid"
       --content=cli_snapshot
