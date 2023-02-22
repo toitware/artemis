@@ -54,6 +54,24 @@ jobs:
           cd "$DOWNLOAD_DIR"
           tar x -f *.tar.gz
 
+      # Fetch the dependencies. Different for each platform.
+      - name: Install dependencies - Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -q ninja-build
+          ninja --version
+      - name: Install dependencies - macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja
+          ninja --version
+      - name: Install dependencies - Windows
+        if: runner.os == 'Windows'
+        run: |
+          choco install ninja
+          ninja --version
+
       - name: Build the CLI
         shell: bash
         run: |
