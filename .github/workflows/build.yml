@@ -4,11 +4,6 @@ name: Build
 
 on:
   workflow_dispatch:
-    inputs:
-      sdk_version:
-        description: 'SDK version to use'
-        required: true
-        default: 'v2.0.0-alpha.54'
 
 jobs:
   build:
@@ -29,19 +24,20 @@ jobs:
           fi
           echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
 
-          export TOIT_VERSION=${{ inputs.sdk_version }}
-          if [[ "$TOIT_VERSION" = "" ]]; then
-            TOIT_VERSION="v2.0.0-alpha.54"
-          fi
+          export TOIT_VERSION="v2.0.0-alpha.54"
 
           export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
 
           TOIT_SDK_DIR=$DOWNLOAD_DIR/toit
+          echo "TOIT_EXEC=$TOIT_SDK_DIR/bin/toit.run$BIN_EXTENSION" >> $GITHUB_ENV
           echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
           echo "TPKG_EXEC=$TOIT_SDK_DIR/bin/toit.pkg$BIN_EXTENSION" >> $GITHUB_ENV
 
-          TOIT_SDK_FILE=toit-$(echo $RUNNER_OS | tr '[:upper:]' '[:lower:]').tar.gz
+          SYSTEM=$(echo $RUNNER_OS | tr '[:upper:]' '[:lower:]')
+          echo "SYSTEM=$SYSTEM" >> $GITHUB_ENV
+
+          TOIT_SDK_FILE=toit-$SYSTEM.tar.gz
           TOIT_SDK_BASE_URL=https://github.com/toitlang/toit/releases
 
           echo "TOIT_SDK_URL=$TOIT_SDK_BASE_URL/download/$TOIT_VERSION/$TOIT_SDK_FILE" >> $GITHUB_ENV
@@ -87,14 +83,17 @@ jobs:
         run: |
           make
 
-      - name: Upload the CLI
+      - name: Rename snapshot
+        shell: bash
+        run: |
+          UUID=$(build/bin/snapshot_uuid$BIN_EXTENSION build/snapshots/artemis.snapshot)
+          echo "ARTEMIS_UUID=$UUID" >> $GITHUB_ENV
+          mv build/snapshots/artemis.snapshot build/snapshots/artemis-$UUID.snapshot
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: artemis-${{ runner.os }}
-          path: build/bin/artemis${{ env.BIN_EXTENSION }}
-
-      - name: Upload the CLI snapshot
-        uses: actions/upload-artifact@v3
-        with:
-          name: artemis-snapshot-${{ runner.os }}
-          path: build/snapshots/artemis.snapshot
+          path: |
+            build/bin/artemis${{ env.BIN_EXTENSION }}
+            build/snapshots/artemis-${{ env.ARTEMIS_UUID }}.snapshot
