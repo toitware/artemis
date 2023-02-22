@@ -27,6 +27,15 @@ jobs:
             v2.0.0-alpha.54 \
           )" >> $GITHUB_ENV
 
+      - name: Debug supported SDK versions
+        shell: bash
+        run: |
+          echo "Supported SDK versions: ${SUPPORTED_SDK_VERSIONS[@]}"
+          for version in "${SUPPORTED_SDK_VERSIONS[@]}"; do
+            echo "Version: $version"
+          done
+          exit 1
+
       - name: Setup Toit
         shell: bash
         run: |
@@ -100,15 +109,6 @@ jobs:
           UUID=$(build/bin/snapshot_uuid$BIN_EXTENSION build/snapshots/artemis.snapshot)
           echo "ARTEMIS_UUID=$UUID" >> $GITHUB_ENV
           mv build/snapshots/artemis.snapshot build/snapshots/artemis-$UUID.snapshot
-
-      - name: Debug supported SDK versions
-        shell: bash
-        run: |
-          echo "Supported SDK versions: ${SUPPORTED_SDK_VERSIONS[@]}"
-          for version in "${SUPPORTED_SDK_VERSIONS[@]}"; do
-            echo "Version: $version"
-          done
-          exit 1
 
       - name: Sign in to Artemis
         shell: bash
