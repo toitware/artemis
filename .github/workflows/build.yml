@@ -106,7 +106,11 @@ jobs:
       - name: Upload snapshot to Artemis
         shell: bash
         run: |
-          build/bin/uploader$BIN_EXTENSION cli-snapshot build/snapshots/*.snapshot
+          # No need to cache the snapshots in a local snapshot directory.
+          mkdir tmp_snapshots
+          build/bin/uploader$BIN_EXTENSION cli-snapshot \
+            --snapshot-directory tmp_snapshots \
+            build/snapshots/*.snapshot
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
