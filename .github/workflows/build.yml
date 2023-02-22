@@ -9,8 +9,6 @@ on:
         description: 'SDK version to use'
         required: true
         default: 'v2.0.0-alpha.54'
-  release:
-    types: [published]
 
 jobs:
   build:
