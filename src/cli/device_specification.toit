@@ -12,6 +12,17 @@ import .utils
 import .fs as fs
 import .git
 
+class DeviceSpecificationException:
+  message/string
+
+  constructor .message:
+
+  stringify -> string:
+    return message
+
+format_error_ message/string:
+  throw (DeviceSpecificationException message)
+
 /**
 A specification of a device.
 
@@ -41,22 +52,61 @@ class DeviceSpecification:
       --.containers:
 
   constructor.from_json --path/string data/Map:
+    if not data.contains "version":
+      format_error_ "Missing version in device specification."
+    if not data.contains "sdk-version":
+      format_error_ "Missing sdk-version in device specification."
+    if not data.contains "artemis-version":
+      format_error_ "Missing artemis-version in device specification."
+    if not data.contains "max-offline":
+      format_error_ "Missing max-offline in device specification."
+    if not data.contains "connections":
+      format_error_ "Missing connections in device specification."
+    if not data.contains "containers" and not data.contains "apps":
+      format_error_ "Missing containers in device specification."
+    if data.contains "apps" and data.contains "containers":
+      format_error_ "Both 'apps' and 'containers' are present in device specification."
+
     if data["version"] != 1:
-      throw "Unsupported device specification version: $data["version"]"
+      throw (DeviceSpecificationException
+          "Unsupported device specification version $data["version"]")
 
     if data.contains "apps" and not data.contains "containers":
       data = data.copy
       data["containers"] = data["apps"]
 
-    containers := data["containers"].map: | _ container_description |
-          Container.from_json container_description
+    if data["containers"] is not Map:
+      throw (DeviceSpecificationException
+          "Containers in device specification not a map: $data["containers"]")
+    data["containers"].do: | name value |
+      if value is not Map:
+        throw (DeviceSpecificationException
+            "Container $name in device specification not a map: $value")
+
+    if data["connections"] is not List:
+      throw (DeviceSpecificationException
+          "Connections in device specification not a list: $data["connections"]")
+    data["connections"].do:
+      if it is not Map:
+        throw (DeviceSpecificationException
+            "Connection in device specification not a map: $it")
+
+    containers := data["containers"].map: | name container_description |
+          Container.from_json name container_description
+
+    max_offline_seconds/int := 0
+    exception := catch:
+      max_offline_seconds = (parse_max_offline_ (data["max-offline"])).in_s
+    if exception:
+      throw (DeviceSpecificationException
+          "Invalid max-offline in device specification: $exception")
 
     return DeviceSpecification
       --path=path
       --sdk_version=data["sdk-version"]
       --artemis_version=data["artemis-version"]
       // TODO(florian): make max-offline optional.
-      --max_offline_seconds=(parse_max_offline_ (data["max-offline"])).in_s
+      --max_offline_seconds=max_offline_seconds
       --connections=data["connections"].map: ConnectionInfo.from_json it
       --containers=containers
 
@@ -112,9 +162,13 @@ class DeviceSpecification:
 
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
+    if not data.contains "type":
+      format_error_ "Missing connection type: $data"
+
     if data["type"] == "wifi":
       return WifiConnectionInfo.from_json data
-    throw "Unknown connection type: $data["type"]"
+    format_error_ "Unknown connection type: $data["type"]"
+    unreachable
 
   type -> string
   to_json -> Map
@@ -126,6 +180,11 @@ class WifiConnectionInfo implements ConnectionInfo:
   constructor --.ssid --.password:
 
   constructor.from_json data/Map:
+    if not data.contains "ssid":
+      format_error_ "Missing ssid in wifi connection: $data"
+    if not data.contains "password":
+      format_error_ "Missing password in wifi connection: $data"
+
     return WifiConnectionInfo --ssid=data["ssid"] --password=data["password"]
 
   type -> string:
@@ -135,12 +194,13 @@ class WifiConnectionInfo implements ConnectionInfo:
     return {"type": type, "ssid": ssid, "password": password}
 
 interface Container:
-  static from_json data/Map -> Container:
+  static from_json name/string data/Map -> Container:
     if data.contains "entrypoint":
-      return ContainerPath.from_json data
+      return ContainerPath.from_json name data
     if data.contains "snapshot":
-      return ContainerSnapshot.from_json data
-    throw "Unsupported container: $data"
+      return ContainerSnapshot.from_json name data
+    format_error_ "Unsupported container $name: $data"
+    unreachable
 
   /**
   Builds a snapshot and stores it at the given $output_path.
@@ -156,14 +216,15 @@ class ContainerPath implements Container:
   git_url/string?
   git_ref/string?
 
-  constructor --.entrypoint --.git_url --.git_ref:
+  constructor name/string --.entrypoint --.git_url --.git_ref:
     if git_url and not git_ref:
-      throw "Git entry requires a branch/tag: $git_url"
+      format_error_ "In container $name, git entry requires a branch/tag: $git_url"
     if git_url and not fs.is_relative entrypoint:
-      throw "Git entry requires a relative path: $entrypoint"
+      format_error_"In container $name, git entry requires a relative path: $entrypoint"
 
-  constructor.from_json data/Map:
+  constructor.from_json name/string data/Map:
     return ContainerPath
+      name
       --entrypoint=data["entrypoint"]
       --git_ref=data.get "branch"
       --git_url=data.get "git"
@@ -246,10 +307,10 @@ class ContainerPath implements Container:
 class ContainerSnapshot implements Container:
   snapshot_path/string
 
-  constructor --.snapshot_path:
+  constructor name/string --.snapshot_path:
 
-  constructor.from_json data/Map:
-    return ContainerSnapshot --snapshot_path=data["snapshot"]
+  constructor.from_json name/string data/Map:
+    return ContainerSnapshot name --snapshot_path=data["snapshot"]
 
   build_snapshot --relative_to/string --output_path/string --sdk/Sdk --cache/cli.Cache:
     path := snapshot_path
