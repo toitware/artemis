@@ -28,7 +28,18 @@ CREATE POLICY "Authenticated can modify public bucket"
     USING (bucket_id = 'test-bucket-public')
     WITH CHECK (bucket_id = 'test-bucket-public');
 
-CREATE POLICY "Auth can see all buckets"
+INSERT INTO storage.buckets (id, name, public)
+    VALUES ('test-bucket-private', 'test-bucket-private', false);
+
+CREATE POLICY "Authenticated can write private bucket"
+    ON storage.objects
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (bucket_id = 'test-bucket-private');
+
+-- This gives access to the available buckets, but not the
+-- permissions to work with them.
+CREATE POLICY "Authenticated can modify bucket entries"
     ON storage.buckets
     FOR SELECT
     TO authenticated
