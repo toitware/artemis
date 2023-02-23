@@ -314,6 +314,7 @@ test_auth client/supabase.Client:
 
 TEST_BUCKET ::= "test-bucket"
 TEST_BUCKET_PUBLIC ::= "test-bucket-public"
+TEST_BUCKET_PRIVATE ::= "test-bucket-private"
 
 test_storage config/supabase.ServerConfig:
   client_anon := supabase.Client --server_config=config
@@ -372,10 +373,18 @@ test_storage config/supabase.ServerConfig:
       --path="$TEST_BUCKET_PUBLIC/$file_name"
   expect_equals content downloaded
 
+  // Upload a file into the private bucket.
+  // Auth has write access, but not read access.
+  client_auth.storage.upload
+      --no-upsert
+      --path="$TEST_BUCKET_PRIVATE/$file_name"
+      --content=content
+
   auth_buckets := client_auth.storage.list_buckets
-  expect_equals 2 auth_buckets.size
+  expect_equals 3 auth_buckets.size
   expect (auth_buckets.any: it["name"] == "$TEST_BUCKET")
   expect (auth_buckets.any: it["name"] == "$TEST_BUCKET_PUBLIC")
+  expect (auth_buckets.any: it["name"] == "$TEST_BUCKET_PRIVATE")
 
   anon_buckets := client_anon.storage.list_buckets
   expect anon_buckets.is_empty
@@ -400,6 +409,24 @@ test_storage config/supabase.ServerConfig:
   items = client_anon.storage.list "$TEST_BUCKET_PUBLIC"
   // Anon can't list.
   expect items.is_empty
+
+  // Neither anon nor auth can see the entries in the private bucket.
+  items = client_anon.storage.list "$TEST_BUCKET_PRIVATE"
+  expect items.is_empty
+
+  items = client_auth.storage.list "$TEST_BUCKET_PRIVATE"
+  expect items.is_empty
+
+  // The list function is a prefix search.
+  // Insert two files with different names.
+  client_auth.storage.upload --path="$TEST_BUCKET/$(file_name)-dir/1" --content=content
+  client_auth.storage.upload --path="$TEST_BUCKET/$(file_name)-dir/2" --content=content
+
+  // List all files with the same prefix.
+  items = client_auth.storage.list "$TEST_BUCKET/$(file_name)-dir"
+  expect_equals 2 items.size
+  expect (items.any: it["name"] == "1")
+  expect (items.any: it["name"] == "2")
 
   client_anon.close
   client_auth.close
