@@ -20,7 +20,7 @@ extract_uuid snapshot_bytes/ByteArray -> string:
   return (uuid.Uuid (ar_file.content)).stringify
 
 
-cached_snapshot_path uuid/string --output_directory/string? -> string:
+cached_snapshot_path_ uuid/string --output_directory/string? -> string:
   if output_directory:
     return "$output_directory/$(uuid).snapshot"
   else:
@@ -40,6 +40,6 @@ cache_snapshot snapshot/ByteArray --output_directory/string?=null -> string:
   ar_file := ar_reader.find "uuid"
   if not ar_file: throw "No uuid file in snapshot."
   uuid := (uuid.Uuid (ar_file.content)).stringify
-  out_path := cached_snapshot_path uuid --output_directory=output_directory
+  out_path := cached_snapshot_path_ uuid --output_directory=output_directory
   write_blob_to_file out_path snapshot
   return uuid
