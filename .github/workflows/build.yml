@@ -92,3 +92,9 @@ jobs:
         with:
           name: artemis-${{ runner.os }}
           path: build/bin/artemis${{ env.BIN_EXTENSION }}
+
+      - name: Upload the CLI snapshot
+        uses: actions/upload-artifact@v3
+        with:
+          name: artemis-snapshot-${{ runner.os }}
+          path: build/snapshots/artemis.snapshot
