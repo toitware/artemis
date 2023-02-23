@@ -8,7 +8,7 @@ on:
       sdk_version:
         description: 'SDK version to use'
         required: true
-        default: 'v2.0.0-alpha.52'
+        default: 'v2.0.0-alpha.54'
 
 jobs:
   build:
@@ -58,15 +58,37 @@ jobs:
           cd "$DOWNLOAD_DIR"
           tar x -f *.tar.gz
 
+      # Fetch the dependencies. Different for each platform.
+      - name: Install dependencies - Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -q ninja-build
+          ninja --version
+      - name: Install dependencies - macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja
+          ninja --version
+      - name: Install dependencies - Windows
+        if: runner.os == 'Windows'
+        run: |
+          choco install ninja
+          ninja --version
+
+      - name: Run cmake
+        shell: bash
+        run: |
+          make rebuild-cmake
+          cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
+
       - name: Build the CLI
         shell: bash
         run: |
-          # TODO(florian): we should integrate this into the Makefile.
-          $TPKG_EXEC install
-          $TOITC_EXEC -o artemis$BIN_EXTENSION src/cli/cli.toit
+          make
 
       - name: Upload the CLI
         uses: actions/upload-artifact@v3
         with:
           name: artemis-${{ runner.os }}
-          path: artemis${{ env.BIN_EXTENSION }}
+          path: build/bin/artemis${{ env.BIN_EXTENSION }}
