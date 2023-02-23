@@ -37,9 +37,9 @@ CREATE POLICY "Authenticated can write private bucket"
     TO authenticated
     WITH CHECK (bucket_id = 'test-bucket-private');
 
--- This gives access to the available buckets, but not the
+-- This allows to list the available buckets, but not the
 -- permissions to work with them.
-CREATE POLICY "Authenticated can modify bucket entries"
+CREATE POLICY "Authenticated can list all buckets"
     ON storage.buckets
     FOR SELECT
     TO authenticated
