@@ -517,10 +517,12 @@ class Storage:
 
   /**
   Uploads data to the storage.
+
+  If $upsert is true, then the data is overwritten if it already exists.
   */
-  upload --path/string --content/ByteArray -> none:
+  upload --path/string --content/ByteArray --upsert/bool=true -> none:
     headers := http.Headers
-    headers.add "x-upsert" "true"
+    if upsert: headers.add "x-upsert" "true"
     headers.add "Content-Type" "application/octet-stream"
     client_.request_
         --method=http.POST
