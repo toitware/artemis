@@ -130,9 +130,9 @@ class Auth:
               // However, if we modify the CLI, so it becomes long-running (for
               // example inside a server), we need to make sure we don't keep
               // spawned processes around.
-              exception := with_timeout --ms=20_000:
+              exception := catch: with_timeout --ms=20_000:
                 pipe.wait_for pid
-              if exception != null:
+              if exception == DEADLINE_EXCEEDED_ERROR:
                 SIGKILL ::= 9
                 catch: pipe.kill_ pid SIGKILL
 
