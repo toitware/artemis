@@ -268,6 +268,6 @@ jobs:
         run: |
           gh release create "${{ github.event.release.tag_name }}" \
             -R toitware/artemis-releases \
-            -t "Artemis ${{ github.event.release.name }}" \
+            -t "${{ github.event.release.name }}" \
             -n "${{ github.event.release.body }}" \
             release-assets/*
