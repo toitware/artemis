@@ -8,6 +8,8 @@ dependencies:
   cli:
     url: github.com/toitlang/pkg-cli
     version: ^1.2.0
+  fs:
+    path: tools/fs
   host:
     url: github.com/toitlang/pkg-host
     version: ^1.8.1

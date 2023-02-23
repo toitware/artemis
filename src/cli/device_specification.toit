@@ -3,13 +3,13 @@
 import encoding.json
 import encoding.url as url_encoding
 import host.file
+import fs
 import .cache as cli
 import .cache show GIT_APP_PATH
 import .firmware
 import .sdk
 import .server_config
 import .utils
-import .fs as fs
 import .git
 
 /**
