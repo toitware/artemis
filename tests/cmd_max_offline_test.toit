@@ -29,3 +29,17 @@ main args:
         if device.max_offline == (Duration --s=3): break
         sleep --ms=counter
         counter++
+
+    test_cli.run [
+      "device",
+      "transient",
+      "--device-id", device.id,
+      "set-max-offline", "3m"
+    ]
+
+    with_timeout (Duration --s=10):
+      counter := 0
+      while true:
+        if device.max_offline == (Duration --m=3): break
+        sleep --ms=counter
+        counter++
