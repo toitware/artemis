@@ -29,6 +29,11 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   cmd := cli.Command "downloader"
       --long_help="""
         Downloads snapshots from the Artemis server and stores them in the Jaguar cache.
+
+        The snapshots can be filtered by SDK version and service version for service
+        snapshots. There is no way to filter by CLI version.
+
+        If no arguments are given, all snapshots are downloaded.
         """
       --options=[
         cli.OptionString "sdk-version"
@@ -39,6 +44,12 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --short_help="The directory to store the downloaded snapshots in.",
         cli.OptionString "server"
             --short_help="The server to download from.",
+      ]
+      --examples=[
+        cli.Example "Download all snapshots:" --arguments="",
+        cli.Example """
+          Download the snapshot for service snapshot v0.1.0 and SDK version v2.0.0-alpha.54:"""
+          --arguments="--service-version=v0.1.0 --sdk-version=v2.0.0-alpha.54",
       ]
       --run=:: download config cache ui it
   cmd.run args
@@ -68,4 +79,17 @@ download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
         store.save (client.storage.download --path="service-snapshots/$image")
 
       uuid := cache_snapshot snapshot --output_directory=output_directory
-      ui.info "Wrote $uuid"
+      ui.info "Wrote service snapshot $uuid"
+
+    if not sdk_version and not service_version:
+      // Download all CLI snapshots.
+      available_snapshots := client.storage.list "cli-snapshots"
+      available_snapshots.do: | file_description/Map |
+        name := file_description["name"]
+        cache_key := "snapshot-downloader/$name"
+        snapshot := cache.get cache_key: | store/cli.FileStore |
+          ui.info "Downloading $name"
+          store.save (client.storage.download --path="cli-snapshots/$name")
+
+        uuid := cache_snapshot snapshot --output_directory=output_directory
+        ui.info "Wrote CLI snapshot $uuid"
