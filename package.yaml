@@ -20,5 +20,7 @@ dependencies:
   ntp:
     url: github.com/toitlang/pkg-ntp
     version: ^1.0.0
+  snapshot:
+    path: tools/snapshot
   supabase:
     path: supabase

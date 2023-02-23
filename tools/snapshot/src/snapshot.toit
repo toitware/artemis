@@ -2,8 +2,10 @@
 
 import ar
 import host.file
+import host.os
 import cli
 import uuid
+import .utils_
 
 extract_uuid --path/string -> string:
   if not file.is_file path:
@@ -16,3 +18,28 @@ extract_uuid snapshot_bytes/ByteArray -> string:
   ar_file := ar_reader.find "uuid"
   if not ar_file: throw "No uuid file in snapshot."
   return (uuid.Uuid (ar_file.content)).stringify
+
+
+cached_snapshot_path uuid/string --output_directory/string? -> string:
+  if output_directory:
+    return "$output_directory/$(uuid).snapshot"
+  else:
+    home := os.env.get "HOME"
+    if not home: throw "No home directory."
+    return "$home/.cache/jaguar/snapshots/$(uuid).snapshot"
+
+/**
+Stores the given $snapshot in the user's snapshot directory.
+
+This way, the monitor can find it and automatically decode stack traces.
+
+Returns the UUID of the snapshot.
+*/
+cache_snapshot snapshot/ByteArray --output_directory/string?=null -> string:
+  ar_reader := ar.ArReader.from_bytes snapshot
+  ar_file := ar_reader.find "uuid"
+  if not ar_file: throw "No uuid file in snapshot."
+  uuid := (uuid.Uuid (ar_file.content)).stringify
+  out_path := cached_snapshot_path uuid --output_directory=output_directory
+  write_blob_to_file out_path snapshot
+  return uuid

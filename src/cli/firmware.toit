@@ -7,7 +7,7 @@ import encoding.base64
 import encoding.ubjson
 import host.file
 import host.os
-import uuid
+import snapshot show cached_snapshot_path
 
 import .sdk
 import .cache show ENVELOPE_PATH
@@ -260,30 +260,6 @@ Builds the URL for the firmware envelope for the given $version on GitHub.
 */
 envelope_url version/string -> string:
   return "github.com/toitlang/toit/releases/download/$version/firmware-esp32.gz"
-
-cached_snapshot_path uuid/string --output_directory/string? -> string:
-  if output_directory:
-    return "$output_directory/$(uuid).snapshot"
-  else:
-    home := os.env.get "HOME"
-    if not home: throw "No home directory."
-    return "$home/.cache/jaguar/snapshots/$(uuid).snapshot"
-
-/**
-Stores the given $snapshot in the user's snapshot directory.
-
-This way, the monitor can find it and automatically decode stack traces.
-
-Returns the UUID of the snapshot.
-*/
-cache_snapshot snapshot/ByteArray --output_directory/string?=null -> string:
-  ar_reader := ar.ArReader.from_bytes snapshot
-  ar_file := ar_reader.find "uuid"
-  if not ar_file: throw "No uuid file in snapshot."
-  uuid := (uuid.Uuid (ar_file.content)).stringify
-  out_path := cached_snapshot_path uuid --output_directory=output_directory
-  write_blob_to_file out_path snapshot
-  return uuid
 
 /**
 Stores the snapshots inside the envelope in the user's snapshot directory.

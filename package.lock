@@ -7,6 +7,7 @@ prefixes:
   http: pkg-http
   mqtt: mqtt
   ntp: pkg-ntp
+  snapshot: snapshot
   supabase: supabase
 packages:
   mqtt:
@@ -33,6 +34,12 @@ packages:
     url: github.com/toitlang/pkg-ntp
     version: 1.0.0
     hash: 1c3cc4a4819f459393f00efc576f66f838665719
+  snapshot:
+    path: tools/snapshot
+    prefixes:
+      ar: pkg-ar
+      cli: pkg-cli
+      host: pkg-host
   supabase:
     path: supabase
     prefixes:
