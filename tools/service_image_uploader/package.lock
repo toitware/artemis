@@ -53,6 +53,7 @@ packages:
     prefixes:
       ar: pkg-ar
       cli: pkg-cli
+      fs: fs
       host: pkg-host
   supabase:
     path: ../../supabase

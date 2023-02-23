@@ -2,8 +2,11 @@ sdk: ^1.6.10
 prefixes:
   ar: pkg-ar
   cli: pkg-cli
+  fs: fs
   host: pkg-host
 packages:
+  fs:
+    path: ../fs
   pkg-ar:
     url: github.com/toitlang/pkg-ar
     version: 1.0.0
