@@ -7,7 +7,7 @@ import encoding.base64
 import encoding.ubjson
 import host.file
 import host.os
-import snapshot show cached_snapshot_path
+import snapshot show cache_snapshot
 
 import .sdk
 import .cache show ENVELOPE_PATH
@@ -267,13 +267,16 @@ Stores the snapshots inside the envelope in the user's snapshot directory.
 cache_snapshots --envelope/string --output_directory/string?=null --cache/cli.Cache:
   sdk := Sdk --envelope=envelope --cache=cache
   containers := sdk.firmware_list_containers --envelope_path=envelope
-  containers.do: | name/string description/Map |
-    if description["kind"] == "snapshot":
-      id := description["id"]
-      sdk.firmware_extract_container
-          --envelope_path=envelope
-          --name=name
-          --output_path=(cached_snapshot_path id --output_directory=output_directory)
+  with_tmp_directory: | tmp_dir/string |
+    containers.do: | name/string description/Map |
+      if description["kind"] == "snapshot":
+        id := description["id"]
+        tmp_snapshot_path := "$tmp_dir/$(id).snapshot"
+        sdk.firmware_extract_container
+            --envelope_path=envelope
+            --name=name
+            --output_path=tmp_snapshot_path
+        cache_snapshot tmp_snapshot_path --output_directory=output_directory
 
 // A forwarding function to work around the shadowing in 'get_envelope'.
 cache_snapshots_ --envelope/string --cache/cli.Cache:
