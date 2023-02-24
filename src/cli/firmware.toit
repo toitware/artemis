@@ -276,7 +276,8 @@ cache_snapshots --envelope/string --output_directory/string?=null --cache/cli.Ca
             --envelope_path=envelope
             --name=name
             --output_path=tmp_snapshot_path
-        cache_snapshot tmp_snapshot_path --output_directory=output_directory
+        snapshot_content := file.read_content tmp_snapshot_path
+        cache_snapshot snapshot_content --output_directory=output_directory
 
 // A forwarding function to work around the shadowing in 'get_envelope'.
 cache_snapshots_ --envelope/string --cache/cli.Cache:
