@@ -14,5 +14,5 @@ extract_uuid --path/string -> string:
 extract_uuid snapshot_bytes/ByteArray -> string:
   ar_reader := ar.ArReader.from_bytes snapshot_bytes
   ar_file := ar_reader.find "uuid"
-  if not ar_file: throw "No uuid file in snapshot."
+  if not ar_file: throw "No uuid file in snapshot"
   return (uuid.Uuid (ar_file.content)).stringify
