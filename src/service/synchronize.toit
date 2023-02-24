@@ -2,7 +2,6 @@
 
 import log
 import monitor
-import uuid
 import reader show SizedReader
 import system.containers
 import system.firmware

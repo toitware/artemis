@@ -10,13 +10,13 @@ import encoding.url as url_encoding
 import artemis.cli.config as cli
 import artemis.cli.cache as cli
 import artemis.cli.cache show service_image_cache_key
-import artemis.cli.firmware show cache_snapshot
 import artemis.cli.git show Git
 import artemis.cli.sdk show *
 import artemis.cli.ui as ui
 import artemis.shared.version show ARTEMIS_VERSION
 import host.file
 import uuid
+import snapshot show cache_snapshot extract_uuid
 import supabase
 
 import .client
@@ -202,7 +202,7 @@ upload_cli_snapshot config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed
 
   snapshot_content := file.read_content snapshot
   with_upload_client parsed config ui: | client/UploadClient |
-    uuid := extract_snapshot_uuid_ snapshot_content
+    uuid := extract_uuid snapshot_content
     client.upload snapshot_content --snapshot_uuid=uuid
 
   cache_snapshot snapshot_content

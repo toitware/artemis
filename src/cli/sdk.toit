@@ -11,7 +11,6 @@ import http
 import log
 import net
 import writer show Writer
-import uuid
 
 import .cache show SDK_PATH
 import .utils
