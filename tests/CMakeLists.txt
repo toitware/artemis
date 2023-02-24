@@ -1,9 +1,11 @@
-# Copyright (C) 2022 Toitware ApS.
+# Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*_test.toit" "*_test_slow.toit")
 
 set(TEST_TIMEOUT 40 CACHE STRING "The maximal amount of time each test is allowed to run")
 set(SLOW_TEST_TIMEOUT 200 CACHE STRING "The maximal amount of time each slow test is allowed to run")
+set(WITH_LOCAL_SUPABASE TRUE CACHE BOOL "Whether the local supabase tests should be run")
+set(WITH_MOSQUITTO TRUE CACHE BOOL "Whether broker tests should be run with mosquitto")
 
 toit_project(tests "${CMAKE_CURRENT_LIST_DIR}")
 
@@ -28,6 +30,14 @@ set (BROKER_FLAGS
       "--supabase-local-artemis-broker"
     )
 
+if (NOT ${WITH_LOCAL_SUPABASE})
+  list(REMOVE_ITEM ARTEMIS_FLAGS "--supabase-server")
+  list(REMOVE_ITEM BROKER_FLAGS "--supabase-local-broker" "--supabase-local-artemis-broker")
+endif()
+if (NOT ${WITH_MOSQUITTO})
+  list(REMOVE_ITEM BROKER_FLAGS "--mosquitto-broker")
+endif()
+
 function (takes_artemis_flags file result)
   file(READ "${file}" content)
   string(REGEX MATCH "// ARTEMIS_TEST_FLAGS:.*ARTEMIS" match "${content}")
@@ -50,6 +60,10 @@ function(extract_test_flags file result)
 endfunction()
 
 foreach(file ${TESTS})
+  if ("${file}" MATCHES "supabase" AND NOT "${WITH_LOCAL_SUPABASE}")
+    continue()
+  endif()
+
   extract_test_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" flags)
   takes_artemis_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" artemis_match)
   takes_broker_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" broker_match)
@@ -128,7 +142,9 @@ foreach(file ${TESTS})
   endforeach()
 endforeach()
 
-# Lock the artemis server to a single test for the following tests.
-# They use global properties interfering with the sdk table.
-set_tests_properties("/tests/uploader_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
-set_tests_properties("/tests/supabase_policies_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
+if (${WITH_LOCAL_SUPABASE})
+  # Lock the artemis server to a single test for the following tests.
+  # They use global properties interfering with the sdk table.
+  set_tests_properties("/tests/supabase_uploader_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
+  set_tests_properties("/tests/supabase_policies_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
+endif()

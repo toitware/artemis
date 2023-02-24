@@ -9,9 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        # Windows is not yet supported.
-        # Avoid tests on macos for now. They are expensive.
-        os: [ ubuntu-latest ]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
 
     runs-on: ${{ matrix.os }}
 
@@ -74,7 +72,7 @@ jobs:
       - name: Install dependencies - macOS
         if: runner.os == 'macOS'
         run: |
-          brew install ninja
+          brew install ninja mosquitto
           ninja --version
           cmake --version
       - name: Install dependencies - Windows
@@ -85,11 +83,13 @@ jobs:
           cmake --version
 
       - name: Install Supabase
+        if: ${{ runner.os == 'Linux' }}
         uses: supabase/setup-cli@v1
         with:
           version: 1.35.0
 
       - name: Start Supabase - Toitware
+        if: ${{ runner.os == 'Linux' }}
         shell: bash
         working-directory: ${{ github.workspace }}/supabase_artemis
         run: |
@@ -116,6 +116,7 @@ jobs:
           echo "SUPABASE_TOITWARE_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
       - name: Start Supabase - Broker
+        if: ${{ runner.os == 'Linux' }}
         shell: bash
         working-directory: ${{ github.workspace }}/supabase_broker
         run: |
@@ -131,6 +132,7 @@ jobs:
           echo "SUPABASE_BROKER_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
       - name: Start Supabase - Supabase test
+        if: ${{ runner.os == 'Linux' }}
         shell: bash
         working-directory: ${{ github.workspace }}/tests/supabase_test
         run: |
@@ -142,6 +144,18 @@ jobs:
         run: |
           make rebuild-cmake
           cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
+
+      - name: Disable Mosquitto tests - Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          make disable-mosquitto-tests
+
+      - name: Disable Supabase tests - Windows and macOS
+        if: runner.os != 'Linux'
+        shell: bash
+        run: |
+          make disable-supabase-tests
 
       - name: Test
         run: |
