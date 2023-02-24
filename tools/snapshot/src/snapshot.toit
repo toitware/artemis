@@ -1,6 +1,8 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar
+import fs
+import host.directory
 import host.file
 import host.os
 import cli
@@ -40,5 +42,8 @@ cache_snapshot snapshot/ByteArray --output_directory/string?=null -> string:
   if not ar_file: throw "No uuid file in snapshot"
   uuid := (uuid.Uuid (ar_file.content)).stringify
   out_path := cached_snapshot_path_ uuid --output_directory=output_directory
+  dir_path := fs.dirname out_path
+  if not file.is_directory dir_path:
+    directory.mkdir --recursive dir_path
   write_blob_to_file out_path snapshot
   return uuid
