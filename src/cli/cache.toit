@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import fs
 import host.os
 import host.file
 import host.directory
@@ -341,7 +342,7 @@ class FileStore_ implements FileStore:
       tmp_path := "$tmp_dir/content"
       block.call tmp_path
       key_path := cache_.key_path_ key
-      key_dir := dirname_ key_path
+      key_dir := fs.dirname key_path
       directory.mkdir --recursive key_dir
       atomic_move_file_ tmp_path key_path
 
@@ -404,7 +405,7 @@ class DirectoryStore_ implements DirectoryStore:
     cache_.with_tmp_directory_ key: | tmp_dir |
       block.call tmp_dir
       key_path := cache_.key_path_ key
-      key_dir := dirname_ key_path
+      key_dir := fs.dirname key_path
       directory.mkdir --recursive key_dir
       atomic_move_directory_ tmp_dir key_path
 
@@ -421,13 +422,6 @@ atomic_move_directory_ source_path/string target_path/string -> none:
   // There is a race condition here, but not much we can do about it.
   if file.is_directory target_path: return
   file.rename source_path target_path
-
-dirname_ path/string -> string:
-  // TODO(florian): this wouldn't work on Windows.
-  if platform == PLATFORM_WINDOWS: throw "UNIMPLEMENTED"
-  last_slash := path.index_of --last "/"
-  if last_slash == -1: return "."
-  return path[0..last_slash]
 
 copy_file_ --source/string --target/string -> none:
   // TODO(florian): we want to keep the permissions of the original file,

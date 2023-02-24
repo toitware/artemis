@@ -15,12 +15,15 @@ packages:
       ar: pkg-ar
       certificate_roots: toit-cert-roots
       cli: pkg-cli
+      fs: fs
       host: pkg-host
       http: pkg-http
       mqtt: mqtt
       ntp: pkg-ntp
       snapshot: snapshot
       supabase: supabase
+  fs:
+    path: ../../tools/fs
   mqtt:
     url: github.com/toitware/mqtt
     version: 2.1.1
