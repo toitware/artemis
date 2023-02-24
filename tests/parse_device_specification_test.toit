@@ -102,19 +102,19 @@ main:
   invalid_containers := new_valid
   invalid_containers["containers"] = 1
   expect_format_error
-      "Containers in device specification not a map: 1"
+      "Entry containers in device specification is not a map: 1"
       invalid_containers
 
   invalid_container := new_valid
   invalid_container["containers"]["app1"] = 1
   expect_format_error
-      "Container app1 in device specification not a map: 1"
+      "Container app1 in device specification is not a map: 1"
       invalid_container
 
   invalid_connections := new_valid
   invalid_connections["connections"] = 1
   expect_format_error
-      "Connections in device specification not a list: 1"
+      "Entry connections in device specification is not a list: 1"
       invalid_connections
 
   invalid_connection := new_valid
@@ -126,7 +126,7 @@ main:
   no_type := new_valid
   no_type["connections"][0].remove "type"
   expect_format_error
-      "Missing connection type: $no_type["connections"][0]"
+      "Missing type in connection."
       no_type
 
   invalid_type := new_valid
@@ -138,14 +138,20 @@ main:
   no_ssid := new_valid
   no_ssid["connections"][0].remove "ssid"
   expect_format_error
-      "Missing ssid in wifi connection: $no_ssid["connections"][0]"
+      "Missing ssid in wifi connection."
       no_ssid
 
   no_password := new_valid
   no_password["connections"][0].remove "password"
   expect_format_error
-      "Missing password in wifi connection: $no_password["connections"][0]"
+      "Missing password in wifi connection."
       no_password
+
+  entrypoint_and_snapshot := new_valid
+  entrypoint_and_snapshot["containers"]["app1"]["snapshot"] = "foo.snapshot"
+  expect_format_error
+      "Container app1 has both entrypoint and snapshot."
+      entrypoint_and_snapshot
 
   no_entrypoint_or_snapshot := new_valid
   no_entrypoint_or_snapshot["containers"]["app1"].remove "entrypoint"
