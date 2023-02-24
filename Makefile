@@ -17,6 +17,13 @@ build/CMakeCache.txt:
 install-pkgs: rebuild-cmake
 	(cd build && ninja download_packages)
 
+.PHONY: disable-supabase-tests disable-mosquitto-tests
+disable-supabase-tests: build/CMakeCache.txt
+	(cd build && cmake -DWITH_LOCAL_SUPABASE=OFF .)
+
+disable-mosquitto-tests: build/CMakeCache.txt
+	(cd build && cmake -DWITH_MOSQUITTO=OFF .)
+
 .PHONY: test
 test: install-pkgs rebuild-cmake
 	(cd build && ninja check)

@@ -23,7 +23,7 @@ packages:
       snapshot: snapshot
       supabase: supabase
   fs:
-    path: ../../tools/fs
+    path: ../fs
   mqtt:
     url: github.com/toitware/mqtt
     version: 2.1.1
@@ -49,7 +49,7 @@ packages:
     version: 1.0.0
     hash: 1c3cc4a4819f459393f00efc576f66f838665719
   snapshot:
-    path: ../../tools/snapshot
+    path: ../snapshot
     prefixes:
       ar: pkg-ar
       cli: pkg-cli
