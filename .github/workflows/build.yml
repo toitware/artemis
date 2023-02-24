@@ -252,15 +252,44 @@ jobs:
           mv build-macos/artemis.dmg release-assets/artemis.dmg
           mv build-macos/artemis.zip release-assets/artemis-macos.zip
 
+      # Prepare the admin tools.
+      # They are not publicly released, and are just uploaded to make
+      # administration easier, without needing to build the tools locally.
+      - name: Prepare admin tools
+        shell: bash
+        run: |
+          mkdir admin-tools-linux
+          for f in build-linux/bin/*; do cp $f admin-tools-linux/$f; done
+          # The Linux artemis executable was already moved away.
+          tar -czf admin-tools-linux.tar.gz admin-tools-linux
+
+          mkdir admin-tools-windows
+          for f in build-windows/bin/*; do cp $f admin-tools-windows/$f; done
+          rm -f admin-tools-windows/artemis.exe
+          tar -czf admin-tools-windows.tar.gz admin-tools-windows
+
+          mkdir admin-tools-macos
+          for f in build-macos/bin/*; do cp $f admin-tools-macos/$f; done
+          rm -f admin-tools-macos/artemis
+          tar -czf admin-tools-macos.tar.gz admin-tools-macos
+
       - name: Upload release artifacts as assets
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: |
-            release-assets/*
+          file_glob: true
+          file: release-assets/*
           tag: ${{ github.ref }}
           overwrite: true
+
+      - name: Upload admin artifacts as assets
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           file_glob: true
+          file: admin-tools-*.tar.gz
+          tag: ${{ github.ref }}
+          overwrite: true
 
       - name: Create public release
         env:
