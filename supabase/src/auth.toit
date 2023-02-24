@@ -107,12 +107,34 @@ class Auth:
       ui.info "Please authenticate at $authenticate_url"
       if open_browser:
         catch:
+          command/string? := null
           if platform == PLATFORM_LINUX:
-            pipe.backticks "xdg-open" authenticate_url
+            command = "xdg-open"
           else if platform == PLATFORM_MACOS:
-            pipe.backticks "open" authenticate_url
+            command = "open"
           else if platform == PLATFORM_WINDOWS:
-            pipe.backticks "start" authenticate_url
+            command = "start"
+          if command != null:
+            fork_data := pipe.fork
+                true  // Use path.
+                pipe.PIPE_CREATED  // Stdin.
+                pipe.PIPE_CREATED  // Stdout.
+                pipe.PIPE_CREATED  // Stderr.
+                command
+                [ command, authenticate_url ]
+            pid := fork_data[3]
+            task --background::
+              // The 'open' command should finish in almost no time.
+              // Even if it doesn't, then the CLI almost always terminates
+              // shortly after calling 'open'.
+              // However, if we modify the CLI, so it becomes long-running (for
+              // example inside a server), we need to make sure we don't keep
+              // spawned processes around.
+              exception := catch: with_timeout --ms=20_000:
+                pipe.wait_for pid
+              if exception == DEADLINE_EXCEEDED_ERROR:
+                SIGKILL ::= 9
+                catch: pipe.kill_ pid SIGKILL
 
       session_latch := monitor.Latch
       server_task := task::
