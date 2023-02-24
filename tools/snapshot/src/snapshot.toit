@@ -18,16 +18,15 @@ extract_uuid --path/string -> string:
 extract_uuid snapshot_bytes/ByteArray -> string:
   ar_reader := ar.ArReader.from_bytes snapshot_bytes
   ar_file := ar_reader.find "uuid"
-  if not ar_file: throw "No uuid file in snapshot."
+  if not ar_file: throw "No uuid file in snapshot"
   return (uuid.Uuid (ar_file.content)).stringify
-
 
 cached_snapshot_path_ uuid/string --output_directory/string? -> string:
   if output_directory:
     return "$output_directory/$(uuid).snapshot"
   else:
     home := os.env.get "HOME"
-    if not home: throw "No home directory."
+    if not home: throw "No home directory"
     return "$home/.cache/jaguar/snapshots/$(uuid).snapshot"
 
 /**
@@ -40,7 +39,7 @@ Returns the UUID of the snapshot.
 cache_snapshot snapshot/ByteArray --output_directory/string?=null -> string:
   ar_reader := ar.ArReader.from_bytes snapshot
   ar_file := ar_reader.find "uuid"
-  if not ar_file: throw "No uuid file in snapshot."
+  if not ar_file: throw "No uuid file in snapshot"
   uuid := (uuid.Uuid (ar_file.content)).stringify
   out_path := cached_snapshot_path_ uuid --output_directory=output_directory
   dir_path := fs.dirname out_path
