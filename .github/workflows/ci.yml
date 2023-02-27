@@ -157,6 +157,22 @@ jobs:
         run: |
           make disable-supabase-tests
 
+      - name: Build binaries
+        run: |
+          make
+
       - name: Test
         run: |
           make test
+
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries-${{ runner.os }}
+          path: build/bin
+
+      - name: Upload snapshot artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: snapshots-${{ runner.os }}
+          path: build/snapshots
