@@ -108,15 +108,19 @@ class Auth:
       if open_browser:
         catch:
           command/string? := null
-          args := [ authenticate_url ]
+          args/List? := null
           if platform == PLATFORM_LINUX:
             command = "xdg-open"
+            args = [ authenticate_url ]
           else if platform == PLATFORM_MACOS:
             command = "open"
+            args = [ authenticate_url ]
           else if platform == PLATFORM_WINDOWS:
             command = "cmd"
             escaped_url := authenticate_url.replace "&" "^&"
             args = [ "/c", "start", escaped_url ]
+          // If we have a supported platform try to open the URL.
+          // For all other platforms we already printed the URL to the console.
           if command != null:
             fork_data := pipe.fork
                 true  // Use path.
