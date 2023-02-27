@@ -136,16 +136,46 @@ class Cache:
   ensure_cache_directory_:
     directory.mkdir --recursive path
 
+  /**
+  Escapes the given $path so it's valid.
+  Escapes '\' even if the platform is Windows, where it's a valid
+    path separator.
+  If two given paths are equal, then the escaped paths are also equal.
+  If they are different, then the escaped paths are also different.
+  */
+  escape_path_ path/string -> string:
+    if platform != PLATFORM_WINDOWS:
+      return path
+    // On Windows, we need to escape some characters.
+    // We use '#' as escape character.
+    // We will treat '/' as the folder separator, and escape '\'.
+    escaped_path := path.replace --all "#" "##"
+    // The following characters are not allowed:
+    //  <, >, :, ", |, ?, *
+    // '\' and '/' would both become folder separators, so
+    // we escape '\' to stay unique.
+    // We escape them as #<hex value>.
+    [ '<', '>', ':', '"', '|', '?', '*', '\\' ].do:
+      escaped_path = escaped_path.replace --all
+          string.from_rune it
+          "#$(%02X it)"
+    if escaped_path.ends_with " " or escaped_path.ends_with ".":
+      // Windows doesn't allow files to end with a space or a dot.
+      // Add a suffix to make it valid.
+      // Note that this still guarantees uniqueness, because
+      // a space would normally not be escaped.
+      escaped_path = "$escaped_path#20"
+    return escaped_path
+
   key_path_ key/string -> string:
-    return "$(path)/$(key)"
+    return "$(path)/$(escape_path_ key)"
 
   with_tmp_directory_ key/string?=null [block]:
     ensure_cache_directory_
     prefix := ?
     if key:
-      escaped_key := key.replace --all "/" "_"
-      escaped_key = escaped_key.replace --all "\\" "_"
-      escaped_key = escaped_key.replace --all ":" "_"
+      escaped_key := escape_path_ key
+      escaped_key = escaped_key.replace --all "/" "_"
       prefix = "$(path)/$(escaped_key)-"
     else:
       prefix = "$(path)/tmp-"
