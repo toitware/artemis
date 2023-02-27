@@ -131,8 +131,11 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
       // Since we are reusing an ID, we need to remove the cached version.
       full_service_version = service_version or ARTEMIS_VERSION
-      cache.remove (service_image_cache_key --sdk_version=sdk_version
-          --service_version=full_service_version)
+      cache_key := service_image_cache_key
+          --sdk_version=sdk_version
+          --service_version=full_service_version
+          --broker_config=get_artemis_config parsed config
+      cache.remove cache_key
     else:
       ui.info "Cloning repository and checking out $(commit or service_version)."
       clone_dir := "$tmp_dir/artemis"
