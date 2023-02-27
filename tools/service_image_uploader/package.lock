@@ -24,6 +24,8 @@ packages:
       supabase: supabase
   fs:
     path: ../fs
+    prefixes:
+      host: pkg-host
   mqtt:
     url: github.com/toitware/mqtt
     version: 2.1.1

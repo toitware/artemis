@@ -2,6 +2,7 @@
 
 import ar
 import fs
+import fs.xdg
 import host.directory
 import host.file
 import host.os
@@ -25,9 +26,8 @@ cached_snapshot_path_ uuid/string --output_directory/string? -> string:
   if output_directory:
     return "$output_directory/$(uuid).snapshot"
   else:
-    home := os.env.get "HOME"
-    if not home: throw "No home directory"
-    return "$home/.cache/jaguar/snapshots/$(uuid).snapshot"
+    cache_home := xdg.cache_home
+    return "$cache_home/jaguar/snapshots/$(uuid).snapshot"
 
 /**
 Stores the given $snapshot in the user's snapshot directory.

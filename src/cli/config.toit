@@ -18,6 +18,8 @@ import host.directory
 import encoding.json
 import writer
 import supabase
+import fs.xdg
+import fs
 
 APP_NAME ::= "artemis"
 CONFIG_DEVICE_DEFAULT_KEY ::= "device.default"
@@ -163,23 +165,20 @@ read_config [--init] -> Config:
   if env.contains "$(app_name_upper)_CONFIG":
     return read_config_file env["$(app_name_upper)_CONFIG"] --init=init
 
-  config_dirs := []
-  if env.contains "XDG_CONFIG_HOME":
-    config_dirs.add env["XDG_CONFIG_HOME"]
-  else if env.contains "HOME":
-    config_dirs.add "$env["HOME"]/.config"
+  config_home := xdg.config_home
+  // The path we are using to write configurations to.
+  app_config_path := "$(config_home)/$(APP_NAME)/config"
+  if file.is_file app_config_path:
+    return read_config_file app_config_path --init=init
 
-  if env.contains "XDG_CONFIG_DIRS":
-    config_dirs.add_all (env["XDG_CONFIG_DIRS"].split ":")
-
-  if config_dirs.is_empty: throw "No config directories found. HOME not set."
-
-  config_dirs.do: | dir |
+  // Try to find a configuration file in the XDG config directories.
+  xdg.config_dirs.do: | dir |
     path := "$(dir)/$(APP_NAME)/config"
     if file.is_file path:
-      return read_config_file path --init=init
+      from_config_dir := read_config_file path --init=init
+      return Config app_config_path from_config_dir.data
 
-  return read_config_file "$config_dirs[0]/$APP_NAME/config" --init=init
+  return read_config_file app_config_path --init=init
 
 /**
 Reads the configuration from the given $path.
@@ -197,10 +196,7 @@ read_config_file path/string [--init] -> Config:
 Writes the configuration map $data to the given $path.
 */
 write_config_file path/string data/Map:
-  if path.contains "/":
-    last := path.index_of --last "/"
-    dir := path[..last]
-    directory.mkdir --recursive dir
+  directory.mkdir --recursive (fs.dirname path)
 
   content := json.encode data
   stream := file.Stream.for_write path

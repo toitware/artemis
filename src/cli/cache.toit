@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import fs
+import fs.xdg
 import host.os
 import host.file
 import host.directory
@@ -40,17 +41,8 @@ class Cache:
   */
   constructor --app_name/string:
     app_name_upper := app_name.to_ascii_upper
-    env := os.env
-    if env.contains "$(app_name_upper)_CACHE_DIR":
-      return Cache --app_name=app_name --path=env["$(app_name_upper)_CACHE_DIR"]
-
-    if env.contains "XDG_CACHE_HOME":
-      return Cache --app_name=app_name --path="$(env["XDG_CACHE_HOME"])/$(app_name)"
-
-    if env.contains "HOME":
-      return Cache --app_name=app_name --path="$(env["HOME"])/.cache/$(app_name)"
-
-    throw "No cache directory found. HOME not set."
+    cache_home := xdg.cache_home
+    return Cache --app_name=app_name --path="$cache_home/$(app_name)"
 
   /**
   Creates a new cache using the given $path as the cache directory.
