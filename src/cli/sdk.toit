@@ -109,6 +109,10 @@ class Sdk:
   Sets the property $name to $value in the given $envelope.
   */
   firmware_set_property name/string value/string --envelope/string:
+    if platform == PLATFORM_WINDOWS:
+      // Ugly work-around for Windows issue where arguments are not escaped
+      // correctly.
+      value = value.replace --all "\"" "\\\""
     run_firmware_tool [
       "property", "set",
       "-e", envelope,
