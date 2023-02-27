@@ -327,7 +327,7 @@ class Artemis:
   */
   update --device_id/string --device_specification/DeviceSpecification:
     with_tmp_directory: | tmp_dir/string |
-      update_goal --device_id=device_id: | device/DetailedDevice |
+      update_goal --device_id=device_id: | device/DeviceDetailed |
         envelope_path := "$tmp_dir/$(device_id).envelope"
         customize_envelope
             --organization_id=device.organization_id
@@ -548,7 +548,7 @@ class Artemis:
     connected_broker.update_goal --device_id=device_id block
 
   app_install --device_id/string --app_name/string --application_path/string:
-    update_goal --device_id=device_id: | device/DetailedDevice |
+    update_goal --device_id=device_id: | device/DeviceDetailed |
       current_state := device.reported_state_current or device.reported_state_firmware
       if not current_state:
         ui_.error "Unknown device state."
@@ -586,7 +586,7 @@ class Artemis:
       new_goal
 
   app_uninstall --device_id/string --app_name/string:
-    update_goal --device_id=device_id: | device/DetailedDevice |
+    update_goal --device_id=device_id: | device/DeviceDetailed |
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
@@ -596,7 +596,7 @@ class Artemis:
       new_goal
 
   config_set_max_offline --device_id/string --max_offline_seconds/int:
-    update_goal --device_id=device_id: | device/DetailedDevice |
+    update_goal --device_id=device_id: | device/DeviceDetailed |
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware

@@ -207,7 +207,7 @@ default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
     return
 
   with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string |
-    org/DetailedOrganization? := null
+    org/OrganizationDetailed? := null
     exception := catch: org = server.get_organization org_id
     if exception or not org:
       ui.error "Organization not found."

@@ -73,7 +73,7 @@ class BrokerCliSupabase implements BrokerCli:
       "_device_id": device_id,
     }
 
-    return DetailedDevice --goal=current_goal --state=state
+    return DeviceDetailed --goal=current_goal --state=state
 
   upload_image
       --organization_id/string

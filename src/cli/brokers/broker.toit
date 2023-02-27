@@ -66,20 +66,20 @@ interface BrokerCli implements Authenticatable:
   /**
   Updates the goal state of the device with the given $device_id.
 
-  The block is called with a $DetailedDevice as argument:
+  The block is called with a $DeviceDetailed as argument:
 
   The $block must return a new goal state which replaces the actual goal state.
 
-  The $block is allowed to modify the state maps of the $DetailedDevice, but is
+  The $block is allowed to modify the state maps of the $DeviceDetailed, but is
     still required to return the new goal state. It is not enough to just
-    modify the goal map of the $DetailedDevice.
+    modify the goal map of the $DeviceDetailed.
   */
   update_goal --device_id/string [block] -> none
 
   /**
   Returns a detailed view of the device with the given $device_id.
   */
-  get_device --device_id/string -> DetailedDevice?
+  get_device --device_id/string -> DeviceDetailed?
 
   /**
   Uploads an application image with the given $app_id so that a device in

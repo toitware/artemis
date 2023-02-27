@@ -23,7 +23,7 @@ A detailed version of the organization class.
 This class contains additional information, like the time the
   organization was created, or the members of it.
 */
-class DetailedOrganization extends Organization:
+class OrganizationDetailed extends Organization:
   /** The time the organization was created. */
   created_at/Time
   // TODO(florian): add members.

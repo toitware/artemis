@@ -33,7 +33,7 @@ class Device:
 /**
 A detailed version of the $Device class.
 */
-class DetailedDevice extends Device:
+class DeviceDetailed extends Device:
   /**
   The state the device should try to reach.
 
