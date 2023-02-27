@@ -14,7 +14,7 @@ import encoding.ubjson
 import encoding.json
 
 import .cache as cache
-import .cache show service_image_cache_key
+import .cache show service_image_cache_key application_image_cache_key
 import .config
 import .device
 import .device_specification
@@ -523,7 +523,10 @@ class Artemis:
   */
   get_service_image_path_ --sdk/string --service/string --word_size/int -> string:
     if word_size != 32 and word_size != 64: throw "INVALID_ARGUMENT"
-    service_key := service_image_cache_key --service_version=service --sdk_version=sdk
+    service_key := service_image_cache_key
+        --service_version=service
+        --sdk_version=sdk
+        --broker_config=broker_config_
     return cache_.get_file_path service_key: | store/cache.FileStore |
       server := connected_artemis_server --no-authenticated
       entry := server.list_sdk_service_versions --sdk_version=sdk --service_version=service
@@ -544,9 +547,6 @@ class Artemis:
   update_goal --device_id/string [block]:
     connected_broker.update_goal --device_id=device_id block
 
-  image_cache_id_ id/string -> string:
-    return "$broker_config_.name/images/$id"
-
   app_install --device_id/string --app_name/string --application_path/string:
     update_goal --device_id=device_id: | device/DetailedDevice |
       current_state := device.reported_state_current or device.reported_state_firmware
@@ -559,7 +559,7 @@ class Artemis:
       program := CompiledProgram.application application_path --sdk=sdk
       id := program.id
 
-      cache_id := image_cache_id_ id
+      cache_id := application_image_cache_key id --broker_config=broker_config_
       cache_.get_directory_path cache_id: | store/cache.DirectoryStore |
         store.with_tmp_directory: | tmp_dir |
           // TODO(florian): do we want to rely on the cache, or should we
