@@ -109,9 +109,12 @@ class Sdk:
   Sets the property $name to $value in the given $envelope.
   */
   firmware_set_property name/string value/string --envelope/string:
-    if platform == PLATFORM_WINDOWS:
+    if platform == PLATFORM_WINDOWS and value.contains " ":
       // Ugly work-around for Windows issue where arguments are not escaped
       // correctly.
+      // See https://github.com/toitlang/toit/issues/1403 and
+      //   https://github.com/toitlang/toit/blob/0e1157190578f8ca6cbdb8f4ba1db9700ae44fb9/src/resources/pipe_win.cc#L459
+      value = value.replace --all "\\" "\\\\"
       value = value.replace --all "\"" "\\\""
     run_firmware_tool [
       "property", "set",
