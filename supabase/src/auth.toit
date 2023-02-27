@@ -108,12 +108,15 @@ class Auth:
       if open_browser:
         catch:
           command/string? := null
+          args := [ authenticate_url ]
           if platform == PLATFORM_LINUX:
             command = "xdg-open"
           else if platform == PLATFORM_MACOS:
             command = "open"
           else if platform == PLATFORM_WINDOWS:
-            command = "start"
+            command = "cmd"
+            escaped_url := authenticate_url.replace "&" "^&"
+            args = [ "/c", "start", escaped_url ]
           if command != null:
             fork_data := pipe.fork
                 true  // Use path.
@@ -121,7 +124,7 @@ class Auth:
                 pipe.PIPE_CREATED  // Stdout.
                 pipe.PIPE_CREATED  // Stderr.
                 command
-                [ command, authenticate_url ]
+                [ command ] + args
             pid := fork_data[3]
             task --background::
               // The 'open' command should finish in almost no time.
