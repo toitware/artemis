@@ -295,6 +295,8 @@ sdk_url version/string -> string:
     platform_str = "linux"
   else if platform == PLATFORM_MACOS:
     platform_str = "macos"
+  else if platform == PLATFORM_WINDOWS:
+    platform_str = "windows"
   else:
     throw "Unsupported platform: $platform"
 

@@ -8,6 +8,7 @@ import encoding.tison
 import http
 import host.directory
 import host.file
+import host.os
 import log
 import net
 import host.pipe
@@ -77,19 +78,38 @@ download_url url/string --out_path/string -> none:
   // TODO(florian): closing should be idempotent.
   // file.close
 
+tool_path_ tool/string -> string:
+  if platform != PLATFORM_WINDOWS: return tool
+  // On Windows, we use the <tool>.exe that comes with Git for Windows.
+
+  // TODO(florian): depending on environment variables is brittle.
+  // We should use `SearchPath` (to find `git.exe` in the PATH), or
+  // 'SHGetSpecialFolderPath' (to find the default 'Program Files' folder).
+  program_files_path := os.env.get "ProgramFiles"
+  if not program_files_path:
+    // This is brittle, as Windows localizes the name of the folder.
+    program_files_path = "C:/Program Files"
+  result := "$program_files_path/Git/usr/bin/$(tool).exe"
+  if not file.is_file result:
+    throw "Could not find $result. Please install Git for Windows"
+  return result
+
 untar path/string --target/string:
+  tar_path := tool_path_ "tar"
   pipe.backticks [
     // All modern tar versions automatically detect the compression.
     // No need to provide `-z` or so.
-    "tar",
+    tar_path,
     "x",            // Extract.
     "-f", "$path",  // The file at 'path'
     "-C", target,   // Extract to 'target'.
   ]
 
 gunzip path/string:
+  gzip_path := tool_path_ "gzip"
   pipe.backticks [
-    "gunzip",
+    gzip_path,
+    "-d",
     path,
   ]
 
