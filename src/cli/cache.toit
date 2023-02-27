@@ -143,9 +143,9 @@ class Cache:
     ensure_cache_directory_
     prefix := ?
     if key:
-      // TODO(florian): this doesn't work on Windows.
-      if platform == PLATFORM_WINDOWS: throw "UNIMPLEMENTED"
       escaped_key := key.replace --all "/" "_"
+      escaped_key = escaped_key.replace --all "\\" "_"
+      escaped_key = escaped_key.replace --all ":" "_"
       prefix = "$(path)/$(escaped_key)-"
     else:
       prefix = "$(path)/tmp-"
