@@ -9,6 +9,8 @@ import ...device
 import ...ui
 import ....shared.server_config
 
+STATUS_IM_A_TEAPOT ::= 418
+
 create_broker_cli_http_toit server_config/ServerConfigHttpToit -> BrokerCliHttp:
   id := "toit-http/$server_config.host-$server_config.port"
   return BrokerCliHttp server_config.host server_config.port --id=id
@@ -56,17 +58,17 @@ class BrokerCliHttp implements BrokerCli:
     }
     response := client.post encoded --host=host --port=port --path="/"
 
-    if response.status_code != 200:
+    if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
       throw "HTTP error: $response.status_code $response.status_message"
 
-    encoded_response := #[]
+    response_bytes := #[]
     while chunk := response.body.read:
-      encoded_response += chunk
-    decoded := ubjson.decode encoded_response
-    if not (decoded.get "success"):
-      throw "Broker error: $(decoded.get "error")"
+      response_bytes += chunk
 
-    return decoded["data"]
+    decoded := ubjson.decode response_bytes
+    if response.status_code == STATUS_IM_A_TEAPOT:
+      throw "Broker error: decoded"
+    return decoded
 
   update_goal --device_id/string [block] -> none:
     device := get_device --device_id=device_id
