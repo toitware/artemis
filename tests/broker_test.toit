@@ -7,7 +7,7 @@ import log
 import monitor
 import reader show SizedReader
 import artemis.cli.brokers.broker
-import artemis.cli.device show DetailedDevice
+import artemis.cli.device show DeviceDetailed
 import artemis.service.brokers.broker
 import artemis.cli.brokers.mqtt.base as mqtt_broker
 import artemis.cli.brokers.http.base as http_broker
@@ -92,7 +92,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     test_handler := TestEventHandler
     if test_iteration == 2:
       // Send a config update while the service is not connected.
-      broker_cli.update_goal --device_id=DEVICE_ID: | device/DetailedDevice |
+      broker_cli.update_goal --device_id=DEVICE_ID: | device/DeviceDetailed |
         if test_iteration == 1:
           expect_equals "succeeded 2" device.goal["test-entry"]
         device.goal["test-entry"] = "succeeded while offline"
@@ -114,7 +114,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         // connects, thus not sending the initial empty goal state.
         event = test_handler.channel.receive
 
-      broker_cli.update_goal --device_id=DEVICE_ID: | device/DetailedDevice |
+      broker_cli.update_goal --device_id=DEVICE_ID: | device/DeviceDetailed |
         old := device.goal
         if test_iteration == 1:
           expect_equals "succeeded 2" old["test-entry"]
@@ -169,7 +169,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       event_goal := event.value
       expect_equals "succeeded 1" event_goal["test-entry"]
 
-      broker_cli.update_goal --device_id=DEVICE_ID: | device/DetailedDevice |
+      broker_cli.update_goal --device_id=DEVICE_ID: | device/DeviceDetailed |
         old := device.goal
         expect_equals "succeeded 1" old["test-entry"]
         old["test-entry"] = "succeeded 2"

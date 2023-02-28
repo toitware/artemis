@@ -340,7 +340,7 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --json=: device_to_json_ device organization
         --stdout=: print_device_ device organization it
 
-device_to_json_ device/DetailedDevice organization/DetailedOrganization:
+device_to_json_ device/DeviceDetailed organization/OrganizationDetailed:
   return {
     "id": device.id,
     "organization_id": device.organization_id,
@@ -351,7 +351,7 @@ device_to_json_ device/DetailedDevice organization/DetailedOrganization:
     "reported_state_firmware": device.reported_state_firmware,
   }
 
-print_device_ device/DetailedDevice organization/DetailedOrganization ui/Ui:
+print_device_ device/DeviceDetailed organization/OrganizationDetailed ui/Ui:
   ui.print "Device ID: $device.id"
   ui.print "Organization ID: $device.organization_id ($organization.name)"
 

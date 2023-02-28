@@ -70,12 +70,12 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     organizations := client_.rest.select "organizations"
     return organizations.map: Organization.from_map it
 
-  get_organization id/string -> DetailedOrganization?:
+  get_organization id/string -> OrganizationDetailed?:
     organizations := client_.rest.select "organizations" --filters=[
       "id=eq.$id"
     ]
     if organizations.is_empty: return null
-    return DetailedOrganization.from_map organizations[0]
+    return OrganizationDetailed.from_map organizations[0]
 
   create_organization name/string -> Organization:
     inserted := client_.rest.insert "organizations" { "name": name }

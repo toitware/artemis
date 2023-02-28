@@ -80,7 +80,7 @@ interface ArtemisServerCli implements Authenticatable:
 
   Returns null if the organization doesn't exist.
   */
-  get_organization id/string -> DetailedOrganization?
+  get_organization id/string -> OrganizationDetailed?
 
   /** Creates a new organization with the given $name. */
   create_organization name/string -> Organization

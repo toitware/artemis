@@ -186,7 +186,7 @@ class BrokerCliMqtt implements BrokerCli:
         state_received_latch.get
 
       // TODO(florian): also get the current state of the device.
-      device := DetailedDevice --goal=goal --state=state
+      device := DeviceDetailed --goal=goal --state=state
       goal = block.call device
 
       // TODO(kasper): Maybe validate the goal?
@@ -205,7 +205,7 @@ class BrokerCliMqtt implements BrokerCli:
         log.info "$(%08d Time.monotonic_us): Releasing lock"
         client.publish topic_lock (ubjson.encode null) --retain
 
-  get_device --device_id/string -> DetailedDevice:
+  get_device --device_id/string -> DeviceDetailed:
     throw "UNIMPLEMENTED"
 
   upload_image -> none
