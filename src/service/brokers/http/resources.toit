@@ -10,23 +10,25 @@ class ResourceManagerHttp implements ResourceManager:
   constructor .connection_:
 
   fetch_image id/string --organization_id/string [block] -> none:
-    connection_.send_binary_request "download_image" {
+    payload :=  {
       "organization_id": organization_id,
       "app_id": id,
       "word_size": BITS_PER_WORD,
-    }: | reader/SizedReader |
+    }
+    connection_.send_binary_request "download_image" payload: | reader/SizedReader |
       block.call reader
 
   fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none:
     PART_SIZE ::= 64 * 1024
 
     while true:
-      connection_.send_binary_request "download_firmware" {
-          "organization_id": organization_id,
-          "firmware_id": id,
-          "offset": offset,
-          "size": PART_SIZE,
-        }: | reader/SizedReader total_size/int |
+      payload := {
+        "organization_id": organization_id,
+        "firmware_id": id,
+        "offset": offset,
+        "size": PART_SIZE,
+      }
+      connection_.send_binary_request "download_firmware" payload: | reader/SizedReader total_size/int |
           offset = block.call reader offset
           if offset >= total_size: return
 

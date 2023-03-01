@@ -167,5 +167,5 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       encoded_response += chunk
     decoded := ubjson.decode encoded_response
     if response.status_code == STATUS_IM_A_TEAPOT:
-      throw "Broker error: decoded"
+      throw "Broker error: $decoded"
     return decoded
