@@ -23,17 +23,79 @@ class DeviceSpecificationException:
 format_error_ message/string:
   throw (DeviceSpecificationException message)
 
-check_has_key_ map/Map --holder_type/string="device specification" key/string:
+check_has_key_ map/Map --holder/string="device specification" key/string:
   if not map.contains key:
-    format_error_ "Missing $key in $holder_type."
+    format_error_ "Missing $key in $holder."
 
-check_is_map_ map/Map --entry_type/string="Entry" key/string:
-  if map[key] is not Map:
-    format_error_ "$entry_type $key in device specification is not a map: $map[key]"
+check_is_map_ map/Map key/string --entry_type/string="Entry":
+  get_map_ map key --entry_type=entry_type
 
-check_is_list_ map/Map --entry_type/string="Entry" key/string:
-  if map[key] is not List:
-    format_error_ "$entry_type $key in device specification is not a list: $map[key]"
+check_is_list_ map/Map key/string --entry_type/string="Entry":
+  get_list_ map key --entry_type=entry_type
+
+get_int_ map/Map key/string -> int
+    --holder/string="device specification"
+    --entry_type/string="Entry":
+  if not map.contains key:
+    format_error_ "Missing $key in $holder."
+  value := map[key]
+  if value is not int:
+    format_error_ "$entry_type $key in $holder is not an int: $value"
+  return value
+
+get_string_ map/Map key/string -> string
+    --holder/string="device specification"
+    --entry_type/string="Entry":
+  if not map.contains key:
+    format_error_ "Missing $key in $holder."
+  value := map[key]
+  if value is not string:
+    format_error_ "$entry_type $key in $holder is not a string: $value"
+  return value
+
+get_optional_string_ map/Map key/string -> string?
+    --holder/string="device specification"
+    --entry_type/string="Entry":
+  if not map.contains key: return null
+  return get_string_ map key --holder=holder --entry_type=entry_type
+
+get_optional_string_list_ map/Map key/string -> List?
+    --entry_type/string="Entry"
+    --holder/string="device specification":
+  if not map.contains key: return null
+  value := map[key]
+  if value is not List:
+    format_error_ "$entry_type $key in $holder is not a list: $value"
+  value.do:
+    if it is not string:
+      format_error_ "$entry_type $key in $holder is not a list of strings: $value"
+  return value
+
+get_map_ map/Map key/string -> Map
+    --entry_type/string="Entry"
+    --holder/string="device specification":
+  if not map.contains key:
+    format_error_ "Missing $key in $holder."
+  value := map[key]
+  if value is not Map:
+    format_error_ "$entry_type $key in $holder is not a map: $value"
+  return value
+
+get_optional_map_ map/Map key/string -> Map?
+    --entry_type/string="Entry"
+    --holder/string="device specification":
+  if not map.contains key: return null
+  return get_map_ map key --entry_type=entry_type --holder=holder
+
+get_list_ map/Map key/string -> List
+    --entry_type/string="Entry"
+    --holder/string="device specification":
+  if not map.contains key:
+    format_error_ "Missing $key in $holder."
+  value := map[key]
+  if value is not List:
+    format_error_ "$entry_type $key in $holder is not a list: $value"
+  return value
 
 /**
 A specification of a device.
@@ -64,19 +126,13 @@ class DeviceSpecification:
       --.containers:
 
   constructor.from_json --path/string data/Map:
-    check_has_key_ data "version"
-    check_has_key_ data "sdk-version"
-    check_has_key_ data "artemis-version"
-    check_has_key_ data "max-offline"
-    check_has_key_ data "connections"
-
     if not data.contains "containers" and not data.contains "apps":
       format_error_ "Missing containers in device specification."
 
     if data.contains "apps" and data.contains "containers":
       format_error_ "Both 'apps' and 'containers' are present in device specification."
 
-    if data["version"] != 1:
+    if (get_int_ data "version") != 1:
       throw (DeviceSpecificationException
           "Unsupported device specification version $data["version"]")
 
@@ -91,29 +147,31 @@ class DeviceSpecification:
     data["containers"].do --keys:
       check_is_map_ data["containers"] --entry_type="Container" it
 
-    check_is_list_ data "connections"
-    data["connections"].do:
-      if it is not Map:
-        throw (DeviceSpecificationException
-            "Connection in device specification not a map: $it")
-
     containers := data["containers"].map: | name container_description |
           Container.from_json name container_description
 
+    check_is_list_ data "connections"
+    data["connections"].do:
+      if it is not Map:
+        format_error_ "Connection in device specification is not a map: $it"
+
+    connections := data["connections"].map: ConnectionInfo.from_json it
+
     max_offline_seconds/int := 0
+    // TODO(florian): make max-offline optional.
+    max_offline_string := get_string_ data "max-offline"
     exception := catch:
-      max_offline_seconds = (parse_max_offline_ (data["max-offline"])).in_s
+      max_offline_seconds = (parse_max_offline_ max_offline_string).in_s
     if exception:
       throw (DeviceSpecificationException
           "Invalid max-offline in device specification: $exception")
 
     return DeviceSpecification
       --path=path
-      --sdk_version=data["sdk-version"]
-      --artemis_version=data["artemis-version"]
-      // TODO(florian): make max-offline optional.
+      --sdk_version=get_string_ data "sdk-version"
+      --artemis_version=get_string_ data "artemis-version"
       --max_offline_seconds=max_offline_seconds
-      --connections=data["connections"].map: ConnectionInfo.from_json it
+      --connections=connections
       --containers=containers
 
   static parse path/string -> DeviceSpecification:
@@ -168,7 +226,7 @@ class DeviceSpecification:
 
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
-    check_has_key_ data --holder_type="connection" "type"
+    check_has_key_ data --holder="connection" "type"
 
     if data["type"] == "wifi":
       return WifiConnectionInfo.from_json data
@@ -185,10 +243,9 @@ class WifiConnectionInfo implements ConnectionInfo:
   constructor --.ssid --.password:
 
   constructor.from_json data/Map:
-    check_has_key_ data "ssid" --holder_type="wifi connection"
-    check_has_key_ data "password" --holder_type="wifi connection"
-
-    return WifiConnectionInfo --ssid=data["ssid"] --password=data["password"]
+    return WifiConnectionInfo
+        --ssid=get_string_ data "ssid" --holder="wifi connection"
+        --password=get_string_ data "password" --holder="wifi connection"
 
   type -> string:
     return "wifi"
@@ -216,25 +273,46 @@ interface Container:
   */
   build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
   type -> string
+  arguments -> List?
   to_json -> Map
 
-class ContainerPath implements Container:
+  static check_arguments_entry arguments:
+    if arguments == null: return
+    if arguments is not List:
+      format_error_ "Arguments entry must be a list: $arguments"
+    arguments.do: | argument |
+      if argument is not string:
+        format_error_ "Arguments entry must be a list of strings: $arguments"
+
+abstract class ContainerBase implements Container:
+  arguments/List?
+
+  constructor .arguments:
+
+  abstract type -> string
+  abstract to_json -> Map
+  abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
+
+class ContainerPath extends ContainerBase:
   entrypoint/string
   git_url/string?
   git_ref/string?
 
-  constructor name/string --.entrypoint --.git_url --.git_ref:
+  constructor name/string --.entrypoint --arguments/List? --.git_url --.git_ref:
     if git_url and not git_ref:
       format_error_ "In container $name, git entry requires a branch/tag: $git_url"
     if git_url and not fs.is_relative entrypoint:
       format_error_"In container $name, git entry requires a relative path: $entrypoint"
+    super arguments
 
   constructor.from_json name/string data/Map:
+    holder := "container $name"
     return ContainerPath
       name
-      --entrypoint=data["entrypoint"]
-      --git_ref=data.get "branch"
-      --git_url=data.get "git"
+      --entrypoint=get_string_ data "entrypoint" --holder=holder
+      --arguments=get_optional_string_list_ data "arguments" --holder=holder
+      --git_ref=get_optional_string_ data "branch" --holder=holder
+      --git_url=get_optional_string_ data "git" --holder=holder
 
   build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache:
     if not git_url:
@@ -309,15 +387,20 @@ class ContainerPath implements Container:
     result := { "entrypoint": entrypoint }
     if git_url: result["git"] = git_url
     if git_ref: result["branch"] = git_ref
+    if arguments: result["arguments"] = arguments
     return result
 
-class ContainerSnapshot implements Container:
+class ContainerSnapshot extends ContainerBase:
   snapshot_path/string
 
-  constructor name/string --.snapshot_path:
+  constructor name/string --.snapshot_path --arguments/List?:
+    super arguments
 
   constructor.from_json name/string data/Map:
-    return ContainerSnapshot name --snapshot_path=data["snapshot"]
+    holder := "container $name"
+    return ContainerSnapshot name
+        --snapshot_path=get_string_ data "snapshot" --holder=holder
+        --arguments=get_optional_string_list_ data "arguments" --holder=holder
 
   build_snapshot --relative_to/string --output_path/string --sdk/Sdk --cache/cli.Cache:
     path := snapshot_path
@@ -329,4 +412,7 @@ class ContainerSnapshot implements Container:
     return "snapshot"
 
   to_json -> Map:
-    return { "snapshot": snapshot_path}
+    return {
+      "snapshot": snapshot_path,
+      "arguments": arguments,
+    }
