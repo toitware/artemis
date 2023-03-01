@@ -67,7 +67,7 @@ class BrokerCliHttp implements BrokerCli:
 
     decoded := ubjson.decode response_bytes
     if response.status_code == STATUS_IM_A_TEAPOT:
-      throw "Broker error: decoded"
+      throw "Broker error: $decoded"
     return decoded
 
   update_goal --device_id/string [block] -> none:

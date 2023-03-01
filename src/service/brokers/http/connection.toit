@@ -52,15 +52,15 @@ class HttpConnection_:
     encoded := ubjson.encode payload
     response := client.post encoded --host=host_ --port=port_ --path="/"
 
-    if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
-      throw "HTTP error: $response.status_code $response.status_message"
-
     if response.status_code == STATUS_IM_A_TEAPOT:
       encoded_response := #[]
       while chunk := response.body.read:
         encoded_response += chunk
       decoded := ubjson.decode encoded_response
       throw "Broker error: $decoded"
+
+    if response.status_code != 200:
+      throw "HTTP error: $response.status_code $response.status_message"
 
     range := response.headers.single "Content-Range"
     total_size := 0
