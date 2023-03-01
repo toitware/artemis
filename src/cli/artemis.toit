@@ -256,7 +256,7 @@ class Artemis:
             --envelope=output_path
             --program_path=snapshot_path
         apps := device_config.get "apps" --init=:{:}
-        apps[name] = build_app_description_ --id=(extract_id_from_snapshot snapshot_path)
+        apps[name] = build_container_description_ --id=(extract_id_from_snapshot snapshot_path)
         ui_.info "Added container '$name' to envelope."
 
       artemis_assets := {
@@ -323,9 +323,9 @@ class Artemis:
     cache_snapshots --envelope=output_path --cache=cache_
 
   /**
-  Builds an app description as needed for an "apps" entry in the device state.
+  Builds a container description as needed for a "container" entry in the device state.
   */
-  build_app_description_ --id/string:
+  build_container_description_ --id/string -> Map:
     return {
       "id": id,
     }
@@ -589,7 +589,7 @@ class Artemis:
       new_goal := device.goal or device.reported_state_firmware
       log.info "$(%08d Time.monotonic_us): Installing app: $app_name"
       apps := new_goal.get "apps" --if_absent=: {:}
-      apps[app_name] = build_app_description_ --id=id
+      apps[app_name] = build_container_description_ --id=id
       new_goal["apps"] = apps
       new_goal
 

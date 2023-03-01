@@ -146,18 +146,26 @@ class SynchronizeJob extends Job implements EventHandler:
 
     bundle := []
     modification.on_map "apps"
-        --added=: | name/string description/Map |
-          id := description.get Application.KEY_ID
+        --added=: | name/string description |
+          if description is not Map:
+            logger_.error "invalid description for app $name"
+            continue.on_map
+          description_map := description as Map
+          id := description_map.get Application.KEY_ID
           if not id:
-            logger_.error "missing id for app $name"
+            logger_.error "missing id for container $name"
           else:
             // An app just appeared in the configuration.
-            bundle.add (action_app_install_ name id description)
-        --removed=: | name/string old_description/Map |
+            bundle.add (action_app_install_ name id description_map)
+        --removed=: | name/string old_description |
           // An app disappeared completely from the configuration. We
           // uninstall it.
-          id := old_description.get Application.KEY_ID
-          bundle.add (action_app_uninstall_ name id)
+          if old_description is not Map:
+            continue.on_map
+          old_description_map := old_description as Map
+          id := old_description_map.get Application.KEY_ID
+          if id:
+            bundle.add (action_app_uninstall_ name id)
         --modified=: | name/string nested/Modification |
           full_entry := new_goal["apps"]["name"]
           handle_application_update_ bundle name full_entry nested
@@ -178,12 +186,12 @@ class SynchronizeJob extends Job implements EventHandler:
       modification/Modification:
     modification.on_value "id"
         --added=: | value |
-          logger_.error "Current state was missing an ID for application $name"
+          logger_.error "current state was missing an id for container $name"
           // Treat it as a request to install the app.
           bundle.add (action_app_install_ name value full_entry)
           return
         --removed=: | value |
-          logger_.error "Application $name without ID"
+          logger_.error "container $name without id"
           // Treat it as a request to uninstall the app.
           bundle.add (action_app_uninstall_ name value)
           return
@@ -196,7 +204,7 @@ class SynchronizeJob extends Job implements EventHandler:
           bundle.add (action_app_install_ name to full_entry)
           return
 
-    logger_.warn "Unimplemented: application $name with non-ID change"
+    logger_.warn "unimplemented: container $name with non-id change"
 
   action_app_install_ name/string id/string description/Map -> Lambda:
     return::
