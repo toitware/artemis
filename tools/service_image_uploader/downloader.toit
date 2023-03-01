@@ -48,8 +48,8 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
       --examples=[
         cli.Example "Download all snapshots:" --arguments="",
         cli.Example """
-          Download the snapshot for service snapshot v0.1.0 and SDK version v2.0.0-alpha.54:"""
-          --arguments="--service-version=v0.1.0 --sdk-version=v2.0.0-alpha.54",
+          Download the snapshot for service snapshot v0.1.0 and SDK version v2.0.0-alpha.56:"""
+          --arguments="--service-version=v0.1.0 --sdk-version=v2.0.0-alpha.56",
       ]
       --run=:: download config cache ui it
   cmd.run args
