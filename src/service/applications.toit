@@ -46,16 +46,21 @@ class ApplicationManager:
     logger_.info "uninstall" --tags=application.tags
 
 class Application extends Job:
+  // The key of the ID in the $description.
+  static KEY_ID ::= "id"
+
   id/string
+  description/Map
   container_/uuid.Uuid? := null
 
-  constructor name/string .id:
+  constructor name/string .id --.description:
     super name
 
   stringify -> string:
     return "application:$name"
 
   tags -> Map:
+    // TODO(florian): do we want to add the description here?
     return { "name": name, "id": id }
 
   is_complete -> bool:

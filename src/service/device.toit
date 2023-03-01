@@ -103,12 +103,12 @@ class Device:
 
 
   /**
-  Adds or updates the program with the given $name and $id in the current state.
+  Adds or updates the program with the given $name and $description in the current state.
   */
-  state_app_install_or_update name/string id/string:
+  state_app_install_or_update name/string description/Map:
     if not current_state: current_state = deep_copy_ firmware_state
     apps := current_state.get "apps" --init=: {:}
-    apps[name] = id
+    apps[name] = description
     simplify_
 
   /**

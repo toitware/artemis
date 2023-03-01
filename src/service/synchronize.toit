@@ -146,20 +146,29 @@ class SynchronizeJob extends Job implements EventHandler:
 
     bundle := []
     modification.on_map "apps"
-        --added=: | name id |
-          // An app just appeared in the configuration.
-          bundle.add (action_app_install_ name id)
-        --removed=: | name id |
+        --added=: | name/string description |
+          if description is not Map:
+            logger_.error "invalid description for app $name"
+            continue.on_map
+          description_map := description as Map
+          id := description_map.get Application.KEY_ID
+          if not id:
+            logger_.error "missing id for container $name"
+          else:
+            // An app just appeared in the configuration.
+            bundle.add (action_app_install_ name id description_map)
+        --removed=: | name/string old_description |
           // An app disappeared completely from the configuration. We
           // uninstall it.
-          bundle.add (action_app_uninstall_ name id)
-        --updated=: | name old_id new_id |
-          // An applications had its id (the code) updated. We uninstall
-          // the old version and install the new one.
-          // TODO(florian): it would be nicer to fetch the new version
-          // before uninstalling the old one.
-          bundle.add (action_app_uninstall_ name old_id)
-          bundle.add (action_app_install_ name new_id)
+          if old_description is not Map:
+            continue.on_map
+          old_description_map := old_description as Map
+          id := old_description_map.get Application.KEY_ID
+          if id:
+            bundle.add (action_app_uninstall_ name id)
+        --modified=: | name/string nested/Modification |
+          full_entry := new_goal["apps"]["name"]
+          handle_application_update_ bundle name full_entry nested
 
     modification.on_value "max-offline"
         --added   =: bundle.add (action_set_max_offline_ it)
@@ -171,13 +180,39 @@ class SynchronizeJob extends Job implements EventHandler:
   handle_firmware_update_ resources/ResourceManager new/string -> none:
     actions_.send (action_firmware_update_ resources new)
 
-  action_app_install_ name/string id/string -> Lambda:
+  handle_application_update_ -> none
+      bundle/List name/string
+      full_entry/Map
+      modification/Modification:
+    modification.on_value "id"
+        --added=: | value |
+          logger_.error "current state was missing an id for container $name"
+          // Treat it as a request to install the app.
+          bundle.add (action_app_install_ name value full_entry)
+          return
+        --removed=: | value |
+          logger_.error "container $name without id"
+          // Treat it as a request to uninstall the app.
+          bundle.add (action_app_uninstall_ name value)
+          return
+        --updated=: | from to |
+          // An applications had its id (the code) updated. We uninstall
+          // the old version and install the new one.
+          // TODO(florian): it would be nicer to fetch the new version
+          // before uninstalling the old one.
+          bundle.add (action_app_uninstall_ name from)
+          bundle.add (action_app_install_ name to full_entry)
+          return
+
+    logger_.warn "unimplemented: container $name with non-id change"
+
+  action_app_install_ name/string id/string description/Map -> Lambda:
     return::
       // Installing an application doesn't really do much, unless
       // the application is complete.
       // As such we don't update the current state yet, but
       // wait for the completion.
-      applications_.install (Application name id)
+      applications_.install (Application name id --description=description)
 
   action_app_uninstall_ name/string id/string -> Lambda:
     return::
@@ -197,7 +232,8 @@ class SynchronizeJob extends Job implements EventHandler:
         resources.fetch_image incomplete.id --organization_id=device_.organization_id:
           | reader/SizedReader |
             applications_.complete incomplete reader
-            device_.state_app_install_or_update incomplete.name incomplete.id
+            // The application was successfully installed. Update the current state:
+            device_.state_app_install_or_update incomplete.name incomplete.description
 
   action_set_max_offline_ value/any -> Lambda:
     return:: device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
