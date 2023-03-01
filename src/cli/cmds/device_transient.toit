@@ -49,6 +49,10 @@ create_transient_command config/Config cache/Cache ui/Ui -> cli.Command:
             --short_help="Application to install."
             --type="input-file"
             --required,
+        cli.Option "arguments"
+            --short_help="Argument to pass to the application."
+            --type="string"
+            --multi,
       ]
       --run=:: install_app it config cache ui
   cmd.add install_cmd
@@ -89,10 +93,15 @@ set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 install_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   app_name := parsed["application-name"]
   application_path :=parsed["application"]
+  arguments := parsed["arguments"]
   device_id := get_device_id parsed config ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    artemis.app_install --device_id=device_id --app_name=app_name --application_path=application_path
+    artemis.app_install
+        --device_id=device_id
+        --app_name=app_name
+        --arguments=arguments
+        --application_path=application_path
     ui.info "Request sent to broker. Application will be installed when device synchronizes."
 
 uninstall_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:

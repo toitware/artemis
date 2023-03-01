@@ -72,7 +72,8 @@ class Application extends Job:
     return now
 
   run -> none:
-    containers.start container_
+    arguments := description.get "arguments"
+    containers.start container_ arguments
 
   complete_ reader/SizedReader -> none:
     writer ::= containers.ContainerImageWriter reader.size
