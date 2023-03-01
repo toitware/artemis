@@ -29,7 +29,7 @@ jobs:
           fi
           echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
 
-          export TOIT_VERSION="v2.0.0-alpha.54"
+          export TOIT_VERSION="v2.0.0-alpha.56"
 
           export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
@@ -86,7 +86,7 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         uses: supabase/setup-cli@v1
         with:
-          version: 1.35.0
+          version: 1.39.0
 
       - name: Start Supabase - Toitware
         if: ${{ runner.os == 'Linux' }}
