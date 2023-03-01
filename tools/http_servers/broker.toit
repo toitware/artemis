@@ -100,8 +100,16 @@ class HttpBroker extends HttpServer:
     organization_id := data["organization_id"]
     firmware_id := data["firmware_id"]
     offset := (data.get "offset") or 0
+    size := data.get "size"
     firmware := firmwares["$(organization_id)-$firmware_id"]
-    return firmware[offset..]
+    part_end := ?
+    if size:
+      part_end = min firmware.size (offset + size)
+    else:
+      part_end = firmware.size
+    if offset != 0 or part_end != firmware.size:
+      return PartialResponse firmware[offset..part_end] firmware.size
+    return firmware
 
   report_state data/Map:
     device_id := data["device_id"]

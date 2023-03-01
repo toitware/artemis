@@ -6,6 +6,14 @@ import net.tcp
 import encoding.ubjson
 import monitor
 
+STATUS_IM_A_TEAPOT ::= 418
+
+class PartialResponse:
+  bytes/ByteArray
+  total_size/int
+
+  constructor .bytes .total_size:
+
 abstract class HttpServer:
   port/int? := null
 
@@ -48,24 +56,29 @@ abstract class HttpServer:
       message := ubjson.decode encoded_message
 
       command := message["command"]
+      should_respond_binary := message.get "binary" or false
       data := message["data"]
       user_id := message.get "user_id"
 
       listeners.do: it.call "pre" command data user_id
-      reply_ command writer: run_command command data user_id
+      reply_ command writer --binary=should_respond_binary:
+        run_command command data user_id
 
-  reply_ command/string writer/http.ResponseWriter [block]:
+  reply_ command/string writer/http.ResponseWriter --binary/bool [block]:
     response_data := null
     exception := catch --trace: response_data = block.call
     if exception:
       listeners.do: it.call "error" command exception
-      writer.write (ubjson.encode {
-        "success": false,
-        "error": "$exception",
-      })
+      writer.write_headers STATUS_IM_A_TEAPOT --message="Error"
+      writer.write (ubjson.encode exception)
     else:
       listeners.do: it.call "post" command response_data
-      writer.write (ubjson.encode {
-        "success": true,
-        "data": response_data
-      })
+      if response_data is PartialResponse:
+        partial := response_data as PartialResponse
+        writer.headers.add "Content-Range" "$partial.bytes.size/$partial.total_size"
+        response_data = partial.bytes
+      if binary:
+        writer.headers.set "Content-Length" "$response_data.size"
+        writer.write response_data
+      else:
+        writer.write (ubjson.encode response_data)

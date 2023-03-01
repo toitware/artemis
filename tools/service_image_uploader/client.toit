@@ -20,6 +20,8 @@ import uuid
 
 import .utils
 
+STATUS_IM_A_TEAPOT ::= 418
+
 interface UploadClient:
   close
   upload
@@ -176,17 +178,18 @@ class UploadClientHttp implements UploadClient:
         --port=server_config_.port
         --path="/"
 
-    if response.status_code != 200:
+    if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
       throw "HTTP error: $response.status_code $response.status_message"
 
     encoded_response := #[]
     while chunk := response.body.read:
       encoded_response += chunk
     decoded := ubjson.decode encoded_response
-    if not (decoded.get "success"):
-      throw "Broker error: $(decoded.get "error")"
 
-    return decoded["data"]
+    if response.status_code == STATUS_IM_A_TEAPOT:
+      throw "Broker error: $decoded"
+
+    return decoded
 
 with_upload_client_http server_config/ServerConfigHttpToit ui/ui.Ui [block]:
   upload_client := UploadClientHttp server_config --ui=ui

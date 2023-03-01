@@ -16,6 +16,8 @@ import ...ui
 
 import ....shared.server_config
 
+STATUS_IM_A_TEAPOT ::= 418
+
 class ArtemisServerCliHttpToit implements ArtemisServerCli:
   client_/http.Client
   server_config_/ServerConfigHttpToit
@@ -157,14 +159,13 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
         --port=server_config_.port
         --path="/"
 
-    if response.status_code != 200:
+    if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
       throw "HTTP error: $response.status_code $response.status_message"
 
     encoded_response := #[]
     while chunk := response.body.read:
       encoded_response += chunk
     decoded := ubjson.decode encoded_response
-    if not (decoded.get "success"):
-      throw "Broker error: $(decoded.get "error")"
-
-    return decoded["data"]
+    if response.status_code == STATUS_IM_A_TEAPOT:
+      throw "Broker error: $decoded"
+    return decoded

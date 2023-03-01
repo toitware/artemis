@@ -1,51 +1,37 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import bytes
 import .connection
 import ..broker
+import reader show SizedReader
 
 class ResourceManagerHttp implements ResourceManager:
   connection_/HttpConnection_
-  last_firmware_id_/string? := null
-  last_firmware_/ByteArray? := null
 
   constructor .connection_:
 
   fetch_image id/string --organization_id/string [block] -> none:
-    response := connection_.send_request "download_image" {
+    payload :=  {
       "organization_id": organization_id,
       "app_id": id,
       "word_size": BITS_PER_WORD,
     }
-    image := response
-    block.call (bytes.Reader image)
+    connection_.send_binary_request "download_image" payload: | reader/SizedReader |
+      block.call reader
 
   fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none:
     PART_SIZE ::= 64 * 1024
 
-    firmware := ?
-    if last_firmware_id_ == id:
-      firmware = last_firmware_
-    else:
-      firmware = connection_.send_request "download_firmware" {
+    while true:
+      payload := {
         "organization_id": organization_id,
         "firmware_id": id,
         "offset": offset,
+        "size": PART_SIZE,
       }
-      last_firmware_id_ = id
-      last_firmware_ = firmware
+      connection_.send_binary_request "download_firmware" payload: | reader/SizedReader total_size/int |
+          offset = block.call reader offset
+          if offset >= total_size: return
 
-    while true:
-      List.chunk_up offset firmware.size PART_SIZE: | from to |
-        reader := bytes.Reader firmware[from..to]
-        next_offset := block.call reader from
-        if next_offset != to:
-          // The caller wants a different offset to continue from (most likely
-          // skipping over some bytes.)
-          // Skip to the outer while loop.
-          continue
-      // The chunk up finished.
-      break
 
   report_state device_id/string state/Map -> none:
     connection_.send_request "report_state" {
