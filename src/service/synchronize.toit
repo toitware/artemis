@@ -205,7 +205,7 @@ class SynchronizeJob extends Job implements EventHandler:
           bundle.add (action_app_install_ name to full_entry)
           return
 
-    logger_.warn "unimplemented: container $name with non-id change"
+    bundle.add (action_app_update_ name full_entry)
 
   action_app_install_ name/string id/string description/Map -> Lambda:
     return::
@@ -225,6 +225,20 @@ class SynchronizeJob extends Job implements EventHandler:
       // TODO(florian): the 'uninstall' above only enqueues the installation.
       // We need to wait for its completion.
       device_.state_app_uninstall name id
+
+  action_app_update_ name/string description/Map -> Lambda:
+    return::
+      id := description.get Application.KEY_ID
+      if not id:
+        logger_.error "missing id for container $name"
+      else:
+        old_application/Application? := applications_.get id
+        if old_application:
+          updated_application := old_application.with --description=description
+          applications_.update updated_application
+          device_.state_app_install_or_update name description
+        else:
+          logger_.error "application $name ($id) not found"
 
   action_app_fetch_ resources/ResourceManager -> Lambda:
     return::

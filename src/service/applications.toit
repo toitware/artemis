@@ -45,6 +45,14 @@ class ApplicationManager:
     scheduler_.remove_job application
     logger_.info "uninstall" --tags=application.tags
 
+  update application/Application:
+    if not application.is_complete: return
+    old_application := applications_.get application.id
+    scheduler_.remove_job old_application
+    applications_[application.id] = application
+    scheduler_.add_job application
+    logger_.info "update" --tags=application.tags
+
 class Application extends Job:
   // The key of the ID in the $description.
   static KEY_ID ::= "id"
@@ -84,3 +92,8 @@ class Application extends Job:
     container ::= container_
     if container: containers.uninstall container
     container_ = null
+
+  with --description/Map:
+    result := Application name id --description=description
+    result.container_ = container_
+    return result
