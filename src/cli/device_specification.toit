@@ -30,9 +30,6 @@ check_has_key_ map/Map --holder/string="device specification" key/string:
 check_is_map_ map/Map key/string --entry_type/string="Entry":
   get_map_ map key --entry_type=entry_type
 
-check_is_list_ map/Map key/string --entry_type/string="Entry":
-  get_list_ map key --entry_type=entry_type
-
 get_int_ map/Map key/string -> int
     --holder/string="device specification"
     --entry_type/string="Entry":
@@ -150,8 +147,8 @@ class DeviceSpecification:
     containers := data["containers"].map: | name container_description |
           Container.from_json name container_description
 
-    check_is_list_ data "connections"
-    data["connections"].do:
+    connections_entry := get_list_ data "connections"
+    connections_entry.do:
       if it is not Map:
         format_error_ "Connection in device specification is not a map: $it"
 
