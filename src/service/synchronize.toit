@@ -167,7 +167,7 @@ class SynchronizeJob extends Job implements EventHandler:
           if id:
             bundle.add (action_app_uninstall_ name id)
         --modified=: | name/string nested/Modification |
-          full_entry := new_goal["apps"]["name"]
+          full_entry := new_goal["apps"][name]
           handle_application_update_ bundle name full_entry nested
 
     modification.on_value "max-offline"
@@ -181,7 +181,8 @@ class SynchronizeJob extends Job implements EventHandler:
     actions_.send (action_firmware_update_ resources new)
 
   handle_application_update_ -> none
-      bundle/List name/string
+      bundle/List
+      name/string
       full_entry/Map
       modification/Modification:
     modification.on_value "id"
