@@ -5,6 +5,7 @@ import host.pipe
 import host.os
 import host.directory
 import artemis.shared.server_config show ServerConfigSupabase
+import ..tools.external_ip.external_ip
 
 SUPABASE_BROKER  ::= "../supabase_broker"
 SUPABASE_ARTEMIS ::= "../supabase_artemis"
@@ -52,17 +53,6 @@ main args:
   sub_directory := args[0]
   config := get_supabase_config --sub_directory=sub_directory
 
-  if platform != PLATFORM_LINUX:
-    print "Only linux is supported"
-    exit 1
-
-  // Get the external IP.
-  route_out := pipe.backticks "ip" "-j" "route" "get" "1"
-  decoded := json.parse route_out
-  external_ip := decoded[0]["prefsrc"]
-  if not external_ip:
-    print "Could not get external IP"
-    exit 1
-
+  external_ip := get_external_ip
   host := config.host.replace "localhost" external_ip
   print "$host $config.anon"

@@ -676,6 +676,7 @@ class Artemis:
       // correct hash out before uploading it.
       diff := build_diff_patch old patch.bits_
       if patch.to_ != (compute_applied_hash_ diff old): return
+      ui_.info "Uploading diff to $patch.to_"
       connected_broker.upload_firmware diff
           --organization_id=organization_id
           --firmware_id=diff_id
