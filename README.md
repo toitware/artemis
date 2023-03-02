@@ -58,7 +58,7 @@ toit.run src/cli/cli.toit org create 'Test Org'
 
 # Upload the local service.
 toit.run tools/service_image_uploader/uploader.toit service \
-    --sdk-version v2.0.0-alpha.56 \
+    --sdk-version v2.0.0-alpha.58 \
     --service-version v0.0.1 \
     --local
 
@@ -91,7 +91,7 @@ toit.run src/cli/cli.toit org create 'Test Org'
 
 # Upload the local service.
 toit.run tools/service_image_uploader/uploader.toit service \
-    --sdk-version v2.0.0-alpha.56 \
+    --sdk-version v2.0.0-alpha.58 \
     --service-version v0.0.1 \
     --local
 
