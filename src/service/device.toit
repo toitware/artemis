@@ -36,11 +36,11 @@ class Device:
   May return null, if the current configuration is the same as the
     $firmware_state.
 
-  Note that any "firmware" entry in this map is for future boots
-    of the device and doesn't reflect the currently running firmware.
-    In this case the current "firmware" simply means that the new
-    firmware was correctly installed and that the device will be
-    able to use it on the next boot.
+  Note that the "firmware" entry in this map must always be equal to
+    the "firmware" entry in the $firmware_state.
+
+  If a new firmware has been installed, the $pending_firmware is set
+    to that firmware.
   */
   current_state/Map? := null
 
@@ -58,6 +58,11 @@ class Device:
     $current_state.
   */
   goal_state/Map? := null
+
+  /**
+  The firmware that is installed, but not yet running.
+  */
+  pending_firmware/string? := null
 
   constructor --.id --.organization_id --.firmware_state/Map:
 
@@ -118,9 +123,7 @@ class Device:
     A reboot is required to actually use the new firmware.
   */
   state_firmware_update new/string:
-    if not current_state: current_state = deep_copy_ firmware_state
-    current_state["firmware"] = new
-    simplify_
+    pending_firmware = new
 
   /**
   Simplifies the states by removing states that are the same.
