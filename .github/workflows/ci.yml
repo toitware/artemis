@@ -5,6 +5,9 @@ name: CI
 on:
   push:
 
+env:
+  EXCLUDED_SUPABASE_SERVICES: imgproxy,inbucket,pgadmin-schema-diff,migra,studio,deno-relay
+
 jobs:
   build:
     strategy:
@@ -93,7 +96,7 @@ jobs:
         shell: bash
         working-directory: ${{ github.workspace }}/supabase_artemis
         run: |
-          supabase start -x imgproxy,inbucket,pgadmin-schema-diff,migra,studio,deno-relay
+          supabase start -x "$EXCLUDED_SUPABASE_SERVICES"
           supabase status
 
           # Sample output of supabase status:
@@ -120,7 +123,7 @@ jobs:
         shell: bash
         working-directory: ${{ github.workspace }}/supabase_broker
         run: |
-          supabase start -x imgproxy,inbucket,pgadmin-schema-diff,migra,studio,deno-relay
+          supabase start -x "$EXCLUDED_SUPABASE_SERVICES"
           supabase status
 
           API_URL_LINE=$(supabase status | grep "API URL:")
@@ -136,7 +139,7 @@ jobs:
         shell: bash
         working-directory: ${{ github.workspace }}/tests/supabase_test
         run: |
-          supabase start -x imgproxy,inbucket,pgadmin-schema-diff,migra,studio,deno-relay
+          supabase start -x "$EXCLUDED_SUPABASE_SERVICES"
           supabase status
 
       - name: Run cmake
