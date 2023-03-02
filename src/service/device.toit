@@ -1,5 +1,8 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import log
+import system.storage
+import system.firmware show is_validation_pending
 import ..shared.json_diff show json_equals
 
 /**
@@ -8,6 +11,8 @@ A representation of the device we are running on.
 This class abstracts away the current configuration of the device.
 */
 class Device:
+  bucket_/storage.Bucket
+
   /**
   The hardware ID of the device.
 
@@ -65,6 +70,29 @@ class Device:
   pending_firmware/string? := null
 
   constructor --.id --.organization_id --.firmware_state/Map:
+    bucket_ = storage.Bucket.open --flash "toit.io/artemis/device_states"
+    stored_current_state := bucket_.get "current_state"
+    if stored_current_state:
+      if stored_current_state["firmware"] == firmware_state["firmware"]:
+        log.debug "using stored current state" --tags={ "state": stored_current_state }
+        current_state = stored_current_state
+      else:
+        // At this point we don't clear the current state in the bucket yet.
+        // If the firmware is not validated, we might roll back, and then continue using
+        // the old "current" state.
+        if not is_validation_pending:
+          log.error "current state has different firmware than firmware state"
+        current_state = null
+    goal_state = bucket_.get "goal_state"
+
+  /**
+  Informs the device that the firmware has been validated.
+
+  At this point the device is free to discard older information from the
+    previous firmware.
+  */
+  firmware_validated:
+    bucket_.remove "current_state"
 
   /**
   The current max-offline as a Duration.
@@ -95,7 +123,7 @@ class Device:
       current_state["max-offline"] = new_max_offline.in_s
     else:
       current_state.remove "max-offline"
-    simplify_
+    simplify_and_store_
 
   /**
   Removes the program with the given $name and $id from the current state.
@@ -104,7 +132,7 @@ class Device:
     if not current_state: current_state = deep_copy_ firmware_state
     if current_state.contains "apps" and (current_state["apps"].get name) == id:
       current_state["apps"].remove name
-    simplify_
+    simplify_and_store_
 
 
   /**
@@ -114,7 +142,7 @@ class Device:
     if not current_state: current_state = deep_copy_ firmware_state
     apps := current_state.get "apps" --init=: {:}
     apps[name] = description
-    simplify_
+    simplify_and_store_
 
   /**
   Sets the firmware of the current state.
@@ -126,12 +154,12 @@ class Device:
     pending_firmware = new
 
   /**
-  Simplifies the states by removing states that are the same.
+  Writes the states into the bucket after simplifying them.
 
   If the goal state is the same as the current state sets it to null.
   If the current state is the same as the firmware state sets it to null.
   */
-  simplify_:
+  simplify_and_store_:
     if goal_state and current_state:
       // For simplicity we don't require goal states to contain firmware
       // information.
@@ -142,6 +170,12 @@ class Device:
 
     if current_state and json_equals current_state firmware_state:
       current_state = null
+
+    if is_validation_pending:
+      log.error "validation still pending in simplify_and_store_"
+
+    bucket_["current_state"] = current_state
+    bucket_["goal_state"] = goal_state
 
 deep_copy_ o/any -> any:
   if o is Map:
