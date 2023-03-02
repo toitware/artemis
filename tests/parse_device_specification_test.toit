@@ -120,7 +120,7 @@ main:
   invalid_connection := new_valid
   invalid_connection["connections"][0] = 1
   expect_format_error
-      "Connection in device specification not a map: 1"
+      "Connection in device specification is not a map: 1"
       invalid_connection
 
   no_type := new_valid
@@ -159,6 +159,18 @@ main:
   expect_format_error
       "Unsupported container app1: $no_entrypoint_or_snapshot["containers"]["app1"]"
       no_entrypoint_or_snapshot
+
+  bad_arguments := new_valid
+  bad_arguments["containers"]["app1"]["arguments"] = 1
+  expect_format_error
+      "Entry arguments in container app1 is not a list: 1"
+      bad_arguments
+
+  bad_arguments_not_strings := new_valid
+  bad_arguments_not_strings["containers"]["app1"]["arguments"] = [1]
+  expect_format_error
+      "Entry arguments in container app1 is not a list of strings: [1]"
+      bad_arguments_not_strings
 
   git_url_no_ref := new_valid
   git_url_no_ref["containers"]["app2"].remove "branch"
