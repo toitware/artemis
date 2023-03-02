@@ -13,7 +13,7 @@ import .brokers.broker
 import .check_in
 
 import .device
-import ..shared.json_diff show Modification
+import ..shared.json_diff show Modification json_equals
 
 validate_firmware / bool := firmware.is_validation_pending
 
@@ -122,27 +122,46 @@ class SynchronizeJob extends Job implements EventHandler:
 
     current_state := device_.current_state or device_.firmware_state
     new_goal = new_goal or device_.firmware_state
+
+    if not new_goal.contains "firmware":
+      logger_.error "missing firmware information"
+      return
+
+    if current_state["firmware"] != new_goal["firmware"]:
+      device_.goal_state = new_goal
+
+      from := current_state["firmware"]
+      to := new_goal["firmware"]
+      // The firmware changed. We need to update the firmware.
+      logger_.info "update firmware from $from to $to"
+
+      // We don't want to update the firmware while we're still
+      // processing other actions. So we push the firmware update
+      // action into the channel and return.
+      actions_.send (action_firmware_update_ resources new_goal["firmware"])
+      // If the firmware changed, we don't look at the rest of the
+      // goal state. The only thing we care about is the firmware.
+      return
+
+    if device_.firmware_state["firmware"] != new_goal["firmware"]:
+      assert: current_state["firmware"] == new_goal["firmware"]
+      // The firmware has been downloaded and installed, but we haven't
+      // rebooted yet.
+      // We ignore all other entries in the goal state.
+      device_.goal_state = new_goal
+      handle_nop
+      return
+
     modification/Modification? := Modification.compute --from=current_state --to=new_goal
     if not modification:
       device_.goal_state = null
       handle_nop
       return
+
     device_.goal_state = new_goal
     report_status resources
 
     logger_.info "goal state changed: $(Modification.stringify modification)"
-
-    modification.on_value "firmware"
-        --added=: | value |
-          logger_.info "update firmware to $value"
-          handle_firmware_update_ resources value
-          return
-        --removed=: | value |
-          logger_.error "firmware information was lost (was: $value)"
-        --updated=: | from to |
-          logger_.info "update firmware from $from to $to"
-          handle_firmware_update_ resources to
-          return
 
     bundle := []
     modification.on_map "apps"
