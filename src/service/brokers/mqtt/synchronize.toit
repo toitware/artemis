@@ -51,7 +51,9 @@ class BrokerServiceMqtt implements BrokerService:
     handle_task = task --background::
       try:
         subscribed_to_config := false
-        new_goal/Map? := null
+        // For MQTT the goal is wrapped into a packet that contains
+        // additional information like the revision.
+        new_goal_packet/Map? := null
         client.handle: | packet/mqtt.Packet |
           if packet is mqtt.PublishPacket:
             publish := packet as mqtt.PublishPacket
@@ -63,18 +65,18 @@ class BrokerServiceMqtt implements BrokerService:
                 if not subscribed_to_config:
                   subscribed_to_config = true
                   client.subscribe topic_goal
-                if new_goal and revision_ == new_goal["revision"]:
-                  callback.handle_goal new_goal resources
-                  new_goal = null
+                if new_goal_packet and revision_ == new_goal_packet["revision"]:
+                  callback.handle_goal (new_goal_packet.get "goal") resources
+                  new_goal_packet = null
               else:
                 // Maybe we're done? We let the synchronization task
                 // know so it can react to the changed state.
                 callback.handle_nop
             else if topic == topic_goal:
-              new_goal = ubjson.decode publish.payload
-              if revision_ == new_goal["revision"]:
-                callback.handle_goal new_goal resources
-                new_goal = null
+              new_goal_packet = ubjson.decode publish.payload
+              if revision_ == new_goal_packet["revision"]:
+                callback.handle_goal (new_goal_packet.get "goal") resources
+                new_goal_packet = null
             else:
               known := resources.provide_resource topic: publish.payload_stream
               if not known: logger_.warn "unhandled publish packet" --tags={"topic": topic}

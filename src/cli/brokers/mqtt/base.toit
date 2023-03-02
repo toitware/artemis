@@ -137,8 +137,12 @@ class BrokerCliMqtt implements BrokerCli:
       // We send goal-state and revision changes with `--retain`.
       // As such we should get a packet as soon as we subscribe to the topics.
 
-      state := null
+      state/Map? := null
       state_received_latch := monitor.Latch
+      // The device can update the state at any time.
+      // We subscribe to the state topic and wait for at least one packet.
+      // If we happen to get another one before we return we will use that
+      // one instead
       client.subscribe topic_state:: | topic/string payload/ByteArray |
         // We use the latest state we receive.
         state = ubjson.decode payload
@@ -155,12 +159,16 @@ class BrokerCliMqtt implements BrokerCli:
           // TODO(kasper): Tell main task.
           throw "FATAL: Received too many revision"
 
-      goal := null
+      receiving_start_time_us := Time.monotonic_us
+
+      // When using MQTT, the goal state is embedded into a goal packet, where
+      // the packet contains meta information like the revision number.
+      goal_packet := null
       exception = catch
           --trace=(: it != DEADLINE_EXCEEDED_ERROR)
           --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
         with_timeout --ms=retain_timeout_ms:
-          goal = goal_channel.receive
+          goal_packet = goal_channel.receive
       if exception == DEADLINE_EXCEEDED_ERROR:
         log.info "$(%08d Time.monotonic_us): Trying to initialize goal"
         client.publish topic_goal (ubjson.encode {"revision": 0}) --qos=1 --retain
@@ -168,29 +176,46 @@ class BrokerCliMqtt implements BrokerCli:
 
         exception = catch --trace --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
           with_timeout --ms=retain_timeout_ms:
-            goal = goal_channel.receive
+            goal_packet = goal_channel.receive
         if exception == DEADLINE_EXCEEDED_ERROR:
           log.info "$(%08d Time.monotonic_us): Timed out waiting for goal"
           return
 
       old_revision := revision_channel.receive
-      if old_revision != goal["revision"]:
+      if old_revision != goal_packet["revision"]:
         throw "FATAL: Revision mismatch"
 
       revision := old_revision + 1
-      goal["writer"] = me
-      goal["revision"] = revision
+      goal_packet["writer"] = me
+      goal_packet["revision"] = revision
+
+      if not state_received_latch.has_value:
+        exception = catch
+            --trace=(: it != DEADLINE_EXCEEDED_ERROR)
+            --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
+          remaining_time_ms := retain_timeout_ms - (Time.monotonic_us - receiving_start_time_us)/1000
+          with_timeout --ms=remaining_time_ms:
+            state_received_latch.get
+        if exception == DEADLINE_EXCEEDED_ERROR:
+          // Either the broker is not fast enough in responding, or
+          // the broker lost the state (despite it being retained), or
+          // the device didn't send any state yet, and the initial state
+          // wasn't correctly set.
+          log.info "$(%08d Time.monotonic_us): Timed out waiting for state"
+          return
 
       // TODO(florian): change the timeout depending on how long we already waited.
       with_timeout --ms=retain_timeout_ms:
         state_received_latch.get
 
       // TODO(florian): also get the current state of the device.
-      device := DeviceDetailed --goal=goal --state=state
-      goal = block.call device
+      device := DeviceDetailed --goal=(goal_packet.get "goal") --state=state
+      new_goal := block.call device
+
+      goal_packet["goal"] = new_goal
 
       // TODO(kasper): Maybe validate the goal?
-      client.publish topic_goal (ubjson.encode goal) --qos=1 --retain
+      client.publish topic_goal (ubjson.encode goal_packet) --qos=1 --retain
       if goal_channel.receive["writer"] != me:
         throw "FATAL: Wrong writer in updated goal"
 
@@ -198,7 +223,7 @@ class BrokerCliMqtt implements BrokerCli:
       if revision_channel.receive != revision:
         throw "FATAL: Wrong revision in updated goal"
 
-      log.info "Updated goal to $goal"
+      log.info "Updated goal packet to $goal_packet"
 
     finally:
       critical_do:
