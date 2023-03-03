@@ -25,7 +25,7 @@ build_diff_patch old_bytes/ByteArray new_bytes/ByteArray -> List:
     assert: chunk_from >= from
     writer := bytes.Buffer
     diff old_data new_bytes[from..chunk_to] writer total_new_size
-        --fast=false
+        --fast
         --with_header=(from == 0)
         --with_footer=(chunk_to == total_new_size)
     output := writer.bytes
