@@ -139,7 +139,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           // When the CLI updates the goal state, it sends two goal revisions in
           // rapid succession.
           // The service might not even see the first one.
-          mqtt_already_has_updated_goal = event_goal.contains "test-entry"
+          mqtt_already_has_updated_goal = event_goal != null
       else if test_iteration == 1:
         if event.type == "nop":
           // The MQTT broker doesn't send a goal state update when it can tell that
