@@ -1,0 +1,3 @@
+Diff size for 97kB: 3866 bytes
+Diffed  in 17.956532s
+Patched in 8.782ms
