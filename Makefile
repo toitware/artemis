@@ -66,20 +66,20 @@ add-mqtt-aws:
 .PHONY: add-local-http-brokers add-local-http-artemis add-local-http-broker
 add-local-http-brokers: add-local-http-artemis add-local-http-broker start-http
 
-add-local-http-artemis:
+add-local-http-artemis: install-pkgs
 	# Adds the local Artemis server and makes it the default.
 	# Use the public IP, so that we can flash devices which then can use
 	# the broker.
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add http \
-		--host=`ip route get 1 | head -n 1 | sed -E 's/.*src.* ([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+).*/\1/'` \
+		--host=`$(TOIT_RUN_BIN) tools/external_ip/external_ip.toit` \
 		--port 4999 \
 		artemis-local-http
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis-local-http
 
-add-local-http-broker:
+add-local-http-broker: install-pkgs
 	# Adds the local broker and makes it the default.
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add http \
-		--host=`ip route get 1 | head -n 1 | sed -E 's/.*src.* ([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+).*/\1/'` \
+		--host=`$(TOIT_RUN_BIN) tools/external_ip/external_ip.toit` \
 		--port 4998 \
 		broker-local-http
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-http
@@ -117,6 +117,22 @@ start-supabase:
 	@echo "If you want to use the Artemis server as both broker and artemis server,"
 	@echo "run the following command:"
 	@echo "  $(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis-local-supabase"
+
+.PHONY: add-local-mosquitto-artemis add-local-mosquitto-broker
+add-local-mosquitto-brokers: add-local-mosquitto-broker start-mosquitto
+
+add-local-mosquitto-broker:
+	# Adds the local broker and makes it the default.
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add mqtt \
+		broker-local-mosquitto \
+		`$(TOIT_RUN_BIN) tools/external_ip/external_ip.toit` \
+		3998
+	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-mosquitto
+
+start-mosquitto:
+	@echo "Start mosquitto as follows"
+	@echo "mosquitto -c tools/mosquitto.conf"
+	@echo "Note that mosquitto only serves as broker."
 
 # We rebuild the cmake file all the time.
 # We use "glob" in the cmakefile, and wouldn't otherwise notice if a new

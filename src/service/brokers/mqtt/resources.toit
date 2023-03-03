@@ -5,6 +5,7 @@ import encoding.ubjson
 import reader show SizedReader
 
 import ..broker
+import ....shared.mqtt
 
 class ResourceManagerMqtt implements ResourceManager:
   client_/mqtt.FullClient
@@ -73,7 +74,10 @@ class ResourceManagerMqtt implements ResourceManager:
       monitor.done
 
   report_state device_id/string state/Map -> none:
-    // TODO(kasper): Ignored for now.
+    client_.publish (topic_state_for device_id)
+        ubjson.encode state
+        --qos=1  // TODO(florian): decide whether qos=1 is needed.
+        --retain
 
 monitor ResourceMonitor_:
   reader_/SizedReader? := null
