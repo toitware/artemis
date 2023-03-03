@@ -263,6 +263,7 @@ class SynchronizeJob extends Job implements EventHandler:
           --old=old
           --new=new
       device_.state_firmware_update new
+      report_status resources
       firmware.upgrade
 
   /**
@@ -279,6 +280,8 @@ class SynchronizeJob extends Job implements EventHandler:
     state := {
       "firmware-state": device_.firmware_state,
     }
+    if device_.pending_firmware:
+      state["pending-firmware"] = device_.pending_firmware
     if device_.current_state:
       state["current-state"] = device_.current_state
     if device_.goal_state:

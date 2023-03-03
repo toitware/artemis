@@ -57,10 +57,6 @@ class DeviceDetailed extends Device:
   /**
   The current state of the device.
 
-  If the "firmware" entry is not the same as the one in the
-    $reported_state_firmware, then the device has updated its firmware but
-    has not yet rebooted.
-
   May be null if the device has not reported a state yet, or if
     the device's firmware state is equal to the current state.
   */
@@ -73,6 +69,13 @@ class DeviceDetailed extends Device:
   reported_state_firmware/Map?
 
   /**
+  The firmware that is installed but not yet running.
+
+  The device has updated its firmware but has not yet rebooted.
+  */
+  pending_firmware/string?
+
+  /**
   Constructs a new detailed device from the current goal and the
     reported state.
   */
@@ -80,6 +83,7 @@ class DeviceDetailed extends Device:
     reported_state_goal = state and state.get "goal-state"
     reported_state_current = state and state.get "current-state"
     reported_state_firmware = state and state.get "firmware-state"
+    pending_firmware = state and state.get "pending-firmware"
 
     initial_state := reported_state_firmware ? null : state
     local_organization_id := ?

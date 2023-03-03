@@ -363,6 +363,11 @@ print_device_ device/DeviceDetailed organization/OrganizationDetailed ui/Ui:
       else: value
     print_map_ prettified ui --indentation=2
 
+  if device.pending_firmware:
+    ui.print ""
+    ui.print "Firmware installed but not running (pending a reboot):"
+    ui.print "   $(prettify_firmware device.pending_firmware)"
+
   if device.reported_state_current:
     modification := Modification.compute
         --from=device.reported_state_firmware
