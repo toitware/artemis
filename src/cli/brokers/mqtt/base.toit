@@ -142,7 +142,7 @@ class BrokerCliMqtt implements BrokerCli:
       // The device can update the state at any time.
       // We subscribe to the state topic and wait for at least one packet.
       // If we happen to get another one before we return we will use that
-      // one instead
+      // one instead.
       client.subscribe topic_state:: | topic/string payload/ByteArray |
         // We use the latest state we receive.
         state = ubjson.decode payload

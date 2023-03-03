@@ -4,7 +4,7 @@ import host.pipe
 
 get_external_ip -> string:
   if platform != PLATFORM_LINUX:
-    print "Only linux is supported"
+    print "Only Linux is supported."
     exit 1
 
   // Get the external IP.
@@ -12,7 +12,8 @@ get_external_ip -> string:
   decoded := json.parse route_out
   external_ip := decoded[0]["prefsrc"]
   if not external_ip:
-    throw "Could not get external IP"
+    print "Could not get external IP."
+    exit 1
   return external_ip
 
 main:
