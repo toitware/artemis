@@ -1,0 +1,63 @@
+sdk: ^2.0.0-alpha.35
+prefixes:
+  artemis: ..
+  cli: pkg-cli
+  host: pkg-host
+packages:
+  ..:
+    path: ..
+    prefixes:
+      ar: pkg-ar
+      certificate_roots: toit-cert-roots
+      cli: pkg-cli
+      fs: fs
+      host: pkg-host
+      http: pkg-http
+      mqtt: mqtt
+      ntp: pkg-ntp
+      snapshot: snapshot
+      supabase: supabase
+  fs:
+    path: ../tools/fs
+    prefixes:
+      host: pkg-host
+  mqtt:
+    url: github.com/toitware/mqtt
+    version: 2.1.1
+    hash: 49eab960bb1c27245bfc52e72f6f1ec840492abb
+  pkg-ar:
+    url: github.com/toitlang/pkg-ar
+    version: 1.0.0
+    hash: 175bcdfd59b2597c0825ef8765a20498a7e6a2db
+  pkg-cli:
+    url: github.com/toitlang/pkg-cli
+    version: 1.2.0
+    hash: 0e2adab3ab434c597be60438ccf64008f703ad9c
+  pkg-host:
+    url: github.com/toitlang/pkg-host
+    version: 1.8.1
+    hash: 7f0cc4280065fb18ee09d3803f12180cec852d32
+  pkg-http:
+    url: github.com/toitlang/pkg-http
+    version: 1.9.3
+    hash: 108c436cc990535f5d70c380ef68081c38840f4c
+  pkg-ntp:
+    url: github.com/toitlang/pkg-ntp
+    version: 1.0.0
+    hash: 1c3cc4a4819f459393f00efc576f66f838665719
+  snapshot:
+    path: ../tools/snapshot
+    prefixes:
+      ar: pkg-ar
+      cli: pkg-cli
+      fs: fs
+      host: pkg-host
+  supabase:
+    path: ../supabase
+    prefixes:
+      host: pkg-host
+      http: pkg-http
+  toit-cert-roots:
+    url: github.com/toitware/toit-cert-roots
+    version: 1.4.0
+    hash: bf41ee60ebba65ba01bc9ba1aa6d697e4cc4a8c7
