@@ -34,4 +34,4 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> no
     duration := JobTime.now.to wakeup
     logger.info "going to (simulated deep) sleep" --tags={"duration": duration.stringify}
     sleep duration
-    3.repeat: print
+    2.repeat: print
