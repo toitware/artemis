@@ -86,6 +86,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
           if firmware.validate:
             logger_.info "firmware update validated after connecting to network"
             validate_firmware = false
+            device_.firmware_validated
           else:
             logger_.error "firmware update failed to validate"
 
