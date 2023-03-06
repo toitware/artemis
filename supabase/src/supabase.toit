@@ -405,12 +405,20 @@ class PostgRest:
 
   constructor .client_:
 
+  encode_filters_ filters/List -> string:
+    escaped := filters.map:
+      equals_index := it.index_of "="
+      if equals_index == -1: throw "INVALID_FILTER"
+      key := it[..equals_index]
+      value := it[equals_index + 1..]
+      "$key=$(url_encoding.encode value)"
+    return escaped.join "&"
+
   /**
   Returns a list of rows that match the filters.
   */
   select table/string --filters/List=[] -> List:
-    // TODO(florian): the filters need to be URL encoded.
-    query_filters := filters.join "&"
+    query_filters := encode_filters_ filters
     return client_.request_
         --method=http.GET
         --path="/rest/v1/$table"
@@ -440,8 +448,7 @@ class PostgRest:
   Performs an 'update' operation on a table.
   */
   update table/string payload/Map --filters/List -> none:
-    // TODO(florian): the filters need to be URL encoded.
-    query_filters := filters.join "&"
+    query_filters := encode_filters_ filters
     // We are not using the response. Use the minimal response.
     headers := http.Headers
     headers.add "Prefer" RETURN_MINIMAL_
@@ -485,8 +492,7 @@ class PostgRest:
   If no filters are given, then all rows are deleted.
   */
   delete table/string --filters/List -> none:
-    // TODO(florian): the filters need to be URL encoded.
-    query_filters := filters.join "&"
+    query_filters := encode_filters_ filters
     // We are not using the response. Use the minimal response.
     headers := http.Headers
     headers.add "Prefer" RETURN_MINIMAL_
