@@ -211,12 +211,17 @@ class Artemis:
     copy_file --source=cached_envelope_path --target=output_path
 
     device_config := {
-      "max-offline": device_specification.max_offline_seconds,
       "sdk-version": sdk_version,
     }
 
-    wifi_connection/Map? := null
+    // Add the max-offline setting if is non-zero. The device service
+    // handles the absence of the max-offline setting differently, so
+    // we cannot just add zero seconds to the config. This matches what
+    // we do in $config_set_max_offline.
+    max_offline_seconds := device_specification.max_offline_seconds
+    if max_offline_seconds > 0: device_config["max-offline"] = max_offline_seconds
 
+    wifi_connection/Map? := null
     connections := device_specification.connections
     connections.do: | connection/ConnectionInfo |
       if connection.type == "wifi":
@@ -598,7 +603,7 @@ class Artemis:
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      log.info "$(%08d Time.monotonic_us): Installing app: $app_name"
+      ui_.info "Installing app '$app_name'"
       apps := new_goal.get "apps" --if_absent=: {:}
       apps[app_name] = build_container_description_ --id=id --arguments=arguments
       new_goal["apps"] = apps
@@ -609,7 +614,7 @@ class Artemis:
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      log.info "$(%08d Time.monotonic_us): Uninstalling app: $app_name"
+      ui_.info "Uninstalling app '$app_name'"
       apps := new_goal.get "apps"
       if apps: apps.remove app_name
       new_goal
@@ -619,7 +624,7 @@ class Artemis:
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      log.info "$(%08d Time.monotonic_us): Setting max-offline to $(Duration --s=max_offline_seconds)"
+      ui_.info "Setting max-offline to $(Duration --s=max_offline_seconds)"
       if max_offline_seconds > 0:
         new_goal["max-offline"] = max_offline_seconds
       else:
@@ -676,7 +681,11 @@ class Artemis:
       // correct hash out before uploading it.
       diff := build_diff_patch old patch.bits_
       if patch.to_ != (compute_applied_hash_ diff old): return
-      ui_.info "Uploading diff to $patch.to_"
+      diff_size_bytes := diff.reduce --initial=0: | size chunk | size + chunk.size
+      diff_size := diff_size_bytes > 4096
+          ? "$((diff_size_bytes + 1023) / 1024) KB"
+          : "$diff_size_bytes bytes"
+      ui_.info "Uploading patch $(base64.encode patch.to_ --url_mode) ($diff_size)"
       connected_broker.upload_firmware diff
           --organization_id=organization_id
           --firmware_id=diff_id

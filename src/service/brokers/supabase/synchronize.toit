@@ -11,7 +11,7 @@ import ..broker
 import ...check_in show check_in
 import ....shared.server_config
 
-IDLE_TIMEOUT  ::= Duration --m=10
+IDLE_TIMEOUT ::= Duration --m=10
 
 class BrokerServiceSupabase implements BrokerService:
   logger_/log.Logger
