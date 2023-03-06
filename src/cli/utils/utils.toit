@@ -96,13 +96,21 @@ tool_path_ tool/string -> string:
 
 untar path/string --target/string:
   tar_path := tool_path_ "tar"
+  if platform == PLATFORM_WINDOWS:
+    // The target must use slashes as separators.
+    // Otherwise Git's tar can't find the target directory.
+    print "Replacing backslashes with slashes in $target"
+    target = target.replace --all "\\" "/"
+    print "Target is now $target"
+
   pipe.backticks [
     // All modern tar versions automatically detect the compression.
     // No need to provide `-z` or so.
     tar_path,
-    "x",            // Extract.
-    "-f", "$path",  // The file at 'path'
-    "-C", target,   // Extract to 'target'.
+    "x",              // Extract.
+    "--force-local",  // Treat 'c:\' as a local path.
+    "-f", path,       // The file at 'path'
+    "-C", target,     // Extract to 'target'.
   ]
 
 gunzip path/string:

@@ -109,7 +109,7 @@ class Sdk:
   Sets the property $name to $value in the given $envelope.
   */
   firmware_set_property name/string value/string --envelope/string:
-    if platform == PLATFORM_WINDOWS and value.contains " ":
+    if platform == PLATFORM_WINDOWS and (value.contains " " or value.contains ","):
       // Ugly work-around for Windows issue where arguments are not escaped
       // correctly.
       // See https://github.com/toitlang/toit/issues/1403 and
@@ -314,9 +314,14 @@ get_sdk version/string --cache/cli.Cache -> Sdk:
   sdk_key := "$SDK_PATH/$version"
   path := cache.get_directory_path sdk_key: | store/cli.DirectoryStore |
     with_tmp_directory: | tmp_dir |
-      out_path := "$tmp_dir/toit.tar.gz"
-      download_url url --out_path=out_path
+      gzip_path := "$tmp_dir/toit.tar.gz"
+      tar_path := "$tmp_dir/toit.tar"
+      download_url url --out_path=gzip_path
       store.with_tmp_directory: | final_out_dir/string |
-        untar out_path --target=final_out_dir
+        // We don't use 'tar' to extract the archive, because that
+        // doesn't work with the git-tar. It would fail to find the
+        // gzip executable.
+        gunzip gzip_path
+        untar tar_path --target=final_out_dir
         store.move "$final_out_dir/toit"
   return Sdk path version
