@@ -99,7 +99,6 @@ class SynchronizeJob extends Job implements EventHandler:
         logger_.info "synchronized"
         broker_.on_idle
 
-
       logger_.info "disconnecting" --tags={"device": device_.id}
 
   handle_nop -> none:
