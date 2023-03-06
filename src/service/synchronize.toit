@@ -17,7 +17,7 @@ import ..shared.json_diff show Modification json_equals
 
 validate_firmware / bool := firmware.is_validation_pending
 
-class SynchronizeJob extends Job implements EventHandler:
+class SynchronizeJob extends TaskJob implements EventHandler:
   static ACTION_NOP_/Lambda ::= :: null
 
   logger_/log.Logger
@@ -33,10 +33,10 @@ class SynchronizeJob extends Job implements EventHandler:
     logger_ = logger.with_name "synchronize"
     super "synchronize"
 
-  schedule now/JobTime -> JobTime?:
+  schedule now/JobTime last/JobTime? -> JobTime?:
     max_offline := device_.max_offline
-    if not last_run or not max_offline: return now
-    return min (check_in_schedule now) (last_run + max_offline)
+    if not last or not max_offline: return now
+    return min (check_in_schedule now) (last + max_offline)
 
   commit goal_state/Map actions/List -> Lambda:
     return ::

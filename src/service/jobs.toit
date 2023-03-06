@@ -4,20 +4,38 @@ import .scheduler
 
 abstract class Job:
   name/string
+
+  // These fields are manipulated by the scheduler. They are
+  // put here to avoid having a separate map to associate extra
+  // information with jobs.
   scheduler_/Scheduler? := null
-  task_/Task? := null
-  last_run_/JobTime? := null
+  scheduler_last_run_/JobTime? := null
 
   constructor .name:
 
-  abstract schedule now/JobTime -> JobTime?
-  abstract run -> none
+  abstract is_running -> bool
 
-  last_run -> JobTime?:
-    return last_run_
+  abstract schedule now/JobTime last/JobTime? -> JobTime?
+
+  schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
+    return schedule now last
+
+  abstract start now/JobTime -> none
+  abstract stop -> none
 
   stringify -> string:
     return name
+
+abstract class TaskJob extends Job:
+  task_/Task? := null
+
+  constructor name/string:
+    super name
+
+  is_running -> bool:
+    return task_ != null
+
+  abstract run -> none
 
   start now/JobTime -> none:
     if task_: return
@@ -27,27 +45,33 @@ abstract class Job:
           scheduler_.on_job_started this
           run
       finally:
-        // TODO(kasper): Sometimes it makes more sense to set the
-        // last run timestamp to the starting time ($now).
-        last_run_ = JobTime.now
         task_ = null
         scheduler_.on_job_stopped this
 
   stop -> none:
     if not task_: return
     task_.cancel
-    // TODO(kasper): Should we wait until the task is done?
 
-abstract class PeriodicJob extends Job:
+abstract class PeriodicJob extends TaskJob:
   period_/Duration
 
   constructor name/string .period_:
     super name
 
-  schedule now/JobTime -> JobTime?:
-    if not last_run: return now
-    return last_run + period_
+  schedule now/JobTime last/JobTime? -> JobTime?:
+    if not last: return now
+    return last + period_
 
+  schedule_wakeup now/JobTime -> JobTime?:
+    // Periodic jobs do not want to cause device
+    // wakeups. They just run on their schedule
+    // when the device is awake anyway.
+    return null
+
+// TODO(kasper): Get rid of this again. It was originally
+// implemented to have one place to handle problems arising
+// from resets to the monotonic clock, but I think we can
+// handle this in a nicer way elsewhere.
 class JobTime implements Comparable:
   us_/int
 

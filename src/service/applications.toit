@@ -59,7 +59,8 @@ class Application extends Job:
 
   id/string
   description/Map
-  container_/uuid.Uuid? := null
+  container_image_/uuid.Uuid? := null
+  container_/containers.Container? := null
 
   constructor name/string .id --.description:
     super name
@@ -67,31 +68,43 @@ class Application extends Job:
   stringify -> string:
     return "application:$name"
 
+  is_running -> bool:
+    return container_ != null
+
   tags -> Map:
     // TODO(florian): do we want to add the description here?
     return { "name": name, "id": id }
 
   is_complete -> bool:
-    return container_ != null
+    return container_image_ != null
 
-  schedule now/JobTime -> JobTime?:
-    if not container_: return null
-    if last_run: return null  // Run once (at install time).
+  schedule now/JobTime last/JobTime? -> JobTime?:
+    if not container_image_: return null
+    if last: return null  // Run once (at install time).
     return now
 
-  run -> none:
+  start now/JobTime -> none:
+    if container_: return
     arguments := description.get "arguments"
-    containers.start container_ arguments
+    container_ = containers.start container_image_ arguments
+    scheduler_.on_job_started this
+    container_.on_stopped::
+      container_ = null
+      scheduler_.on_job_stopped this
+
+  stop -> none:
+    if not container_: return
+    container_.stop
 
   complete_ reader/SizedReader -> none:
     writer ::= containers.ContainerImageWriter reader.size
     while data := reader.read: writer.write data
-    container_ = writer.commit
+    container_image_ = writer.commit
 
   delete_ -> none:
-    container ::= container_
+    container ::= container_image_
     if container: containers.uninstall container
-    container_ = null
+    container_image_ = null
 
   with --description/Map:
     result := Application name id --description=description
