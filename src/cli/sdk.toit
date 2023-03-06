@@ -77,13 +77,15 @@ class Sdk:
         ]
 
   /** Extracts the asset with the given $name from the $assets_path. */
-  assets_extract --name/string --assets_path/string -> any:
+  assets_extract --name/string --assets_path/string -> any
+      --format/string="auto":
     with_tmp_directory: | tmp_dir |
       result_path := "$tmp_dir/$name"
       run_assets_tool [
         "-e", assets_path,
         "get",
         "--output", result_path,
+        "--format", format,
         name,
       ]
       return file.read_content result_path
