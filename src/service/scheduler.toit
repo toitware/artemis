@@ -11,17 +11,21 @@ class Scheduler:
   constructor logger/log.Logger:
     logger_ = logger.with_name "scheduler"
 
-  run -> none:
+  run -> JobTime:
+    assert: not jobs_.is_empty
     try:
       while true:
         now := JobTime.now
-        // TODO(kasper): Stop jobs?
         next := run_due_jobs_ now
-        // TODO(kasper): Return when we're all idle.
-        if not next: next = now + (Duration --ms=500)
-        signal_.wait next
+        if has_running_jobs_:
+          // Wait until we need to run the next job. This is scheduled
+          // for when Time.monotonic_us reaches 'next'. Wake up earlier
+          // if the jobs change by waiting on the signal.
+          signal_.wait next
+        else:
+          return schedule_wakeup_ now
     finally:
-      jobs_.do: it.stop
+      stop_all_jobs_
 
   add_jobs jobs/List -> none:
     jobs.do: add_job it
@@ -42,19 +46,38 @@ class Scheduler:
     signal_.awaken
 
   on_job_stopped job/Job -> none:
+    job.scheduler_last_run_ = JobTime.now
     logger_.info "job stopped" --tags={"job": job.stringify}
     signal_.awaken
+
+  has_running_jobs_ -> bool:
+    return jobs_.any: | job/Job | job.is_running
 
   run_due_jobs_ now/JobTime -> JobTime?:
     first/JobTime? := null
     jobs_.do: | job/Job |
-      next ::= job.schedule now
+      if job.is_running: continue.do
+      next ::= job.schedule now job.scheduler_last_run_
       if not next: continue.do
       if next <= now:
         job.start now
       else if (not first or next < first):
         first = next
     return first
+
+  schedule_wakeup_ now/JobTime -> JobTime:
+    first/JobTime? := null
+    jobs_.do: | job/Job |
+      next ::= job.schedule_wakeup now job.scheduler_last_run_
+      if next and (not first or next < first):
+        first = next
+    return first or now + (Duration --m=1)
+
+  stop_all_jobs_ -> none:
+    jobs_.do: it.stop
+    deadline := JobTime.now + (Duration --s=5)
+    while has_running_jobs_ and JobTime.now < deadline:
+      signal_.wait deadline
 
 monitor SchedulerSignal_:
   awakened_ := false

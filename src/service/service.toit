@@ -4,6 +4,7 @@ import log
 
 import .scheduler show Scheduler
 import .applications show ApplicationManager
+import .jobs
 
 import .synchronize show SynchronizeJob
 
@@ -25,8 +26,12 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> no
   synchronize/SynchronizeJob := SynchronizeJob logger device applications broker
 
   jobs := [synchronize]
-  if start_ntp:
-    jobs.add (NtpJob logger (Duration --m=1))
+  if start_ntp: jobs.add (NtpJob logger (Duration --m=10))
 
   scheduler.add_jobs jobs
-  scheduler.run
+  while true:
+    wakeup := scheduler.run
+    duration := JobTime.now.to wakeup
+    logger.info "going to (simulated deep) sleep" --tags={"duration": duration.stringify}
+    sleep duration
+    2.repeat: print
