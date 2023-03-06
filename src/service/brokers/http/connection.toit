@@ -9,20 +9,11 @@ import reader show Reader
 STATUS_IM_A_TEAPOT ::= 418
 
 class HttpConnection_:
-  network_/net.Interface? := ?
+  network_/net.Interface
   host_/string
   port_/int
 
-  constructor .host_ .port_:
-    network_ = net.open
-
-  close:
-    if network_:
-      network_.close
-      network_ = null
-
-  is_closed -> bool:
-    return network_ == null
+  constructor .network_ .host_ .port_:
 
   send_request command/string data/Map -> any:
     payload := {
@@ -47,7 +38,6 @@ class HttpConnection_:
     send_request_ payload block
 
   send_request_ payload/Map [block] -> none:
-    if is_closed: throw "CLOSED"
     client := http.Client network_
     encoded := ubjson.encode payload
     response := client.post encoded --host=host_ --port=port_ --path="/"
