@@ -62,7 +62,7 @@ abstract class PeriodicJob extends TaskJob:
     if not last: return now
     return last + period_
 
-  schedule_wakeup now/JobTime -> JobTime?:
+  schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
     // Periodic jobs do not want to cause device
     // wakeups. They just run on their schedule
     // when the device is awake anyway.
