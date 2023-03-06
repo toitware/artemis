@@ -541,7 +541,7 @@ class Artemis:
     service_key := service_image_cache_key
         --service_version=service
         --sdk_version=sdk
-        --broker_config=broker_config_
+        --artemis_config=artemis_config_
     return cache_.get_file_path service_key: | store/cache.FileStore |
       server := connected_artemis_server --no-authenticated
       entry := server.list_sdk_service_versions --sdk_version=sdk --service_version=service
