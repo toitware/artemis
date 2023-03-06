@@ -25,6 +25,31 @@ SDK_VERSION ::= "v2.0.0-alpha.52"
 // It's safe to update the commit to a newer version.
 TEST_COMMIT ::= "58f2d290269fe497945b3faa921803c8ef56de8d"
 
+run_main_test test_cli/TestCli tmp_dir/string service_version/string [block]:
+  block.call
+  // Check that the service is available.
+  available_sdks := test_cli.run [
+    "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", service_version
+  ]
+  expect (available_sdks.contains service_version)
+
+  // Check that the snapshot was written into the snapshot directory.
+  files_iterator := directory.DirectoryStream tmp_dir
+  files := []
+  while file_name := files_iterator.next: files.add file_name
+  files_iterator.close
+  expect_equals 1 files.size
+
+  // Delete the files.
+  file.delete "$tmp_dir/$files[0]"
+
+  // Check that the file was deleted.
+  files_iterator = directory.DirectoryStream tmp_dir
+  files = []
+  while file_name := files_iterator.next: files.add file_name
+  files_iterator.close
+  expect_equals 0 files.size
+
 run_test test_cli/TestCli:
   with_tmp_directory: | tmp_dir/string |
     git := Git
@@ -47,105 +72,65 @@ run_test test_cli/TestCli:
     // the tag manually.
     git.tag --name=service_version --commit=TEST_COMMIT
     try:
-      ui := TestUi
-      uploader.main
-          --config=test_cli.config
-          --cache=test_cli.cache
-          --ui=ui
-          [
-            "service",
-            "--sdk-version", SDK_VERSION,
-            "--service-version", service_version,
-            "--snapshot-directory", tmp_dir,
-          ]
-
-      // Check that the service is available.
-      available_sdks := test_cli.run [
-        "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", service_version
-      ]
-      expect (available_sdks.contains service_version)
+      run_main_test test_cli tmp_dir service_version:
+        uploader.main
+            --config=test_cli.config
+            --cache=test_cli.cache
+            --ui=TestUi
+            [
+              "service",
+              "--sdk-version", SDK_VERSION,
+              "--service-version", service_version,
+              "--snapshot-directory", tmp_dir,
+            ]
 
       // Try with a specific commit.
       commit_version := "$service_version-$(TEST_COMMIT)"
-      uploader.main
-          --config=test_cli.config
-          --cache=test_cli.cache
-          --ui=ui
-          [
-            "service",
-            "--sdk-version", SDK_VERSION,
-            "--service-version", service_version,
-            "--commit", TEST_COMMIT,
-            "--snapshot-directory", tmp_dir,
-          ]
-
-      // Check that the service is available.
-      available_sdks = test_cli.run [
-        "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", commit_version
-      ]
-      expect (available_sdks.contains commit_version)
+      run_main_test test_cli tmp_dir commit_version:
+        uploader.main
+            --config=test_cli.config
+            --cache=test_cli.cache
+            --ui=TestUi
+            [
+              "service",
+              "--sdk-version", SDK_VERSION,
+              "--service-version", service_version,
+              "--commit", TEST_COMMIT,
+              "--snapshot-directory", tmp_dir,
+            ]
 
       // Try with local.
 
       // With service version.
       local_version := "$service_version-$Time.now"
-      ui = TestUi
-      uploader.main
-          --config=test_cli.config
-          --cache=test_cli.cache
-          --ui=ui
-          [
-            "service",
-            "--sdk-version", SDK_VERSION,
-            "--service-version", local_version,
-            "--local",
-            "--snapshot-directory", tmp_dir,
-          ]
-
-      // Check that the service is available.
-      available_sdks = test_cli.run [
-        "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", local_version
-      ]
-      expect (available_sdks.contains local_version)
+      run_main_test test_cli tmp_dir local_version:
+        uploader.main
+            --config=test_cli.config
+            --cache=test_cli.cache
+            --ui=TestUi
+            [
+              "service",
+              "--sdk-version", SDK_VERSION,
+              "--service-version", local_version,
+              "--local",
+              "--snapshot-directory", tmp_dir,
+            ]
 
       // Without service version.
-      ui = TestUi
-      uploader.main
-          --config=test_cli.config
-          --cache=test_cli.cache
-          --ui=ui
-          [
-            "service",
-            "--sdk-version", SDK_VERSION,
-            "--local",
-            "--snapshot-directory", tmp_dir,
-          ]
-      // The uploader should have used the $ARTEMIS_VERSION.
-
-      // Check that the service is available.
-      available_sdks = test_cli.run [
-        "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", ARTEMIS_VERSION
-      ]
+      run_main_test test_cli tmp_dir ARTEMIS_VERSION:
+        uploader.main
+            --config=test_cli.config
+            --cache=test_cli.cache
+            --ui=TestUi
+            [
+              "service",
+              "--sdk-version", SDK_VERSION,
+              "--local",
+              "--snapshot-directory", tmp_dir,
+            ]
 
     finally:
       git.tag --delete --name=service_version
-
-    // Check that three snapshots were written into the snapshot directory.
-    files_iterator := directory.DirectoryStream tmp_dir
-    files := []
-    while file_name := files_iterator.next: files.add file_name
-    files_iterator.close
-    expect_equals 3 files.size
-
-    // Delete the files.
-    files.do: file.delete "$tmp_dir/$it"
-
-    // Check that the files were deleted.
-    files_iterator = directory.DirectoryStream tmp_dir
-    files = []
-    while file_name := files_iterator.next: files.add file_name
-    files_iterator.close
-    expect_equals 0 files.size
 
     // Download a service.
     downloader.main
@@ -159,9 +144,8 @@ run_test test_cli/TestCli:
         ]
 
     // Check that the file was downloaded.
-    files_iterator = directory.DirectoryStream tmp_dir
-    files = []
+    files_iterator := directory.DirectoryStream tmp_dir
+    files := []
     while file_name := files_iterator.next: files.add file_name
     files_iterator.close
     expect_equals 1 files.size
-
