@@ -68,7 +68,7 @@ toit.run src/cli/cli.toit device flash --port=/dev/ttyUSB0 --specification some_
 ```
 
 For Supabase, the workflow is similar, but authentication is different. I recommend to
-use the preseeded user entryies`test-admin@toit.io` and `test@example.com` (with
+use the preseeded user entries `test-admin@toit.io` and `test@example.com` (with
 password `password`). This way you don't have to create a new user.
 
 ``` sh
