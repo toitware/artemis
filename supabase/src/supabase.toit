@@ -419,7 +419,6 @@ class PostgRest:
   */
   select table/string --filters/List=[] -> List:
     query_filters := encode_filters_ filters
-    print "query_filters: $query_filters"
     return client_.request_
         --method=http.GET
         --path="/rest/v1/$table"
