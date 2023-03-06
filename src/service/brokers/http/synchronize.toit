@@ -9,7 +9,7 @@ import .resources
 import ...check_in show check_in
 import ..broker
 
-IDLE_TIMEOUT ::= Duration --s=30
+IDLE_TIMEOUT ::= Duration --m=10
 
 class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
