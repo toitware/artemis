@@ -18,6 +18,9 @@ class Scheduler:
         now := JobTime.now
         next := run_due_jobs_ now
         if has_running_jobs_:
+          // Wait until we need to run the next job. This is scheduled
+          // for when Time.monotonic_us reaches 'next'. Wake up earlier
+          // if the jobs change by waiting on the signal.
           signal_.wait next
         else:
           return schedule_wakeup_ now
