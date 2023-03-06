@@ -25,16 +25,16 @@ get_external_ip_linux -> string:
   return external_ip
 
 get_external_ip_macos -> string:
-  // Get the external IP using DNS through dig as described here:
-  // https://apple.stackexchange.com/questions/20547/how-do-i-find-my-ip-address-from-the-command-line
-  dig_out := pipe.backticks [
-    "dig", "-4", "TXT", "+short",
-    "o-o.myaddr.l.google.com",
-    "@ns1.google.com"
-  ]
-  decoded := json.parse dig_out
-  external_ip := decoded  // We only get one string back.
-  if not external_ip:
-    print "Could not get external IP."
-    exit 1
+  // First find the default interface name using route.
+  route_out := pipe.backticks "route" "-n" "get" "default"
+  interface_name := ""
+  (route_out.split "\n").do: | line/string |
+    line = line.trim
+    if line.starts_with "interface":
+      colon_index := line.index_of ":"
+      if colon_index >= 0:
+        interface_name = line[colon_index + 1 ..].trim
+  // Then use ipconfig get the address.
+  ipconfig_out := pipe.backticks "ipconfig" "getifaddr" interface_name
+  external_ip := ipconfig_out.trim
   return external_ip
