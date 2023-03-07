@@ -16,7 +16,7 @@ import .ntp
 
 import ..shared.server_config
 
-run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> none:
+run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Duration:
   logger := log.default.with_name "artemis"
   scheduler ::= Scheduler logger
   applications ::= ApplicationManager logger scheduler
@@ -32,4 +32,4 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> no
   wakeup := scheduler.run
   duration := JobTime.now.to wakeup
   logger.info "going to deep sleep" --tags={"duration": duration.stringify}
-  __deep_sleep__ duration.in_ms
+  return duration

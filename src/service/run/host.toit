@@ -50,6 +50,8 @@ main arguments:
 
 run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui -> none:
   identity := read_base64_ubjson identity_path
+  identity["artemis.broker"] = tison.encode identity["artemis.broker"]
+  identity["broker"] = tison.encode identity["broker"]
   device_identity := identity["artemis.device"]
 
   artemis_device := artemis_device.Device
@@ -83,15 +85,17 @@ run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui
     service := FirmwareServiceProvider content.bits
     service.install
 
-    identity["artemis.broker"] = tison.encode identity["artemis.broker"]
-    identity["broker"] = tison.encode identity["broker"]
-    check_in_setup identity device_identity
-    device := Device
-        --id=device_identity["device_id"]
-        --organization_id=device_identity["organization_id"]
-        --firmware_state=config
-    server_config := decode_server_config "broker" identity
-    run_artemis device server_config
+    while true:
+      check_in_setup identity device_identity
+      device := Device
+          --id=device_identity["device_id"]
+          --organization_id=device_identity["organization_id"]
+          --firmware_state=config
+      server_config := decode_server_config "broker" identity
+      sleep_duration := run_artemis device server_config
+      sleep sleep_duration
+      print
+      print
 
 // --------------------------------------------------------------------------
 

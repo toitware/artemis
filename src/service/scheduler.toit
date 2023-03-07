@@ -29,8 +29,8 @@ class Scheduler:
         next := run_due_jobs_ now
         if has_running_jobs_:
           // Wait until we need to run the next job. This is scheduled
-          // for when Time.monotonic_us reaches 'next'. Wake up earlier
-          // if the jobs change by waiting on the signal.
+          // for when JobTime.now reaches 'next'. Wake up earlier if the
+          // jobs change by waiting on the signal.
           signal_.wait next
         else:
           return schedule_wakeup_ now
@@ -65,7 +65,7 @@ class Scheduler:
   on_job_stopped job/Job -> none:
     last := JobTime.now
     job.scheduler_ran_last_ = last
-    jobs_ran_last_end_[job.name] = last.to_monotonic_us
+    jobs_ran_last_end_[job.name] = last.us
     logger_.info "job stopped" --tags={"job": job.stringify}
     signal_.awaken
 
