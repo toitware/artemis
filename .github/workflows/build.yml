@@ -137,7 +137,7 @@ jobs:
         with:
           name: artemis-${{ env.SYSTEM }}
           path: |
-            build/bin/artemis${{ env.BIN_EXTENSION }}
+            build/bin/*
             build/snapshots/artemis-${{ env.ARTEMIS_UUID }}.snapshot
 
   sign_artemis_windows:
