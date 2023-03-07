@@ -7,7 +7,7 @@ import .base
 
 main args:
   root_cmd := cli.Command "root"
-    --long_help="""An HTTP-based broker
+    --long_help="""An HTTP-based broker.
 
       Can be used to let devices and the CLI communicate with each other.
       This server keeps data in memory and should thus only be used for
@@ -15,7 +15,7 @@ main args:
       """
     --options=[
       cli.OptionInt "port" --short_name="p"
-          --short_help="The port to listen on"
+          --short_help="The port to listen on."
     ]
     --run=:: | parsed/cli.Parsed |
       broker := HttpBroker parsed["port"]
