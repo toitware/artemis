@@ -8,6 +8,7 @@ import .ui
 
 import .cmds.config
 import .cmds.device
+import .cmds.fleet
 import .cmds.auth
 import .cmds.org
 import .cmds.profile
@@ -55,5 +56,6 @@ main args --config/Config --cache/Cache --ui/Ui:
   (create_profile_commands config cache ui).do: root_cmd.add it
   (create_sdk_commands config cache ui).do: root_cmd.add it
   (create_device_commands config cache ui).do: root_cmd.add it
+  (create_fleet_commands config cache ui).do: root_cmd.add it
 
   root_cmd.run args
