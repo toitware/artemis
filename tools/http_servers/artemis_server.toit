@@ -341,7 +341,8 @@ class HttpArtemisServer extends HttpServer:
       throw "Missing email, password"
     users.do: | _ user/User |
       if user.email == email:
-        throw "Email already in use"
+        // We allow users to sign up multiple times with the same email address.
+        return
     user_id := create_user --email=email --name=email
 
   sign_in data/Map:
