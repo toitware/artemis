@@ -403,6 +403,7 @@ class Artemis:
 
       config_asset := sdk.assets_extract
           --name="device-config"
+          --format="ubjson"
           --assets_path=assets_path
 
       new_config := json.decode config_asset
