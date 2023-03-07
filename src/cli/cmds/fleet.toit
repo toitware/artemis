@@ -45,7 +45,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         Use 'device flash' to flash a device with an identity file and a
         specification or firmware image.
         """
-      --options= [
+      --options= broker_options + [
         cli.Option "organization-id"
             --type="uuid"
             --short_help="The organization to use.",
@@ -55,8 +55,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
             --default=".",
       ]
       --rest=[
-        cli.Option "count"
-            --type="int"
+        cli.OptionInt "count"
             --short_help="Number of identity files to create."
             --required,
       ]
