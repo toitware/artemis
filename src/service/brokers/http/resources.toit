@@ -32,7 +32,6 @@ class ResourceManagerHttp implements ResourceManager:
         offset = block.call reader offset
         if offset >= total_size: return
 
-
   report_state device_id/string state/Map -> none:
     connection_.send_request "report_state" {
       "device_id": device_id,

@@ -9,11 +9,15 @@ abstract class Job:
   // put here to avoid having a separate map to associate extra
   // information with jobs.
   scheduler_/Scheduler? := null
-  scheduler_last_run_/JobTime? := null
+  scheduler_ran_last_/JobTime? := null
+  scheduler_ran_after_boot_/bool := false
 
   constructor .name:
 
   abstract is_running -> bool
+
+  has_run_after_boot -> bool:
+    return scheduler_ran_after_boot_
 
   abstract schedule now/JobTime last/JobTime? -> JobTime?
 
@@ -73,30 +77,35 @@ abstract class PeriodicJob extends TaskJob:
 // from resets to the monotonic clock, but I think we can
 // handle this in a nicer way elsewhere.
 class JobTime implements Comparable:
-  us_/int
+  us/int
 
-  constructor .us_:
+  constructor .us:
 
   constructor.now:
-    us_ = Time.monotonic_us
+    us = time_now_
 
   operator <= other/JobTime -> bool:
-    return us_ <= other.us_
+    return us <= other.us
 
   operator < other/JobTime -> bool:
-    return us_ < other.us_
+    return us < other.us
 
   operator + duration/Duration -> JobTime:
-    return JobTime us_ + duration.in_us
+    return JobTime us + duration.in_us
 
   to other/JobTime -> Duration:
-    return Duration --us=other.us_ - us_
+    return Duration --us=other.us - us
 
   to_monotonic_us -> int:
-    return us_
+    return Time.monotonic_us + (us - time_now_)
 
   compare_to other/JobTime -> int:
-    return us_.compare_to other.us_
+    return us.compare_to other.us
 
   compare_to other/JobTime [--if_equal] -> int:
-    return us_.compare_to other.us_ --if_equal=if_equal
+    return us.compare_to other.us --if_equal=if_equal
+
+// --------------------------------------------------------------------------
+
+time_now_ -> int:
+  #primitive.core.get_system_time

@@ -36,7 +36,8 @@ main arguments:
   config["firmware"] = encoded_firmware_description
 
   device := Device --id=device_id --organization_id=organization_id --firmware_state=config
-  run_artemis device server_config
+  sleep_duration := run_artemis device server_config
+  __deep_sleep__ sleep_duration.in_ms
 
 checksum end/int -> ByteArray:
   firmware.map: | current/firmware.FirmwareMapping? |
