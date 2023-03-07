@@ -99,9 +99,7 @@ untar path/string --target/string:
   if platform == PLATFORM_WINDOWS:
     // The target must use slashes as separators.
     // Otherwise Git's tar can't find the target directory.
-    print "Replacing backslashes with slashes in $target"
     target = target.replace --all "\\" "/"
-    print "Target is now $target"
 
   pipe.backticks [
     // All modern tar versions automatically detect the compression.
