@@ -293,8 +293,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.LEON_ARTEMIS_RELEASE_PAT }}
         run: |
+          BODY=$(echo "${{ github.event.release.body }}" | sed 's/ by @.*$//' | sed '/^## Private/,$d')
           gh release create "${{ github.event.release.tag_name }}" \
             -R toitware/artemis-releases \
             -t "${{ github.event.release.name }}" \
-            -n "${{ github.event.release.body }}" \
+            -n "$BODY" \
             release-assets/*
