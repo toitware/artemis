@@ -202,7 +202,9 @@ with_test_cli
           }
 
       artemis_task = task::
-        service.run_artemis device broker_config --no-start_ntp
+        while true:
+          sleep_duration := service.run_artemis device broker_config --no-start_ntp
+          sleep sleep_duration
 
       // Wait until the device has reported its state.
       if wait_for_device:

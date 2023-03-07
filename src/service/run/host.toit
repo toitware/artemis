@@ -95,7 +95,6 @@ run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui
       sleep_duration := run_artemis device server_config
       sleep sleep_duration
       print
-      print
 
 // --------------------------------------------------------------------------
 
