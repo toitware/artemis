@@ -685,7 +685,7 @@ class Artemis:
       diff_size_bytes := diff.reduce --initial=0: | size chunk | size + chunk.size
       diff_size := diff_size_bytes > 4096
           ? "$((diff_size_bytes + 1023) / 1024) KB"
-          : "$diff_size_bytes bytes"
+          : "$diff_size_bytes B"
       ui_.info "Uploading patch $(base64.encode patch.to_ --url_mode) ($diff_size)"
       connected_broker.upload_firmware diff
           --organization_id=organization_id

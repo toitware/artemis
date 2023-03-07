@@ -80,7 +80,7 @@ class Application extends Job:
 
   schedule now/JobTime last/JobTime? -> JobTime?:
     if not container_image_: return null
-    if last: return null  // Run once (at install time).
+    if has_run_after_boot: return null  // Run once at boot.
     return now
 
   start now/JobTime -> none:
@@ -102,11 +102,11 @@ class Application extends Job:
     container_image_ = writer.commit
 
   delete_ -> none:
-    container ::= container_image_
-    if container: containers.uninstall container
+    container_image ::= container_image_
+    if container_image: containers.uninstall container_image
     container_image_ = null
 
   with --description/Map:
     result := Application name id --description=description
-    result.container_ = container_
+    result.container_image_ = container_image_
     return result

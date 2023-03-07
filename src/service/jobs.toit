@@ -9,11 +9,15 @@ abstract class Job:
   // put here to avoid having a separate map to associate extra
   // information with jobs.
   scheduler_/Scheduler? := null
-  scheduler_last_run_/JobTime? := null
+  scheduler_ran_last_/JobTime? := null
+  scheduler_ran_after_boot_/bool := false
 
   constructor .name:
 
   abstract is_running -> bool
+
+  has_run_after_boot -> bool:
+    return scheduler_ran_after_boot_
 
   abstract schedule now/JobTime last/JobTime? -> JobTime?
 
