@@ -257,23 +257,17 @@ jobs:
         shell: bash
         run: |
           mkdir admin-tools-linux
-          cd build-linux/bin
-          for f in *; do cp $f ../../admin-tools-linux/$f; done
-          cd ../..
+          (cd build-linux/bin; for f in *; do cp $f ../../admin-tools-linux/$f; done)
           # The Linux artemis executable was already moved away.
           tar -czf admin-tools-linux.tar.gz admin-tools-linux
 
           mkdir admin-tools-windows
-          cd build-windows/bin
-          for f in *; do cp $f ../../admin-tools-windows/$f; done
-          cd ../..
+          (cd build-windows/bin; for f in *; do cp $f ../../admin-tools-windows/$f; done)
           rm -f admin-tools-windows/artemis.exe
           tar -czf admin-tools-windows.tar.gz admin-tools-windows
 
           mkdir admin-tools-macos
-          cd build-macos/bin
-          for f in *; do cp $f ../../admin-tools-macos/$f; done
-          cd ../..
+          (cd build-macos/bin; for f in *; do cp $f ../../admin-tools-macos/$f; done)
           rm -f admin-tools-macos/artemis
           tar -czf admin-tools-macos.tar.gz admin-tools-macos
 
