@@ -2,6 +2,9 @@
 
 TOIT_RUN_BIN?=toit.run
 
+SETUP_LOCAL_DEV_SDK ?= v2.0.0-alpha.60
+SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
+
 .PHONY: all
 all: build
 
@@ -52,14 +55,14 @@ add-default-brokers:
 		artemis $(ARTEMIS_HOST) "$(ARTEMIS_ANON)"
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis
-	@ # Adds the AWS MQTT broker *without* making it the default
+	@ # Adds the AWS MQTT broker *without* making it the default.
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add --no-default mqtt \
 		--root-certificate "$(AWS_ROOT_CERTIFICATE)" \
 		--client-certificate "$(AWS_CLIENT_CERTIFICATE_PATH)" \
 		--client-private-key "$(AWS_CLIENT_PRIVATE_KEY_PATH)" \
 		aws $(AWS_HOST) $(AWS_PORT)
 
-.PHONY: add-local-http-brokers start-http
+.PHONY: add-local-http-brokers start-local-http-brokers
 add-local-http-brokers: install-pkgs
 	@ # Adds the local Artemis server and makes it the default.
 	@ # Use the public IP, so that we can flash devices which then can use
@@ -76,14 +79,14 @@ add-local-http-brokers: install-pkgs
 		broker-local-http
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-http
 
-start-http: add-local-http-brokers
+start-local-http-brokers: add-local-http-brokers
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-http
 	@ rm -rf $$HOME/.cache/artemis/broker-local-http
 	@ $(TOIT_RUN_BIN) tools/http_servers/combined.toit \
 		--artemis-port 4999 \
 		--broker-port 4998
 
-.PHONY: add-local-supabase-brokers start-supabase
+.PHONY: add-local-supabase-brokers start-local-supabase-brokers
 add-local-supabase-brokers:
 	# Adds the local Artemis server and makes it the default.
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
@@ -92,7 +95,7 @@ add-local-supabase-brokers:
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis-local-supabase
 	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis-local-supabase
 
-start-supabase:
+start-local-supabase-brokers:
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-supabase
 	@ if supabase status --workdir supabase_artemis; then \
 	  supabase db reset --workdir supabase_artemis; \
@@ -139,19 +142,19 @@ setup-local-dev:
 	    echo "SIGNING UP"; \
 	    $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis signup --email test-admin@toit.io --password password; \
 	  fi
-	$(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test-admin@toit.io --password password
-	if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) != $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) ]]; then \
+	@ $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test-admin@toit.io --password password
+	@ if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) != $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) ]]; then \
 	    $(TOIT_RUN_BIN) src/cli/cli.toit auth broker login --email test@example.com --password password; \
 	  fi
-	$(MAKE) upload-service
 
-SETUP_SDK ?= v2.0.0-alpha.60
-SETUP_SERVICE ?= v0.0.1
+	@ $(TOIT_RUN_BIN) src/cli/cli.toit org create "Test Org"
+
+	@ $(MAKE) upload-service
 
 upload-service:
-	$(TOIT_RUN_BIN) tools/service_image_uploader/uploader.toit service --local \
-	    --sdk-version=$(SETUP_SDK) \
-	    --service-version=$(SETUP_SERVICE) \
+	@ $(TOIT_RUN_BIN) tools/service_image_uploader/uploader.toit service --local \
+	    --sdk-version=$(SETUP_LOCAL_DEV_SDK) \
+	    --service-version=$(SETUP_LOCAL_DEV_SERVICE) \
 
 # We rebuild the cmake file all the time.
 # We use "glob" in the cmakefile, and wouldn't otherwise notice if a new
