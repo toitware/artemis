@@ -84,6 +84,28 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: create_identities it config cache ui
   cmd.add create_identities_cmd
 
+  upload_cmd := cli.Command "upload"
+      --long_help="""
+        Uploads the given firmware to the broker in the given organization.
+
+        Uploaded firmwares can be used for diff-based firmware updates.
+
+        If no organization is given, the default organization is used.
+        """
+      --options=broker_options + [
+        cli.Option "organization-id"
+            --type="uuid"
+            --short_help="The organization to use.",
+      ]
+      --rest= [
+        cli.Option "firmware"
+            --type="file"
+            --short_help="The firmware to upload."
+            --required,
+      ]
+      --run=:: upload it config cache ui
+  cmd.add upload_cmd
+
   update_cmd := cli.Command "update"
       --long_help="""
         Updates the firmware of multiple devices.
@@ -165,3 +187,17 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   throw "Unimplemented"
+
+upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  envelope_path := parsed["firmware"]
+  organization_id := parsed["organization-id"]
+
+  if not organization_id:
+    organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
+    if not organization_id:
+      ui.error "No organization ID specified and no default organization ID set."
+      ui.abort
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    artemis.upload_firmware envelope_path --organization_id=organization_id
+    ui.info "Successfully uploaded firmware."

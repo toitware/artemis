@@ -355,7 +355,8 @@ class Artemis:
   */
   upload_firmware envelope_path/string --organization_id/string:
     firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
-    firmware_content.trivial_patches.do: diff_and_upload_ it --organization_id=organization_id
+    firmware_content.trivial_patches.do:
+      diff_and_upload_ it --organization_id=organization_id
 
   /**
   Updates the device $device_id with the given $device_specification.
