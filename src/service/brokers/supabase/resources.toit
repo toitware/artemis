@@ -29,6 +29,7 @@ class ResourceManagerSupabase implements ResourceManager:
           --size=PART_SIZE
           : | reader/SizedReader total_size/int |
             offset = block.call reader offset
+            // TODO(kasper): Does this happen?
             if offset >= total_size: return
 
   report_state device_id/string state/Map -> none:

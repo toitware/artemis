@@ -4,7 +4,7 @@ import encoding.ubjson
 import encoding.base64
 import http
 import net
-import reader show Reader
+import reader show SizedReader
 
 STATUS_IM_A_TEAPOT ::= 418
 
@@ -21,12 +21,9 @@ class HttpConnection_:
       "data": data,
     }
 
-    send_request_ payload: | reader/Reader |
-      encoded_response := #[]
-      while chunk := reader.read:
-        encoded_response += chunk
-      decoded := ubjson.decode encoded_response
-      return decoded
+    send_request_ payload: | reader/SizedReader |
+      encoded_response := read_response_ reader
+      return ubjson.decode encoded_response
     unreachable
 
   send_binary_request command/string data/Map [block] -> none:
@@ -42,20 +39,31 @@ class HttpConnection_:
     encoded := ubjson.encode payload
     response := client.post encoded --host=host_ --port=port_ --path="/"
 
-    if response.status_code == STATUS_IM_A_TEAPOT:
-      encoded_response := #[]
-      while chunk := response.body.read:
-        encoded_response += chunk
+    body := response.body as SizedReader
+    status := response.status_code
+
+    if status == STATUS_IM_A_TEAPOT:
+      encoded_response := read_response_ body
       decoded := ubjson.decode encoded_response
       throw "Broker error: $decoded"
 
-    if response.status_code != 200:
-      throw "HTTP error: $response.status_code $response.status_message"
+    try:
+      if status != 200: throw "Not found ($status)"
+      range := response.headers.single "Content-Range"
+      total_size := ?
+      if range:
+        divider := range.index_of "/"
+        total_size = int.parse range[divider + 1 ..]
+      else:
+        total_size = body.size
+      block.call body total_size
+    finally:
+      while data := body.read: null // DRAIN!
 
-    range := response.headers.single "Content-Range"
-    total_size := 0
-    if range:
-      divider := range.index_of "/"
-      total_size = int.parse range[divider + 1 ..]
-
-    block.call response.body total_size
+  read_response_ reader/SizedReader -> ByteArray:
+    result := ByteArray reader.size
+    offset := 0
+    while chunk := reader.read:
+      result.replace offset chunk
+      offset += chunk.size
+    return result

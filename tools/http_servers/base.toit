@@ -74,6 +74,7 @@ abstract class HttpServer:
     else:
       listeners.do: it.call "post" command response_data
       if response_data is PartialResponse:
+        if not binary: throw "Partial responses must be binary"
         partial := response_data as PartialResponse
         writer.headers.add "Content-Range" "$partial.bytes.size/$partial.total_size"
         response_data = partial.bytes
@@ -81,4 +82,6 @@ abstract class HttpServer:
         writer.headers.set "Content-Length" "$response_data.size"
         writer.write response_data
       else:
-        writer.write (ubjson.encode response_data)
+        encoded := ubjson.encode response_data
+        writer.headers.set "Content-Length" "$encoded.size"
+        writer.write encoded
