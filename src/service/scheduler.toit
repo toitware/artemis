@@ -56,7 +56,7 @@ class Scheduler:
 
   on_job_started job/Job -> none:
     job.scheduler_ran_after_boot_ = true
-    logger_.info "job started" --tags={"job": job.stringify}
+    logger_.info "job started" --tags={"job": job}
     signal_.awaken
 
   on_job_ready job/Job -> none:
@@ -66,7 +66,7 @@ class Scheduler:
     last := JobTime.now
     job.scheduler_ran_last_ = last
     jobs_ran_last_end_[job.name] = last.us
-    logger_.info "job stopped" --tags={"job": job.stringify}
+    logger_.info "job stopped" --tags={"job": job}
     signal_.awaken
 
   has_running_jobs_ -> bool:

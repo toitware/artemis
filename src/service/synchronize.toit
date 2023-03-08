@@ -202,13 +202,13 @@ class SynchronizeJob extends TaskJob implements EventHandler:
   handle_application_update_ -> none
       bundle/List
       name/string
-      full_entry/Map
+      description/Map
       modification/Modification:
     modification.on_value "id"
         --added=: | value |
           logger_.error "current state was missing an id for container $name"
           // Treat it as a request to install the app.
-          bundle.add (action_app_install_ name value full_entry)
+          bundle.add (action_app_install_ name value description)
           return
         --removed=: | value |
           logger_.error "container $name without id"
@@ -221,10 +221,10 @@ class SynchronizeJob extends TaskJob implements EventHandler:
           // TODO(florian): it would be nicer to fetch the new version
           // before uninstalling the old one.
           bundle.add (action_app_uninstall_ name from)
-          bundle.add (action_app_install_ name to full_entry)
+          bundle.add (action_app_install_ name to description)
           return
 
-    bundle.add (action_app_update_ name full_entry)
+    bundle.add (action_app_update_ name description)
 
   action_app_install_ name/string id/string description/Map -> Lambda:
     return::
@@ -232,7 +232,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       // the application is complete.
       // As such we don't update the current state yet, but
       // wait for the completion.
-      applications_.install (Application name id --description=description)
+      applications_.install (Application name --id=id --description=description)
 
   action_app_uninstall_ name/string id/string -> Lambda:
     return::
