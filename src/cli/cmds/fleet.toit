@@ -10,6 +10,7 @@ import ..config
 import ..cache
 import ..device_specification
 import ..ui
+import ..utils
 
 create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "fleet"
@@ -186,7 +187,30 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.info "Created $output."
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  throw "Unimplemented"
+  devices := parsed["device-id"]
+  specification_path := parsed["specification"]
+  firmware_path := parsed["firmware"]
+
+  if not specification_path and not firmware_path:
+    ui.error "No specification or firmware given."
+    ui.abort
+
+  if specification_path and firmware_path:
+    ui.error "Both specification and firmware given."
+    ui.abort
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    with_tmp_directory: | tmp_dir/string |
+      if specification_path:
+        firmware_path = "$tmp_dir/firmware.envelope"
+        specification := DeviceSpecification.parse specification_path
+        artemis.customize_envelope
+            --output_path=firmware_path
+            --device_specification=specification
+
+      devices.do: | device_id/string |
+        artemis.update --device_id=device_id --envelope_path=firmware_path
+        ui.info "Successfully updated device $device_id."
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   envelope_path := parsed["firmware"]
