@@ -209,7 +209,10 @@ with_test_cli
       // Wait until the device has reported its state.
       if wait_for_device:
         with_timeout --ms=2_000:
-          while not broker.backdoor.get_state alias_id:
+          while true:
+            state := broker.backdoor.get_state alias_id
+            // The initial state has the field "identity" in it.
+            if not state.contains "identity": break
             sleep --ms=100
 
     try:
