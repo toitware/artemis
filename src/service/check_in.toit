@@ -32,28 +32,33 @@ check_in_timeout -> Duration?:
   return now.to next
 
 check_in network/net.Interface logger/log.Logger:
+  // TODO(kasper): Let this be more mockable for testing.
+  // For now, we just always fail to report when this
+  // runs under tests.
+  if not check_in_server_: return
+
   now := JobTime.now
   next := check_in_schedule now
   if now < next: return
 
   last_attempt_ = now
-  success := false
-  try:
-    // TODO(kasper): Let this be more mockable for testing.
-    // For now, we just always fail to report when this
-    // runs under tests.
-    if not check_in_server_: return
-
-    success = check_in_server_.check_in network logger
-    if success: logger.info "status reporting succeeded"
+  exception := catch:
+    check_in_server_.check_in network logger
     last_success_ = now
-  finally:
-    if not success: logger.warn "status reporting failed"
-    exception := catch: bucket_["last"] = {
+  if exception:
+    logger.warn "status reporting failed"
+        --tags={"exception": exception}
+  else:
+    logger.info "status reporting succeeded"
+
+  exception = catch:
+    bucket_["last"] = {
       "success": last_success_.us,
       "attempt": last_attempt_.us,
     }
-    if exception: logger.warn "cannot update status reporting bucket"
+  if exception:
+    logger.warn "status reporting failed to update bucket"
+        --tags={"exception": exception}
 
 /**
 Sets up the check-in functionality.
