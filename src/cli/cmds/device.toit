@@ -186,9 +186,10 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       specification := DeviceSpecification.parse specification_path
       envelope_path := "$tmp_dir/$(device_id).envelope"
       artemis.customize_envelope
-          --organization_id=organization_id
           --output_path=envelope_path
           --device_specification=specification
+
+      artemis.upload_firmware envelope_path --organization_id=organization_id
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
