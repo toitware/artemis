@@ -260,6 +260,7 @@ class Artemis:
         sdk.firmware_add_container name
             --envelope=output_path
             --program_path=snapshot_path
+            --run="no"
         apps := device_config.get "apps" --init=:{:}
         apps[name] = build_container_description_
             --id=(extract_id_from_snapshot snapshot_path)
@@ -303,6 +304,8 @@ class Artemis:
       sdk.firmware_add_container "artemis" --envelope=output_path
           --assets=artemis_assets_path
           --program_path=artemis_service_image_path
+          --run="boot"
+          --critical
 
     sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
         --envelope=output_path
