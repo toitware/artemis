@@ -143,18 +143,18 @@ class HttpArtemisServer extends HttpServer:
     alias := data.get "alias"
 
     hardware_id := "$(uuid.uuid5 "" "hardware_id - $Time.monotonic_us")"
-    device_id := alias or "$(uuid.uuid5 "" "device_id - $Time.monotonic_us")"
+    alias_id := alias or "$(uuid.uuid5 "" "alias_id - $Time.monotonic_us")"
     devices[hardware_id] = DeviceEntry hardware_id
-        --alias=device_id
+        --alias=alias_id
         --organization_id=organization_id
     return {
       "id": hardware_id,
-      "alias": device_id,
+      "alias": alias_id,
       "organization_id": organization_id,
     }
 
-  remove_device device_id/string -> none:
-    devices.remove device_id
+  remove_device hardware_id/string -> none:
+    devices.remove hardware_id
 
   create_user --email/string --name/string --id/string?=null -> string:
     if not id: id = (uuid.uuid5 "" "user_id - $Time.monotonic_us").stringify

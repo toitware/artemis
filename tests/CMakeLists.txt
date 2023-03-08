@@ -126,7 +126,7 @@ foreach(file ${TESTS})
 
     add_test(
       NAME "${test_name}"
-      COMMAND "${TOITRUN}" "${file}" ${flag}
+      COMMAND "${TOITRUN}" "${file}" ${flag} "--toit-run=${TOITRUN}"
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
