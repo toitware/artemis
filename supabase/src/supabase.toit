@@ -581,22 +581,23 @@ class Storage:
     status := response.status_code
     body := response.body as SizedReader
     okay := status == 200 or (partial and status == 206)
-    if not okay:
-      while data := body.read: null // DRAIN!
-      throw "Not found ($status)"
-    // We got a response we can use. If it is partial we
-    // need to decode the response header to find the
-    // total size.
-    if partial and status != 200:
-      // TODO(kasper): Try to avoid doing this for all parts.
-      // We only really need to do it for the first.
-      range := response.headers.single "Content-Range"
-      divider := range.index_of "/"
-      total_size := int.parse range[divider + 1..range.size]
+    try:
+      if not okay: throw "Not found ($status)"
+      // We got a response we can use. If it is partial we
+      // need to decode the response header to find the
+      // total size.
+      total_size := ?
+      if partial and status != 200:
+        // TODO(kasper): Try to avoid doing this for all parts.
+        // We only really need to do it for the first.
+        range := response.headers.single "Content-Range"
+        divider := range.index_of "/"
+        total_size = int.parse range[divider + 1..range.size]
+      else:
+        total_size = body.size
       block.call body total_size
-    else:
-      block.call body body.size
-    while data := body.read: null // DRAIN!
+    finally:
+      while data := body.read: null // DRAIN!
 
   /**
   Returns a list of all buckets.

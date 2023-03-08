@@ -30,6 +30,7 @@ class ResourceManagerHttp implements ResourceManager:
       }
       connection_.send_binary_request "download_firmware" payload: | reader/SizedReader total_size/int |
         offset = block.call reader offset
+        // TODO(kasper): Does this happen?
         if offset >= total_size: return
 
   report_state device_id/string state/Map -> none:
