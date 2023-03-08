@@ -95,20 +95,23 @@ tool_path_ tool/string -> string:
   return result
 
 untar path/string --target/string:
-  tar_path := tool_path_ "tar"
+  generic_arguments := [
+    // All modern tar versions automatically detect the compression.
+    // No need to provide `-z` or so.
+    tool_path_ "tar",
+    "x",  // Extract.
+  ]
+
   if platform == PLATFORM_WINDOWS:
     // The target must use slashes as separators.
     // Otherwise Git's tar can't find the target directory.
     target = target.replace --all "\\" "/"
+    // Treat 'c:\' as a local path.
+    generic_arguments.add "--force-local"
 
-  pipe.backticks [
-    // All modern tar versions automatically detect the compression.
-    // No need to provide `-z` or so.
-    tar_path,
-    "x",              // Extract.
-    "--force-local",  // Treat 'c:\' as a local path.
-    "-f", path,       // The file at 'path'
-    "-C", target,     // Extract to 'target'.
+  pipe.backticks generic_arguments + [
+    "-f", path,    // The file at 'path'
+    "-C", target,  // Extract to 'target'.
   ]
 
 gunzip path/string:

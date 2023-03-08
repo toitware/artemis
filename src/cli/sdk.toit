@@ -41,7 +41,7 @@ class Sdk:
     if word_size != 32 and word_size != 64: throw "Unsupported word size: $word_size"
     run_snapshot_to_image_tool [
       "-o", out,
-      "--binary",
+      "--format=binary",
       word_size == 32 ? "-m32" : "-m64",
       snapshot_path,
     ]
@@ -97,14 +97,19 @@ class Sdk:
   The $envelope, the $program_path and its $assets must be paths to files.
   The parameter $program_path must point to a snapshot or image.
   */
-  firmware_add_container name/string --program_path/string --envelope/string --assets/string?=null:
+  firmware_add_container name/string --program_path/string --envelope/string -> none
+      --assets/string?=null
+      --critical/bool=false
+      --run/string="no":
     args := [
       "container", "install",
       "-e", envelope,
+      "--run", run,
       name,
       program_path,
     ]
     if assets: args += [ "--assets", assets ]
+    if critical: args += [ "--critical" ]
     run_firmware_tool args
 
   /**
