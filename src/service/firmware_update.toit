@@ -259,7 +259,7 @@ class Firmware:
     size = parts.last["to"] + checksum.size
 
 class Checkpoint:
-  static CHECKPOINT_KEY ::= "checkpoint"
+  static KEY ::= "checkpoint"
 
   // We currently store the checkpoint in RTC, which means
   // that we lose the information if we lose power. This
@@ -289,7 +289,7 @@ class Checkpoint:
   constructor .checksum --.read_part_index --.read_offset --.write_offset --.write_skip:
 
   static fetch -> Checkpoint?:
-    list := bucket_.get CHECKPOINT_KEY --if_absent=: return null
+    list := bucket_.get KEY
     if not (list is List and list.size == 5): return null
     return Checkpoint list[0]
         --read_part_index=list[1]
@@ -299,7 +299,7 @@ class Checkpoint:
 
   static update checkpoint/Checkpoint? -> none:
     if checkpoint:
-      bucket_[CHECKPOINT_KEY] = [
+      bucket_[KEY] = [
         checkpoint.checksum,
         checkpoint.read_part_index,
         checkpoint.read_offset,
@@ -310,4 +310,4 @@ class Checkpoint:
       clear
 
   static clear -> none:
-    bucket_.remove CHECKPOINT_KEY
+    bucket_.remove KEY
