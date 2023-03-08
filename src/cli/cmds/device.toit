@@ -39,7 +39,8 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         etc. See 'specification-format' for more information.
 
         If an identity file is provided, the device may also be flashed with
-        a firmware image instead of using a specification.
+        a firmware image instead of using a specification. In that case the
+        Artemis tool will not connect to the Internet.
 
         Unless '--no-default' is used, automatically makes this device the
         new default device.
@@ -142,6 +143,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   organization_id := parsed["organization-id"]
   specification_path := parsed["specification"]
   identity_path := parsed["identity"]
+  firmware_path := parsed["firmware"]
   port := parsed["port"]
   baud := parsed["baud"]
   simulate := parsed["simulate"]
@@ -149,6 +151,14 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   if identity_path and organization_id:
     ui.error "Cannot specify both an identity file and an organization ID."
+    ui.abort
+
+  if firmware_path and not identity_path:
+    ui.error "Cannot specify a firmware image without an identity file."
+    ui.abort
+
+  if firmware_path and specification_path:
+    ui.error "Cannot specify both a firmware image and a specification file."
     ui.abort
 
   device_id/string := ?
@@ -167,10 +177,14 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    org := artemis.connected_artemis_server.get_organization organization_id
-    if not org:
-      ui.error "Organization $organization_id does not exist."
-      ui.abort
+    if not (identity_path and firmware_path):
+      // Don't check for the existence of the organization if we are
+      // flashing an image together with an identity. We might be
+      // on a disconnected flash station.
+      org := artemis.connected_artemis_server.get_organization organization_id
+      if not org:
+        ui.error "Organization $organization_id does not exist."
+        ui.abort
 
     with_tmp_directory: | tmp_dir/string |
       if not identity_path:
@@ -182,14 +196,19 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --organization_id=organization_id
         ui.info "Successfully provisioned device $device_id."
 
-      // Customize.
-      specification := DeviceSpecification.parse specification_path
-      envelope_path := "$tmp_dir/$(device_id).envelope"
-      artemis.customize_envelope
-          --output_path=envelope_path
-          --device_specification=specification
+      envelope_path/string := ?
 
-      artemis.upload_firmware envelope_path --organization_id=organization_id
+      if specification_path:
+        // Customize.
+        specification := DeviceSpecification.parse specification_path
+        envelope_path = "$tmp_dir/$(device_id).envelope"
+        artemis.customize_envelope
+            --output_path=envelope_path
+            --device_specification=specification
+
+        artemis.upload_firmware envelope_path --organization_id=organization_id
+      else:
+        envelope_path = firmware_path
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
