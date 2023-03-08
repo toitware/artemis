@@ -48,7 +48,7 @@ AWS_CLIENT_CERTIFICATE_PATH := aws/client-certificate.pem
 AWS_CLIENT_PRIVATE_KEY_PATH := aws/client-key.pem
 
 .PHONY: add-default-brokers
-add-default-brokers:
+add-default-brokers: install-pkgs
 	@ # Adds the Toitware supabase Artemis server and makes it the default.
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add --no-default supabase \
 		--certificate="$(ARTEMIS_CERTIFICATE)" \
