@@ -28,11 +28,8 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Flashes a device with the Artemis firmware.
 
-        If no identity-file is provided, registers a new device with the
-        Toit cloud first, using the device-id and organization-id.
-
-        If a new device is registered, but no device-id is provided, a
-        fresh ID is generated.
+        If no identity-file is provided, registers a new device as part
+        of the organization-id in the Toit cloud first.
 
         If a new device is registered, but no organization-id is provided,
         the device is registered with the default organization.
@@ -149,19 +146,30 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
   organization_id := parsed["organization-id"]
   specification_path := parsed["specification"]
+  identity_path := parsed["identity"]
   port := parsed["port"]
   baud := parsed["baud"]
   simulate := parsed["simulate"]
   should_make_default := parsed["default"]
 
-  if not device_id:
-    device_id = (uuid.uuid5 "Device ID" "$Time.now $random").stringify
+  if identity_path and organization_id:
+    ui.error "Cannot specify both an identity file and an organization ID."
+    ui.abort
 
-  if not organization_id:
-    organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
+  if identity_path:
+    identity := read_base64_ubjson identity_path
+    // TODO(florian): Abstract away the identity format.
+    organization_id = identity["artemis.device"]["organization_id"]
+    device_id = identity["artemis.device"]["device_id"]
+  else:
+    if not device_id:
+      device_id = (uuid.uuid5 "Device ID" "$Time.now $random").stringify
+
     if not organization_id:
-      ui.error "No organization ID specified and no default organization ID set."
-      ui.abort
+      organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
+      if not organization_id:
+        ui.error "No organization ID specified and no default organization ID set."
+        ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     org := artemis.connected_artemis_server.get_organization organization_id
@@ -170,13 +178,14 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.abort
 
     with_tmp_directory: | tmp_dir/string |
-      // Provision.
-      identity_file := "$tmp_dir/$(device_id).identity"
-      artemis.provision
-          --device_id=device_id
-          --out_path=identity_file
-          --organization_id=organization_id
-      ui.info "Successfully provisioned device $device_id."
+      if not identity_path:
+        // Provision.
+        identity_path = "$tmp_dir/$(device_id).identity"
+        artemis.provision
+            --device_id=device_id
+            --out_path=identity_path
+            --organization_id=organization_id
+        ui.info "Successfully provisioned device $device_id."
 
       // Customize.
       specification := DeviceSpecification.parse specification_path
@@ -189,7 +198,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
           --envelope_path=envelope_path
-          --identity_path=identity_file
+          --identity_path=identity_path
 
       config_path := "$tmp_dir/$(device_id).config"
       write_blob_to_file config_path config_bytes
@@ -208,11 +217,11 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.info "Simulating flash."
         ui.info "Using the local Artemis service and not the one specified in the specification."
         old_default := config.get CONFIG_ARTEMIS_DEFAULT_KEY
-        identity := read_base64_ubjson identity_file
+        identity := read_base64_ubjson identity_path
         if should_make_default: make_default_ device_id config ui
         run_host
             --envelope_path=envelope_path
-            --identity_path=identity_file
+            --identity_path=identity_path
             --cache=cache
             --ui=ui
 
