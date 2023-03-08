@@ -62,19 +62,23 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
   flash_cmd := cli.Command "flash"
       --long_help="""
-        Registers a new device with the Toit cloud and flashes the Artemis
-        firmware on the device.
+        Flashes a device with the Artemis firmware.
 
-        If a device-id is specified, the device is registered with that
-        ID. Otherwise, a new ID is generated.
+        If no identity-file is provided, registers a new device with the
+        Toit cloud first, using the device-id and organization-id.
 
-        If an organization-id is specified, the device is registered with
-        that organization. Otherwise, the device is registered with the
-        default organization.
+        If a new device is registered, but no device-id is provided, a
+        fresh ID is generated.
+
+        If a new device is registered, but no organization-id is provided,
+        the device is registered with the default organization.
 
         The specification file contains the device specification. It includes
         the firmware version, installed applications, connection settings,
         etc. See 'specification-format' for more information.
+
+        If an identity file is provided, the device may also be flashed with
+        a firmware image instead of using a specification.
 
         Unless '--no-default' is used, automatically makes this device the
         new default device.
@@ -82,8 +86,14 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --options=broker_options + [
         cli.Option "specification"
             --type="file"
-            --short_help="The specification of the device."
-            --required,
+            --short_help="The specification of the device.",
+        cli.Option "firmware"
+            --type="file"
+            --short_help="The firmware image to flash.",
+        cli.Option "identity"
+            --type="file"
+            --short_name="i"
+            --short_help="The identity file to use.",
         cli.Option "device-id"
             --type="uuid"
             --short_name="d"
