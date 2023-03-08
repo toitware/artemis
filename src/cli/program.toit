@@ -1,7 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar
-import encoding.ubjson
 import host.file
 import uuid
 
@@ -31,9 +30,9 @@ class CompiledProgram:
 
   constructor.snapshot path/string --sdk/Sdk:
     with_tmp_directory: | tmp/string |
-      image_ubjson := "$tmp/image.ubjson"
-      sdk.run_snapshot_to_image_tool ["-m32", "-m64", "--format=ubjson", "-o", image_ubjson, path]
-      image := ubjson.decode (file.read_content image_ubjson)
+      image_ubjson_path := "$tmp/image.ubjson"
+      sdk.run_snapshot_to_image_tool ["-m32", "-m64", "--format=ubjson", "-o", image_ubjson_path, path]
+      image := read_ubjson image_ubjson_path
       id := image["id"]
       image32/ByteArray? := null
       image64/ByteArray? := null
