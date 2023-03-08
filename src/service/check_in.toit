@@ -14,7 +14,8 @@ import ..shared.server_config
 INTERVAL_ ::= Duration --h=24
 INTERVAL_BETWEEN_ATTEMPTS_ ::= Duration --m=30
 
-bucket_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis/check-in"
+// TODO(kasper): Share the bucket across all of Artemis?
+bucket_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis/rtc"
 last_success_/JobTime? := null
 last_attempt_/JobTime? := null
 
@@ -49,7 +50,7 @@ check_in network/net.Interface logger/log.Logger:
     last_success_ = now
   finally:
     if not success: logger.warn "status reporting failed"
-    exception := catch: bucket_["last"] = {
+    exception := catch: bucket_["check-in"] = {
       "success": last_success_.us,
       "attempt": last_attempt_.us,
     }
@@ -67,7 +68,7 @@ check_in_setup assets/Map device/Map -> none:
 
   hardware_id := device["hardware_id"]
   check_in_server_ = ArtemisServerService server_config --hardware_id=hardware_id
-  last := bucket_.get "last"
+  last := bucket_.get "check-in"
   if not last: return
   catch:
     // If we cannot decode the last success, it is fine

@@ -5,6 +5,7 @@ import bytes
 import esp32
 import crypto.sha256
 import system.firmware
+import system.storage
 import encoding.ubjson
 import encoding.base64
 
@@ -27,7 +28,7 @@ firmware_update -> none
   // clear it out and start over.
   checkpoint := Checkpoint.fetch
   if checkpoint and checkpoint.checksum != new_firmware.checksum:
-    Checkpoint.clear
+    Checkpoint.update null
     checkpoint = null
 
   logger.info "firmware update" --tags={"size": new_firmware.size}
@@ -104,7 +105,7 @@ class FirmwarePatcher_ implements PatchObserver:
   write_checksum -> none:
     on_write new_.checksum
     writer_.commit
-    Checkpoint.clear
+    Checkpoint.update null
 
   write_device_specific_ part/Map device_specific/ByteArray -> none:
     padded_size := part["to"] - part["from"]
@@ -258,9 +259,12 @@ class Firmware:
     size = parts.last["to"] + checksum.size
 
 class Checkpoint:
-  // TODO(kasper): For now, we just store the checkpoint in
-  // a variable. We should put it in flash or RTC memory.
-  static stored_ / Checkpoint? := null
+  // We currently store the checkpoint in RTC, which means
+  // that we lose the information if we lose power. This
+  // isn't great, so we should consider storing it in flash.
+  // The checkpoint mechanism as is is useful for recovering
+  // from network loss, which is more common that power loss.
+  static bucket_ := storage.Bucket.open --ram "toit.io/artemis/rtc"
 
   // TODO(kasper): The checksum currently only covers the
   // target image under the assumption that we're going to
@@ -283,10 +287,22 @@ class Checkpoint:
   constructor .checksum --.read_part_index --.read_offset --.write_offset --.write_skip:
 
   static fetch -> Checkpoint?:
-    return stored_
+    list := bucket_.get "checkpoint" --if_absent=: return null
+    if not (list is List and list.size == 5): return null
+    return Checkpoint list[0]
+        --read_part_index=list[1]
+        --read_offset=list[2]
+        --write_offset=list[3]
+        --write_skip=list[4]
 
   static update checkpoint/Checkpoint? -> none:
-    stored_ = checkpoint
-
-  static clear -> none:
-    stored_ = null
+    if checkpoint:
+      bucket_["checkpoint"] = [
+        checkpoint.checksum,
+        checkpoint.read_part_index,
+        checkpoint.read_offset,
+        checkpoint.write_offset,
+        checkpoint.write_skip
+      ]
+    else:
+      bucket_.remove "checkpoint"
