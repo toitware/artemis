@@ -32,16 +32,18 @@ check_in_timeout -> Duration?:
   return now.to next
 
 check_in network/net.Interface logger/log.Logger:
-  // TODO(kasper): Let this be more mockable for testing.
-  // For now, we just always fail to report when this
-  // runs under tests.
-  if not check_in_server_: return
-
   now := JobTime.now
   next := check_in_schedule now
   if now < next: return
 
+  // TODO(kasper): Let this be more mockable for testing.
+  // For now, we just always fail to report when this
+  // runs under tests. We need to keep the last attempt
+  // time stamp updated to avoid continuously attempting
+  // to check in.
   last_attempt_ = now
+  if not check_in_server_: return
+
   exception := catch:
     check_in_server_.check_in network logger
     last_success_ = now
