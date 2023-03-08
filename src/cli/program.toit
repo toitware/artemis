@@ -17,8 +17,8 @@ class CompiledProgram:
     sdk_ = sdk
 
   constructor.application path/string --sdk/Sdk:
-    id/string? := extract_id_from_snapshot path
-    if id: return CompiledProgram.snapshot path --id=id --sdk=sdk
+    snapshot_uuid/string? := extract_id_from_snapshot path
+    if snapshot_uuid: return CompiledProgram.snapshot path --sdk=sdk
     return  CompiledProgram.source path --sdk=sdk
 
   constructor.source path/string --sdk/Sdk:
@@ -28,20 +28,20 @@ class CompiledProgram:
       return CompiledProgram.snapshot snapshot_path --sdk=sdk
     unreachable
 
-  constructor.snapshot path/string --id/string?=null --sdk/Sdk:
+  constructor.snapshot path/string --sdk/Sdk:
     with_tmp_directory: | tmp/string |
-      id = id or extract_id_from_snapshot path
-      if not id:
-        print_on_stderr_ "$path: Not a valid Toit snapshot"
-        exit 1
-      image32 := "$tmp/image32"
-      image64 := "$tmp/image64"
-      sdk.run_snapshot_to_image_tool ["-m32", "--binary", "-o", image32, path]
-      sdk.run_snapshot_to_image_tool ["-m64", "--binary", "-o", image64, path]
-      return CompiledProgram id
-          file.read_content image32
-          file.read_content image64
-          --sdk=sdk
+      image_ubjson_path := "$tmp/image.ubjson"
+      sdk.run_snapshot_to_image_tool ["-m32", "-m64", "--format=ubjson", "-o", image_ubjson_path, path]
+      image := read_ubjson image_ubjson_path
+      id := image["id"]
+      image32/ByteArray? := null
+      image64/ByteArray? := null
+      image["images"].do: | map/Map |
+        flags := map["flags"]
+        bytes := map["bytes"]
+        if flags.contains "-m32": image32 = bytes
+        if flags.contains "-m64": image64 = bytes
+      return CompiledProgram id image32 image64 --sdk=sdk
     unreachable
 
 extract_id_from_snapshot snapshot_path/string -> string?:
