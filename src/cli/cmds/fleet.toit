@@ -36,7 +36,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   create_identities_cmd := cli.Command "create-identities"
       --long_help="""
-        Creates a certain number of identity files.
+        Creates a specified number of identity files.
 
         Identity files describe a device, containing their ID and organization.
         For each written identity file, a device is provisioned in the Toit
