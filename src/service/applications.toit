@@ -62,7 +62,12 @@ class Application extends Job:
   container_image_/uuid.Uuid? := null
   container_/containers.Container? := null
 
-  constructor name/string .id --.description:
+  constructor name/string --.id --.description:
+    super name
+
+  constructor.completed name/string --id/uuid.Uuid --.description:
+    this.id = id.stringify
+    container_image_ = id
     super name
 
   stringify -> string:
@@ -100,6 +105,9 @@ class Application extends Job:
     writer ::= containers.ContainerImageWriter reader.size
     while data := reader.read: writer.write data
     container_image_ = writer.commit
+    // TODO(kasper): Clean this up. We don't need two ids in the
+    // application that must be the same.
+    if container_image_.stringify != id: throw "invalid state"
 
   delete_ -> none:
     container_image ::= container_image_
@@ -107,6 +115,6 @@ class Application extends Job:
     container_image_ = null
 
   with --description/Map:
-    result := Application name id --description=description
+    result := Application name --id=id --description=description
     result.container_image_ = container_image_
     return result
