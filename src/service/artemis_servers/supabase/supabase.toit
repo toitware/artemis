@@ -18,17 +18,11 @@ class ArtemisServerServiceSupabase implements ArtemisServerService:
   constructor .server_config_ --hardware_id/string:
     hardware_id_ = hardware_id
 
-  check_in network/net.Interface logger/log.Logger:
-    catch:
-      client := supabase.Client network --server_config=server_config_
-          --certificate_provider=: throw "UNSUPPORTED"
+  check_in network/net.Interface logger/log.Logger -> none:
+    client := supabase.Client network --server_config=server_config_
+        --certificate_provider=: throw "UNSUPPORTED"
 
-      client.rest.insert "events" --no-return_inserted {
-        "device_id": hardware_id_,
-        "data": { "type": "ping" }
-      }
-      return true
-
-    // Something went wrong.
-    logger.info "Failed to check in with supabase."
-    return false
+    client.rest.insert "events" --no-return_inserted {
+      "device_id": hardware_id_,
+      "data": { "type": "ping" }
+    }

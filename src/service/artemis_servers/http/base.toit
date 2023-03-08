@@ -15,13 +15,11 @@ class ArtemisServerServiceHttp implements ArtemisServerService:
   constructor .server_config_ --hardware_id/string:
     hardware_id_ = hardware_id
 
-  check_in network/net.Interface logger/log.Logger -> bool:
-    exception := catch:
-      send_request_ network "check-in" {
-        "hardware_id": hardware_id_,
-        "data": { "type": "ping" },
-      }
-    return exception != null
+  check_in network/net.Interface logger/log.Logger -> none:
+    send_request_ network "check-in" {
+      "hardware_id": hardware_id_,
+      "data": { "type": "ping" },
+    }
 
   send_request_ network/net.Interface command/string data/Map -> any:
     client := http.Client network
@@ -42,7 +40,4 @@ class ArtemisServerServiceHttp implements ArtemisServerService:
     while chunk := response.body.read:
       encoded_response += chunk
     decoded := ubjson.decode encoded_response
-    if not (decoded.get "success"):
-      throw "Broker error: $(decoded.get "error")"
-
-    return decoded["data"]
+    return decoded
