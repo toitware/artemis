@@ -47,5 +47,5 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   scheduler.add_jobs jobs
   wakeup := scheduler.run
   duration := JobTime.now.to wakeup
-  logger.info "going to deep sleep" --tags={"duration": duration}
+  logger.info "going offline" --tags={"duration": duration}
   return duration
