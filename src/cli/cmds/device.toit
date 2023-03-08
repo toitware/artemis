@@ -24,42 +24,6 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
       --short_help="Manage devices."
 
-  provision_cmd := cli.Command "provision"
-      --long_help="""
-        Provision a new device.
-
-        Registers a new device with the Toit cloud and writes the identity file
-        to the specified directory/file. The identity file is used
-        during flashing and allows the device to connect to the Toit cloud.
-
-        If a device-id is specified, the device is registered with that
-        ID. Otherwise, a new ID is generated.
-
-        If an organization-id is specified, the device is registered with
-        that organization. Otherwise, the device is registered with the
-        default organization.
-
-        The options '--output-directory' and '--output' are mutually exclusive.
-        """
-      --options= broker_options + [
-        cli.Option "device-id"
-            --type="uuid"
-            --short_name="d"
-            --short_help="The device ID to use.",
-        cli.Option "output-directory"
-            --type="directory"
-            --short_help="Directory to write the identity file to.",
-        cli.Option "output"
-            --type="out-file"
-            --short_name="o"
-            --short_help="File to write the identity to.",
-        cli.Option "organization-id"
-            --type="uuid"
-            --short_help="The organization to use."
-      ]
-      --run=:: provision it config cache ui
-  cmd.add provision_cmd
-
   flash_cmd := cli.Command "flash"
       --long_help="""
         Flashes a device with the Artemis firmware.
@@ -180,50 +144,6 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
   cmd.add (create_transient_command config cache ui)
   return [cmd]
-
-with_artemis parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
-  broker_config := get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
-  artemis_config := get_server_from_config config parsed["broker.artemis"] CONFIG_ARTEMIS_DEFAULT_KEY
-
-  artemis := Artemis --config=config --cache=cache --ui=ui \
-      --broker_config=broker_config --artemis_config=artemis_config
-
-  try:
-    block.call artemis
-  finally:
-    artemis.close
-
-provision parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device_id := parsed["device-id"]
-  output_directory := parsed["output-directory"]
-  output := parsed["output"]
-  organization_id := parsed["organization-id"]
-
-  if not device_id:
-    device_id = (uuid.uuid5 "Device ID" "$Time.now $random").stringify
-
-  if output_directory and output:
-    ui.error "The options '--output-directory' and '--output' are mutually exclusive."
-    ui.abort
-
-  if not output_directory and not output:
-    output_directory = "."
-  if not output:
-    output = "$output_directory/$(device_id).identity"
-
-  if not organization_id:
-    organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
-    if not organization_id:
-      ui.error "No organization ID specified and no default organization ID set."
-      ui.abort
-
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    artemis.provision
-        --device_id=device_id
-        --out_path=output
-        --organization_id=organization_id
-    ui.info "Successfully provisioned device $device_id."
-    ui.info "Created $output."
 
 flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
