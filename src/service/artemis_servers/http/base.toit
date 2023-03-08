@@ -40,7 +40,4 @@ class ArtemisServerServiceHttp implements ArtemisServerService:
     while chunk := response.body.read:
       encoded_response += chunk
     decoded := ubjson.decode encoded_response
-    if not (decoded.get "success"):
-      throw "Broker error: $(decoded.get "error")"
-
-    return decoded["data"]
+    return decoded

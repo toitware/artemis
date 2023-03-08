@@ -53,7 +53,7 @@ check_in network/net.Interface logger/log.Logger:
 
   exception = catch:
     bucket_["last"] = {
-      "success": last_success_.us,
+      "success": last_success_ and last_success_.us,
       "attempt": last_attempt_.us,
     }
   if exception:
@@ -77,5 +77,6 @@ check_in_setup assets/Map device/Map -> none:
   catch:
     // If we cannot decode the last success, it is fine
     // that we do not decode the last attempt.
-    last_success_ = JobTime last["success"]
+    success := last.get "success"
+    last_success_ = success and JobTime success
     last_attempt_ = JobTime last["attempt"]
