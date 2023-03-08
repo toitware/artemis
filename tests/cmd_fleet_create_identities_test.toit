@@ -15,7 +15,6 @@ import expect show *
 import .utils
 
 main args:
-  return // Temporary disabled.
   with_test_cli
       --artemis_type=server_type_from_args args
       --broker_type=broker_type_from_args args
@@ -37,43 +36,41 @@ run_test test_cli/TestCli:
       "--password", TEST_EXAMPLE_COM_PASSWORD,
     ]
 
+    count := 3
     test_cli.run [
-      "device",
-      "provision",
+      "fleet",
+      "create-identities",
       "--organization-id", TEST_ORGANIZATION_UUID,
       "--output-directory", tmp_dir,
+      "$count",
     ]
-    files := directory.DirectoryStream tmp_dir
-    identity_file := files.next
-    expect (identity_file.ends_with "identity")
-    expect_null files.next
-
-    id_file := "$tmp_dir/id"
+    check_and_remove_identity_files tmp_dir count
 
     // Test an error when the organization id isn't set.
     test_cli.run --expect_exit_1 [
-      "device",
-      "provision",
-      "-o", id_file,
+      "fleet",
+      "create-identities",
+      "--output-directory", tmp_dir,
+      "1",
     ]
+    check_and_remove_identity_files tmp_dir 0
 
     test_cli.run [
       "org", "default", TEST_ORGANIZATION_UUID,
     ]
 
     test_cli.run [
-      "device",
-      "provision",
-      "-o", id_file,
-    ]
-    expect (file.is_file id_file)
-
-    // Test with a given id.
-    test_id := random_uuid_string
-    test_cli.run [
-      "device",
-      "provision",
+      "fleet",
+      "create-identities",
       "--output-directory", tmp_dir,
-      "--device_id", test_id,
+      "1",
     ]
-    expect (file.is_file "$tmp_dir/$(test_id).identity")
+    check_and_remove_identity_files tmp_dir 1
+
+check_and_remove_identity_files tmp_dir count:
+  stream := directory.DirectoryStream tmp_dir
+  count.repeat:
+    identity_file := stream.next
+    expect (identity_file.ends_with "identity")
+    file.delete "$tmp_dir/$identity_file"
+  expect_null stream.next
