@@ -256,14 +256,23 @@ class Artemis:
             --sdk=sdk
             --output_path=snapshot_path
             --cache=cache_
+
         // TODO(florian): add support for assets.
         sdk.firmware_add_container name
             --envelope=output_path
             --program_path=snapshot_path
             --run="no"
+
+        // TODO(kasper): Avoid computing the image id here. We should
+        // be able to get it from the firmware tool.
+        sha := sha256.Sha256
+        snapshot_uuid_string := extract_id_from_snapshot snapshot_path
+        sha.add (uuid.parse snapshot_uuid_string).to_byte_array
+        id := uuid.Uuid sha.get[..uuid.SIZE]
+
         apps := device_config.get "apps" --init=:{:}
         apps[name] = build_container_description_
-            --id=(extract_id_from_snapshot snapshot_path)
+            --id=id.stringify
             --arguments=container.arguments
         ui_.info "Added container '$name' to envelope."
 
