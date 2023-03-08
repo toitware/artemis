@@ -28,7 +28,7 @@ firmware_update -> none
   // clear it out and start over.
   checkpoint := Checkpoint.fetch
   if checkpoint and checkpoint.checksum != new_firmware.checksum:
-    Checkpoint.update null
+    Checkpoint.clear
     checkpoint = null
 
   logger.info "firmware update" --tags={"size": new_firmware.size}
@@ -105,7 +105,7 @@ class FirmwarePatcher_ implements PatchObserver:
   write_checksum -> none:
     on_write new_.checksum
     writer_.commit
-    Checkpoint.update null
+    Checkpoint.clear
 
   write_device_specific_ part/Map device_specific/ByteArray -> none:
     padded_size := part["to"] - part["from"]
@@ -259,10 +259,12 @@ class Firmware:
     size = parts.last["to"] + checksum.size
 
 class Checkpoint:
+  static CHECKPOINT_KEY ::= "checkpoint"
+
   // We currently store the checkpoint in RTC, which means
   // that we lose the information if we lose power. This
   // isn't great, so we should consider storing it in flash.
-  // The checkpoint mechanism as is is useful for recovering
+  // The checkpoint mechanism as-is is useful for recovering
   // from network loss, which is more common that power loss.
   static bucket_ := storage.Bucket.open --ram "toit.io/artemis/rtc"
 
@@ -287,7 +289,7 @@ class Checkpoint:
   constructor .checksum --.read_part_index --.read_offset --.write_offset --.write_skip:
 
   static fetch -> Checkpoint?:
-    list := bucket_.get "checkpoint" --if_absent=: return null
+    list := bucket_.get CHECKPOINT_KEY --if_absent=: return null
     if not (list is List and list.size == 5): return null
     return Checkpoint list[0]
         --read_part_index=list[1]
@@ -297,7 +299,7 @@ class Checkpoint:
 
   static update checkpoint/Checkpoint? -> none:
     if checkpoint:
-      bucket_["checkpoint"] = [
+      bucket_[CHECKPOINT_KEY] = [
         checkpoint.checksum,
         checkpoint.read_part_index,
         checkpoint.read_offset,
@@ -305,4 +307,7 @@ class Checkpoint:
         checkpoint.write_skip
       ]
     else:
-      bucket_.remove "checkpoint"
+      clear
+
+  static clear -> none:
+    bucket_.remove CHECKPOINT_KEY
