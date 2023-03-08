@@ -28,9 +28,6 @@ interface ArtemisServerService:
   /**
   Checks in with the server.
 
-  Returns true if the check in succeeded. False otherwise.
-
-  # Inheritance
-  This function should not throw.
+  Throws an exception if the check in fails.
   */
-  check_in network/net.Interface logger/log.Logger -> bool
+  check_in network/net.Interface logger/log.Logger -> none

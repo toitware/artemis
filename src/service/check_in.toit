@@ -37,24 +37,31 @@ check_in network/net.Interface logger/log.Logger:
   next := check_in_schedule now
   if now < next: return
 
+  // TODO(kasper): Let this be more mockable for testing.
+  // For now, we just always fail to report when this
+  // runs under tests. We need to keep the last attempt
+  // time stamp updated to avoid continuously attempting
+  // to check in.
   last_attempt_ = now
-  success := false
-  try:
-    // TODO(kasper): Let this be more mockable for testing.
-    // For now, we just always fail to report when this
-    // runs under tests.
-    if not check_in_server_: return
+  if not check_in_server_: return
 
-    success = check_in_server_.check_in network logger
-    if success: logger.info "status reporting succeeded"
+  exception := catch:
+    check_in_server_.check_in network logger
     last_success_ = now
-  finally:
-    if not success: logger.warn "status reporting failed"
-    exception := catch: bucket_["check-in"] = {
-      "success": last_success_.us,
+  if exception:
+    logger.warn "status reporting failed"
+        --tags={"exception": exception}
+  else:
+    logger.info "status reporting succeeded"
+
+  exception = catch:
+    bucket_["check-in"] = {
+      "success": last_success_ and last_success_.us,
       "attempt": last_attempt_.us,
     }
-    if exception: logger.warn "cannot update status reporting bucket"
+  if exception:
+    logger.warn "status reporting failed to update bucket"
+        --tags={"exception": exception}
 
 /**
 Sets up the check-in functionality.
@@ -73,5 +80,6 @@ check_in_setup assets/Map device/Map -> none:
   catch:
     // If we cannot decode the last success, it is fine
     // that we do not decode the last attempt.
-    last_success_ = JobTime last["success"]
+    success := last.get "success"
+    last_success_ = success and JobTime success
     last_attempt_ = JobTime last["attempt"]
