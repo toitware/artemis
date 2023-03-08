@@ -2,6 +2,7 @@
 
 import cli
 import net
+import uuid
 
 import ..config
 import ..cache
@@ -89,7 +90,14 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
   member_cmd.add member_list_cmd
 
   member_add_cmd := cli.Command "add"
-      --short_help="Add a member to an organization."
+      --long_help="""
+        Add a member to an organization.
+
+        Add the member with the given user ID to an organization. The
+        user ID can be found in the user's profile: 'artemis profile show'.
+
+        If no organization ID is given, the default organization is used.
+        """
       --options=[
         cli.OptionEnum "role" ["member", "admin" ]
             --short_help="Role of the member."
@@ -239,6 +247,14 @@ member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
 member_add parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   user_id := parsed["user-id"]
   role := parsed["role"]
+
+  // TODO(florian): we should have a `uuid.is_valid` or `uuid.is_valid_uuid`, or
+  // at the very least: `uuid.parse --on_error`.
+  exception := catch: uuid.parse user_id
+  if exception:
+    ui.error "Invalid user ID."
+    ui.error "Ask the recipient to run 'artemis profile show' to get their ID."
+    ui.abort
 
   with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string|
     server.organization_member_add
