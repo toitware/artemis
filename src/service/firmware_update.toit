@@ -104,8 +104,13 @@ class FirmwarePatcher_ implements PatchObserver:
 
   write_checksum -> none:
     on_write new_.checksum
-    writer_.commit
-    Checkpoint.clear
+    try:
+      // If we get to a point where we are ready to commit, we
+      // make sure to always clear the checkpoint, so that any
+      // problems arising from this leads to starting over.
+      writer_.commit
+    finally:
+      Checkpoint.clear
 
   write_device_specific_ part/Map device_specific/ByteArray -> none:
     padded_size := part["to"] - part["from"]
