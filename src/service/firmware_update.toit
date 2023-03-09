@@ -23,13 +23,12 @@ firmware_update -> none
     --new/string:
   old_firmware := Firmware.encoded old
   new_firmware := Firmware.encoded new
+  checkpoint := Checkpoint.fetch --old=old_firmware --new=new_firmware
 
-  // If we have a checkpoint for a different firmware update, we
-  // clear it out and start over.
-  checkpoint := Checkpoint.fetch
-  if checkpoint and checkpoint.checksum != new_firmware.checksum:
-    Checkpoint.clear
-    checkpoint = null
+  // TODO(kasper): We need some kind of mechanism to get out of
+  // trouble if our checkpointing information is wrong. Can we
+  // recognize all the exceptions that could indicate that we
+  // should start over?
 
   logger.info "firmware update" --tags={"size": new_firmware.size}
   elapsed := Duration.of:
@@ -89,6 +88,7 @@ class FirmwarePatcher_ implements PatchObserver:
     return checkpoint ? checkpoint.read_offset : 0
 
   write_part resources/ResourceManager index/int read_offset/int -> none:
+    next_checkpoint_ = null
     next_checkpoint_part_index_ = index
     try:
       part/Map := new_.parts[index]
@@ -134,6 +134,8 @@ class FirmwarePatcher_ implements PatchObserver:
       old_mapping = old_mapping_[old_from..old_to]
 
     if old_mapping and new_hash == old_hash:
+      // We do not currently use checkpoints for copied parts, so
+      // this should always be started from offset zero.
       assert: read_offset == 0
       chunk := ByteArray 512
       List.chunk_up 0 old_mapping.size chunk.size: | from to size |
@@ -242,7 +244,8 @@ class FirmwarePatcher_ implements PatchObserver:
     checkpoint_write_offset := round_up current_write_offset 16
     write_skip := checkpoint_write_offset - current_write_offset
     next_checkpoint_ = Checkpoint
-        new_.checksum
+        --old_checksum=old_.checksum
+        --new_checksum=new_.checksum
         --read_part_index=next_checkpoint_part_index_
         --read_offset=read_offset
         --write_offset=checkpoint_write_offset
@@ -278,20 +281,15 @@ class Firmware:
 class Checkpoint:
   static KEY ::= "checkpoint"
 
-  // We currently store the checkpoint in RTC, which means
-  // that we lose the information if we lose power. This
-  // isn't great, so we should consider storing it in flash.
-  // The checkpoint mechanism as-is is useful for recovering
-  // from network loss, which is more common that power loss.
-  static bucket_ := storage.Bucket.open --ram "toit.io/artemis/rtc"
+  // We store the checkpoint in flash, which means
+  // that we can use it across a power loss.
+  static bucket_ := storage.Bucket.open --flash "toit.io/artemis"
 
-  // TODO(kasper): The checksum currently only covers the
-  // target image under the assumption that we're going to
-  // clear the checkpoint information stored in flash on
-  // upgrades. This might be a poor decision and it could
-  // make sense to also include the checksum of the firmware
-  // we're upgrading from.
-  checksum/ByteArray
+  // We keep the checksums for the new and the old firmware
+  // around, so we can validate if a stored checkpoint is
+  // intended for a specific firmware update.
+  old_checksum/ByteArray
+  new_checksum/ByteArray
 
   // How far did we get in reading the structured description
   // of the target firmware?
@@ -303,21 +301,36 @@ class Checkpoint:
   write_offset/int
   write_skip/int
 
-  constructor .checksum --.read_part_index --.read_offset --.write_offset --.write_skip:
+  constructor
+      --.old_checksum
+      --.new_checksum
+      --.read_part_index
+      --.read_offset
+      --.write_offset
+      --.write_skip:
 
-  static fetch -> Checkpoint?:
+  static fetch --old/Firmware --new/Firmware -> Checkpoint?:
     list := bucket_.get KEY
-    if not (list is List and list.size == 5): return null
-    return Checkpoint list[0]
-        --read_part_index=list[1]
-        --read_offset=list[2]
-        --write_offset=list[3]
-        --write_skip=list[4]
+    if not (list is List and list.size == 6)
+        or old.checksum != list[0]
+        or new.checksum != list[1]:
+      // If we find an oddly shaped entry in the bucket,
+      // we might as well clear it out.
+      clear
+      return null
+    return Checkpoint
+        --old_checksum=old.checksum
+        --new_checksum=new.checksum
+        --read_part_index=list[2]
+        --read_offset=list[3]
+        --write_offset=list[4]
+        --write_skip=list[5]
 
   static update checkpoint/Checkpoint? -> none:
     if checkpoint:
       bucket_[KEY] = [
-        checkpoint.checksum,
+        checkpoint.old_checksum,
+        checkpoint.new_checksum,
         checkpoint.read_part_index,
         checkpoint.read_offset,
         checkpoint.write_offset,
