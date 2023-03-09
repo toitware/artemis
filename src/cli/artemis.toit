@@ -391,7 +391,8 @@ class Artemis:
   extract_trivial_patches firmware_content/FirmwareContent -> Map:
     result := {:}
     firmware_content.trivial_patches.do: | patch/FirmwarePatch |
-      result[id_ --to=patch.to_] = patch
+      patch_id := id_ --to=patch.to_
+      result[patch_id] = patch
     return result
 
   /**
