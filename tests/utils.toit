@@ -175,15 +175,15 @@ class TestDevicePipe extends TestDevice:
       --broker_config/server_config.ServerConfig
       --toit_run/string:
 
-    json_broker_config := broker_config.to_json --der_serializer=: unreachable
-    encoded_broker_config := json.stringify json_broker_config
+    broker_config_json := broker_config.to_json --der_serializer=: unreachable
+    encoded_broker_config := json.stringify broker_config_json
     flags := [
       "test_device.toit",
       "--hardware-id=$hardware_id",
       "--alias-id=$alias_id",
       "--organization-id=$organization_id",
       "--encoded-firmware=$encoded_firmware",
-      "--json-broker-config=$encoded_broker_config",
+      "--broker-config-json=$encoded_broker_config",
     ]
     fork_data := pipe.fork
         true                // use_path
