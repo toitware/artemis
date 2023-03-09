@@ -9,6 +9,7 @@ import ..artemis
 import ..config
 import ..cache
 import ..ui
+import ..utils
 
 create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "fleet"
@@ -113,7 +114,7 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.abort
 
   count.repeat: | i/int |
-    device_id := (uuid.uuid5 "Device ID $i" "$Time.now $random").stringify
+    device_id := random_uuid_string
 
     output := "$output_directory/$(device_id).identity"
 
