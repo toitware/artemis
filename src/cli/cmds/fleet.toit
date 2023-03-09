@@ -10,6 +10,7 @@ import ..config
 import ..cache
 import ..device_specification
 import ..ui
+import ..utils
 
 create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "fleet"
@@ -24,7 +25,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         'create-identities' for more information.
 
         Unless '--upload' is set to false (--no-upload), automatically uploads
-        the firmware to the cloud. Without any 'organization-id', uses the
+        the firmware to the broker. Without any 'organization-id', uses the
         default organization. Otherwise, uploads to the given organizations.
         """
       --options= broker_options + [
@@ -43,7 +44,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
             --split_commas=true
             --multi,
         cli.Flag "upload"
-            --short_help="Do not upload the firmware to the cloud."
+            --short_help="Upload the firmware to the cloud."
             --default=true,
       ]
       --run=:: create_firmware it config cache ui
@@ -151,7 +152,7 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.abort
 
   count.repeat: | i/int |
-    device_id := (uuid.uuid5 "Device ID $i" "$Time.now $random").stringify
+    device_id := random_uuid_string
 
     output := "$output_directory/$(device_id).identity"
 
@@ -160,7 +161,6 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --device_id=device_id
           --out_path=output
           --organization_id=organization_id
-      ui.info "Successfully provisioned device $i: $device_id."
       ui.info "Created $output."
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
