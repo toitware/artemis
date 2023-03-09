@@ -135,20 +135,21 @@ class HttpBroker extends HttpServer:
         "state_revision": current_revision,
       }
 
+    event_type := null
     latch := monitor.Latch
     waiting_for_events[device_id] = latch
-    event_type := latch.get
-    message := {
+    catch: with_timeout (Duration --m=1): event_type = latch.get
+
+    if not event_type:
+      return { "event_type": "timed_out" }
+    if event_type != "goal_updated":
+      throw "Unknown event type: $event_type"
+
+    return {
       "event_type": event_type,
       "state_revision": state_revision[device_id],
+      "goal": device_goals[device_id],
     }
-    if event_type == "goal_updated":
-      message["goal"] = device_goals[device_id]
-    else if event_type == "state_updated":
-      message["state"] = device_states[device_id]
-    else:
-      throw "Unknown event type: $event_type"
-    return message
 
   notify_device device_id/string event_type/string:
     latch/monitor.Latch? := waiting_for_events.get device_id
