@@ -25,7 +25,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         'create-identities' for more information.
 
         Unless '--upload' is set to false (--no-upload), automatically uploads
-        the firmware to the cloud. Without any 'organization-id', uses the
+        the firmware to the broker. Without any 'organization-id', uses the
         default organization. Otherwise, uploads to the given organizations.
         """
       --options= broker_options + [
@@ -44,7 +44,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
             --split_commas=true
             --multi,
         cli.Flag "upload"
-            --short_help="Do not upload the firmware to the cloud."
+            --short_help="Upload the firmware to the cloud."
             --default=true,
       ]
       --run=:: create_firmware it config cache ui
