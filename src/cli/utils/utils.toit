@@ -13,6 +13,7 @@ import log
 import net
 import host.pipe
 import writer
+import uuid
 
 with_tmp_directory [block]:
   tmpdir := directory.mkdtemp "/tmp/artemis-"
@@ -134,3 +135,6 @@ copy_file --source/string --target/string:
   finally:
     in_stream.close
     out_stream.close
+
+random_uuid_string -> string:
+  return (uuid.uuid5 "Device ID" "$Time.now $Time.monotonic_us $random").stringify
