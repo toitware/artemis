@@ -69,8 +69,10 @@ abstract class HttpServer:
     exception := catch --trace: response_data = block.call
     if exception:
       listeners.do: it.call "error" command exception
+      encoded := ubjson.encode exception
+      writer.headers.set "Content-Length" "$encoded.size"
       writer.write_headers STATUS_IM_A_TEAPOT --message="Error"
-      writer.write (ubjson.encode exception)
+      writer.write encoded
     else:
       listeners.do: it.call "post" command response_data
       if response_data is PartialResponse:
