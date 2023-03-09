@@ -8,7 +8,9 @@ import .broker_options_
 import ..artemis
 import ..config
 import ..cache
+import ..device_specification
 import ..ui
+import ..utils
 
 create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "fleet"
@@ -21,6 +23,10 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         The generated image can later be used to flash or update devices.
         When flashing, it needs to be combined with an identity file first. See
         'create-identities' for more information.
+
+        Unless '--upload' is set to false (--no-upload), automatically uploads
+        the firmware to the broker. Without any 'organization-id', uses the
+        default organization. Otherwise, uploads to the given organizations.
         """
       --options= broker_options + [
         cli.Option "specification"
@@ -32,6 +38,14 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
             --short_name="o"
             --short_help="File to write the firmware to."
             --required,
+        cli.Option "organization-id"
+            --type="uuid"
+            --short_help="The organization to upload the firmware to."
+            --split_commas=true
+            --multi,
+        cli.Flag "upload"
+            --short_help="Upload the firmware to the cloud."
+            --default=true,
       ]
       --run=:: create_firmware it config cache ui
   cmd.add create_firmware_cmd
@@ -99,7 +113,32 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   return [cmd]
 
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  throw "Unimplemented"
+  specification_path := parsed["specification"]
+  output := parsed["output"]
+  organization_ids := parsed["organization-id"]
+  should_upload := parsed["upload"]
+
+  if should_upload and organization_ids.is_empty:
+    default_organization_id := config.get CONFIG_ORGANIZATION_DEFAULT
+    if not default_organization_id:
+      ui.error "No organization ID specified and no default organization ID set."
+      ui.abort
+
+    organization_ids = [default_organization_id]
+
+  if not should_upload and not organization_ids.is_empty:
+    ui.error "Cannot specify organization IDs when not uploading."
+    ui.abort
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    specification := DeviceSpecification.parse specification_path
+    artemis.customize_envelope
+        --output_path=output
+        --device_specification=specification
+
+    organization_ids.do: | organization_id/string |
+      artemis.upload_firmware output --organization_id=organization_id
+      ui.info "Successfully uploaded firmware to organization $organization_id."
 
 create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output_directory := parsed["output-directory"]
@@ -113,7 +152,7 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.abort
 
   count.repeat: | i/int |
-    device_id := (uuid.uuid5 "Device ID $i" "$Time.now $random").stringify
+    device_id := random_uuid_string
 
     output := "$output_directory/$(device_id).identity"
 

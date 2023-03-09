@@ -55,10 +55,6 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --type="file"
             --short_name="i"
             --short_help="The identity file to use.",
-        cli.Option "device-id"
-            --type="uuid"
-            --short_name="d"
-            --short_help="The device ID to use.",
         cli.Option "organization-id"
             --type="uuid"
             --short_help="The organization to use.",
@@ -143,7 +139,6 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   return [cmd]
 
 flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device_id := parsed["device-id"]
   organization_id := parsed["organization-id"]
   specification_path := parsed["specification"]
   identity_path := parsed["identity"]
@@ -156,13 +151,14 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.error "Cannot specify both an identity file and an organization ID."
     ui.abort
 
+  device_id/string := ?
   if identity_path:
     identity := read_base64_ubjson identity_path
     // TODO(florian): Abstract away the identity format.
     organization_id = identity["artemis.device"]["organization_id"]
     device_id = identity["artemis.device"]["device_id"]
   else:
-    device_id = device_id or (uuid.uuid5 "Device ID" "$Time.now $random").stringify
+    device_id = random_uuid_string
 
     if not organization_id:
       organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
@@ -190,9 +186,10 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       specification := DeviceSpecification.parse specification_path
       envelope_path := "$tmp_dir/$(device_id).envelope"
       artemis.customize_envelope
-          --organization_id=organization_id
           --output_path=envelope_path
           --device_specification=specification
+
+      artemis.upload_firmware envelope_path --organization_id=organization_id
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data

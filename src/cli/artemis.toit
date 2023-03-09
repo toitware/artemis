@@ -198,7 +198,6 @@ class Artemis:
   The image is ready to be flashed together with the identity file.
   */
   customize_envelope
-      --organization_id/string
       --device_specification/DeviceSpecification
       --output_path/string:
     sdk_version := device_specification.sdk_version
@@ -331,13 +330,6 @@ class Artemis:
     system_uuid ::= uuid.uuid5 "system.uuid" "$(random 1_000_000)-$Time.now-$Time.monotonic_us"
     sdk.firmware_set_property "uuid" system_uuid.stringify --envelope=output_path
 
-    // Upload the trivial patches.
-    // Once the firmware is used in an updating process (either to or from it), we
-    // need it. In that case we use it to compute binary diffs. It can also be
-    // used directly from the devices to download the firmware directly.
-    firmware_content := FirmwareContent.from_envelope output_path --cache=cache_
-    firmware_content.trivial_patches.do: diff_and_upload_ it --organization_id=organization_id
-
     // For convenience save all snapshots in the user's cache.
     cache_snapshots --envelope=output_path --cache=cache_
 
@@ -355,6 +347,17 @@ class Artemis:
     return result
 
   /**
+  Uploads the given firmware $envelope_path to the server under the given
+    $organization_id.
+
+  The firmware can then be used for diff-based updates, or simply as direct
+    downloads for updates.
+  */
+  upload_firmware envelope_path/string --organization_id/string:
+    firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
+    firmware_content.trivial_patches.do: diff_and_upload_ it --organization_id=organization_id
+
+  /**
   Updates the device $device_id with the given $device_specification.
   */
   update --device_id/string --device_specification/DeviceSpecification:
@@ -362,9 +365,10 @@ class Artemis:
       update_goal --device_id=device_id: | device/DeviceDetailed |
         envelope_path := "$tmp_dir/$(device_id).envelope"
         customize_envelope
-            --organization_id=device.organization_id
             --output_path=envelope_path
             --device_specification=device_specification
+
+        upload_firmware envelope_path --organization_id=device.organization_id
 
         known_encoded_firmwares := {}
         [
@@ -428,7 +432,7 @@ class Artemis:
       ui_.info "Computing and uploading patches."
       upgrade_from.do: | old_firmware/Firmware |
         patches := upgrade_to.patches old_firmware
-        patches.do: diff_and_upload_ it  --organization_id=device.organization_id
+        patches.do: diff_and_upload_ it --organization_id=device.organization_id
 
       new_config["firmware"] = upgrade_to.encoded
       return new_config
