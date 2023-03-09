@@ -283,7 +283,7 @@ class Checkpoint:
 
   // We store the checkpoint in flash, which means
   // that we can use it across a power loss.
-  static bucket_ := storage.Bucket.open --flash "toit.io/artemis/checkpoint"
+  static bucket_ := storage.Bucket.open --flash "toit.io/artemis"
 
   // We keep the checksums for the new and the old firmware
   // around, so we can validate if a stored checkpoint is
