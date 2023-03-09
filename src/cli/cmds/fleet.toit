@@ -41,7 +41,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "organization-id"
             --type="uuid"
             --short_help="The organization to upload the firmware to."
-            --split_commas=true
+            --split_commas
             --multi,
         cli.Flag "upload"
             --short_help="Upload the firmware to the cloud."
@@ -96,7 +96,9 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --options=broker_options + [
         cli.Option "organization-id"
             --type="uuid"
-            --short_help="The organization to use.",
+            --short_help="The organization to use."
+            --split_commas
+            --multi,
       ]
       --rest= [
         cli.Option "firmware"
@@ -190,14 +192,16 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   envelope_path := parsed["firmware"]
-  organization_id := parsed["organization-id"]
+  organization_ids := parsed["organization-id"]
 
-  if not organization_id:
-    organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
+  if organization_ids.is_empty:
+    organization_id := config.get CONFIG_ORGANIZATION_DEFAULT
     if not organization_id:
       ui.error "No organization ID specified and no default organization ID set."
       ui.abort
+    organization_ids = [organization_id]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    artemis.upload_firmware envelope_path --organization_id=organization_id
-    ui.info "Successfully uploaded firmware."
+    organization_ids.do: | organization_id/string |
+      artemis.upload_firmware envelope_path --organization_id=organization_id
+      ui.info "Successfully uploaded firmware."
