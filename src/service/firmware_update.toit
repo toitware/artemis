@@ -110,6 +110,9 @@ class FirmwarePatcher_ implements PatchObserver:
       // problems arising from this leads to starting over.
       writer_.commit
     finally:
+      // TODO(kasper): Maybe we can do this clearing in a more
+      // general location, so that everything that looks like
+      // it impossible to make progress from starts over?
       Checkpoint.clear
 
   write_device_specific_ part/Map device_specific/ByteArray -> none:
@@ -167,7 +170,16 @@ class FirmwarePatcher_ implements PatchObserver:
     binary_patcher := Patcher reader old_mapping --patch_offset=offset
     try:
       last_checkpoint_ = null
-      binary_patcher.patch this
+      if not binary_patcher.patch this:
+        // TODO(kasper): Maybe we can do this clearing in a more
+        // general location, so that everything that looks like
+        // it impossible to make progress from starts over?
+        Checkpoint.clear
+        // This should only happen if we to get the wrong bits
+        // served to us. It is unlikely, but we log it and throw
+        // an exception so we can try to recover.
+        logger_.error "firmware update: failed to apply patch"
+        throw "INVALID_FORMAT"
     finally: | is_exception exception |
       last := last_checkpoint_
       last_checkpoint_ = null
