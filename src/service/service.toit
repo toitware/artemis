@@ -32,13 +32,13 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   // Add the application jobs based on the device state.
   state/Map := device.current_state or device.firmware_state
   state.get "apps" --if_present=: | apps |
-    image_ids := Set
-    containers.images.do: image_ids.add it.id
+    installed_ids := Set
+    containers.images.do: installed_ids.add it.id
     apps.do: | name description |
       id_string/string? := description.get Application.KEY_ID
       id/uuid.Uuid? := null
       catch: id = id_string and uuid.parse id_string
-      if id:
+      if id and installed_ids.contains id:
         logger.info "loaded container image from flash" --tags={"name": name, "id": id_string}
         jobs.add (Application.completed name --id=id --description=description)
       else:
