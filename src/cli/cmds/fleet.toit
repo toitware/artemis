@@ -9,6 +9,7 @@ import ..artemis
 import ..config
 import ..cache
 import ..device_specification
+import ..firmware
 import ..ui
 import ..utils
 
@@ -140,6 +141,28 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
         This command takes either a firmware image or a specification file as
         input.
+
+        If diff-bases are given, then the given firmwares are uploaded to
+        all organizations of the devices that are updated.
+
+        If a device has no known state, patches for all base firmwares are
+        created. If a device has reported its state, then only patches
+        for the reported firmwares are created.
+
+        There are two cases that make diff bases necessary:
+        1. The current state of the device is not yet known because it
+          never connected to the broker. The corresponding identity might
+          not even be used yet. In this case, one of the diff bases should be
+          the firmware that will be (or was) used to flash the device.
+        2. The device has connected and the current firmware is known. However,
+          when the firmware was created, it was not yet uploaded. It is generally
+          recommended to upload the firmware immediately after creating it, but
+          when that's not possible (for example, because the organization is
+          not known yet), then explicitly specifying the diff base is
+          necessary.
+
+        Note that diff-bases are only an optimization. Without them, the
+        firmware update will still work, but will not be as efficient.
         """
       --options=broker_options + [
         cli.Option "specification"
@@ -148,6 +171,10 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "firmware"
             --type="file"
             --short_help="The firmware to use.",
+        cli.Option "diff-base"
+            --type="file"
+            --short_help="The base firmware to use for diff-based updates."
+            --multi,
       ]
       --rest= [
         cli.Option "device-id"
@@ -216,6 +243,7 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   devices := parsed["device-id"]
   specification_path := parsed["specification"]
   firmware_path := parsed["firmware"]
+  diff_bases := parsed["diff-base"]
 
   if not specification_path and not firmware_path:
     ui.error "No specification or firmware given."
@@ -225,7 +253,18 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.error "Both specification and firmware given."
     ui.abort
 
+  seen_organizations := {}
+
   with_artemis parsed config cache ui: | artemis/Artemis |
+    base_patches := {:}
+
+    base_firmwares := diff_bases.map: | diff_base/string |
+      FirmwareContent.from_envelope diff_base --cache=cache
+
+    base_firmwares.do: | content/FirmwareContent |
+      trivial_patches := artemis.extract_trivial_patches content
+      trivial_patches.do: | key value/FirmwarePatch | base_patches[key] = value
+
     with_tmp_directory: | tmp_dir/string |
       if specification_path:
         firmware_path = "$tmp_dir/firmware.envelope"
@@ -235,7 +274,19 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --device_specification=specification
 
       devices.do: | device_id/string |
-        artemis.update --device_id=device_id --envelope_path=firmware_path
+        if not diff_bases.is_empty:
+          broker := artemis.connected_broker
+          device := broker.get_device --device_id=device_id
+          if not seen_organizations.contains device.organization_id:
+            seen_organizations.add device.organization_id
+            base_patches.do: | _ patch/FirmwarePatch |
+              artemis.upload_patch patch --organization_id=device.organization_id
+
+        artemis.update
+            --device_id=device_id
+            --envelope_path=firmware_path
+            --base_firmwares=base_firmwares
+
         ui.info "Successfully updated device $device_id."
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:

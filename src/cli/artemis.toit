@@ -356,21 +356,73 @@ class Artemis:
   upload_firmware envelope_path/string --organization_id/string:
     firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
     firmware_content.trivial_patches.do:
-      diff_and_upload_ it --organization_id=organization_id
+      upload_patch it --organization_id=organization_id
+
+  /**
+  Uploads the given $patch to the server under the given $organization_id.
+  */
+  upload_patch patch/FirmwarePatch --organization_id/string:
+    diff_and_upload_ patch --organization_id=organization_id
+
+  /**
+  Makes sure the trivial patches for the given $firmware are uploaded for
+    the given $organization_id.
+
+  All missing patches are taken from the $trivial_patches map. If a patch
+    is not found in the map, it is ignored, and assumed to be already uploaded.
+  */
+  ensure_patches_are_uploaded -> none
+      firmware/Firmware
+      trivial_patches/Map
+      --organization_id/string:
+    firmware.content.parts.do: | part/FirmwarePart |
+      if part is not FirmwarePartPatch: continue.do
+      trivial_patch_id := id_ --to=(part as FirmwarePartPatch).hash
+      trivial_patch := trivial_patches.get trivial_patch_id
+      if trivial_patch:
+        upload_patch trivial_patch --organization_id=organization_id
+
+  /**
+  Extracts the trivial patches from the given $firmware_content.
+
+  Returns a mapping from patch-id (as used when diffing to the part) and
+    the patch itself.
+  */
+  extract_trivial_patches firmware_content/FirmwareContent -> Map:
+    result := {:}
+    firmware_content.trivial_patches.do: | patch/FirmwarePatch |
+      patch_id := id_ --to=patch.to_
+      result[patch_id] = patch
+    return result
 
   /**
   Updates the device $device_id with the given $device_specification.
+
+  If the device has no known current state, then uses the $base_firmwares
+    (a list of $FirmwareContent) for diff-based patches. If the list
+    is empty, the device must upgrade using trivial patches.
   */
-  update --device_id/string --device_specification/DeviceSpecification:
+  update
+      --device_id/string
+      --device_specification/DeviceSpecification
+      --base_firmwares/List=[]:
     with_tmp_directory: | tmp_dir/string |
       envelope_path := "$tmp_dir/$(device_id).envelope"
       customize_envelope
           --output_path=envelope_path
           --device_specification=device_specification
 
-      update --device_id=device_id --envelope_path=envelope_path
+      update
+          --device_id=device_id
+          --envelope_path=envelope_path
+          --base_firmwares=base_firmwares
 
-  update --device_id/string --envelope_path/string:
+  /**
+  Variant of $(update --device_id --device_specification).
+
+  Takes the new firmware from the given $envelope_path.
+  */
+  update --device_id/string --envelope_path/string --base_firmwares/List=[]:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       upload_firmware envelope_path --organization_id=device.organization_id
 
@@ -384,18 +436,21 @@ class Artemis:
         // The device might be running this firmware.
         if state: known_encoded_firmwares.add state["firmware"]
 
-      if known_encoded_firmwares.is_empty:
-        // Should not happen.
-        ui_.error "No old firmware found for device '$device_id'."
 
       upgrade_from := []
-      known_encoded_firmwares.do: | encoded/string |
-        old_firmware := Firmware.encoded encoded
-        device_map := old_firmware.device_specific "artemis.device"
-        if device_map["device_id"] != device_id:
-          ui_.error "The device id of the firmware image ($device.id) does not match the given device id ($device_id)."
-          ui_.abort
-        upgrade_from.add old_firmware.content
+      if known_encoded_firmwares.is_empty:
+        if base_firmwares.is_empty:
+          ui_.error "No old firmware found for device '$device_id'."
+        else:
+          upgrade_from = base_firmwares
+      else:
+        known_encoded_firmwares.do: | encoded/string |
+          old_firmware := Firmware.encoded encoded
+          device_map := old_firmware.device_specific "artemis.device"
+          if device_map["device_id"] != device_id:
+            ui_.error "The device id of the firmware image ($device.id) does not match the given device id ($device_id)."
+            ui_.abort
+          upgrade_from.add old_firmware.content
 
       compute_updated_goal
           --device=device
@@ -405,6 +460,8 @@ class Artemis:
   /**
   Computes the goal for the given $device, upgrading from the $upgrade_from
     firmware content entries to the firmware image at $envelope_path.
+
+  Uploads the patches to the broker in the same organization as the $device.
 
   The return goal state will instruct the device to download the firmware image
     and install it.
