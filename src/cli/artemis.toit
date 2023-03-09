@@ -395,7 +395,7 @@ class Artemis:
         if device_map["device_id"] != device_id:
           ui_.error "The device id of the firmware image ($device.id) does not match the given device id ($device_id)."
           ui_.abort
-        upgrade_from.add old_firmware
+        upgrade_from.add old_firmware.content
 
       compute_updated_goal
           --device=device
@@ -404,7 +404,7 @@ class Artemis:
 
   /**
   Computes the goal for the given $device, upgrading from the $upgrade_from
-    firmwares to the firmware image at $envelope_path.
+    firmware content entries to the firmware image at $envelope_path.
 
   The return goal state will instruct the device to download the firmware image
     and install it.
@@ -434,8 +434,8 @@ class Artemis:
 
       // Compute the patches and upload them.
       ui_.info "Computing and uploading patches."
-      upgrade_from.do: | old_firmware/Firmware |
-        patches := upgrade_to.patches old_firmware
+      upgrade_from.do: | old_firmware_content/FirmwareContent |
+        patches := upgrade_to.content.patches old_firmware_content
         patches.do: diff_and_upload_ it --organization_id=device.organization_id
 
       new_config["firmware"] = upgrade_to.encoded

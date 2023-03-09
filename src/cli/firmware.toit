@@ -121,22 +121,6 @@ class Firmware:
   sdk_version -> string:
     return device_specific "sdk-version"
 
-  patches from/Firmware? -> List:
-    result := []
-    content.parts.size.repeat: | index/int |
-      part := content.parts[index]
-      if part is FirmwarePartConfig: continue.repeat
-      // TODO(kasper): This should not just be based on index.
-      old/FirmwarePartPatch? := null
-      if from: old = from.content.parts[index]
-      if old and old.hash == part.hash:
-        continue.repeat
-      else if old:
-        result.add (FirmwarePatch --bits=part.bits --from=old.hash --to=part.hash)
-      else:
-        result.add (FirmwarePatch --bits=part.bits --to=part.hash)
-    return result
-
 class FirmwareContent:
   bits/ByteArray?
   parts/List
@@ -183,6 +167,22 @@ class FirmwareContent:
         parts.add (FirmwarePartPatch --from=from --to=to --bits=part_bits)
 
     return FirmwareContent --bits=bits --parts=parts --checksum=checksum
+
+  patches from/FirmwareContent? -> List:
+    result := []
+    parts.size.repeat: | index/int |
+      part := parts[index]
+      if part is FirmwarePartConfig: continue.repeat
+      // TODO(kasper): This should not just be based on index.
+      old/FirmwarePartPatch? := null
+      if from: old = from.parts[index]
+      if old and old.hash == part.hash:
+        continue.repeat
+      else if old:
+        result.add (FirmwarePatch --bits=part.bits --from=old.hash --to=part.hash)
+      else:
+        result.add (FirmwarePatch --bits=part.bits --to=part.hash)
+    return result
 
   trivial_patches -> List:
     result := []
@@ -301,11 +301,6 @@ get_envelope version/string --cache/cli.Cache --cache_snapshots/bool=true -> str
       download_url url --out_path=out_path
       gunzip out_path
       envelope_path := "$tmp_dir/$path"
-      // TODO(florian): envelopes should already know which SDK version they come
-      // from.
-      // Explicitly store the SDK version in the firmware image.
-      Sdk.store_sdk_version_in --envelope=envelope_path version
-
       if cache_snapshots:
         cache_snapshots_ --envelope=envelope_path --cache=cache
       store.move envelope_path
