@@ -150,11 +150,11 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         for the reported firmwares are created.
 
         There are two cases that make diff bases necessary:
-        1. the current state of the device is not yet known because it
+        1. The current state of the device is not yet known because it
           never connected to the broker. The corresponding identity might
           not even be used yet. In this case, one of the diff bases should be
           the firmware that will be (or was) used to flash the device.
-        2. the device has connected and the current firmware is known. However,
+        2. The device has connected and the current firmware is known. However,
           when the firmware was created, it was not yet uploaded. It is generally
           recommended to upload the firmware immediately after creating it, but
           when that's not possible (for example, because the organization is
