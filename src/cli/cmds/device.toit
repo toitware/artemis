@@ -29,7 +29,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         Flashes a device with the Artemis firmware.
 
         If no identity-file is provided, registers a new device as part
-        of the organization-id in the Toit cloud first.
+        of the organization-id in the Artemis cloud first.
 
         If a new device is registered, but no organization-id is provided,
         the device is registered with the default organization.
@@ -158,7 +158,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     organization_id = identity["artemis.device"]["organization_id"]
     device_id = identity["artemis.device"]["device_id"]
   else:
-    device_id = (uuid.uuid5 "Device ID" "$Time.now $random").stringify
+    device_id = random_uuid_string
 
     if not organization_id:
       organization_id = config.get CONFIG_ORGANIZATION_DEFAULT

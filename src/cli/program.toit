@@ -19,7 +19,7 @@ class CompiledProgram:
   constructor.application path/string --sdk/Sdk:
     snapshot_uuid/string? := extract_id_from_snapshot path
     if snapshot_uuid: return CompiledProgram.snapshot path --sdk=sdk
-    return  CompiledProgram.source path --sdk=sdk
+    return CompiledProgram.source path --sdk=sdk
 
   constructor.source path/string --sdk/Sdk:
     with_tmp_directory: | tmp/string |
