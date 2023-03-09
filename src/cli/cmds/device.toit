@@ -39,7 +39,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         etc. See 'specification-format' for more information.
 
         If an identity file is provided, the device may also be flashed with
-        a firmware image instead of using a specification. In that case the
+        a firmware image instead of using a specification. In that case, the
         Artemis tool will not connect to the Internet.
 
         Unless '--no-default' is used, automatically makes this device the
