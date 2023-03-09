@@ -122,7 +122,6 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --device_id=device_id
           --out_path=output
           --organization_id=organization_id
-      ui.info "Successfully provisioned device $i: $device_id."
       ui.info "Created $output."
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
