@@ -301,11 +301,6 @@ get_envelope version/string --cache/cli.Cache --cache_snapshots/bool=true -> str
       download_url url --out_path=out_path
       gunzip out_path
       envelope_path := "$tmp_dir/$path"
-      // TODO(florian): envelopes should already know which SDK version they come
-      // from.
-      // Explicitly store the SDK version in the firmware image.
-      Sdk.store_sdk_version_in --envelope=envelope_path version
-
       if cache_snapshots:
         cache_snapshots_ --envelope=envelope_path --cache=cache
       store.move envelope_path
