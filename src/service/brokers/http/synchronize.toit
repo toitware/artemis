@@ -60,8 +60,11 @@ class BrokerServiceHttp implements BrokerService:
             // state.
             callback.handle_goal goal_response resources
             state_revision = response["state_revision"]
+          else if response["event_type"] == "timed_out":
+            logger_.info "long poll for events timed out"
+            callback.handle_nop
           else:
-            print "unknown event received: $response"
+            logger_.warn "unknown event received" --tags={"response": response}
             callback.handle_nop
       finally:
         critical_do:
