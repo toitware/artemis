@@ -15,11 +15,11 @@ create_config_commands config/Config cache/Cache ui/Ui -> List:
   config_cmd := cli.Command "config"
       --short_help="Configure Artemis tool."
 
-  print_cmd := cli.Command "print"
-      --short_help="Print the current configuration."
-      --run=:: print_config config ui
+  show_cmd := cli.Command "show"
+      --short_help="Show the current configuration."
+      --run=:: show_config config ui
 
-  config_cmd.add print_cmd
+  config_cmd.add show_cmd
 
   (create_server_config_commands config ui).do: config_cmd.add it
 
@@ -55,7 +55,7 @@ create_server_config_commands config/Config ui/Ui -> List:
           --run=:: default_server it config ui
 
   add_cmd := cli.Command "add"
-      --short_help="Adds a broker."
+      --short_help="Add a broker."
       --options=[
         cli.Flag "default"
             --default=true
@@ -66,7 +66,7 @@ create_server_config_commands config/Config ui/Ui -> List:
 
   add_cmd.add
       cli.Command "supabase"
-          --short_help="Adds a Supabase broker."
+          --short_help="Add a Supabase broker."
           --options=[
             cli.OptionString "certificate"
                 --short_help="The certificate to use for the broker.",
@@ -86,7 +86,7 @@ create_server_config_commands config/Config ui/Ui -> List:
 
   add_cmd.add
       cli.Command "mqtt"
-          --short_help="Adds an MQTT broker."
+          --short_help="Add an MQTT broker."
           --options=[
             cli.OptionString "root-certificate"
                 --short_help="The name of the root certificate to use for the broker.",
@@ -113,7 +113,7 @@ create_server_config_commands config/Config ui/Ui -> List:
   add_cmd.add
       cli.Command "http"
           --hidden
-          --short_help="Adds an HTTP broker."
+          --short_help="Add an HTTP broker."
           --options=[
             cli.OptionInt "port"
                 --short_help="The port of the broker."
@@ -133,7 +133,7 @@ create_server_config_commands config/Config ui/Ui -> List:
 
   return [config_broker_cmd]
 
-print_config config/Config ui/Ui:
+show_config config/Config ui/Ui:
   throw "UNIMPLEMENTED"
 
 default_server parsed/cli.Parsed config/Config ui/Ui:

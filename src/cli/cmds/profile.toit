@@ -17,12 +17,12 @@ create_profile_commands config/Config cache/Cache ui/Ui -> List:
       ]
 
   show_cmd := cli.Command "show"
-      --short_help="Shows the profile."
+      --short_help="Show the profile."
       --run=:: show_profile it config ui
   profile_cmd.add show_cmd
 
   update_cmd := cli.Command "update"
-      --short_help="Updates the profile."
+      --short_help="Update the profile."
       --options=[
         cli.OptionString "name",
         // TODO(florian): support changing the email.

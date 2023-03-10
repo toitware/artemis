@@ -5,7 +5,7 @@ import encoding.base64
 import uuid
 
 import .broker_options_
-import .device_transient
+import .device_container
 import ..artemis
 import ..cache
 import ..config
@@ -154,11 +154,11 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd.add max_offline_cmd
 
   specification_format_cmd := cli.Command "specification-format"
-      --short_help="Prints the format of the device specification file."
+      --short_help="Show the format of the device specification file."
       --run=:: ui.info SPECIFICATION_FORMAT_HELP
   cmd.add specification_format_cmd
 
-  cmd.add (create_transient_command config cache ui)
+  cmd.add (create_container_command config cache ui)
   return [cmd]
 
 flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
