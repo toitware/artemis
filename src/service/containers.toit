@@ -138,13 +138,23 @@ class ContainerJob extends Job:
 
   schedule now/JobTime last/JobTime? -> JobTime?:
     if not is_complete_: return null
-    // Check the boot trigger.
-    run_on_boot := true
+    triggers := description_.get "triggers" --if_absent=: {:}
+    run_on_boot := false
+    run_on_install := false
+    run_at_interval_s := null
+    triggers.do: | name/string value |
+      if name == "boot": run_on_boot = true
+      if name == "install": run_on_install = true
+      if name == "interval": run_at_interval_s = value
+
     if run_on_boot and not has_run_after_boot: return now
-    // Check the install trigger.
-    run_on_install := true
     if run_on_install and not has_run_after_install_: return now
-    // TODO(kasper): Check for interval triggers.
+    if run_at_interval_s:
+      if not last: return now
+      interval := Duration --s=run_at_interval_s
+      next := last + interval
+      if next <= now: return now
+      return next
     return null
 
   start now/JobTime -> none:
