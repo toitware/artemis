@@ -8,6 +8,7 @@ import ..cache
 import ..config
 import ..device_specification as device_specification
 import ..ui
+import ..utils
 
 create_transient_command config/Config cache/Cache ui/Ui -> cli.Command:
   cmd := cli.Command "transient"
