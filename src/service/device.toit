@@ -137,14 +137,12 @@ class Device:
     simplify_and_store_
 
   /**
-  Removes the program with the given $name and $id from the current state.
+  Removes the program with the given $name from the current state.
   */
-  state_app_uninstall name/string id/string:
+  state_app_uninstall name/string:
     if not current_state: current_state = deep_copy_ firmware_state
-    if current_state.contains "apps" and (current_state["apps"].get name) == id:
-      current_state["apps"].remove name
+    current_state["apps"].remove name
     simplify_and_store_
-
 
   /**
   Adds or updates the program with the given $name and $description in the current state.

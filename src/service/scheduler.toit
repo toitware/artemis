@@ -9,7 +9,7 @@ class Scheduler:
   signal_ ::= SchedulerSignal_
   logger_/log.Logger
 
-  jobs_ := []
+  jobs_ ::= []
   jobs_bucket_/storage.Bucket
   jobs_ran_last_end_/Map
 
@@ -52,7 +52,8 @@ class Scheduler:
     signal_.awaken
 
   remove_job job/Job -> none:
-    jobs_ = jobs_.filter: not identical it job
+    job.stop
+    jobs_.remove job
 
   on_job_started job/Job -> none:
     job.scheduler_ran_after_boot_ = true
@@ -93,6 +94,8 @@ class Scheduler:
     return first or now + (Duration --m=1)
 
   stop_all_jobs_ -> none:
+    // TODO(kasper): Stop waits for the jobs to stop. Update the
+    // code to take advantage of that.
     jobs_.do: it.stop
     deadline := JobTime.now + (Duration --s=5)
     while has_running_jobs_ and JobTime.now < deadline:
