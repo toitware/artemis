@@ -28,7 +28,7 @@ create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
       --short_help="Install a container on a device."
       --rest=[
         cli.OptionString "name"
-            --short_help="Name of the container to install."
+            --short_help="Name of the container when installed."
             --required,
         cli.OptionString "path"
             --short_help="Path to source code or snapshot."
