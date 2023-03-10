@@ -54,11 +54,6 @@ class Scheduler:
   remove_job job/Job -> none:
     job.stop
     jobs_.remove job
-    // TODO(kasper): This is a temporary measure to get
-    // jobs to run again if re-installed. We should be
-    // clearing whatever makes the run-on-install trigger
-    // fire, but for now we trigger run-on-boot again.
-    job.scheduler_ran_after_boot_ = false
 
   on_job_started job/Job -> none:
     job.scheduler_ran_after_boot_ = true

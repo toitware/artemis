@@ -53,6 +53,7 @@ class ContainerManager:
     return job
 
   install job/ContainerJob -> none:
+    job.has_run_after_install_ = false
     add_ job --message="install"
 
   complete job/ContainerJob reader/SizedReader -> none:
@@ -87,8 +88,13 @@ class ContainerManager:
   update job/ContainerJob description/Map -> none:
     if job.is_complete: scheduler_.remove_job job
     job.update description
-    if job.is_complete: scheduler_.add_job job
+    // After updating the description of an app, we
+    // mark it as being newly installed for the purposes
+    // of scheduling. This means that it will start
+    // again if it has an install trigger.
+    job.has_run_after_install_ = false
     logger_.info "update" --tags=job.tags
+    if job.is_complete: scheduler_.add_job job
 
   add_ job/ContainerJob --message/string -> none:
     jobs_[job.name] = job
@@ -104,9 +110,11 @@ class ContainerJob extends Job:
   running_/containers.Container? := null
 
   // The $ContainerManager is responsible for marking
-  // container jobs as complete and it manipulates this
-  // field directly.
+  // container jobs as complete and for scheduling
+  // newly installed containers, so it manipulates these
+  // fields directly.
   is_complete_/bool := false
+  has_run_after_install_/bool := true
 
   constructor --name/string --.id --description/Map:
     description_ = description
@@ -130,13 +138,20 @@ class ContainerJob extends Job:
 
   schedule now/JobTime last/JobTime? -> JobTime?:
     if not is_complete_: return null
-    if has_run_after_boot: return null  // Run once at boot.
-    return now
+    // Check the boot trigger.
+    run_on_boot := true
+    if run_on_boot and not has_run_after_boot: return now
+    // Check the install trigger.
+    run_on_install := true
+    if run_on_install and not has_run_after_install_: return now
+    // TODO(kasper): Check for interval triggers.
+    return null
 
   start now/JobTime -> none:
     assert: is_complete
     if running_: return
     arguments := description_.get "arguments"
+    has_run_after_install_ = true
     running_ = containers.start id arguments
     scheduler_.on_job_started this
     running_.on_stopped::
