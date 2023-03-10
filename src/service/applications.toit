@@ -61,7 +61,7 @@ class ApplicationManager:
     writer ::= containers.ContainerImageWriter reader.size
     while data := reader.read: writer.write data
     image := writer.commit
-    logger_.info "container image installed" --tags={"id": image}
+    logger_.info "installed image" --tags={"id": image}
     if image != id: throw "invalid state"
     application.is_complete_ = true
     images_.add id
@@ -82,7 +82,7 @@ class ApplicationManager:
     if preserve: return
     containers.uninstall application.id
     images_.remove id
-    logger_.info "container image uninstalled" --tags={"id": id}
+    logger_.info "uninstalled image" --tags={"id": id}
 
   update application/Application description/Map -> none:
     if application.is_complete: scheduler_.remove_job application
