@@ -344,9 +344,9 @@ class Artemis:
     result := {
       "id": id.stringify,
     }
-    if arguments:
+    if arguments and not arguments.is_empty:
       result["arguments"] = arguments
-    if triggers:
+    if triggers and not triggers.is_empty:
       trigger_map := {:}
       triggers.do: | trigger/Trigger |
         assert: not trigger_map.contains trigger.type
@@ -657,7 +657,8 @@ class Artemis:
       --device_id/string
       --app_name/string
       --application_path/string
-      --arguments/List?:
+      --arguments/List?
+      --triggers/List?:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       current_state := device.reported_state_current or device.reported_state_firmware
       if not current_state:
@@ -694,7 +695,7 @@ class Artemis:
       apps[app_name] = build_container_description_
           --id=id
           --arguments=arguments
-          --triggers=null
+          --triggers=triggers
       new_goal["apps"] = apps
       new_goal
 
