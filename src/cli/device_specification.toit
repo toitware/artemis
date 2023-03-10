@@ -56,7 +56,7 @@ get_optional_string_ map/Map key/string -> string?
   if not map.contains key: return null
   return get_string_ map key --holder=holder --entry_type=entry_type
 
-get_optional_string_list_ map/Map key/string -> List?
+get_optional_list_ map/Map key/string --type/string [--check] -> List?
     --entry_type/string="Entry"
     --holder/string="device specification":
   if not map.contains key: return null
@@ -64,8 +64,8 @@ get_optional_string_list_ map/Map key/string -> List?
   if value is not List:
     format_error_ "$entry_type $key in $holder is not a list: $value"
   value.do:
-    if it is not string:
-      format_error_ "$entry_type $key in $holder is not a list of strings: $value"
+    if not check.call it:
+      format_error_ "$entry_type $key in $holder is not a list of $(type)s: $value"
   return value
 
 get_map_ map/Map key/string -> Map
@@ -120,6 +120,21 @@ get_optional_duration_ map/Map key/string -> Duration?
   if not map.contains key: return null
   return get_duration_ map key --entry_type=entry_type --holder=holder
 
+get_optional_bool_ map/Map key/string -> bool?
+    --entry_type/string="Entry"
+    --holder/string="device specification":
+  if not map.contains key: return null
+  return get_bool_ map key --entry_type=entry_type --holder=holder
+
+get_bool_ map/Map key/string -> bool
+    --entry_type/string="Entry"
+    --holder/string="device specification":
+  if not map.contains key:
+    format_error_ "Missing $key in $holder."
+  value := map[key]
+  if value is not bool:
+    format_error_ "$entry_type $key in $holder is not a boolean: $value"
+  return value
 
 /**
 A specification of a device.
@@ -152,8 +167,7 @@ class DeviceSpecification:
       format_error_ "Both 'apps' and 'containers' are present in device specification."
 
     if (get_int_ data "version") != 1:
-      throw (DeviceSpecificationException
-          "Unsupported device specification version $data["version"]")
+      format_error_ "Unsupported device specification version $data["version"]"
 
     if data.contains "apps" and not data.contains "containers":
       check_is_map_ data "apps"
@@ -258,10 +272,27 @@ interface Container:
 
 abstract class ContainerBase implements Container:
   arguments/List?
+  triggers/List?
 
   constructor.from_json name/string data/Map:
     holder := "container $name"
-    arguments = get_optional_string_list_ data "arguments" --holder=holder
+    arguments = get_optional_list_ data "arguments"
+        --holder=holder
+        --type="string"
+        --check=: it is string
+    triggers_list := get_optional_list_ data "triggers"
+        --holder=holder
+        --type="map or string"
+        --check=: it is Map or it is string
+    if triggers_list:
+      triggers = triggers_list.map: Trigger.from_json name it
+      seen_types := {}
+      triggers.do: | trigger/Trigger |
+        if seen_types.contains trigger.type:
+          format_error_ "Duplicate trigger '$trigger.type' in container $name"
+        seen_types.add trigger.type
+    else:
+      triggers = null
 
   abstract type -> string
   abstract to_json -> Map
@@ -381,3 +412,68 @@ class ContainerSnapshot extends ContainerBase:
       "snapshot": snapshot_path,
       "arguments": arguments,
     }
+
+abstract class Trigger:
+  static INTERVAL ::= "interval"
+  static BOOT ::= "boot"
+  static INSTALL ::= "install"
+
+  abstract type -> string
+
+  constructor:
+
+  constructor.from_json container_name/string data/any:
+    known_triggers := {
+      "boot": :: BootTrigger,
+      "install": :: InstallTrigger,
+      "interval": :: IntervalTrigger.from_json container_name it,
+    }
+    map_triggers := { "interval" }
+
+    seen_types := {}
+    trigger/Lambda? := null
+    known_triggers.do: | key/string value/Lambda |
+      is_map_trigger := map_triggers.contains key
+      if is_map_trigger and data is Map:
+        if data.contains key:
+          seen_types.add key
+          trigger = value
+      else if not is_map_trigger and data is string:
+        if data == key:
+          seen_types.add key
+          trigger = value
+    if seen_types.size == 0:
+      format_error_ "Unknown trigger in container $container_name: $data"
+    if seen_types.size != 1:
+      format_error_ "Container $container_name has ambiguous trigger: $data"
+
+    return trigger.call data
+
+class IntervalTrigger extends Trigger:
+  interval/Duration
+
+  constructor.from_json container_name/string data/Map:
+    holder := "trigger in container $container_name"
+    interval = get_duration_ data "interval" --holder=holder
+
+  type -> string:
+    return Trigger.INTERVAL
+
+  to_json -> Map:
+    return {
+      "interval": interval.stringify,
+    }
+
+class BootTrigger extends Trigger:
+  type -> string:
+    return Trigger.BOOT
+
+  to_json -> string:
+    return "boot"
+
+class InstallTrigger extends Trigger:
+  type -> string:
+    return Trigger.INSTALL
+
+  to_json -> string:
+    return "install"
