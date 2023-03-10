@@ -9,6 +9,7 @@ import net.x509
 import encoding.ubjson
 import tls
 import certificate_roots
+import uuid
 
 import ..broker
 import ...device
@@ -235,7 +236,7 @@ class BrokerCliMqtt implements BrokerCli:
 
   upload_image -> none
       --organization_id/string
-      --app_id/string
+      --app_id/uuid.Uuid
       --word_size/int
       content/ByteArray:
     upload_resource_ "toit/$organization_id/apps/$app_id/image$word_size" content

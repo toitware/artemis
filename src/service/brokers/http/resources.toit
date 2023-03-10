@@ -3,16 +3,17 @@
 import .connection
 import ..broker
 import reader show SizedReader
+import uuid
 
 class ResourceManagerHttp implements ResourceManager:
   connection_/HttpConnection_
 
   constructor .connection_:
 
-  fetch_image id/string --organization_id/string [block] -> none:
+  fetch_image id/uuid.Uuid --organization_id/string [block] -> none:
     payload :=  {
       "organization_id": organization_id,
-      "app_id": id,
+      "app_id": id.stringify,
       "word_size": BITS_PER_WORD,
     }
     connection_.send_binary_request "download_image" payload: | reader/SizedReader |

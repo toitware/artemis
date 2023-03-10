@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import monitor
 import .scheduler
 
 abstract class Job:
@@ -32,6 +33,7 @@ abstract class Job:
 
 abstract class TaskJob extends Job:
   task_/Task? := null
+  latch_/monitor.Latch? := null
 
   constructor name/string:
     super name
@@ -50,11 +52,26 @@ abstract class TaskJob extends Job:
           run
       finally:
         task_ = null
-        scheduler_.on_job_stopped this
+        latch := latch_
+        latch_ = null
+        // It is possible that this task has been canceled,
+        // so to allow monitor operations in this shutdown
+        // sequence, we run the rest in a critical section.
+        critical_do:
+          if latch: latch.set null
+          scheduler_.on_job_stopped this
 
   stop -> none:
     if not task_: return
+    // We're going to cancel the task, so check if
+    // anyone else is waiting for it to stop. It is
+    // rather unlikely, but it is cheap to test for.
+    latch := latch_
+    if not latch:
+      latch = monitor.Latch
+      latch_ = latch
     task_.cancel
+    latch.get
 
 abstract class PeriodicJob extends TaskJob:
   period_/Duration
