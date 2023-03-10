@@ -273,6 +273,7 @@ class Artemis:
         apps[name] = build_container_description_
             --id=id
             --arguments=container.arguments
+            --triggers=container.triggers
         ui_.info "Added container '$name' to envelope."
 
       artemis_assets := {
@@ -338,12 +339,19 @@ class Artemis:
   */
   build_container_description_ -> Map
       --id/uuid.Uuid
-      --arguments/List?:
+      --arguments/List?
+      --triggers/List?:
     result := {
       "id": id.stringify,
     }
     if arguments:
       result["arguments"] = arguments
+    if triggers:
+      trigger_map := {:}
+      triggers.do: | trigger/Trigger |
+        assert: not trigger_map.contains trigger.type
+        trigger_map[trigger.type] = trigger.json_value
+      result["triggers"] = trigger_map
     return result
 
   /**
@@ -683,7 +691,10 @@ class Artemis:
       new_goal := device.goal or device.reported_state_firmware
       ui_.info "Installing container '$app_name'."
       apps := new_goal.get "apps" --if_absent=: {:}
-      apps[app_name] = build_container_description_ --id=id --arguments=arguments
+      apps[app_name] = build_container_description_
+          --id=id
+          --arguments=arguments
+          --triggers=null
       new_goal["apps"] = apps
       new_goal
 

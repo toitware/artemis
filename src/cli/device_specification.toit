@@ -260,6 +260,7 @@ interface Container:
   build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
   type -> string
   arguments -> List?
+  triggers -> List? // Of type $Trigger.
   to_json -> Map
 
   static check_arguments_entry arguments:
@@ -419,6 +420,13 @@ abstract class Trigger:
   static INSTALL ::= "install"
 
   abstract type -> string
+  abstract to_json -> any
+  /**
+  A value that is associated with the trigger.
+  This is the value that is sent in the goal state.
+  Triggers that don't have any value should use 1.
+  */
+  abstract json_value -> any
 
   constructor:
 
@@ -464,6 +472,9 @@ class IntervalTrigger extends Trigger:
       "interval": interval.stringify,
     }
 
+  json_value -> int:
+    return interval.in_s
+
 class BootTrigger extends Trigger:
   type -> string:
     return Trigger.BOOT
@@ -471,9 +482,15 @@ class BootTrigger extends Trigger:
   to_json -> string:
     return "boot"
 
+  json_value -> int:
+    return 1
+
 class InstallTrigger extends Trigger:
   type -> string:
     return Trigger.INSTALL
 
   to_json -> string:
     return "install"
+
+  json_value -> int:
+    return 1
