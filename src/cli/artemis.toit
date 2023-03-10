@@ -271,7 +271,7 @@ class Artemis:
 
         apps := device_config.get "apps" --init=:{:}
         apps[name] = build_container_description_
-            --id=id.stringify
+            --id=id
             --arguments=container.arguments
         ui_.info "Added container '$name' to envelope."
 
@@ -337,10 +337,10 @@ class Artemis:
   Builds a container description as needed for a "container" entry in the device state.
   */
   build_container_description_ -> Map
-      --id/string
+      --id/uuid.Uuid
       --arguments/List?:
     result := {
-      "id": id,
+      "id": id.stringify,
     }
     if arguments:
       result["arguments"] = arguments
@@ -671,7 +671,7 @@ class Artemis:
               --organization_id=device.organization_id
               --word_size=32
           file.write_content program.image32 --path="$tmp_dir/image32.bin"
-          connected_broker.upload_image  program.image64
+          connected_broker.upload_image program.image64
               --organization_id=device.organization_id
               --app_id=id
               --word_size=64

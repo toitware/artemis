@@ -3,6 +3,7 @@
 import mqtt
 import encoding.ubjson
 import reader show SizedReader
+import uuid
 
 import ..broker
 import ....shared.mqtt
@@ -24,7 +25,7 @@ class ResourceManagerMqtt implements ResourceManager:
     monitor.provide block.call
     return true
 
-  fetch_image id/string --organization_id/string [block] -> none:
+  fetch_image id/uuid.Uuid --organization_id/string [block] -> none:
     fetch_resource_ "toit/$organization_id/apps/$id/image$BITS_PER_WORD" block
 
   fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none:

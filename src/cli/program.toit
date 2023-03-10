@@ -8,7 +8,7 @@ import .utils
 import .sdk
 
 class CompiledProgram:
-  id/string
+  id/uuid.Uuid
   image32/ByteArray
   image64/ByteArray
   sdk_/Sdk
@@ -33,7 +33,7 @@ class CompiledProgram:
       image_ubjson_path := "$tmp/image.ubjson"
       sdk.run_snapshot_to_image_tool ["-m32", "-m64", "--format=ubjson", "-o", image_ubjson_path, path]
       image := read_ubjson image_ubjson_path
-      id := image["id"]
+      id := uuid.parse image["id"]
       image32/ByteArray? := null
       image64/ByteArray? := null
       image["images"].do: | map/Map |
