@@ -460,6 +460,8 @@ abstract class Trigger:
 class IntervalTrigger extends Trigger:
   interval/Duration
 
+  constructor .interval:
+
   constructor.from_json container_name/string data/Map:
     holder := "trigger in container $container_name"
     interval = get_duration_ data "interval" --holder=holder
