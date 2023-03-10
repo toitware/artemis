@@ -7,7 +7,7 @@ import system.containers
 import system.firmware
 import uuid
 
-import .applications
+import .containers
 import .firmware_update
 import .jobs
 import .brokers.broker
@@ -23,14 +23,14 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
   logger_/log.Logger
   device_/Device
-  applications_/ApplicationManager
+  containers_/ContainerManager
   broker_/BrokerService
 
   // We limit the capacity of the actions channel to avoid letting
   // the connect task build up too much work.
   actions_ ::= monitor.Channel 1
 
-  constructor logger/log.Logger .device_ .applications_ .broker_:
+  constructor logger/log.Logger .device_ .containers_ .broker_:
     logger_ = logger.with_name "synchronize"
     super "synchronize"
 
@@ -76,12 +76,12 @@ class SynchronizeJob extends TaskJob implements EventHandler:
         lambda.call
         if actions_.size > 0: continue
 
-        // We only handle incomplete applications when we're done processing
+        // We only handle incomplete containers when we're done processing
         // the other actions. This means that we prioritize firmware updates
-        // and configuration changes over fetching applications.
-        if applications_.any_incomplete:
+        // and configuration changes over fetching containers.
+        if containers_.any_incomplete:
           assert: actions_.size == 0  // No issues with getting blocked on send.
-          actions_.send (action_app_fetch_ resources)
+          actions_.send (action_container_image_fetch_ resources)
           continue
 
         // We've successfully connected to the network, so we consider
@@ -175,20 +175,20 @@ class SynchronizeJob extends TaskJob implements EventHandler:
             logger_.error "container $name has invalid description"
             continue.on_map
           description_map := description as Map
-          description_map.get Application.KEY_ID
+          description_map.get ContainerJob.KEY_ID
               --if_absent=:
                 logger_.error "container $name has no id"
               --if_present=:
-                // An app just appeared in the state.
+                // A container just appeared in the state.
                 id := parse_uuid_ it
-                if id: bundle.add (action_app_install_ name id description_map)
+                if id: bundle.add (action_container_install_ name id description_map)
         --removed=: | name/string |
-          // An app disappeared completely from the state. We
+          // A container disappeared completely from the state. We
           // uninstall it.
-          bundle.add (action_app_uninstall_ name)
+          bundle.add (action_container_uninstall_ name)
         --modified=: | name/string nested/Modification |
           description := new_goal["apps"][name]
-          handle_application_update_ bundle name description nested
+          handle_container_update_ bundle name description nested
 
     modification.on_value "max-offline"
         --added   =: bundle.add (action_set_max_offline_ it)
@@ -200,7 +200,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
   handle_firmware_update_ resources/ResourceManager new/string -> none:
     actions_.send (action_firmware_update_ resources new)
 
-  handle_application_update_ -> none
+  handle_container_update_ -> none
       bundle/List
       name/string
       description/Map
@@ -208,69 +208,69 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     modification.on_value "id"
         --added=: | value |
           logger_.error "container $name gained an id ($value)"
-          // Treat it as a request to install the app.
+          // Treat it as a request to install the container.
           id := parse_uuid_ value
-          if id: bundle.add (action_app_install_ name id description)
+          if id: bundle.add (action_container_install_ name id description)
           return
         --removed=: | value |
           logger_.error "container $name lost its id ($value)"
-          // Treat it as a request to uninstall the app.
-          bundle.add (action_app_uninstall_ name)
+          // Treat it as a request to uninstall the container.
+          bundle.add (action_container_uninstall_ name)
           return
         --updated=: | from to |
-          // An applications had its id (the code) updated. We uninstall
+          // A container had its id (the code) updated. We uninstall
           // the old version and install the new one.
           // TODO(florian): it would be nicer to fetch the new version
           // before uninstalling the old one.
-          bundle.add (action_app_uninstall_ name)
+          bundle.add (action_container_uninstall_ name)
           id := parse_uuid_ to
-          if id: bundle.add (action_app_install_ name id description)
+          if id: bundle.add (action_container_install_ name id description)
           return
 
-    bundle.add (action_app_update_ name description)
+    bundle.add (action_container_update_ name description)
 
-  action_app_install_ name/string id/uuid.Uuid description/Map -> Lambda:
+  action_container_install_ name/string id/uuid.Uuid description/Map -> Lambda:
     return::
-      application := applications_.create
+      job := containers_.create
           --name=name
           --id=id
           --description=description
-      applications_.install application
-      // Installing an application doesn't really do much, unless
-      // the application is complete because we've found its
+      containers_.install job
+      // Installing a container job doesn't really do much, unless
+      // the job is already complete because we've found its
       // container image in flash. In that case, we must remember
       // to update the device state.
-      if application.is_complete:
-        device_.state_app_install_or_update name description
+      if job.is_complete:
+        device_.state_container_install_or_update name description
 
-  action_app_uninstall_ name/string -> Lambda:
+  action_container_uninstall_ name/string -> Lambda:
     return::
-      application/Application? := applications_.get --name=name
-      if application:
-        applications_.uninstall application
+      job/ContainerJob? := containers_.get --name=name
+      if job:
+        containers_.uninstall job
       else:
         logger_.error "container $name not found"
-      device_.state_app_uninstall name
+      device_.state_container_uninstall name
 
-  action_app_update_ name/string description/Map -> Lambda:
+  action_container_update_ name/string description/Map -> Lambda:
     return::
-      application/Application? := applications_.get --name=name
-      if application:
-        applications_.update application description
-        device_.state_app_install_or_update name description
+      job/ContainerJob? := containers_.get --name=name
+      if job:
+        containers_.update job description
+        device_.state_container_install_or_update name description
       else:
         logger_.error "container $name not found"
 
-  action_app_fetch_ resources/ResourceManager -> Lambda:
+  action_container_image_fetch_ resources/ResourceManager -> Lambda:
     return::
-      incomplete/Application? ::= applications_.first_incomplete
+      incomplete/ContainerJob? ::= containers_.first_incomplete
       if incomplete:
         resources.fetch_image incomplete.id --organization_id=device_.organization_id:
           | reader/SizedReader |
-            applications_.complete incomplete reader
-            // The application was successfully installed, so
-            // we go ahead and update the current state.
-            device_.state_app_install_or_update
+            containers_.complete incomplete reader
+            // The container image was successfully installed, so the job is
+            // now complete. Go ahead and update the current state!
+            device_.state_container_install_or_update
                 incomplete.name
                 incomplete.description
 
