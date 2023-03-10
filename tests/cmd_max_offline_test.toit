@@ -18,7 +18,6 @@ main args:
 
     test_cli.run [
       "device",
-      "transient",
       "--device-id", device.id,
       "set-max-offline", "3"
     ]
@@ -32,7 +31,6 @@ main args:
 
     test_cli.run [
       "device",
-      "transient",
       "--device-id", device.id,
       "set-max-offline", "3m"
     ]
