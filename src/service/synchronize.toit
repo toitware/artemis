@@ -41,7 +41,6 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
   commit goal_state/Map actions/List -> Lambda:
     return ::
-      current_state := device_.current_state or device_.firmware_state
       actions.do: it.call
       logger_.info "goal state committed"
 

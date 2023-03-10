@@ -60,6 +60,10 @@ class Device:
   */
   current_state/Map := ?
 
+  // We keep track of whether the current state can be modified.
+  // We don't want to modify the firmware state and a state read
+  // directly from a flash bucket contains lists and maps that
+  // cannot be modified.
   current_state_is_modifiable_/bool := false
 
   /**
@@ -110,7 +114,8 @@ class Device:
     bucket_.remove "current_state"
 
   /**
-  ...
+  Whether the current state is modified and thus different from
+    the firmware state.
   */
   is_current_state_modified -> bool:
     return not identical current_state firmware_state
@@ -137,33 +142,27 @@ class Device:
   Sets the max-offline of the current state.
   */
   state_set_max_offline new_max_offline/Duration?:
-    if not current_state_is_modifiable_:
-      current_state = deep_copy_ current_state
-      current_state_is_modifiable_ = true
+    state := modifiable_current_state_
     if new_max_offline and new_max_offline > Duration.ZERO:
-      current_state["max-offline"] = new_max_offline.in_s
+      state["max-offline"] = new_max_offline.in_s
     else:
-      current_state.remove "max-offline"
+      state.remove "max-offline"
     simplify_and_store_
 
   /**
   Removes the program with the given $name from the current state.
   */
   state_app_uninstall name/string:
-    if not current_state_is_modifiable_:
-      current_state = deep_copy_ current_state
-      current_state_is_modifiable_ = true
-    current_state["apps"].remove name
+    state := modifiable_current_state_
+    state["apps"].remove name
     simplify_and_store_
 
   /**
   Adds or updates the program with the given $name and $description in the current state.
   */
   state_app_install_or_update name/string description/Map:
-    if not current_state_is_modifiable_:
-      current_state = deep_copy_ current_state
-      current_state_is_modifiable_ = true
-    apps := current_state.get "apps" --init=: {:}
+    state := modifiable_current_state_
+    apps := state.get "apps" --init=: {:}
     apps[name] = description
     simplify_and_store_
 
@@ -195,6 +194,15 @@ class Device:
 
     bucket_["current_state"] = encode_bucket_entry_ current_state
     bucket_["goal_state"] = encode_bucket_entry_ goal_state
+
+  /**
+  Get the current state in a modifiable form.
+  */
+  modifiable_current_state_ -> Map:
+    if not current_state_is_modifiable_:
+      current_state = deep_copy_ current_state
+      current_state_is_modifiable_ = true
+    return current_state
 
 deep_copy_ o/any -> any:
   if o is Map:
