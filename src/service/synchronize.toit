@@ -5,6 +5,7 @@ import monitor
 import reader show SizedReader
 import system.containers
 import system.firmware
+import uuid
 
 import .applications
 import .firmware_update
@@ -40,9 +41,13 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
   commit goal_state/Map actions/List -> Lambda:
     return ::
-      current_state := device_.current_state or device_.firmware_state
-      logger_.info "updating config" --tags={ "from": current_state , "to": goal_state }
       actions.do: it.call
+      logger_.info "goal state committed"
+
+  parse_uuid_ value/string -> uuid.Uuid?:
+    catch: return uuid.parse value
+    logger_.warn "unable to parse uuid '$value'"
+    return null
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.id}
@@ -112,7 +117,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     broker.
   */
   handle_goal new_goal/Map? resources/ResourceManager -> none:
-    if not new_goal and not device_.current_state:
+    if not (new_goal or device_.is_current_state_modified):
       // The new goal indicates that we should use the firmware state.
       // Since there is no current state, we are currently cleanly
       // running the firmware state.
@@ -120,7 +125,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       handle_nop
       return
 
-    current_state := device_.current_state or device_.firmware_state
+    current_state := device_.current_state
     new_goal = new_goal or device_.firmware_state
 
     if not new_goal.contains "firmware":
@@ -161,33 +166,29 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     device_.goal_state = new_goal
     report_status resources
 
-    logger_.info "goal state changed: $(Modification.stringify modification)"
+    logger_.info "goal state updated" --tags={"changes": Modification.stringify modification}
 
     bundle := []
     modification.on_map "apps"
         --added=: | name/string description |
           if description is not Map:
-            logger_.error "invalid description for app $name"
+            logger_.error "container $name has invalid description"
             continue.on_map
           description_map := description as Map
-          id := description_map.get Application.KEY_ID
-          if not id:
-            logger_.error "missing id for container $name"
-          else:
-            // An app just appeared in the configuration.
-            bundle.add (action_app_install_ name id description_map)
-        --removed=: | name/string old_description |
-          // An app disappeared completely from the configuration. We
+          description_map.get Application.KEY_ID
+              --if_absent=:
+                logger_.error "container $name has no id"
+              --if_present=:
+                // An app just appeared in the state.
+                id := parse_uuid_ it
+                if id: bundle.add (action_app_install_ name id description_map)
+        --removed=: | name/string |
+          // An app disappeared completely from the state. We
           // uninstall it.
-          if old_description is not Map:
-            continue.on_map
-          old_description_map := old_description as Map
-          id := old_description_map.get Application.KEY_ID
-          if id:
-            bundle.add (action_app_uninstall_ name id)
+          bundle.add (action_app_uninstall_ name)
         --modified=: | name/string nested/Modification |
-          full_entry := new_goal["apps"][name]
-          handle_application_update_ bundle name full_entry nested
+          description := new_goal["apps"][name]
+          handle_application_update_ bundle name description nested
 
     modification.on_value "max-offline"
         --added   =: bundle.add (action_set_max_offline_ it)
@@ -206,58 +207,59 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       modification/Modification:
     modification.on_value "id"
         --added=: | value |
-          logger_.error "current state was missing an id for container $name"
+          logger_.error "container $name gained an id ($value)"
           // Treat it as a request to install the app.
-          bundle.add (action_app_install_ name value description)
+          id := parse_uuid_ value
+          if id: bundle.add (action_app_install_ name id description)
           return
         --removed=: | value |
-          logger_.error "container $name without id"
+          logger_.error "container $name lost its id ($value)"
           // Treat it as a request to uninstall the app.
-          bundle.add (action_app_uninstall_ name value)
+          bundle.add (action_app_uninstall_ name)
           return
         --updated=: | from to |
           // An applications had its id (the code) updated. We uninstall
           // the old version and install the new one.
           // TODO(florian): it would be nicer to fetch the new version
           // before uninstalling the old one.
-          bundle.add (action_app_uninstall_ name from)
-          bundle.add (action_app_install_ name to description)
+          bundle.add (action_app_uninstall_ name)
+          id := parse_uuid_ to
+          if id: bundle.add (action_app_install_ name id description)
           return
 
     bundle.add (action_app_update_ name description)
 
-  action_app_install_ name/string id/string description/Map -> Lambda:
+  action_app_install_ name/string id/uuid.Uuid description/Map -> Lambda:
     return::
+      application := applications_.create
+          --name=name
+          --id=id
+          --description=description
+      applications_.install application
       // Installing an application doesn't really do much, unless
-      // the application is complete.
-      // As such we don't update the current state yet, but
-      // wait for the completion.
-      applications_.install (Application name --id=id --description=description)
+      // the application is complete because we've found its
+      // container image in flash. In that case, we must remember
+      // to update the device state.
+      if application.is_complete:
+        device_.state_app_install_or_update name description
 
-  action_app_uninstall_ name/string id/string -> Lambda:
+  action_app_uninstall_ name/string -> Lambda:
     return::
-      application/Application? := applications_.get id
+      application/Application? := applications_.get --name=name
       if application:
         applications_.uninstall application
       else:
-        logger_.error "application $name ($id) not found"
-      // TODO(florian): the 'uninstall' above only enqueues the installation.
-      // We need to wait for its completion.
-      device_.state_app_uninstall name id
+        logger_.error "container $name not found"
+      device_.state_app_uninstall name
 
   action_app_update_ name/string description/Map -> Lambda:
     return::
-      id := description.get Application.KEY_ID
-      if not id:
-        logger_.error "missing id for container $name"
+      application/Application? := applications_.get --name=name
+      if application:
+        applications_.update application description
+        device_.state_app_install_or_update name description
       else:
-        old_application/Application? := applications_.get id
-        if old_application:
-          updated_application := old_application.with --description=description
-          applications_.update updated_application
-          device_.state_app_install_or_update name description
-        else:
-          logger_.error "application $name ($id) not found"
+        logger_.error "container $name not found"
 
   action_app_fetch_ resources/ResourceManager -> Lambda:
     return::
@@ -266,8 +268,11 @@ class SynchronizeJob extends TaskJob implements EventHandler:
         resources.fetch_image incomplete.id --organization_id=device_.organization_id:
           | reader/SizedReader |
             applications_.complete incomplete reader
-            // The application was successfully installed. Update the current state:
-            device_.state_app_install_or_update incomplete.name incomplete.description
+            // The application was successfully installed, so
+            // we go ahead and update the current state.
+            device_.state_app_install_or_update
+                incomplete.name
+                incomplete.description
 
   action_set_max_offline_ value/any -> Lambda:
     return:: device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
@@ -301,7 +306,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     }
     if device_.pending_firmware:
       state["pending-firmware"] = device_.pending_firmware
-    if device_.current_state:
+    if device_.is_current_state_modified:
       state["current-state"] = device_.current_state
     if device_.goal_state:
       state["goal-state"] = device_.goal_state

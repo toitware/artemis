@@ -7,6 +7,7 @@ import http
 import encoding.json
 import reader
 import supabase
+import uuid
 
 import ..broker
 import ...config
@@ -77,7 +78,7 @@ class BrokerCliSupabase implements BrokerCli:
 
   upload_image
       --organization_id/string
-      --app_id/string
+      --app_id/uuid.Uuid
       --word_size/int
       content/ByteArray -> none:
     client_.storage.upload --path="toit-artemis-assets/$organization_id/images/$app_id.$word_size" --content=content
