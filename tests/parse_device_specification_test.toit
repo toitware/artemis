@@ -33,6 +33,14 @@ VALID_SPECIFICATION ::= {
     },
     "app3": {
       "snapshot": "foo.snapshot",
+    },
+    "app4": {
+      "entrypoint": "entrypoint.toit",
+      "triggers": [
+        { "interval": "5s" },
+        { "on-boot": true },
+        { "on-install": false },
+      ]
     }
   }
 }
@@ -180,3 +188,43 @@ main:
   expect_format_error
       "In container app2, git entry requires a relative path: /abs"
       git_url_no_relative_path
+
+  // Test the triggers.
+  // Available: "interval", "on-boot", "on-install".
+  // Test:
+  // - empty trigger, or with invalid key (like "on_boot").
+  // - duplicate triggers.
+  // - invalid values.
+
+  bad_trigger := new_valid
+  bad_trigger["containers"]["app4"]["triggers"] = [{ "on_boot": true }]
+  expect_format_error
+      "Unknown trigger in container app4: {on_boot: true}"
+      bad_trigger
+
+  duplicate_trigger := new_valid
+  duplicate_trigger["containers"]["app4"]["triggers"] = [
+    { "interval": "5s" },
+    { "interval": "5s" },
+  ]
+  expect_format_error
+      "Duplicate trigger 'interval' in container app4"
+      duplicate_trigger
+
+  bad_interval := new_valid
+  bad_interval["containers"]["app4"]["triggers"] = [{ "interval": "foobar" }]
+  expect_format_error
+      "Entry interval in trigger in container app4 is not a valid duration: foobar"
+      bad_interval
+
+  bad_on_boot := new_valid
+  bad_on_boot["containers"]["app4"]["triggers"] = [{ "on-boot": "foobar" }]
+  expect_format_error
+      "Entry on-boot in trigger in container app4 is not a boolean: foobar"
+      bad_on_boot
+
+  bad_on_install := new_valid
+  bad_on_install["containers"]["app4"]["triggers"] = [{ "on-install": "foobar" }]
+  expect_format_error
+      "Entry on-install in trigger in container app4 is not a boolean: foobar"
+      bad_on_install
