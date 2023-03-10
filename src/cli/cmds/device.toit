@@ -154,7 +154,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd.add max_offline_cmd
 
   specification_format_cmd := cli.Command "specification-format"
-      --short_help="Prints the format of the device specification file."
+      --short_help="Show the format of the device specification file."
       --run=:: ui.info SPECIFICATION_FORMAT_HELP
   cmd.add specification_format_cmd
 

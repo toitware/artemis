@@ -11,12 +11,7 @@ import ..ui
 
 create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
   cmd := cli.Command "container"
-      --long_help="""
-        ...
-
-        All changes done through this command are lost when the device
-        loses power.
-        """
+      --short_help="Manage the containers installed on a device."
       --options=broker_options + [
         cli.Option "device-id"
             --short_name="d"

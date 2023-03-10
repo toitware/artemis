@@ -41,7 +41,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   create_firmware_cmd := cli.Command "create-firmware"
       --long_help="""
-        Creates a firmware image.
+        Create a firmware image.
 
         The generated image can later be used to flash or update devices.
         When flashing, it needs to be combined with an identity file first. See
@@ -75,7 +75,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   create_identities_cmd := cli.Command "create-identities"
       --long_help="""
-        Creates a specified number of identity files.
+        Create a specified number of identity files.
 
         Identity files describe a device, containing their ID and organization.
         For each written identity file, a device is provisioned in the Toit
@@ -113,7 +113,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   upload_cmd := cli.Command "upload"
       --long_help="""
-        Uploads the given firmware to the broker in the given organization.
+        Upload the given firmware to the broker in the given organization.
 
         Uploaded firmwares can be used for diff-based firmware updates.
 
@@ -137,7 +137,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   update_cmd := cli.Command "update"
       --long_help="""
-        Updates the firmware of multiple devices.
+        Update the firmware of multiple devices.
 
         This command takes either a firmware image or a specification file as
         input.
