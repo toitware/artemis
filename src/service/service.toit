@@ -3,7 +3,7 @@
 import log
 
 import .scheduler show Scheduler
-import .applications show Application ApplicationManager
+import .containers show ContainerManager
 import .jobs
 
 import .synchronize show SynchronizeJob
@@ -19,18 +19,18 @@ import ..shared.server_config
 run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Duration:
   logger := log.default.with_name "artemis"
   scheduler ::= Scheduler logger
-  applications ::= ApplicationManager logger scheduler
+  containers ::= ContainerManager logger scheduler
   broker := BrokerService logger server_config
 
   // Set up the basic jobs.
-  synchronize/SynchronizeJob := SynchronizeJob logger device applications broker
+  synchronize/SynchronizeJob := SynchronizeJob logger device containers broker
   jobs := [synchronize]
   if start_ntp: jobs.add (NtpJob logger (Duration --m=10))
   scheduler.add_jobs jobs
 
-  // Add the application jobs based on the device state.
+  // Add the container jobs based on the device state.
   state/Map := device.current_state or device.firmware_state
-  applications.load state
+  containers.load state
 
   // Run the scheduler until it terminates and gives us
   // the wakeup time for the next job to run.

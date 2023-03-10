@@ -150,17 +150,17 @@ class Device:
     simplify_and_store_
 
   /**
-  Removes the program with the given $name from the current state.
+  Removes the container with the given $name from the current state.
   */
-  state_app_uninstall name/string:
+  state_container_uninstall name/string:
     state := modifiable_current_state_
     state["apps"].remove name
     simplify_and_store_
 
   /**
-  Adds or updates the program with the given $name and $description in the current state.
+  Adds or updates the container with the given $name and $description in the current state.
   */
-  state_app_install_or_update name/string description/Map:
+  state_container_install_or_update name/string description/Map:
     state := modifiable_current_state_
     apps := state.get "apps" --init=: {:}
     apps[name] = description
