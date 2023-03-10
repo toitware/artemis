@@ -8,6 +8,7 @@ import ..cache
 import ..config
 import ..device_specification as device_specification
 import ..ui
+import ..utils
 
 create_transient_command config/Config cache/Cache ui/Ui -> cli.Command:
   cmd := cli.Command "transient"
@@ -82,7 +83,9 @@ set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   max_offline_seconds := int.parse max_offline --on_error=:
     // Assume it's a duration with units, like "5s".
-    duration := device_specification.DeviceSpecification.parse_max_offline_ max_offline
+    duration := parse_duration max_offline --on_error=:
+      ui.error "Invalid max-offline duration: $max_offline"
+      ui.abort
     duration.in_s
 
   with_artemis parsed config cache ui: | artemis/Artemis |

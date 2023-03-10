@@ -4,9 +4,6 @@ import expect show *
 
 import artemis.cli.device_specification show DeviceSpecification DeviceSpecificationException
 
-parse str/string -> Duration:
-  return DeviceSpecification.parse_max_offline_ str
-
 expect_format_error str/string json/Map:
   exception := catch: DeviceSpecification.from_json json --path="ignored"
   expect exception is DeviceSpecificationException

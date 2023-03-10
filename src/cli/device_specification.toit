@@ -94,6 +94,33 @@ get_list_ map/Map key/string -> List
     format_error_ "$entry_type $key in $holder is not a list: $value"
   return value
 
+get_duration_ map/Map key/string -> Duration
+    --entry_type/string="Entry"
+    --holder/string="device specification":
+  // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
+  // Returns 0 if the string is empty.
+
+  if not map.contains key:
+    format_error_ "Missing $key in $holder."
+
+  entry := map[key]
+  if entry is not string:
+    format_error_ "$entry_type $key in $holder is not a string: $entry"
+
+  entry_string := entry as string
+  entry_string = entry_string.trim
+  if entry_string == "": return Duration.ZERO
+
+  return parse_duration entry_string --on_error=:
+    format_error_ "$entry_type $key in $holder is not a valid duration: $entry"
+
+get_optional_duration_ map/Map key/string -> Duration?
+    --entry_type/string="Entry"
+    --holder/string="device specification":
+  if not map.contains key: return null
+  return get_duration_ map key --entry_type=entry_type --holder=holder
+
+
 /**
 A specification of a device.
 
@@ -115,6 +142,9 @@ class DeviceSpecification:
   path/string
 
   constructor.from_json --.path/string data/Map:
+    sdk_version = get_string_ data "sdk-version"
+    artemis_version = get_string_ data "artemis-version"
+
     if not data.contains "containers" and not data.contains "apps":
       format_error_ "Missing containers in device specification."
 
@@ -147,49 +177,10 @@ class DeviceSpecification:
     connections = data["connections"].map: ConnectionInfo.from_json it
 
     // TODO(florian): make max-offline optional.
-    max_offline_seconds = 0
-    max_offline_string := get_string_ data "max-offline"
-    exception := catch:
-      max_offline_seconds = (parse_max_offline_ max_offline_string).in_s
-    if exception:
-      throw (DeviceSpecificationException
-          "Invalid max-offline in device specification: $exception")
-
-    sdk_version = get_string_ data "sdk-version"
-    artemis_version = get_string_ data "artemis-version"
+    max_offline_seconds = (get_duration_ data "max-offline").in_s
 
   static parse path/string -> DeviceSpecification:
     return DeviceSpecification.from_json --path=path (read_json path)
-
-  static parse_max_offline_ max_offline_string/string -> Duration:
-    // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
-    // Returns 0 if the string is empty.
-
-    max_offline_string = max_offline_string.trim
-    if max_offline_string == "": return Duration.ZERO
-
-    UNITS ::= ["h", "m", "s"]
-    splits_with_missing := UNITS.map: max_offline_string.index_of it
-    splits := splits_with_missing.filter: it != -1
-    if splits.is_empty or not splits.is_sorted:
-      throw "Invalid max offline string: $max_offline_string"
-    if splits.last != max_offline_string.size - 1:
-      throw "Invalid max offline string: $max_offline_string"
-
-    last_unit := -1
-    values := {:}
-    splits.do: | split/int |
-      unit := max_offline_string[split]
-      value_string := max_offline_string[last_unit + 1..split]
-      value := int.parse value_string.trim --on_error=:
-        throw "Invalid max offline string: $max_offline_string"
-      values[unit] = value
-      last_unit = split
-
-    return Duration
-        --h=values.get 'h' --if_absent=: 0
-        --m=values.get 'm' --if_absent=: 0
-        --s=values.get 's' --if_absent=: 0
 
   /**
   Returns the path to which all other paths of this specification are
