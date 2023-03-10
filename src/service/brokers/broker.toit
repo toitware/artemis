@@ -3,6 +3,7 @@
 import encoding.tison
 import log
 import reader show SizedReader  // For toitdoc.
+import uuid
 
 import .supabase.synchronize show BrokerServiceSupabase
 import .mqtt.synchronize show BrokerServiceMqtt
@@ -19,7 +20,7 @@ interface ResourceManager:
 
   Calls the $block with a $SizedReader.
   */
-  fetch_image id/string --organization_id/string [block] -> none
+  fetch_image id/uuid.Uuid --organization_id/string [block] -> none
 
   /**
   Downloads the firmware with the given $id.

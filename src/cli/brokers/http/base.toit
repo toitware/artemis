@@ -3,6 +3,7 @@
 import encoding.ubjson
 import http
 import net
+import uuid
 
 import ..broker
 import ...device
@@ -82,12 +83,12 @@ class BrokerCliHttp implements BrokerCli:
 
   upload_image -> none
       --organization_id/string
-      --app_id/string
+      --app_id/uuid.Uuid
       --word_size/int
       content/ByteArray:
     send_request_ "upload_image" {
       "organization_id": organization_id,
-      "app_id": app_id,
+      "app_id": app_id.stringify,
       "word_size": word_size,
       "content": content,
     }
