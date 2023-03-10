@@ -282,8 +282,8 @@ abstract class ContainerBase implements Container:
         --check=: it is string
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
-        --type="map"
-        --check=: it is Map
+        --type="map or string"
+        --check=: it is Map or it is string
     if triggers_list:
       triggers = triggers_list.map: Trigger.from_json name it
       seen_types := {}
@@ -415,28 +415,39 @@ class ContainerSnapshot extends ContainerBase:
 
 abstract class Trigger:
   static INTERVAL ::= "interval"
-  static ON_BOOT ::= "on-boot"
-  static ON_INSTALL ::= "on-install"
+  static BOOT ::= "boot"
+  static INSTALL ::= "install"
 
   abstract type -> string
 
   constructor:
 
-  constructor.from_json container_name/string data/Map:
+  constructor.from_json container_name/string data/any:
     known_triggers := {
-      "interval": :: IntervalTrigger.from_json container_name data,
-      "on-boot": :: OnBootTrigger.from_json container_name data,
-      "on-install": :: OnInstallTrigger.from_json container_name data,
+      "boot": :: BootTrigger,
+      "install": :: InstallTrigger,
+      "interval": :: IntervalTrigger.from_json container_name it,
     }
+    map_triggers := { "interval" }
+
     seen_types := {}
-    known_triggers.do:
-      if data.contains it: seen_types.add it
+    trigger/Lambda? := null
+    known_triggers.do: | key/string value/Lambda |
+      is_map_trigger := map_triggers.contains key
+      if is_map_trigger and data is Map:
+        if data.contains key:
+          seen_types.add key
+          trigger = value
+      else if not is_map_trigger and data is string:
+        if data == key:
+          seen_types.add key
+          trigger = value
     if seen_types.size == 0:
       format_error_ "Unknown trigger in container $container_name: $data"
     if seen_types.size != 1:
-      format_error_ "Container $container_name has multiple triggers: $data"
+      format_error_ "Container $container_name has ambiguous trigger: $data"
 
-    return known_triggers[seen_types.first].call
+    return trigger.call data
 
 class IntervalTrigger extends Trigger:
   interval/Duration
@@ -453,33 +464,16 @@ class IntervalTrigger extends Trigger:
       "interval": interval.stringify,
     }
 
-class OnBootTrigger extends Trigger:
-  on_boot/bool
-
-  constructor.from_json container_name/string data/Map:
-    holder := "trigger in container $container_name"
-    on_boot = get_bool_ data "on-boot" --holder=holder
-
+class BootTrigger extends Trigger:
   type -> string:
-    return Trigger.ON_BOOT
+    return Trigger.BOOT
 
-  to_json -> Map:
-    return {
-      "on-boot": on_boot,
-    }
+  to_json -> string:
+    return "boot"
 
-class OnInstallTrigger extends Trigger:
-  on_install/bool
-
-  constructor.from_json container_name/string data/Map:
-    holder := "trigger in container $container_name"
-    on_install = get_bool_ data "on-install" --holder=holder
-
+class InstallTrigger extends Trigger:
   type -> string:
-    return Trigger.ON_INSTALL
+    return Trigger.INSTALL
 
-  to_json -> Map:
-    return {
-      "on-install": on_install,
-    }
-
+  to_json -> string:
+    return "install"
