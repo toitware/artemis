@@ -5,7 +5,7 @@ import encoding.base64
 import uuid
 
 import .broker_options_
-import .device_transient
+import .device_container
 import ..artemis
 import ..cache
 import ..config
@@ -158,7 +158,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: ui.info SPECIFICATION_FORMAT_HELP
   cmd.add specification_format_cmd
 
-  cmd.add (create_transient_command config cache ui)
+  cmd.add (create_container_command config cache ui)
   return [cmd]
 
 flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:

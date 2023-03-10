@@ -645,7 +645,7 @@ class Artemis:
   update_goal --device_id/string [block]:
     connected_broker.update_goal --device_id=device_id block
 
-  app_install -> none
+  container_install -> none
       --device_id/string
       --app_name/string
       --application_path/string
@@ -681,18 +681,18 @@ class Artemis:
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      ui_.info "Installing app '$app_name'"
+      ui_.info "Installing container '$app_name'."
       apps := new_goal.get "apps" --if_absent=: {:}
       apps[app_name] = build_container_description_ --id=id --arguments=arguments
       new_goal["apps"] = apps
       new_goal
 
-  app_uninstall --device_id/string --app_name/string:
+  container_uninstall --device_id/string --app_name/string:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      ui_.info "Uninstalling app '$app_name'"
+      ui_.info "Uninstalling container '$app_name'."
       apps := new_goal.get "apps"
       if apps: apps.remove app_name
       new_goal
