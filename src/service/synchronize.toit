@@ -118,7 +118,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     broker.
   */
   handle_goal new_goal/Map? resources/ResourceManager -> none:
-    if not new_goal and not device_.current_state:
+    if not (new_goal or device_.is_current_state_modified):
       // The new goal indicates that we should use the firmware state.
       // Since there is no current state, we are currently cleanly
       // running the firmware state.
@@ -126,7 +126,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       handle_nop
       return
 
-    current_state := device_.current_state or device_.firmware_state
+    current_state := device_.current_state
     new_goal = new_goal or device_.firmware_state
 
     if not new_goal.contains "firmware":
@@ -307,7 +307,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     }
     if device_.pending_firmware:
       state["pending-firmware"] = device_.pending_firmware
-    if device_.current_state:
+    if device_.is_current_state_modified:
       state["current-state"] = device_.current_state
     if device_.goal_state:
       state["goal-state"] = device_.goal_state

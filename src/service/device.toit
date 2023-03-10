@@ -58,7 +58,9 @@ class Device:
   If a new firmware has been installed, the $pending_firmware is set
     to that firmware.
   */
-  current_state/Map? := null
+  current_state/Map := ?
+
+  current_state_is_modifiable_/bool := false
 
   /**
   The configuration the device tries to reach.
@@ -81,6 +83,7 @@ class Device:
   pending_firmware/string? := null
 
   constructor --.id --.organization_id --.firmware_state/Map:
+    current_state = firmware_state
     bucket_ = storage.Bucket.open --flash "toit.io/artemis/device_states"
     stored_current_state := decode_bucket_entry_ (bucket_.get "current_state")
     if stored_current_state:
@@ -93,7 +96,8 @@ class Device:
         // the old "current" state.
         if not is_validation_pending:
           log.error "current state has different firmware than firmware state"
-        current_state = null
+    else:
+      current_state = firmware_state
     goal_state = decode_bucket_entry_ (bucket_.get "goal_state")
 
   /**
@@ -102,16 +106,20 @@ class Device:
   At this point the device is free to discard older information from the
     previous firmware.
   */
-  firmware_validated:
+  firmware_validated -> none:
     bucket_.remove "current_state"
+
+  /**
+  ...
+  */
+  is_current_state_modified -> bool:
+    return not identical current_state firmware_state
 
   /**
   The current max-offline as a Duration.
   */
   max_offline -> Duration?:
-    max_offline_s/int? := null
-    if current_state: max_offline_s = current_state.get "max-offline"
-    else: max_offline_s = firmware_state.get "max-offline"
+    max_offline_s/int? := current_state.get "max-offline"
     if not max_offline_s: return null
     return Duration --s=max_offline_s
 
@@ -129,7 +137,9 @@ class Device:
   Sets the max-offline of the current state.
   */
   state_set_max_offline new_max_offline/Duration?:
-    if not current_state: current_state = deep_copy_ firmware_state
+    if not current_state_is_modifiable_:
+      current_state = deep_copy_ current_state
+      current_state_is_modifiable_ = true
     if new_max_offline and new_max_offline > Duration.ZERO:
       current_state["max-offline"] = new_max_offline.in_s
     else:
@@ -140,7 +150,9 @@ class Device:
   Removes the program with the given $name from the current state.
   */
   state_app_uninstall name/string:
-    if not current_state: current_state = deep_copy_ firmware_state
+    if not current_state_is_modifiable_:
+      current_state = deep_copy_ current_state
+      current_state_is_modifiable_ = true
     current_state["apps"].remove name
     simplify_and_store_
 
@@ -148,7 +160,9 @@ class Device:
   Adds or updates the program with the given $name and $description in the current state.
   */
   state_app_install_or_update name/string description/Map:
-    if not current_state: current_state = deep_copy_ firmware_state
+    if not current_state_is_modifiable_:
+      current_state = deep_copy_ current_state
+      current_state_is_modifiable_ = true
     apps := current_state.get "apps" --init=: {:}
     apps[name] = description
     simplify_and_store_
@@ -169,16 +183,12 @@ class Device:
   If the current state is the same as the firmware state sets it to null.
   */
   simplify_and_store_:
-    if goal_state and current_state:
-      // For simplicity we don't require goal states to contain firmware
-      // information.
-      if not goal_state.contains "firmware":
-        goal_state["firmware"] = current_state["firmware"]
-      if json_equals goal_state current_state:
-        goal_state = null
+    if goal_state and json_equals goal_state current_state:
+      goal_state = null
 
     if current_state and json_equals current_state firmware_state:
-      current_state = null
+      current_state = firmware_state
+      current_state_is_modifiable_ = false
 
     if is_validation_pending:
       log.error "validation still pending in simplify_and_store_"
