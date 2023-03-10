@@ -147,15 +147,16 @@ class ContainerJob extends Job:
       if name == "install": run_on_install = true
       if name == "interval": run_at_interval_s = value
 
-    if run_on_boot and not has_run_after_boot: return now
-    if run_on_install and not has_run_after_install_: return now
-    if run_at_interval_s:
-      if not last: return now
-      interval := Duration --s=run_at_interval_s
-      next := last + interval
-      if next <= now: return now
-      return next
-    return null
+    if run_on_boot and not has_run_after_boot:
+      return now
+    else if run_on_install and not has_run_after_install_:
+      return now
+    else if run_at_interval_s:
+      return last ? last + (Duration --s=run_at_interval_s) : now
+    else:
+      // TODO(kasper): Don't run at all. Maybe that isn't
+      // a great default when you have no triggers?
+      return null
 
   start now/JobTime -> none:
     assert: is_complete

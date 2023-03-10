@@ -110,7 +110,6 @@ uninstall_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Request sent to broker. Container will be uninstalled when device synchronizes."
 
 class OptionPatterns extends cli.OptionEnum:
-
   constructor name/string patterns/List
       --default=null
       --short_name/string?=null
