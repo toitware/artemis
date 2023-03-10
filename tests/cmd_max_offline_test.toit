@@ -18,8 +18,9 @@ main args:
 
     test_cli.run [
       "device",
+      "set-max-offline",
       "--device-id", device.id,
-      "set-max-offline", "3"
+       "3",
     ]
 
     with_timeout (Duration --s=10):
@@ -31,8 +32,9 @@ main args:
 
     test_cli.run [
       "device",
+      "set-max-offline",
       "--device-id", device.id,
-      "set-max-offline", "3m"
+       "3m",
     ]
 
     with_timeout (Duration --s=10):
