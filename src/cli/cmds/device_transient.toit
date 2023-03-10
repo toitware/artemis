@@ -24,21 +24,6 @@ create_transient_command config/Config cache/Cache ui/Ui -> cli.Command:
             --short_help="The device ID to use.",
       ]
 
-  max_offline_cmd := cli.Command "set-max-offline"
-      --short_help="Update the max-offline time of the device."
-      --rest=[
-        cli.Option "max-offline"
-            --short_help="The new max-offline time."
-            --type="seconds"
-            --required
-      ]
-      --examples=[
-        cli.Example "Set the max-offline time to 15 seconds" --arguments="15",
-        cli.Example "Set the max-offline time to 3 minutes" --arguments="3m",
-      ]
-      --run=:: set_max_offline it config cache ui
-  cmd.add max_offline_cmd
-
   install_cmd := cli.Command "install"
       --short_help="Install an app on a device."
       --rest=[
@@ -75,20 +60,6 @@ get_device_id parsed/cli.Parsed config/Config ui/Ui -> string:
     ui.error "No device ID specified and no default device ID set."
     ui.abort
   return device_id
-
-set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  max_offline := parsed["max-offline"]
-  device_id := get_device_id parsed config ui
-
-  max_offline_seconds := int.parse max_offline --on_error=:
-    // Assume it's a duration with units, like "5s".
-    duration := device_specification.DeviceSpecification.parse_max_offline_ max_offline
-    duration.in_s
-
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    artemis.config_set_max_offline --device_id=device_id
-        --max_offline_seconds=max_offline_seconds
-    ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
 
 install_app parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   app_name := parsed["application-name"]
