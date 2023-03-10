@@ -114,15 +114,7 @@ class DeviceSpecification:
   containers/Map  // Of name -> $Container.
   path/string
 
-  constructor
-      --.path
-      --.sdk_version
-      --.artemis_version
-      --.max_offline_seconds
-      --.connections
-      --.containers:
-
-  constructor.from_json --path/string data/Map:
+  constructor.from_json --.path/string data/Map:
     if not data.contains "containers" and not data.contains "apps":
       format_error_ "Missing containers in device specification."
 
@@ -144,7 +136,7 @@ class DeviceSpecification:
     data["containers"].do --keys:
       check_is_map_ data["containers"] --entry_type="Container" it
 
-    containers := data["containers"].map: | name container_description |
+    containers = data["containers"].map: | name container_description |
           Container.from_json name container_description
 
     connections_entry := get_list_ data "connections"
@@ -152,10 +144,10 @@ class DeviceSpecification:
       if it is not Map:
         format_error_ "Connection in device specification is not a map: $it"
 
-    connections := data["connections"].map: ConnectionInfo.from_json it
+    connections = data["connections"].map: ConnectionInfo.from_json it
 
-    max_offline_seconds/int := 0
     // TODO(florian): make max-offline optional.
+    max_offline_seconds = 0
     max_offline_string := get_string_ data "max-offline"
     exception := catch:
       max_offline_seconds = (parse_max_offline_ max_offline_string).in_s
@@ -163,13 +155,8 @@ class DeviceSpecification:
       throw (DeviceSpecificationException
           "Invalid max-offline in device specification: $exception")
 
-    return DeviceSpecification
-      --path=path
-      --sdk_version=get_string_ data "sdk-version"
-      --artemis_version=get_string_ data "artemis-version"
-      --max_offline_seconds=max_offline_seconds
-      --connections=connections
-      --containers=containers
+    sdk_version = get_string_ data "sdk-version"
+    artemis_version = get_string_ data "artemis-version"
 
   static parse path/string -> DeviceSpecification:
     return DeviceSpecification.from_json --path=path (read_json path)
@@ -237,12 +224,9 @@ class WifiConnectionInfo implements ConnectionInfo:
   ssid/string
   password/string
 
-  constructor --.ssid --.password:
-
   constructor.from_json data/Map:
-    return WifiConnectionInfo
-        --ssid=get_string_ data "ssid" --holder="wifi connection"
-        --password=get_string_ data "password" --holder="wifi connection"
+    ssid = get_string_ data "ssid" --holder="wifi connection"
+    password = get_string_ data "password" --holder="wifi connection"
 
   type -> string:
     return "wifi"
@@ -284,7 +268,9 @@ interface Container:
 abstract class ContainerBase implements Container:
   arguments/List?
 
-  constructor .arguments:
+  constructor.from_json name/string data/Map:
+    holder := "container $name"
+    arguments = get_optional_string_list_ data "arguments" --holder=holder
 
   abstract type -> string
   abstract to_json -> Map
@@ -295,21 +281,16 @@ class ContainerPath extends ContainerBase:
   git_url/string?
   git_ref/string?
 
-  constructor name/string --.entrypoint --arguments/List? --.git_url --.git_ref:
+  constructor.from_json name/string data/Map:
+    holder := "container $name"
+    git_ref = get_optional_string_ data "branch" --holder=holder
+    git_url = get_optional_string_ data "git" --holder=holder
+    entrypoint = get_string_ data "entrypoint" --holder=holder
     if git_url and not git_ref:
       format_error_ "In container $name, git entry requires a branch/tag: $git_url"
     if git_url and not fs.is_relative entrypoint:
       format_error_"In container $name, git entry requires a relative path: $entrypoint"
-    super arguments
-
-  constructor.from_json name/string data/Map:
-    holder := "container $name"
-    return ContainerPath
-      name
-      --entrypoint=get_string_ data "entrypoint" --holder=holder
-      --arguments=get_optional_string_list_ data "arguments" --holder=holder
-      --git_ref=get_optional_string_ data "branch" --holder=holder
-      --git_url=get_optional_string_ data "git" --holder=holder
+    super.from_json name data
 
   build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache:
     if not git_url:
@@ -390,14 +371,10 @@ class ContainerPath extends ContainerBase:
 class ContainerSnapshot extends ContainerBase:
   snapshot_path/string
 
-  constructor name/string --.snapshot_path --arguments/List?:
-    super arguments
-
   constructor.from_json name/string data/Map:
     holder := "container $name"
-    return ContainerSnapshot name
-        --snapshot_path=get_string_ data "snapshot" --holder=holder
-        --arguments=get_optional_string_list_ data "arguments" --holder=holder
+    snapshot_path = get_string_ data "snapshot" --holder=holder
+    super.from_json name data
 
   build_snapshot --relative_to/string --output_path/string --sdk/Sdk --cache/cli.Cache:
     path := snapshot_path
