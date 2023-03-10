@@ -42,7 +42,7 @@ main args --config/Config --cache/Cache --ui/Ui:
       """
       --subcommands=[
         cli.Command "version"
-            --long_help="Prints the version of the Artemis tool."
+            --long_help="Show the version of the Artemis tool."
             --run=:: ui.info ARTEMIS_VERSION,
       ]
 
