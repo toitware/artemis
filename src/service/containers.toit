@@ -9,13 +9,13 @@ import system.containers
 import .jobs
 import .scheduler
 
-class ApplicationManager:
+class ContainerManager:
   logger_/log.Logger
   scheduler_/Scheduler
 
+  jobs_ ::= {:}           // Map<string, ContainerJob>
   images_ ::= {}          // Set<uuid.Uuid>
   images_bundled_ ::= {}  // Set<uuid.Uuid>
-  applications_ ::= {:}   // Map<string, Application>
 
   constructor logger/log.Logger .scheduler_:
     logger_ = logger.with_name "containers"
@@ -31,80 +31,80 @@ class ApplicationManager:
     apps := state.get "apps" --if_absent=: return
     apps.do: | name description |
       id/uuid.Uuid? := null
-      catch: id = uuid.parse (description.get Application.KEY_ID)
+      catch: id = uuid.parse (description.get ContainerJob.KEY_ID)
       if not id: continue.do
-      application := create --name=name --id=id --description=description
-      add_ application --message="load"
+      job := create --name=name --id=id --description=description
+      add_ job --message="load"
 
   any_incomplete -> bool:
     return first_incomplete != null
 
-  first_incomplete -> Application?:
-    applications_.do: | _ application/Application |
-      if not application.is_complete: return application
+  first_incomplete -> ContainerJob?:
+    jobs_.do: | _ job/ContainerJob |
+      if not job.is_complete: return job
     return null
 
-  get --name/string -> Application?:
-    return applications_.get name
+  get --name/string -> ContainerJob?:
+    return jobs_.get name
 
-  create --name/string --id/uuid.Uuid --description/Map -> Application:
-    application := Application --name=name --id=id --description=description
-    if images_.contains id: application.is_complete_ = true
-    return application
+  create --name/string --id/uuid.Uuid --description/Map -> ContainerJob:
+    job := ContainerJob --name=name --id=id --description=description
+    if images_.contains id: job.is_complete_ = true
+    return job
 
-  install application/Application -> none:
-    add_ application --message="install"
+  install job/ContainerJob -> none:
+    add_ job --message="install"
 
-  complete application/Application reader/SizedReader -> none:
-    if application.is_complete: return
-    id := application.id
+  complete job/ContainerJob reader/SizedReader -> none:
+    if job.is_complete: return
+    id := job.id
     writer ::= containers.ContainerImageWriter reader.size
     while data := reader.read: writer.write data
     image := writer.commit
     logger_.info "installed image" --tags={"id": image}
     if image != id: throw "invalid state"
-    application.is_complete_ = true
+    job.is_complete_ = true
     images_.add id
-    logger_.info "complete" --tags=application.tags
-    scheduler_.on_job_ready application
+    logger_.info "complete" --tags=job.tags
+    scheduler_.on_job_ready job
 
-  uninstall application/Application -> none:
-    applications_.remove application.name
-    scheduler_.remove_job application
-    logger_.info "uninstall" --tags=application.tags
-    if not application.is_complete: return
-    id := application.id
+  uninstall job/ContainerJob -> none:
+    jobs_.remove job.name
+    scheduler_.remove_job job
+    logger_.info "uninstall" --tags=job.tags
+    if not job.is_complete: return
+    id := job.id
     // TODO(kasper): We could consider using reference counting
-    // here instead of running through the applications.
+    // here instead of running through the jobs.
     preserve := images_bundled_.contains id
-        or applications_.any --values: it.id == id
-    application.is_complete_ = false
+        or jobs_.any --values: it.id == id
+    job.is_complete_ = false
     if preserve: return
-    containers.uninstall application.id
+    containers.uninstall job.id
     images_.remove id
     logger_.info "uninstalled image" --tags={"id": id}
 
-  update application/Application description/Map -> none:
-    if application.is_complete: scheduler_.remove_job application
-    application.update description
-    if application.is_complete: scheduler_.add_job application
-    logger_.info "update" --tags=application.tags
+  update job/ContainerJob description/Map -> none:
+    if job.is_complete: scheduler_.remove_job job
+    job.update description
+    if job.is_complete: scheduler_.add_job job
+    logger_.info "update" --tags=job.tags
 
-  add_ application/Application --message/string -> none:
-    applications_[application.name] = application
-    scheduler_.add_job application
-    logger_.info message --tags=application.tags
+  add_ job/ContainerJob --message/string -> none:
+    jobs_[job.name] = job
+    scheduler_.add_job job
+    logger_.info message --tags=job.tags
 
-class Application extends Job:
+class ContainerJob extends Job:
   // The key of the ID in the $description.
   static KEY_ID ::= "id"
 
   id/uuid.Uuid
   description_/Map := ?
-  container_/containers.Container? := null
+  running_/containers.Container? := null
 
-  // The $ApplicationManager is responsible for marking
-  // applications as complete and it manipulates this
+  // The $ContainerManager is responsible for marking
+  // container jobs as complete and it manipulates this
   // field directly.
   is_complete_/bool := false
 
@@ -113,13 +113,13 @@ class Application extends Job:
     super name
 
   stringify -> string:
-    return "application:$name"
+    return "container:$name"
 
   is_complete -> bool:
     return is_complete_
 
   is_running -> bool:
-    return container_ != null
+    return running_ != null
 
   description -> Map:
     return description_
@@ -135,17 +135,17 @@ class Application extends Job:
 
   start now/JobTime -> none:
     assert: is_complete
-    if container_: return
+    if running_: return
     arguments := description_.get "arguments"
-    container_ = containers.start id arguments
+    running_ = containers.start id arguments
     scheduler_.on_job_started this
-    container_.on_stopped::
-      container_ = null
+    running_.on_stopped::
+      running_ = null
       scheduler_.on_job_stopped this
 
   stop -> none:
-    if not container_: return
-    container_.stop
+    if not running_: return
+    running_.stop
 
   update description/Map -> none:
     assert: not is_running
