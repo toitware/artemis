@@ -5,6 +5,7 @@ import monitor
 import reader show SizedReader
 import system.containers
 import system.firmware
+import uuid
 
 import .applications
 import .firmware_update
@@ -41,8 +42,13 @@ class SynchronizeJob extends TaskJob implements EventHandler:
   commit goal_state/Map actions/List -> Lambda:
     return ::
       current_state := device_.current_state or device_.firmware_state
-      logger_.info "updating config" --tags={ "from": current_state , "to": goal_state }
       actions.do: it.call
+      logger_.info "goal state committed"
+
+  parse_uuid_ value/string -> uuid.Uuid?:
+    catch: return uuid.parse value
+    logger_.warn "unable to parse uuid '$value'"
+    return null
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.id}
@@ -161,23 +167,24 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     device_.goal_state = new_goal
     report_status resources
 
-    logger_.info "goal state changed: $(Modification.stringify modification)"
+    logger_.info "goal state updated" --tags={"changes": Modification.stringify modification}
 
     bundle := []
     modification.on_map "apps"
         --added=: | name/string description |
           if description is not Map:
-            logger_.error "invalid description for container $name"
+            logger_.error "container $name has invalid description"
             continue.on_map
           description_map := description as Map
-          id := description_map.get Application.KEY_ID
-          if not id:
-            logger_.error "missing id for container $name"
-          else:
-            // An app just appeared in the configuration.
-            bundle.add (action_app_install_ name id description_map)
+          description_map.get Application.KEY_ID
+              --if_absent=:
+                logger_.error "container $name has no id"
+              --if_present=:
+                // An app just appeared in the state.
+                id := parse_uuid_ it
+                if id: bundle.add (action_app_install_ name id description_map)
         --removed=: | name/string |
-          // An app disappeared completely from the configuration. We
+          // An app disappeared completely from the state. We
           // uninstall it.
           bundle.add (action_app_uninstall_ name)
         --modified=: | name/string nested/Modification |
@@ -203,7 +210,8 @@ class SynchronizeJob extends TaskJob implements EventHandler:
         --added=: | value |
           logger_.error "container $name gained an id ($value)"
           // Treat it as a request to install the app.
-          bundle.add (action_app_install_ name value description)
+          id := parse_uuid_ value
+          if id: bundle.add (action_app_install_ name id description)
           return
         --removed=: | value |
           logger_.error "container $name lost its id ($value)"
@@ -216,14 +224,18 @@ class SynchronizeJob extends TaskJob implements EventHandler:
           // TODO(florian): it would be nicer to fetch the new version
           // before uninstalling the old one.
           bundle.add (action_app_uninstall_ name)
-          bundle.add (action_app_install_ name to description)
+          id := parse_uuid_ to
+          if id: bundle.add (action_app_install_ name id description)
           return
 
     bundle.add (action_app_update_ name description)
 
-  action_app_install_ name/string id/string description/Map -> Lambda:
+  action_app_install_ name/string id/uuid.Uuid description/Map -> Lambda:
     return::
-      application := applications_.build name id description
+      application := applications_.create
+          --name=name
+          --id=id
+          --description=description
       applications_.install application
       // Installing an application doesn't really do much, unless
       // the application is complete because we've found its

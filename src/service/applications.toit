@@ -30,8 +30,10 @@ class ApplicationManager:
   load state/Map -> none:
     apps := state.get "apps" --if_absent=: return
     apps.do: | name description |
-      id_string/string? := description.get Application.KEY_ID
-      application := build name id_string description
+      id/uuid.Uuid? := null
+      catch: id = uuid.parse (description.get Application.KEY_ID)
+      if not id: continue.do
+      application := create --name=name --id=id --description=description
       add_ application --message="load"
 
   any_incomplete -> bool:
@@ -45,27 +47,24 @@ class ApplicationManager:
   get --name/string -> Application?:
     return applications_.get name
 
-  // TODO(kasper): Rename this to something better.
-  build name/string id_string/string description/Map -> Application:
-    id/uuid.Uuid? := null
-    catch: id = id_string and uuid.parse id_string
-    application/Application := ?
-    if id and images_.contains id:
-      return Application.completed name --id=id --description=description
-    else:
-      return Application name --id=id_string --description=description
+  create --name/string --id/uuid.Uuid --description/Map -> Application:
+    application := Application --name=name --id=id --description=description
+    if images_.contains id: application.is_complete_ = true
+    return application
 
   install application/Application -> none:
     add_ application --message="install"
 
   complete application/Application reader/SizedReader -> none:
     if application.is_complete: return
-    application.complete_ reader
-    // TODO(kasper): Clean this up. It is super confusing
-    // that the id is a string here.
-    id/string := application.id
+    id := application.id
+    writer ::= containers.ContainerImageWriter reader.size
+    while data := reader.read: writer.write data
+    image := writer.commit
+    logger_.info "container image installed" --tags={"id": image}
+    if image != id: throw "invalid state"
+    application.is_complete_ = true
     images_.add id
-    logger_.info "container image installed" --tags={"id": id}
     logger_.info "complete" --tags=application.tags
     scheduler_.on_job_ready application
 
@@ -74,15 +73,14 @@ class ApplicationManager:
     scheduler_.remove_job application
     logger_.info "uninstall" --tags=application.tags
     if not application.is_complete: return
-    // TODO(kasper): Clean this up. It is super confusing
-    // that the id is a string here.
-    id/string := application.id
+    id := application.id
+    // TODO(kasper): We could consider using reference counting
+    // here instead of running through the applications.
     preserve := images_bundled_.contains id
         or applications_.any --values: it.id == id
-    container_image := application.container_image_
-    application.mark_incomplete_
+    application.is_complete_ = false
     if preserve: return
-    containers.uninstall container_image
+    containers.uninstall application.id
     images_.remove id
     logger_.info "container image uninstalled" --tags={"id": id}
 
@@ -101,23 +99,24 @@ class Application extends Job:
   // The key of the ID in the $description.
   static KEY_ID ::= "id"
 
-  id/string
+  id/uuid.Uuid
   description_/Map := ?
-  container_image_/uuid.Uuid? := null
   container_/containers.Container? := null
 
-  constructor name/string --.id --description/Map:
-    description_ = description
-    super name
+  // The $ApplicationManager is responsible for marking
+  // applications as complete and it manipulates this
+  // field directly.
+  is_complete_/bool := false
 
-  constructor.completed name/string --id/uuid.Uuid --description/Map:
-    this.id = id.stringify
+  constructor --name/string --.id --description/Map:
     description_ = description
-    container_image_ = id
     super name
 
   stringify -> string:
     return "application:$name"
+
+  is_complete -> bool:
+    return is_complete_
 
   is_running -> bool:
     return container_ != null
@@ -129,18 +128,16 @@ class Application extends Job:
     // TODO(florian): do we want to add the description here?
     return { "name": name, "id": id }
 
-  is_complete -> bool:
-    return container_image_ != null
-
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if not container_image_: return null
+    if not is_complete_: return null
     if has_run_after_boot: return null  // Run once at boot.
     return now
 
   start now/JobTime -> none:
+    assert: is_complete
     if container_: return
     arguments := description_.get "arguments"
-    container_ = containers.start container_image_ arguments
+    container_ = containers.start id arguments
     scheduler_.on_job_started this
     container_.on_stopped::
       container_ = null
@@ -153,14 +150,3 @@ class Application extends Job:
   update description/Map -> none:
     assert: not is_running
     description_ = description
-
-  complete_ reader/SizedReader -> none:
-    writer ::= containers.ContainerImageWriter reader.size
-    while data := reader.read: writer.write data
-    container_image_ = writer.commit
-    // TODO(kasper): Clean this up. We don't need two ids in the
-    // application that must be the same.
-    if container_image_.stringify != id: throw "invalid state"
-
-  mark_incomplete_ -> none:
-    container_image_ = null

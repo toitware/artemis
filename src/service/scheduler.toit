@@ -54,6 +54,11 @@ class Scheduler:
   remove_job job/Job -> none:
     job.stop
     jobs_.remove job
+    // TODO(kasper): This is a temporary measure to get
+    // jobs to run again if re-installed. We should be
+    // clearing whatever makes the run-on-install trigger
+    // fire, but for now we trigger run-on-boot again.
+    job.scheduler_ran_after_boot_ = false
 
   on_job_started job/Job -> none:
     job.scheduler_ran_after_boot_ = true
@@ -94,13 +99,12 @@ class Scheduler:
     return first or now + (Duration --m=1)
 
   stop_all_jobs_ -> none:
-    // TODO(kasper): Stop waits for the jobs to stop. Update the
-    // code to take advantage of that.
-    jobs_.do: it.stop
-    deadline := JobTime.now + (Duration --s=5)
-    while has_running_jobs_ and JobTime.now < deadline:
-      signal_.wait deadline
+    // Stop all running jobs, one by one. Calling $Job.stop waits
+    // until the the job is actually stopped and the scheduler
+    // has been notified through a call to $on_job_stopped.
+    catch: with_timeout (Duration --s=5): jobs_.do: it.stop
 
+// TODO(kasper): Can we use a standard monitor for this?
 monitor SchedulerSignal_:
   awakened_ := false
 

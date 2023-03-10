@@ -4,6 +4,7 @@ import reader show SizedReader
 import http
 import http.status_codes
 import encoding.json
+import uuid
 
 import ..broker
 import supabase
@@ -12,7 +13,7 @@ class ResourceManagerSupabase implements ResourceManager:
   client_/supabase.Client
   constructor .client_:
 
-  fetch_image id/string --organization_id/string [block] -> none:
+  fetch_image id/uuid.Uuid --organization_id/string [block] -> none:
     client_.storage.download
         --public
         --path="/toit-artemis-assets/$organization_id/images/$id.$BITS_PER_WORD"
