@@ -100,11 +100,11 @@ class Sdk:
   firmware_add_container name/string --program_path/string --envelope/string -> none
       --assets/string?=null
       --critical/bool=false
-      --run/string="no":
+      --trigger/string:
     args := [
       "container", "install",
       "-e", envelope,
-      "--run", run,
+      "--trigger", trigger,
       name,
       program_path,
     ]
