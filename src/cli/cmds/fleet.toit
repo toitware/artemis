@@ -25,7 +25,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
         The remaining commands are designed to be used in a workflow, where
         multiple devices are flashed with the same firmware image. Frequently,
-        flash stations are not connected to the internet, so the
+        flash stations are not connected to the Internet, so the
         'create-identities' and 'create-firmware' commands are used to create
         the necessary files, which are then transferred to the flash station.
 
@@ -89,7 +89,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         specification or firmware image.
 
         This command requires the broker to be configured.
-        This command requires internet access.
+        This command requires Internet access.
         """
       --options= broker_options + [
         cli.Option "organization-id"
