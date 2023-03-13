@@ -24,8 +24,8 @@ create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
       --short_help="Install a container on a device."
       --options=[
         OptionPatterns "trigger"
-            ["boot", "install", "interval:<duration>"]
-            --short_help="Trigger to start the container."
+            ["none", "boot", "install", "interval:<duration>"]
+            --short_help="Trigger to start the container. Defaults to 'boot,install'."
             --split_commas
             --multi,
       ]
@@ -78,7 +78,9 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.error "Duplicate trigger '$it'."
         ui.abort
       seen_triggers.add it
-    if it == "boot": device_specification.BootTrigger
+    if it == "none":
+      // Do nothing. We check that it's the only trigger later.
+    else if it == "boot": device_specification.BootTrigger
     else if it == "install": device_specification.InstallTrigger
     else if it is Map and it.contains "interval":
       if seen_triggers.contains "interval":
@@ -91,6 +93,13 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.error "Invalid trigger '$it'."
       ui.abort
       unreachable
+  if seen_triggers.contains "none":
+    if seen_triggers.size != 1:
+      ui.error "Trigger 'none' cannot be combined with other triggers."
+      ui.abort
+    triggers = []
+  else if triggers.is_empty:
+    triggers = [device_specification.BootTrigger, device_specification.InstallTrigger]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     artemis.container_install

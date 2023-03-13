@@ -269,11 +269,15 @@ class Artemis:
         sha.add (uuid.parse snapshot_uuid_string).to_byte_array
         id := uuid.Uuid sha.get[..uuid.SIZE]
 
+        triggers := container.triggers
+        if not triggers: triggers = [
+          BootTrigger
+        ]
         apps := device_config.get "apps" --init=:{:}
         apps[name] = build_container_description_
             --id=id
             --arguments=container.arguments
-            --triggers=container.triggers
+            --triggers=triggers
         ui_.info "Added container '$name' to envelope."
 
       artemis_assets := {
