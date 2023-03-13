@@ -260,7 +260,7 @@ class Artemis:
         sdk.firmware_add_container name
             --envelope=output_path
             --program_path=snapshot_path
-            --run="no"
+            --trigger="none"
 
         // TODO(kasper): Avoid computing the image id here. We should
         // be able to get it from the firmware tool.
@@ -313,7 +313,7 @@ class Artemis:
       sdk.firmware_add_container "artemis" --envelope=output_path
           --assets=artemis_assets_path
           --program_path=artemis_service_image_path
-          --run="boot"
+          --trigger="boot"
           --critical
 
     sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
