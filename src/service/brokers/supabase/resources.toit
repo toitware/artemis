@@ -20,18 +20,13 @@ class ResourceManagerSupabase implements ResourceManager:
         block
 
   fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none:
-    PART_SIZE ::= 64 * 1024
     path := "/toit-artemis-assets/$organization_id/firmware/$id"
-    while true:
-      client_.storage.download
-          --public
-          --path=path
-          --offset=offset
-          --size=PART_SIZE
-          : | reader/SizedReader total_size/int |
-            offset = block.call reader offset
-            // TODO(kasper): Does this happen?
-            if offset >= total_size: return
+    client_.storage.download
+        --public
+        --path=path
+        --offset=offset
+        : | reader/SizedReader |
+          block.call reader offset
 
   report_state device_id/string state/Map -> none:
     client_.rest.rpc "toit_artemis.update_state" {

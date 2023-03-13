@@ -64,7 +64,6 @@ class FirmwarePatcher_ implements PatchObserver:
   write_offset_next_print_/int := 0
 
   // Checkpoint handling.
-  last_checkpoint_/Checkpoint? := null  // Cache to avoid reading from flash too often.
   next_checkpoint_/Checkpoint? := null
   next_checkpoint_part_index_/int? := null
 
@@ -161,18 +160,14 @@ class FirmwarePatcher_ implements PatchObserver:
             --offset=read_offset:
           | reader/SizedReader offset/int |
             started_applying = true
-            continuation := apply_ reader offset old_mapping
-            if not continuation: return
-            reposition_ continuation  // Returns the read offset to continue from.
+            apply_ reader offset old_mapping
       if not exception: return
       logger_.warn "firmware update: failed to fetch patch"
           --tags={"url": resource_url, "error": exception}
 
-  apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping? -> Checkpoint?:
+  apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping? -> none:
     binary_patcher := Patcher reader old_mapping --patch_offset=offset
-    try:
-      last_checkpoint_ = null
-      if not binary_patcher.patch this:
+    if not binary_patcher.patch this:
         // TODO(kasper): Maybe we can do this clearing in a more
         // general location, so that everything that looks like
         // it impossible to make progress from starts over?
@@ -182,16 +177,6 @@ class FirmwarePatcher_ implements PatchObserver:
         // an exception so we can try to recover.
         logger_.error "firmware update: failed to apply patch"
         throw "INVALID_FORMAT"
-    finally: | is_exception exception |
-      last := last_checkpoint_
-      last_checkpoint_ = null
-      // If the patching finished, we're done and return null to indicate that.
-      if not is_exception: return null
-      // This is an optimization. We avoid leaving the firmware fetching loop
-      // in $ResourceManager.fetch_firmware so we can reuse the client and
-      // avoid resynchronizing before resuming the patching.
-      if last and exception.value == UNEXPECTED_END_OF_READER_EXCEPTION: return last
-    unreachable
 
   pad_ padding/int -> none:
     write_ 0 padding: | x y | writer_.pad (y - x)
@@ -261,7 +246,6 @@ class FirmwarePatcher_ implements PatchObserver:
     writer_.flush
     next := next_checkpoint_
     Checkpoint.update next
-    last_checkpoint_ = next
     next_checkpoint_ = null
 
 class Firmware:

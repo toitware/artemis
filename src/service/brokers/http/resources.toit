@@ -20,19 +20,13 @@ class ResourceManagerHttp implements ResourceManager:
       block.call reader
 
   fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none:
-    PART_SIZE ::= 64 * 1024
-
-    while true:
-      payload := {
-        "organization_id": organization_id,
-        "firmware_id": id,
-        "offset": offset,
-        "size": PART_SIZE,
-      }
-      connection_.send_binary_request "download_firmware" payload: | reader/SizedReader total_size/int |
-        offset = block.call reader offset
-        // TODO(kasper): Does this happen?
-        if offset >= total_size: return
+    payload := {
+      "organization_id": organization_id,
+      "firmware_id": id,
+      "offset": offset,
+    }
+    connection_.send_binary_request "download_firmware" payload: | reader/SizedReader |
+      block.call reader offset
 
   report_state device_id/string state/Map -> none:
     connection_.send_request "report_state" {
