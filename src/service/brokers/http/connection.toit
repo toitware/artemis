@@ -49,14 +49,7 @@ class HttpConnection_:
 
     try:
       if status != 200: throw "Not found ($status)"
-      range := response.headers.single "Content-Range"
-      total_size := ?
-      if range:
-        divider := range.index_of "/"
-        total_size = int.parse range[divider + 1 ..]
-      else:
-        total_size = body.size
-      block.call body total_size
+      block.call body
     finally:
       while data := body.read: null // DRAIN!
 

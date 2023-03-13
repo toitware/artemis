@@ -4,9 +4,6 @@ import expect show *
 
 import artemis.cli.device_specification show DeviceSpecification DeviceSpecificationException
 
-parse str/string -> Duration:
-  return DeviceSpecification.parse_max_offline_ str
-
 expect_format_error str/string json/Map:
   exception := catch: DeviceSpecification.from_json json --path="ignored"
   expect exception is DeviceSpecificationException
@@ -36,6 +33,14 @@ VALID_SPECIFICATION ::= {
     },
     "app3": {
       "snapshot": "foo.snapshot",
+    },
+    "app4": {
+      "entrypoint": "entrypoint.toit",
+      "triggers": [
+        { "interval": "5s" },
+        "boot",
+        "install",
+      ]
     }
   }
 }
@@ -183,3 +188,36 @@ main:
   expect_format_error
       "In container app2, git entry requires a relative path: /abs"
       git_url_no_relative_path
+
+  bad_trigger := new_valid
+  bad_trigger["containers"]["app4"]["triggers"] = [{ "foobar": true }]
+  expect_format_error
+      "Unknown trigger in container app4: {foobar: true}"
+      bad_trigger
+
+  bad_trigger = new_valid
+  bad_trigger["containers"]["app4"]["triggers"] = ["foobar"]
+  expect_format_error
+      "Unknown trigger in container app4: foobar"
+      bad_trigger
+
+  bad_trigger = new_valid
+  bad_trigger["containers"]["app4"]["triggers"] = [{"boot": true}]
+  expect_format_error
+      "Unknown trigger in container app4: {boot: true}"
+      bad_trigger
+
+  duplicate_trigger := new_valid
+  duplicate_trigger["containers"]["app4"]["triggers"] = [
+    { "interval": "5s" },
+    { "interval": "5s" },
+  ]
+  expect_format_error
+      "Duplicate trigger 'interval' in container app4"
+      duplicate_trigger
+
+  bad_interval := new_valid
+  bad_interval["containers"]["app4"]["triggers"] = [{ "interval": "foobar" }]
+  expect_format_error
+      "Entry interval in trigger in container app4 is not a valid duration: foobar"
+      bad_interval

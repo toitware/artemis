@@ -25,7 +25,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
         The remaining commands are designed to be used in a workflow, where
         multiple devices are flashed with the same firmware image. Frequently,
-        flash stations are not connected to the internet, so the
+        flash stations are not connected to the Internet, so the
         'create-identities' and 'create-firmware' commands are used to create
         the necessary files, which are then transferred to the flash station.
 
@@ -41,7 +41,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   create_firmware_cmd := cli.Command "create-firmware"
       --long_help="""
-        Creates a firmware image.
+        Create a firmware image.
 
         The generated image can later be used to flash or update devices.
         When flashing, it needs to be combined with an identity file first. See
@@ -75,7 +75,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   create_identities_cmd := cli.Command "create-identities"
       --long_help="""
-        Creates a specified number of identity files.
+        Create a specified number of identity files.
 
         Identity files describe a device, containing their ID and organization.
         For each written identity file, a device is provisioned in the Toit
@@ -89,7 +89,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         specification or firmware image.
 
         This command requires the broker to be configured.
-        This command requires internet access.
+        This command requires Internet access.
         """
       --options= broker_options + [
         cli.Option "organization-id"
@@ -113,7 +113,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   upload_cmd := cli.Command "upload"
       --long_help="""
-        Uploads the given firmware to the broker in the given organization.
+        Upload the given firmware to the broker in the given organization.
 
         Uploaded firmwares can be used for diff-based firmware updates.
 
@@ -137,7 +137,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   update_cmd := cli.Command "update"
       --long_help="""
-        Updates the firmware of multiple devices.
+        Update the firmware of multiple devices.
 
         This command takes either a firmware image or a specification file as
         input.

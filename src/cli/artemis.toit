@@ -260,7 +260,7 @@ class Artemis:
         sdk.firmware_add_container name
             --envelope=output_path
             --program_path=snapshot_path
-            --run="no"
+            --trigger="none"
 
         // TODO(kasper): Avoid computing the image id here. We should
         // be able to get it from the firmware tool.
@@ -269,10 +269,15 @@ class Artemis:
         sha.add (uuid.parse snapshot_uuid_string).to_byte_array
         id := uuid.Uuid sha.get[..uuid.SIZE]
 
+        triggers := container.triggers
+        if not triggers: triggers = [
+          BootTrigger
+        ]
         apps := device_config.get "apps" --init=:{:}
         apps[name] = build_container_description_
-            --id=id.stringify
+            --id=id
             --arguments=container.arguments
+            --triggers=triggers
         ui_.info "Added container '$name' to envelope."
 
       artemis_assets := {
@@ -312,7 +317,7 @@ class Artemis:
       sdk.firmware_add_container "artemis" --envelope=output_path
           --assets=artemis_assets_path
           --program_path=artemis_service_image_path
-          --run="boot"
+          --trigger="boot"
           --critical
 
     sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
@@ -337,13 +342,20 @@ class Artemis:
   Builds a container description as needed for a "container" entry in the device state.
   */
   build_container_description_ -> Map
-      --id/string
-      --arguments/List?:
+      --id/uuid.Uuid
+      --arguments/List?
+      --triggers/List?:
     result := {
-      "id": id,
+      "id": id.stringify,
     }
-    if arguments:
+    if arguments and not arguments.is_empty:
       result["arguments"] = arguments
+    if triggers and not triggers.is_empty:
+      trigger_map := {:}
+      triggers.do: | trigger/Trigger |
+        assert: not trigger_map.contains trigger.type
+        trigger_map[trigger.type] = trigger.json_value
+      result["triggers"] = trigger_map
     return result
 
   /**
@@ -645,11 +657,12 @@ class Artemis:
   update_goal --device_id/string [block]:
     connected_broker.update_goal --device_id=device_id block
 
-  app_install -> none
+  container_install -> none
       --device_id/string
       --app_name/string
       --application_path/string
-      --arguments/List?:
+      --arguments/List?
+      --triggers/List?:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       current_state := device.reported_state_current or device.reported_state_firmware
       if not current_state:
@@ -671,7 +684,7 @@ class Artemis:
               --organization_id=device.organization_id
               --word_size=32
           file.write_content program.image32 --path="$tmp_dir/image32.bin"
-          connected_broker.upload_image  program.image64
+          connected_broker.upload_image program.image64
               --organization_id=device.organization_id
               --app_id=id
               --word_size=64
@@ -681,18 +694,21 @@ class Artemis:
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      ui_.info "Installing app '$app_name'"
+      ui_.info "Installing container '$app_name'."
       apps := new_goal.get "apps" --if_absent=: {:}
-      apps[app_name] = build_container_description_ --id=id --arguments=arguments
+      apps[app_name] = build_container_description_
+          --id=id
+          --arguments=arguments
+          --triggers=triggers
       new_goal["apps"] = apps
       new_goal
 
-  app_uninstall --device_id/string --app_name/string:
+  container_uninstall --device_id/string --app_name/string:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      ui_.info "Uninstalling app '$app_name'"
+      ui_.info "Uninstalling container '$app_name'."
       apps := new_goal.get "apps"
       if apps: apps.remove app_name
       new_goal

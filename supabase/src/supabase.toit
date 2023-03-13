@@ -555,9 +555,7 @@ class Storage:
   /**
   Downloads the data stored in $path from the storage.
 
-  Calls the given $block with a $SizedReader and the total size of the resource. If
-    the download is not partial, then the total size is equal to the size of the
-    $SizedReader.
+  Calls the given $block with a $SizedReader for the resource.
 
   If $public is true, downloads the data through the public URL.
   */
@@ -583,19 +581,7 @@ class Storage:
     okay := status == 200 or (partial and status == 206)
     try:
       if not okay: throw "Not found ($status)"
-      // We got a response we can use. If it is partial we
-      // need to decode the response header to find the
-      // total size.
-      total_size := ?
-      if partial and status != 200:
-        // TODO(kasper): Try to avoid doing this for all parts.
-        // We only really need to do it for the first.
-        range := response.headers.single "Content-Range"
-        divider := range.index_of "/"
-        total_size = int.parse range[divider + 1..range.size]
-      else:
-        total_size = body.size
-      block.call body total_size
+      block.call body
     finally:
       while data := body.read: null // DRAIN!
 

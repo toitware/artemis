@@ -95,10 +95,14 @@ tool_path_ tool/string -> string:
     throw "Could not find $result. Please install Git for Windows"
   return result
 
+/**
+Untars the given $path into the $target directory.
+
+Do not use this function on compressed tar files. That would work
+  on Linux/macOS, but not on Windows.
+*/
 untar path/string --target/string:
   generic_arguments := [
-    // All modern tar versions automatically detect the compression.
-    // No need to provide `-z` or so.
     tool_path_ "tar",
     "x",  // Extract.
   ]
@@ -138,3 +142,34 @@ copy_file --source/string --target/string:
 
 random_uuid_string -> string:
   return (uuid.uuid5 "Device ID" "$Time.now $Time.monotonic_us $random").stringify
+
+// TODO(florian): move this into Duration?
+/**
+Parses a string like "1h 30m 10s" or "1h30m10s" into a Duration.
+*/
+parse_duration str/string -> Duration:
+  return parse_duration str --on_error=: throw "Invalid duration string: $it"
+
+parse_duration str/string [--on_error] -> Duration:
+  UNITS ::= ["h", "m", "s"]
+  splits_with_missing := UNITS.map: str.index_of it
+  splits := splits_with_missing.filter: it != -1
+  if splits.is_empty or not splits.is_sorted:
+    return on_error.call str
+  if splits.last != str.size - 1:
+    return on_error.call str
+
+  last_unit := -1
+  values := {:}
+  splits.do: | split/int |
+    unit := str[split]
+    value_string := str[last_unit + 1..split]
+    value := int.parse value_string.trim --on_error=:
+      return on_error.call str
+    values[unit] = value
+    last_unit = split
+
+  return Duration
+      --h=values.get 'h' --if_absent=: 0
+      --m=values.get 'm' --if_absent=: 0
+      --s=values.get 's' --if_absent=: 0

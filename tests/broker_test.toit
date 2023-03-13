@@ -15,6 +15,7 @@ import artemis.cli.brokers.supabase show BrokerCliSupabase
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
 import supabase
 import supabase.auth as supabase
+import uuid
 
 import .artemis_server
   show
@@ -188,7 +189,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
 test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   2.repeat: | iteration |
-    APP_ID ::= "test-app-$iteration"
+    APP_ID ::= uuid.uuid5 "app" "test-app-$iteration"
     content_32 := ?
     content_64 := ?
     if iteration == 0:

@@ -5,7 +5,7 @@ import encoding.base64
 import uuid
 
 import .broker_options_
-import .device_transient
+import .device_container
 import ..artemis
 import ..cache
 import ..config
@@ -87,9 +87,9 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="The specification of the device."
             --required,
         cli.Option "device-id"
-            --type="uuid"
             --short_name="d"
-            --short_help="The ID of the device.",
+            --short_help="ID of the device."
+            --type="uuid",
       ]
       --run=:: update it config cache ui
   cmd.add update_cmd
@@ -112,6 +112,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "device-id"
             --short_name="d"
             --short_help="ID of the device."
+            --type="uuid",
       ]
       --run=:: default_device it config cache ui
   cmd.add default_cmd
@@ -122,7 +123,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
         If no ID is given, shows the information of the default device.
         """
-      --options= broker_options + [
+      --options=broker_options + [
         cli.Option "device-id"
             --short_name="d"
             --short_help="ID of the device."
@@ -131,12 +132,33 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: show it config cache ui
   cmd.add show_cmd
 
+  max_offline_cmd := cli.Command "set-max-offline"
+      --short_help="Update the max-offline time of the device."
+      --options=broker_options + [
+        cli.Option "device-id"
+            --short_name="d"
+            --short_help="ID of the device."
+            --type="uuid",
+      ]
+      --rest=[
+        cli.Option "max-offline"
+            --short_help="The new max-offline time."
+            --type="duration"
+            --required,
+      ]
+      --examples=[
+        cli.Example "Set the max-offline time to 15 seconds" --arguments="15",
+        cli.Example "Set the max-offline time to 3 minutes" --arguments="3m",
+      ]
+      --run=:: set_max_offline it config cache ui
+  cmd.add max_offline_cmd
+
   specification_format_cmd := cli.Command "specification-format"
-      --short_help="Prints the format of the device specification file."
+      --short_help="Show the format of the device specification file."
       --run=:: ui.info SPECIFICATION_FORMAT_HELP
   cmd.add specification_format_cmd
 
-  cmd.add (create_transient_command config cache ui)
+  cmd.add (create_container_command config cache ui)
   return [cmd]
 
 flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -293,6 +315,22 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info_structured
         --json=: device_to_json_ device organization
         --stdout=: print_device_ device organization it
+
+set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  max_offline := parsed["max-offline"]
+  device_id := get_device_id parsed config ui
+
+  max_offline_seconds := int.parse max_offline --on_error=:
+    // Assume it's a duration with units, like "5s".
+    duration := parse_duration max_offline --on_error=:
+      ui.error "Invalid max-offline duration: $max_offline"
+      ui.abort
+    duration.in_s
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    artemis.config_set_max_offline --device_id=device_id
+        --max_offline_seconds=max_offline_seconds
+    ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
 
 device_to_json_ device/DeviceDetailed organization/OrganizationDetailed:
   return {

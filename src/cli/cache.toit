@@ -6,6 +6,7 @@ import host.os
 import host.file
 import host.directory
 import encoding.json
+import uuid
 import writer
 import .server_config
 
@@ -24,7 +25,7 @@ ENVELOPE_PATH ::= "envelopes"
 GIT_APP_PATH ::= "git_app"
 service_image_cache_key --service_version/string --sdk_version/string --artemis_config/ServerConfig -> string:
   return "$artemis_config.name/service/$service_version/$(sdk_version).image"
-application_image_cache_key id/string --broker_config/ServerConfig -> string:
+application_image_cache_key id/uuid.Uuid --broker_config/ServerConfig -> string:
   return "$broker_config.name/application/images/$(id).image"
 
 /**

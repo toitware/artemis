@@ -3,6 +3,8 @@
 import host.file
 import encoding.json
 import net
+import uuid
+
 import ..auth
 import ..config
 import ..device
@@ -90,7 +92,7 @@ interface BrokerCli implements Authenticatable:
   */
   upload_image
       --organization_id/string
-      --app_id/string
+      --app_id/uuid.Uuid
       --word_size/int
       content/ByteArray -> none
 

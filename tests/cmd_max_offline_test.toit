@@ -18,9 +18,9 @@ main args:
 
     test_cli.run [
       "device",
-      "transient",
+      "set-max-offline",
       "--device-id", device.alias_id,
-      "set-max-offline", "1"
+       "1",
     ]
 
     with_timeout (Duration --s=10):
@@ -28,9 +28,9 @@ main args:
 
     test_cli.run [
       "device",
-      "transient",
+      "set-max-offline",
       "--device-id", device.alias_id,
-      "set-max-offline", "3m"
+       "3m",
     ]
 
     with_timeout (Duration --s=10):
