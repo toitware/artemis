@@ -165,7 +165,7 @@ class FirmwarePatcher_ implements PatchObserver:
       logger_.warn "firmware update: failed to fetch patch"
           --tags={"url": resource_url, "error": exception}
 
-  apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping?:
+  apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping? -> none:
     binary_patcher := Patcher reader old_mapping --patch_offset=offset
     if not binary_patcher.patch this:
         // TODO(kasper): Maybe we can do this clearing in a more
