@@ -95,10 +95,14 @@ tool_path_ tool/string -> string:
     throw "Could not find $result. Please install Git for Windows"
   return result
 
+/**
+Untars the given $path into the $target directory.
+
+Do not use this function on compressed tar files. That would work
+  on Linux/macOS, but not on Windows.
+*/
 untar path/string --target/string:
   generic_arguments := [
-    // All modern tar versions automatically detect the compression.
-    // No need to provide `-z` or so.
     tool_path_ "tar",
     "x",  // Extract.
   ]
