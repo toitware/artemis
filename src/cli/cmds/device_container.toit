@@ -109,6 +109,7 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --device_id=device_id
         --app_name=container_name
         --arguments=arguments
+        --background=parsed["background"]
         --triggers=triggers
         --application_path=container_path
     ui.info "Request sent to broker. Container will be installed when device synchronizes."
