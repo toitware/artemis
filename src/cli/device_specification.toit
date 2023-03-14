@@ -240,7 +240,7 @@ class CellularConnectionInfo implements ConnectionInfo:
     return "cellular"
 
   to_json -> Map:
-    return {"type": type}
+    return {"type": type, "config": config}
 
 interface Container:
   static from_json name/string data/Map -> Container:
