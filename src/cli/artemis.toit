@@ -315,12 +315,6 @@ class Artemis:
           --trigger="boot"
           --critical
 
-    // Also store the device specification. We don't really need it, but it
-    // could be useful for debugging.
-    encoded_specification := (json.encode device_specification.to_json).to_string
-    sdk.firmware_set_property "device-specification" encoded_specification
-        --envelope=output_path
-
     // Finally, make it unique. The system uuid will have to be used when compiling
     // code for the device in the future. This will prove that you know which versions
     // went into the firmware image.

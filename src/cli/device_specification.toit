@@ -203,16 +203,6 @@ class DeviceSpecification:
   relative_to -> string:
     return fs.dirname path
 
-  to_json -> Map:
-    return {
-      "version": 1,
-      "sdk-version": sdk_version,
-      "artemis-version": artemis_version,
-      "max-offline-seconds": max_offline_seconds,
-      "connections": connections.map: it.to_json,
-      "containers": containers.map: | _ container/Container | container.to_json,
-    }
-
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
     check_has_key_ data --holder="connection" "type"
@@ -261,7 +251,6 @@ interface Container:
   type -> string
   arguments -> List?
   triggers -> List? // Of type $Trigger.
-  to_json -> Map
 
   static check_arguments_entry arguments:
     if arguments == null: return
@@ -296,7 +285,6 @@ abstract class ContainerBase implements Container:
       triggers = null
 
   abstract type -> string
-  abstract to_json -> Map
   abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
 
 class ContainerPath extends ContainerBase:
@@ -384,13 +372,6 @@ class ContainerPath extends ContainerBase:
   type -> string:
     return "path"
 
-  to_json -> Map:
-    result := { "entrypoint": entrypoint }
-    if git_url: result["git"] = git_url
-    if git_ref: result["branch"] = git_ref
-    if arguments: result["arguments"] = arguments
-    return result
-
 class ContainerSnapshot extends ContainerBase:
   snapshot_path/string
 
@@ -408,19 +389,12 @@ class ContainerSnapshot extends ContainerBase:
   type -> string:
     return "snapshot"
 
-  to_json -> Map:
-    return {
-      "snapshot": snapshot_path,
-      "arguments": arguments,
-    }
-
 abstract class Trigger:
   static INTERVAL ::= "interval"
   static BOOT ::= "boot"
   static INSTALL ::= "install"
 
   abstract type -> string
-  abstract to_json -> any
   /**
   A value that is associated with the trigger.
   This is the value that is sent in the goal state.
@@ -469,11 +443,6 @@ class IntervalTrigger extends Trigger:
   type -> string:
     return Trigger.INTERVAL
 
-  to_json -> Map:
-    return {
-      "interval": interval.stringify,
-    }
-
   json_value -> int:
     return interval.in_s
 
@@ -481,18 +450,12 @@ class BootTrigger extends Trigger:
   type -> string:
     return Trigger.BOOT
 
-  to_json -> string:
-    return "boot"
-
   json_value -> int:
     return 1
 
 class InstallTrigger extends Trigger:
   type -> string:
     return Trigger.INSTALL
-
-  to_json -> string:
-    return "install"
 
   json_value -> int:
     return 1
