@@ -108,6 +108,7 @@ class ContainerJob extends Job:
   id/uuid.Uuid
   description_/Map := ?
   running_/containers.Container? := null
+  is_background/bool := false
 
   // The $ContainerManager is responsible for marking
   // container jobs as complete and for scheduling
@@ -119,6 +120,7 @@ class ContainerJob extends Job:
   constructor --name/string --.id --description/Map:
     description_ = description
     super name
+    update description
 
   stringify -> string:
     return "container:$name"
@@ -176,3 +178,4 @@ class ContainerJob extends Job:
   update description/Map -> none:
     assert: not is_running
     description_ = description
+    is_background = description.contains "background"
