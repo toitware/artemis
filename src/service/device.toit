@@ -3,7 +3,7 @@
 import log
 import system.storage
 import system.firmware show is_validation_pending
-import ..shared.json_diff show json_equals
+import ..shared.json_diff show json_equals Modification
 
 /** UUID used to ensure that the bucket's data is actually from us. */
 BUCKET_UUID_ ::= "ccf4efed-6825-44e6-b71d-1aa118d43824"
@@ -92,16 +92,16 @@ class Device:
     stored_current_state := decode_bucket_entry_ (bucket_.get "current_state")
     if stored_current_state:
       if stored_current_state["firmware"] == firmware_state["firmware"]:
-        log.debug "using stored current state" --tags={ "state": stored_current_state }
-        current_state = stored_current_state
+        modification/Modification? := Modification.compute --from=firmware_state --to=stored_current_state
+        if modification:
+          log.debug "current state is changed" --tags={"changes": Modification.stringify modification}
+          current_state = stored_current_state
       else:
         // At this point we don't clear the current state in the bucket yet.
         // If the firmware is not validated, we might roll back, and then continue using
         // the old "current" state.
         if not is_validation_pending:
           log.error "current state has different firmware than firmware state"
-    else:
-      current_state = firmware_state
     goal_state = decode_bucket_entry_ (bucket_.get "goal_state")
 
   /**
