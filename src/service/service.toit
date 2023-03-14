@@ -5,7 +5,6 @@ import log
 import .brokers.broker
 import .containers show ContainerManager
 import .device
-import .network show NetworkManager
 import .ntp
 import .jobs
 import .scheduler show Scheduler
@@ -27,13 +26,6 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
 
   // Add the container jobs based on the current device state.
   containers.load device.current_state
-
-  // Start the network manager.
-  // TODO(kasper): When running simulated, this is a little
-  // late because the network service has already been used
-  // by the caller of $run_artemis.
-  network := NetworkManager logger device
-  network.install
 
   // Run the scheduler until it terminates and gives us
   // the wakeup time for the next job to run.

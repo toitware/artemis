@@ -28,7 +28,6 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
 
   constructor logger/log.Logger .device_:
     logger_ = logger.with_name "network"
-    logger_.info "starting"
     super "artemis/network" --major=0 --minor=1
     provides NetworkService.SELECTOR
         --handler=this
