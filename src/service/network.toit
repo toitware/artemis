@@ -51,6 +51,10 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
       // code needs to be refactored to support this better.
       proxy_mask_ = (network as impl.SystemInterface_).proxy_mask_
     else:
+      // It isn't entirely clear if we need this fallback where use
+      // the default network provided by the system. For now, it feels
+      // like it is worth having here if we end up running on a base
+      // firmware image that has some embedded network configuration.
       connection := default_network_service_.connect
       proxy_mask_ = connection[1]
       network = impl.SystemInterface_ default_network_service_ connection
