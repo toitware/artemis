@@ -71,7 +71,7 @@ class Scheduler:
     signal_.awaken
 
   has_running_jobs_ -> bool:
-    return jobs_.any: | job/Job | job.is_running
+    return jobs_.any: | job/Job | job.is_running and not job.is_background
 
   run_due_jobs_ now/JobTime -> JobTime?:
     first/JobTime? := null
