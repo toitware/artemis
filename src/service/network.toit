@@ -50,13 +50,14 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
               --password=connection["password"]
         else if type == "cellular":
           network = cellular.open connection["config"]
-      if network:
-        // TODO(kasper): This isn't very pretty. It feels like the net.impl
-        // code needs to be refactored to support this better.
-        proxy_mask_ = (network as impl.SystemInterface_).proxy_mask_
-        logger_.info "opened"
-        return network
-      logger_.warn "connect failed" --tags={"connection": connection}
+      if not network:
+        logger_.warn "connect failed" --tags={"connection": connection}
+        continue.do
+      // TODO(kasper): This isn't very pretty. It feels like the net.impl
+      // code needs to be refactored to support this better.
+      proxy_mask_ = (network as impl.SystemInterface_).proxy_mask_
+      logger_.info "opened"
+      return network
 
     // It isn't entirely clear if we need this fallback where use
     // the default network provided by the system. For now, it feels
