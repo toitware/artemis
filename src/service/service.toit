@@ -2,17 +2,14 @@
 
 import log
 
-import .scheduler show Scheduler
-import .containers show ContainerManager
-import .jobs
-
-import .synchronize show SynchronizeJob
-
 import .brokers.broker
-
+import .containers show ContainerManager
 import .device
-
+import .network show NetworkManager
 import .ntp
+import .jobs
+import .scheduler show Scheduler
+import .synchronize show SynchronizeJob
 
 import ..shared.server_config
 
@@ -31,6 +28,10 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   // Add the container jobs based on the device state.
   state/Map := device.current_state or device.firmware_state
   containers.load state
+
+  // Start the network manager.
+  network := NetworkManager logger device
+  network.install
 
   // Run the scheduler until it terminates and gives us
   // the wakeup time for the next job to run.
