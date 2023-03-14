@@ -39,7 +39,7 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     return proxy_mask_
 
   open_network -> net.Interface:
-    connections := device_.current_state.get "connections"
+    connections := device_.current_state.get "connections" --if_absent=: []
     connections.do: | connection/Map |
       network/net.Interface? := null
       type := connection.get "type"
