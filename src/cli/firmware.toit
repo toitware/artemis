@@ -69,8 +69,8 @@ class Firmware:
     content = FirmwareContent.encoded device_specific_data_["parts"] --checksum=map["checksum"]
 
   /**
-  Embeds device-specific information ($device and $wifi) into a firmware
-    given by its $envelope_path.
+  Embeds device-specific information in $device into a firmware given by
+    its $envelope_path.
 
   Computes the "parts" which describes the individual parts of the
     firmware. Most parts consist of a range, and the binary hash of its content.
@@ -82,7 +82,7 @@ class Firmware:
     may change the size of the part (and thus the ranges of the other parts),
     the process is repeated until the encoded parts do not change anymore.
   */
-  constructor --device/Device --wifi/Map --envelope_path/string --cache/cli.Cache:
+  constructor --device/Device --envelope_path/string --cache/cli.Cache:
     sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
     unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache
     encoded_parts := unconfigured.encoded_parts
@@ -94,7 +94,6 @@ class Firmware:
     while true:
       device_specific := ubjson.encode {
         "artemis.device" : device_map,
-        "wifi"           : wifi,
         "parts"          : encoded_parts,
         // TODO(florian): this doesn't feel like it's a device-specific property.
         "sdk-version"    : sdk_version,
@@ -113,9 +112,9 @@ class Firmware:
   device -> Device:
     device_map := device_specific "artemis.device"
     return Device
-      --id=device_map["device_id"]
-      --organization_id=device_map["organization_id"]
-      --hardware_id=device_map["hardware_id"]
+        --id=device_map["device_id"]
+        --organization_id=device_map["organization_id"]
+        --hardware_id=device_map["hardware_id"]
 
   /** The sdk version that was used for this firmware. */
   sdk_version -> string:

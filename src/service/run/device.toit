@@ -5,11 +5,13 @@ import system.firmware
 
 import encoding.base64
 import encoding.ubjson
+import log
 
-import ..utils show decode_server_config
 import ..check_in show check_in_setup
-import ..service show run_artemis
 import ..device
+import ..network show NetworkManager
+import ..service show run_artemis
+import ..utils show decode_server_config
 
 device_specific_ name/string -> any:
   return firmware.config[name]
@@ -36,6 +38,9 @@ main arguments:
   config["firmware"] = encoded_firmware_description
 
   device := Device --id=device_id --organization_id=organization_id --firmware_state=config
+  network_manager := NetworkManager log.default device
+  network_manager.install
+
   sleep_duration := run_artemis device server_config
   __deep_sleep__ sleep_duration.in_ms
 
