@@ -28,6 +28,9 @@ create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
             --short_help="Trigger to start the container. Defaults to 'boot,install'."
             --split_commas
             --multi,
+        cli.Flag "background"
+            --short_help="Run in background and do not delay sleep."
+            --default=false,
       ]
       --rest=[
         cli.OptionString "name"

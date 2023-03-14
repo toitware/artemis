@@ -260,6 +260,7 @@ interface Container:
   build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
   type -> string
   arguments -> List?
+  is_background -> bool
   triggers -> List? // Of type $Trigger.
   to_json -> Map
 
@@ -274,6 +275,7 @@ interface Container:
 abstract class ContainerBase implements Container:
   arguments/List?
   triggers/List?
+  is_background/bool
 
   constructor.from_json name/string data/Map:
     holder := "container $name"
@@ -281,6 +283,7 @@ abstract class ContainerBase implements Container:
         --holder=holder
         --type="string"
         --check=: it is string
+    is_background = get_optional_bool_ data "background"
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
         --type="map or string"
@@ -380,7 +383,6 @@ class ContainerPath extends ContainerBase:
       // Otherwise we have unnecessary absolute paths in the snapshot.
       sdk.compile_to_snapshot entrypoint_path --out=output_path
 
-
   type -> string:
     return "path"
 
@@ -389,6 +391,7 @@ class ContainerPath extends ContainerBase:
     if git_url: result["git"] = git_url
     if git_ref: result["branch"] = git_ref
     if arguments: result["arguments"] = arguments
+    if is_background: result["background"] = true
     return result
 
 class ContainerSnapshot extends ContainerBase:
