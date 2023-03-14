@@ -330,7 +330,7 @@ class Artemis:
   build_container_description_ -> Map
       --id/uuid.Uuid
       --arguments/List?
-      --background/bool
+      --background/bool?
       --triggers/List?:
     result := {
       "id": id.stringify,
