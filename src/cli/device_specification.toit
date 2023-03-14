@@ -285,7 +285,7 @@ abstract class ContainerBase implements Container:
         --holder=holder
         --type="string"
         --check=: it is string
-    is_background = get_optional_bool_ data "background"
+    is_background = (get_optional_bool_ data "background") or false
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
         --type="map or string"
