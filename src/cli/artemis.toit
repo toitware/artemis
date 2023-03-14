@@ -272,8 +272,8 @@ class Artemis:
         apps[name] = build_container_description_
             --id=id
             --arguments=container.arguments
-            --triggers=triggers
             --background=container.is_background
+            --triggers=triggers
         ui_.info "Added container '$name' to envelope."
 
       artemis_assets := {
@@ -331,8 +331,8 @@ class Artemis:
   build_container_description_ -> Map
       --id/uuid.Uuid
       --arguments/List?
-      --triggers/List?
-      --background/bool:
+      --background/bool
+      --triggers/List?:
     result := {
       "id": id.stringify,
     }
@@ -641,8 +641,8 @@ class Artemis:
       --app_name/string
       --application_path/string
       --arguments/List?
-      --triggers/List?
-      --background/bool:
+      --background/bool
+      --triggers/List?:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       current_state := device.reported_state_current or device.reported_state_firmware
       if not current_state:
@@ -679,8 +679,8 @@ class Artemis:
       apps[app_name] = build_container_description_
           --id=id
           --arguments=arguments
-          --triggers=triggers
           --background=background
+          --triggers=triggers
       new_goal["apps"] = apps
       new_goal
 
