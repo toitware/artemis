@@ -209,6 +209,8 @@ interface ConnectionInfo:
 
     if data["type"] == "wifi":
       return WifiConnectionInfo.from_json data
+    if data["type"] == "cellular":
+      return CellularConnectionInfo.from_json data
     format_error_ "Unknown connection type: $data["type"]"
     unreachable
 
@@ -228,6 +230,17 @@ class WifiConnectionInfo implements ConnectionInfo:
 
   to_json -> Map:
     return {"type": type, "ssid": ssid, "password": password}
+
+class CellularConnectionInfo implements ConnectionInfo:
+  config/Map
+  constructor.from_json data/Map:
+    config = get_map_ data "config" --holder="cellular connection"
+
+  type -> string:
+    return "cellular"
+
+  to_json -> Map:
+    return {"type": type, "config": config}
 
 interface Container:
   static from_json name/string data/Map -> Container:

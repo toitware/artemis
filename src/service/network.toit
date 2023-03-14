@@ -3,6 +3,7 @@
 import log
 import net
 import net.wifi
+import net.cellular
 import net.impl
 
 import system.services show ServiceProvider
@@ -38,26 +39,35 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     return proxy_mask_
 
   open_network -> net.Interface:
-    connections := device_.current_state.get "connections"
-    network/net.Interface? := null
-    if connections and not connections.is_empty:
-      // TODO(kasper): For now, we only look at the first entry in
-      // the list of connections and we assume it is for WiFi.
-      wifi_connection ::= connections.first
-      network = wifi.open
-          --ssid=wifi_connection["ssid"]
-          --password=wifi_connection["password"]
+    connections := device_.current_state.get "connections" --if_absent=: []
+    connections.do: | connection/Map |
+      network/net.Interface? := null
+      exception := catch --trace:
+        type := connection.get "type"
+        if type == "wifi":
+          network = wifi.open
+              --ssid=connection["ssid"]
+              --password=connection["password"]
+        else if type == "cellular":
+          network = cellular.open connection["config"]
+        else:
+          throw "Unknown connection type '$type'"
+      if not network:
+        logger_.warn "connect failed" --tags={"connection": connection}
+        continue.do
       // TODO(kasper): This isn't very pretty. It feels like the net.impl
       // code needs to be refactored to support this better.
       proxy_mask_ = (network as impl.SystemInterface_).proxy_mask_
-    else:
-      // It isn't entirely clear if we need this fallback where use
-      // the default network provided by the system. For now, it feels
-      // like it is worth having here if we end up running on a base
-      // firmware image that has some embedded network configuration.
-      connection := default_network_service_.connect
-      proxy_mask_ = connection[1]
-      network = impl.SystemInterface_ default_network_service_ connection
+      logger_.info "opened"
+      return network
+
+    // It isn't entirely clear if we need this fallback where use
+    // the default network provided by the system. For now, it feels
+    // like it is worth having here if we end up running on a base
+    // firmware image that has some embedded network configuration.
+    connection := default_network_service_.connect
+    proxy_mask_ = connection[1]
+    network := impl.SystemInterface_ default_network_service_ connection
     logger_.info "opened"
     return network
 
