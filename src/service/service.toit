@@ -25,11 +25,13 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   if start_ntp: jobs.add (NtpJob logger (Duration --m=10))
   scheduler.add_jobs jobs
 
-  // Add the container jobs based on the device state.
-  state/Map := device.current_state or device.firmware_state
-  containers.load state
+  // Add the container jobs based on the current device state.
+  containers.load device.current_state
 
   // Start the network manager.
+  // TODO(kasper): When running simulated, this is a little
+  // late because the network service has already been used
+  // by the caller of $run_artemis.
   network := NetworkManager logger device
   network.install
 

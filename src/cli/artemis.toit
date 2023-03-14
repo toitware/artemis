@@ -224,14 +224,10 @@ class Artemis:
     connections := device_specification.connections
     connections.do: | connection/ConnectionInfo |
       if connection.type == "wifi":
-        wifi := connection as WifiConnectionInfo
-        wifi_connection = {
-          "ssid": wifi.ssid,
-          "password": wifi.password or "",
-        }
         // TODO(florian): should device configurations be stored in
         // the Artemis asset?
-        device_config["wifi"] = wifi_connection
+        wifi_connection = connection.to_json
+        device_config["connections"] = [wifi_connection]
       else:
         ui_.error "Unsupported connection type: $connection.type"
         ui_.abort
@@ -319,9 +315,6 @@ class Artemis:
           --program_path=artemis_service_image_path
           --trigger="boot"
           --critical
-
-    sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
-        --envelope=output_path
 
     // Also store the device specification. We don't really need it, but it
     // could be useful for debugging.
@@ -609,22 +602,11 @@ class Artemis:
     sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
     sdk := get_sdk sdk_version --cache=cache
 
-    // Extract the WiFi credentials from the envelope.
-    encoded_wifi_config := sdk.firmware_get_property "wifi-config" --envelope=envelope_path
-    wifi_config := json.parse encoded_wifi_config
-    wifi_ssid := wifi_config["ssid"]
-    wifi_password := wifi_config["password"]
-
     // Cook the firmware.
     return Firmware
         --envelope_path=envelope_path
         --device=device
         --cache=cache
-        --wifi={
-          // TODO(florian): replace the hardcoded key constants.
-          "wifi.ssid": wifi_ssid,
-          "wifi.password": wifi_password,
-        }
 
   /**
   Gets the Artemis service image for the given $sdk and $service versions.
