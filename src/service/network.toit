@@ -42,14 +42,16 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     connections := device_.current_state.get "connections" --if_absent=: []
     connections.do: | connection/Map |
       network/net.Interface? := null
-      type := connection.get "type"
       exception := catch --trace:
+        type := connection.get "type"
         if type == "wifi":
           network = wifi.open
               --ssid=connection["ssid"]
               --password=connection["password"]
         else if type == "cellular":
           network = cellular.open connection["config"]
+        else:
+          throw "Unknown connection type '$type'"
       if not network:
         logger_.warn "connect failed" --tags={"connection": connection}
         continue.do
