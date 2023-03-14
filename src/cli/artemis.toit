@@ -220,21 +220,20 @@ class Artemis:
     max_offline_seconds := device_specification.max_offline_seconds
     if max_offline_seconds > 0: device_config["max-offline"] = max_offline_seconds
 
-    wifi_connection/Map? := null
+    wifi_connections := []
     connections := device_specification.connections
     connections.do: | connection/ConnectionInfo |
       if connection.type == "wifi":
-        // TODO(florian): should device configurations be stored in
-        // the Artemis asset?
-        wifi_connection = connection.to_json
-        device_config["connections"] = [wifi_connection]
+        wifi_connections.add connection.to_json
       else:
         ui_.error "Unsupported connection type: $connection.type"
         ui_.abort
 
-    if not wifi_connection:
-      ui_.error "No WiFi connection configured."
+    if wifi_connections.is_empty:
+      ui_.error "No WiFi connections configured."
       ui_.abort
+
+    device_config["connections"] = wifi_connections
 
     // Create the assets for the Artemis service.
     // TODO(florian): share this code with the identity creation code.
