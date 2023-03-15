@@ -62,8 +62,8 @@ add-default-brokers: install-pkgs
 		--client-private-key "$(AWS_CLIENT_PRIVATE_KEY_PATH)" \
 		aws $(AWS_HOST) $(AWS_PORT)
 
-.PHONY: add-local-http-brokers start-local-http-brokers
-add-local-http-brokers: install-pkgs
+.PHONY: start-http
+start-http: install-pkgs
 	@ # Adds the local Artemis server and makes it the default.
 	@ # Use the public IP, so that we can flash devices which then can use
 	@ # the broker.
@@ -78,64 +78,68 @@ add-local-http-brokers: install-pkgs
 		--port 4998 \
 		broker-local-http
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-http
-
-start-local-http-brokers: add-local-http-brokers
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-http
 	@ rm -rf $$HOME/.cache/artemis/broker-local-http
 	@ $(TOIT_RUN_BIN) tools/http_servers/combined.toit \
 		--artemis-port 4999 \
 		--broker-port 4998
 
-.PHONY: add-local-supabase-brokers start-local-supabase-brokers
-add-local-supabase-brokers:
-	# Adds the local Artemis server and makes it the default.
-	$(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
-		artemis-local-supabase \
-		$$($(TOIT_RUN_BIN) tests/supabase_local_server.toit supabase_artemis)
-	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis-local-supabase
-	$(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis-local-supabase
-
-start-local-supabase-brokers:
+.PHONY: start-supabase stop-supabase start-supabase-no-config
+# Starts the Supabase servers but doesn't add them to the config.
+# This is useful so that the tests succeed.
+start-supabase-no-config:
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-supabase
-	@ if supabase status --workdir supabase_artemis; then \
+	@ if supabase status --workdir supabase_artemis &> /dev/null; then \
 	  supabase db reset --workdir supabase_artemis; \
 	else \
 	  supabase start --workdir supabase_artemis; \
 	fi
-	@ $(MAKE) add-local-supabase-brokers
+	@ rm -rf $$HOME/.cache/artemis/broker-local-supabase
+	@ if supabase status --workdir supabase_broker &> /dev/null ; then \
+	  supabase db reset --workdir supabase_broker; \
+	else \
+	  supabase start --workdir supabase_broker; \
+	fi
+	@ if supabase status --workdir tests/supabase_test &> /dev/null; then \
+	  supabase db reset --workdir tests/supabase_test; \
+	else \
+	  supabase start --workdir tests/supabase_test; \
+	fi
 
-.PHONY: add-local-customer-broker start-local-customer-broker
-add-local-customer-broker:
+start-supabase: start-supabase-no-config
+	@ # Add the local Artemis server and makes it the default.
+	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
+		artemis-local-supabase \
+		$$($(TOIT_RUN_BIN) tests/supabase_local_server.toit supabase_artemis)
+	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis-local-supabase
+	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis-local-supabase
+	@ echo "Run 'make use-customer-supabase-broker' to use the customer broker."
+
+stop-supabase:
+	@ supabase stop --workdir supabase_artemis
+	@ supabase stop --workdir supabase_broker
+	@ supabase stop --workdir tests/supabase_test
+
+.PHONY: use-customer-supabase-broker
+use-customer-supabase-broker: start-supabase
 	@ # Adds the local broker using a second Supabase instance.
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
 		broker-local-supabase \
 		`$(TOIT_RUN_BIN) tests/supabase_local_server.toit supabase_broker`
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-supabase
 
-start-local-customer-broker:
-	@ rm -rf $$HOME/.cache/artemis/broker-local-supabase
-	@ if supabase status --workdir supabase_broker; then \
-	  supabase db reset --workdir supabase_broker; \
-	else \
-	  supabase start --workdir supabase_broker; \
-	fi
-	@ $(MAKE) add-local-customer-broker
-
-.PHONY: add-local-mosquitto-broker start-local-mosquitto-broker
-add-local-mosquitto-broker:
+.PHONY: start-mosquitto
+start-mosquitto:
 	@ # Adds the local broker and makes it the default.
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add mqtt \
 		broker-local-mosquitto \
 		`$(TOIT_RUN_BIN) tools/external_ip/external_ip.toit` \
 		3998
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-mosquitto
-
-start-local-mosquitto-broker: add-local-mosquitto-broker
 	@ rm -rf $$HOME/.cache/artemis/broker-local-mosquitto
 	@ mosquitto -c tools/mosquitto.conf
 
-
-.PHONY: setup-local-dev upload-service
+.PHONY: setup-local-dev
 setup-local-dev:
 	@ # The HTTP server doesn't have any default users.
 	@ if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) == "artemis-local-http" ]]; then \
@@ -150,6 +154,7 @@ setup-local-dev:
 
 	@ $(MAKE) upload-service
 
+.PHONY: upload-service
 upload-service:
 	@ $(TOIT_RUN_BIN) tools/service_image_uploader/uploader.toit service --local \
 	    --sdk-version=$(SETUP_LOCAL_DEV_SDK) \
