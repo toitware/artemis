@@ -15,16 +15,16 @@ make add-default-brokers
 ```
 
 If you want to work locally, use one of the following `make` clauses:
-- `start-local-http-brokers`: configures Artemis to use a local HTTP server, and
+- `start-http`: configures Artemis to use a local HTTP server, and
   launches the http servers (in the foreground)..
-- `start-local-supabase-brokers`: configures Artemis to use a local Supabase
+- `start-supabase`: configures Artemis to use a local Supabase
   instance. You have to start docker first.
 
 You can use the following `make` clauses to switch the broker (but not the
 Artemis server). They have to be run after the `start-local-*` clauses from above:
-- `start-local-customer-broker`: configures Artemis to use a separate customer
+- `use-customer-supabase-broker`: configures Artemis to use a separate customer
   Supabase broker, and starts it. You have to start docker first.
-- `start-local-mosquitto-broker`: configures Artemis to use a local Mosquitto
+- `start-mosquitto`: configures Artemis to use a local Mosquitto
   broker, and starts it in the foreground.
 
 Note that the `add-local-*` clauses use your external IP address, so that
@@ -44,7 +44,7 @@ In general a typical local workflow with HTTP servers looks like this:
 # Make all binaries and (incidentally) download dependencies.
 make
 # Set up local servers.
-make start-local-http-brokers
+make start-http
 # Login, upload a service image and create an org:
 make setup-local-dev
 
