@@ -138,8 +138,7 @@ start-local-mosquitto-broker: add-local-mosquitto-broker
 .PHONY: setup-local-dev upload-service
 setup-local-dev:
 	@ # The HTTP server doesn't have any default users.
-	if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) == "artemis-local-http" ]]; then \
-	    echo "SIGNING UP"; \
+	@ if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) == "artemis-local-http" ]]; then \
 	    $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis signup --email test-admin@toit.io --password password; \
 	  fi
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test-admin@toit.io --password password
