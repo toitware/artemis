@@ -29,7 +29,12 @@ class BrokerServiceHttp implements BrokerService:
     resources := ResourceManagerHttp connection
     disconnected := monitor.Latch
 
-    idle_.lock  // ...
+    // Always start non-idle and wait for the $block to call
+    // the $on_idle method when it is ready for the handle
+    // task to do its work. This avoids processing multiple
+    // requests at once.
+    idle_.lock
+
     handle_task/Task? := ?
     handle_task = task --background::
       // We don't know our state revision.
@@ -38,14 +43,11 @@ class BrokerServiceHttp implements BrokerService:
       try:
         while true:
           // Long poll for new events.
-          print "wait"
           with_timeout IDLE_TIMEOUT: idle_.enter
-          print "getting event"
           response := connection.send_request "get_event" {
             "device_id": device_id,
             "state_revision": state_revision,
           }
-          print "getting event => done"
           idle_.lock
           if response["event_type"] == "goal_updated":
             callback.handle_goal response["goal"] resources

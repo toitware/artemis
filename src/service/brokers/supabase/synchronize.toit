@@ -29,7 +29,12 @@ class BrokerServiceSupabase implements BrokerService:
     resources := ResourceManagerSupabase client
     disconnected := monitor.Latch
 
-    idle_.lock  // ...
+    // Always start non-idle and wait for the $block to call
+    // the $on_idle method when it is ready for the handle
+    // task to do its work. This avoids processing multiple
+    // requests at once.
+    idle_.lock
+
     handle_task/Task? := ?
     handle_task = task --background::
       try:

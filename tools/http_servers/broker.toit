@@ -152,7 +152,6 @@ class HttpBroker extends HttpServer:
     }
 
   notify_device device_id/string event_type/string:
-    print "notifying device $device_id $event_type"
     latch/monitor.Latch? := waiting_for_events.get device_id
     state_revision.update device_id --if_absent=0: it + 1
     if latch:

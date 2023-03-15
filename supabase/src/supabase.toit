@@ -292,8 +292,8 @@ class Client:
     if not is_success_status_code_ response.status_code:
       message := ""
 
-      // TODO(kasper): Check if we got a sized reader back and
-      // the encoded size to improve on this.
+      // TODO(kasper): If the response body is a sized reader
+      // we might as well read this in a more efficient way.
       body_bytes := #[]
       while chunk := response.body.read: body_bytes += chunk
 

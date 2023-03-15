@@ -165,7 +165,8 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
       throw "HTTP error: $response.status_code $response.status_message"
 
-    // TODO(kasper): Use sized reader if possible.
+    // TODO(kasper): If the response body is a sized reader
+    // we might as well read this in a more efficient way.
     encoded_response := #[]
     while chunk := response.body.read:
       encoded_response += chunk
