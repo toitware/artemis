@@ -76,8 +76,8 @@ class Client:
       network = network_to_close_ = net.open
 
     http_client_ = http.Client network
-
     local_storage_ = local_storage
+    add_finalizer this:: close
 
   constructor.tls network/net.Interface?=null
       --host/string
@@ -91,8 +91,8 @@ class Client:
       network = network_to_close_ = net.open
 
     http_client_ = http.Client.tls network --root_certificates=root_certificates
-
     local_storage_ = local_storage
+    add_finalizer this:: close
 
   constructor network/net.Interface?=null
       --server_config/ServerConfig
@@ -150,8 +150,9 @@ class Client:
     block.call auth
 
   close -> none:
-    // TODO(florian): call close on the http client (when that's possible).
-    // TODO(florian): add closing in a finalizer.
+    if not http_client_: return
+    remove_finalizer this
+    http_client_.close
     http_client_ = null
     if network_to_close_:
       network_to_close_.close
@@ -291,6 +292,8 @@ class Client:
     if not is_success_status_code_ response.status_code:
       message := ""
 
+      // TODO(kasper): Check if we got a sized reader back and
+      // the encoded size to improve on this.
       body_bytes := #[]
       while chunk := response.body.read: body_bytes += chunk
 
@@ -319,7 +322,7 @@ class Client:
 
     result := json_encoding.decode_stream buffered_reader
     // TODO(florian): this shouldn't be necessary in the latest http package.
-    response.body.read  // Make sure we drain the body.
+    while data := response.body.read: null // DRAIN!
     return result
 
 /**

@@ -24,11 +24,13 @@ class BrokerCliHttp implements BrokerCli:
 
   constructor .host .port --.id:
     network_ = net.open
+    add_finalizer this:: close
 
   close:
-    if network_:
-      network_.close
-      network_ = null
+    if not network_: return
+    remove_finalizer this
+    network_.close
+    network_ = null
 
   is_closed -> bool:
     return network_ == null
@@ -52,24 +54,28 @@ class BrokerCliHttp implements BrokerCli:
   send_request_ command/string data/Map -> any:
     if is_closed: throw "CLOSED"
     client := http.Client network_
+    try:
+      encoded := ubjson.encode {
+        "command": command,
+        "data": data,
+      }
+      response := client.post encoded --host=host --port=port --path="/"
 
-    encoded := ubjson.encode {
-      "command": command,
-      "data": data,
-    }
-    response := client.post encoded --host=host --port=port --path="/"
+      if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
+        throw "HTTP error: $response.status_code $response.status_message"
 
-    if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
-      throw "HTTP error: $response.status_code $response.status_message"
+      // TODO(kasper): If the response body is a sized reader
+      // we might as well read this in a more efficient way.
+      response_bytes := #[]
+      while chunk := response.body.read:
+        response_bytes += chunk
 
-    response_bytes := #[]
-    while chunk := response.body.read:
-      response_bytes += chunk
-
-    decoded := ubjson.decode response_bytes
-    if response.status_code == STATUS_IM_A_TEAPOT:
-      throw "Broker error: $decoded"
-    return decoded
+      decoded := ubjson.decode response_bytes
+      if response.status_code == STATUS_IM_A_TEAPOT:
+        throw "Broker error: $decoded"
+      return decoded
+    finally:
+      client.close
 
   update_goal --device_id/string [block] -> none:
     device := get_device --device_id=device_id

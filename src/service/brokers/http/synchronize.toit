@@ -68,9 +68,7 @@ class BrokerServiceHttp implements BrokerService:
             logger_.warn "unknown event received" --tags={"response": response}
             callback.handle_nop
       finally:
-        critical_do:
-          disconnected.set true
-          network.close
+        critical_do: disconnected.set true
         handle_task = null
 
     try:
@@ -78,6 +76,8 @@ class BrokerServiceHttp implements BrokerService:
     finally:
       if handle_task: handle_task.cancel
       disconnected.get
+      connection.close
+      network.close
 
   on_idle -> none:
     idle_.unlock

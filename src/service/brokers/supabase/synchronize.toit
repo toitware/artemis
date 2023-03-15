@@ -44,15 +44,16 @@ class BrokerServiceSupabase implements BrokerService:
           callback.handle_goal new_goal resources
           sleep broker_.poll_interval
       finally:
-        critical_do:
-          disconnected.set true
-          network.close
+        critical_do: disconnected.set true
         handle_task = null
+
     try:
       block.call resources
     finally:
       if handle_task: handle_task.cancel
       disconnected.get
+      client.close
+      network.close
 
   on_idle -> none:
     idle_.unlock

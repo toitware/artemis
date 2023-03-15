@@ -22,14 +22,16 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     local_storage := ConfigLocalStorage config --auth_key="$(CONFIG_SERVER_AUTHS_KEY).$(server_config_.name)"
     client_ = supabase.Client network --server_config=server_config_ --local_storage=local_storage
         --certificate_provider=: certificate_roots.MAP[it]
-
-  close:
-    if client_:
-      client_.close
-      client_ = null
+    add_finalizer this:: close
 
   is_closed -> bool:
     return client_ == null
+
+  close:
+    if not client_: return
+    remove_finalizer this
+    client_.close
+    client_ = null
 
   ensure_authenticated [block]:
     client_.ensure_authenticated block
