@@ -15,7 +15,7 @@ dependencies:
     version: ^1.8.1
   http:
     url: github.com/toitlang/pkg-http
-    version: ^1.9.3
+    version: ^2.0.1
   snapshot:
     path: ../snapshot
   supabase:

@@ -33,8 +33,8 @@ packages:
     hash: 7f0cc4280065fb18ee09d3803f12180cec852d32
   pkg-http:
     url: github.com/toitlang/pkg-http
-    version: 1.9.3
-    hash: 108c436cc990535f5d70c380ef68081c38840f4c
+    version: 2.0.1
+    hash: 1d0f328e4b510b00f4cf1e0e1bb5835806cf2fb5
   pkg-ntp:
     url: github.com/toitlang/pkg-ntp
     version: 1.0.0
