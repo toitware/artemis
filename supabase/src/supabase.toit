@@ -76,8 +76,8 @@ class Client:
       network = network_to_close_ = net.open
 
     http_client_ = http.Client network
-
     local_storage_ = local_storage
+    add_finalizer this:: close
 
   constructor.tls network/net.Interface?=null
       --host/string
@@ -91,8 +91,8 @@ class Client:
       network = network_to_close_ = net.open
 
     http_client_ = http.Client.tls network --root_certificates=root_certificates
-
     local_storage_ = local_storage
+    add_finalizer this:: close
 
   constructor network/net.Interface?=null
       --server_config/ServerConfig
@@ -150,8 +150,9 @@ class Client:
     block.call auth
 
   close -> none:
-    // TODO(florian): call close on the http client (when that's possible).
-    // TODO(florian): add closing in a finalizer.
+    if not http_client_: return
+    remove_finalizer this
+    http_client_.close
     http_client_ = null
     if network_to_close_:
       network_to_close_.close
@@ -234,10 +235,17 @@ class Client:
     else if query:
       path = "$path?$query"
 
+    host := host_
+    port := null
+    colon_pos := host.index_of ":"
+    if colon_pos >= 0:
+      host = host_[..colon_pos]
+      port = int.parse host_[colon_pos + 1..]
+
     response/http.Response := ?
     if method == http.GET:
       if payload: throw "GET requests cannot have a payload"
-      response = http_client_.get host_ path --headers=headers
+      response = http_client_.get --host=host --port=port --path=path --headers=headers
     else if method == "PATCH" or method == http.DELETE or method == http.PUT:
       // TODO(florian): the http client should support PATCH.
       // TODO(florian): we should only do this if the payload is a Map.
@@ -250,12 +258,14 @@ class Client:
       if method != http.POST: throw "UNIMPLEMENTED"
       if payload is Map:
         response = http_client_.post_json payload
-            --host=host_
+            --host=host
+            --port=port
             --path=path
             --headers=headers
       else:
         response = http_client_.post payload
-            --host=host_
+            --host=host
+            --port=port
             --path=path
             --headers=headers
 
@@ -291,6 +301,8 @@ class Client:
     if not is_success_status_code_ response.status_code:
       message := ""
 
+      // TODO(kasper): If the response body is a sized reader
+      // we might as well read this in a more efficient way.
       body_bytes := #[]
       while chunk := response.body.read: body_bytes += chunk
 
@@ -304,6 +316,14 @@ class Client:
       if exception:
         message = body_bytes.to_string_non_throwing
       throw "FAILED: $response.status_code - $message"
+
+    // TODO(kasper): We get a status code 204 (No Content) back
+    // from RPC calls that return void and they seem to always
+    // have empty bodies. Don't try to read them. This should be
+    // handled by the http package.
+    if response.status_code == 204:
+      response.connection_.reading_done_ response.body
+      return parse_response_json ? null : ""
 
     if not parse_response_json:
       result_bytes := #[]
@@ -319,7 +339,7 @@ class Client:
 
     result := json_encoding.decode_stream buffered_reader
     // TODO(florian): this shouldn't be necessary in the latest http package.
-    response.body.read  // Make sure we drain the body.
+    while data := response.body.read: null // DRAIN!
     return result
 
 /**

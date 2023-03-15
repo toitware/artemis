@@ -227,7 +227,6 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         artemis.customize_envelope
             --output_path=envelope_path
             --device_specification=specification
-
         artemis.upload_firmware envelope_path --organization_id=organization_id
       else:
         envelope_path = firmware_path

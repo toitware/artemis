@@ -84,12 +84,7 @@ class BrokerServiceMqtt implements BrokerService:
               sub_ack_latch.set sub_ack_id
 
       finally:
-        critical_do:
-          disconnected.set true
-          client.close --force
-          transport.close
-          network.close
-        client = null
+        critical_do: disconnected.set true
         handle_task = null
 
     try:
@@ -110,7 +105,12 @@ class BrokerServiceMqtt implements BrokerService:
         if client: client.close
         with_timeout --ms=3_000: disconnected.get
       finally:
-        if handle_task: handle_task.cancel
+        if handle_task:
+          handle_task.cancel
+          disconnected.get
+      client.close --force
+      transport.close
+      network.close
 
   on_idle -> none:
     // Do nothing.

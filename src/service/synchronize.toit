@@ -58,6 +58,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       // connect. We only need to do this the first time we connect or
       // if we know that the broker isn't up to date.
       report_status resources
+      broker_.on_idle
 
       // The 'handle_goal' only pushes actions into the
       // 'actions_' channel.
@@ -130,6 +131,8 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
     if not new_goal.contains "firmware":
       logger_.error "missing firmware information"
+      // TODO(kasper): Is there a missing action here? That
+      // might lead to us not going idle, which is an issue.
       return
 
     if current_state["firmware"] != new_goal["firmware"]:

@@ -24,11 +24,16 @@ class BrokerServiceHttp implements BrokerService:
   connect --device_id/string --callback/EventHandler [block]:
     network := net.open
     check_in network logger_
-    idle_.unlock  // We're always idle when we're just connecting.
 
     connection := HttpConnection_ network host_ port_
     resources := ResourceManagerHttp connection
     disconnected := monitor.Latch
+
+    // Always start non-idle and wait for the $block to call
+    // the $on_idle method when it is ready for the handle
+    // task to do its work. This avoids processing multiple
+    // requests at once.
+    idle_.lock
 
     handle_task/Task? := ?
     handle_task = task --background::
@@ -68,9 +73,7 @@ class BrokerServiceHttp implements BrokerService:
             logger_.warn "unknown event received" --tags={"response": response}
             callback.handle_nop
       finally:
-        critical_do:
-          disconnected.set true
-          network.close
+        critical_do: disconnected.set true
         handle_task = null
 
     try:
@@ -78,6 +81,8 @@ class BrokerServiceHttp implements BrokerService:
     finally:
       if handle_task: handle_task.cancel
       disconnected.get
+      connection.close
+      network.close
 
   on_idle -> none:
     idle_.unlock

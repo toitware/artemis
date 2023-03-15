@@ -23,13 +23,13 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     client_ = supabase.Client network --server_config=server_config_ --local_storage=local_storage
         --certificate_provider=: certificate_roots.MAP[it]
 
-  close:
-    if client_:
-      client_.close
-      client_ = null
-
   is_closed -> bool:
     return client_ == null
+
+  close:
+    if not client_: return
+    client_.close
+    client_ = null
 
   ensure_authenticated [block]:
     client_.ensure_authenticated block

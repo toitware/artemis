@@ -9,11 +9,20 @@ import reader show SizedReader
 STATUS_IM_A_TEAPOT ::= 418
 
 class HttpConnection_:
-  network_/net.Interface
+  client_/http.Client? := ?
   host_/string
   port_/int
 
-  constructor .network_ .host_ .port_:
+  constructor network/net.Interface .host_ .port_:
+    client_ = http.Client network
+
+  is_closed -> bool:
+    return client_ == null
+
+  close:
+    if not client_: return
+    client_.close
+    client_ = null
 
   send_request command/string data/Map -> any:
     payload := {
@@ -35,9 +44,8 @@ class HttpConnection_:
     send_request_ payload block
 
   send_request_ payload/Map [block] -> none:
-    client := http.Client network_
     encoded := ubjson.encode payload
-    response := client.post encoded --host=host_ --port=port_ --path="/"
+    response := client_.post encoded --host=host_ --port=port_ --path="/"
 
     body := response.body as SizedReader
     status := response.status_code

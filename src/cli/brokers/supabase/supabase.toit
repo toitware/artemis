@@ -29,13 +29,15 @@ class BrokerCliSupabase implements BrokerCli:
 
   constructor --.id/string .client_:
 
-  close:
-    if client_:
-      client_.close
-      client_ = null
-
   is_closed -> bool:
     return client_ == null
+
+  close:
+    // TODO(kasper): It is a little bit odd that we close the
+    // client that was passed to us from the outside.
+    if not client_: return
+    client_.close
+    client_ = null
 
   ensure_authenticated [block]:
     client_.ensure_authenticated block
@@ -54,10 +56,8 @@ class BrokerCliSupabase implements BrokerCli:
 
   update_goal --device_id/string [block]:
     // TODO(florian): should we take some locks here to avoid
-    // concurrent updates of the goal. Alternatively, we could
-
+    // concurrent updates of the goal?
     detailed_device := get_device --device_id=device_id
-
     new_goal := block.call detailed_device
 
     client_.rest.rpc "toit_artemis.set_goal" {
