@@ -105,6 +105,9 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       if broker_cli is mqtt_broker.BrokerCliMqtt:
         (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
 
+      // Tell the broker that we're idle, so it can do its thing.
+      broker_service.on_idle
+
       // In the first iteration none of the brokers have a goal state yet.
       // In the second iteration they already have a goal state.
       if broker_cli is not mqtt_broker.BrokerCliMqtt and test_iteration != 0:
