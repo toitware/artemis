@@ -317,6 +317,14 @@ class Client:
         message = body_bytes.to_string_non_throwing
       throw "FAILED: $response.status_code - $message"
 
+    // TODO(kasper): We get a status code 204 (No Content) back
+    // from RPC calls that return void and they seem to always
+    // have empty bodies. Don't try to read them. This should be
+    // handled by the http package.
+    if response.status_code == 204:
+      response.connection_.reading_done_ response.body
+      return parse_response_json ? null : ""
+
     if not parse_response_json:
       result_bytes := #[]
       while chunk := response.body.read: result_bytes += chunk

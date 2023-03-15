@@ -131,6 +131,8 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
     if not new_goal.contains "firmware":
       logger_.error "missing firmware information"
+      // TODO(kasper): Is there a missing action here? That
+      // might lead to us not going idle, which is an issue.
       return
 
     if current_state["firmware"] != new_goal["firmware"]:
