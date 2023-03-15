@@ -235,10 +235,17 @@ class Client:
     else if query:
       path = "$path?$query"
 
+    host := host_
+    port := null
+    colon_pos := host.index_of ":"
+    if colon_pos >= 0:
+      host = host_[..colon_pos]
+      port = int.parse host_[colon_pos + 1..]
+
     response/http.Response := ?
     if method == http.GET:
       if payload: throw "GET requests cannot have a payload"
-      response = http_client_.get host_ path --headers=headers
+      response = http_client_.get --host=host --port=port --path=path --headers=headers
     else if method == "PATCH" or method == http.DELETE or method == http.PUT:
       // TODO(florian): the http client should support PATCH.
       // TODO(florian): we should only do this if the payload is a Map.
@@ -251,12 +258,14 @@ class Client:
       if method != http.POST: throw "UNIMPLEMENTED"
       if payload is Map:
         response = http_client_.post_json payload
-            --host=host_
+            --host=host
+            --port=port
             --path=path
             --headers=headers
       else:
         response = http_client_.post payload
-            --host=host_
+            --host=host
+            --port=port
             --path=path
             --headers=headers
 
