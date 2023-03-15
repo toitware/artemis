@@ -28,7 +28,6 @@ class BrokerCliSupabase implements BrokerCli:
   id/string
 
   constructor --.id/string .client_:
-    add_finalizer this:: close
 
   is_closed -> bool:
     return client_ == null
@@ -37,7 +36,6 @@ class BrokerCliSupabase implements BrokerCli:
     // TODO(kasper): It is a little bit odd that we close the
     // client that was passed to us from the outside.
     if not client_: return
-    remove_finalizer this
     client_.close
     client_ = null
 

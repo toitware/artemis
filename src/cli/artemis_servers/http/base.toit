@@ -26,14 +26,12 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
 
   constructor network/net.Interface .server_config_/ServerConfigHttpToit .config_/Config:
     client_ = http.Client network
-    add_finalizer this:: close
 
   is_closed -> bool:
     return client_ == null
 
   close -> none:
     if not client_: return
-    remove_finalizer this
     client_.close
     client_ = null
 
