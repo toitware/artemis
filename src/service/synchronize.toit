@@ -58,6 +58,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       // connect. We only need to do this the first time we connect or
       // if we know that the broker isn't up to date.
       report_status resources
+      broker_.on_idle
 
       // The 'handle_goal' only pushes actions into the
       // 'actions_' channel.

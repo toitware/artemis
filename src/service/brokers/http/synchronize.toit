@@ -24,12 +24,12 @@ class BrokerServiceHttp implements BrokerService:
   connect --device_id/string --callback/EventHandler [block]:
     network := net.open
     check_in network logger_
-    idle_.unlock  // We're always idle when we're just connecting.
 
     connection := HttpConnection_ network host_ port_
     resources := ResourceManagerHttp connection
     disconnected := monitor.Latch
 
+    idle_.lock  // ...
     handle_task/Task? := ?
     handle_task = task --background::
       // We don't know our state revision.
@@ -38,11 +38,14 @@ class BrokerServiceHttp implements BrokerService:
       try:
         while true:
           // Long poll for new events.
+          print "wait"
           with_timeout IDLE_TIMEOUT: idle_.enter
+          print "getting event"
           response := connection.send_request "get_event" {
             "device_id": device_id,
             "state_revision": state_revision,
           }
+          print "getting event => done"
           idle_.lock
           if response["event_type"] == "goal_updated":
             callback.handle_goal response["goal"] resources

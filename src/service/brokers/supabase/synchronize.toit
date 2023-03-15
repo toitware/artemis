@@ -23,13 +23,13 @@ class BrokerServiceSupabase implements BrokerService:
   connect --device_id/string --callback/EventHandler [block]:
     network := net.open
     check_in network logger_
-    idle_.unlock  // We're always idle when we're just connecting.
 
     client := supabase.Client network --server_config=broker_
         --certificate_provider=: throw "UNSUPPORTED"
     resources := ResourceManagerSupabase client
-
     disconnected := monitor.Latch
+
+    idle_.lock  // ...
     handle_task/Task? := ?
     handle_task = task --background::
       try:
