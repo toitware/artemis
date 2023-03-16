@@ -21,7 +21,7 @@ interface ResourceManager:
 
   Calls the $block with a $SizedReader.
   */
-  fetch_image id/uuid.Uuid --organization_id/string [block] -> none
+  fetch_image id/uuid.Uuid [block] -> none
 
   /**
   Downloads the firmware with the given $id.
@@ -35,11 +35,12 @@ interface ResourceManager:
 
   Depending on the implementation, there might be multiple calls to the block.
   */
-  fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none
+  fetch_firmware id/string --offset/int=0 [block] -> none
 
-  // TODO(kasper): Poor interface. We shouldn't need to pass
-  // the device id here?
-  report_state device_id/string state/Map -> none
+  /**
+  Reports the state of the connected device.
+  */
+  report_state state/Map -> none
 
 /**
 The event handler, called when the broker has new information.

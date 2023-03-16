@@ -6,13 +6,15 @@ import reader show SizedReader
 import uuid
 
 import ..broker
+import ...device
 import ....shared.mqtt
 
 class ResourceManagerMqtt implements ResourceManager:
+  device_/Device
   client_/mqtt.FullClient
   monitors_ ::= {:}
 
-  constructor .client_:
+  constructor .device_ .client_:
 
   /**
   Provides the resource returned by $block to all the tasks
@@ -25,19 +27,19 @@ class ResourceManagerMqtt implements ResourceManager:
     monitor.provide block.call
     return true
 
-  fetch_image id/uuid.Uuid --organization_id/string [block] -> none:
-    fetch_resource_ "toit/$organization_id/apps/$id/image$BITS_PER_WORD" block
+  fetch_image id/uuid.Uuid [block] -> none:
+    fetch_resource_ "toit/$device_.organization_id/apps/$id/image$BITS_PER_WORD" block
 
-  fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none:
+  fetch_firmware id/string --offset/int=0 [block] -> none:
     assert: offset == 0  // Other case isn't handled yet.
     total_size/int? := null
     parts/List? := null
-    fetch_resource_ "toit/$organization_id/firmware/$id": | reader/SizedReader |
+    fetch_resource_ "toit/$device_.organization_id/firmware/$id": | reader/SizedReader |
       manifest := ubjson.decode (read_all_ reader)
       total_size = manifest["size"]
       parts = manifest["parts"]
     parts.do: | part_offset/int |
-      topic := "toit/$organization_id/firmware/$id/$part_offset"
+      topic := "toit/$device_.organization_id/firmware/$id/$part_offset"
       fetch_resource_ topic: | reader/SizedReader |
         block.call reader part_offset
 
@@ -74,8 +76,8 @@ class ResourceManagerMqtt implements ResourceManager:
       monitors_.remove path
       monitor.done
 
-  report_state device_id/string state/Map -> none:
-    client_.publish (topic_state_for device_id)
+  report_state state/Map -> none:
+    client_.publish (topic_state_for device_.id)
         ubjson.encode state
         --qos=1  // TODO(florian): decide whether qos=1 is needed.
         --retain

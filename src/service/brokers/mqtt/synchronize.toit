@@ -40,7 +40,7 @@ class BrokerServiceMqtt implements BrokerService:
     connect_client_ --device_id=device_id client
     disconnected := monitor.Latch
 
-    resources ::= ResourceManagerMqtt client
+    resources ::= ResourceManagerMqtt device client
 
     topic_revision := topic_revision_for device_id
     topic_goal := topic_goal_for device_id

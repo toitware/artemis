@@ -27,7 +27,7 @@ class BrokerServiceHttp implements BrokerService:
     check_in network logger_ --device=device
 
     connection := HttpConnection_ network host_ port_
-    resources := ResourceManagerHttp connection
+    resources := ResourceManagerHttp device connection
     disconnected := monitor.Latch
 
     // Always start non-idle and wait for the $block to call

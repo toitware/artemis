@@ -27,7 +27,7 @@ class BrokerServiceSupabase implements BrokerService:
 
     client := supabase.Client network --server_config=broker_
         --certificate_provider=: throw "UNSUPPORTED"
-    resources := ResourceManagerSupabase client
+    resources := ResourceManagerSupabase device client
     disconnected := monitor.Latch
 
     // Always start non-idle and wait for the $block to call

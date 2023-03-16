@@ -218,7 +218,7 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
     test_handler := TestEventHandler
     broker_service.connect --device=DEVICE --callback=test_handler: | resources/broker.ResourceManager |
-      resources.fetch_image APP_ID --organization_id=TEST_ORGANIZATION_UUID:
+      resources.fetch_image APP_ID:
         | reader/SizedReader |
           // TODO(florian): this only tests the download of the current platform. That is, on
           // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
@@ -259,7 +259,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     broker_service.connect --device=DEVICE --callback=test_handler: | resources/broker.ResourceManager |
       data := #[]
       offsets := []
-      resources.fetch_firmware FIRMWARE_ID --organization_id=TEST_ORGANIZATION_UUID:
+      resources.fetch_firmware FIRMWARE_ID:
         | reader/SizedReader offset |
           expect_equals data.size offset
           while chunk := reader.read: data += chunk
@@ -273,9 +273,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         if offsets.size > 1:
           offset_index := offsets.size / 2
           current_offset := offsets[offset_index]
-          resources.fetch_firmware FIRMWARE_ID
-              --organization_id=TEST_ORGANIZATION_UUID
-              --offset=current_offset:
+          resources.fetch_firmware FIRMWARE_ID --offset=current_offset:
             | reader/SizedReader offset |
               expect_equals current_offset offset
               partial_data := #[]

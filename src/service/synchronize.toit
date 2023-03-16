@@ -268,7 +268,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     return::
       incomplete/ContainerJob? ::= containers_.first_incomplete
       if incomplete:
-        resources.fetch_image incomplete.id --organization_id=device_.organization_id:
+        resources.fetch_image incomplete.id:
           | reader/SizedReader |
             containers_.complete incomplete reader
             // The container image was successfully installed, so the job is
@@ -286,7 +286,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       // not running a lot of other stuff while we update the firmware.
       firmware_update logger_ resources
           --device=device_
-          --target=new
+          --new=new
       device_.state_firmware_update new
       report_status resources
       firmware.upgrade
@@ -311,4 +311,4 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       state["current-state"] = device_.current_state
     if device_.goal_state:
       state["goal-state"] = device_.goal_state
-    resources.report_state device_.id state
+    resources.report_state state

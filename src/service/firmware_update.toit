@@ -13,9 +13,9 @@ import ..shared.utils.patch
 
 firmware_update logger/log.Logger resources/ResourceManager -> none
     --device/Device
-    --target/string:
+    --new/string:
   old_firmware := Firmware.encoded device.firmware
-  new_firmware := Firmware.encoded target
+  new_firmware := Firmware.encoded new
   checkpoint := device.checkpoint --old=old_firmware --new=new_firmware
 
   // TODO(kasper): We need some kind of mechanism to get out of
@@ -148,9 +148,7 @@ class FirmwarePatcher_ implements PatchObserver:
       resource_url := resource_urls[i]
       started_applying := false
       exception := catch --unwind=(started_applying or i == resource_urls.size - 1):
-        resources.fetch_firmware resource_url
-            --organization_id=device_.organization_id
-            --offset=read_offset:
+        resources.fetch_firmware resource_url --offset=read_offset:
           | reader/SizedReader offset/int |
             started_applying = true
             apply_ reader offset old_mapping
