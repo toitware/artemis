@@ -27,9 +27,9 @@ Artemis server). They have to be run after the `start-local-*` clauses from abov
 - `start-mosquitto`: configures Artemis to use a local Mosquitto
   broker, and starts it in the foreground.
 
-Note that the `add-local-*` clauses use your external IP address, so that
+Note that the `add-local-*` clauses use your LAN IP address, so that
 flashed devices can connect to the local server. This means that you might
-need to re-run the `add-local-*` clauses if your external IP address changes.
+need to re-run the `add-local-*` clauses if your LAN IP address changes.
 
 Before being able to flash a device, you need to log in, and create an
 organization first. Also, you need to upload a valid Artemis service to

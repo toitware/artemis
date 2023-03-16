@@ -68,13 +68,13 @@ start-http: install-pkgs
 	@ # Use the public IP, so that we can flash devices which then can use
 	@ # the broker.
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add http \
-		--host=`$(TOIT_RUN_BIN) tools/external_ip/external_ip.toit` \
+		--host=`$(TOIT_RUN_BIN) tools/lan_ip/lan_ip.toit` \
 		--port 4999 \
 		artemis-local-http
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis-local-http
 	@ # Adds the local broker and makes it the default.
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add http \
-		--host=`$(TOIT_RUN_BIN) tools/external_ip/external_ip.toit` \
+		--host=`$(TOIT_RUN_BIN) tools/lan_ip/lan_ip.toit` \
 		--port 4998 \
 		broker-local-http
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-http
@@ -133,7 +133,7 @@ start-mosquitto:
 	@ # Adds the local broker and makes it the default.
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add mqtt \
 		broker-local-mosquitto \
-		`$(TOIT_RUN_BIN) tools/external_ip/external_ip.toit` \
+		`$(TOIT_RUN_BIN) tools/lan_ip/lan_ip.toit` \
 		3998
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-mosquitto
 	@ rm -rf $$HOME/.cache/artemis/broker-local-mosquitto
