@@ -7,6 +7,7 @@ import net
 import .connection
 import .resources
 import ...check_in show check_in
+import ...device
 import ..broker
 
 IDLE_TIMEOUT ::= Duration --m=10
@@ -21,9 +22,9 @@ class BrokerServiceHttp implements BrokerService:
     host_ = host
     port_ = port
 
-  connect --device_id/string --callback/EventHandler [block]:
+  connect --device/Device --callback/EventHandler [block]:
     network := net.open
-    check_in network logger_
+    check_in network logger_ --device=device
 
     connection := HttpConnection_ network host_ port_
     resources := ResourceManagerHttp connection
@@ -45,7 +46,7 @@ class BrokerServiceHttp implements BrokerService:
           // Long poll for new events.
           with_timeout IDLE_TIMEOUT: idle_.enter
           response := connection.send_request "get_event" {
-            "device_id": device_id,
+            "device_id": device.id,
             "state_revision": state_revision,
           }
           idle_.lock
@@ -58,7 +59,7 @@ class BrokerServiceHttp implements BrokerService:
             // goal state.
             // TODO(florian): centralize the things that need to be synchronized.
             goal_response := connection.send_request "get_goal" {
-              "device_id": device_id,
+              "device_id": device.id,
             }
             // Even if the goal-response is empty, notify the callback, since
             // an empty goal means that the device should revert to the firmware

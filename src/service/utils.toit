@@ -9,3 +9,11 @@ decode_server_config key/string assets/Map -> ServerConfig?:
   // We use the key as name for the broker configuration.
   return ServerConfig.from_json key broker_entry
       --der_deserializer=: assets.get it
+
+deep_copy o/any -> any:
+  if o is Map:
+    return (o as Map).map: | _ value | deep_copy value
+  else if o is List:
+    return (o as List).map: deep_copy it
+  else:
+    return o

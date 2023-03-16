@@ -24,7 +24,9 @@ main args:
 // Calling `run_test` twice from the same test will thus not work.
 run_test --insert_device/bool:
   device_id := "test-device-check-in"
-  device := Device --id=device_id
+  device := Device
+      --id=device_id
+      --hardware_id=device_id
       --organization_id=TEST_ORGANIZATION_UUID
       --firmware_state={
         "firmware": encoded_firmware --device_id=device_id,
@@ -49,10 +51,7 @@ run_test --insert_device/bool:
       assets := {
         "artemis.broker": encoded_artemis
       }
-      device_map := {
-        "hardware_id": device_id
-      }
-      check_in_setup assets device_map
+      check_in_setup --assets=assets --device=device
 
       artemis_task := task::
         service.run_artemis device broker_config --no-start_ntp

@@ -7,7 +7,6 @@ import artemis.cli.cache
 import artemis.cli.config
 import artemis.cli.server_config as cli_server_config
 import artemis.service
-import artemis.service.device show Device
 import artemis.shared.server_config show ServerConfig
 import host.directory
 import host.file

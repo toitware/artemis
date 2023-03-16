@@ -51,7 +51,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.id}
-    broker_.connect --device_id=device_.id --callback=this: | resources/ResourceManager |
+    broker_.connect --device=device_ --callback=this: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.id}
 
       // TODO(florian): We don't need to report the status every time we
@@ -284,11 +284,9 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     return::
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
-      old := device_.firmware
       firmware_update logger_ resources
-          --organization_id=device_.organization_id
-          --old=old
-          --new=new
+          --device=device_
+          --target=new
       device_.state_firmware_update new
       report_status resources
       firmware.upgrade

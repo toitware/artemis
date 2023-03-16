@@ -11,6 +11,7 @@ import .resources
 import ...check_in show check_in
 
 import ..broker
+import ...device
 import ....shared.mqtt
 import ....shared.server_config
 
@@ -29,11 +30,13 @@ class BrokerServiceMqtt implements BrokerService:
   constructor .logger_ --create_transport/Lambda:
     create_transport_ = create_transport
 
-  connect --device_id/string --callback/EventHandler [block]:
+  connect --device/Device --callback/EventHandler [block]:
     network ::= net.open
-    check_in network logger_
+    check_in network logger_ --device=device
     transport ::= create_transport_.call network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
+
+    device_id := device.id
     connect_client_ --device_id=device_id client
     disconnected := monitor.Latch
 

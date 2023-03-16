@@ -9,6 +9,7 @@ import .supabase.synchronize show BrokerServiceSupabase
 import .mqtt.synchronize show BrokerServiceMqtt
 import .http.synchronize show BrokerServiceHttp
 
+import ..device
 import ...shared.server_config
 
 /**
@@ -89,7 +90,7 @@ interface BrokerService:
 
   It is safe to call the callback too often, as long as the arguments are correct.
   */
-  connect --device_id/string --callback/EventHandler [block]
+  connect --device/Device --callback/EventHandler [block]
 
   /**
   TODO(florian): add documentation.

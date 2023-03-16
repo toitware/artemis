@@ -5,11 +5,11 @@ import net
 import system.storage
 
 import .artemis_servers.artemis_server
-import .utils
+import .device
 import .jobs
+import .utils
 
 import ..shared.server_config
-
 
 INTERVAL_ ::= Duration --h=24
 INTERVAL_BETWEEN_ATTEMPTS_ ::= Duration --m=30
@@ -32,7 +32,7 @@ check_in_timeout -> Duration?:
   next := check_in_schedule now
   return now.to next
 
-check_in network/net.Interface logger/log.Logger:
+check_in network/net.Interface logger/log.Logger --device/Device:
   now := JobTime.now
   next := check_in_schedule now
   if now < next: return
@@ -69,12 +69,12 @@ Sets up the check-in functionality.
 This is the service that contacts the Toitware backend to report that a
   certain device is online and using Artemis.
 */
-check_in_setup assets/Map device/Map -> none:
+check_in_setup --assets/Map --device/Device -> none:
   server_config := decode_server_config "artemis.broker" assets
   if not server_config: return
 
-  hardware_id := device["hardware_id"]
-  check_in_server_ = ArtemisServerService server_config --hardware_id=hardware_id
+  check_in_server_ = ArtemisServerService server_config
+      --hardware_id=device.hardware_id
   last := bucket_.get "check-in"
   if not last: return
   catch:
