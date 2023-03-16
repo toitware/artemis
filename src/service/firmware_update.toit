@@ -135,20 +135,37 @@ class FirmwarePatcher_ implements PatchObserver:
       old_id := Firmware.id --hash=old_hash
       resource_urls.add "$new_id/$old_id"
 
-    // We might not find the old->new patch. Use the 'none' patch as a fallback.
+    // We might not find the old->new patch. Use the 'none' patch as
+    // a fallback. We try this if we fail to fetch and thus never
+    // start applying the patch version.
     resource_urls.add "$new_id/none"
 
-    for i := 0; i < resource_urls.size; i++:
-      resource_url := resource_urls[i]
+    resource_urls.do: | resource_url/string |
+      // If we get an exception before we start applying the patch,
+      // we continue to the next resource URL in the list.
       started_applying := false
-      exception := catch --unwind=(started_applying or i == resource_urls.size - 1):
+      exception := catch --unwind=started_applying:
         resources.fetch_firmware resource_url --offset=read_offset:
           | reader/SizedReader offset/int |
             started_applying = true
             apply_ reader offset old_mapping
-      if not exception: return
-      logger_.warn "firmware update: failed to fetch patch"
-          --tags={"url": resource_url, "error": exception}
+        // If we get here, we expect that we have started applying
+        // the patch. Getting here without having started applying
+        // the patch indicates that fetching the firmware neither
+        // threw nor invoked the block, which shouldn't happen,
+        // but to be safe we check anyway.
+        if started_applying: return
+      // We didn't start applying the patch, so we conclude that
+      // we failed fetching it. If there are more possible URLs
+      // to fetch from, we try the next.
+      logger_.warn "firmware update: failed to fetch patch" --tags={
+        "url": resource_url,
+        "error": exception
+      }
+
+    // We never got started applying any of the patches, so we conclude
+    // that we were unable to read the patch.
+    throw PATCH_READING_FAILED_EXCEPTION
 
   apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping? -> none:
     binary_patcher := Patcher reader old_mapping --patch_offset=offset
