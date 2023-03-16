@@ -24,10 +24,11 @@ main args:
   root_cmd.run args
 
 class HttpBroker extends HttpServer:
-  images := {:}
-  firmwares := {:}
-  device_states := {:}
-  device_goals := {:}
+  images/Map := {:}
+  firmwares/Map := {:}
+  device_states/Map := {:}
+  device_goals/Map := {:}
+  events_/Map := {:}  // Map from device-id to list of events.
 
   // Map from device-id to latch.
   waiting_for_events/Map := {:}
@@ -56,6 +57,8 @@ class HttpBroker extends HttpServer:
     if command == "report_state": return report_state data
     if command == "get_state": return get_state data
     if command == "get_event": return get_event data
+    if command == "report_event": return report_event data
+    if command == "get_events": return get_events data
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
 
@@ -163,3 +166,42 @@ class HttpBroker extends HttpServer:
     device_goals.remove device_id
     state_revision.remove device_id
     waiting_for_events.remove device_id
+
+  report_event data/Map:
+    device_id := data["device_id"]
+    event_type := data["type"]
+    payload := data["data"]
+    event_list := events_.get device_id --init=:[]
+    event_list.add {
+      "event_type": event_type,
+      "data": payload,
+      "timestamp": Time.now,
+    }
+
+  get_events data/Map:
+    type := data["type"]
+    device_ids := data["device_ids"]
+    limit := data.get "limit"
+    since_ns := data.get "since"
+    since_time := since_ns and Time.epoch --ns=since_ns
+
+    result := {:}
+    device_ids.do: | device_id |
+      if not device_states.contains device_id:
+        throw "Unknown device: $device_id"
+      device_result := []
+      events := events_.get device_id --if_absent=:[]
+      count := 0
+      // Iterate backwards to get the most recent events first.
+      for i := events.size - 1; i >= 0; i--:
+        event := events[i]
+        if event["event_type"] != type: continue
+        if since_time and event["timestamp"] <= since_time: continue
+        device_result.add {
+          "timestamp_ns": (event["timestamp"] as Time).ns_since_epoch,
+          "data": event["data"],
+        }
+        count++
+        if limit and count >= limit: break
+      if not device_result.is_empty: result[device_id] = device_result
+    return result

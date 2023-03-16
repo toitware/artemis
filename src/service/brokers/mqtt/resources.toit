@@ -82,6 +82,13 @@ class ResourceManagerMqtt implements ResourceManager:
         --qos=1  // TODO(florian): decide whether qos=1 is needed.
         --retain
 
+  report_event --type/string data/any -> none:
+    client_.publish (topic_event_for device_.id --type=type)
+        ubjson.encode data
+        --qos=1  // TODO(florian): decide whether qos=1 is needed.
+        --retain
+
+
 monitor ResourceMonitor_:
   reader_/SizedReader? := null
   done_/bool := false

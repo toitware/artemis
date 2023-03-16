@@ -121,3 +121,52 @@ main:
 
     expect_throws --contains="Not found":
         client1.storage.download --path="$path_org3/bar.txt"
+
+    // Remember: device_id3 is in the same org as client1 and client2 (organization_id).
+    // client3 is in a different org.
+    // client1 and client2 can access device_id3, but client3 can't.
+
+    // Report a state and an event for device3.
+    // The "update_state" function is available to anonymous users.
+    // They need to know an existing device ID.
+    client_anon.rest.rpc "toit_artemis.update_state" {
+      "_device_id": device_id3,
+      "_state": { "updated": "by anon" },
+    }
+
+    // Client1 and client2 can access device_id3, but client3 can't.
+    [ client1, client2 ].do: | client/supabase.Client |
+      state := client1.rest.rpc "toit_artemis.get_state" {
+        "_device_id": device_id3,
+      }
+      expect_equals "by anon" state["updated"]
+
+    // Client3 can't access device_id3.
+    state := client3.rest.rpc "toit_artemis.get_state" {
+        "_device_id": device_id3,
+      }
+    expect_null state
+
+    client_anon.rest.rpc "toit_artemis.report_event" {
+      "_device_id": device_id3,
+      "_type": "test-artemis",
+      "_data": { "updated": "by anon" },
+    }
+
+    [ client1, client2 ].do: | client/supabase.Client |
+      events := client.rest.rpc "toit_artemis.get_events" {
+        "_device_ids": [device_id3],
+        "_type": "test-artemis",
+        "_limit": 1
+      }
+      expect_equals 1 events.size
+      expect_equals device_id3 events[0]["device_id"]
+      expect_equals "by anon" events[0]["data"]["updated"]
+
+    // Client3 can't access device_id3.
+    events := client3.rest.rpc "toit_artemis.get_events" {
+        "_device_ids": [device_id3],
+        "_type": "test-artemis",
+        "_limit": 1
+      }
+    expect events.is_empty

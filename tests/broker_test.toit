@@ -9,6 +9,7 @@ import reader show SizedReader
 import artemis.cli.brokers.broker
 import artemis.cli.device show DeviceDetailed
 import artemis.service.device show Device
+import artemis.cli.event show Event
 import artemis.service.brokers.broker
 import artemis.cli.brokers.mqtt.base as mqtt_broker
 import artemis.cli.brokers.http.base as http_broker
@@ -28,7 +29,12 @@ import .utils
 
 // When running the supabase test we need valid device ids
 // that are not already in the database.
-DEVICE ::= Device
+DEVICE1 ::= Device
+    --id=random_uuid_string
+    --hardware_id=random_uuid_string
+    --organization_id=TEST_ORGANIZATION_UUID
+    --firmware_state={:}
+DEVICE2 ::= Device
     --id=random_uuid_string
     --hardware_id=random_uuid_string
     --organization_id=TEST_ORGANIZATION_UUID
@@ -58,14 +64,29 @@ run_test
     with_artemis_server --type="supabase": | server/TestArtemisServer |
       backdoor := server.backdoor as SupabaseBackdoor
       backdoor.with_backdoor_client_: | client/supabase.Client |
-        client.rest.insert "devices" {
-          "alias": DEVICE.id,
-          "organization_id": DEVICE.organization_id,
-        }
+        [ DEVICE1, DEVICE2 ].do: | device/Device |
+          client.rest.insert "devices" {
+            "alias": device.id,
+            "organization_id": device.organization_id,
+          }
+
+  [ DEVICE1, DEVICE2].do: | device/Device |
+    identity := {
+      "device_id": device.id,
+      "organization_id": device.organization_id,
+      "hardware_id": device.hardware_id,
+    }
+    state := {
+      "identity": identity,
+    }
+    broker_cli.notify_created --device_id=device.id --state=state
+
 
   test_image broker_cli broker_service
   test_firmware broker_cli broker_service
   test_goal broker_cli broker_service
+  test_events broker_cli broker_service
+  print "done"
 
 class TestEvent:
   type/string
@@ -83,28 +104,17 @@ class TestEventHandler implements broker.EventHandler:
     channel.send (TestEvent "nop")
 
 test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  identity := {
-    "device_id": DEVICE.id,
-    "organization_id": DEVICE.organization_id,
-    "hardware_id": DEVICE.hardware_id,
-  }
-  state := {
-    "identity": identity,
-  }
-
-  broker_cli.notify_created --device_id=DEVICE.id --state=state
-
   3.repeat: | test_iteration |
     test_handler := TestEventHandler
     if test_iteration == 2:
       // Send a config update while the service is not connected.
-      broker_cli.update_goal --device_id=DEVICE.id: | device/DeviceDetailed |
+      broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
         if test_iteration == 1:
           expect_equals "succeeded 2" device.goal["test-entry"]
         device.goal["test-entry"] = "succeeded while offline"
         device.goal
 
-    broker_service.connect --device=DEVICE --callback=test_handler:
+    broker_service.connect --device=DEVICE1 --callback=test_handler:
       event/TestEvent? := null
 
       if broker_cli is mqtt_broker.BrokerCliMqtt:
@@ -123,7 +133,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         // connects, thus not sending the initial empty goal state.
         event = test_handler.channel.receive
 
-      broker_cli.update_goal --device_id=DEVICE.id: | device/DeviceDetailed |
+      broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
         old := device.goal
         if test_iteration == 1:
           expect_equals "succeeded 2" old["test-entry"]
@@ -178,7 +188,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       event_goal := event.value
       expect_equals "succeeded 1" event_goal["test-entry"]
 
-      broker_cli.update_goal --device_id=DEVICE.id: | device/DeviceDetailed |
+      broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
         old := device.goal
         expect_equals "succeeded 1" old["test-entry"]
         old["test-entry"] = "succeeded 2"
@@ -191,9 +201,6 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       expect_equals "succeeded 2" event_goal["test-entry"]
 
       expect_equals 0 test_handler.channel.size
-
-  print "done"
-
 
 test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   2.repeat: | iteration |
@@ -217,7 +224,7 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --word_size=64
 
     test_handler := TestEventHandler
-    broker_service.connect --device=DEVICE --callback=test_handler: | resources/broker.ResourceManager |
+    broker_service.connect --device=DEVICE1 --callback=test_handler: | resources/broker.ResourceManager |
       resources.fetch_image APP_ID:
         | reader/SizedReader |
           // TODO(florian): this only tests the download of the current platform. That is, on
@@ -256,7 +263,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       expect_bytes_equal content downloaded_bytes
 
     test_handler := TestEventHandler
-    broker_service.connect --device=DEVICE --callback=test_handler: | resources/broker.ResourceManager |
+    broker_service.connect --device=DEVICE1 --callback=test_handler: | resources/broker.ResourceManager |
       data := #[]
       offsets := []
       resources.fetch_firmware FIRMWARE_ID:
@@ -290,3 +297,192 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
                 current_offset += partial_data.size
               // Return the new offset.
               current_offset
+
+test_events broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+  if broker_cli is mqtt_broker.BrokerCliMqtt:
+    // The MQTT broker doesn't support getting events.
+    return
+
+  broker_service.connect
+      --device=DEVICE1
+      --callback=TestEventHandler: | resources1/broker.ResourceManager |
+    broker_service.connect
+        --device=DEVICE2
+        --callback=TestEventHandler: | resources2/broker.ResourceManager |
+      test_events broker_cli resources1 resources2
+
+test_events
+    broker_cli/broker.BrokerCli
+    resources1/broker.ResourceManager
+    resources2/broker.ResourceManager:
+  start := Time.now
+  events := broker_cli.get_events --device_ids=[DEVICE1.id] --type="test-event"
+  expect_not (events.contains DEVICE1.id)
+
+  events = broker_cli.get_events --device_ids=[DEVICE1.id, DEVICE2.id] --type="test-event"
+  expect_not (events.contains DEVICE1.id)
+  expect_not (events.contains DEVICE2.id)
+
+  resources1.report_event --type="test-event" "test-data"
+
+  2.repeat:
+    device_ids := it == 0 ? [DEVICE1.id] : [DEVICE1.id, DEVICE2.id]
+    events = broker_cli.get_events
+        --device_ids=device_ids
+        --type="test-event"
+    expect (events.contains DEVICE1.id)
+    expect_equals 1 events[DEVICE1.id].size
+    event/Event := events[DEVICE1.id][0]
+    expect_equals "test-data" event.data
+    expect start <= event.timestamp <= Time.now
+
+    // Test the since parameter.
+    now := Time.now
+    events = broker_cli.get_events
+        --device_ids=device_ids
+        --type="test-event"
+        --since=now
+    expect_not (events.contains DEVICE1.id)
+
+  10.repeat:
+    resources1.report_event --type="test-event2" "test-data-$it"
+    resources2.report_event --type="test-event2" "test-data-$it"
+
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --type="test-event2"
+      --limit=100
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 10 events[DEVICE1.id].size
+  expect_equals 10 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix := 9
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 9
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // Limit to 5 per device.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --type="test-event2"
+      --limit=5
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 5 events[DEVICE1.id].size
+  expect_equals 5 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 9
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 9
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // 5 more events for device2.
+  5.repeat:
+    resources2.report_event --type="test-event2" "test-data-$(it + 10)"
+
+  // Limit to 20 per device.
+  // Device 1 should have 10 events, device 2 should have 15 events.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --type="test-event2"
+      --limit=20
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 10 events[DEVICE1.id].size
+  expect_equals 15 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 9
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 14
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // Make sure we test one of the most common use cases: getting just one event.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --type="test-event2"
+      --limit=1
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 1 events[DEVICE1.id].size
+  expect_equals 1 events[DEVICE2.id].size
+  expect_equals "test-data-9" events[DEVICE1.id][0].data
+  expect_equals "test-data-14" events[DEVICE2.id][0].data
+
+  checkpoint := Time.now
+
+  // Add 5 more events for both.
+  5.repeat:
+    resources1.report_event --type="test-event2" "test-data-$(it + 20)"
+    resources2.report_event --type="test-event2" "test-data-$(it + 20)"
+
+  // Limit to events since 'checkpoint'.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --type="test-event2"
+      --since=checkpoint
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 5 events[DEVICE1.id].size
+  expect_equals 5 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 24
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 24
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // Limit to events since 'checkpoint' and limit to 3.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --type="test-event2"
+      --since=checkpoint
+      --limit=3
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 3 events[DEVICE1.id].size
+  expect_equals 3 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 24
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 24
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // Limit to events since 'checkpoint' and limit to 10.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --type="test-event2"
+      --since=checkpoint
+      --limit=10
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 5 events[DEVICE1.id].size
+  expect_equals 5 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 24
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 24
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--

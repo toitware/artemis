@@ -7,6 +7,7 @@ import uuid
 
 import ..broker
 import ...device
+import ...event
 import ...ui
 import ....shared.server_config
 
@@ -120,3 +121,20 @@ class BrokerCliHttp implements BrokerCli:
       "device_id": device_id,
       "state": state,
     }
+
+  get_events -> Map
+      --type/string
+      --device_ids/List
+      --limit/int=10
+      --since/Time?=null:
+    response := send_request_ "get_events" {
+      "type": type,
+      "device_ids": device_ids,
+      "limit": limit,
+      "since": since and since.ns_since_epoch,
+    }
+    return response.map: | _ value/List |
+      value.map: | event/Map |
+        timestamp_ns := event["timestamp_ns"]
+        data := event["data"]
+        Event (Time.epoch --ns=timestamp_ns) data

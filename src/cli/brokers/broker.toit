@@ -7,6 +7,7 @@ import uuid
 
 import ..auth
 import ..config
+import ..event
 import ..device
 import ..ui
 import ...shared.server_config
@@ -115,6 +116,18 @@ interface BrokerCli implements Authenticatable:
     broker there is (probably) only identity information in it.
   */
   notify_created --device_id/string --state/Map -> none
+
+  /**
+  Fetches all $type events for all devices in the $device_ids list.
+  Returns a mapping from device-id to list of $Event|s.
+  At most $limit events per device are returned.
+  If $since is not null, only events that are newer than $since are returned.
+  */
+  get_events -> Map
+      --type/string
+      --device_ids/List
+      --limit/int=10
+      --since/Time?=null
 
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config

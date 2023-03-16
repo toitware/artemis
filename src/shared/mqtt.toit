@@ -67,5 +67,8 @@ topic_revision_for device_id/string -> string:
 topic_state_for device_id/string -> string:
   return "toit/devices/$device_id/state"
 
+topic_event_for device_id/string --type/string -> string:
+  return "toit/devices/$device_id/event/$type"
+
 topic_presence_for device_id/string -> string:
   return "toit/devices/presence/$device_id"
