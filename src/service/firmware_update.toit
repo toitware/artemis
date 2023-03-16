@@ -18,11 +18,6 @@ firmware_update logger/log.Logger resources/ResourceManager -> none
   new_firmware := Firmware.encoded new
   checkpoint := device.checkpoint --old=old_firmware --new=new_firmware
 
-  // TODO(kasper): We need some kind of mechanism to get out of
-  // trouble if our checkpointing information is wrong. Can we
-  // recognize all the exceptions that could indicate that we
-  // should start over?
-
   logger.info "firmware update" --tags={"size": new_firmware.size}
   elapsed := Duration.of:
     firmware.map: | old_mapping/firmware.FirmwareMapping? |
@@ -39,7 +34,15 @@ firmware_update logger/log.Logger resources/ResourceManager -> none
           read_offset = 0
           index++
         patcher.write_checksum
-      finally:
+      finally: | is_exception exception |
+        if is_exception and exception.value != PATCH_READING_FAILED_EXCEPTION:
+          // Only keep the last checkpoint if we get a recognizable
+          // error from reading the patch. This means that we only
+          // use checkpoints on power- and network loss. Otherwise,
+          // we assume that we may have gotten a corrupt patch or
+          // incorrectly written flash, so we prefer starting over.
+          device.checkpoint_update null
+          logger.warn "firmware update: abandoned due to non-network error"
         patcher.close
   logger.info "firmware update: 100%" --tags={"elapsed": elapsed}
 
@@ -96,16 +99,7 @@ class FirmwarePatcher_ implements PatchObserver:
 
   write_checksum -> none:
     on_write new_.checksum
-    try:
-      // If we get to a point where we are ready to commit, we
-      // make sure to always clear the checkpoint, so that any
-      // problems arising from this leads to starting over.
-      writer_.commit
-    finally:
-      // TODO(kasper): Maybe we can do this clearing in a more
-      // general location, so that everything that looks like
-      // it impossible to make progress from starts over?
-      device_.checkpoint_update null
+    writer_.commit
 
   write_device_specific_ part/Map device_specific/ByteArray -> none:
     padded_size := part["to"] - part["from"]
@@ -159,15 +153,11 @@ class FirmwarePatcher_ implements PatchObserver:
   apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping? -> none:
     binary_patcher := Patcher reader old_mapping --patch_offset=offset
     if not binary_patcher.patch this:
-        // TODO(kasper): Maybe we can do this clearing in a more
-        // general location, so that everything that looks like
-        // it impossible to make progress from starts over?
-        device_.checkpoint_update null
-        // This should only happen if we to get the wrong bits
-        // served to us. It is unlikely, but we log it and throw
-        // an exception so we can try to recover.
-        logger_.error "firmware update: failed to apply patch"
-        throw "INVALID_FORMAT"
+      // This should only happen if we to get the wrong bits
+      // served to us. It is unlikely, but we log it and throw
+      // an exception so we can try to recover.
+      logger_.error "firmware update: failed to apply patch"
+      throw "INVALID_FORMAT"
 
   pad_ padding/int -> none:
     write_ 0 padding: | x y | writer_.pad (y - x)
