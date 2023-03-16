@@ -8,6 +8,7 @@ import monitor
 import reader show SizedReader
 import artemis.cli.brokers.broker
 import artemis.cli.device show DeviceDetailed
+import artemis.service.device show Device
 import artemis.service.brokers.broker
 import artemis.cli.brokers.mqtt.base as mqtt_broker
 import artemis.cli.brokers.http.base as http_broker
@@ -25,10 +26,13 @@ import .artemis_server
 import .broker
 import .utils
 
-// When running the supabase test we need a valid UUID that is not
-// already in the database.
-DEVICE_ID ::= random_uuid_string
-DEVICE_HARDWARE_ID ::= random_uuid_string
+// When running the supabase test we need valid device ids
+// that are not already in the database.
+DEVICE ::= Device
+    --id=random_uuid_string
+    --hardware_id=random_uuid_string
+    --organization_id=TEST_ORGANIZATION_UUID
+    --firmware_state={:}
 
 main args:
   broker_type := broker_type_from_args args
@@ -55,8 +59,8 @@ run_test
       backdoor := server.backdoor as SupabaseBackdoor
       backdoor.with_backdoor_client_: | client/supabase.Client |
         client.rest.insert "devices" {
-          "alias": DEVICE_ID,
-          "organization_id": TEST_ORGANIZATION_UUID,
+          "alias": DEVICE.id,
+          "organization_id": DEVICE.organization_id,
         }
 
   test_image broker_cli broker_service
@@ -80,26 +84,27 @@ class TestEventHandler implements broker.EventHandler:
 
 test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   identity := {
-    "device_id": DEVICE_ID,
-    "organization_id": TEST_ORGANIZATION_UUID,
-    "hardware_id": DEVICE_HARDWARE_ID,
+    "device_id": DEVICE.id,
+    "organization_id": DEVICE.organization_id,
+    "hardware_id": DEVICE.hardware_id,
   }
   state := {
     "identity": identity,
   }
-  broker_cli.notify_created --device_id=DEVICE_ID --state=state
+
+  broker_cli.notify_created --device_id=DEVICE.id --state=state
 
   3.repeat: | test_iteration |
     test_handler := TestEventHandler
     if test_iteration == 2:
       // Send a config update while the service is not connected.
-      broker_cli.update_goal --device_id=DEVICE_ID: | device/DeviceDetailed |
+      broker_cli.update_goal --device_id=DEVICE.id: | device/DeviceDetailed |
         if test_iteration == 1:
           expect_equals "succeeded 2" device.goal["test-entry"]
         device.goal["test-entry"] = "succeeded while offline"
         device.goal
 
-    broker_service.connect --device_id=DEVICE_ID --callback=test_handler:
+    broker_service.connect --device=DEVICE --callback=test_handler:
       event/TestEvent? := null
 
       if broker_cli is mqtt_broker.BrokerCliMqtt:
@@ -118,7 +123,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         // connects, thus not sending the initial empty goal state.
         event = test_handler.channel.receive
 
-      broker_cli.update_goal --device_id=DEVICE_ID: | device/DeviceDetailed |
+      broker_cli.update_goal --device_id=DEVICE.id: | device/DeviceDetailed |
         old := device.goal
         if test_iteration == 1:
           expect_equals "succeeded 2" old["test-entry"]
@@ -173,7 +178,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       event_goal := event.value
       expect_equals "succeeded 1" event_goal["test-entry"]
 
-      broker_cli.update_goal --device_id=DEVICE_ID: | device/DeviceDetailed |
+      broker_cli.update_goal --device_id=DEVICE.id: | device/DeviceDetailed |
         old := device.goal
         expect_equals "succeeded 1" old["test-entry"]
         old["test-entry"] = "succeeded 2"
@@ -212,8 +217,8 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --word_size=64
 
     test_handler := TestEventHandler
-    broker_service.connect --device_id=DEVICE_ID --callback=test_handler: | resources/broker.ResourceManager |
-      resources.fetch_image APP_ID --organization_id=TEST_ORGANIZATION_UUID:
+    broker_service.connect --device=DEVICE --callback=test_handler: | resources/broker.ResourceManager |
+      resources.fetch_image APP_ID:
         | reader/SizedReader |
           // TODO(florian): this only tests the download of the current platform. That is, on
           // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
@@ -251,10 +256,10 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       expect_bytes_equal content downloaded_bytes
 
     test_handler := TestEventHandler
-    broker_service.connect --device_id=DEVICE_ID --callback=test_handler: | resources/broker.ResourceManager |
+    broker_service.connect --device=DEVICE --callback=test_handler: | resources/broker.ResourceManager |
       data := #[]
       offsets := []
-      resources.fetch_firmware FIRMWARE_ID --organization_id=TEST_ORGANIZATION_UUID:
+      resources.fetch_firmware FIRMWARE_ID:
         | reader/SizedReader offset |
           expect_equals data.size offset
           while chunk := reader.read: data += chunk
@@ -268,9 +273,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         if offsets.size > 1:
           offset_index := offsets.size / 2
           current_offset := offsets[offset_index]
-          resources.fetch_firmware FIRMWARE_ID
-              --organization_id=TEST_ORGANIZATION_UUID
-              --offset=current_offset:
+          resources.fetch_firmware FIRMWARE_ID --offset=current_offset:
             | reader/SizedReader offset |
               expect_equals current_offset offset
               partial_data := #[]

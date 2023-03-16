@@ -3,33 +3,44 @@
 import log
 import system.storage
 import system.firmware show is_validation_pending
+
+import .firmware
+import .utils show deep_copy
 import ..shared.json_diff show json_equals Modification
-
-/** UUID used to ensure that the bucket's data is actually from us. */
-BUCKET_UUID_ ::= "ccf4efed-6825-44e6-b71d-1aa118d43824"
-
-decode_bucket_entry_ entry -> any:
-  if entry is not Map: return null
-  if (entry.get "uuid") != BUCKET_UUID_: return null
-  return entry["data"]
-
-encode_bucket_entry_ data -> Map:
-  return { "uuid": BUCKET_UUID_, "data": data }
 
 /**
 A representation of the device we are running on.
 
-This class abstracts away the current configuration of the device.
+This class abstracts away the current state and configuration
+  of the device.
 */
 class Device:
-  bucket_/storage.Bucket
+  /** UUID used to ensure that the flash's data is actually from us. */
+  static FLASH_ENTRY_UUID_ ::= "ccf4efed-6825-44e6-b71d-1aa118d43824"
+
+  static FLASH_GOAL_STATE_ ::= "goal-state"
+  static FLASH_CURRENT_STATE_ ::= "current-state"
+  static FLASH_JOBS_RAN_LAST_END_ ::= "jobs-ran-last-end"
+  static FLASH_CHECKPOINT_ ::= "checkpoint"
+  flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
+
+  static RAM_CHECK_IN_LAST_ ::= "check-in-last"
+  ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
+
+  /**
+  The ID of the device.
+
+  This ID was chosen during provisioning and is unique within
+    a specific broker.
+  */
+  id/string
 
   /**
   The hardware ID of the device.
 
-  This ID was chosen during provisioning and is unique.
+  This ID was chosen during provisioning and is globally unique.
   */
-  id/string
+  hardware_id/string
 
   /**
   The organization ID of the device.
@@ -62,8 +73,8 @@ class Device:
 
   // We keep track of whether the current state can be modified.
   // We don't want to modify the firmware state and a state read
-  // directly from a flash bucket contains lists and maps that
-  // cannot be modified.
+  // directly from the flash contains lists and maps that cannot
+  // be modified.
   current_state_is_modifiable_/bool := false
 
   /**
@@ -86,23 +97,9 @@ class Device:
   */
   pending_firmware/string? := null
 
-  constructor --.id --.organization_id --.firmware_state/Map:
+  constructor --.id --.hardware_id --.organization_id --.firmware_state/Map:
     current_state = firmware_state
-    bucket_ = storage.Bucket.open --flash "toit.io/artemis/device_states"
-    stored_current_state := decode_bucket_entry_ (bucket_.get "current_state")
-    if stored_current_state:
-      if stored_current_state["firmware"] == firmware_state["firmware"]:
-        modification/Modification? := Modification.compute --from=firmware_state --to=stored_current_state
-        if modification:
-          log.debug "current state is changed" --tags={"changes": Modification.stringify modification}
-          current_state = stored_current_state
-      else:
-        // At this point we don't clear the current state in the bucket yet.
-        // If the firmware is not validated, we might roll back, and then continue using
-        // the old "current" state.
-        if not is_validation_pending:
-          log.error "current state has different firmware than firmware state"
-    goal_state = decode_bucket_entry_ (bucket_.get "goal_state")
+    load_
 
   /**
   Informs the device that the firmware has been validated.
@@ -111,7 +108,7 @@ class Device:
     previous firmware.
   */
   firmware_validated -> none:
-    bucket_.remove "current_state"
+    flash_store_ FLASH_CURRENT_STATE_ null
 
   /**
   Whether the current state is modified and thus different from
@@ -142,7 +139,7 @@ class Device:
   Sets the max-offline of the current state.
   */
   state_set_max_offline new_max_offline/Duration?:
-    state := modifiable_current_state_
+    state := current_state_modifiable_
     if new_max_offline and new_max_offline > Duration.ZERO:
       state["max-offline"] = new_max_offline.in_s
     else:
@@ -153,7 +150,7 @@ class Device:
   Removes the container with the given $name from the current state.
   */
   state_container_uninstall name/string:
-    state := modifiable_current_state_
+    state := current_state_modifiable_
     state["apps"].remove name
     simplify_and_store_
 
@@ -161,7 +158,7 @@ class Device:
   Adds or updates the container with the given $name and $description in the current state.
   */
   state_container_install_or_update name/string description/Map:
-    state := modifiable_current_state_
+    state := current_state_modifiable_
     apps := state.get "apps" --init=: {:}
     apps[name] = description
     simplify_and_store_
@@ -176,12 +173,103 @@ class Device:
     pending_firmware = new
 
   /**
-  Writes the states into the bucket after simplifying them.
+  Gets the last check-in state (if any).
+  */
+  check_in_last -> Map?:
+    return ram_load_ RAM_CHECK_IN_LAST_
+
+  /**
+  Stores the last check-in state in memory that is preserved across
+    deep sleeping.
+  */
+  check_in_last_update value/Map -> none:
+    ram_store_ RAM_CHECK_IN_LAST_ value
+
+  /**
+  Gets a modifiable copy of the jobs ran last information from flash.
+  */
+  jobs_ran_last_end_modifiable -> Map:
+    // TODO(kasper): Tag the map with the current monotonic clock 'phase',
+    // so we know if we can use the use any found information.
+    stored := flash_load_ FLASH_JOBS_RAN_LAST_END_
+    return stored is Map ? (deep_copy stored) : {:}
+
+  /**
+  Stores the jobs ran last information in flash.
+  */
+  jobs_ran_last_end_update value/Map -> none:
+    flash_store_ FLASH_JOBS_RAN_LAST_END_ value
+
+  /**
+  Gets the last checkpoint (if any) for the firmware update
+    from $old to $new.
+  */
+  checkpoint --old/Firmware --new/Firmware -> Checkpoint?:
+    value := flash_load_ FLASH_CHECKPOINT_
+    if value is List and value.size == 6 and
+        old.checksum == value[0] and
+        new.checksum == value[1]:
+      return Checkpoint
+          --old_checksum=old.checksum
+          --new_checksum=new.checksum
+          --read_part_index=value[2]
+          --read_offset=value[3]
+          --write_offset=value[4]
+          --write_skip=value[5]
+    // If we find an oddly shaped entry in the flash, we might as
+    // well clear it out eagerly.
+    checkpoint_update null
+    return null
+
+  /**
+  Updates the checkpoint information stored in flash.
+  */
+  checkpoint_update checkpoint/Checkpoint? -> none:
+    value := checkpoint and [
+      checkpoint.old_checksum,
+      checkpoint.new_checksum,
+      checkpoint.read_part_index,
+      checkpoint.read_offset,
+      checkpoint.write_offset,
+      checkpoint.write_skip
+    ]
+    flash_store_ FLASH_CHECKPOINT_ value
+
+  /**
+  Get the current state in a modifiable form.
+  */
+  current_state_modifiable_ -> Map:
+    if not current_state_is_modifiable_:
+      current_state = deep_copy current_state
+      current_state_is_modifiable_ = true
+    return current_state
+
+  /**
+  Loads the states from flash.
+  */
+  load_ -> none:
+    stored_current_state := flash_load_ FLASH_CURRENT_STATE_
+    if stored_current_state:
+      if stored_current_state["firmware"] == firmware_state["firmware"]:
+        modification/Modification? := Modification.compute --from=firmware_state --to=stored_current_state
+        if modification:
+          log.debug "current state is changed" --tags={"changes": Modification.stringify modification}
+          current_state = stored_current_state
+      else:
+        // At this point we don't clear the current state in the flash yet.
+        // If the firmware is not validated, we might roll back, and then continue using
+        // the old "current" state.
+        if not is_validation_pending:
+          log.error "current state has different firmware than firmware state"
+    goal_state = flash_load_ FLASH_GOAL_STATE_
+
+  /**
+  Stores the states into the flash after simplifying them.
 
   If the goal state is the same as the current state sets it to null.
   If the current state is the same as the firmware state sets it to null.
   */
-  simplify_and_store_:
+  simplify_and_store_ -> none:
     if goal_state and json_equals goal_state current_state:
       goal_state = null
 
@@ -192,22 +280,26 @@ class Device:
     if is_validation_pending:
       log.error "validation still pending in simplify_and_store_"
 
-    bucket_["current_state"] = encode_bucket_entry_ current_state
-    bucket_["goal_state"] = encode_bucket_entry_ goal_state
+    flash_store_ FLASH_CURRENT_STATE_ current_state
+    flash_store_ FLASH_GOAL_STATE_ goal_state
 
-  /**
-  Get the current state in a modifiable form.
-  */
-  modifiable_current_state_ -> Map:
-    if not current_state_is_modifiable_:
-      current_state = deep_copy_ current_state
-      current_state_is_modifiable_ = true
-    return current_state
+  flash_load_ key/string -> any:
+    entry := flash_.get key
+    if entry is not Map: return null
+    if (entry.get "uuid") != FLASH_ENTRY_UUID_: return null
+    return entry["data"]
 
-deep_copy_ o/any -> any:
-  if o is Map:
-    return (o as Map).map: | _ value | deep_copy_ value
-  else if o is List:
-    return (o as List).map: deep_copy_ it
-  else:
-    return o
+  flash_store_ key/string value/any -> none:
+    if value == null:
+      flash_.remove key
+    else:
+      flash_[key] = { "uuid": FLASH_ENTRY_UUID_, "data": value }
+
+  ram_load_ key/string -> any:
+    return ram_.get key
+
+  ram_store_ key/string value/any -> none:
+    if value == null:
+      ram_.remove key
+    else:
+      ram_[key] = value

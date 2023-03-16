@@ -1,25 +1,21 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
-import system.storage
 
+import .device
 import .jobs
 
 class Scheduler:
   signal_ ::= SchedulerSignal_
   logger_/log.Logger
+  device_/Device
 
   jobs_ ::= []
-  jobs_bucket_/storage.Bucket
   jobs_ran_last_end_/Map
 
-  constructor logger/log.Logger:
+  constructor logger/log.Logger .device_:
     logger_ = logger.with_name "scheduler"
-    jobs_bucket_ = storage.Bucket.open --flash "toit.io/artemis/jobs"
-    // TODO(kasper): Tag the map with the current monotonic clock 'phase',
-    // so we know if we can use the use any found information.
-    stored := jobs_bucket_.get "ran-last-end"
-    jobs_ran_last_end_ = stored is Map ? stored.copy : {:}
+    jobs_ran_last_end_ = device_.jobs_ran_last_end_modifiable
 
   run -> JobTime:
     assert: not jobs_.is_empty
@@ -39,7 +35,7 @@ class Scheduler:
       // For now, we only update the flash bucket when we're shutting down.
       // This means that if we lose power or hit an exceptional case, we
       // will reschedule all jobs.
-      critical_do: jobs_bucket_["ran-last-end"] = jobs_ran_last_end_
+      critical_do: device_.jobs_ran_last_end_update jobs_ran_last_end_
 
   add_jobs jobs/List -> none:
     jobs.do: add_job it

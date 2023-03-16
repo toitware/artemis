@@ -9,6 +9,7 @@ import .resources
 import ..broker
 
 import ...check_in show check_in
+import ...device
 import ....shared.server_config
 
 IDLE_TIMEOUT ::= Duration --m=10
@@ -20,13 +21,13 @@ class BrokerServiceSupabase implements BrokerService:
 
   constructor .logger_ .broker_:
 
-  connect --device_id/string --callback/EventHandler [block]:
+  connect --device/Device --callback/EventHandler [block]:
     network := net.open
-    check_in network logger_
+    check_in network logger_ --device=device
 
     client := supabase.Client network --server_config=broker_
         --certificate_provider=: throw "UNSUPPORTED"
-    resources := ResourceManagerSupabase client
+    resources := ResourceManagerSupabase device client
     disconnected := monitor.Latch
 
     // Always start non-idle and wait for the $block to call
@@ -41,7 +42,7 @@ class BrokerServiceSupabase implements BrokerService:
         while true:
           with_timeout IDLE_TIMEOUT: idle_.enter
           new_goal := client.rest.rpc "toit_artemis.get_goal" {
-            "_device_id": device_id,
+            "_device_id": device.id
           }
           idle_.lock
           // An empty goal means that we should revert to the

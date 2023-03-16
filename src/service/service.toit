@@ -14,7 +14,7 @@ import ..shared.server_config
 
 run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Duration:
   logger := log.default.with_name "artemis"
-  scheduler ::= Scheduler logger
+  scheduler ::= Scheduler logger device
   containers ::= ContainerManager logger scheduler
   broker := BrokerService logger server_config
 

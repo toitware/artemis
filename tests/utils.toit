@@ -196,6 +196,7 @@ with_test_cli
     if start_device_artemis:
       device = Device
           --id=alias_id
+          --hardware_id=hardware_id
           --organization_id=TEST_ORGANIZATION_UUID
           --firmware_state={
             "firmware": encoded_firmware --device_id=alias_id
