@@ -35,7 +35,7 @@ firmware_update logger/log.Logger resources/ResourceManager -> none
           index++
         patcher.write_checksum
       finally: | is_exception exception |
-        if is_exception and exception.value != PATCH_READING_FAILED_EXCEPTION:
+        if is_exception and PATCH_READING_FAILED_EXCEPTION != exception.value:
           // Only keep the last checkpoint if we get a recognizable
           // error from reading the patch. This means that we only
           // use checkpoints on power- and network loss. Otherwise,
