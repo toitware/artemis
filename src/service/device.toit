@@ -24,6 +24,9 @@ class Device:
   static FLASH_CHECKPOINT_ ::= "checkpoint"
   flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
 
+  static RAM_CHECK_IN_LAST_ ::= "check-in-last"
+  ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
+
   /**
   The ID of the device.
 
@@ -170,6 +173,19 @@ class Device:
     pending_firmware = new
 
   /**
+  Gets the last check-in state (if any).
+  */
+  check_in_last -> Map?:
+    return ram_load_ RAM_CHECK_IN_LAST_
+
+  /**
+  Stores the last check-in state in memory that is preserved across
+    deep sleeping.
+  */
+  check_in_last_update value/Map -> none:
+    ram_store_ RAM_CHECK_IN_LAST_ value
+
+  /**
   Gets a modifiable copy of the jobs ran last information from flash.
   */
   jobs_ran_last_end_modifiable -> Map:
@@ -278,3 +294,12 @@ class Device:
       flash_.remove key
     else:
       flash_[key] = { "uuid": FLASH_ENTRY_UUID_, "data": value }
+
+  ram_load_ key/string -> any:
+    return ram_.get key
+
+  ram_store_ key/string value/any -> none:
+    if value == null:
+      ram_.remove key
+    else:
+      ram_[key] = value

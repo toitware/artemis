@@ -2,7 +2,6 @@
 
 import log
 import net
-import system.storage
 
 import .artemis_servers.artemis_server
 import .device
@@ -14,8 +13,6 @@ import ..shared.server_config
 INTERVAL_ ::= Duration --h=24
 INTERVAL_BETWEEN_ATTEMPTS_ ::= Duration --m=30
 
-// TODO(kasper): Share the bucket across all of Artemis?
-bucket_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis/rtc"
 last_success_/JobTime? := null
 last_attempt_/JobTime? := null
 
@@ -55,12 +52,12 @@ check_in network/net.Interface logger/log.Logger --device/Device:
     logger.info "status reporting succeeded"
 
   exception = catch:
-    bucket_["check-in"] = {
+    device.check_in_last_update {
       "success": last_success_ and last_success_.us,
       "attempt": last_attempt_.us,
     }
   if exception:
-    logger.warn "status reporting failed to update bucket"
+    logger.warn "status reporting failed to update state"
         --tags={"exception": exception}
 
 /**
@@ -75,8 +72,7 @@ check_in_setup --assets/Map --device/Device -> none:
 
   check_in_server_ = ArtemisServerService server_config
       --hardware_id=device.hardware_id
-  last := bucket_.get "check-in"
-  if not last: return
+  last := device.check_in_last
   catch:
     // If we cannot decode the last success, it is fine
     // that we do not decode the last attempt.
