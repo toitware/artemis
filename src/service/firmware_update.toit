@@ -144,7 +144,7 @@ class FirmwarePatcher_ implements PatchObserver:
       // If we get an exception before we start applying the patch,
       // we continue to the next resource URL in the list.
       started_applying := false
-      exception := catch --unwind=started_applying:
+      exception := catch --unwind=(: started_applying):
         resources.fetch_firmware resource_url --offset=read_offset:
           | reader/SizedReader offset/int |
             started_applying = true
