@@ -9,9 +9,10 @@ import net.x509
 import http.status_codes
 import encoding.json
 import encoding.url
-import reader show Reader SizedReader BufferedReader
+import reader show Reader BufferedReader
 
 import .auth
+import .utils as utils
 
 interface ServerConfig:
   host -> string
@@ -63,7 +64,6 @@ class Client:
   rest_/PostgRest? := null
   storage_/Storage? := null
   auth_/Auth? := null
-
 
   constructor network/net.Interface?=null
       --host/string
@@ -300,7 +300,7 @@ class Client:
 
     body := response.body
     if not is_success_status_code_ response.status_code:
-      body_bytes := read_all_ body
+      body_bytes := utils.read_all body
       message := ""
       exception := catch:
         decoded := json.decode body_bytes
@@ -322,7 +322,7 @@ class Client:
       return parse_response_json ? null : ""
 
     if not parse_response_json:
-      return (read_all_ body).to_string_non_throwing
+      return (utils.read_all body).to_string_non_throwing
 
     // Still check whether there is a response.
     // When performing an RPC we can't know in advance whether the function
@@ -335,23 +335,6 @@ class Client:
       return json.decode_stream buffered_body
     finally:
       catch: while body.read: null // DRAIN!
-
-  // TODO(kasper): Can we share this somehow?
-  static read_all_ reader/Reader -> ByteArray:
-    // TODO(kasper): Maybe get the first chunk separately? It is
-    // pretty great if it is the only one.
-    if reader is SizedReader:
-      result := ByteArray (reader as SizedReader).size
-      offset := 0
-      while chunk := reader.read:
-        result.replace offset chunk
-        offset += chunk.size
-      return result
-    else:
-      buffer := bytes.Buffer
-      while chunk := reader.read:
-        buffer.write chunk
-      return buffer.bytes
 
 /**
 An interface to store authentication information locally.
@@ -574,19 +557,14 @@ class Storage:
   If $public is true, downloads the data through the public URL.
   */
   download --path/string --public/bool=false -> ByteArray:
-    download --path=path --public=public: | reader/SizedReader |
-      result := ByteArray reader.size
-      offset := 0
-      while chunk := reader.read:
-        result.replace offset chunk
-        offset += chunk.size
-      return result
+    download --path=path --public=public: | reader/Reader |
+      return utils.read_all reader
     unreachable
 
   /**
   Downloads the data stored in $path from the storage.
 
-  Calls the given $block with a $SizedReader for the resource.
+  Calls the given $block with a $Reader for the resource.
 
   If $public is true, downloads the data through the public URL.
   */
@@ -608,7 +586,7 @@ class Storage:
     // Check the status code. The correct result depends on whether
     // or not we're doing a partial fetch.
     status := response.status_code
-    body := response.body as SizedReader
+    body := response.body
     okay := status == 200 or (partial and status == 206)
     try:
       if not okay: throw "Not found ($status)"

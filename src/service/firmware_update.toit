@@ -4,7 +4,7 @@ import log
 import system.firmware
 
 import binary show LITTLE_ENDIAN
-import reader show SizedReader
+import reader show Reader
 
 import .brokers.broker
 import .device
@@ -152,7 +152,7 @@ class FirmwarePatcher_ implements PatchObserver:
       started_applying := false
       exception := catch --unwind=(: started_applying):
         resources.fetch_firmware resource_url --offset=read_offset:
-          | reader/SizedReader offset/int |
+          | reader/Reader offset/int |
             if not started_applying:
               logger_.info "firmware update: applying patch" --tags={
                 "url": resource_url
@@ -178,7 +178,7 @@ class FirmwarePatcher_ implements PatchObserver:
     // that we were unable to read the patch.
     throw PATCH_READING_FAILED_EXCEPTION
 
-  apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping? -> none:
+  apply_ reader/Reader offset/int old_mapping/firmware.FirmwareMapping? -> none:
     binary_patcher := Patcher reader old_mapping --patch_offset=offset
     if not binary_patcher.patch this:
       // This should only happen if we to get the wrong bits

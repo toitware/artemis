@@ -4,7 +4,9 @@ import encoding.ubjson
 import encoding.base64
 import http
 import net
-import reader show SizedReader
+import reader show Reader
+
+import supabase.utils
 
 STATUS_IM_A_TEAPOT ::= 418
 
@@ -30,8 +32,8 @@ class HttpConnection_:
       "data": data,
     }
 
-    send_request_ payload: | reader/SizedReader |
-      encoded_response := read_all_ reader
+    send_request_ payload: | reader/Reader |
+      encoded_response := utils.read_all reader
       return ubjson.decode encoded_response
     unreachable
 
@@ -47,11 +49,11 @@ class HttpConnection_:
     encoded := ubjson.encode payload
     response := client_.post encoded --host=host_ --port=port_ --path="/"
 
-    body := response.body as SizedReader
+    body := response.body
     status := response.status_code
 
     if status == STATUS_IM_A_TEAPOT:
-      encoded_response := read_all_ body
+      encoded_response := utils.read_all body
       decoded := ubjson.decode encoded_response
       throw "Broker error: $decoded"
 
@@ -60,12 +62,3 @@ class HttpConnection_:
       block.call body
     finally:
       catch: while body.read: null // DRAIN!
-
-  // TODO(kasper): Can we share this somehow?
-  static read_all_ reader/SizedReader -> ByteArray:
-    result := ByteArray reader.size
-    offset := 0
-    while chunk := reader.read:
-      result.replace offset chunk
-      offset += chunk.size
-    return result

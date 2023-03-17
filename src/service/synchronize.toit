@@ -2,7 +2,7 @@
 
 import log
 import monitor
-import reader show SizedReader
+import reader show Reader
 import system.containers
 import system.firmware
 import uuid
@@ -269,7 +269,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       incomplete/ContainerJob? ::= containers_.first_incomplete
       if incomplete:
         resources.fetch_image incomplete.id:
-          | reader/SizedReader |
+          | reader/Reader |
             containers_.complete incomplete reader
             // The container image was successfully installed, so the job is
             // now complete. Go ahead and update the current state!

@@ -1,10 +1,11 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
-import reader show SizedReader
+import reader show Reader SizedReader
 import uuid
 
 import system.containers
+import supabase.utils
 
 import .jobs
 import .scheduler
@@ -56,13 +57,21 @@ class ContainerManager:
     job.has_run_after_install_ = false
     add_ job --message="install"
 
-  complete job/ContainerJob reader/SizedReader -> none:
+  complete job/ContainerJob reader/Reader -> none:
     if job.is_complete: return
     id := job.id
-    writer ::= containers.ContainerImageWriter reader.size
-    while data := reader.read: writer.write data
+    writer/containers.ContainerImageWriter := ?
+    if reader is SizedReader:
+      size := (reader as SizedReader).size
+      writer = containers.ContainerImageWriter size
+      while data := reader.read: writer.write data
+    else:
+      logger_.warn "image fetched without knowing size" --tags={"id": id}
+      data := utils.read_all reader
+      writer = containers.ContainerImageWriter data.size
+      writer.write data
     image := writer.commit
-    logger_.info "installed image" --tags={"id": image}
+    logger_.info "image installed" --tags={"id": image}
     if image != id: throw "invalid state"
     job.is_complete_ = true
     images_.add id
