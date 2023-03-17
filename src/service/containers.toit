@@ -92,7 +92,7 @@ class ContainerManager:
     if preserve: return
     containers.uninstall job.id
     images_.remove id
-    logger_.info "uninstalled image" --tags={"id": id}
+    logger_.info "image uninstalled" --tags={"id": id}
 
   update job/ContainerJob description/Map -> none:
     if job.is_complete: scheduler_.remove_job job
