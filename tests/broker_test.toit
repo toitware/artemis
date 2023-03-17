@@ -64,13 +64,13 @@ run_test
     with_artemis_server --type="supabase": | server/TestArtemisServer |
       backdoor := server.backdoor as SupabaseBackdoor
       backdoor.with_backdoor_client_: | client/supabase.Client |
-        [ DEVICE1, DEVICE2 ].do: | device/Device |
+        [DEVICE1, DEVICE2].do: | device/Device |
           client.rest.insert "devices" {
             "alias": device.id,
             "organization_id": device.organization_id,
           }
 
-  [ DEVICE1, DEVICE2].do: | device/Device |
+  [DEVICE1, DEVICE2].do: | device/Device |
     identity := {
       "device_id": device.id,
       "organization_id": device.organization_id,
@@ -86,7 +86,6 @@ run_test
   test_firmware broker_cli broker_service
   test_goal broker_cli broker_service
   test_events broker_cli broker_service
-  print "done"
 
 class TestEvent:
   type/string

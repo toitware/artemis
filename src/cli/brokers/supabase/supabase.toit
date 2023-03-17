@@ -105,6 +105,14 @@ class BrokerCliSupabase implements BrokerCli:
 
   // TODO(florian): improve the core Time parsing.
   // TODO(florian): move this function to the supabase library?
+  /**
+  Parses a Supabase timestamp string into a Time object.
+
+  A Supabase timestamp looks like the following: `2023-03-16T16:59:33.031716`. Despite
+    being in UTC, it does not end with 'Z'.
+  Also, the built-in Time.parse function does not support parsing the fractional part
+    of the timestamp.
+  */
   timestamp_to_time_ str/string -> Time:
     parts := str.split "T"
     str_to_int := :int.parse it --on_error=: throw "Cannot parse $it as integer"
@@ -122,15 +130,15 @@ class BrokerCliSupabase implements BrokerCli:
     time_parts := time_str_parts.map str_to_int
 
     return Time.utc
-      date_parts[0]
-      date_parts[1]
-      date_parts[2]
-      time_parts[0]
-      time_parts[1]
-      time_parts[2]
-      --ms=0
-      --us=0
-      --ns=ns_part
+        date_parts[0]
+        date_parts[1]
+        date_parts[2]
+        time_parts[0]
+        time_parts[1]
+        time_parts[2]
+        --ms=0
+        --us=0
+        --ns=ns_part
 
   get_events -> Map
       --type/string

@@ -88,7 +88,6 @@ class ResourceManagerMqtt implements ResourceManager:
         --qos=1  // TODO(florian): decide whether qos=1 is needed.
         --retain
 
-
 monitor ResourceMonitor_:
   reader_/SizedReader? := null
   done_/bool := false

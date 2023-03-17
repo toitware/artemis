@@ -24,10 +24,10 @@ main args:
   root_cmd.run args
 
 class HttpBroker extends HttpServer:
-  images/Map := {:}
-  firmwares/Map := {:}
-  device_states/Map := {:}
-  device_goals/Map := {:}
+  images_/Map := {:}
+  firmwares_/Map := {:}
+  device_states_/Map := {:}
+  device_goals_/Map := {:}
   events_/Map := {:}  // Map from device-id to list of events.
 
   // Map from device-id to latch.
@@ -41,7 +41,7 @@ class HttpBroker extends HttpServer:
     revision is not the same as the one stored here, then the client is
     informed that it needs to reconcile its state.
   */
-  state_revision/Map := {:}
+  state_revision_/Map := {:}
 
   constructor port/int:
     super port
@@ -65,46 +65,46 @@ class HttpBroker extends HttpServer:
   notify_created data/Map:
     device_id := data["device_id"]
     state := data["state"]
-    device_states[device_id] = state
+    device_states_[device_id] = state
 
   /** Backdoor for creating a new device. */
   create_device --device_id/string --state/Map:
-    device_states[device_id] = state
+    device_states_[device_id] = state
 
   get_goal data/Map -> Map?:
     device_id := data["device_id"]
-    config := device_goals.get device_id
+    config := device_goals_.get device_id
     return config
 
   update_goal data/Map:
     device_id := data["device_id"]
-    device_goals[device_id] = data["goal"]
-    print "Updating goal state for $device_id to $device_goals[device_id] and notifying."
+    device_goals_[device_id] = data["goal"]
+    print "Updating goal state for $device_id to $device_goals_[device_id] and notifying."
     notify_device device_id "goal_updated"
 
   upload_image data/Map:
     organization_id := data["organization_id"]
     app_id := data["app_id"]
     word_size := data["word_size"]
-    images["$(organization_id)-$(app_id)-$word_size"] = data["content"]
+    images_["$(organization_id)-$(app_id)-$word_size"] = data["content"]
 
   download_image data/Map:
     organization_id := data["organization_id"]
     app_id := data["app_id"]
     word_size := data["word_size"]
-    return images["$(organization_id)-$(app_id)-$word_size"]
+    return images_["$(organization_id)-$(app_id)-$word_size"]
 
   upload_firmware data/Map:
     organization_id := data["organization_id"]
     firmware_id := data["firmware_id"]
-    firmwares["$(organization_id)-$firmware_id"] = data["content"]
+    firmwares_["$(organization_id)-$firmware_id"] = data["content"]
 
   download_firmware data/Map:
     organization_id := data["organization_id"]
     firmware_id := data["firmware_id"]
     offset := (data.get "offset") or 0
     size := data.get "size"
-    firmware := firmwares["$(organization_id)-$firmware_id"]
+    firmware := firmwares_["$(organization_id)-$firmware_id"]
     part_end := ?
     if size:
       part_end = min firmware.size (offset + size)
@@ -116,19 +116,19 @@ class HttpBroker extends HttpServer:
 
   report_state data/Map:
     device_id := data["device_id"]
-    device_states[device_id] = data["state"]
+    device_states_[device_id] = data["state"]
 
   get_state data/Map:
     device_id := data["device_id"]
     return get_state --device_id=device_id
 
   get_state --device_id/string -> Map?:
-    return device_states.get device_id
+    return device_states_.get device_id
 
   get_event data/Map:
     device_id := data["device_id"]
     known_revision := data["state_revision"]
-    current_revision := state_revision.get device_id --init=:0
+    current_revision := state_revision_.get device_id --init=:0
 
     if current_revision != known_revision:
       // The client and the server are out of sync. Inform the client that it needs
@@ -150,21 +150,21 @@ class HttpBroker extends HttpServer:
 
     return {
       "event_type": event_type,
-      "state_revision": state_revision[device_id],
-      "goal": device_goals[device_id],
+      "state_revision": state_revision_[device_id],
+      "goal": device_goals_[device_id],
     }
 
   notify_device device_id/string event_type/string:
     latch/monitor.Latch? := waiting_for_events.get device_id
-    state_revision.update device_id --if_absent=0: it + 1
+    state_revision_.update device_id --if_absent=0: it + 1
     if latch:
       waiting_for_events.remove device_id
       latch.set event_type
 
   remove_device device_id/string:
-    device_states.remove device_id
-    device_goals.remove device_id
-    state_revision.remove device_id
+    device_states_.remove device_id
+    device_goals_.remove device_id
+    state_revision_.remove device_id
     waiting_for_events.remove device_id
 
   report_event data/Map:
@@ -187,7 +187,7 @@ class HttpBroker extends HttpServer:
 
     result := {:}
     device_ids.do: | device_id |
-      if not device_states.contains device_id:
+      if not device_states_.contains device_id:
         throw "Unknown device: $device_id"
       device_result := []
       events := events_.get device_id --if_absent=:[]

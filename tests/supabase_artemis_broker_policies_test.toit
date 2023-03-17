@@ -135,7 +135,7 @@ main:
     }
 
     // Client1 and client2 can access device_id3, but client3 can't.
-    [ client1, client2 ].do: | client/supabase.Client |
+    [client1, client2].do: | client/supabase.Client |
       state := client1.rest.rpc "toit_artemis.get_state" {
         "_device_id": device_id3,
       }
@@ -153,7 +153,7 @@ main:
       "_data": { "updated": "by anon" },
     }
 
-    [ client1, client2 ].do: | client/supabase.Client |
+    [client1, client2].do: | client/supabase.Client |
       events := client.rest.rpc "toit_artemis.get_events" {
         "_device_ids": [device_id3],
         "_type": "test-artemis",

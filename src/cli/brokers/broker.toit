@@ -119,7 +119,7 @@ interface BrokerCli implements Authenticatable:
 
   /**
   Fetches all $type events for all devices in the $device_ids list.
-  Returns a mapping from device-id to list of $Event|s.
+  Returns a mapping from device-id to list of $Event s.
   At most $limit events per device are returned.
   If $since is not null, only events that are newer than $since are returned.
   */
