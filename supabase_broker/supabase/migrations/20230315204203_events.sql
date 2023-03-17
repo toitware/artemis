@@ -41,13 +41,13 @@ CREATE OR REPLACE FUNCTION toit_artemis.get_events(
         _type TEXT,
         _limit INTEGER,
         _since TIMESTAMP)
-RETURNS TABLE (device_id UUID, ts TIMESTAMP, data JSONB)
+RETURNS TABLE (device_id UUID, type TEXT, ts TIMESTAMP, data JSONB)
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-      SELECT e.device_id, e.timestamp, e.data
+      SELECT e.device_id, e.type, e.timestamp, e.data
         FROM unnest(_device_ids) AS p(device_id)
         CROSS JOIN LATERAL (
                 SELECT e.*
@@ -81,7 +81,7 @@ CREATE OR REPLACE FUNCTION public."toit_artemis.get_events"(
         _type TEXT,
         _limit INTEGER,
         _since TIMESTAMP DEFAULT '1970-01-01')
-RETURNS TABLE (device_id UUID, ts TIMESTAMP, data JSONB)
+RETURNS TABLE (device_id UUID, type TEXT, ts TIMESTAMP, data JSONB)
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$

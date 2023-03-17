@@ -163,11 +163,12 @@ class BrokerCliSupabase implements BrokerCli:
     current_id/string? := null
     response.do: | row/Map |
       device_id := row["device_id"]
+      event_type := row["type"]
       data := row["data"]
       timestamp := row["ts"]
       time := timestamp_to_time_ timestamp
       if device_id != current_id:
         current_id = device_id
         current_list = result.get device_id --init=:[]
-      current_list.add (Event time data)
+      current_list.add (Event event_type time data)
     return result
