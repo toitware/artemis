@@ -7,7 +7,9 @@ import http
 import encoding.json
 import reader
 import supabase
+import supabase.utils
 import uuid
+import bytes
 
 import ..broker
 import ...config
@@ -84,17 +86,16 @@ class BrokerCliSupabase implements BrokerCli:
     client_.storage.upload --path="toit-artemis-assets/$organization_id/images/$app_id.$word_size" --content=content
 
   upload_firmware --organization_id/string --firmware_id/string parts/List -> none:
-    content := #[]
-    parts.do: | part/ByteArray | content += part  // TODO(kasper): Avoid all this copying.
-    client_.storage.upload --path="toit-artemis-assets/$organization_id/firmware/$firmware_id" --content=content
+    buffer := bytes.Buffer
+    parts.do: | part/ByteArray | buffer.write part
+    client_.storage.upload --path="toit-artemis-assets/$organization_id/firmware/$firmware_id" --content=buffer.bytes
 
   download_firmware --organization_id/string --id/string -> ByteArray:
-    content := #[]
+    buffer := bytes.Buffer
     client_.storage.download --path="toit-artemis-assets/$organization_id/firmware/$id":
       | reader/reader.Reader |
-        while data := reader.read:
-          content += data
-    return content
+        buffer.write_from reader
+    return buffer.bytes
 
   notify_created --device_id/string --state/Map -> none:
     client_.rest.rpc "toit_artemis.new_provisioned" {

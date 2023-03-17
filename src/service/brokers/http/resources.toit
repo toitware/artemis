@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import reader show SizedReader
+import reader show Reader
 import uuid
 
 import .connection
@@ -19,7 +19,7 @@ class ResourceManagerHttp implements ResourceManager:
       "app_id": id.stringify,
       "word_size": BITS_PER_WORD,
     }
-    connection_.send_binary_request "download_image" payload: | reader/SizedReader |
+    connection_.send_binary_request "download_image" payload: | reader/Reader |
       block.call reader
 
   fetch_firmware id/string --offset/int=0 [block] -> none:
@@ -28,7 +28,7 @@ class ResourceManagerHttp implements ResourceManager:
       "firmware_id": id,
       "offset": offset,
     }
-    connection_.send_binary_request "download_firmware" payload: | reader/SizedReader |
+    connection_.send_binary_request "download_firmware" payload: | reader/Reader |
       block.call reader offset
 
   report_state state/Map -> none:

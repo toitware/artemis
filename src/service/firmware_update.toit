@@ -4,14 +4,21 @@ import log
 import system.firmware
 
 import binary show LITTLE_ENDIAN
-import reader show SizedReader
+import reader show Reader
 
 import .brokers.broker
 import .device
 import .firmware
 import ..shared.utils.patch
 
-firmware_update logger/log.Logger resources/ResourceManager -> none
+/**
+Updates the firmware for the $device to match the encoded firmware
+  specified by the $new string.
+
+Returns true if the update succeeded and false if it was interrupted
+  by the loss of network.
+*/
+firmware_update logger/log.Logger resources/ResourceManager -> bool
     --device/Device
     --new/string:
   old_firmware := Firmware.encoded device.firmware
@@ -35,16 +42,25 @@ firmware_update logger/log.Logger resources/ResourceManager -> none
           index++
         patcher.write_checksum
       finally: | is_exception exception |
-        if is_exception and PATCH_READING_FAILED_EXCEPTION != exception.value:
-          // Only keep the last checkpoint if we get a recognizable
-          // error from reading the patch. This means that we only
-          // use checkpoints on power- and network loss. Otherwise,
-          // we assume that we may have gotten a corrupt patch or
-          // incorrectly written flash, so we prefer starting over.
+        patcher.close
+        if is_exception:
+          // We only keep the last checkpoint if we get a specific
+          // recognizable error from reading the patch. The intent
+          // is to use checkpoints exclusively for loss of power
+          // and network. For all other exceptions, we assume that
+          // we may have gotten a corrupt patch or written to the
+          // flash in an incorrect way, so we prefer not catching
+          // such exceptions.
+          if PATCH_READING_FAILED_EXCEPTION == exception.value:
+            logger.warn "firmware update: interrupted due to network error"
+            return false
+          // Got an unexpected exception. Be careful and clear the
+          // checkpoint information and let the exception continue
+          // unwinding the stack.
           device.checkpoint_update null
           logger.warn "firmware update: abandoned due to non-network error"
-        patcher.close
   logger.info "firmware update: 100%" --tags={"elapsed": elapsed}
+  return true
 
 class FirmwarePatcher_ implements PatchObserver:
   logger_/log.Logger
@@ -135,22 +151,42 @@ class FirmwarePatcher_ implements PatchObserver:
       old_id := Firmware.id --hash=old_hash
       resource_urls.add "$new_id/$old_id"
 
-    // We might not find the old->new patch. Use the 'none' patch as a fallback.
+    // We might not find the old->new patch. Use the 'none' patch as
+    // a fallback. We try this if we fail to fetch and thus never
+    // start applying the patch version.
     resource_urls.add "$new_id/none"
 
-    for i := 0; i < resource_urls.size; i++:
-      resource_url := resource_urls[i]
+    resource_urls.do: | resource_url/string |
+      // If we get an exception before we start applying the patch,
+      // we continue to the next resource URL in the list. Notice
+      // how the 'unwind' argument is a block to get lazy evaluation
+      // so we can update 'started_applying' from within the block
+      // passed to 'fetch_firmware'.
       started_applying := false
-      exception := catch --unwind=(started_applying or i == resource_urls.size - 1):
+      exception := catch --unwind=(: started_applying):
         resources.fetch_firmware resource_url --offset=read_offset:
-          | reader/SizedReader offset/int |
+          | reader/Reader offset/int |
             started_applying = true
             apply_ reader offset old_mapping
-      if not exception: return
-      logger_.warn "firmware update: failed to fetch patch"
-          --tags={"url": resource_url, "error": exception}
+        // If we get here, we expect that we have started applying
+        // the patch. Getting here without having started applying
+        // the patch indicates that fetching the firmware neither
+        // threw nor invoked the block, which shouldn't happen,
+        // but to be safe we check anyway.
+        if started_applying: return
+      // We didn't start applying the patch, so we conclude that
+      // we failed fetching it. If there are more possible URLs
+      // to fetch from, we try the next.
+      logger_.warn "firmware update: failed to fetch patch" --tags={
+        "url": resource_url,
+        "error": exception
+      }
 
-  apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping? -> none:
+    // We never got started applying any of the patches, so we conclude
+    // that we were unable to read the patch.
+    throw PATCH_READING_FAILED_EXCEPTION
+
+  apply_ reader/Reader offset/int old_mapping/firmware.FirmwareMapping? -> none:
     binary_patcher := Patcher reader old_mapping --patch_offset=offset
     if not binary_patcher.patch this:
       // This should only happen if we to get the wrong bits

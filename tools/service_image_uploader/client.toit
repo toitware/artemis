@@ -7,6 +7,7 @@ import encoding.ubjson
 import http
 import net
 import supabase
+import supabase.utils
 
 import artemis.cli.config as cli
 import artemis.cli.ui as ui
@@ -181,10 +182,7 @@ class UploadClientHttp implements UploadClient:
     if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
       throw "HTTP error: $response.status_code $response.status_message"
 
-    encoded_response := #[]
-    while chunk := response.body.read:
-      encoded_response += chunk
-    decoded := ubjson.decode encoded_response
+    decoded := ubjson.decode (utils.read_all response.body)
 
     if response.status_code == STATUS_IM_A_TEAPOT:
       throw "Broker error: $decoded"

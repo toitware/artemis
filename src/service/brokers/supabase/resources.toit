@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import reader show SizedReader
+import reader show Reader
 import uuid
 
 import ..broker
@@ -24,7 +24,7 @@ class ResourceManagerSupabase implements ResourceManager:
         --public
         --path=path
         --offset=offset
-        : | reader/SizedReader |
+        : | reader/Reader |
           block.call reader offset
 
   report_state state/Map -> none:

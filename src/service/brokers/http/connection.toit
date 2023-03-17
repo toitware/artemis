@@ -4,7 +4,9 @@ import encoding.ubjson
 import encoding.base64
 import http
 import net
-import reader show SizedReader
+import reader show Reader
+
+import supabase.utils
 
 STATUS_IM_A_TEAPOT ::= 418
 
@@ -30,9 +32,8 @@ class HttpConnection_:
       "data": data,
     }
 
-    send_request_ payload: | reader/SizedReader |
-      encoded_response := read_response_ reader
-      return ubjson.decode encoded_response
+    send_request_ payload: | reader/Reader |
+      return ubjson.decode (utils.read_all reader)
     unreachable
 
   send_binary_request command/string data/Map [block] -> none:
@@ -47,24 +48,15 @@ class HttpConnection_:
     encoded := ubjson.encode payload
     response := client_.post encoded --host=host_ --port=port_ --path="/"
 
-    body := response.body as SizedReader
+    body := response.body
     status := response.status_code
 
     if status == STATUS_IM_A_TEAPOT:
-      encoded_response := read_response_ body
-      decoded := ubjson.decode encoded_response
+      decoded := ubjson.decode (utils.read_all body)
       throw "Broker error: $decoded"
 
     try:
       if status != 200: throw "Not found ($status)"
       block.call body
     finally:
-      while data := body.read: null // DRAIN!
-
-  read_response_ reader/SizedReader -> ByteArray:
-    result := ByteArray reader.size
-    offset := 0
-    while chunk := reader.read:
-      result.replace offset chunk
-      offset += chunk.size
-    return result
+      catch: while body.read: null // DRAIN!

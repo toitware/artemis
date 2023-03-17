@@ -4,6 +4,7 @@ import encoding.ubjson
 import http
 import net
 import uuid
+import supabase.utils
 
 import ..broker
 import ...device
@@ -64,13 +65,7 @@ class BrokerCliHttp implements BrokerCli:
       if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
         throw "HTTP error: $response.status_code $response.status_message"
 
-      // TODO(kasper): If the response body is a sized reader
-      // we might as well read this in a more efficient way.
-      response_bytes := #[]
-      while chunk := response.body.read:
-        response_bytes += chunk
-
-      decoded := ubjson.decode response_bytes
+      decoded := ubjson.decode (utils.read_all response.body)
       if response.status_code == STATUS_IM_A_TEAPOT:
         throw "Broker error: $decoded"
       return decoded

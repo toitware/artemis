@@ -2,7 +2,7 @@
 
 import encoding.tison
 import log
-import reader show SizedReader  // For toitdoc.
+import reader show Reader  // For toitdoc.
 import uuid
 
 import .supabase.synchronize show BrokerServiceSupabase
@@ -19,7 +19,7 @@ interface ResourceManager:
   /**
   Downloads the application image with the given $id.
 
-  Calls the $block with a $SizedReader.
+  Calls the $block with a $Reader.
   */
   fetch_image id/uuid.Uuid [block] -> none
 
@@ -28,7 +28,7 @@ interface ResourceManager:
 
   The $offset is the offset in the firmware to start downloading from.
 
-  Calls the $block with a $SizedReader and an offset of the given chunk. The block
+  Calls the $block with a $Reader and an offset of the given chunk. The block
     must return the next offset it wants to download from.
   Some implementations don't respect the returned value yet, and users of
     this class must be able to deal with continuous chunks.

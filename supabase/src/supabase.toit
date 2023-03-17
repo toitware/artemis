@@ -7,11 +7,12 @@ import http
 import net
 import net.x509
 import http.status_codes
-import encoding.json as json_encoding
-import encoding.url as url_encoding
-import reader show SizedReader BufferedReader
+import encoding.json
+import encoding.url
+import reader show Reader BufferedReader
 
 import .auth
+import .utils as utils
 
 interface ServerConfig:
   host -> string
@@ -63,7 +64,6 @@ class Client:
   rest_/PostgRest? := null
   storage_/Storage? := null
   auth_/Auth? := null
-
 
   constructor network/net.Interface?=null
       --host/string
@@ -225,12 +225,12 @@ class Client:
     if query_parameters:
       encoded_params := []
       query_parameters.do: | key value |
-        encoded_key := url_encoding.encode key
+        encoded_key := url.encode key
         if value is List:
           value.do:
-            encoded_params.add "$encoded_key=$(url_encoding.encode it)"
+            encoded_params.add "$encoded_key=$(url.encode it)"
         else:
-          encoded_params.add "$encoded_key=$(url_encoding.encode value)"
+          encoded_params.add "$encoded_key=$(url.encode value)"
       path = "$path?$(encoded_params.join "&")"
     else if query:
       path = "$path?$query"
@@ -249,7 +249,7 @@ class Client:
     else if method == "PATCH" or method == http.DELETE or method == http.PUT:
       // TODO(florian): the http client should support PATCH.
       // TODO(florian): we should only do this if the payload is a Map.
-      encoded := json_encoding.encode payload
+      encoded := json.encode payload
       headers.set "Content-Type" "application/json"
       request := http_client_.new_request method host_ path --headers=headers
       request.body = bytes.Reader encoded
@@ -298,16 +298,12 @@ class Client:
         --headers=headers
         --payload=payload
 
+    body := response.body
     if not is_success_status_code_ response.status_code:
+      body_bytes := utils.read_all body
       message := ""
-
-      // TODO(kasper): If the response body is a sized reader
-      // we might as well read this in a more efficient way.
-      body_bytes := #[]
-      while chunk := response.body.read: body_bytes += chunk
-
       exception := catch:
-        decoded := json_encoding.decode body_bytes
+        decoded := json.decode body_bytes
         message = decoded.get "msg" or
             decoded.get "message" or
             decoded.get "error_description" or
@@ -322,25 +318,23 @@ class Client:
     // have empty bodies. Don't try to read them. This should be
     // handled by the http package.
     if response.status_code == 204:
-      response.connection_.reading_done_ response.body
+      response.connection_.reading_done_ body
       return parse_response_json ? null : ""
 
     if not parse_response_json:
-      result_bytes := #[]
-      while chunk := response.body.read: result_bytes += chunk
-      return result_bytes.to_string_non_throwing
+      return (utils.read_all body).to_string_non_throwing
 
     // Still check whether there is a response.
     // When performing an RPC we can't know in advance whether the function
     // returns something or not.
-    buffered_reader := BufferedReader response.body
-    if not buffered_reader.can_ensure 1:
+    buffered_body := BufferedReader body
+    if not buffered_body.can_ensure 1:
       return null
 
-    result := json_encoding.decode_stream buffered_reader
-    // TODO(florian): this shouldn't be necessary in the latest http package.
-    while data := response.body.read: null // DRAIN!
-    return result
+    try:
+      return json.decode_stream buffered_body
+    finally:
+      catch: while body.read: null // DRAIN!
 
 /**
 An interface to store authentication information locally.
@@ -431,7 +425,7 @@ class PostgRest:
       if equals_index == -1: throw "INVALID_FILTER"
       key := it[..equals_index]
       value := it[equals_index + 1..]
-      "$key=$(url_encoding.encode value)"
+      "$key=$(url.encode value)"
     return escaped.join "&"
 
   /**
@@ -563,19 +557,14 @@ class Storage:
   If $public is true, downloads the data through the public URL.
   */
   download --path/string --public/bool=false -> ByteArray:
-    download --path=path --public=public: | reader/SizedReader |
-      result := ByteArray reader.size
-      offset := 0
-      while chunk := reader.read:
-        result.replace offset chunk
-        offset += chunk.size
-      return result
+    download --path=path --public=public: | reader/Reader |
+      return utils.read_all reader
     unreachable
 
   /**
   Downloads the data stored in $path from the storage.
 
-  Calls the given $block with a $SizedReader for the resource.
+  Calls the given $block with a $Reader for the resource.
 
   If $public is true, downloads the data through the public URL.
   */
@@ -597,13 +586,13 @@ class Storage:
     // Check the status code. The correct result depends on whether
     // or not we're doing a partial fetch.
     status := response.status_code
-    body := response.body as SizedReader
+    body := response.body
     okay := status == 200 or (partial and status == 206)
     try:
       if not okay: throw "Not found ($status)"
       block.call body
     finally:
-      while data := body.read: null // DRAIN!
+      catch: while body.read: null // DRAIN!
 
   /**
   Returns a list of all buckets.
