@@ -735,7 +735,7 @@ class Artemis:
       store.with_tmp_directory: | tmp_dir |
         file.write_content downloaded --path="$tmp_dir/patch"
         // TODO(florian): we don't have the chunk-size when downloading from the broker.
-        store.move tmp_dir
+        store.move "$tmp_dir/patch"
 
     bitstream := bytes.Reader trivial_old
     patcher := Patcher bitstream null
