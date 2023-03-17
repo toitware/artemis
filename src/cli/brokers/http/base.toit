@@ -118,12 +118,12 @@ class BrokerCliHttp implements BrokerCli:
     }
 
   get_events -> Map
-      --type/string
+      --types/List?=null
       --device_ids/List
       --limit/int=10
       --since/Time?=null:
     response := send_request_ "get_events" {
-      "type": type,
+      "types": types,
       "device_ids": device_ids,
       "limit": limit,
       "since": since and since.ns_since_epoch,

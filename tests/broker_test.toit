@@ -314,20 +314,22 @@ test_events
     resources1/broker.ResourceManager
     resources2/broker.ResourceManager:
   start := Time.now
-  events := broker_cli.get_events --device_ids=[DEVICE1.id] --type="test-event"
+  events := broker_cli.get_events --device_ids=[DEVICE1.id] --types=["test-event"]
   expect_not (events.contains DEVICE1.id)
 
-  events = broker_cli.get_events --device_ids=[DEVICE1.id, DEVICE2.id] --type="test-event"
+  events = broker_cli.get_events --device_ids=[DEVICE1.id, DEVICE2.id] --types=["test-event"]
   expect_not (events.contains DEVICE1.id)
   expect_not (events.contains DEVICE2.id)
 
+  total_events1 := 0
   resources1.report_event --type="test-event" "test-data"
+  total_events1++
 
   2.repeat:
     device_ids := it == 0 ? [DEVICE1.id] : [DEVICE1.id, DEVICE2.id]
     events = broker_cli.get_events
         --device_ids=device_ids
-        --type="test-event"
+        --types=["test-event"]
     expect (events.contains DEVICE1.id)
     expect_equals 1 events[DEVICE1.id].size
     event/Event := events[DEVICE1.id][0]
@@ -338,17 +340,18 @@ test_events
     now := Time.now
     events = broker_cli.get_events
         --device_ids=device_ids
-        --type="test-event"
+        --types=["test-event"]
         --since=now
     expect_not (events.contains DEVICE1.id)
 
   10.repeat:
     resources1.report_event --type="test-event2" "test-data-$it"
+    total_events1++
     resources2.report_event --type="test-event2" "test-data-$it"
 
   events = broker_cli.get_events
       --device_ids=[DEVICE1.id, DEVICE2.id]
-      --type="test-event2"
+      --types=["test-event2"]
       --limit=100
   expect (events.contains DEVICE1.id)
   expect (events.contains DEVICE2.id)
@@ -367,7 +370,7 @@ test_events
   // Limit to 5 per device.
   events = broker_cli.get_events
       --device_ids=[DEVICE1.id, DEVICE2.id]
-      --type="test-event2"
+      --types=["test-event2"]
       --limit=5
   expect (events.contains DEVICE1.id)
   expect (events.contains DEVICE2.id)
@@ -391,7 +394,7 @@ test_events
   // Device 1 should have 10 events, device 2 should have 15 events.
   events = broker_cli.get_events
       --device_ids=[DEVICE1.id, DEVICE2.id]
-      --type="test-event2"
+      --types=["test-event2"]
       --limit=20
   expect (events.contains DEVICE1.id)
   expect (events.contains DEVICE2.id)
@@ -410,7 +413,7 @@ test_events
   // Make sure we test one of the most common use cases: getting just one event.
   events = broker_cli.get_events
       --device_ids=[DEVICE1.id, DEVICE2.id]
-      --type="test-event2"
+      --types=["test-event2"]
       --limit=1
   expect (events.contains DEVICE1.id)
   expect (events.contains DEVICE2.id)
@@ -424,12 +427,13 @@ test_events
   // Add 5 more events for both.
   5.repeat:
     resources1.report_event --type="test-event2" "test-data-$(it + 20)"
+    total_events1++
     resources2.report_event --type="test-event2" "test-data-$(it + 20)"
 
   // Limit to events since 'checkpoint'.
   events = broker_cli.get_events
       --device_ids=[DEVICE1.id, DEVICE2.id]
-      --type="test-event2"
+      --types=["test-event2"]
       --since=checkpoint
   expect (events.contains DEVICE1.id)
   expect (events.contains DEVICE2.id)
@@ -448,7 +452,7 @@ test_events
   // Limit to events since 'checkpoint' and limit to 3.
   events = broker_cli.get_events
       --device_ids=[DEVICE1.id, DEVICE2.id]
-      --type="test-event2"
+      --types=["test-event2"]
       --since=checkpoint
       --limit=3
   expect (events.contains DEVICE1.id)
@@ -468,7 +472,7 @@ test_events
   // Limit to events since 'checkpoint' and limit to 10.
   events = broker_cli.get_events
       --device_ids=[DEVICE1.id, DEVICE2.id]
-      --type="test-event2"
+      --types=["test-event2"]
       --since=checkpoint
       --limit=10
   expect (events.contains DEVICE1.id)
@@ -484,3 +488,69 @@ test_events
   events[DEVICE2.id].do: | event/Event |
     expect_equals "test-data-$expected_suffix" event.data
     expected_suffix--
+
+  // Add 5 events for different types.
+  5.repeat:
+    resources1.report_event --type="test-event3" "test-data-$(it + 30)"
+    total_events1++
+    resources1.report_event --type="test-event4" "test-data-$(it + 40)"
+    total_events1++
+    resources2.report_event --type="test-event3" "test-data-$(it + 30)"
+    resources2.report_event --type="test-event4" "test-data-$(it + 40)"
+
+  // Get events for type 3 and 4.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id]
+      --types=["test-event3", "test-event4"]
+  expect (events.contains DEVICE1.id)
+  expect_equals 10 events[DEVICE1.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix3 := 34
+  expected_suffix4 := 44
+  expect4 := true
+  events[DEVICE1.id].do: | event/Event |
+    if expect4:
+      expect_equals "test-data-$expected_suffix4" event.data
+      expected_suffix4--
+    else:
+      expect_equals "test-data-$expected_suffix3" event.data
+      expected_suffix3--
+    expect4 = not expect4
+
+  // Same for both devices at the same time.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --types=["test-event3", "test-event4"]
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 10 events[DEVICE1.id].size
+  expect_equals 10 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  2.repeat:
+    device := it == 0 ? DEVICE1 : DEVICE2
+    expected_suffix3 = 34
+    expected_suffix4 = 44
+    expect4 = true
+    events[device.id].do: | event/Event |
+      if expect4:
+        expect_equals "test-data-$expected_suffix4" event.data
+        expected_suffix4--
+      else:
+        expect_equals "test-data-$expected_suffix3" event.data
+        expected_suffix3--
+      expect4 = not expect4
+
+  // Get all events for device 1.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id]
+      --limit=1000
+  expect (events.contains DEVICE1.id)
+  expect_equals total_events1 events[DEVICE1.id].size
+
+  // Only get the last event for device 1.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id]
+      --limit=1
+  expect (events.contains DEVICE1.id)
+  expect_equals 1 events[DEVICE1.id].size
+  expect_equals "test-data-44" events[DEVICE1.id][0].data

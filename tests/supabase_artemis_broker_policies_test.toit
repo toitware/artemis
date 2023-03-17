@@ -156,7 +156,7 @@ main:
     [client1, client2].do: | client/supabase.Client |
       events := client.rest.rpc "toit_artemis.get_events" {
         "_device_ids": [device_id3],
-        "_type": "test-artemis",
+        "_types": ["test-artemis"],
         "_limit": 1
       }
       expect_equals 1 events.size
@@ -166,7 +166,7 @@ main:
     // Client3 can't access device_id3.
     events := client3.rest.rpc "toit_artemis.get_events" {
         "_device_ids": [device_id3],
-        "_type": "test-artemis",
+        "_types": ["test-artemis"],
         "_limit": 1
       }
     expect events.is_empty

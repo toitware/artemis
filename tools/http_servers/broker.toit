@@ -179,11 +179,14 @@ class HttpBroker extends HttpServer:
     }
 
   get_events data/Map:
-    type := data["type"]
+    types := data["types"]
     device_ids := data["device_ids"]
     limit := data.get "limit"
     since_ns := data.get "since"
     since_time := since_ns and Time.epoch --ns=since_ns
+
+    type_set := {}
+    if types: type_set.add_all types
 
     result := {:}
     device_ids.do: | device_id |
@@ -195,7 +198,7 @@ class HttpBroker extends HttpServer:
       // Iterate backwards to get the most recent events first.
       for i := events.size - 1; i >= 0; i--:
         event := events[i]
-        if event["event_type"] != type: continue
+        if types and not type_set.contains event["event_type"]: continue
         if since_time and event["timestamp"] <= since_time: continue
         device_result.add {
           "type": event["event_type"],

@@ -142,12 +142,12 @@ class BrokerCliSupabase implements BrokerCli:
         --ns=ns_part
 
   get_events -> Map
-      --type/string
+      --types/List?=null
       --device_ids/List
       --limit/int=10
       --since/Time?=null:
     payload := {
-      "_type": type,
+      "_types": types or [],
       "_device_ids": device_ids,
       "_limit": limit,
     }

@@ -120,7 +120,7 @@ run_shared_test
   // Anon can't get events.
   events := client_anon.rest.rpc "toit_artemis.get_events" {
       "_device_ids": [device_id1],
-      "_type": "test",
+      "_types": ["test"],
       "_limit": 1
     }
   expect_equals 0 events.size
@@ -128,7 +128,7 @@ run_shared_test
   // The events can be retrieved by authenticated users.
   events = client1.rest.rpc "toit_artemis.get_events" {
     "_device_ids": [device_id1],
-    "_type": "test",
+    "_types": ["test"],
     "_limit": 1
   }
   expect_equals 1 events.size
