@@ -131,5 +131,6 @@ class BrokerCliHttp implements BrokerCli:
     return response.map: | _ value/List |
       value.map: | event/Map |
         timestamp_ns := event["timestamp_ns"]
+        event_type := event["type"]
         data := event["data"]
-        Event (Time.epoch --ns=timestamp_ns) data
+        Event event_type (Time.epoch --ns=timestamp_ns) data

@@ -198,6 +198,7 @@ class HttpBroker extends HttpServer:
         if event["event_type"] != type: continue
         if since_time and event["timestamp"] <= since_time: continue
         device_result.add {
+          "type": event["event_type"],
           "timestamp_ns": (event["timestamp"] as Time).ns_since_epoch,
           "data": event["data"],
         }
