@@ -11,7 +11,7 @@ import .device
 import .firmware
 import ..shared.utils.patch
 
-firmware_update logger/log.Logger resources/ResourceManager -> none
+firmware_update logger/log.Logger resources/ResourceManager -> bool
     --device/Device
     --new/string:
   old_firmware := Firmware.encoded device.firmware
@@ -35,16 +35,25 @@ firmware_update logger/log.Logger resources/ResourceManager -> none
           index++
         patcher.write_checksum
       finally: | is_exception exception |
-        if is_exception and PATCH_READING_FAILED_EXCEPTION != exception.value:
-          // Only keep the last checkpoint if we get a recognizable
-          // error from reading the patch. This means that we only
-          // use checkpoints on power- and network loss. Otherwise,
-          // we assume that we may have gotten a corrupt patch or
-          // incorrectly written flash, so we prefer starting over.
+        patcher.close
+        if is_exception:
+          // We only keep the last checkpoint if we get a specific
+          // recognizable error from reading the patch. The intent
+          // is to use checkpoints exclusively for loss of power
+          // and network. For all other exceptions, we assume that
+          // we may have gotten a corrupt patch or written to the
+          // flash in an incorrect way, so we prefer not catching
+          // such exceptions.
+          if PATCH_READING_FAILED_EXCEPTION == exception.value:
+            logger.warn "firmware update: interrupted due to network error"
+            return false
+          // Got an unexpected exception. Be careful and clear the
+          // checkpoint information and let the exception continue
+          // unwinding the stack.
           device.checkpoint_update null
           logger.warn "firmware update: abandoned due to non-network error"
-        patcher.close
   logger.info "firmware update: 100%" --tags={"elapsed": elapsed}
+  return true
 
 class FirmwarePatcher_ implements PatchObserver:
   logger_/log.Logger
@@ -146,17 +155,10 @@ class FirmwarePatcher_ implements PatchObserver:
       // how the 'unwind' argument is a block to get lazy evaluation
       // so we can update 'started_applying' from within the block
       // passed to 'fetch_firmware'.
-      logger_.info "firmware update: fetching patch" --tags={
-        "url": resource_url
-      }
       started_applying := false
       exception := catch --unwind=(: started_applying):
         resources.fetch_firmware resource_url --offset=read_offset:
           | reader/Reader offset/int |
-            if not started_applying:
-              logger_.info "firmware update: applying patch" --tags={
-                "url": resource_url
-              }
             started_applying = true
             apply_ reader offset old_mapping
         // If we get here, we expect that we have started applying
@@ -165,7 +167,6 @@ class FirmwarePatcher_ implements PatchObserver:
         // threw nor invoked the block, which shouldn't happen,
         // but to be safe we check anyway.
         if started_applying: return
-        else: logger_.error "firmware update: huh?"
       // We didn't start applying the patch, so we conclude that
       // we failed fetching it. If there are more possible URLs
       // to fetch from, we try the next.

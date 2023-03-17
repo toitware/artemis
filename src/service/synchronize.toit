@@ -284,12 +284,11 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     return::
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
-      firmware_update logger_ resources
-          --device=device_
-          --new=new
-      device_.state_firmware_update new
-      report_status resources
-      firmware.upgrade
+      success := firmware_update logger_ resources --device=device_ --new=new
+      if success:
+        device_.state_firmware_update new
+        report_status resources
+        firmware.upgrade
 
   /**
   Sends the current device status to the broker.
