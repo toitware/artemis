@@ -397,7 +397,14 @@ class PatchReader_:
 
   ensure_bytes_ -> ByteArray:
     bytes := bytes_
-    if bytes and cursor_ < bytes.size: return bytes
+    if bytes:
+      // Check if we have already moved the cursor all the way
+      // to the end of the bytes (thus consuming them). If not,
+      // we return the bytes and let the caller only look from
+      // the cursor and forward.
+      if cursor_ < bytes.size: return bytes
+      assert: cursor_ == bytes.size
+      bytes_ = bytes = null
     try:
       bytes = reader_.read
     finally:

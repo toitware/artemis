@@ -43,8 +43,7 @@ class ResourceManagerMqtt implements ResourceManager:
       fetch_resource_ topic: | reader/SizedReader |
         block.call reader part_offset
 
-  // TODO(kasper): Get rid of this again. Can we get a streaming
-  // ubjson reader?
+  // TODO(kasper): Can we share this somehow?
   static read_all_ reader/SizedReader -> ByteArray:
     bytes := ByteArray reader.size
     offset := 0

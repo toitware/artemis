@@ -142,11 +142,21 @@ class FirmwarePatcher_ implements PatchObserver:
 
     resource_urls.do: | resource_url/string |
       // If we get an exception before we start applying the patch,
-      // we continue to the next resource URL in the list.
+      // we continue to the next resource URL in the list. Notice
+      // how the 'unwind' argument is a block to get lazy evaluation
+      // so we can update 'started_applying' from within the block
+      // passed to 'fetch_firmware'.
+      logger_.info "firmware update: fetching patch" --tags={
+        "url": resource_url
+      }
       started_applying := false
       exception := catch --unwind=(: started_applying):
         resources.fetch_firmware resource_url --offset=read_offset:
           | reader/SizedReader offset/int |
+            if not started_applying:
+              logger_.info "firmware update: applying patch" --tags={
+                "url": resource_url
+              }
             started_applying = true
             apply_ reader offset old_mapping
         // If we get here, we expect that we have started applying
@@ -155,6 +165,7 @@ class FirmwarePatcher_ implements PatchObserver:
         // threw nor invoked the block, which shouldn't happen,
         // but to be safe we check anyway.
         if started_applying: return
+        else: logger_.error "firmware update: huh?"
       // We didn't start applying the patch, so we conclude that
       // we failed fetching it. If there are more possible URLs
       // to fetch from, we try the next.

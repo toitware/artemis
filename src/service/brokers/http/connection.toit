@@ -31,7 +31,7 @@ class HttpConnection_:
     }
 
     send_request_ payload: | reader/SizedReader |
-      encoded_response := read_response_ reader
+      encoded_response := read_all_ reader
       return ubjson.decode encoded_response
     unreachable
 
@@ -51,7 +51,7 @@ class HttpConnection_:
     status := response.status_code
 
     if status == STATUS_IM_A_TEAPOT:
-      encoded_response := read_response_ body
+      encoded_response := read_all_ body
       decoded := ubjson.decode encoded_response
       throw "Broker error: $decoded"
 
@@ -59,9 +59,10 @@ class HttpConnection_:
       if status != 200: throw "Not found ($status)"
       block.call body
     finally:
-      while data := body.read: null // DRAIN!
+      catch: while body.read: null // DRAIN!
 
-  read_response_ reader/SizedReader -> ByteArray:
+  // TODO(kasper): Can we share this somehow?
+  static read_all_ reader/SizedReader -> ByteArray:
     result := ByteArray reader.size
     offset := 0
     while chunk := reader.read:
