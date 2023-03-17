@@ -11,6 +11,13 @@ import .device
 import .firmware
 import ..shared.utils.patch
 
+/**
+Updates the firmware for the $device to match the encoded firmware
+  specified by the $new string.
+
+Returns true if the update succeeded and false if it was interrupted
+  by the loss of network.
+*/
 firmware_update logger/log.Logger resources/ResourceManager -> bool
     --device/Device
     --new/string:
