@@ -54,10 +54,10 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     broker_.connect --device=device_ --callback=this: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.id}
 
-      // TODO(florian): We don't need to report the status every time we
+      // TODO(florian): We don't need to report the state every time we
       // connect. We only need to do this the first time we connect or
       // if we know that the broker isn't up to date.
-      report_status resources
+      report_state resources
       broker_.on_idle
 
       // The 'handle_goal' only pushes actions into the
@@ -98,7 +98,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
         // We have successfully finished processing all actions.
         // Inform the broker.
-        report_status resources
+        report_state resources
 
         if device_.max_offline:
           logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
@@ -167,7 +167,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       return
 
     device_.goal_state = new_goal
-    report_status resources
+    report_state resources
 
     logger_.info "goal state updated" --tags={"changes": Modification.stringify modification}
 
@@ -288,18 +288,18 @@ class SynchronizeJob extends TaskJob implements EventHandler:
           --device=device_
           --new=new
       device_.state_firmware_update new
-      report_status resources
+      report_state resources
       firmware.upgrade
 
   /**
-  Sends the current device status to the broker.
+  Sends the current device state to the broker.
 
   This includes the firmware state, the current state and the goal state.
   */
-  report_status resources/ResourceManager -> none:
+  report_state resources/ResourceManager -> none:
     // TODO(florian): we should not send modifications all the time.
     // 1. if nothing changed, no need to send anything.
-    // 2. if we got a new goal-state, we can delay reporting the status
+    // 2. if we got a new goal-state, we can delay reporting the state
     //    for a bit, to give the goal-state time to become the current
     //    state.
     state := {

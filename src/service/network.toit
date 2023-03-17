@@ -39,28 +39,38 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     return proxy_mask_
 
   open_network -> net.Interface:
-    connections := device_.current_state.get "connections" --if_absent=: []
+    connections := device_.current_state.get "connections"
+    if not connections or connections.is_empty: return open_system_network_
     connections.do: | connection/Map |
-      network/net.Interface? := null
-      exception := catch --trace:
-        type := connection.get "type"
-        if type == "wifi":
-          network = wifi.open
-              --ssid=connection["ssid"]
-              --password=connection["password"]
-        else if type == "cellular":
-          network = cellular.open connection["config"]
-        else:
-          throw "Unknown connection type '$type'"
-      if not network:
-        logger_.warn "connect failed" --tags={"connection": connection}
-        continue.do
+      network/net.Interface? := open_network_ connection
+      if not network: continue.do
       // TODO(kasper): This isn't very pretty. It feels like the net.impl
       // code needs to be refactored to support this better.
       proxy_mask_ = (network as impl.SystemInterface_).proxy_mask_
       logger_.info "opened"
       return network
+    throw "CONNECT_FAILED: no available networks"
 
+  open_network_ connection/Map -> net.Interface?:
+    network/net.Interface? := null
+    exception := catch:
+      type := connection.get "type"
+      if type == "wifi":
+        network = wifi.open
+            --ssid=connection["ssid"]
+            --password=connection["password"]
+      else if type == "cellular":
+        network = cellular.open connection["config"]
+      else:
+        throw "Unknown connection type '$type'"
+    if not network:
+      logger_.warn "connect failed" --tags={
+        "connection": connection,
+        "error": exception
+      }
+    return network
+
+  open_system_network_ -> net.Interface:
     // It isn't entirely clear if we need this fallback where use
     // the default network provided by the system. For now, it feels
     // like it is worth having here if we end up running on a base
