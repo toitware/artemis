@@ -322,7 +322,7 @@ set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max_offline_seconds := int.parse max_offline --on_error=:
     // Assume it's a duration with units, like "5s".
     duration := parse_duration max_offline --on_error=:
-      ui.error "Invalid max-offline duration: $max_offline"
+      ui.error "Invalid max-offline duration: $max_offline."
       ui.abort
     duration.in_s
 

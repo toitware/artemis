@@ -698,7 +698,7 @@ class Artemis:
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      ui_.info "Setting max-offline to $(Duration --s=max_offline_seconds)"
+      ui_.info "Setting max-offline to $(Duration --s=max_offline_seconds)."
       if max_offline_seconds > 0:
         new_goal["max-offline"] = max_offline_seconds
       else:
@@ -759,7 +759,7 @@ class Artemis:
       diff_size := diff_size_bytes > 4096
           ? "$((diff_size_bytes + 1023) / 1024) KB"
           : "$diff_size_bytes B"
-      ui_.info "Uploading patch $(base64.encode patch.to_ --url_mode) ($diff_size)"
+      ui_.info "Uploading patch $(base64.encode patch.to_ --url_mode) ($diff_size)."
       connected_broker.upload_firmware diff
           --organization_id=organization_id
           --firmware_id=diff_id
