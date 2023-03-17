@@ -33,8 +33,7 @@ class HttpConnection_:
     }
 
     send_request_ payload: | reader/Reader |
-      encoded_response := utils.read_all reader
-      return ubjson.decode encoded_response
+      return ubjson.decode (utils.read_all reader)
     unreachable
 
   send_binary_request command/string data/Map [block] -> none:
@@ -53,8 +52,7 @@ class HttpConnection_:
     status := response.status_code
 
     if status == STATUS_IM_A_TEAPOT:
-      encoded_response := utils.read_all body
-      decoded := ubjson.decode encoded_response
+      decoded := ubjson.decode (utils.read_all body)
       throw "Broker error: $decoded"
 
     try:
