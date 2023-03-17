@@ -2,8 +2,9 @@
 
 import mqtt
 import encoding.ubjson
-import reader show SizedReader
+import reader show Reader
 import uuid
+import supabase.utils
 
 import ..broker
 import ...device
@@ -34,24 +35,14 @@ class ResourceManagerMqtt implements ResourceManager:
     assert: offset == 0  // Other case isn't handled yet.
     total_size/int? := null
     parts/List? := null
-    fetch_resource_ "toit/$device_.organization_id/firmware/$id": | reader/SizedReader |
-      manifest := ubjson.decode (read_all_ reader)
+    fetch_resource_ "toit/$device_.organization_id/firmware/$id": | reader/Reader |
+      manifest := ubjson.decode (utils.read_all reader)
       total_size = manifest["size"]
       parts = manifest["parts"]
     parts.do: | part_offset/int |
       topic := "toit/$device_.organization_id/firmware/$id/$part_offset"
-      fetch_resource_ topic: | reader/SizedReader |
+      fetch_resource_ topic: | reader/Reader |
         block.call reader part_offset
-
-  // TODO(kasper): Get rid of this again. Can we get a streaming
-  // ubjson reader?
-  static read_all_ reader/SizedReader -> ByteArray:
-    bytes := ByteArray reader.size
-    offset := 0
-    while data := reader.read:
-      bytes.replace offset data
-      offset += data.size
-    return bytes
 
   /**
   Fetches the resource for the given $path by requesting it
@@ -83,14 +74,14 @@ class ResourceManagerMqtt implements ResourceManager:
         --retain
 
 monitor ResourceMonitor_:
-  reader_/SizedReader? := null
+  reader_/Reader? := null
   done_/bool := false
 
-  provide reader/SizedReader -> none:
+  provide reader/Reader -> none:
     reader_ = reader
     await: done_
 
-  fetch -> SizedReader:
+  fetch -> Reader:
     await: reader_
     return reader_
 

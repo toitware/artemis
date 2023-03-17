@@ -5,7 +5,7 @@
 import expect show *
 import log
 import monitor
-import reader show SizedReader
+import reader show Reader
 import artemis.cli.brokers.broker
 import artemis.cli.device show DeviceDetailed
 import artemis.service.device show Device
@@ -16,6 +16,7 @@ import artemis.cli.brokers.supabase show BrokerCliSupabase
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
 import supabase
 import supabase.auth as supabase
+import supabase.utils
 import uuid
 
 import .artemis_server
@@ -219,12 +220,11 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     test_handler := TestEventHandler
     broker_service.connect --device=DEVICE --callback=test_handler: | resources/broker.ResourceManager |
       resources.fetch_image APP_ID:
-        | reader/SizedReader |
+        | reader/Reader |
           // TODO(florian): this only tests the download of the current platform. That is, on
           // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
           // also verify that the 32-bit image is correct.
-          data := #[]
-          while chunk := reader.read: data += chunk
+          data := utils.read_all reader
           expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
 
 test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
@@ -260,7 +260,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       data := #[]
       offsets := []
       resources.fetch_firmware FIRMWARE_ID:
-        | reader/SizedReader offset |
+        | reader/Reader offset |
           expect_equals data.size offset
           while chunk := reader.read: data += chunk
           offsets.add offset
@@ -274,10 +274,9 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           offset_index := offsets.size / 2
           current_offset := offsets[offset_index]
           resources.fetch_firmware FIRMWARE_ID --offset=current_offset:
-            | reader/SizedReader offset |
+            | reader/Reader offset |
               expect_equals current_offset offset
-              partial_data := #[]
-              while chunk := reader.read: partial_data += chunk
+              partial_data := utils.read_all reader
               expect_bytes_equal content[current_offset..current_offset + partial_data.size] partial_data
 
               // If we can, advance by 3 chunks.

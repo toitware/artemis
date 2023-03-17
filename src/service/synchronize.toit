@@ -2,7 +2,7 @@
 
 import log
 import monitor
-import reader show SizedReader
+import reader show Reader
 import system.containers
 import system.firmware
 import uuid
@@ -269,7 +269,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       incomplete/ContainerJob? ::= containers_.first_incomplete
       if incomplete:
         resources.fetch_image incomplete.id:
-          | reader/SizedReader |
+          | reader/Reader |
             containers_.complete incomplete reader
             // The container image was successfully installed, so the job is
             // now complete. Go ahead and update the current state!
@@ -284,12 +284,11 @@ class SynchronizeJob extends TaskJob implements EventHandler:
     return::
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
-      firmware_update logger_ resources
-          --device=device_
-          --new=new
-      device_.state_firmware_update new
-      report_state resources
-      firmware.upgrade
+      success := firmware_update logger_ resources --device=device_ --new=new
+      if success:
+        device_.state_firmware_update new
+        report_state resources
+        firmware.upgrade
 
   /**
   Sends the current device state to the broker.
