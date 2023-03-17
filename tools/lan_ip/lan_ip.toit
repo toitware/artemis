@@ -3,28 +3,28 @@ import encoding.json
 import host.pipe
 
 main:
-  print get_external_ip
+  print get_lan_ip
 
-get_external_ip -> string:
+get_lan_ip -> string:
   if platform == PLATFORM_LINUX:
-    return get_external_ip_linux
+    return get_lan_ip_linux
   else if platform == PLATFORM_MACOS:
-    return get_external_ip_macos
+    return get_lan_ip_macos
   print "Platform '$platform' is not supported."
   exit 1
   unreachable
 
-get_external_ip_linux -> string:
-  // Get the external IP.
+get_lan_ip_linux -> string:
+  // Get the LAN IP.
   route_out := pipe.backticks "ip" "-j" "route" "get" "1"
   decoded := json.parse route_out
-  external_ip := decoded[0]["prefsrc"]
-  if not external_ip:
-    print "Could not get external IP."
+  lan_ip := decoded[0]["prefsrc"]
+  if not lan_ip:
+    print "Could not get LAN IP."
     exit 1
-  return external_ip
+  return lan_ip
 
-get_external_ip_macos -> string:
+get_lan_ip_macos -> string:
   // First find the default interface name using route.
   route_out := pipe.backticks "route" "-n" "get" "default"
   interface_name := ""
@@ -36,5 +36,5 @@ get_external_ip_macos -> string:
         interface_name = line[colon_index + 1 ..].trim
   // Then use ipconfig get the address.
   ipconfig_out := pipe.backticks "ipconfig" "getifaddr" interface_name
-  external_ip := ipconfig_out.trim
-  return external_ip
+  lan_ip := ipconfig_out.trim
+  return lan_ip
