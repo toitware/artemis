@@ -455,8 +455,7 @@ copy_file_ --source/string --target/string -> none:
   in := file.Stream.for_read source
   out := file.Stream.for_write target
   w := writer.Writer out
-  while chunk := in.read:
-    w.write chunk
+  w.write_from in
   in.close
   out.close
 
