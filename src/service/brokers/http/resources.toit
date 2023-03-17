@@ -36,3 +36,10 @@ class ResourceManagerHttp implements ResourceManager:
       "device_id": device_.id,
       "state": state,
     }
+
+  report_event --type/string data/any -> none:
+    connection_.send_request "report_event" {
+      "device_id": device_.id,
+      "type": type,
+      "data": data,
+    }

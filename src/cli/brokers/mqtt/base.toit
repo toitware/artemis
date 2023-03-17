@@ -294,3 +294,10 @@ class BrokerCliMqtt implements BrokerCli:
       ui.info "$(%08d Time.monotonic_us): $device_name: $payload.to_string"
     // Wait forever.
     (monitor.Latch).get
+
+  get_events -> Map
+      --type/string
+      --device_ids/List
+      --limit/int=10
+      --since/Time?=null:
+    throw "UNIMPLEMENTED"

@@ -42,6 +42,15 @@ interface ResourceManager:
   */
   report_state state/Map -> none
 
+
+  /**
+  Reports an event to the broker.
+
+  The $data must be a JSON-serializable object.
+  The $type is a string that describes the type of event.
+  */
+  report_event --type/string data/any -> none
+
 /**
 The event handler, called when the broker has new information.
 */

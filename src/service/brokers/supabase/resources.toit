@@ -32,3 +32,10 @@ class ResourceManagerSupabase implements ResourceManager:
       "_device_id" : device_.id,
       "_state" : state,
     }
+
+  report_event --type/string data/any -> none:
+    client_.rest.rpc "toit_artemis.report_event" {
+      "_device_id" : device_.id,
+      "_type" : type,
+      "_data" : data,
+    }
