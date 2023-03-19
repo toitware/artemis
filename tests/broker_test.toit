@@ -138,7 +138,6 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
       event_goal = broker_service.fetch_goal --wait
       expect_equals "succeeded 2" event_goal["test-entry"]
-      print "done with iteration $test_iteration"
 
 test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   2.repeat: | iteration |
