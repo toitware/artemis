@@ -71,19 +71,24 @@ class SynchronizeJob extends TaskJob:
             new_goal = broker_.fetch_goal --wait=wait
             got_goal = true
 
-        if wait and not got_goal: break
-        if got_goal: handle_goal new_goal resources
+        if wait and not got_goal:
+          // Timed out waiting or got an error communicating
+          // with the cloud. Get out and retry later.
+          break
 
-        while actions_.size > 0:
-          lambda/Lambda := actions_.receive
-          lambda.call
+        if got_goal:
+          handle_goal new_goal resources
+          while actions_.size > 0:
+            lambda/Lambda := actions_.receive
+            lambda.call
+        assert: actions_.size == 0  // We should be done.
 
         // We only handle incomplete containers when we're done processing
         // the other actions. This means that we prioritize firmware updates
         // and configuration changes over fetching container images.
         if containers_.any_incomplete:
-          assert: actions_.size == 0  // No issues with getting blocked on send.
-          actions_.send (action_container_image_fetch_ resources)
+          lambda := action_container_image_fetch_ resources
+          lambda.call
           wait = false  // Check for new state, but don't wait for it.
           continue
 
