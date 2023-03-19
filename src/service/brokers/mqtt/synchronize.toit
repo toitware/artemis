@@ -108,9 +108,6 @@ class BrokerServiceMqtt implements BrokerService:
       signal_ = signal
       block.call resources
     finally:
-      signal_ = revision_ = null
-      goal_got_it_ = false
-      goal_new_ = null
       try:
         if client: client.publish topic_presence "offline".to_byte_array --retain
         if client: client.close
@@ -119,6 +116,9 @@ class BrokerServiceMqtt implements BrokerService:
         if handle_task:
           handle_task.cancel
           disconnected.get
+      signal_ = revision_ = null
+      goal_got_it_ = false
+      goal_new_ = null
       client.close --force
       transport.close
       network.close
