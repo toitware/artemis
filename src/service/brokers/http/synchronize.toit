@@ -16,9 +16,6 @@ class BrokerServiceHttp implements BrokerService:
 
   device_/Device? := null
   connection_/HttpConnection_? := null
-
-  // We don't know our state revision.
-  // The server will ask us to reconcile.
   state_revision_/int := -1
 
   constructor .logger_ host/string port/int:
@@ -33,15 +30,18 @@ class BrokerServiceHttp implements BrokerService:
     resources := ResourceManagerHttp device connection
 
     try:
+      state_revision_ = -1
       device_ = device
       connection_ = connection
+      // We don't know our state revision.
+      // The server will ask us to reconcile.
       block.call resources
     finally:
       device_ = connection_ = null
       connection.close
       network.close
 
-  fetch_new_goal --wait/bool -> Map?:
+  fetch_goal --wait/bool -> Map?:
     while true:
       // TODO(kasper): Explain this.
       state_revision := wait ? state_revision_ : -1
@@ -52,7 +52,6 @@ class BrokerServiceHttp implements BrokerService:
       }
       if response["event_type"] == "goal_updated":
         state_revision_ = response["state_revision"]
-        print "**************** GOT NEW GOAL: $(response["goal"])"
         return response["goal"]
       else if response["event_type"] == "out_of_sync":
         if response["state_revision"] != state_revision_:

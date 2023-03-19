@@ -146,7 +146,7 @@ class BrokerServiceMqtt implements BrokerService:
         --last_will=last_will
     client.connect --options=options
 
-  fetch_new_goal --wait/bool -> Map?:
+  fetch_goal --wait/bool -> Map?:
     while not goal_got_it_:
       if not wait: throw DEADLINE_EXCEEDED_ERROR
       signal_.wait: goal_got_it_

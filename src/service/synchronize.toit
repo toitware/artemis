@@ -59,7 +59,8 @@ class SynchronizeJob extends TaskJob:
       // if we know that the broker isn't up to date.
       report_state resources
 
-      // ...
+      // We use a flag to avoid waiting for a new goal state
+      // when we've got other work to do.
       wait/bool := true
 
       while true:
@@ -67,7 +68,7 @@ class SynchronizeJob extends TaskJob:
         got_goal/bool := false
         catch:
           with_timeout check_in_timeout:
-            new_goal = broker_.fetch_new_goal --wait=wait
+            new_goal = broker_.fetch_goal --wait=wait
             got_goal = true
 
         if wait and not got_goal: break

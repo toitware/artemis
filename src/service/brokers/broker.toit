@@ -82,4 +82,4 @@ interface BrokerService:
   /**
   ...
   */
-  fetch_new_goal --wait/bool -> Map?
+  fetch_goal --wait/bool -> Map?

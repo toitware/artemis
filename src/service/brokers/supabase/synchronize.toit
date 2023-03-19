@@ -39,7 +39,7 @@ class BrokerServiceSupabase implements BrokerService:
       client.close
       network.close
 
-  fetch_new_goal --wait/bool -> Map?:
+  fetch_goal --wait/bool -> Map?:
     now := Time.monotonic_us
     last := last_poll_us_
     if last:
