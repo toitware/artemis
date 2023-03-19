@@ -80,6 +80,12 @@ interface BrokerService:
   connect --device/Device [block]
 
   /**
-  ...
+  Fetches the goal from the broker.
+
+  If $wait is true, waits until the goal may have changed and
+    returns the new goal.
+
+  If $wait is false, returns the goal if it is known to have
+    changed. Otherwise, throws $DEADLINE_EXCEEDED_ERROR.
   */
   fetch_goal --wait/bool -> Map?
