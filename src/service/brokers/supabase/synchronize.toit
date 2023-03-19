@@ -28,7 +28,7 @@ class BrokerServiceSupabase implements BrokerService:
 
     client := supabase.Client network --server_config=broker_
         --certificate_provider=: throw "UNSUPPORTED"
-    resources := ResourceManagerSupabase device client_
+    resources := ResourceManagerSupabase device client
 
     try:
       device_ = device
