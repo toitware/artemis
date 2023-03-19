@@ -41,6 +41,8 @@ class BrokerServiceSupabase implements BrokerService:
 
   fetch_goal --wait/bool -> Map?:
     last := last_poll_us_
+    // We deliberately delay fetching from the cloud, so we
+    // can avoid fetching from the cloud over and over again.
     if last:
       elapsed := Duration --us=(Time.monotonic_us - last)
       interval := broker_.poll_interval

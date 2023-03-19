@@ -49,61 +49,59 @@ class SynchronizeJob extends TaskJob:
     logger_.info "connecting" --tags={"device": device_.id}
     broker_.connect --device=device_: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.id}
-
-      // TODO(florian): We don't need to report the state every time we
-      // connect. We only need to do this the first time we connect or
-      // if we know that the broker isn't up to date.
-      report_state resources
-
-      while true:
-        new_goal/Map? := null
-        got_goal/bool := false
-        wait := not containers_.any_incomplete
-        catch:
-          with_timeout check_in_timeout:
-            new_goal = broker_.fetch_goal --wait=wait
-            got_goal = true
-
-        if got_goal:
-          handle_goal_ new_goal resources
-          while actions_.size > 0:
-            lambda/Lambda := actions_.remove_first
-            lambda.call
-        else if wait:
-          // Timed out waiting or got an error communicating
-          // with the cloud. Get out and retry later.
-          break
-
-        // We only handle incomplete containers when we're done processing
-        // the other actions. This means that we prioritize firmware updates
-        // and configuration changes over fetching container images.
-        assert: actions_.size == 0  // We should be done.
-        if containers_.any_incomplete:
-          lambda := action_container_image_fetch_ resources
-          lambda.call
-          continue
-
-        // We've successfully connected to the network, so we consider
-        // the current firmware functional. Go ahead and validate the
-        // firmware if requested to do so.
-        if validate_firmware:
-          if firmware.validate:
-            logger_.info "firmware update validated after connecting to network"
-            validate_firmware = false
-            device_.firmware_validated
-          else:
-            logger_.error "firmware update failed to validate"
-
-        // We have successfully finished processing all actions.
-        // Inform the broker.
+      try:
+        // TODO(florian): We don't need to report the state every time we
+        // connect. We only need to do this the first time we connect or
+        // if we know that the broker isn't up to date.
         report_state resources
+        while true:
+          new_goal/Map? := null
+          got_goal/bool := false
+          wait := not containers_.any_incomplete
+          catch:
+            with_timeout check_in_timeout:
+              new_goal = broker_.fetch_goal --wait=wait
+              got_goal = true
 
-        if device_.max_offline:
-          logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
-          break
-        logger_.info "synchronized"
+          if got_goal:
+            handle_goal_ new_goal resources
+            while actions_.size > 0:
+              lambda/Lambda := actions_.remove_first
+              lambda.call
+          else if wait:
+            // Timed out waiting or got an error communicating
+            // with the cloud. Get out and retry later.
+            break
 
-      logger_.info "disconnecting" --tags={"device": device_.id}
+          // We only handle incomplete containers when we're done processing
+          // the other actions. This means that we prioritize firmware updates
+          // and configuration changes over fetching container images.
+          assert: actions_.size == 0  // We should be done.
+          if containers_.any_incomplete:
+            fetch_container_image_ resources
+            continue
+
+          // We've successfully connected to the network, so we consider
+          // the current firmware functional. Go ahead and validate the
+          // firmware if requested to do so.
+          if validate_firmware:
+            if firmware.validate:
+              logger_.info "firmware update validated after connecting to network"
+              validate_firmware = false
+              device_.firmware_validated
+            else:
+              logger_.error "firmware update failed to validate"
+
+          // We have successfully finished processing all actions.
+          // Inform the broker.
+          report_state resources
+
+          if device_.max_offline:
+            logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
+            break
+          logger_.info "synchronized"
+      finally:
+        logger_.info "disconnected" --tags={"device": device_.id}
 
   /**
   Handles new configurations.
@@ -250,18 +248,16 @@ class SynchronizeJob extends TaskJob:
       else:
         logger_.error "container $name not found"
 
-  action_container_image_fetch_ resources/ResourceManager -> Lambda:
-    return::
-      incomplete/ContainerJob? ::= containers_.first_incomplete
-      if incomplete:
-        resources.fetch_image incomplete.id:
-          | reader/Reader |
-            containers_.complete incomplete reader
-            // The container image was successfully installed, so the job is
-            // now complete. Go ahead and update the current state!
-            device_.state_container_install_or_update
-                incomplete.name
-                incomplete.description
+  fetch_container_image_ resources/ResourceManager -> none:
+    incomplete/ContainerJob? ::= containers_.first_incomplete
+    if not incomplete: return
+    resources.fetch_image incomplete.id: | reader/Reader |
+      containers_.complete incomplete reader
+      // The container image was successfully installed, so the job is
+      // now complete. Go ahead and update the current state!
+      device_.state_container_install_or_update
+          incomplete.name
+          incomplete.description
 
   action_set_max_offline_ value/any -> Lambda:
     return:: device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
