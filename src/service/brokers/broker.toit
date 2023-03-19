@@ -52,23 +52,6 @@ interface ResourceManager:
   report_event --type/string data/any -> none
 
 /**
-The event handler, called when the broker has new information.
-*/
-interface EventHandler:
-  /**
-  Called when the broker has a goal state.
-  The goal state may not be different.
-  If the $goal is null, no goal exists and the device should use the
-    firmware state.
-  */
-  handle_goal goal/Map? resources/ResourceManager
-
-  /**
-  // TODO(florian): add documentation.
-  */
-  handle_nop
-
-/**
 An interface to communicate with the CLI through a broker.
 */
 interface BrokerService:
@@ -83,12 +66,8 @@ interface BrokerService:
     else:
       throw "unknown broker $server_config"
 
-
   /**
   Connects to the broker.
-
-  Starts listening for events, and notifies the $callback when it receives one. This
-    can be implemented through polling, MQTT subscriptions, long-polling, ...
 
   Calls the $block with a $ResourceManager as argument.
   Once the $block returns, the connection is closed.
@@ -97,12 +76,10 @@ interface BrokerService:
     are in a consistent state. For some platforms, the broker may automatically
     inform the service (for example, through MQTT subscriptions). For others,
     the service may need to poll the broker for changes.
-
-  It is safe to call the callback too often, as long as the arguments are correct.
   */
-  connect --device/Device --callback/EventHandler [block]
+  connect --device/Device [block]
 
   /**
-  TODO(florian): add documentation.
+  ...
   */
-  on_idle -> none
+  fetch_new_goal --wait/bool -> Map?

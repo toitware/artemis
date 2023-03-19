@@ -18,7 +18,7 @@ import ..shared.json_diff show Modification json_equals
 
 validate_firmware / bool := firmware.is_validation_pending
 
-class SynchronizeJob extends TaskJob implements EventHandler:
+class SynchronizeJob extends TaskJob:
   static ACTION_NOP_/Lambda ::= :: null
 
   logger_/log.Logger
@@ -51,38 +51,39 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.id}
-    broker_.connect --device=device_ --callback=this: | resources/ResourceManager |
+    broker_.connect --device=device_: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.id}
 
       // TODO(florian): We don't need to report the state every time we
       // connect. We only need to do this the first time we connect or
       // if we know that the broker isn't up to date.
       report_state resources
-      broker_.on_idle
 
-      // The 'handle_goal' only pushes actions into the
-      // 'actions_' channel.
-      // This loop is responsible for actually executing the actions.
-      // Note that some actions might create more actions. Specifically,
-      // we expect a single 'commit' action for a configuration update.
+      // ...
+      wait/bool := true
+
       while true:
-        lambda/Lambda? := null
-        // The timeout is only relevant for the first iteration of the
-        // loop, or when max-offline is not set. In all other cases
-        // a 'break' will get us out of the loop.
-        catch: with_timeout check_in_timeout: lambda = actions_.receive
-        if not lambda:
-          // No action (by 'handle_goal') was pushed into the channel.
-          break
-        lambda.call
-        if actions_.size > 0: continue
+        new_goal/Map? := null
+        got_goal/bool := false
+        catch:
+          with_timeout check_in_timeout:
+            new_goal = broker_.fetch_new_goal --wait=wait
+            got_goal = true
+
+        if wait and not got_goal: break
+        if got_goal: handle_goal new_goal resources
+
+        while actions_.size > 0:
+          lambda/Lambda := actions_.receive
+          lambda.call
 
         // We only handle incomplete containers when we're done processing
         // the other actions. This means that we prioritize firmware updates
-        // and configuration changes over fetching containers.
+        // and configuration changes over fetching container images.
         if containers_.any_incomplete:
           assert: actions_.size == 0  // No issues with getting blocked on send.
           actions_.send (action_container_image_fetch_ resources)
+          wait = false  // Check for new state, but don't wait for it.
           continue
 
         // We've successfully connected to the network, so we consider
@@ -104,7 +105,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
           logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
           break
         logger_.info "synchronized"
-        broker_.on_idle
+        wait = true
 
       logger_.info "disconnecting" --tags={"device": device_.id}
 
@@ -113,9 +114,6 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
   /**
   Handles new configurations.
-
-  This function is part of the $EventHandler interface and is called by the
-    broker.
   */
   handle_goal new_goal/Map? resources/ResourceManager -> none:
     if not (new_goal or device_.is_current_state_modified):

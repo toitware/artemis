@@ -1,7 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
-import monitor
 import net
 
 import .connection
@@ -10,80 +9,71 @@ import ...check_in show check_in
 import ...device
 import ..broker
 
-IDLE_TIMEOUT ::= Duration --m=10
-
 class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
   host_/string
   port_/int
-  idle_/monitor.Gate ::= monitor.Gate
+
+  device_/Device? := null
+  connection_/HttpConnection_? := null
+
+  // We don't know our state revision.
+  // The server will ask us to reconcile.
+  state_revision_/int := -1
 
   constructor .logger_ host/string port/int:
     host_ = host
     port_ = port
 
-  connect --device/Device --callback/EventHandler [block]:
+  connect --device/Device [block]:
     network := net.open
     check_in network logger_ --device=device
 
     connection := HttpConnection_ network host_ port_
     resources := ResourceManagerHttp device connection
-    disconnected := monitor.Latch
-
-    // Always start non-idle and wait for the $block to call
-    // the $on_idle method when it is ready for the handle
-    // task to do its work. This avoids processing multiple
-    // requests at once.
-    idle_.lock
-
-    handle_task/Task? := ?
-    handle_task = task --background::
-      // We don't know our state revision.
-      // The server will ask us to reconcile.
-      state_revision := -1
-      try:
-        while true:
-          // Long poll for new events.
-          with_timeout IDLE_TIMEOUT: idle_.enter
-          response := connection.send_request "get_event" {
-            "device_id": device.id,
-            "state_revision": state_revision,
-          }
-          idle_.lock
-          if response["event_type"] == "goal_updated":
-            callback.handle_goal response["goal"] resources
-            state_revision = response["state_revision"]
-          else if response["event_type"] == "out_of_sync":
-            // We need to reconcile.
-            // At the moment the only thing that we need to synchronize is the
-            // goal state.
-            // TODO(florian): centralize the things that need to be synchronized.
-            goal_response := connection.send_request "get_goal" {
-              "device_id": device.id,
-            }
-            // Even if the goal-response is empty, notify the callback, since
-            // an empty goal means that the device should revert to the firmware
-            // state.
-            callback.handle_goal goal_response resources
-            state_revision = response["state_revision"]
-          else if response["event_type"] == "timed_out":
-            // For timeouts, we just unlock the gate so we can take another
-            // iteration in the loop and issue a new request.
-            idle_.unlock
-          else:
-            logger_.warn "unknown event received" --tags={"response": response}
-            callback.handle_nop
-      finally:
-        critical_do: disconnected.set true
-        handle_task = null
 
     try:
+      device_ = device
+      connection_ = connection
       block.call resources
     finally:
-      if handle_task: handle_task.cancel
-      disconnected.get
+      device_ = connection_ = null
       connection.close
       network.close
 
-  on_idle -> none:
-    idle_.unlock
+  fetch_new_goal --wait/bool -> Map?:
+    while true:
+      // TODO(kasper): Explain this.
+      state_revision := wait ? state_revision_ : -1
+
+      response := connection_.send_request "get_event" {
+        "device_id": device_.id,
+        "state_revision": state_revision,
+      }
+      if response["event_type"] == "goal_updated":
+        state_revision_ = response["state_revision"]
+        print "**************** GOT NEW GOAL: $(response["goal"])"
+        return response["goal"]
+      else if response["event_type"] == "out_of_sync":
+        if response["state_revision"] != state_revision_:
+          // We need to reconcile.
+          // At the moment the only thing that we need to synchronize is the
+          // goal state.
+          // TODO(florian): centralize the things that need to be synchronized.
+          goal_response := connection_.send_request "get_goal" {
+            "device_id": device_.id,
+          }
+          // TODO(kasper): It feels pretty weird to pull the revision from
+          // the out-of-sync response and not from the goal response.
+          state_revision_ = response["state_revision"]
+          // Even if the goal-response is empty we return it, since an empty
+          // goal means that the device should revert to the firmware state.
+          return goal_response
+        else if not wait:
+          // TODO(kasper): This is a bit weird.
+          throw DEADLINE_EXCEEDED_ERROR
+      else if response["event_type"] == "timed_out":
+        // For timeouts, we just take another iteration in the loop and
+        // issue a new request.
+      else:
+        logger_.warn "unknown event received" --tags={"response": response}
