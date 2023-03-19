@@ -1,7 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
-import monitor
 import reader show Reader
 import system.containers
 import system.firmware
@@ -24,9 +23,8 @@ class SynchronizeJob extends TaskJob:
   containers_/ContainerManager
   broker_/BrokerService
 
-  // We limit the capacity of the actions channel to avoid letting
-  // the connect task build up too much work.
-  actions_ ::= monitor.Channel 1
+  // TODO(kasper): Get rid of this.
+  actions_ ::= Deque
 
   constructor logger/log.Logger .device_ .containers_ .broker_:
     logger_ = logger.with_name "synchronize"
@@ -57,37 +55,32 @@ class SynchronizeJob extends TaskJob:
       // if we know that the broker isn't up to date.
       report_state resources
 
-      // We use a flag to avoid waiting for a new goal state
-      // when we've got other work to do.
-      wait/bool := true
-
       while true:
         new_goal/Map? := null
         got_goal/bool := false
+        wait := not containers_.any_incomplete
         catch:
           with_timeout check_in_timeout:
             new_goal = broker_.fetch_goal --wait=wait
             got_goal = true
 
-        if wait and not got_goal:
+        if got_goal:
+          handle_goal_ new_goal resources
+          while actions_.size > 0:
+            lambda/Lambda := actions_.remove_first
+            lambda.call
+        else if wait:
           // Timed out waiting or got an error communicating
           // with the cloud. Get out and retry later.
           break
 
-        if got_goal:
-          handle_goal new_goal resources
-          while actions_.size > 0:
-            lambda/Lambda := actions_.receive
-            lambda.call
-        assert: actions_.size == 0  // We should be done.
-
         // We only handle incomplete containers when we're done processing
         // the other actions. This means that we prioritize firmware updates
         // and configuration changes over fetching container images.
+        assert: actions_.size == 0  // We should be done.
         if containers_.any_incomplete:
           lambda := action_container_image_fetch_ resources
           lambda.call
-          wait = false  // Check for new state, but don't wait for it.
           continue
 
         // We've successfully connected to the network, so we consider
@@ -109,14 +102,13 @@ class SynchronizeJob extends TaskJob:
           logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
           break
         logger_.info "synchronized"
-        wait = true
 
       logger_.info "disconnecting" --tags={"device": device_.id}
 
   /**
   Handles new configurations.
   */
-  handle_goal new_goal/Map? resources/ResourceManager -> none:
+  handle_goal_ new_goal/Map? resources/ResourceManager -> none:
     if not (new_goal or device_.is_current_state_modified):
       // The new goal indicates that we should use the firmware state.
       // Since there is no current state, we are currently cleanly
@@ -142,7 +134,7 @@ class SynchronizeJob extends TaskJob:
       // We don't want to update the firmware while we're still
       // processing other actions. So we push the firmware update
       // action into the channel and return.
-      actions_.send (action_firmware_update_ resources new_goal["firmware"])
+      actions_.add (action_firmware_update_ resources new_goal["firmware"])
       // If the firmware changed, we don't look at the rest of the
       // goal state. The only thing we care about is the firmware.
       return
@@ -192,10 +184,10 @@ class SynchronizeJob extends TaskJob:
         --removed =: bundle.add (action_set_max_offline_ null)
         --updated =: | _ to | bundle.add (action_set_max_offline_ to)
 
-    actions_.send (commit new_goal bundle)
+    actions_.add (commit new_goal bundle)
 
   handle_firmware_update_ resources/ResourceManager new/string -> none:
-    actions_.send (action_firmware_update_ resources new)
+    actions_.add (action_firmware_update_ resources new)
 
   handle_container_update_ -> none
       bundle/List
