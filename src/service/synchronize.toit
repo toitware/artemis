@@ -19,8 +19,6 @@ import ..shared.json_diff show Modification json_equals
 validate_firmware / bool := firmware.is_validation_pending
 
 class SynchronizeJob extends TaskJob:
-  static ACTION_NOP_/Lambda ::= :: null
-
   logger_/log.Logger
   device_/Device
   containers_/ContainerManager
@@ -115,9 +113,6 @@ class SynchronizeJob extends TaskJob:
 
       logger_.info "disconnecting" --tags={"device": device_.id}
 
-  handle_nop -> none:
-    actions_.send ACTION_NOP_
-
   /**
   Handles new configurations.
   */
@@ -127,7 +122,6 @@ class SynchronizeJob extends TaskJob:
       // Since there is no current state, we are currently cleanly
       // running the firmware state.
       device_.goal_state = null
-      handle_nop
       return
 
     current_state := device_.current_state
@@ -135,8 +129,6 @@ class SynchronizeJob extends TaskJob:
 
     if not new_goal.contains "firmware":
       logger_.error "missing firmware information"
-      // TODO(kasper): Is there a missing action here? That
-      // might lead to us not going idle, which is an issue.
       return
 
     if current_state["firmware"] != new_goal["firmware"]:
@@ -161,13 +153,11 @@ class SynchronizeJob extends TaskJob:
       // rebooted yet.
       // We ignore all other entries in the goal state.
       device_.goal_state = new_goal
-      handle_nop
       return
 
     modification/Modification? := Modification.compute --from=current_state --to=new_goal
     if not modification:
       device_.goal_state = null
-      handle_nop
       return
 
     device_.goal_state = new_goal
