@@ -103,10 +103,13 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
 
       event_goal/Map? := null
-      event_goal = broker_service.fetch_goal --wait
+      exception := catch:
+        event_goal = broker_service.fetch_goal --wait=(test_iteration > 0)
 
       if test_iteration == 0:
         // None of the brokers have sent a goal-state update yet.
+        if broker_cli is mqtt_broker.BrokerCliMqtt:
+          expect_equals DEADLINE_EXCEEDED_ERROR exception
         expect_null event_goal
       else if test_iteration == 1:
         expect_equals "succeeded 2" event_goal["test-entry"]

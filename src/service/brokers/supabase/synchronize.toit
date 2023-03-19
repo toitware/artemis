@@ -35,7 +35,7 @@ class BrokerServiceSupabase implements BrokerService:
       client_ = client
       block.call resources
     finally:
-      device_ = client_ = null
+      device_ = client_ = last_poll_us_ = null
       client.close
       network.close
 

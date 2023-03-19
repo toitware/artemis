@@ -39,13 +39,12 @@ class BrokerServiceMqtt implements BrokerService:
     check_in network logger_ --device=device
     transport ::= create_transport_.call network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
+    resources ::= ResourceManagerMqtt device client
 
     device_id := device.id
     connect_client_ --device_id=device_id client
     disconnected := monitor.Latch
     signal := monitor.Signal
-
-    resources ::= ResourceManagerMqtt device client
 
     topic_revision := topic_revision_for device_id
     topic_goal := topic_goal_for device_id
@@ -109,7 +108,9 @@ class BrokerServiceMqtt implements BrokerService:
       signal_ = signal
       block.call resources
     finally:
-      signal_ = null
+      signal_ = revision_ = null
+      goal_got_it_ = false
+      goal_new_ = null
       try:
         if client: client.publish topic_presence "offline".to_byte_array --retain
         if client: client.close

@@ -16,7 +16,11 @@ class BrokerServiceHttp implements BrokerService:
 
   device_/Device? := null
   connection_/HttpConnection_? := null
-  state_revision_/int := -1
+
+  // We don't know our state revision.
+  // The server will ask us to reconcile.
+  static STATE_REVISION_UNKNOWN_/int ::= -1
+  state_revision_/int := STATE_REVISION_UNKNOWN_
 
   constructor .logger_ host/string port/int:
     host_ = host
@@ -32,24 +36,23 @@ class BrokerServiceHttp implements BrokerService:
     try:
       device_ = device
       connection_ = connection
-      // We don't know our state revision.
-      // The server will ask us to reconcile.
-      state_revision_ = -1
       block.call resources
     finally:
       device_ = connection_ = null
+      state_revision_ = STATE_REVISION_UNKNOWN_
       connection.close
       network.close
 
   fetch_goal --wait/bool -> Map?:
     while true:
-      // TODO(kasper): Explain this.
-      state_revision := wait ? state_revision_ : -1
-
+      // If we're not going to wait for a reply using long polling,
+      // we force the server to respond with an out-of-sync message.
+      state_revision := wait ? state_revision_ : STATE_REVISION_UNKNOWN_
       response := connection_.send_request "get_event" {
         "device_id": device_.id,
         "state_revision": state_revision,
       }
+
       if response["event_type"] == "goal_updated":
         state_revision_ = response["state_revision"]
         return response["goal"]
