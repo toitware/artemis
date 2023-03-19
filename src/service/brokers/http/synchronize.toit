@@ -30,11 +30,11 @@ class BrokerServiceHttp implements BrokerService:
     resources := ResourceManagerHttp device connection
 
     try:
-      state_revision_ = -1
       device_ = device
       connection_ = connection
       // We don't know our state revision.
       // The server will ask us to reconcile.
+      state_revision_ = -1
       block.call resources
     finally:
       device_ = connection_ = null
