@@ -118,13 +118,14 @@ interface BrokerCli implements Authenticatable:
   notify_created --device_id/string --state/Map -> none
 
   /**
-  Fetches all $type events for all devices in the $device_ids list.
+  Fetches all events of the given $types for all devices in the $device_ids list.
+  If no $types are given, all events are returned.
   Returns a mapping from device-id to list of $Event s.
   At most $limit events per device are returned.
   If $since is not null, only events that are newer than $since are returned.
   */
   get_events -> Map
-      --type/string
+      --types/List?=null
       --device_ids/List
       --limit/int=10
       --since/Time?=null

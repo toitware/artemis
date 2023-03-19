@@ -296,7 +296,7 @@ class BrokerCliMqtt implements BrokerCli:
     (monitor.Latch).get
 
   get_events -> Map
-      --type/string
+      --types/List?=null
       --device_ids/List
       --limit/int=10
       --since/Time?=null:
