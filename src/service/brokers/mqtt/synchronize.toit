@@ -73,14 +73,14 @@ class BrokerServiceMqtt implements BrokerService:
                   client.subscribe topic_goal
                 else if new_goal_packet and revision_ == new_goal_packet["revision"]:
                   goal_got_it_ = true
-                  goal_new_ = new_goal_packet
+                  goal_new_ = new_goal_packet.get "goal"
                   signal.raise
                   new_goal_packet = null
             else if topic == topic_goal:
               new_goal_packet = ubjson.decode publish.payload
               if revision_ == new_goal_packet["revision"]:
                 goal_got_it_ = true
-                goal_new_ = new_goal_packet
+                goal_new_ = new_goal_packet.get "goal"
                 signal.raise
                 new_goal_packet = null
             else:
