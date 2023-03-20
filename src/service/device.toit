@@ -20,11 +20,16 @@ class Device:
 
   static FLASH_GOAL_STATE_ ::= "goal-state"
   static FLASH_CURRENT_STATE_ ::= "current-state"
-  static FLASH_JOBS_RAN_LAST_END_ ::= "jobs-ran-last-end"
   static FLASH_CHECKPOINT_ ::= "checkpoint"
   flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
 
+  // We store the information that contains timestamps in RAM,
+  // so it clears when the timestamps are invalidates due to
+  // loss of power. If we want to store these in flash instead,
+  // we need to manually invalidate them when a new monotonic
+  // clock phase starts.
   static RAM_CHECK_IN_LAST_ ::= "check-in-last"
+  static RAM_JOBS_RAN_LAST_END_ ::= "jobs-ran-last-end"
   ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
 
   /**
@@ -186,19 +191,18 @@ class Device:
     ram_store_ RAM_CHECK_IN_LAST_ value
 
   /**
-  Gets a modifiable copy of the jobs ran last information from flash.
+  Gets a modifiable copy of the jobs ran last information.
   */
   jobs_ran_last_end_modifiable -> Map:
-    // TODO(kasper): Tag the map with the current monotonic clock 'phase',
-    // so we know if we can use the use any found information.
-    stored := flash_load_ FLASH_JOBS_RAN_LAST_END_
+    stored := ram_load_ RAM_JOBS_RAN_LAST_END_
     return stored is Map ? (deep_copy stored) : {:}
 
   /**
-  Stores the jobs ran last information in flash.
+  Stores the jobs ran last information in memory that is preserved
+    across deep sleeping.
   */
   jobs_ran_last_end_update value/Map -> none:
-    flash_store_ FLASH_JOBS_RAN_LAST_END_ value
+    ram_store_ RAM_JOBS_RAN_LAST_END_ value
 
   /**
   Gets the last checkpoint (if any) for the firmware update
