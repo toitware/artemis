@@ -73,8 +73,7 @@ download_url url/string --out_path/string -> none:
     throw "Failed to download $url: $response.status_code $response.status_message"
   file := file.Stream.for_write out_path
   writer := writer.Writer file
-  while chunk := response.body.read:
-    writer.write chunk
+  writer.write_from response.body
   writer.close
   // TODO(florian): closing should be idempotent.
   // file.close
@@ -132,8 +131,7 @@ copy_file --source/string --target/string:
   out_stream := file.Stream.for_write target
   try:
     writer := writer.Writer out_stream
-    while chunk := in_stream.read:
-      writer.write chunk
+    writer.write_from in_stream
     // TODO(florian): we would like to close the writer here, but then
     // we would get an "already closed" below.
   finally:

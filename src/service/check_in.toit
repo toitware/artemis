@@ -2,20 +2,17 @@
 
 import log
 import net
-import system.storage
 
 import .artemis_servers.artemis_server
-import .utils
+import .device
 import .jobs
+import .utils
 
 import ..shared.server_config
-
 
 INTERVAL_ ::= Duration --h=24
 INTERVAL_BETWEEN_ATTEMPTS_ ::= Duration --m=30
 
-// TODO(kasper): Share the bucket across all of Artemis?
-bucket_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis/rtc"
 last_success_/JobTime? := null
 last_attempt_/JobTime? := null
 
@@ -32,7 +29,7 @@ check_in_timeout -> Duration?:
   next := check_in_schedule now
   return now.to next
 
-check_in network/net.Interface logger/log.Logger:
+check_in network/net.Interface logger/log.Logger --device/Device:
   now := JobTime.now
   next := check_in_schedule now
   if now < next: return
@@ -55,12 +52,12 @@ check_in network/net.Interface logger/log.Logger:
     logger.info "status reporting succeeded"
 
   exception = catch:
-    bucket_["check-in"] = {
+    device.check_in_last_update {
       "success": last_success_ and last_success_.us,
       "attempt": last_attempt_.us,
     }
   if exception:
-    logger.warn "status reporting failed to update bucket"
+    logger.warn "status reporting failed to update state"
         --tags={"exception": exception}
 
 /**
@@ -69,14 +66,13 @@ Sets up the check-in functionality.
 This is the service that contacts the Toitware backend to report that a
   certain device is online and using Artemis.
 */
-check_in_setup assets/Map device/Map -> none:
+check_in_setup --assets/Map --device/Device -> none:
   server_config := decode_server_config "artemis.broker" assets
   if not server_config: return
 
-  hardware_id := device["hardware_id"]
-  check_in_server_ = ArtemisServerService server_config --hardware_id=hardware_id
-  last := bucket_.get "check-in"
-  if not last: return
+  check_in_server_ = ArtemisServerService server_config
+      --hardware_id=device.hardware_id
+  last := device.check_in_last
   catch:
     // If we cannot decode the last success, it is fine
     // that we do not decode the last attempt.

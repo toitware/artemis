@@ -1,34 +1,29 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
-import bytes
-import esp32
-import crypto.sha256
 import system.firmware
-import system.storage
-import encoding.ubjson
-import encoding.base64
 
 import binary show LITTLE_ENDIAN
-import reader show SizedReader UNEXPECTED_END_OF_READER_EXCEPTION
+import reader show Reader
 
 import .brokers.broker
+import .device
+import .firmware
 import ..shared.utils.patch
 
-firmware_update -> none
-    logger/log.Logger
-    resources/ResourceManager
-    --organization_id/string
-    --old/string
-    --new/string:
-  old_firmware := Firmware.encoded old
-  new_firmware := Firmware.encoded new
-  checkpoint := Checkpoint.fetch --old=old_firmware --new=new_firmware
+/**
+Updates the firmware for the $device to match the encoded firmware
+  specified by the $new string.
 
-  // TODO(kasper): We need some kind of mechanism to get out of
-  // trouble if our checkpointing information is wrong. Can we
-  // recognize all the exceptions that could indicate that we
-  // should start over?
+Returns true if the update succeeded and false if it was interrupted
+  by the loss of network.
+*/
+firmware_update logger/log.Logger resources/ResourceManager -> bool
+    --device/Device
+    --new/string:
+  old_firmware := Firmware.encoded device.firmware
+  new_firmware := Firmware.encoded new
+  checkpoint := device.checkpoint --old=old_firmware --new=new_firmware
 
   logger.info "firmware update" --tags={"size": new_firmware.size}
   elapsed := Duration.of:
@@ -36,7 +31,7 @@ firmware_update -> none
       index := checkpoint ? checkpoint.read_part_index : 0
       read_offset := checkpoint ? checkpoint.read_offset : 0
       patcher := FirmwarePatcher_ logger old_mapping
-          --organization_id=organization_id
+          --device=device
           --checkpoint=checkpoint
           --new=new_firmware
           --old=old_firmware
@@ -46,13 +41,30 @@ firmware_update -> none
           read_offset = 0
           index++
         patcher.write_checksum
-      finally:
+      finally: | is_exception exception |
         patcher.close
+        if is_exception:
+          // We only keep the last checkpoint if we get a specific
+          // recognizable error from reading the patch. The intent
+          // is to use checkpoints exclusively for loss of power
+          // and network. For all other exceptions, we assume that
+          // we may have gotten a corrupt patch or written to the
+          // flash in an incorrect way, so we prefer not catching
+          // such exceptions.
+          if PATCH_READING_FAILED_EXCEPTION == exception.value:
+            logger.warn "firmware update: interrupted due to network error"
+            return false
+          // Got an unexpected exception. Be careful and clear the
+          // checkpoint information and let the exception continue
+          // unwinding the stack.
+          device.checkpoint_update null
+          logger.warn "firmware update: abandoned due to non-network error"
   logger.info "firmware update: 100%" --tags={"elapsed": elapsed}
+  return true
 
 class FirmwarePatcher_ implements PatchObserver:
   logger_/log.Logger
-  organization_id_/string
+  device_/Device
   new_/Firmware
   old_/Firmware
   old_mapping_/firmware.FirmwareMapping?
@@ -68,11 +80,11 @@ class FirmwarePatcher_ implements PatchObserver:
   next_checkpoint_part_index_/int? := null
 
   constructor .logger_ .old_mapping_
-      --organization_id/string
+      --device/Device
       --checkpoint/Checkpoint?
       --new/Firmware
       --old/Firmware:
-    organization_id_ = organization_id
+    device_ = device
     old_ = old
     new_ = new
     reposition_ checkpoint
@@ -103,16 +115,7 @@ class FirmwarePatcher_ implements PatchObserver:
 
   write_checksum -> none:
     on_write new_.checksum
-    try:
-      // If we get to a point where we are ready to commit, we
-      // make sure to always clear the checkpoint, so that any
-      // problems arising from this leads to starting over.
-      writer_.commit
-    finally:
-      // TODO(kasper): Maybe we can do this clearing in a more
-      // general location, so that everything that looks like
-      // it impossible to make progress from starts over?
-      Checkpoint.clear
+    writer_.commit
 
   write_device_specific_ part/Map device_specific/ByteArray -> none:
     padded_size := part["to"] - part["from"]
@@ -123,8 +126,8 @@ class FirmwarePatcher_ implements PatchObserver:
     pad_ padded_size - (device_specific.size + 4)
 
   write_patched_ resources/ResourceManager read_offset/int --new/Map --old/Map -> none:
-    new_hash := new["hash"]
-    old_hash := old["hash"]
+    new_hash/ByteArray := new["hash"]
+    old_hash/ByteArray := old["hash"]
 
     old_mapping/firmware.FirmwareMapping? := null
     if old_mapping_:
@@ -142,41 +145,55 @@ class FirmwarePatcher_ implements PatchObserver:
         on_write chunk[0..size]
       return
 
-    new_id := base64.encode new_hash --url_mode
+    new_id := Firmware.id --hash=new_hash
     resource_urls := []
     if old_mapping:
-      old_id := base64.encode old_hash --url_mode
+      old_id := Firmware.id --hash=old_hash
       resource_urls.add "$new_id/$old_id"
 
-    // We might not find the old->new patch. Use the 'none' patch as a fallback.
+    // We might not find the old->new patch. Use the 'none' patch as
+    // a fallback. We try this if we fail to fetch and thus never
+    // start applying the patch version.
     resource_urls.add "$new_id/none"
 
-    for i := 0; i < resource_urls.size; i++:
-      resource_url := resource_urls[i]
+    resource_urls.do: | resource_url/string |
+      // If we get an exception before we start applying the patch,
+      // we continue to the next resource URL in the list. Notice
+      // how the 'unwind' argument is a block to get lazy evaluation
+      // so we can update 'started_applying' from within the block
+      // passed to 'fetch_firmware'.
       started_applying := false
-      exception := catch --unwind=(started_applying or i == resource_urls.size - 1):
-        resources.fetch_firmware resource_url
-            --organization_id=organization_id_
-            --offset=read_offset:
-          | reader/SizedReader offset/int |
+      exception := catch --unwind=(: started_applying):
+        resources.fetch_firmware resource_url --offset=read_offset:
+          | reader/Reader offset/int |
             started_applying = true
             apply_ reader offset old_mapping
-      if not exception: return
-      logger_.warn "firmware update: failed to fetch patch"
-          --tags={"url": resource_url, "error": exception}
+        // If we get here, we expect that we have started applying
+        // the patch. Getting here without having started applying
+        // the patch indicates that fetching the firmware neither
+        // threw nor invoked the block, which shouldn't happen,
+        // but to be safe we check anyway.
+        if started_applying: return
+      // We didn't start applying the patch, so we conclude that
+      // we failed fetching it. If there are more possible URLs
+      // to fetch from, we try the next.
+      logger_.warn "firmware update: failed to fetch patch" --tags={
+        "url": resource_url,
+        "error": exception
+      }
 
-  apply_ reader/SizedReader offset/int old_mapping/firmware.FirmwareMapping? -> none:
+    // We never got started applying any of the patches, so we conclude
+    // that we were unable to read the patch.
+    throw PATCH_READING_FAILED_EXCEPTION
+
+  apply_ reader/Reader offset/int old_mapping/firmware.FirmwareMapping? -> none:
     binary_patcher := Patcher reader old_mapping --patch_offset=offset
     if not binary_patcher.patch this:
-        // TODO(kasper): Maybe we can do this clearing in a more
-        // general location, so that everything that looks like
-        // it impossible to make progress from starts over?
-        Checkpoint.clear
-        // This should only happen if we to get the wrong bits
-        // served to us. It is unlikely, but we log it and throw
-        // an exception so we can try to recover.
-        logger_.error "firmware update: failed to apply patch"
-        throw "INVALID_FORMAT"
+      // This should only happen if we to get the wrong bits
+      // served to us. It is unlikely, but we log it and throw
+      // an exception so we can try to recover.
+      logger_.error "firmware update: failed to apply patch"
+      throw "INVALID_FORMAT"
 
   pad_ padding/int -> none:
     write_ 0 padding: | x y | writer_.pad (y - x)
@@ -245,83 +262,5 @@ class FirmwarePatcher_ implements PatchObserver:
   commit_checkpoint_ -> none:
     writer_.flush
     next := next_checkpoint_
-    Checkpoint.update next
+    device_.checkpoint_update next
     next_checkpoint_ = null
-
-class Firmware:
-  size/int
-  parts/List
-  device_specific_encoded/ByteArray
-  checksum/ByteArray
-
-  constructor.encoded encoded/string:
-    decoded := ubjson.decode (base64.decode encoded)
-    device_specific_encoded = decoded["device-specific"]
-    device_specific := ubjson.decode device_specific_encoded
-    parts = ubjson.decode device_specific["parts"]
-    checksum = decoded["checksum"]
-    size = parts.last["to"] + checksum.size
-
-class Checkpoint:
-  static KEY ::= "checkpoint"
-
-  // We store the checkpoint in flash, which means
-  // that we can use it across a power loss.
-  static bucket_ := storage.Bucket.open --flash "toit.io/artemis"
-
-  // We keep the checksums for the new and the old firmware
-  // around, so we can validate if a stored checkpoint is
-  // intended for a specific firmware update.
-  old_checksum/ByteArray
-  new_checksum/ByteArray
-
-  // How far did we get in reading the structured description
-  // of the target firmware?
-  read_part_index/int
-  read_offset/int
-
-  // How far did we get in writing the bits of the target
-  // firmware out to flash?
-  write_offset/int
-  write_skip/int
-
-  constructor
-      --.old_checksum
-      --.new_checksum
-      --.read_part_index
-      --.read_offset
-      --.write_offset
-      --.write_skip:
-
-  static fetch --old/Firmware --new/Firmware -> Checkpoint?:
-    list := bucket_.get KEY
-    if not (list is List and list.size == 6)
-        or old.checksum != list[0]
-        or new.checksum != list[1]:
-      // If we find an oddly shaped entry in the bucket,
-      // we might as well clear it out.
-      clear
-      return null
-    return Checkpoint
-        --old_checksum=old.checksum
-        --new_checksum=new.checksum
-        --read_part_index=list[2]
-        --read_offset=list[3]
-        --write_offset=list[4]
-        --write_skip=list[5]
-
-  static update checkpoint/Checkpoint? -> none:
-    if checkpoint:
-      bucket_[KEY] = [
-        checkpoint.old_checksum,
-        checkpoint.new_checksum,
-        checkpoint.read_part_index,
-        checkpoint.read_offset,
-        checkpoint.write_offset,
-        checkpoint.write_skip
-      ]
-    else:
-      clear
-
-  static clear -> none:
-    bucket_.remove KEY

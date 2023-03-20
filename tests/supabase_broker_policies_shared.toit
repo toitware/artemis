@@ -102,6 +102,40 @@ run_shared_test
   }
   expect_equals "by user1" goal["updated"]
 
+  // report_event is available to devices (and thus anonymous).
+  client_anon.rest.rpc "toit_artemis.report_event" {
+    "_device_id": device_id1,
+    "_type": "test",
+    "_data": { "updated": "by anon" },
+  }
+
+  // Only ids in the device-list are valid.
+  expect_throws --contains="foreign key":
+    client_anon.rest.rpc "toit_artemis.report_event" {
+      "_device_id": random_uuid_string,
+      "_type": "test",
+      "_data": { "updated": "by anon" },
+    }
+
+  // Anon can't get events.
+  events := client_anon.rest.rpc "toit_artemis.get_events" {
+      "_device_ids": [device_id1],
+      "_types": ["test"],
+      "_limit": 1
+    }
+  expect_equals 0 events.size
+
+  // The events can be retrieved by authenticated users.
+  events = client1.rest.rpc "toit_artemis.get_events" {
+    "_device_ids": [device_id1],
+    "_types": ["test"],
+    "_limit": 1
+  }
+  expect_equals 1 events.size
+  row := events[0]
+  expect_equals device_id1 row["device_id"]
+  expect_equals "by anon" row["data"]["updated"]
+
   // Only authenticated can remove devices.
   client_anon.rest.rpc "toit_artemis.remove_device" {
     "_device_id": device_id1,

@@ -1,10 +1,11 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
-import reader show SizedReader
+import reader show Reader SizedReader
 import uuid
 
 import system.containers
+import supabase.utils
 
 import .jobs
 import .scheduler
@@ -56,13 +57,22 @@ class ContainerManager:
     job.has_run_after_install_ = false
     add_ job --message="install"
 
-  complete job/ContainerJob reader/SizedReader -> none:
+  complete job/ContainerJob reader/Reader -> none:
     if job.is_complete: return
     id := job.id
-    writer ::= containers.ContainerImageWriter reader.size
-    while data := reader.read: writer.write data
+    writer/containers.ContainerImageWriter := ?
+    if reader is SizedReader:
+      size := (reader as SizedReader).size
+      logger_.info "image fetching" --tags={"id": id, "size": size}
+      writer = containers.ContainerImageWriter size
+      while data := reader.read: writer.write data
+    else:
+      logger_.warn "image fetching with unknown size" --tags={"id": id}
+      data := utils.read_all reader
+      writer = containers.ContainerImageWriter data.size
+      writer.write data
     image := writer.commit
-    logger_.info "installed image" --tags={"id": image}
+    logger_.info "image installed" --tags={"id": image}
     if image != id: throw "invalid state"
     job.is_complete_ = true
     images_.add id
@@ -83,7 +93,7 @@ class ContainerManager:
     if preserve: return
     containers.uninstall job.id
     images_.remove id
-    logger_.info "uninstalled image" --tags={"id": id}
+    logger_.info "image uninstalled" --tags={"id": id}
 
   update job/ContainerJob description/Map -> none:
     if job.is_complete: scheduler_.remove_job job
@@ -108,6 +118,7 @@ class ContainerJob extends Job:
   id/uuid.Uuid
   description_/Map := ?
   running_/containers.Container? := null
+  is_background/bool := false
 
   // The $ContainerManager is responsible for marking
   // container jobs as complete and for scheduling
@@ -119,6 +130,7 @@ class ContainerJob extends Job:
   constructor --name/string --.id --description/Map:
     description_ = description
     super name
+    update description
 
   stringify -> string:
     return "container:$name"
@@ -176,3 +188,4 @@ class ContainerJob extends Job:
   update description/Map -> none:
     assert: not is_running
     description_ = description
+    is_background = description.contains "background"

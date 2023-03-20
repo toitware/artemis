@@ -5,6 +5,7 @@ import net
 import net.tcp
 import encoding.ubjson
 import monitor
+import supabase.utils
 
 STATUS_IM_A_TEAPOT ::= 418
 
@@ -47,13 +48,10 @@ abstract class HttpServer:
     socket := network.tcp_listen (port or 0)
     port = socket.local_address.port
     if port_latch: port_latch.set port
-    server := http.Server
+    server := http.Server --max_tasks=64
     print "Listening on port $socket.local_address.port"
     server.listen socket:: | request/http.Request writer/http.ResponseWriter |
-      encoded_message := #[]
-      while chunk := request.body.read:
-        encoded_message += chunk
-      message := ubjson.decode encoded_message
+      message := ubjson.decode (utils.read_all request.body)
 
       command := message["command"]
       should_respond_binary := message.get "binary" or false

@@ -5,9 +5,11 @@
 import expect show *
 import log
 import monitor
-import reader show SizedReader
+import reader show Reader
 import artemis.cli.brokers.broker
 import artemis.cli.device show DeviceDetailed
+import artemis.service.device show Device
+import artemis.cli.event show Event
 import artemis.service.brokers.broker
 import artemis.cli.brokers.mqtt.base as mqtt_broker
 import artemis.cli.brokers.http.base as http_broker
@@ -15,6 +17,7 @@ import artemis.cli.brokers.supabase show BrokerCliSupabase
 import artemis.service.brokers.mqtt.synchronize as mqtt_broker
 import supabase
 import supabase.auth as supabase
+import supabase.utils
 import uuid
 
 import .artemis_server
@@ -25,10 +28,18 @@ import .artemis_server
 import .broker
 import .utils
 
-// When running the supabase test we need a valid UUID that is not
-// already in the database.
-DEVICE_ID ::= random_uuid_string
-DEVICE_HARDWARE_ID ::= random_uuid_string
+// When running the supabase test we need valid device ids
+// that are not already in the database.
+DEVICE1 ::= Device
+    --id=random_uuid_string
+    --hardware_id=random_uuid_string
+    --organization_id=TEST_ORGANIZATION_UUID
+    --firmware_state={:}
+DEVICE2 ::= Device
+    --id=random_uuid_string
+    --hardware_id=random_uuid_string
+    --organization_id=TEST_ORGANIZATION_UUID
+    --firmware_state={:}
 
 main args:
   broker_type := broker_type_from_args args
@@ -54,68 +65,58 @@ run_test
     with_artemis_server --type="supabase": | server/TestArtemisServer |
       backdoor := server.backdoor as SupabaseBackdoor
       backdoor.with_backdoor_client_: | client/supabase.Client |
-        client.rest.insert "devices" {
-          "alias": DEVICE_ID,
-          "organization_id": TEST_ORGANIZATION_UUID,
-        }
+        [DEVICE1, DEVICE2].do: | device/Device |
+          client.rest.insert "devices" {
+            "alias": device.id,
+            "organization_id": device.organization_id,
+          }
+
+  [DEVICE1, DEVICE2].do: | device/Device |
+    identity := {
+      "device_id": device.id,
+      "organization_id": device.organization_id,
+      "hardware_id": device.hardware_id,
+    }
+    state := {
+      "identity": identity,
+    }
+    broker_cli.notify_created --device_id=device.id --state=state
+
 
   test_image broker_cli broker_service
   test_firmware broker_cli broker_service
   test_goal broker_cli broker_service
-
-class TestEvent:
-  type/string
-  value/any
-
-  constructor .type .value=null:
-
-class TestEventHandler implements broker.EventHandler:
-  channel := monitor.Channel 10
-
-  handle_goal goal/Map? resources/broker.ResourceManager:
-    channel.send (TestEvent "update_goal" goal)
-
-  handle_nop:
-    channel.send (TestEvent "nop")
+  test_events broker_cli broker_service
 
 test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
-  identity := {
-    "device_id": DEVICE_ID,
-    "organization_id": TEST_ORGANIZATION_UUID,
-    "hardware_id": DEVICE_HARDWARE_ID,
-  }
-  state := {
-    "identity": identity,
-  }
-  broker_cli.notify_created --device_id=DEVICE_ID --state=state
-
   3.repeat: | test_iteration |
-    test_handler := TestEventHandler
     if test_iteration == 2:
       // Send a config update while the service is not connected.
-      broker_cli.update_goal --device_id=DEVICE_ID: | device/DeviceDetailed |
+      broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
         if test_iteration == 1:
           expect_equals "succeeded 2" device.goal["test-entry"]
         device.goal["test-entry"] = "succeeded while offline"
         device.goal
 
-    broker_service.connect --device_id=DEVICE_ID --callback=test_handler:
-      event/TestEvent? := null
-
+    broker_service.connect --device=DEVICE1:
       if broker_cli is mqtt_broker.BrokerCliMqtt:
         (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
 
-      // In the first iteration none of the brokers have a goal state yet.
-      // In the second iteration they already have a goal state.
-      if broker_cli is not mqtt_broker.BrokerCliMqtt and test_iteration != 0:
-        // All brokers, except the MQTT broker, immediately send a first initial
-        // goal as soon as the service connects if they have a goal state.
-        // We need to wait for this initial goal state, so that the test isn't
-        // flaky. Otherwise, the CLI could send an update before the service
-        // connects, thus not sending the initial empty goal state.
-        event = test_handler.channel.receive
+      event_goal/Map? := null
+      exception := catch:
+        event_goal = broker_service.fetch_goal --wait=(test_iteration > 0)
 
-      broker_cli.update_goal --device_id=DEVICE_ID: | device/DeviceDetailed |
+      if test_iteration == 0:
+        // None of the brokers have sent a goal-state update yet.
+        if broker_cli is mqtt_broker.BrokerCliMqtt:
+          expect_equals DEADLINE_EXCEEDED_ERROR exception
+        expect_null event_goal
+      else if test_iteration == 1:
+        expect_equals "succeeded 2" event_goal["test-entry"]
+      else:
+        expect_equals "succeeded while offline" event_goal["test-entry"]
+
+      broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
         old := device.goal
         if test_iteration == 1:
           expect_equals "succeeded 2" old["test-entry"]
@@ -126,66 +127,17 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old["test-entry"] = "succeeded 1"
         old
 
-      broker_service.on_idle
-
-      if broker_cli is mqtt_broker.BrokerCliMqtt:
-        event = test_handler.channel.receive
-
-      mqtt_already_has_updated_goal := false
-      if test_iteration == 0:
-        // None of the brokers except MQTT have sent a goal-state update yet.
-        if broker_cli is mqtt_broker.BrokerCliMqtt:
-          expect_equals "update_goal" event.type
-          event_goal := event.value
-          // When the CLI updates the goal state, it sends two goal revisions in
-          // rapid succession.
-          // The service might not even see the first one.
-          mqtt_already_has_updated_goal = event_goal != null
-      else if test_iteration == 1:
-        if event.type == "nop":
-          // The MQTT broker doesn't send a goal state update when it can tell that
-          // the goal state hasn't changed in the meantime.
-          expect broker_cli is mqtt_broker.BrokerCliMqtt
-        else:
-          expect_equals "update_goal" event.type
-          event_goal := event.value
-          expect_equals "succeeded 2" event_goal["test-entry"]
-      else:
-        expect_equals "update_goal" event.type
-        event_goal := event.value
-        expect_equals "succeeded while offline" event_goal["test-entry"]
-
-      broker_service.on_idle
-      if not mqtt_already_has_updated_goal:
-        event = test_handler.channel.receive
-
-      if test_iteration == 0:
-        // The broker is allowed to send 'null' goals, indicating that
-        // the device should stick with its current firmware state.
-        // Skip them.
-        while event.value == null:
-          broker_service.on_idle
-          event = test_handler.channel.receive
-      expect_equals "update_goal" event.type
-      event_goal := event.value
+      event_goal = broker_service.fetch_goal --wait
       expect_equals "succeeded 1" event_goal["test-entry"]
 
-      broker_cli.update_goal --device_id=DEVICE_ID: | device/DeviceDetailed |
+      broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
         old := device.goal
         expect_equals "succeeded 1" old["test-entry"]
         old["test-entry"] = "succeeded 2"
         old
 
-      broker_service.on_idle
-      event = test_handler.channel.receive
-      expect_equals "update_goal" event.type
-      event_goal = event.value
+      event_goal = broker_service.fetch_goal --wait
       expect_equals "succeeded 2" event_goal["test-entry"]
-
-      expect_equals 0 test_handler.channel.size
-
-  print "done"
-
 
 test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   2.repeat: | iteration |
@@ -208,15 +160,13 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --app_id=APP_ID
         --word_size=64
 
-    test_handler := TestEventHandler
-    broker_service.connect --device_id=DEVICE_ID --callback=test_handler: | resources/broker.ResourceManager |
-      resources.fetch_image APP_ID --organization_id=TEST_ORGANIZATION_UUID:
-        | reader/SizedReader |
+    broker_service.connect --device=DEVICE1: | resources/broker.ResourceManager |
+      resources.fetch_image APP_ID:
+        | reader/Reader |
           // TODO(florian): this only tests the download of the current platform. That is, on
           // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
           // also verify that the 32-bit image is correct.
-          data := #[]
-          while chunk := reader.read: data += chunk
+          data := utils.read_all reader
           expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
 
 test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
@@ -247,12 +197,11 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           --organization_id=TEST_ORGANIZATION_UUID
       expect_bytes_equal content downloaded_bytes
 
-    test_handler := TestEventHandler
-    broker_service.connect --device_id=DEVICE_ID --callback=test_handler: | resources/broker.ResourceManager |
+    broker_service.connect --device=DEVICE1: | resources/broker.ResourceManager |
       data := #[]
       offsets := []
-      resources.fetch_firmware FIRMWARE_ID --organization_id=TEST_ORGANIZATION_UUID:
-        | reader/SizedReader offset |
+      resources.fetch_firmware FIRMWARE_ID:
+        | reader/Reader offset |
           expect_equals data.size offset
           while chunk := reader.read: data += chunk
           offsets.add offset
@@ -265,13 +214,10 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         if offsets.size > 1:
           offset_index := offsets.size / 2
           current_offset := offsets[offset_index]
-          resources.fetch_firmware FIRMWARE_ID
-              --organization_id=TEST_ORGANIZATION_UUID
-              --offset=current_offset:
-            | reader/SizedReader offset |
+          resources.fetch_firmware FIRMWARE_ID --offset=current_offset:
+            | reader/Reader offset |
               expect_equals current_offset offset
-              partial_data := #[]
-              while chunk := reader.read: partial_data += chunk
+              partial_data := utils.read_all reader
               expect_bytes_equal content[current_offset..current_offset + partial_data.size] partial_data
 
               // If we can, advance by 3 chunks.
@@ -284,3 +230,260 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
                 current_offset += partial_data.size
               // Return the new offset.
               current_offset
+
+test_events broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+  if broker_cli is mqtt_broker.BrokerCliMqtt:
+    // The MQTT broker doesn't support getting events.
+    return
+
+  broker_service.connect
+      --device=DEVICE1: | resources1/broker.ResourceManager |
+    broker_service.connect
+        --device=DEVICE2: | resources2/broker.ResourceManager |
+      test_events broker_cli resources1 resources2
+
+test_events
+    broker_cli/broker.BrokerCli
+    resources1/broker.ResourceManager
+    resources2/broker.ResourceManager:
+  start := Time.now
+  events := broker_cli.get_events --device_ids=[DEVICE1.id] --types=["test-event"]
+  expect_not (events.contains DEVICE1.id)
+
+  events = broker_cli.get_events --device_ids=[DEVICE1.id, DEVICE2.id] --types=["test-event"]
+  expect_not (events.contains DEVICE1.id)
+  expect_not (events.contains DEVICE2.id)
+
+  total_events1 := 0
+  resources1.report_event --type="test-event" "test-data"
+  total_events1++
+
+  2.repeat:
+    device_ids := it == 0 ? [DEVICE1.id] : [DEVICE1.id, DEVICE2.id]
+    events = broker_cli.get_events
+        --device_ids=device_ids
+        --types=["test-event"]
+    expect (events.contains DEVICE1.id)
+    expect_equals 1 events[DEVICE1.id].size
+    event/Event := events[DEVICE1.id][0]
+    expect_equals "test-data" event.data
+    expect start <= event.timestamp <= Time.now
+
+    // Test the since parameter.
+    now := Time.now
+    events = broker_cli.get_events
+        --device_ids=device_ids
+        --types=["test-event"]
+        --since=now
+    expect_not (events.contains DEVICE1.id)
+
+  10.repeat:
+    resources1.report_event --type="test-event2" "test-data-$it"
+    total_events1++
+    resources2.report_event --type="test-event2" "test-data-$it"
+
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --types=["test-event2"]
+      --limit=100
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 10 events[DEVICE1.id].size
+  expect_equals 10 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix := 9
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 9
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // Limit to 5 per device.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --types=["test-event2"]
+      --limit=5
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 5 events[DEVICE1.id].size
+  expect_equals 5 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 9
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 9
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // 5 more events for device2.
+  5.repeat:
+    resources2.report_event --type="test-event2" "test-data-$(it + 10)"
+
+  // Limit to 20 per device.
+  // Device 1 should have 10 events, device 2 should have 15 events.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --types=["test-event2"]
+      --limit=20
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 10 events[DEVICE1.id].size
+  expect_equals 15 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 9
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 14
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // Make sure we test one of the most common use cases: getting just one event.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --types=["test-event2"]
+      --limit=1
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 1 events[DEVICE1.id].size
+  expect_equals 1 events[DEVICE2.id].size
+  expect_equals "test-data-9" events[DEVICE1.id][0].data
+  expect_equals "test-data-14" events[DEVICE2.id][0].data
+
+  checkpoint := Time.now
+
+  // Add 5 more events for both.
+  5.repeat:
+    resources1.report_event --type="test-event2" "test-data-$(it + 20)"
+    total_events1++
+    resources2.report_event --type="test-event2" "test-data-$(it + 20)"
+
+  // Limit to events since 'checkpoint'.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --types=["test-event2"]
+      --since=checkpoint
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 5 events[DEVICE1.id].size
+  expect_equals 5 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 24
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 24
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // Limit to events since 'checkpoint' and limit to 3.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --types=["test-event2"]
+      --since=checkpoint
+      --limit=3
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 3 events[DEVICE1.id].size
+  expect_equals 3 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 24
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 24
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // Limit to events since 'checkpoint' and limit to 10.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --types=["test-event2"]
+      --since=checkpoint
+      --limit=10
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 5 events[DEVICE1.id].size
+  expect_equals 5 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix = 24
+  events[DEVICE1.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+  expected_suffix = 24
+  events[DEVICE2.id].do: | event/Event |
+    expect_equals "test-data-$expected_suffix" event.data
+    expected_suffix--
+
+  // Add 5 events for different types.
+  5.repeat:
+    resources1.report_event --type="test-event3" "test-data-$(it + 30)"
+    total_events1++
+    resources1.report_event --type="test-event4" "test-data-$(it + 40)"
+    total_events1++
+    resources2.report_event --type="test-event3" "test-data-$(it + 30)"
+    resources2.report_event --type="test-event4" "test-data-$(it + 40)"
+
+  // Get events for type 3 and 4.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id]
+      --types=["test-event3", "test-event4"]
+  expect (events.contains DEVICE1.id)
+  expect_equals 10 events[DEVICE1.id].size
+  // Events must come in reverse chronological order.
+  expected_suffix3 := 34
+  expected_suffix4 := 44
+  expect4 := true
+  events[DEVICE1.id].do: | event/Event |
+    if expect4:
+      expect_equals "test-data-$expected_suffix4" event.data
+      expected_suffix4--
+    else:
+      expect_equals "test-data-$expected_suffix3" event.data
+      expected_suffix3--
+    expect4 = not expect4
+
+  // Same for both devices at the same time.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id, DEVICE2.id]
+      --types=["test-event3", "test-event4"]
+  expect (events.contains DEVICE1.id)
+  expect (events.contains DEVICE2.id)
+  expect_equals 10 events[DEVICE1.id].size
+  expect_equals 10 events[DEVICE2.id].size
+  // Events must come in reverse chronological order.
+  2.repeat:
+    device := it == 0 ? DEVICE1 : DEVICE2
+    expected_suffix3 = 34
+    expected_suffix4 = 44
+    expect4 = true
+    events[device.id].do: | event/Event |
+      if expect4:
+        expect_equals "test-data-$expected_suffix4" event.data
+        expected_suffix4--
+      else:
+        expect_equals "test-data-$expected_suffix3" event.data
+        expected_suffix3--
+      expect4 = not expect4
+
+  // Get all events for device 1.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id]
+      --limit=1000
+  expect (events.contains DEVICE1.id)
+  expect_equals total_events1 events[DEVICE1.id].size
+
+  // Only get the last event for device 1.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id]
+      --limit=1
+  expect (events.contains DEVICE1.id)
+  expect_equals 1 events[DEVICE1.id].size
+  expect_equals "test-data-44" events[DEVICE1.id][0].data

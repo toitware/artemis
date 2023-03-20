@@ -7,6 +7,7 @@ import log
 import net
 import encoding.json
 import encoding.base64
+import supabase.utils
 
 import ..artemis_server
 import ...config
@@ -19,7 +20,7 @@ import ....shared.server_config
 STATUS_IM_A_TEAPOT ::= 418
 
 class ArtemisServerCliHttpToit implements ArtemisServerCli:
-  client_/http.Client
+  client_/http.Client? := ?
   server_config_/ServerConfigHttpToit
   current_user_id_/string? := null
   config_/Config
@@ -28,12 +29,12 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     client_ = http.Client network
 
   is_closed -> bool:
-    // TODO(florian): we need a newer http client to be able to
-    // ask whether it's closed.
-    return false
+    return client_ == null
 
   close -> none:
-    // TODO(florian): we need a newer http client to be able to close it.
+    if not client_: return
+    client_.close
+    client_ = null
 
   ensure_authenticated [block]:
     if current_user_id_: return
@@ -153,6 +154,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     }
     if current_user_id_ != null:
       payload["user_id"] = current_user_id_
+
     encoded := ubjson.encode payload
     response := client_.post encoded
         --host=server_config_.host
@@ -162,10 +164,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
       throw "HTTP error: $response.status_code $response.status_message"
 
-    encoded_response := #[]
-    while chunk := response.body.read:
-      encoded_response += chunk
-    decoded := ubjson.decode encoded_response
+    decoded := ubjson.decode (utils.read_all response.body)
     if response.status_code == STATUS_IM_A_TEAPOT:
       throw "Broker error: $decoded"
     return decoded

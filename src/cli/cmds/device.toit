@@ -227,7 +227,6 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         artemis.customize_envelope
             --output_path=envelope_path
             --device_specification=specification
-
         artemis.upload_firmware envelope_path --organization_id=organization_id
       else:
         envelope_path = firmware_path
@@ -323,7 +322,7 @@ set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max_offline_seconds := int.parse max_offline --on_error=:
     // Assume it's a duration with units, like "5s".
     duration := parse_duration max_offline --on_error=:
-      ui.error "Invalid max-offline duration: $max_offline"
+      ui.error "Invalid max-offline duration: $max_offline."
       ui.abort
     duration.in_s
 

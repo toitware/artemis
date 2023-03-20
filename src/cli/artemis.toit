@@ -220,25 +220,19 @@ class Artemis:
     max_offline_seconds := device_specification.max_offline_seconds
     if max_offline_seconds > 0: device_config["max-offline"] = max_offline_seconds
 
-    wifi_connection/Map? := null
-    connections := device_specification.connections
-    connections.do: | connection/ConnectionInfo |
-      if connection.type == "wifi":
-        wifi := connection as WifiConnectionInfo
-        wifi_connection = {
-          "ssid": wifi.ssid,
-          "password": wifi.password or "",
-        }
-        // TODO(florian): should device configurations be stored in
-        // the Artemis asset?
-        device_config["wifi"] = wifi_connection
+    connections := []
+    device_specification.connections.do: | connection/ConnectionInfo |
+      if connection.type == "wifi" or connection.type == "cellular":
+        connections.add connection.to_json
       else:
         ui_.error "Unsupported connection type: $connection.type"
         ui_.abort
 
-    if not wifi_connection:
-      ui_.error "No WiFi connection configured."
+    if not (connections.any: it["type"] == "wifi"):
+      ui_.error "No WiFi connections configured."
       ui_.abort
+
+    device_config["connections"] = connections
 
     // Create the assets for the Artemis service.
     // TODO(florian): share this code with the identity creation code.
@@ -277,6 +271,7 @@ class Artemis:
         apps[name] = build_container_description_
             --id=id
             --arguments=container.arguments
+            --background=container.is_background
             --triggers=triggers
         ui_.info "Added container '$name' to envelope."
 
@@ -320,15 +315,6 @@ class Artemis:
           --trigger="boot"
           --critical
 
-    sdk.firmware_set_property "wifi-config" (json.stringify wifi_connection)
-        --envelope=output_path
-
-    // Also store the device specification. We don't really need it, but it
-    // could be useful for debugging.
-    encoded_specification := (json.encode device_specification.to_json).to_string
-    sdk.firmware_set_property "device-specification" encoded_specification
-        --envelope=output_path
-
     // Finally, make it unique. The system uuid will have to be used when compiling
     // code for the device in the future. This will prove that you know which versions
     // went into the firmware image.
@@ -344,12 +330,15 @@ class Artemis:
   build_container_description_ -> Map
       --id/uuid.Uuid
       --arguments/List?
+      --background/bool?
       --triggers/List?:
     result := {
       "id": id.stringify,
     }
     if arguments and not arguments.is_empty:
       result["arguments"] = arguments
+    if background:
+      result["background"] = 1
     if triggers and not triggers.is_empty:
       trigger_map := {:}
       triggers.do: | trigger/Trigger |
@@ -609,22 +598,11 @@ class Artemis:
     sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
     sdk := get_sdk sdk_version --cache=cache
 
-    // Extract the WiFi credentials from the envelope.
-    encoded_wifi_config := sdk.firmware_get_property "wifi-config" --envelope=envelope_path
-    wifi_config := json.parse encoded_wifi_config
-    wifi_ssid := wifi_config["ssid"]
-    wifi_password := wifi_config["password"]
-
     // Cook the firmware.
     return Firmware
         --envelope_path=envelope_path
         --device=device
         --cache=cache
-        --wifi={
-          // TODO(florian): replace the hardcoded key constants.
-          "wifi.ssid": wifi_ssid,
-          "wifi.password": wifi_password,
-        }
 
   /**
   Gets the Artemis service image for the given $sdk and $service versions.
@@ -662,6 +640,7 @@ class Artemis:
       --app_name/string
       --application_path/string
       --arguments/List?
+      --background/bool
       --triggers/List?:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       current_state := device.reported_state_current or device.reported_state_firmware
@@ -699,6 +678,7 @@ class Artemis:
       apps[app_name] = build_container_description_
           --id=id
           --arguments=arguments
+          --background=background
           --triggers=triggers
       new_goal["apps"] = apps
       new_goal
@@ -718,7 +698,7 @@ class Artemis:
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      ui_.info "Setting max-offline to $(Duration --s=max_offline_seconds)"
+      ui_.info "Setting max-offline to $(Duration --s=max_offline_seconds)."
       if max_offline_seconds > 0:
         new_goal["max-offline"] = max_offline_seconds
       else:
@@ -755,7 +735,7 @@ class Artemis:
       store.with_tmp_directory: | tmp_dir |
         file.write_content downloaded --path="$tmp_dir/patch"
         // TODO(florian): we don't have the chunk-size when downloading from the broker.
-        store.move tmp_dir
+        store.move "$tmp_dir/patch"
 
     bitstream := bytes.Reader trivial_old
     patcher := Patcher bitstream null
@@ -779,7 +759,7 @@ class Artemis:
       diff_size := diff_size_bytes > 4096
           ? "$((diff_size_bytes + 1023) / 1024) KB"
           : "$diff_size_bytes B"
-      ui_.info "Uploading patch $(base64.encode patch.to_ --url_mode) ($diff_size)"
+      ui_.info "Uploading patch $(base64.encode patch.to_ --url_mode) ($diff_size)."
       connected_broker.upload_firmware diff
           --organization_id=organization_id
           --firmware_id=diff_id

@@ -4,6 +4,7 @@ import encoding.ubjson
 import http
 import log
 import net
+import supabase.utils
 
 import ..artemis_server
 import ....shared.server_config
@@ -36,8 +37,4 @@ class ArtemisServerServiceHttp implements ArtemisServerService:
     if response.status_code != 200:
       throw "HTTP error: $response.status_code $response.status_message"
 
-    encoded_response := #[]
-    while chunk := response.body.read:
-      encoded_response += chunk
-    decoded := ubjson.decode encoded_response
-    return decoded
+    return ubjson.decode (utils.read_all response.body)

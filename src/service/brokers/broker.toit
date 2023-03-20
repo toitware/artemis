@@ -2,13 +2,14 @@
 
 import encoding.tison
 import log
-import reader show SizedReader  // For toitdoc.
+import reader show Reader  // For toitdoc.
 import uuid
 
 import .supabase.synchronize show BrokerServiceSupabase
 import .mqtt.synchronize show BrokerServiceMqtt
 import .http.synchronize show BrokerServiceHttp
 
+import ..device
 import ...shared.server_config
 
 /**
@@ -18,44 +19,37 @@ interface ResourceManager:
   /**
   Downloads the application image with the given $id.
 
-  Calls the $block with a $SizedReader.
+  Calls the $block with a $Reader.
   */
-  fetch_image id/uuid.Uuid --organization_id/string [block] -> none
+  fetch_image id/uuid.Uuid [block] -> none
 
   /**
   Downloads the firmware with the given $id.
 
   The $offset is the offset in the firmware to start downloading from.
 
-  Calls the $block with a $SizedReader and an offset of the given chunk. The block
+  Calls the $block with a $Reader and an offset of the given chunk. The block
     must return the next offset it wants to download from.
   Some implementations don't respect the returned value yet, and users of
     this class must be able to deal with continuous chunks.
 
   Depending on the implementation, there might be multiple calls to the block.
   */
-  fetch_firmware id/string --organization_id/string --offset/int=0 [block] -> none
-
-  // TODO(kasper): Poor interface. We shouldn't need to pass
-  // the device id here?
-  report_state device_id/string state/Map -> none
-
-/**
-The event handler, called when the broker has new information.
-*/
-interface EventHandler:
-  /**
-  Called when the broker has a goal state.
-  The goal state may not be different.
-  If the $goal is null, no goal exists and the device should use the
-    firmware state.
-  */
-  handle_goal goal/Map? resources/ResourceManager
+  fetch_firmware id/string --offset/int=0 [block] -> none
 
   /**
-  // TODO(florian): add documentation.
+  Reports the state of the connected device.
   */
-  handle_nop
+  report_state state/Map -> none
+
+
+  /**
+  Reports an event to the broker.
+
+  The $data must be a JSON-serializable object.
+  The $type is a string that describes the type of event.
+  */
+  report_event --type/string data/any -> none
 
 /**
 An interface to communicate with the CLI through a broker.
@@ -72,12 +66,8 @@ interface BrokerService:
     else:
       throw "unknown broker $server_config"
 
-
   /**
   Connects to the broker.
-
-  Starts listening for events, and notifies the $callback when it receives one. This
-    can be implemented through polling, MQTT subscriptions, long-polling, ...
 
   Calls the $block with a $ResourceManager as argument.
   Once the $block returns, the connection is closed.
@@ -86,12 +76,16 @@ interface BrokerService:
     are in a consistent state. For some platforms, the broker may automatically
     inform the service (for example, through MQTT subscriptions). For others,
     the service may need to poll the broker for changes.
-
-  It is safe to call the callback too often, as long as the arguments are correct.
   */
-  connect --device_id/string --callback/EventHandler [block]
+  connect --device/Device [block]
 
   /**
-  TODO(florian): add documentation.
+  Fetches the goal from the broker.
+
+  If $wait is true, waits until the goal may have changed and
+    returns the new goal.
+
+  If $wait is false, returns the goal if it is known to have
+    changed. Otherwise, throws $DEADLINE_EXCEEDED_ERROR.
   */
-  on_idle -> none
+  fetch_goal --wait/bool -> Map?

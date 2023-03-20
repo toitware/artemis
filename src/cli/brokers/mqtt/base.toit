@@ -51,14 +51,17 @@ class BrokerCliMqtt implements BrokerCli:
     client_ = mqtt.Client --transport=transport_
     options := mqtt.SessionOptions --client_id=ID_ --clean_session
     client_.start --options=options
-
-  close:
-    client_.close
-    transport_.close
-    client_ = null
+    add_finalizer this:: close
 
   is_closed -> bool:
     return client_ == null
+
+  close:
+    if not client_: return
+    remove_finalizer this
+    client_.close
+    transport_.close
+    client_ = null
 
   ensure_authenticated [block]:
     // For simplicity do nothing.
@@ -291,3 +294,10 @@ class BrokerCliMqtt implements BrokerCli:
       ui.info "$(%08d Time.monotonic_us): $device_name: $payload.to_string"
     // Wait forever.
     (monitor.Latch).get
+
+  get_events -> Map
+      --types/List?=null
+      --device_ids/List
+      --limit/int=10
+      --since/Time?=null:
+    throw "UNIMPLEMENTED"

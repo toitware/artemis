@@ -5,7 +5,7 @@ import host.pipe
 import host.os
 import host.directory
 import artemis.shared.server_config show ServerConfigSupabase
-import ..tools.external_ip.external_ip
+import ..tools.lan_ip.lan_ip
 
 SUPABASE_BROKER  ::= "../supabase_broker"
 SUPABASE_ARTEMIS ::= "../supabase_artemis"
@@ -53,6 +53,6 @@ main args:
   sub_directory := args[0]
   config := get_supabase_config --sub_directory=sub_directory
 
-  external_ip := get_external_ip
-  host := config.host.replace "localhost" external_ip
+  lan_ip := get_lan_ip
+  host := config.host.replace "localhost" lan_ip
   print "$host $config.anon"

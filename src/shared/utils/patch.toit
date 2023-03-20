@@ -7,6 +7,8 @@ import system.firmware
 
 import .patch_format
 
+PATCH_READING_FAILED_EXCEPTION := "PATCH_READING_FAILED"
+
 interface PatchWriter_:
   on_write data from/int=0 to/int=data.size -> none
 
@@ -395,9 +397,20 @@ class PatchReader_:
 
   ensure_bytes_ -> ByteArray:
     bytes := bytes_
-    if bytes and cursor_ < bytes.size: return bytes
-    bytes = reader_.read
-    if not bytes: throw UNEXPECTED_END_OF_READER_EXCEPTION
+    if bytes:
+      // Check if we have already moved the cursor all the way
+      // to the end of the bytes (thus consuming them). If not,
+      // we return the bytes and let the caller only look from
+      // the cursor and forward.
+      if cursor_ < bytes.size: return bytes
+      assert: cursor_ == bytes.size
+      bytes_ = bytes = null
+    try:
+      bytes = reader_.read
+    finally:
+      // We convert any read exception into a recognizable
+      // exception that we can reason about in outer layers.
+      if not bytes: throw PATCH_READING_FAILED_EXCEPTION
     bytes_ = bytes
     cursor_ = 0
     return bytes

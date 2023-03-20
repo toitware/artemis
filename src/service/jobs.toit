@@ -16,6 +16,7 @@ abstract class Job:
   constructor .name:
 
   abstract is_running -> bool
+  is_background -> bool: return false
 
   has_run_after_boot -> bool:
     return scheduler_ran_after_boot_

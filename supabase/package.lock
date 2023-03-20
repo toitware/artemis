@@ -1,13 +1,13 @@
-sdk: ^1.6.10
+sdk: ^2.0.0-alpha.64
 prefixes:
   host: pkg-host
   http: pkg-http
 packages:
   pkg-host:
     url: github.com/toitlang/pkg-host
-    version: 1.8.1
-    hash: 7f0cc4280065fb18ee09d3803f12180cec852d32
+    version: 1.9.0
+    hash: 76e4dc5328a5c3739e97f65ed196d05058071359
   pkg-http:
     url: github.com/toitlang/pkg-http
-    version: 1.9.3
-    hash: 108c436cc990535f5d70c380ef68081c38840f4c
+    version: 2.0.1
+    hash: 1d0f328e4b510b00f4cf1e0e1bb5835806cf2fb5

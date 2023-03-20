@@ -203,22 +203,14 @@ class DeviceSpecification:
   relative_to -> string:
     return fs.dirname path
 
-  to_json -> Map:
-    return {
-      "version": 1,
-      "sdk-version": sdk_version,
-      "artemis-version": artemis_version,
-      "max-offline-seconds": max_offline_seconds,
-      "connections": connections.map: it.to_json,
-      "containers": containers.map: | _ container/Container | container.to_json,
-    }
-
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
     check_has_key_ data --holder="connection" "type"
 
     if data["type"] == "wifi":
       return WifiConnectionInfo.from_json data
+    if data["type"] == "cellular":
+      return CellularConnectionInfo.from_json data
     format_error_ "Unknown connection type: $data["type"]"
     unreachable
 
@@ -238,6 +230,17 @@ class WifiConnectionInfo implements ConnectionInfo:
 
   to_json -> Map:
     return {"type": type, "ssid": ssid, "password": password}
+
+class CellularConnectionInfo implements ConnectionInfo:
+  config/Map
+  constructor.from_json data/Map:
+    config = get_map_ data "config" --holder="cellular connection"
+
+  type -> string:
+    return "cellular"
+
+  to_json -> Map:
+    return {"type": type, "config": config}
 
 interface Container:
   static from_json name/string data/Map -> Container:
@@ -260,8 +263,8 @@ interface Container:
   build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
   type -> string
   arguments -> List?
+  is_background -> bool?
   triggers -> List? // Of type $Trigger.
-  to_json -> Map
 
   static check_arguments_entry arguments:
     if arguments == null: return
@@ -274,6 +277,7 @@ interface Container:
 abstract class ContainerBase implements Container:
   arguments/List?
   triggers/List?
+  is_background/bool?
 
   constructor.from_json name/string data/Map:
     holder := "container $name"
@@ -281,6 +285,7 @@ abstract class ContainerBase implements Container:
         --holder=holder
         --type="string"
         --check=: it is string
+    is_background = get_optional_bool_ data "background"
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
         --type="map or string"
@@ -296,7 +301,6 @@ abstract class ContainerBase implements Container:
       triggers = null
 
   abstract type -> string
-  abstract to_json -> Map
   abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
 
 class ContainerPath extends ContainerBase:
@@ -380,16 +384,8 @@ class ContainerPath extends ContainerBase:
       // Otherwise we have unnecessary absolute paths in the snapshot.
       sdk.compile_to_snapshot entrypoint_path --out=output_path
 
-
   type -> string:
     return "path"
-
-  to_json -> Map:
-    result := { "entrypoint": entrypoint }
-    if git_url: result["git"] = git_url
-    if git_ref: result["branch"] = git_ref
-    if arguments: result["arguments"] = arguments
-    return result
 
 class ContainerSnapshot extends ContainerBase:
   snapshot_path/string
@@ -408,19 +404,12 @@ class ContainerSnapshot extends ContainerBase:
   type -> string:
     return "snapshot"
 
-  to_json -> Map:
-    return {
-      "snapshot": snapshot_path,
-      "arguments": arguments,
-    }
-
 abstract class Trigger:
   static INTERVAL ::= "interval"
   static BOOT ::= "boot"
   static INSTALL ::= "install"
 
   abstract type -> string
-  abstract to_json -> any
   /**
   A value that is associated with the trigger.
   This is the value that is sent in the goal state.
@@ -469,11 +458,6 @@ class IntervalTrigger extends Trigger:
   type -> string:
     return Trigger.INTERVAL
 
-  to_json -> Map:
-    return {
-      "interval": interval.stringify,
-    }
-
   json_value -> int:
     return interval.in_s
 
@@ -481,18 +465,12 @@ class BootTrigger extends Trigger:
   type -> string:
     return Trigger.BOOT
 
-  to_json -> string:
-    return "boot"
-
   json_value -> int:
     return 1
 
 class InstallTrigger extends Trigger:
   type -> string:
     return Trigger.INSTALL
-
-  to_json -> string:
-    return "install"
 
   json_value -> int:
     return 1

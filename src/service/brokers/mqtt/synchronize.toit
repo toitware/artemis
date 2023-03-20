@@ -11,6 +11,7 @@ import .resources
 import ...check_in show check_in
 
 import ..broker
+import ...device
 import ....shared.mqtt
 import ....shared.server_config
 
@@ -21,6 +22,10 @@ class BrokerServiceMqtt implements BrokerService:
   logger_/log.Logger
   create_transport_/Lambda
 
+  signal_/monitor.Signal? := null
+  goal_got_it_/bool := false
+  goal_new_/Map? := null
+
   constructor .logger_ --server_config/ServerConfigMqtt:
     create_transport_ = :: | network/net.Interface |
       create_transport_from_server_config network server_config
@@ -29,15 +34,17 @@ class BrokerServiceMqtt implements BrokerService:
   constructor .logger_ --create_transport/Lambda:
     create_transport_ = create_transport
 
-  connect --device_id/string --callback/EventHandler [block]:
+  connect --device/Device [block]:
     network ::= net.open
-    check_in network logger_
+    check_in network logger_ --device=device
     transport ::= create_transport_.call network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
+    resources ::= ResourceManagerMqtt device client
+
+    device_id := device.id
     connect_client_ --device_id=device_id client
     disconnected := monitor.Latch
-
-    resources ::= ResourceManagerMqtt client
+    signal := monitor.Signal
 
     topic_revision := topic_revision_for device_id
     topic_goal := topic_goal_for device_id
@@ -48,7 +55,7 @@ class BrokerServiceMqtt implements BrokerService:
     handle_task/Task? := ?
     handle_task = task --background::
       try:
-        subscribed_to_config := false
+        subscribed_to_goal := false
         // For MQTT the goal is wrapped into a packet that contains
         // additional information like the revision.
         new_goal_packet/Map? := null
@@ -60,20 +67,20 @@ class BrokerServiceMqtt implements BrokerService:
               new_revision := ubjson.decode publish.payload
               if new_revision != revision_:
                 revision_ = new_revision
-                if not subscribed_to_config:
-                  subscribed_to_config = true
+                if not subscribed_to_goal:
+                  subscribed_to_goal = true
                   client.subscribe topic_goal
-                if new_goal_packet and revision_ == new_goal_packet["revision"]:
-                  callback.handle_goal (new_goal_packet.get "goal") resources
+                else if new_goal_packet and revision_ == new_goal_packet["revision"]:
+                  goal_new_ = new_goal_packet.get "goal"
+                  goal_got_it_ = true
+                  signal.raise
                   new_goal_packet = null
-              else:
-                // Maybe we're done? We let the synchronization task
-                // know so it can react to the changed state.
-                callback.handle_nop
             else if topic == topic_goal:
               new_goal_packet = ubjson.decode publish.payload
               if revision_ == new_goal_packet["revision"]:
-                callback.handle_goal (new_goal_packet.get "goal") resources
+                goal_new_ = new_goal_packet.get "goal"
+                goal_got_it_ = true
+                signal.raise
                 new_goal_packet = null
             else:
               known := resources.provide_resource topic: publish.payload_stream
@@ -84,12 +91,7 @@ class BrokerServiceMqtt implements BrokerService:
               sub_ack_latch.set sub_ack_id
 
       finally:
-        critical_do:
-          disconnected.set true
-          client.close --force
-          transport.close
-          network.close
-        client = null
+        critical_do: disconnected.set true
         handle_task = null
 
     try:
@@ -103,6 +105,7 @@ class BrokerServiceMqtt implements BrokerService:
       sub_ack_id := sub_ack_latch.get
       if packet_id != sub_ack_id:
         throw "Bad SubAck ID: $packet_id != $sub_ack_id"
+      signal_ = signal
       block.call resources
     finally:
       try:
@@ -110,10 +113,15 @@ class BrokerServiceMqtt implements BrokerService:
         if client: client.close
         with_timeout --ms=3_000: disconnected.get
       finally:
-        if handle_task: handle_task.cancel
-
-  on_idle -> none:
-    // Do nothing.
+        if handle_task:
+          handle_task.cancel
+          disconnected.get
+      signal_ = revision_ = null
+      goal_got_it_ = false
+      goal_new_ = null
+      client.close --force
+      transport.close
+      network.close
 
   connect_client_ --device_id/string client/mqtt.FullClient -> none:
     topic_presence := topic_presence_for device_id
@@ -138,3 +146,12 @@ class BrokerServiceMqtt implements BrokerService:
         --keep_alive=keep_alive
         --last_will=last_will
     client.connect --options=options
+
+  fetch_goal --wait/bool -> Map?:
+    while not goal_got_it_:
+      if not wait: throw DEADLINE_EXCEEDED_ERROR
+      signal_.wait: goal_got_it_
+    result := goal_new_
+    goal_got_it_ = false
+    goal_new_ = null
+    return result
