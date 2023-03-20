@@ -23,9 +23,6 @@ class SynchronizeJob extends TaskJob:
   containers_/ContainerManager
   broker_/BrokerService
 
-  // TODO(kasper): Get rid of this.
-  actions_ ::= Deque
-
   constructor logger/log.Logger .device_ .containers_ .broker_:
     logger_ = logger.with_name "synchronize"
     super "synchronize"
@@ -34,11 +31,6 @@ class SynchronizeJob extends TaskJob:
     max_offline := device_.max_offline
     if not last or not max_offline: return now
     return min (check_in_schedule now) (last + max_offline)
-
-  commit goal_state/Map actions/List -> Lambda:
-    return ::
-      actions.do: it.call
-      logger_.info "goal state committed"
 
   parse_uuid_ value/string -> uuid.Uuid?:
     catch: return uuid.parse value
@@ -49,6 +41,7 @@ class SynchronizeJob extends TaskJob:
     logger_.info "connecting" --tags={"device": device_.id}
     broker_.connect --device=device_: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.id}
+      exception := null
       try:
         // TODO(florian): We don't need to report the state every time we
         // connect. We only need to do this the first time we connect or
@@ -60,27 +53,23 @@ class SynchronizeJob extends TaskJob:
           wait := not containers_.any_incomplete
           // TODO(kasper): We should probably only filter out some stack
           // traces here and not everything.
-          catch:
+          exception = catch:
             with_timeout check_in_timeout:
               new_goal = broker_.fetch_goal --wait=wait
               got_goal = true
 
           if got_goal:
             handle_goal_ new_goal resources
-            while actions_.size > 0:
-              lambda/Lambda := actions_.remove_first
-              lambda.call
           else if wait:
             // Timed out waiting or got an error communicating
             // with the cloud. Get out and retry later.
             break
 
-          // We only handle incomplete containers when we're done processing
-          // the other actions. This means that we prioritize firmware updates
+          // We only handle incomplete containers when we're done handling
+          // the other updates. This means that we prioritize firmware updates
           // and configuration changes over fetching container images.
-          assert: actions_.size == 0  // We should be done.
           if containers_.any_incomplete:
-            fetch_container_image_ resources
+            handle_fetch_container_image_ resources
             continue
 
           // We've successfully connected to the network, so we consider
@@ -103,7 +92,10 @@ class SynchronizeJob extends TaskJob:
             break
           logger_.info "synchronized"
       finally:
-        logger_.info "disconnected" --tags={"device": device_.id}
+        if exception:
+          logger_.warn "disconnected" --tags={"device": device_.id, "error": exception}
+        else:
+          logger_.info "disconnected" --tags={"device": device_.id}
 
   /**
   Handles new configurations.
@@ -131,12 +123,15 @@ class SynchronizeJob extends TaskJob:
       // The firmware changed. We need to update the firmware.
       logger_.info "update firmware from $from to $to"
 
-      // We don't want to update the firmware while we're still
-      // processing other actions. So we push the firmware update
-      // action into the channel and return.
-      actions_.add (action_firmware_update_ resources new_goal["firmware"])
-      // If the firmware changed, we don't look at the rest of the
-      // goal state. The only thing we care about is the firmware.
+      // We prioritize the firmware updating and deliberately
+      // avoid looking at the updated goal state, because we
+      // may not understand it before we've completed the
+      // firmware update.
+      handle_firmware_update_ resources new_goal["firmware"]
+      // TODO(kasper): Here the firmware update failed, so we
+      // probably need to deal with the failure instead of just
+      // going into a loop where we continue to ask for the
+      // new goal state.
       return
 
     if device_.firmware_state["firmware"] != new_goal["firmware"]:
@@ -157,7 +152,6 @@ class SynchronizeJob extends TaskJob:
 
     logger_.info "goal state updated" --tags={"changes": Modification.stringify modification}
 
-    bundle := []
     modification.on_map "apps"
         --added=: | name/string description |
           if description is not Map:
@@ -170,27 +164,21 @@ class SynchronizeJob extends TaskJob:
               --if_present=:
                 // A container just appeared in the state.
                 id := parse_uuid_ it
-                if id: bundle.add (action_container_install_ name id description_map)
+                if id: handle_container_install_ name id description_map
         --removed=: | name/string |
           // A container disappeared completely from the state. We
           // uninstall it.
-          bundle.add (action_container_uninstall_ name)
+          handle_container_uninstall_ name
         --modified=: | name/string nested/Modification |
           description := new_goal["apps"][name]
-          handle_container_update_ bundle name description nested
+          handle_container_modification_ name description nested
 
     modification.on_value "max-offline"
-        --added   =: bundle.add (action_set_max_offline_ it)
-        --removed =: bundle.add (action_set_max_offline_ null)
-        --updated =: | _ to | bundle.add (action_set_max_offline_ to)
+        --added   =: handle_set_max_offline_ it
+        --removed =: handle_set_max_offline_ null
+        --updated =: | _ to | handle_set_max_offline_ to
 
-    actions_.add (commit new_goal bundle)
-
-  handle_firmware_update_ resources/ResourceManager new/string -> none:
-    actions_.add (action_firmware_update_ resources new)
-
-  handle_container_update_ -> none
-      bundle/List
+  handle_container_modification_ -> none
       name/string
       description/Map
       modification/Modification:
@@ -199,58 +187,55 @@ class SynchronizeJob extends TaskJob:
           logger_.error "container $name gained an id ($value)"
           // Treat it as a request to install the container.
           id := parse_uuid_ value
-          if id: bundle.add (action_container_install_ name id description)
+          if id: handle_container_install_ name id description
           return
         --removed=: | value |
           logger_.error "container $name lost its id ($value)"
           // Treat it as a request to uninstall the container.
-          bundle.add (action_container_uninstall_ name)
+          handle_container_uninstall_ name
           return
         --updated=: | from to |
           // A container had its id (the code) updated. We uninstall
           // the old version and install the new one.
           // TODO(florian): it would be nicer to fetch the new version
           // before uninstalling the old one.
-          bundle.add (action_container_uninstall_ name)
+          handle_container_uninstall_ name
           id := parse_uuid_ to
-          if id: bundle.add (action_container_install_ name id description)
+          if id: handle_container_install_ name id description
           return
 
-    bundle.add (action_container_update_ name description)
+    handle_container_update_ name description
 
-  action_container_install_ name/string id/uuid.Uuid description/Map -> Lambda:
-    return::
-      job := containers_.create
-          --name=name
-          --id=id
-          --description=description
-      containers_.install job
-      // Installing a container job doesn't really do much, unless
-      // the job is already complete because we've found its
-      // container image in flash. In that case, we must remember
-      // to update the device state.
-      if job.is_complete:
-        device_.state_container_install_or_update name description
+  handle_container_install_ name/string id/uuid.Uuid description/Map -> none:
+    job := containers_.create
+        --name=name
+        --id=id
+        --description=description
+    containers_.install job
+    // Installing a container job doesn't really do much, unless
+    // the job is already complete because we've found its
+    // container image in flash. In that case, we must remember
+    // to update the device state.
+    if job.is_complete:
+      device_.state_container_install_or_update name description
 
-  action_container_uninstall_ name/string -> Lambda:
-    return::
-      job/ContainerJob? := containers_.get --name=name
-      if job:
-        containers_.uninstall job
-      else:
-        logger_.error "container $name not found"
-      device_.state_container_uninstall name
+  handle_container_uninstall_ name/string -> none:
+    job/ContainerJob? := containers_.get --name=name
+    if job:
+      containers_.uninstall job
+    else:
+      logger_.error "container $name not found"
+    device_.state_container_uninstall name
 
-  action_container_update_ name/string description/Map -> Lambda:
-    return::
-      job/ContainerJob? := containers_.get --name=name
-      if job:
-        containers_.update job description
-        device_.state_container_install_or_update name description
-      else:
-        logger_.error "container $name not found"
+  handle_container_update_ name/string description/Map -> none:
+    job/ContainerJob? := containers_.get --name=name
+    if job:
+      containers_.update job description
+      device_.state_container_install_or_update name description
+    else:
+      logger_.error "container $name not found"
 
-  fetch_container_image_ resources/ResourceManager -> none:
+  handle_fetch_container_image_ resources/ResourceManager -> none:
     incomplete/ContainerJob? ::= containers_.first_incomplete
     if not incomplete: return
     resources.fetch_image incomplete.id: | reader/Reader |
@@ -261,24 +246,23 @@ class SynchronizeJob extends TaskJob:
           incomplete.name
           incomplete.description
 
-  action_set_max_offline_ value/any -> Lambda:
-    return:: device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
+  handle_set_max_offline_ value/any -> none:
+    device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
 
-  action_firmware_update_ resources/ResourceManager new/string -> Lambda:
+  // TODO(kasper): Introduce run-levels for jobs and make sure we're
+  // not running a lot of other stuff while we update the firmware.
+  handle_firmware_update_ resources/ResourceManager new/string -> none:
     // TODO(kasper): If we end up getting a new goal state before
     // validating the previous firmware update, we will be doing
     // this with update from an unvalidated firmware. We need to
     // make sure that writing a new firmware auto-validates or
     // move the validation check a bit earlier, so we do it before
     // starting to update.
-    return::
-      // TODO(kasper): Introduce run-levels for jobs and make sure we're
-      // not running a lot of other stuff while we update the firmware.
-      success := firmware_update logger_ resources --device=device_ --new=new
-      if success:
-        device_.state_firmware_update new
-        report_state resources
-        firmware.upgrade
+    success := firmware_update logger_ resources --device=device_ --new=new
+    if success:
+      device_.state_firmware_update new
+      report_state resources
+      firmware.upgrade
 
   /**
   Sends the current device state to the broker.
