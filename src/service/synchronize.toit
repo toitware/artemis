@@ -58,6 +58,8 @@ class SynchronizeJob extends TaskJob:
           new_goal/Map? := null
           got_goal/bool := false
           wait := not containers_.any_incomplete
+          // TODO(kasper): We should probably only filter out some stack
+          // traces here and not everything.
           catch:
             with_timeout check_in_timeout:
               new_goal = broker_.fetch_goal --wait=wait

@@ -40,17 +40,18 @@ class BrokerServiceSupabase implements BrokerService:
       network.close
 
   fetch_goal --wait/bool -> Map?:
-    last := last_poll_us_
     // We deliberately delay fetching from the cloud, so we
     // can avoid fetching from the cloud over and over again.
+    last := last_poll_us_
     if last:
       elapsed := Duration --us=(Time.monotonic_us - last)
       interval := broker_.poll_interval
       if elapsed < interval:
         if not wait: throw DEADLINE_EXCEEDED_ERROR
         sleep interval - elapsed
-    // An empty goal means that we should revert to the
-    // firmware state. We must return it.
+    // An null goal means that we should revert to the
+    // firmware state. We must return it instead of
+    // waiting for a non-null one to arrive.
     result := client_.rest.rpc "toit_artemis.get_goal" {
       "_device_id": device_.id
     }

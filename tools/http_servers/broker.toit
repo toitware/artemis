@@ -73,8 +73,11 @@ class HttpBroker extends HttpServer:
 
   get_goal data/Map -> Map?:
     device_id := data["device_id"]
-    config := device_goals_.get device_id
-    return config
+    current_revision := state_revision_.get device_id --init=: 0
+    return {
+      "state_revision": current_revision,
+      "goal": device_goals_.get device_id,
+    }
 
   update_goal data/Map:
     device_id := data["device_id"]
@@ -128,11 +131,11 @@ class HttpBroker extends HttpServer:
   get_event data/Map:
     device_id := data["device_id"]
     known_revision := data["state_revision"]
-    current_revision := state_revision_.get device_id --init=:0
+    current_revision := state_revision_.get device_id --init=: 0
 
     if current_revision != known_revision:
-      // The client and the server are out of sync. Inform the client that it needs
-      // to reconcile.
+      // The client and the server are out of sync. Inform the client
+      // that it needs to reconcile.
       return {
         "event_type": "out_of_sync",
         "state_revision": current_revision,
@@ -151,7 +154,7 @@ class HttpBroker extends HttpServer:
     return {
       "event_type": event_type,
       "state_revision": state_revision_[device_id],
-      "goal": device_goals_[device_id],
+      "goal": device_goals_.get device_id,
     }
 
   notify_device device_id/string event_type/string:

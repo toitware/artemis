@@ -56,26 +56,28 @@ class BrokerServiceHttp implements BrokerService:
       if response["event_type"] == "goal_updated":
         state_revision_ = response["state_revision"]
         return response["goal"]
-      else if response["event_type"] == "out_of_sync":
-        if response["state_revision"] != state_revision_:
-          // We need to reconcile.
-          // At the moment the only thing that we need to synchronize is the
-          // goal state.
-          // TODO(florian): centralize the things that need to be synchronized.
-          goal_response := connection_.send_request "get_goal" {
-            "device_id": device_.id,
-          }
-          // TODO(kasper): It feels pretty weird to pull the revision from
-          // the out-of-sync response and not from the goal response.
-          state_revision_ = response["state_revision"]
-          // Even if the goal-response is empty we return it, since an empty
-          // goal means that the device should revert to the firmware state.
-          return goal_response
-        else if not wait:
-          // TODO(kasper): This is a bit weird.
+
+      if response["event_type"] == "out_of_sync":
+        if response["state_revision"] == state_revision_:
+          // We don't have a new goal state, so we're technically
+          // not out-of-sync. This only happens when we're not
+          // waiting for a response.
+          assert: not wait
           throw DEADLINE_EXCEEDED_ERROR
-      else if response["event_type"] == "timed_out":
+
+        // We need to reconcile, so we ask for a new goal.
+        goal_response := connection_.send_request "get_goal" {
+          "device_id": device_.id,
+        }
+        // Even if the goal in the goal-response is null we return it,
+        // since a null goal means that the device should revert to
+        // the firmware state.
+        state_revision_ = goal_response["state_revision"]
+        return goal_response["goal"]
+
+      if response["event_type"] == "timed_out":
         // For timeouts, we just take another iteration in the loop and
         // issue a new request.
-      else:
-        logger_.warn "unknown event received" --tags={"response": response}
+        continue
+
+      logger_.warn "unknown event received" --tags={"response": response}
