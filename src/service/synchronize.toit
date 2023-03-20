@@ -265,6 +265,12 @@ class SynchronizeJob extends TaskJob:
     return:: device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
 
   action_firmware_update_ resources/ResourceManager new/string -> Lambda:
+    // TODO(kasper): If we end up getting a new goal state before
+    // validating the previous firmware update, we will be doing
+    // this with update from an unvalidated firmware. We need to
+    // make sure that writing a new firmware auto-validates or
+    // move the validation check a bit earlier, so we do it before
+    // starting to update.
     return::
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
