@@ -19,7 +19,7 @@ main:
 
 // The SDK version that is used for this test.
 // It's safe to update the version to a newer version.
-SDK_VERSION ::= "v2.0.0-alpha.68"
+SDK_VERSION ::= "v2.0.0-alpha.69"
 
 // Just a commit that exists on main.
 // It's safe to update the commit to a newer version.
