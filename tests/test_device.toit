@@ -40,6 +40,7 @@ run
 
   device := service.Device
       --id=alias_id
+      --hardware_id=hardware_id
       --organization_id=organization_id
       --firmware_state={
         "firmware": encoded_firmware,
