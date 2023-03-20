@@ -4,7 +4,6 @@ import log
 import net
 import net.wifi
 import net.cellular
-import net.impl
 
 import system.services show ServiceProvider
 import system.api.network show NetworkService NetworkServiceClient
@@ -42,17 +41,15 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     connections := device_.current_state.get "connections"
     if not connections or connections.is_empty: return open_system_network_
     connections.do: | connection/Map |
-      network/net.Interface? := open_network_ connection
+      network/net.Client? := open_network_ connection
       if not network: continue.do
-      // TODO(kasper): This isn't very pretty. It feels like the net.impl
-      // code needs to be refactored to support this better.
-      proxy_mask_ = (network as impl.SystemInterface_).proxy_mask_
+      proxy_mask_ = network.proxy_mask
       logger_.info "opened"
       return network
     throw "CONNECT_FAILED: no available networks"
 
-  open_network_ connection/Map -> net.Interface?:
-    network/net.Interface? := null
+  open_network_ connection/Map -> net.Client?:
+    network/net.Client? := null
     exception := catch:
       type := connection.get "type"
       if type == "wifi":
@@ -75,9 +72,8 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     // the default network provided by the system. For now, it feels
     // like it is worth having here if we end up running on a base
     // firmware image that has some embedded network configuration.
-    connection := default_network_service_.connect
-    proxy_mask_ = connection[1]
-    network := impl.SystemInterface_ default_network_service_ connection
+    network := net.open --service=default_network_service_
+    proxy_mask_ = network.proxy_mask
     logger_.info "opened"
     return network
 
