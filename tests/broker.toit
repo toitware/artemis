@@ -37,6 +37,20 @@ class TestBroker:
 
   constructor .server_config .backdoor:
 
+  with_cli [block]:
+    with_tmp_config: | config |
+      broker_cli/BrokerCli? := null
+      try:
+        broker_cli = BrokerCli server_config config
+        block.call broker_cli
+      finally:
+        if broker_cli: broker_cli.close
+
+  with_service [block]:
+    logger := log.default.with_name "testing-service"
+    broker_service := BrokerService logger server_config
+    block.call broker_service
+
 interface BrokerBackdoor:
   /**
   Creates a new device with the given $device_id and initial $state.
@@ -53,7 +67,7 @@ interface BrokerBackdoor:
   */
   get_state device_id/string -> Map?
 
-with_broker --type/string --logger/Logger [block]:
+with_broker --type/string --logger/Logger=(log.default.with_name "testing-$type") [block]:
   if type == "supabase-local" or type == "supabase-local-artemis":
     sub_dir := type == "supabase-local" ? SUPABASE_BROKER : SUPABASE_ARTEMIS
     server_config := get_supabase_config --sub_directory=sub_dir
@@ -77,24 +91,6 @@ with_broker --type/string --logger/Logger [block]:
       block.call test_server
   else:
     throw "Unknown broker type: $type"
-
-/**
-Starts the broker of the given type and calls the given [block] with
-  the $type, the broker-cli, and broker-service.
-*/
-with_brokers --type/string [block]:
-  logger := log.default.with_name "testing-$type"
-  with_broker --type=type --logger=logger: | broker/TestBroker |
-    with_tmp_config: | config |
-      broker_cli/BrokerCli? := null
-      broker_service/BrokerService? := null
-      try:
-        broker_cli = BrokerCli broker.server_config config
-        broker_service = BrokerService logger broker.server_config
-        block.call logger type broker_cli broker_service
-      finally:
-        if broker_cli: broker_cli.close
-
 
 class ToitHttpBackdoor implements BrokerBackdoor:
   server/HttpBroker
