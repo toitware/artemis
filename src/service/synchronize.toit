@@ -1,7 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
-import monitor
 import reader show Reader
 import system.containers
 import system.firmware
@@ -18,17 +17,14 @@ import ..shared.json_diff show Modification json_equals
 
 validate_firmware / bool := firmware.is_validation_pending
 
-class SynchronizeJob extends TaskJob implements EventHandler:
-  static ACTION_NOP_/Lambda ::= :: null
-
+class SynchronizeJob extends TaskJob:
   logger_/log.Logger
   device_/Device
   containers_/ContainerManager
   broker_/BrokerService
 
-  // We limit the capacity of the actions channel to avoid letting
-  // the connect task build up too much work.
-  actions_ ::= monitor.Channel 1
+  // TODO(kasper): Get rid of this.
+  actions_ ::= Deque
 
   constructor logger/log.Logger .device_ .containers_ .broker_:
     logger_ = logger.with_name "synchronize"
@@ -51,79 +47,73 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
   run -> none:
     logger_.info "connecting" --tags={"device": device_.id}
-    broker_.connect --device=device_ --callback=this: | resources/ResourceManager |
+    broker_.connect --device=device_: | resources/ResourceManager |
       logger_.info "connected" --tags={"device": device_.id}
-
-      // TODO(florian): We don't need to report the state every time we
-      // connect. We only need to do this the first time we connect or
-      // if we know that the broker isn't up to date.
-      report_state resources
-      broker_.on_idle
-
-      // The 'handle_goal' only pushes actions into the
-      // 'actions_' channel.
-      // This loop is responsible for actually executing the actions.
-      // Note that some actions might create more actions. Specifically,
-      // we expect a single 'commit' action for a configuration update.
-      while true:
-        lambda/Lambda? := null
-        // The timeout is only relevant for the first iteration of the
-        // loop, or when max-offline is not set. In all other cases
-        // a 'break' will get us out of the loop.
-        catch: with_timeout check_in_timeout: lambda = actions_.receive
-        if not lambda:
-          // No action (by 'handle_goal') was pushed into the channel.
-          break
-        lambda.call
-        if actions_.size > 0: continue
-
-        // We only handle incomplete containers when we're done processing
-        // the other actions. This means that we prioritize firmware updates
-        // and configuration changes over fetching containers.
-        if containers_.any_incomplete:
-          assert: actions_.size == 0  // No issues with getting blocked on send.
-          actions_.send (action_container_image_fetch_ resources)
-          continue
-
-        // We've successfully connected to the network, so we consider
-        // the current firmware functional. Go ahead and validate the
-        // firmware if requested to do so.
-        if validate_firmware:
-          if firmware.validate:
-            logger_.info "firmware update validated after connecting to network"
-            validate_firmware = false
-            device_.firmware_validated
-          else:
-            logger_.error "firmware update failed to validate"
-
-        // We have successfully finished processing all actions.
-        // Inform the broker.
+      try:
+        // TODO(florian): We don't need to report the state every time we
+        // connect. We only need to do this the first time we connect or
+        // if we know that the broker isn't up to date.
         report_state resources
+        while true:
+          new_goal/Map? := null
+          got_goal/bool := false
+          wait := not containers_.any_incomplete
+          // TODO(kasper): We should probably only filter out some stack
+          // traces here and not everything.
+          catch:
+            with_timeout check_in_timeout:
+              new_goal = broker_.fetch_goal --wait=wait
+              got_goal = true
 
-        if device_.max_offline:
-          logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
-          break
-        logger_.info "synchronized"
-        broker_.on_idle
+          if got_goal:
+            handle_goal_ new_goal resources
+            while actions_.size > 0:
+              lambda/Lambda := actions_.remove_first
+              lambda.call
+          else if wait:
+            // Timed out waiting or got an error communicating
+            // with the cloud. Get out and retry later.
+            break
 
-      logger_.info "disconnecting" --tags={"device": device_.id}
+          // We only handle incomplete containers when we're done processing
+          // the other actions. This means that we prioritize firmware updates
+          // and configuration changes over fetching container images.
+          assert: actions_.size == 0  // We should be done.
+          if containers_.any_incomplete:
+            fetch_container_image_ resources
+            continue
 
-  handle_nop -> none:
-    actions_.send ACTION_NOP_
+          // We've successfully connected to the network, so we consider
+          // the current firmware functional. Go ahead and validate the
+          // firmware if requested to do so.
+          if validate_firmware:
+            if firmware.validate:
+              logger_.info "firmware update validated after connecting to network"
+              validate_firmware = false
+              device_.firmware_validated
+            else:
+              logger_.error "firmware update failed to validate"
+
+          // We have successfully finished processing all actions.
+          // Inform the broker.
+          report_state resources
+
+          if device_.max_offline:
+            logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
+            break
+          logger_.info "synchronized"
+      finally:
+        logger_.info "disconnected" --tags={"device": device_.id}
 
   /**
   Handles new configurations.
-
-  This function is part of the $EventHandler interface and is called by the
-    broker.
   */
-  handle_goal new_goal/Map? resources/ResourceManager -> none:
+  handle_goal_ new_goal/Map? resources/ResourceManager -> none:
     if not (new_goal or device_.is_current_state_modified):
       // The new goal indicates that we should use the firmware state.
       // Since there is no current state, we are currently cleanly
       // running the firmware state.
       device_.goal_state = null
-      handle_nop
       return
 
     current_state := device_.current_state
@@ -131,8 +121,6 @@ class SynchronizeJob extends TaskJob implements EventHandler:
 
     if not new_goal.contains "firmware":
       logger_.error "missing firmware information"
-      // TODO(kasper): Is there a missing action here? That
-      // might lead to us not going idle, which is an issue.
       return
 
     if current_state["firmware"] != new_goal["firmware"]:
@@ -146,7 +134,7 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       // We don't want to update the firmware while we're still
       // processing other actions. So we push the firmware update
       // action into the channel and return.
-      actions_.send (action_firmware_update_ resources new_goal["firmware"])
+      actions_.add (action_firmware_update_ resources new_goal["firmware"])
       // If the firmware changed, we don't look at the rest of the
       // goal state. The only thing we care about is the firmware.
       return
@@ -157,13 +145,11 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       // rebooted yet.
       // We ignore all other entries in the goal state.
       device_.goal_state = new_goal
-      handle_nop
       return
 
     modification/Modification? := Modification.compute --from=current_state --to=new_goal
     if not modification:
       device_.goal_state = null
-      handle_nop
       return
 
     device_.goal_state = new_goal
@@ -198,10 +184,10 @@ class SynchronizeJob extends TaskJob implements EventHandler:
         --removed =: bundle.add (action_set_max_offline_ null)
         --updated =: | _ to | bundle.add (action_set_max_offline_ to)
 
-    actions_.send (commit new_goal bundle)
+    actions_.add (commit new_goal bundle)
 
   handle_firmware_update_ resources/ResourceManager new/string -> none:
-    actions_.send (action_firmware_update_ resources new)
+    actions_.add (action_firmware_update_ resources new)
 
   handle_container_update_ -> none
       bundle/List
@@ -264,23 +250,27 @@ class SynchronizeJob extends TaskJob implements EventHandler:
       else:
         logger_.error "container $name not found"
 
-  action_container_image_fetch_ resources/ResourceManager -> Lambda:
-    return::
-      incomplete/ContainerJob? ::= containers_.first_incomplete
-      if incomplete:
-        resources.fetch_image incomplete.id:
-          | reader/Reader |
-            containers_.complete incomplete reader
-            // The container image was successfully installed, so the job is
-            // now complete. Go ahead and update the current state!
-            device_.state_container_install_or_update
-                incomplete.name
-                incomplete.description
+  fetch_container_image_ resources/ResourceManager -> none:
+    incomplete/ContainerJob? ::= containers_.first_incomplete
+    if not incomplete: return
+    resources.fetch_image incomplete.id: | reader/Reader |
+      containers_.complete incomplete reader
+      // The container image was successfully installed, so the job is
+      // now complete. Go ahead and update the current state!
+      device_.state_container_install_or_update
+          incomplete.name
+          incomplete.description
 
   action_set_max_offline_ value/any -> Lambda:
     return:: device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
 
   action_firmware_update_ resources/ResourceManager new/string -> Lambda:
+    // TODO(kasper): If we end up getting a new goal state before
+    // validating the previous firmware update, we will be doing
+    // this with update from an unvalidated firmware. We need to
+    // make sure that writing a new firmware auto-validates or
+    // move the validation check a bit earlier, so we do it before
+    // starting to update.
     return::
       // TODO(kasper): Introduce run-levels for jobs and make sure we're
       // not running a lot of other stuff while we update the firmware.
