@@ -24,10 +24,10 @@ class Device:
   flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
 
   // We store the information that contains timestamps in RAM,
-  // so it clears when the timestamps are invalidates due to
-  // loss of power. If we want to store these in flash instead,
-  // we need to manually invalidate them when a new monotonic
-  // clock phase starts.
+  // so it clears when the timestamps are invalidated due to
+  // loss of power. If we ever want to store these in flash
+  // instead, we need to manually invalidate them when a new
+  // monotonic clock phase starts.
   static RAM_CHECK_IN_LAST_ ::= "check-in-last"
   static RAM_JOBS_RAN_LAST_END_ ::= "jobs-ran-last-end"
   ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
