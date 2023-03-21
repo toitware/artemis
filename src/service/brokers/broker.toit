@@ -2,6 +2,7 @@
 
 import encoding.tison
 import log
+import net
 import reader show Reader  // For toitdoc.
 import uuid
 
@@ -42,7 +43,6 @@ interface ResourceManager:
   */
   report_state state/Map -> none
 
-
   /**
   Reports an event to the broker.
 
@@ -77,7 +77,7 @@ interface BrokerService:
     inform the service (for example, through MQTT subscriptions). For others,
     the service may need to poll the broker for changes.
   */
-  connect --device/Device [block]
+  connect --network/net.Client --device/Device [block]
 
   /**
   Fetches the goal from the broker.
