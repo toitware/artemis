@@ -44,48 +44,47 @@ DEVICE2 ::= Device
 main args:
   broker_type := broker_type_from_args args
   with_broker --type=broker_type: | test_broker/TestBroker |
-    // We are going to reuse the cli for all tests.
-    // However, we will need multiple services.
-    test_broker.with_cli: | broker_cli/broker.BrokerCli |
-      run_test broker_type test_broker broker_cli
+    run_test broker_type test_broker
 
 run_test
     broker_name/string
-    test_broker/TestBroker
-    broker_cli/broker.BrokerCli:
+    test_broker/TestBroker:
 
-  if broker_cli is BrokerCliSupabase:
-    // Make sure we are authenticated.
-    broker_cli.ensure_authenticated: | auth/supabase.Auth |
-      auth.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
+  // We are going to reuse the cli for all tests (and only authenticate once).
+  // However, we will need multiple services.
+  test_broker.with_cli: | broker_cli/broker.BrokerCli |
+    if broker_cli is BrokerCliSupabase:
+      // Make sure we are authenticated.
+      broker_cli.ensure_authenticated: | auth/supabase.Auth |
+        auth.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
 
-  if broker_name == "supabase-local-artemis":
-    // Make sure the device is in the database.
-    with_artemis_server --type="supabase": | server/TestArtemisServer |
-      backdoor := server.backdoor as SupabaseBackdoor
-      backdoor.with_backdoor_client_: | client/supabase.Client |
-        [DEVICE1, DEVICE2].do: | device/Device |
-          client.rest.insert "devices" {
-            "alias": device.id,
-            "organization_id": device.organization_id,
-          }
+    if broker_name == "supabase-local-artemis":
+      // Make sure the device is in the database.
+      with_artemis_server --type="supabase": | server/TestArtemisServer |
+        backdoor := server.backdoor as SupabaseBackdoor
+        backdoor.with_backdoor_client_: | client/supabase.Client |
+          [DEVICE1, DEVICE2].do: | device/Device |
+            client.rest.insert "devices" {
+              "alias": device.id,
+              "organization_id": device.organization_id,
+            }
 
-  [DEVICE1, DEVICE2].do: | device/Device |
-    identity := {
-      "device_id": device.id,
-      "organization_id": device.organization_id,
-      "hardware_id": device.hardware_id,
-    }
-    state := {
-      "identity": identity,
-    }
-    broker_cli.notify_created --device_id=device.id --state=state
+    [DEVICE1, DEVICE2].do: | device/Device |
+      identity := {
+        "device_id": device.id,
+        "organization_id": device.organization_id,
+        "hardware_id": device.hardware_id,
+      }
+      state := {
+        "identity": identity,
+      }
+      broker_cli.notify_created --device_id=device.id --state=state
 
 
-  test_image --test_broker=test_broker broker_cli
-  test_firmware --test_broker=test_broker broker_cli
-  test_goal --test_broker=test_broker broker_cli
-  test_events --test_broker=test_broker broker_cli
+    test_image --test_broker=test_broker broker_cli
+    test_firmware --test_broker=test_broker broker_cli
+    test_goal --test_broker=test_broker broker_cli
+    test_events --test_broker=test_broker broker_cli
 
 test_goal --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service/broker.BrokerService |
