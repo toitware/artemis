@@ -20,11 +20,17 @@ import ..shared.json_diff show Modification json_equals
 firmware_is_validation_pending/bool := firmware.is_validation_pending
 
 class SynchronizeJob extends TaskJob:
+  // Not connected to the network yet.
   static STATE_DISCONNECTED         ::= 0
+  // Connecting to the network.
   static STATE_CONNECTING           ::= 1
+  // Connected to network, but haven't spoken to broker yet.
   static STATE_CONNECTED_TO_NETWORK ::= 2
+  // Connected, waiting for any goal state updates from broker.
   static STATE_CONNECTED_TO_BROKER  ::= 3
+  // Processing a received goal state update.
   static STATE_PROCESSING           ::= 4
+  // Current state is updated to goal state.
   static STATE_SYNCHRONIZED         ::= 5
 
   static STATE_SUCCESS ::= [
@@ -124,6 +130,12 @@ class SynchronizeJob extends TaskJob:
   transition_to_ state/int -> none:
     previous := state_
     state_ = state
+
+    // We prefer to avoid polluting the logs when we're just
+    // going back to a previous state. This way, we will show
+    // how far we got in the synchronization process without
+    // flipping too often between the synchronized and
+    // connected to broker state.
     if state > previous:
       tags/Map? := null
       if state == STATE_SYNCHRONIZED:
