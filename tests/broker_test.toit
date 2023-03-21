@@ -86,6 +86,8 @@ run_test
       test_image --test_broker=test_broker broker_cli
       test_firmware --test_broker=test_broker broker_cli
       test_goal --test_broker=test_broker broker_cli
+      // Test the events last, as it depends on test_goal to have run
+      // It also does state updates which could interfere with the other tests.
       test_events --test_broker=test_broker broker_cli
 
     finally:
@@ -268,14 +270,36 @@ test_events --test_broker/TestBroker broker_cli/broker.BrokerCli:
                 --network=network
                 --device=DEVICE2
                 : | resources2/broker.ResourceManager |
-                  test_events broker_cli resources1 resources2
+                  test_events
+                      test_broker
+                      broker_cli
+                      broker_service1
+                      broker_service2
+                      resources1
+                      resources2
 
 test_events
+    test_broker/TestBroker
     broker_cli/broker.BrokerCli
+    broker_service1/broker.BrokerService
+    broker_service2/broker.BrokerService
     resources1/broker.ResourceManager
     resources2/broker.ResourceManager:
+
+  // Relies on the fact that the goal-test was run earlier.
+  // It's not super easy to generate 'get-goal' events, so we rely
+  // on the previous tests to do that for us.
+
+  events := broker_cli.get_events
+      --device_ids=[DEVICE1.id]
+      --limit=1000
+  expect (events.contains DEVICE1.id)
+  expect_not events[DEVICE1.id].is_empty
+
+  test_broker.backdoor.clear_events
+
   start := Time.now
-  events := broker_cli.get_events --device_ids=[DEVICE1.id] --types=["test-event"]
+  events = broker_cli.get_events --device_ids=[DEVICE1.id] --types=["test-event"]
   expect_not (events.contains DEVICE1.id)
 
   events = broker_cli.get_events --device_ids=[DEVICE1.id, DEVICE2.id] --types=["test-event"]
@@ -515,3 +539,15 @@ test_events
   expect (events.contains DEVICE1.id)
   expect_equals 1 events[DEVICE1.id].size
   expect_equals "test-data-44" events[DEVICE1.id][0].data
+
+  // Updating the state of a device automatically inserts an event.
+  resources1.report_state { "entry": "test-state-1" }
+  total_events1++
+
+  // Get all events for device 1 again.
+  events = broker_cli.get_events
+      --device_ids=[DEVICE1.id]
+      --limit=1000
+  expect (events.contains DEVICE1.id)
+  expect_equals total_events1 events[DEVICE1.id].size
+  expect_equals "update-state" events[DEVICE1.id][0].type

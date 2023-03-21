@@ -74,6 +74,8 @@ class HttpBroker extends HttpServer:
   get_goal data/Map -> Map?:
     device_id := data["device_id"]
     current_revision := state_revision_.get device_id --init=: 0
+    // Automatically adds an event.
+    report_event device_id "goal_updated" null
     return {
       "state_revision": current_revision,
       "goal": device_goals_.get device_id,
@@ -120,6 +122,8 @@ class HttpBroker extends HttpServer:
   report_state data/Map:
     device_id := data["device_id"]
     device_states_[device_id] = data["state"]
+    // Automatically adds an event.
+    report_event device_id "update-state" data["state"]
 
   get_state data/Map:
     device_id := data["device_id"]
@@ -174,6 +178,9 @@ class HttpBroker extends HttpServer:
     device_id := data["device_id"]
     event_type := data["type"]
     payload := data["data"]
+    report_event device_id event_type payload
+
+  report_event device_id/string event_type/string payload/any:
     event_list := events_.get device_id --init=:[]
     event_list.add {
       "event_type": event_type,
@@ -212,3 +219,6 @@ class HttpBroker extends HttpServer:
         if limit and count >= limit: break
       if not device_result.is_empty: result[device_id] = device_result
     return result
+
+  clear_events:
+    events_.clear

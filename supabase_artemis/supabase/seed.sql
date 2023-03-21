@@ -40,3 +40,13 @@ UPDATE public.profiles
   WHERE id = '6ac69de5-7b56-4153-a31c-7b4e29bbcbcf';
 
 INSERT INTO public.admins (id) VALUES ('6ac69de5-7b56-4153-a31c-7b4e29bbcbcf');
+
+-- Used in testing.
+CREATE OR REPLACE FUNCTION public."toit_artemis.clear_events"()
+  RETURNS void
+  LANGUAGE plpgsql
+AS $$
+BEGIN
+  DELETE FROM toit_artemis.events WHERE true;
+END;
+$$;
