@@ -138,8 +138,13 @@ copy_file --source/string --target/string:
     in_stream.close
     out_stream.close
 
+random_uuid --namespace/string -> uuid.Uuid:
+  return uuid.uuid5 namespace "$Time.now $Time.monotonic_us $random"
+
 random_uuid_string -> string:
-  return (uuid.uuid5 "Device ID" "$Time.now $Time.monotonic_us $random").stringify
+  // TODO(kasper): This is used for many things that are
+  // not device ids. Clean that up.
+  return (random_uuid --namespace="Device ID").stringify
 
 // TODO(florian): move this into Duration?
 /**
