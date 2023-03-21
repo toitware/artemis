@@ -176,3 +176,17 @@ parse_duration str/string [--on_error] -> Duration:
       --h=values.get 'h' --if_absent=: 0
       --m=values.get 'm' --if_absent=: 0
       --s=values.get 's' --if_absent=: 0
+
+/**
+Converts a time object to a string.
+
+Contrary to the built-in $TimeInfo.to_iso8601_string this
+  function includes nano-seconds.
+*/
+timestamp_to_string timestamp/Time -> string:
+  utc := timestamp.utc
+  return """
+    $(utc.year)-$(%02d utc.month)-$(%02d utc.day)-T\
+    $(%02d utc.h):$(%02d utc.m):$(%02d utc.s).\
+    $(%09d timestamp.ns_part)Z"""
+
