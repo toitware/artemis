@@ -60,7 +60,10 @@ class BrokerCliMqtt implements BrokerCli:
     if not client_: return
     remove_finalizer this
     client_.close
-    transport_.close
+    // TODO(florian): we should also close the transport, but we should give the
+    // client_ time to do a soft close. Currently there is no way to know when
+    // that is finished. As such just keep the transport open.
+    // If the soft close failed, we might keep the transport open.
     client_ = null
 
   ensure_authenticated [block]:
