@@ -5,6 +5,7 @@
 import expect show *
 import log
 import monitor
+import net
 import reader show Reader
 import artemis.cli.brokers.broker
 import artemis.cli.device show DeviceDetailed
@@ -80,15 +81,26 @@ run_test
       }
       broker_cli.notify_created --device_id=device.id --state=state
 
+    network = net.open
+    try:
+      test_image --test_broker=test_broker broker_cli
+      test_firmware --test_broker=test_broker broker_cli
+      test_goal --test_broker=test_broker broker_cli
+      test_events --test_broker=test_broker broker_cli
 
-    test_image --test_broker=test_broker broker_cli
-    test_firmware --test_broker=test_broker broker_cli
-    test_goal --test_broker=test_broker broker_cli
-    test_events --test_broker=test_broker broker_cli
+    finally:
+      network.close
+      network = null
+
+// TODO(kasper): We should probably pipe this through to the
+// individual tests, but to avoid too many conflicts, I'm
+// hacking this through for now.
+network/net.Client? := null
 
 test_goal --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service/broker.BrokerService |
     test_goal broker_cli broker_service
+
 
 test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   3.repeat: | test_iteration |
@@ -100,7 +112,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         device.goal["test-entry"] = "succeeded while offline"
         device.goal
 
-    broker_service.connect --device=DEVICE1:
+    broker_service.connect --network=network --device=DEVICE1:
       if broker_cli is mqtt_broker.BrokerCliMqtt:
         (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
 
@@ -166,7 +178,7 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --app_id=APP_ID
         --word_size=64
 
-    broker_service.connect --device=DEVICE1: | resources/broker.ResourceManager |
+    broker_service.connect --network=network --device=DEVICE1: | resources/broker.ResourceManager |
       resources.fetch_image APP_ID:
         | reader/Reader |
           // TODO(florian): this only tests the download of the current platform. That is, on
@@ -207,7 +219,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           --organization_id=TEST_ORGANIZATION_UUID
       expect_bytes_equal content downloaded_bytes
 
-    broker_service.connect --device=DEVICE1: | resources/broker.ResourceManager |
+    broker_service.connect --network=network --device=DEVICE1: | resources/broker.ResourceManager |
       data := #[]
       offsets := []
       resources.fetch_firmware FIRMWARE_ID:
@@ -249,10 +261,14 @@ test_events --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service1/broker.BrokerService |
     test_broker.with_service: | broker_service2/broker.BrokerService |
       broker_service1.connect
-          --device=DEVICE1: | resources1/broker.ResourceManager |
-        broker_service2.connect
-            --device=DEVICE2: | resources2/broker.ResourceManager |
-          test_events broker_cli resources1 resources2
+          --network=network
+          --device=DEVICE1
+          : | resources1/broker.ResourceManager |
+            broker_service2.connect
+                --network=network
+                --device=DEVICE2
+                : | resources2/broker.ResourceManager |
+                  test_events broker_cli resources1 resources2
 
 test_events
     broker_cli/broker.BrokerCli
