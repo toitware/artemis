@@ -10,12 +10,9 @@ import ..tools.service_image_uploader.downloader as downloader
 import artemis.shared.version show ARTEMIS_VERSION
 import artemis.cli.git show Git
 
-main:
+main args:
   // Start a TestCli, since that will set up everything the way we want.
-  with_test_cli
-      --artemis_type="supabase"
-      --no-start_device_artemis
-      : run_test it
+  with_test_cli --args=args --artemis_type="supabase": run_test it
 
 // The SDK version that is used for this test.
 // It's safe to update the version to a newer version.

@@ -14,12 +14,8 @@ import expect show *
 import .utils
 
 main args:
-  with_test_cli
-      --artemis_type=server_type_from_args args
-      --broker_type=broker_type_from_args args
-      --no-start_device_artemis
-      : | test_cli/TestCli _ |
-        run_test test_cli
+  with_test_cli --args=args: | test_cli/TestCli _ |
+    run_test test_cli
 
 run_test test_cli/TestCli:
   with_tmp_directory: | tmp_dir |

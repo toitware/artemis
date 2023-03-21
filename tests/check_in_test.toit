@@ -29,7 +29,7 @@ run_test --insert_device/bool:
       --hardware_id=device_id
       --organization_id=TEST_ORGANIZATION_UUID
       --firmware_state={
-        "firmware": encoded_firmware --device_id=device_id,
+        "firmware": build_encoded_firmware --device_id=device_id,
       }
   with_http_broker: | broker_config/ServerConfig |
     with_http_artemis_server: | artemis_server/TestArtemisServer |

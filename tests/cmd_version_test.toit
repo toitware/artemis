@@ -4,10 +4,8 @@ import expect show *
 import .utils
 
 main args:
-  with_test_cli
-      --no-start_device_artemis
-      : | test_cli/TestCli _ |
-        run_test test_cli
+  with_test_cli --args=args: | test_cli/TestCli _ |
+    run_test test_cli
 
 run_test test_cli/TestCli:
   output := test_cli.run [ "version" ]

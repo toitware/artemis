@@ -5,41 +5,33 @@
 import .utils
 
 main args:
-  server_type := server_type_from_args args
-  broker_type := broker_type_from_args args
-  with_test_cli
-      --artemis_type=server_type
-      --broker_type=broker_type: | test_cli/TestCli device/Device |
+  with_test_cli --args=args --start_device: | test_cli/TestCli device/TestDevice |
     test_cli.run [
       "auth", "broker", "login",
       "--email", TEST_EXAMPLE_COM_EMAIL,
       "--password", TEST_EXAMPLE_COM_PASSWORD,
     ]
 
+    // Transient commands only work if we know the firmware the device
+    // is actually running.
+    device.wait_until_connected
+
     test_cli.run [
       "device",
       "set-max-offline",
-      "--device-id", device.id,
-       "3",
+      "--device-id", device.alias_id,
+       "1",
     ]
 
     with_timeout (Duration --s=10):
-      counter := 0
-      while true:
-        if device.max_offline == (Duration --s=3): break
-        sleep --ms=counter
-        counter++
+      device.wait_for "synchronized {max-offline: 1s}"
 
     test_cli.run [
       "device",
       "set-max-offline",
-      "--device-id", device.id,
+      "--device-id", device.alias_id,
        "3m",
     ]
 
     with_timeout (Duration --s=10):
-      counter := 0
-      while true:
-        if device.max_offline == (Duration --m=3): break
-        sleep --ms=counter
-        counter++
+      device.wait_for "synchronized {max-offline: 3m0s}"
