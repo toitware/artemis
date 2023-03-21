@@ -173,19 +173,18 @@ class BrokerCliMqtt implements BrokerCli:
           --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
         with_timeout --ms=retain_timeout_ms:
           goal_packet = goal_channel.receive
+
+      old_revision/int := ?
       if exception == DEADLINE_EXCEEDED_ERROR:
-        log.info "$(%08d Time.monotonic_us): Trying to initialize goal"
-        client.publish topic_goal (ubjson.encode {"revision": 0}) --qos=1 --retain
-        client.publish topic_revision (ubjson.encode 0) --qos=1 --retain
+        // We assume that the goal wasn't set yet.
+        log.info "$(%08d Time.monotonic_us): No goal received. Setting a fresh goal"
+        goal_packet = {"revision": 0}
+        old_revision = 0
+      else:
+        old_revision = -1  // Set to some dummy value to avoid a warning.
+        with_timeout --ms=retain_timeout_ms:
+          old_revision = revision_channel.receive
 
-        exception = catch --trace --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-          with_timeout --ms=retain_timeout_ms:
-            goal_packet = goal_channel.receive
-        if exception == DEADLINE_EXCEEDED_ERROR:
-          log.info "$(%08d Time.monotonic_us): Timed out waiting for goal"
-          return
-
-      old_revision := revision_channel.receive
       if old_revision != goal_packet["revision"]:
         throw "FATAL: Revision mismatch"
 
