@@ -26,8 +26,7 @@ class BrokerServiceHttp implements BrokerService:
     host_ = host
     port_ = port
 
-  connect --device/Device [block]:
-    network := net.open
+  connect --network/net.Client --device/Device [block]:
     check_in network logger_ --device=device
 
     connection := HttpConnection_ network host_ port_
@@ -41,7 +40,6 @@ class BrokerServiceHttp implements BrokerService:
       device_ = connection_ = null
       state_revision_ = STATE_REVISION_UNKNOWN_
       connection.close
-      network.close
 
   fetch_goal --wait/bool -> Map?:
     while true:

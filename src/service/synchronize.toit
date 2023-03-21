@@ -1,30 +1,57 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
+import net
 import reader show Reader
-import system.containers
-import system.firmware
 import uuid
 
+import system.containers
+import system.firmware
+
+import .brokers.broker
 import .containers
+import .device
 import .firmware_update
 import .jobs
-import .brokers.broker
 import .check_in
 
-import .device
 import ..shared.json_diff show Modification json_equals
 
 validate_firmware / bool := firmware.is_validation_pending
 
 class SynchronizeJob extends TaskJob:
+  static STATE_DISCONNECTED         ::= 0
+  static STATE_CONNECTING           ::= 1
+  static STATE_CONNECTED_TO_NETWORK ::= 2
+  static STATE_CONNECTED_TO_BROKER  ::= 3
+  static STATE_PROCESSING           ::= 4
+  static STATE_SYNCHRONIZED         ::= 5
+
+  static STATE_SUCCESS ::= [
+    "disconnected",
+    "connecting",
+    "connected to network",
+    "connected to broker",
+    "processing update",
+    "synchronized",
+  ]
+  static STATE_FAILURE ::= [
+    null,
+    "connecting failed",
+    "connection to network lost",
+    "connection to broker lost",
+    "processing update failed",
+    null,
+  ]
+
   logger_/log.Logger
   device_/Device
   containers_/ContainerManager
   broker_/BrokerService
+  state_/int := STATE_DISCONNECTED
 
   constructor logger/log.Logger .device_ .containers_ .broker_:
-    logger_ = logger.with_name "synchronize"
+    logger_ = (logger.with_name "synchronize").with_tag "device" device_.id
     super "synchronize"
 
   schedule now/JobTime last/JobTime? -> JobTime?:
@@ -38,69 +65,89 @@ class SynchronizeJob extends TaskJob:
     return null
 
   run -> none:
-    logger_.info "connecting" --tags={"device": device_.id}
-    broker_.connect --device=device_: | resources/ResourceManager |
-      logger_.info "connected" --tags={"device": device_.id}
-      exception := null
-      try:
-        // TODO(florian): We don't need to report the state every time we
-        // connect. We only need to do this the first time we connect or
-        // if we know that the broker isn't up to date.
-        report_state resources
-        while true:
-          new_goal/Map? := null
-          got_goal/bool := false
-          wait := not containers_.any_incomplete
-          // TODO(kasper): We should probably only filter out some stack
-          // traces here and not everything.
-          exception = catch:
-            with_timeout check_in_timeout:
-              new_goal = broker_.fetch_goal --wait=wait
-              got_goal = true
+    network/net.Client? := null
+    try:
+      state_ = STATE_DISCONNECTED
+      transition_to_ STATE_CONNECTING
+      network = net.open
+      transition_to_ STATE_CONNECTED_TO_NETWORK
+      run_ network
+    finally: | is_exception exception |
+      if network: network.close
+      transition_to_disconnected_ --error=(is_exception ? exception.value : null)
+      // TODO(kasper): Only swallow certain exceptions, so we get a
+      // proper stack trace for the others.
+      return
 
-          if got_goal:
-            handle_goal_ new_goal resources
-          else if wait:
-            // Timed out waiting or got an error communicating
-            // with the cloud. Get out and retry later.
-            break
+  run_ network/net.Client -> none:
+    broker_.connect --network=network --device=device_: | resources/ResourceManager |
+      // TODO(florian): We don't need to report the state every time we
+      // connect. We only need to do this the first time we connect or
+      // if we know that the broker isn't up to date.
+      report_state resources
 
-          // We only handle incomplete containers when we're done handling
-          // the other updates. This means that we prioritize firmware updates
-          // and configuration changes over fetching container images.
-          if containers_.any_incomplete:
-            handle_fetch_container_image_ resources
-            continue
+      // We're connected if we managed to report our state. If we stop
+      // reporting the state right after connecting, we may not actually
+      // be connected yet, so we have to avoid transitioning prematurely.
+      transition_to_ STATE_CONNECTED_TO_BROKER
 
-          // We've successfully connected to the network, so we consider
-          // the current firmware functional. Go ahead and validate the
-          // firmware if requested to do so.
-          if validate_firmware:
-            if firmware.validate:
-              logger_.info "firmware update validated after connecting to network"
-              validate_firmware = false
-              device_.firmware_validated
-            else:
-              logger_.error "firmware update failed to validate"
-
-          // We have successfully finished processing all actions.
-          // Inform the broker.
-          report_state resources
-
-          if device_.max_offline:
-            logger_.info "synchronized" --tags={"max-offline": device_.max_offline}
-            break
-          logger_.info "synchronized"
-      finally:
-        if exception:
-          logger_.warn "disconnected" --tags={"device": device_.id, "error": exception}
+      while true:
+        if containers_.any_incomplete:
+          catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
+            goal := broker_.fetch_goal --no-wait
+            process_goal_ goal resources
         else:
-          logger_.info "disconnected" --tags={"device": device_.id}
+          with_timeout check_in_timeout:
+            goal := broker_.fetch_goal --wait
+            process_goal_ goal resources
+
+        // We only handle incomplete containers when we're done handling
+        // the other updates. This means that we prioritize firmware updates
+        // and configuration changes over fetching container images.
+        if containers_.any_incomplete:
+          process_incomplete_container_images_ resources
+          continue
+
+        // We've successfully connected to the network, so we consider
+        // the current firmware functional. Go ahead and validate the
+        // firmware if requested to do so.
+        if validate_firmware:
+          if firmware.validate:
+            logger_.info "firmware update validated after connecting to network"
+            validate_firmware = false
+            device_.firmware_validated
+          else:
+            logger_.error "firmware update failed to validate"
+
+        // We have successfully finished processing the new goal state.
+        // Inform the broker.
+        report_state resources
+
+        transition_to_ STATE_SYNCHRONIZED
+        if device_.max_offline: return
+        transition_to_ STATE_CONNECTED_TO_BROKER
+
+  transition_to_ state/int -> none:
+    previous := state_
+    state_ = state
+    if state <= previous: return
+    tags/Map? := null
+    if state == STATE_SYNCHRONIZED:
+      max_offline := device_.max_offline
+      if max_offline: tags = {"max-offline": max_offline}
+    logger_.info STATE_SUCCESS[state] --tags=tags
+
+  transition_to_disconnected_ --error/Object? -> none:
+    previous := state_
+    state_ = STATE_DISCONNECTED
+    if error: logger_.warn STATE_FAILURE[previous] --tags={"error": error}
+    logger_.info STATE_SUCCESS[STATE_DISCONNECTED]
 
   /**
-  Handles new configurations.
+  Process new goal.
   */
-  handle_goal_ new_goal/Map? resources/ResourceManager -> none:
+  process_goal_ new_goal/Map? resources/ResourceManager -> none:
+    transition_to_ STATE_PROCESSING
     if not (new_goal or device_.is_current_state_modified):
       // The new goal indicates that we should use the firmware state.
       // Since there is no current state, we are currently cleanly
@@ -235,7 +282,8 @@ class SynchronizeJob extends TaskJob:
     else:
       logger_.error "container $name not found"
 
-  handle_fetch_container_image_ resources/ResourceManager -> none:
+  process_incomplete_container_images_ resources/ResourceManager -> none:
+    transition_to_ STATE_PROCESSING
     incomplete/ContainerJob? ::= containers_.first_incomplete
     if not incomplete: return
     resources.fetch_image incomplete.id: | reader/Reader |

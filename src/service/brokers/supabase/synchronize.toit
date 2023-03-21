@@ -22,8 +22,7 @@ class BrokerServiceSupabase implements BrokerService:
 
   constructor .logger_ .broker_:
 
-  connect --device/Device [block]:
-    network := net.open
+  connect --network/net.Client --device/Device [block]:
     check_in network logger_ --device=device
 
     client := supabase.Client network --server_config=broker_
@@ -37,7 +36,6 @@ class BrokerServiceSupabase implements BrokerService:
     finally:
       device_ = client_ = last_poll_us_ = null
       client.close
-      network.close
 
   fetch_goal --wait/bool -> Map?:
     // We deliberately delay fetching from the cloud, so we
