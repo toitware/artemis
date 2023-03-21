@@ -34,8 +34,7 @@ class BrokerServiceMqtt implements BrokerService:
   constructor .logger_ --create_transport/Lambda:
     create_transport_ = create_transport
 
-  connect --device/Device [block]:
-    network ::= net.open
+  connect --network/net.Client --device/Device [block]:
     check_in network logger_ --device=device
     transport ::= create_transport_.call network
     client/mqtt.FullClient? := mqtt.FullClient --transport=transport
@@ -121,7 +120,6 @@ class BrokerServiceMqtt implements BrokerService:
       goal_new_ = null
       client.close --force
       transport.close
-      network.close
 
   connect_client_ --device_id/string client/mqtt.FullClient -> none:
     topic_presence := topic_presence_for device_id
