@@ -93,6 +93,8 @@ class SynchronizeJob extends TaskJob:
 
       while true:
         if containers_.any_incomplete:
+          // TODO(kasper): Change the interface so we don't have to catch
+          // exceptions here.
           catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
             goal := broker_.fetch_goal --no-wait
             process_goal_ goal resources
