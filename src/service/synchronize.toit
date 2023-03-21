@@ -182,7 +182,7 @@ class SynchronizeJob extends TaskJob:
       from := current_state["firmware"]
       to := new_goal["firmware"]
       // The firmware changed. We need to update the firmware.
-      logger_.info "update firmware from $from to $to"
+      logger_.info "firmware update from $from to $to"
 
       // We prioritize the firmware updating and deliberately
       // avoid looking at the updated goal state, because we
