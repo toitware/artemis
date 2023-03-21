@@ -1,9 +1,11 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import encoding.base64
 import encoding.json
 import encoding.url as url_encoding
 import host.file
 import fs
+
 import .cache as cli
 import .cache show GIT_APP_PATH
 import .firmware
@@ -469,8 +471,17 @@ class BootTrigger extends Trigger:
     return 1
 
 class InstallTrigger extends Trigger:
+  // We use a unique nonce for the install trigger, so
+  // we can be sure that re-installing a container
+  // causes a modification to the goal state.
+  nonce_/string
+
+  constructor:
+    id := random_uuid --namespace="install nonce"
+    nonce_ = base64.encode id.to_byte_array
+
   type -> string:
     return Trigger.INSTALL
 
-  json_value -> int:
-    return 1
+  json_value -> string:
+    return nonce_
