@@ -14,6 +14,8 @@ import ..shared.server_config
 
 run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Duration:
   logger := log.default.with_name "artemis"
+  logger.info "service starting" --tags={"device": device.id}
+
   scheduler ::= Scheduler logger device
   containers ::= ContainerManager logger scheduler
   broker := BrokerService logger server_config
@@ -31,5 +33,5 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   // the wakeup time for the next job to run.
   wakeup := scheduler.run
   duration := JobTime.now.to wakeup
-  logger.info "going offline" --tags={"duration": duration}
+  logger.info "service going offline" --tags={"duration": duration}
   return duration

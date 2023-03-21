@@ -51,7 +51,7 @@ class SynchronizeJob extends TaskJob:
   state_/int := STATE_DISCONNECTED
 
   constructor logger/log.Logger .device_ .containers_ .broker_:
-    logger_ = (logger.with_name "synchronize").with_tag "device" device_.id
+    logger_ = logger.with_name "synchronize"
     super "synchronize"
 
   schedule now/JobTime last/JobTime? -> JobTime?:
