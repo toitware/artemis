@@ -44,59 +44,63 @@ DEVICE2 ::= Device
 
 main args:
   broker_type := broker_type_from_args args
-  run_test broker_type
-
-run_test broker_type/string:
-  with_brokers --type=broker_type: | logger name broker_cli broker_service |
-    run_test logger name broker_cli broker_service
+  with_broker --type=broker_type: | test_broker/TestBroker |
+    run_test broker_type test_broker
 
 run_test
-    logger/log.Logger
     broker_name/string
-    broker_cli/broker.BrokerCli
-    broker_service/broker.BrokerService:
+    test_broker/TestBroker:
 
-  if broker_cli is BrokerCliSupabase:
-    // Make sure we are authenticated.
-    broker_cli.ensure_authenticated: | auth/supabase.Auth |
-      auth.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
+  // We are going to reuse the cli for all tests (and only authenticate once).
+  // However, we will need multiple services.
+  test_broker.with_cli: | broker_cli/broker.BrokerCli |
+    if broker_cli is BrokerCliSupabase:
+      // Make sure we are authenticated.
+      broker_cli.ensure_authenticated: | auth/supabase.Auth |
+        auth.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
 
-  if broker_name == "supabase-local-artemis":
-    // Make sure the device is in the database.
-    with_artemis_server --type="supabase": | server/TestArtemisServer |
-      backdoor := server.backdoor as SupabaseBackdoor
-      backdoor.with_backdoor_client_: | client/supabase.Client |
-        [DEVICE1, DEVICE2].do: | device/Device |
-          client.rest.insert "devices" {
-            "alias": device.id,
-            "organization_id": device.organization_id,
-          }
+    if broker_name == "supabase-local-artemis":
+      // Make sure the device is in the database.
+      with_artemis_server --type="supabase": | server/TestArtemisServer |
+        backdoor := server.backdoor as SupabaseBackdoor
+        backdoor.with_backdoor_client_: | client/supabase.Client |
+          [DEVICE1, DEVICE2].do: | device/Device |
+            client.rest.insert "devices" {
+              "alias": device.id,
+              "organization_id": device.organization_id,
+            }
 
-  [DEVICE1, DEVICE2].do: | device/Device |
-    identity := {
-      "device_id": device.id,
-      "organization_id": device.organization_id,
-      "hardware_id": device.hardware_id,
-    }
-    state := {
-      "identity": identity,
-    }
-    broker_cli.notify_created --device_id=device.id --state=state
+    [DEVICE1, DEVICE2].do: | device/Device |
+      identity := {
+        "device_id": device.id,
+        "organization_id": device.organization_id,
+        "hardware_id": device.hardware_id,
+      }
+      state := {
+        "identity": identity,
+      }
+      broker_cli.notify_created --device_id=device.id --state=state
 
-  network = net.open
-  try:
-    test_image broker_cli broker_service
-    test_firmware broker_cli broker_service
-    test_goal broker_cli broker_service
-    test_events broker_cli broker_service
-  finally:
-    network.close
-    network = null
+    network = net.open
+    try:
+      test_image --test_broker=test_broker broker_cli
+      test_firmware --test_broker=test_broker broker_cli
+      test_goal --test_broker=test_broker broker_cli
+      test_events --test_broker=test_broker broker_cli
+
+    finally:
+      network.close
+      network = null
 
 // TODO(kasper): We should probably pipe this through to the
 // individual tests, but to avoid too many conflicts, I'm
 // hacking this through for now.
 network/net.Client? := null
+
+test_goal --test_broker/TestBroker broker_cli/broker.BrokerCli:
+  test_broker.with_service: | broker_service/broker.BrokerService |
+    test_goal broker_cli broker_service
+
 
 test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   3.repeat: | test_iteration |
@@ -149,6 +153,10 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       event_goal = broker_service.fetch_goal --wait
       expect_equals "succeeded 2" event_goal["test-entry"]
 
+test_image --test_broker/TestBroker broker_cli/broker.BrokerCli:
+  test_broker.with_service: | broker_service/broker.BrokerService |
+    test_image broker_cli broker_service
+
 test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   2.repeat: | iteration |
     APP_ID ::= uuid.uuid5 "app" "test-app-$iteration"
@@ -178,6 +186,10 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           // also verify that the 32-bit image is correct.
           data := utils.read_all reader
           expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
+
+test_firmware --test_broker/TestBroker broker_cli/broker.BrokerCli:
+  test_broker.with_service: | broker_service/broker.BrokerService |
+    test_firmware broker_cli broker_service
 
 test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
   3.repeat: | iteration |
@@ -241,20 +253,22 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
               // Return the new offset.
               current_offset
 
-test_events broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+test_events --test_broker/TestBroker broker_cli/broker.BrokerCli:
   if broker_cli is mqtt_broker.BrokerCliMqtt:
     // The MQTT broker doesn't support getting events.
     return
 
-  broker_service.connect
-      --network=network
-      --device=DEVICE1
-      : | resources1/broker.ResourceManager |
-        broker_service.connect
-            --network=network
-            --device=DEVICE2
-            : | resources2/broker.ResourceManager |
-              test_events broker_cli resources1 resources2
+  test_broker.with_service: | broker_service1/broker.BrokerService |
+    test_broker.with_service: | broker_service2/broker.BrokerService |
+      broker_service1.connect
+          --network=network
+          --device=DEVICE1
+          : | resources1/broker.ResourceManager |
+            broker_service2.connect
+                --network=network
+                --device=DEVICE2
+                : | resources2/broker.ResourceManager |
+                  test_events broker_cli resources1 resources2
 
 test_events
     broker_cli/broker.BrokerCli
