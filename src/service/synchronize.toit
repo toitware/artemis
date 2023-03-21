@@ -17,7 +17,7 @@ import .check_in
 
 import ..shared.json_diff show Modification json_equals
 
-validate_firmware / bool := firmware.is_validation_pending
+firmware_is_validation_pending/bool := firmware.is_validation_pending
 
 class SynchronizeJob extends TaskJob:
   static STATE_DISCONNECTED         ::= 0
@@ -55,6 +55,7 @@ class SynchronizeJob extends TaskJob:
     super "synchronize"
 
   schedule now/JobTime last/JobTime? -> JobTime?:
+    if firmware_is_validation_pending: return now
     max_offline := device_.max_offline
     if not last or not max_offline: return now
     return min (check_in_schedule now) (last + max_offline)
@@ -73,8 +74,8 @@ class SynchronizeJob extends TaskJob:
       transition_to_ STATE_CONNECTED_TO_NETWORK
       run_ network
     finally: | is_exception exception |
-      if network: network.close
       transition_to_disconnected_ --error=(is_exception ? exception.value : null)
+      if network: network.close
       // TODO(kasper): Only swallow certain exceptions, so we get a
       // proper stack trace for the others.
       return
@@ -88,7 +89,8 @@ class SynchronizeJob extends TaskJob:
 
       // We're connected if we managed to report our state. If we stop
       // reporting the state right after connecting, we may not actually
-      // be connected yet, so we have to avoid transitioning prematurely.
+      // be connected yet, so in that (hypothetical) case we have to
+      // avoid transitioning prematurely.
       transition_to_ STATE_CONNECTED_TO_BROKER
 
       while true:
@@ -107,31 +109,33 @@ class SynchronizeJob extends TaskJob:
         // the other updates. This means that we prioritize firmware updates
         // and configuration changes over fetching container images.
         if containers_.any_incomplete:
-          process_incomplete_container_images_ resources
+          process_first_incomplete_container_image_ resources
           continue
-
-        // We've successfully connected to the network, so we consider
-        // the current firmware functional. Go ahead and validate the
-        // firmware if requested to do so.
-        if validate_firmware:
-          if firmware.validate:
-            logger_.info "firmware update validated after connecting to network"
-            validate_firmware = false
-            device_.firmware_validated
-          else:
-            logger_.error "firmware update failed to validate"
 
         // We have successfully finished processing the new goal state.
         // Inform the broker.
+        transition_to_ STATE_CONNECTED_TO_BROKER
         report_state resources
-
         transition_to_ STATE_SYNCHRONIZED
+
         if device_.max_offline: return
         transition_to_ STATE_CONNECTED_TO_BROKER
 
   transition_to_ state/int -> none:
     previous := state_
     state_ = state
+
+    // If we've successfully connected to the broker, we consider
+    // the current firmware functional. Go ahead and validate the
+    // firmware if requested to do so.
+    if firmware_is_validation_pending and state >= STATE_CONNECTED_TO_BROKER:
+      if firmware.validate:
+        logger_.info "firmware update validated after connecting to network"
+        firmware_is_validation_pending = false
+        device_.firmware_validated
+      else:
+        logger_.error "firmware update failed to validate"
+
     if state <= previous: return
     tags/Map? := null
     if state == STATE_SYNCHRONIZED:
@@ -142,6 +146,14 @@ class SynchronizeJob extends TaskJob:
   transition_to_disconnected_ --error/Object? -> none:
     previous := state_
     state_ = STATE_DISCONNECTED
+
+    // TODO(kasper): It is a bit too harsh to not give the network
+    // another chance to connect, but for now we just reject the
+    // updates if the first attempt to connect to the broker fails.
+    if firmware_is_validation_pending and previous > STATE_DISCONNECTED:
+      logger_.error "firmware update was rejected after failing to connect or validate"
+      firmware.rollback
+
     if error: logger_.warn STATE_FAILURE[previous] --tags={"error": error}
     logger_.info STATE_SUCCESS[STATE_DISCONNECTED]
 
@@ -284,7 +296,7 @@ class SynchronizeJob extends TaskJob:
     else:
       logger_.error "container $name not found"
 
-  process_incomplete_container_images_ resources/ResourceManager -> none:
+  process_first_incomplete_container_image_ resources/ResourceManager -> none:
     transition_to_ STATE_PROCESSING
     incomplete/ContainerJob? ::= containers_.first_incomplete
     if not incomplete: return
