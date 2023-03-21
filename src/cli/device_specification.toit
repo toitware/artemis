@@ -196,7 +196,11 @@ class DeviceSpecification:
     max_offline_seconds = (get_duration_ data "max-offline").in_s
 
   static parse path/string -> DeviceSpecification:
-    return DeviceSpecification.from_json --path=path (read_json path)
+    json := null
+    exception := catch: json = read_json path
+    if exception:
+      format_error_ "Failed to parse device specification as JSON: $exception"
+    return DeviceSpecification.from_json --path=path json
 
   /**
   Returns the path to which all other paths of this specification are

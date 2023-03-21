@@ -14,6 +14,8 @@ import net
 import host.pipe
 import writer
 import uuid
+import ..ui
+import ..device_specification
 
 with_tmp_directory [block]:
   tmpdir := directory.mkdtemp "/tmp/artemis-"
@@ -145,6 +147,18 @@ random_uuid_string -> string:
   // TODO(kasper): This is used for many things that are
   // not device ids. Clean that up.
   return (random_uuid --namespace="Device ID").stringify
+
+/**
+Parses the given $path into a DeviceSpecification.
+
+If there is an error, calls $Ui.error followed by a call to $Ui.abort.
+*/
+parse_device_specification_file path/string --ui/Ui -> DeviceSpecification:
+  exception := catch:
+    return DeviceSpecification.parse path
+  ui.error "Error parsing device specification: $exception"
+  ui.abort
+  unreachable
 
 // TODO(florian): move this into Duration?
 /**
