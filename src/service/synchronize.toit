@@ -124,6 +124,12 @@ class SynchronizeJob extends TaskJob:
   transition_to_ state/int -> none:
     previous := state_
     state_ = state
+    if state > previous:
+      tags/Map? := null
+      if state == STATE_SYNCHRONIZED:
+        max_offline := device_.max_offline
+        if max_offline: tags = {"max-offline": max_offline}
+      logger_.info STATE_SUCCESS[state] --tags=tags
 
     // If we've successfully connected to the broker, we consider
     // the current firmware functional. Go ahead and validate the
@@ -136,16 +142,11 @@ class SynchronizeJob extends TaskJob:
       else:
         logger_.error "firmware update failed to validate"
 
-    if state <= previous: return
-    tags/Map? := null
-    if state == STATE_SYNCHRONIZED:
-      max_offline := device_.max_offline
-      if max_offline: tags = {"max-offline": max_offline}
-    logger_.info STATE_SUCCESS[state] --tags=tags
-
   transition_to_disconnected_ --error/Object? -> none:
     previous := state_
     state_ = STATE_DISCONNECTED
+    if error: logger_.warn STATE_FAILURE[previous] --tags={"error": error}
+    logger_.info STATE_SUCCESS[STATE_DISCONNECTED]
 
     // TODO(kasper): It is a bit too harsh to not give the network
     // another chance to connect, but for now we just reject the
@@ -153,9 +154,6 @@ class SynchronizeJob extends TaskJob:
     if firmware_is_validation_pending and previous > STATE_DISCONNECTED:
       logger_.error "firmware update was rejected after failing to connect or validate"
       firmware.rollback
-
-    if error: logger_.warn STATE_FAILURE[previous] --tags={"error": error}
-    logger_.info STATE_SUCCESS[STATE_DISCONNECTED]
 
   /**
   Process new goal.
