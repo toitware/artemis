@@ -76,10 +76,10 @@ class SynchronizeJob extends TaskJob:
     if not last or firmware_is_validation_pending: return now
     max_offline := device_.max_offline
     if not max_offline: return last + OFFLINE_MINIMUM_MOST
-    // Compute the extent of the current pause by letting it
-    // run to whatever comes first of the scheduled check-in
-    // or hitting the max-offline ceiling. Make sure to not
-    // schedule this below the minimum offline setting.
+    // Compute the duration of the current offline period by
+    // letting it run to whatever comes first of the scheduled
+    // check-in or hitting the max-offline ceiling, but make
+    // sure to not go below the minimum offline setting.
     offline := min (last.to (check_in_schedule now)) max_offline
     return last + (max offline OFFLINE_MINIMUM_MOST)
 
