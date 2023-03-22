@@ -148,6 +148,13 @@ class BrokerServiceMqtt implements BrokerService:
   fetch_goal --wait/bool -> Map?:
     while not goal_got_it_:
       if not wait: throw DEADLINE_EXCEEDED_ERROR
+      // TODO(kasper): It is problematic that we wait forever
+      // here even if the MQTT connection is kept alive. With
+      // the current strategy we will timeout as we loop around
+      // the synchronization loop unless we actually receive
+      // a new goal. Maybe we should just let the MQTT handler
+      // periodically set the goal to a previously received goal
+      // if it knows that the connection is alive?
       signal_.wait: goal_got_it_
     result := goal_new_
     goal_got_it_ = false
