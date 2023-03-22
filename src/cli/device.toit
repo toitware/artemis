@@ -80,6 +80,8 @@ class DeviceDetailed extends Device:
     reported state.
   */
   constructor --.goal/Map? --state/Map?:
+    assert: goal or state
+
     reported_state_goal = state and state.get "goal-state"
     reported_state_current = state and state.get "current-state"
     reported_state_firmware = state and state.get "firmware-state"

@@ -68,7 +68,7 @@ class BrokerCliSupabase implements BrokerCli:
       "_goal": new_goal,
     }
 
-  get_device --device_id/string:
+  get_device --device_id/string -> DeviceDetailed?:
     current_goal := client_.rest.rpc "toit_artemis.get_goal" {
       "_device_id": device_id,
     }
@@ -76,6 +76,8 @@ class BrokerCliSupabase implements BrokerCli:
     state := client_.rest.rpc "toit_artemis.get_state" {
       "_device_id": device_id,
     }
+
+    if not current_goal and not state: return null
 
     return DeviceDetailed --goal=current_goal --state=state
 
