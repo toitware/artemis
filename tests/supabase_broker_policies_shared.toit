@@ -55,11 +55,12 @@ run_shared_test
     "_state": { "updated": "by anon" },
   }
 
-  // Doesn't throw, but doesn't do anything.
-  client_anon.rest.rpc "toit_artemis.update_state" {
-    "_device_id": device_id2,
-    "_state": { "updated": "by anon" },
-  }
+  // If the device id isn't known (no call to new_provisioned) the call fails.
+  expect_throws --contains="foreign key":
+    client_anon.rest.rpc "toit_artemis.update_state" {
+      "_device_id": device_id2,
+      "_state": { "updated": "by anon" },
+    }
 
   // The "get_state" function is only available to authenticated users.
   state = client1.rest.rpc "toit_artemis.get_state" {

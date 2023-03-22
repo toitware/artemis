@@ -12,3 +12,13 @@ INSERT INTO auth.identities (id,user_id,identity_data,provider,last_sign_in_at,c
 	('f76629c5-a070-4bbc-9918-64beaea48848','f76629c5-a070-4bbc-9918-64beaea48848'::uuid,'{"sub": "f76629c5-a070-4bbc-9918-64beaea48848"}','email','2022-02-11 21:02:04.545','2022-02-11 21:02:04.545','2022-02-11 21:02:04.545'),
 	('d9064bb5-1501-4ec9-bfee-21ab74d645b8','d9064bb5-1501-4ec9-bfee-21ab74d645b8'::uuid,'{"sub": "d9064bb5-1501-4ec9-bfee-21ab74d645b8"}','email','2022-02-12 07:40:23.615','2022-02-12 07:40:23.615','2022-02-12 07:40:23.615')
 ON CONFLICT (id, provider) DO NOTHING;
+
+-- Used in testing.
+CREATE OR REPLACE FUNCTION public."toit_artemis.clear_events"()
+  	RETURNS void
+ 	LANGUAGE plpgsql
+AS $$
+BEGIN
+  	DELETE FROM toit_artemis.events WHERE true;
+END;
+$$;
