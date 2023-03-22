@@ -58,6 +58,15 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
+  // We use a minimum offline setting to avoid scheduling the
+  // synchronization job too often.
+  static OFFLINE_MINIMUM ::= Duration --s=12
+
+  // We allow the synchronization job to start a bit early at
+  // random to avoid pathological cases where lots of devices
+  // synchronize at the same time over and over again.
+  static SCHEDULE_JITTER_MS ::= 8_000
+
   logger_/log.Logger
   device_/Device
   containers_/ContainerManager
@@ -69,10 +78,27 @@ class SynchronizeJob extends TaskJob:
     super "synchronize"
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if firmware_is_validation_pending: return now
+    if not last or firmware_is_validation_pending: return now
     max_offline := device_.max_offline
-    if not last or not max_offline: return now
-    return min (check_in_schedule now) (last + max_offline)
+    if not max_offline: return last + OFFLINE_MINIMUM
+    // Compute the duration of the current offline period by
+    // letting it run to whatever comes first of the scheduled
+    // check-in or hitting the max-offline ceiling, but make
+    // sure to not go below the minimum offline setting.
+    offline := min (last.to (check_in_schedule now)) max_offline
+    return last + (max offline OFFLINE_MINIMUM)
+
+  schedule_tune last/JobTime -> JobTime:
+    // Allow the synchronization job to start early, thus pulling
+    // the effective minimum offline period down towards zero. As
+    // long as the jitter duration is larger than OFFLINE_MINIMUM
+    // we still have a lower bound on the effective offline period.
+    assert: SCHEDULE_JITTER_MS < OFFLINE_MINIMUM.in_ms
+    jitter := Duration --ms=(random SCHEDULE_JITTER_MS)
+    // Use the current time rather than the last time we started,
+    // so the period begins when we disconnected, not when we
+    // started connecting.
+    return JobTime.now - jitter
 
   parse_uuid_ value/string -> uuid.Uuid?:
     catch: return uuid.parse value

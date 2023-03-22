@@ -118,7 +118,11 @@ class ContainerJob extends Job:
   id/uuid.Uuid
   description_/Map := ?
   running_/containers.Container? := null
-  is_background/bool := false
+
+  is_background_/bool := false
+  trigger_boot_/bool := false
+  trigger_install_/bool := false
+  trigger_interval_/Duration? := null
 
   // The $ContainerManager is responsible for marking
   // container jobs as complete and for scheduling
@@ -141,6 +145,9 @@ class ContainerJob extends Job:
   is_running -> bool:
     return running_ != null
 
+  is_background -> bool:
+    return is_background_
+
   description -> Map:
     return description_
 
@@ -150,25 +157,22 @@ class ContainerJob extends Job:
 
   schedule now/JobTime last/JobTime? -> JobTime?:
     if not is_complete_: return null
-    triggers := description_.get "triggers" --if_absent=: {:}
-    run_on_boot := false
-    run_on_install := false
-    run_at_interval_s := null
-    triggers.do: | name/string value |
-      if name == "boot": run_on_boot = true
-      if name == "install": run_on_install = true
-      if name == "interval": run_at_interval_s = value
-
-    if run_on_boot and not has_run_after_boot:
+    if trigger_boot_ and not has_run_after_boot:
       return now
-    else if run_on_install and not has_run_after_install_:
+    else if trigger_install_ and not has_run_after_install_:
       return now
-    else if run_at_interval_s:
-      return last ? last + (Duration --s=run_at_interval_s) : now
+    else if trigger_interval_:
+      return last ? last + trigger_interval_ : now
     else:
       // TODO(kasper): Don't run at all. Maybe that isn't
       // a great default when you have no triggers?
       return null
+
+  schedule_tune last/JobTime -> JobTime:
+    // If running the container took a long time, we tune the
+    // schedule and postpone the next run by making it start
+    // at the beginning of the next period instead of now.
+    return Job.schedule_tune_periodic last trigger_interval_
 
   start now/JobTime -> none:
     assert: is_complete
@@ -188,4 +192,14 @@ class ContainerJob extends Job:
   update description/Map -> none:
     assert: not is_running
     description_ = description
-    is_background = description.contains "background"
+    // Update background.
+    is_background_ = description.contains "background"
+    // Update triggers.
+    trigger_boot_ = false
+    trigger_install_ = false
+    trigger_interval_ = null
+    description_.get "triggers" --if_present=: | triggers/Map |
+      triggers.do: | name/string value |
+        if name == "boot": trigger_boot_ = true
+        if name == "install": trigger_install_ = true
+        if name == "interval": trigger_interval_ = (Duration --s=value)
