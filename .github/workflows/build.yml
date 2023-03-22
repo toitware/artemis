@@ -145,12 +145,9 @@ jobs:
     needs: [build]
     if: github.event_name == 'release'
     steps:
-      - name: Clean workspace at the end
-        uses: webiny/action-post-run@3.0.0
-        id: post-run-command
-        with:
-          working-directory: ${{ github.workspace }}/..
-          run: rm -rf ${{ github.workspace }}
+      - name: Clean workspace
+        run: |
+          rm -Recurse -Force ${{ github.workspace }}\*
 
       - uses: actions/download-artifact@v3
         with:
