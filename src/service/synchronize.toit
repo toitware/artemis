@@ -29,16 +29,22 @@ class SynchronizeJob extends TaskJob:
   /** Connected, waiting for any goal state updates from broker. */
   static STATE_CONNECTED_TO_BROKER ::= 3
   /** Processing a received goal state update. */
-  static STATE_PROCESSING ::= 4
+  static STATE_PROCESSING_GOAL ::= 4
+  /** Processing a container image update. */
+  static STATE_PROCESSING_CONTAINER_IMAGE ::= 5
+  /** Processing a firmware update. */
+  static STATE_PROCESSING_FIRMARE ::= 6
   /** Current state is updated to goal state. */
-  static STATE_SYNCHRONIZED ::= 5
+  static STATE_SYNCHRONIZED ::= 7
 
   static STATE_SUCCESS ::= [
     "disconnected",
     "connecting",
     "connected to network",
     "connected to broker",
-    "processing update",
+    " ... update ... ",
+    " ... ",
+    " ... firmware ...",
     "synchronized",
   ]
   static STATE_FAILURE ::= [
@@ -46,7 +52,9 @@ class SynchronizeJob extends TaskJob:
     "connecting failed",
     "connection to network lost",
     "connection to broker lost",
-    "processing update failed",
+    "... processing update failed ...",
+    "...",
+    "... firmware ...",
     null,
   ]
 
@@ -120,7 +128,6 @@ class SynchronizeJob extends TaskJob:
 
         // We have successfully finished processing the new goal state.
         // Inform the broker.
-        transition_to_ STATE_CONNECTED_TO_BROKER
         report_state resources
         transition_to_ STATE_SYNCHRONIZED
 
@@ -171,7 +178,6 @@ class SynchronizeJob extends TaskJob:
   Process new goal.
   */
   process_goal_ new_goal/Map? resources/ResourceManager -> none:
-    transition_to_ STATE_PROCESSING
     if not (new_goal or device_.is_current_state_modified):
       // The new goal indicates that we should use the firmware state.
       // Since there is no current state, we are currently cleanly
@@ -182,31 +188,26 @@ class SynchronizeJob extends TaskJob:
     current_state := device_.current_state
     new_goal = new_goal or device_.firmware_state
 
-    if not new_goal.contains "firmware":
-      logger_.error "missing firmware information"
-      return
+    firmware_to := new_goal.get "firmware"
+    if not firmware_to:
+      transition_to_ STATE_PROCESSING_GOAL
+      throw "missing firmware in goal"
 
-    if current_state["firmware"] != new_goal["firmware"]:
+    // We prioritize the firmware updating and deliberately avoid even
+    // looking at the other parts of the updated goal state, because we
+    // may not understand it before we've completed the firmware update.
+    firmware_from := current_state["firmware"]
+    if firmware_from != firmware_to:
       device_.goal_state = new_goal
+      transition_to_ STATE_PROCESSING_FIRMARE
+      logger_.info "processing update firmware" --tags={"from": firmware_from, "to": firmware_to}
+      handle_firmware_update_ resources firmware_to
+      // Handling the firmware update either completes and restarts
+      // or throws an exception. We shouldn't get here.
+      unreachable
 
-      from := current_state["firmware"]
-      to := new_goal["firmware"]
-      // The firmware changed. We need to update the firmware.
-      logger_.info "firmware update from $from to $to"
-
-      // We prioritize the firmware updating and deliberately
-      // avoid looking at the updated goal state, because we
-      // may not understand it before we've completed the
-      // firmware update.
-      handle_firmware_update_ resources new_goal["firmware"]
-      // TODO(kasper): Here the firmware update failed, so we
-      // probably need to deal with the failure instead of just
-      // going into a loop where we continue to ask for the
-      // new goal state.
-      return
-
-    if device_.firmware_state["firmware"] != new_goal["firmware"]:
-      assert: current_state["firmware"] == new_goal["firmware"]
+    if device_.firmware_state["firmware"] != firmware_to:
+      assert: firmware_from == firmware_to
       // The firmware has been downloaded and installed, but we haven't
       // rebooted yet.
       // We ignore all other entries in the goal state.
@@ -221,7 +222,8 @@ class SynchronizeJob extends TaskJob:
     device_.goal_state = new_goal
     report_state resources
 
-    logger_.info "goal state updated" --tags={"changes": Modification.stringify modification}
+    transition_to_ STATE_PROCESSING_GOAL
+    logger_.info "processing update" --tags={"changes": Modification.stringify modification}
 
     modification.on_map "apps"
         --added=: | name/string description |
@@ -307,7 +309,7 @@ class SynchronizeJob extends TaskJob:
       logger_.error "container $name not found"
 
   process_first_incomplete_container_image_ resources/ResourceManager -> none:
-    transition_to_ STATE_PROCESSING
+    transition_to_ STATE_PROCESSING_CONTAINER_IMAGE
     incomplete/ContainerJob? ::= containers_.first_incomplete
     if not incomplete: return
     resources.fetch_image incomplete.id: | reader/Reader |
@@ -324,17 +326,11 @@ class SynchronizeJob extends TaskJob:
   // TODO(kasper): Introduce run-levels for jobs and make sure we're
   // not running a lot of other stuff while we update the firmware.
   handle_firmware_update_ resources/ResourceManager new/string -> none:
-    // TODO(kasper): If we end up getting a new goal state before
-    // validating the previous firmware update, we will be doing
-    // this with update from an unvalidated firmware. We need to
-    // make sure that writing a new firmware auto-validates or
-    // move the validation check a bit earlier, so we do it before
-    // starting to update.
-    success := firmware_update logger_ resources --device=device_ --new=new
-    if success:
-      device_.state_firmware_update new
-      report_state resources
-      firmware.upgrade
+    if firmware_is_validation_pending: throw "cannot update unvalidated firmware"
+    firmware_update logger_ resources --device=device_ --new=new
+    device_.state_firmware_update new
+    report_state resources
+    firmware.upgrade
 
   /**
   Sends the current device state to the broker.
