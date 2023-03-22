@@ -42,9 +42,9 @@ class SynchronizeJob extends TaskJob:
     "connecting",
     "connected to network",
     "connected to broker",
-    " ... update ... ",
-    " ... ",
-    " ... firmware ...",
+    "updating",
+    "fetching container image",
+    "firmware update initiated",
     "synchronized",
   ]
   static STATE_FAILURE ::= [
@@ -52,9 +52,9 @@ class SynchronizeJob extends TaskJob:
     "connecting failed",
     "connection to network lost",
     "connection to broker lost",
-    "... processing update failed ...",
-    "...",
-    "... firmware ...",
+    "updating failed",
+    "fetching container image failed",
+    "firmware update failed",
     null,
   ]
 
@@ -200,7 +200,7 @@ class SynchronizeJob extends TaskJob:
     if firmware_from != firmware_to:
       device_.goal_state = new_goal
       transition_to_ STATE_PROCESSING_FIRMARE
-      logger_.info "processing update firmware" --tags={"from": firmware_from, "to": firmware_to}
+      logger_.info "firmware update" --tags={"from": firmware_from, "to": firmware_to}
       handle_firmware_update_ resources firmware_to
       // Handling the firmware update either completes and restarts
       // or throws an exception. We shouldn't get here.
@@ -223,17 +223,17 @@ class SynchronizeJob extends TaskJob:
     report_state resources
 
     transition_to_ STATE_PROCESSING_GOAL
-    logger_.info "processing update" --tags={"changes": Modification.stringify modification}
+    logger_.info "updating" --tags={"changes": Modification.stringify modification}
 
     modification.on_map "apps"
         --added=: | name/string description |
           if description is not Map:
-            logger_.error "container $name has invalid description"
+            logger_.error "updating: container $name has invalid description"
             continue.on_map
           description_map := description as Map
           description_map.get ContainerJob.KEY_ID
               --if_absent=:
-                logger_.error "container $name has no id"
+                logger_.error "updating: container $name has no id"
               --if_present=:
                 // A container just appeared in the state.
                 id := parse_uuid_ it
@@ -257,13 +257,13 @@ class SynchronizeJob extends TaskJob:
       modification/Modification:
     modification.on_value "id"
         --added=: | value |
-          logger_.error "container $name gained an id ($value)"
+          logger_.error "updating: container $name gained an id ($value)"
           // Treat it as a request to install the container.
           id := parse_uuid_ value
           if id: handle_container_install_ name id description
           return
         --removed=: | value |
-          logger_.error "container $name lost its id ($value)"
+          logger_.error "updating: container $name lost its id ($value)"
           // Treat it as a request to uninstall the container.
           handle_container_uninstall_ name
           return
@@ -297,7 +297,7 @@ class SynchronizeJob extends TaskJob:
     if job:
       containers_.uninstall job
     else:
-      logger_.error "container $name not found"
+      logger_.error "updating: container $name not found"
     device_.state_container_uninstall name
 
   handle_container_update_ name/string description/Map -> none:
@@ -306,7 +306,7 @@ class SynchronizeJob extends TaskJob:
       containers_.update job description
       device_.state_container_install_or_update name description
     else:
-      logger_.error "container $name not found"
+      logger_.error "updating: container $name not found"
 
   process_first_incomplete_container_image_ resources/ResourceManager -> none:
     transition_to_ STATE_PROCESSING_CONTAINER_IMAGE
@@ -326,11 +326,15 @@ class SynchronizeJob extends TaskJob:
   // TODO(kasper): Introduce run-levels for jobs and make sure we're
   // not running a lot of other stuff while we update the firmware.
   handle_firmware_update_ resources/ResourceManager new/string -> none:
-    if firmware_is_validation_pending: throw "cannot update unvalidated firmware"
+    if firmware_is_validation_pending: throw "firmware update: cannot update unvalidated"
     firmware_update logger_ resources --device=device_ --new=new
-    device_.state_firmware_update new
-    report_state resources
-    firmware.upgrade
+    try:
+      device_.state_firmware_update new
+      report_state resources
+    finally:
+      // TODO(kasper): There is something slightly rotten with this. Will
+      // test a bit more.
+      firmware.upgrade
 
   /**
   Sends the current device state to the broker.

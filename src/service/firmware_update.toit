@@ -22,7 +22,7 @@ firmware_update logger/log.Logger resources/ResourceManager -> none
   new_firmware := Firmware.encoded new
   checkpoint := device.checkpoint --old=old_firmware --new=new_firmware
 
-  logger.info "processing update firmware" --tags={"size": new_firmware.size}
+  logger.info "firmware update" --tags={"size": new_firmware.size}
   elapsed := Duration.of:
     firmware.map: | old_mapping/firmware.FirmwareMapping? |
       index := checkpoint ? checkpoint.read_part_index : 0
@@ -49,14 +49,14 @@ firmware_update logger/log.Logger resources/ResourceManager -> none
           // flash in an incorrect way, so we prefer not catching
           // such exceptions.
           if PATCH_READING_FAILED_EXCEPTION == exception.value:
-            logger.warn "processing update firmware: interrupted due to network error"
+            logger.warn "firmware update: interrupted due to network error"
           else:
             // Got an unexpected exception. Be careful and clear the
             // checkpoint information and let the exception continue
             // unwinding the stack.
             device.checkpoint_update null
-            logger.warn "processing update firmware: abandoned due to non-network error"
-  logger.info "processing update firmware: 100%" --tags={"elapsed": elapsed}
+            logger.warn "firmware update: abandoned due to non-network error"
+  logger.info "firmware update: 100%" --tags={"elapsed": elapsed}
 
 class FirmwarePatcher_ implements PatchObserver:
   logger_/log.Logger
@@ -173,7 +173,7 @@ class FirmwarePatcher_ implements PatchObserver:
       // We didn't start applying the patch, so we conclude that
       // we failed fetching it. If there are more possible URLs
       // to fetch from, we try the next.
-      logger_.warn "processing update firmware: failed to fetch patch" --tags={
+      logger_.warn "firmware update: failed to fetch patch" --tags={
         "url": resource_url,
         "error": exception
       }
@@ -188,7 +188,7 @@ class FirmwarePatcher_ implements PatchObserver:
       // This should only happen if we to get the wrong bits
       // served to us. It is unlikely, but we log it and throw
       // an exception so we can try to recover.
-      logger_.error "processing update firmware: failed to apply patch"
+      logger_.error "firmware update: failed to apply patch"
       throw "INVALID_FORMAT"
 
   pad_ padding/int -> none:
@@ -226,7 +226,7 @@ class FirmwarePatcher_ implements PatchObserver:
     // Give us some nice progress tracking.
     if write_offset_ > write_offset_next_print_:
       percent := (write_offset_ * 100) / new_.size
-      logger_.info "processing update firmware: $(%3d percent)%"
+      logger_.info "firmware update: $(%3d percent)%"
       write_offset_next_print_ = write_offset_ + 64 * 1024
 
   on_new_checksum hash/ByteArray -> none:
