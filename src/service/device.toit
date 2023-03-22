@@ -191,11 +191,11 @@ class Device:
     ram_store_ RAM_CHECK_IN_LAST_ value
 
   /**
-  Gets a modifiable copy of the jobs ran last information.
+  Gets the jobs ran last information.
   */
-  jobs_ran_last_end_modifiable -> Map:
+  jobs_ran_last_end -> Map:
     stored := ram_load_ RAM_JOBS_RAN_LAST_END_
-    return stored is Map ? (deep_copy stored) : {:}
+    return stored is Map ? stored : {:}
 
   /**
   Stores the jobs ran last information in memory that is preserved

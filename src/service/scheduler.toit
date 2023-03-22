@@ -11,11 +11,11 @@ class Scheduler:
   device_/Device
 
   jobs_ ::= []
-  jobs_ran_last_end_/Map
+  jobs_ran_last_end_initial_/Map
 
   constructor logger/log.Logger .device_:
     logger_ = logger.with_name "scheduler"
-    jobs_ran_last_end_ = device_.jobs_ran_last_end_modifiable
+    jobs_ran_last_end_initial_ = device_.jobs_ran_last_end
 
   run -> JobTime:
     assert: not jobs_.is_empty
@@ -35,14 +35,18 @@ class Scheduler:
       // For now, we only update the flash bucket when we're shutting down.
       // This means that if we lose power or hit an exceptional case, we
       // will reschedule all jobs.
-      critical_do: device_.jobs_ran_last_end_update jobs_ran_last_end_
+      critical_do:
+        jobs_ran_last := {:}
+        jobs_.do: | job/Job |
+          jobs_ran_last[job.name] = job.scheduler_ran_last_.us
+        device_.jobs_ran_last_end_update jobs_ran_last
 
   add_jobs jobs/List -> none:
     jobs.do: add_job it
 
   add_job job/Job -> none:
     job.scheduler_ = this
-    last := jobs_ran_last_end_.get job.name
+    last := jobs_ran_last_end_initial_.get job.name
     job.scheduler_ran_last_ = last and (JobTime last)
     jobs_.add job
     signal_.awaken
@@ -53,6 +57,7 @@ class Scheduler:
 
   on_job_started job/Job -> none:
     job.scheduler_ran_after_boot_ = true
+    job.scheduler_ran_last_ = JobTime.now
     logger_.info "job started" --tags={"job": job}
     signal_.awaken
 
@@ -60,14 +65,13 @@ class Scheduler:
     signal_.awaken
 
   on_job_stopped job/Job -> none:
-    last := JobTime.now
-    job.scheduler_ran_last_ = last
-    jobs_ran_last_end_[job.name] = last.us
+    job.scheduler_ran_last_ = job.schedule_tune job.scheduler_ran_last_
     logger_.info "job stopped" --tags={"job": job}
     signal_.awaken
 
   has_running_jobs_ -> bool:
-    return jobs_.any: | job/Job | job.is_running and not job.is_background
+    return jobs_.any: | job/Job |
+      job.is_running and not job.is_background
 
   run_due_jobs_ now/JobTime -> JobTime?:
     first/JobTime? := null

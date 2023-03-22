@@ -15,6 +15,8 @@ abstract class Job:
 
   constructor .name:
 
+  stringify -> string: return name
+
   abstract is_running -> bool
   is_background -> bool: return false
 
@@ -26,11 +28,25 @@ abstract class Job:
   schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
     return schedule now last
 
+  schedule_tune last/JobTime -> JobTime:
+    return last
+
   abstract start now/JobTime -> none
   abstract stop -> none
 
-  stringify -> string:
-    return name
+  // If a periodic job runs longer than its period, it is beneficial
+  // to delay starting the job again until it gets through the period
+  // it just started. This helper achieves that by tuning the last
+  // ran timestamp and moving it into the current period.
+  static schedule_tune_periodic last/JobTime period/Duration? -> JobTime:
+    if not period: return last
+    elapsed := last.to JobTime.now
+    if elapsed <= period: return last
+    // Compute the missed number of periods and use it
+    // to update the last run to fit in the last period.
+    missed := elapsed.in_ns / period.in_ns
+    last = last + period * missed
+    return last
 
 abstract class TaskJob extends Job:
   task_/Task? := null
@@ -90,6 +106,12 @@ abstract class PeriodicJob extends TaskJob:
     // when the device is awake anyway.
     return null
 
+  schedule_tune last/JobTime -> JobTime:
+    // If running the periodic task took a long time, we tune
+    // the schedule and postpone the next run by making it
+    // start at the beginning of the next period instead of now.
+    return Job.schedule_tune_periodic last period_
+
 // TODO(kasper): Get rid of this again. It was originally
 // implemented to have one place to handle problems arising
 // from resets to the monotonic clock, but I think we can
@@ -110,6 +132,9 @@ class JobTime implements Comparable:
 
   operator + duration/Duration -> JobTime:
     return JobTime us + duration.in_us
+
+  operator - duration/Duration -> JobTime:
+    return JobTime us - duration.in_us
 
   to other/JobTime -> Duration:
     return Duration --us=other.us - us
