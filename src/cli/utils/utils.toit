@@ -189,4 +189,3 @@ timestamp_to_string timestamp/Time -> string:
     $(utc.year)-$(%02d utc.month)-$(%02d utc.day)-T\
     $(%02d utc.h):$(%02d utc.m):$(%02d utc.s).\
     $(%09d timestamp.ns_part)Z"""
-
