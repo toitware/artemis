@@ -90,8 +90,10 @@ class SynchronizeJob extends TaskJob:
 
   schedule_tune last/JobTime -> JobTime:
     // Allow the synchronization job to start early, thus pulling
-    // the effective minimum offline period between two runs into
-    // the OFFLINE_MINIMUM_LEAST to OFFLINE_MINIMUM_MOST range.
+    // the effective minimum offline period down towards zero. As
+    // long as the jitter duration is larger than OFFLINE_MINIMUM
+    // we still have a lower bound on the effective offline period.
+    assert: SCHEDULE_JITTER_MS < OFFLINE_MINIMUM.in_ms
     jitter := Duration --ms=(random SCHEDULE_JITTER_MS)
     // Use the current time rather than the last time we started,
     // so the period begins when we disconnected, not when we
