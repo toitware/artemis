@@ -139,12 +139,11 @@ class SynchronizeJob extends TaskJob:
       transition_to_ STATE_CONNECTED_TO_BROKER
 
       while true:
-        catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-          with_timeout (Duration --m=5):
-            run_step_ resources
-            if state_ != STATE_SYNCHRONIZED: continue
-            if device_.max_offline: break
-            transition_to_ STATE_CONNECTED_TO_BROKER
+        with_timeout (Duration --m=5):
+          run_step_ resources
+          if state_ != STATE_SYNCHRONIZED: continue
+          if device_.max_offline: break
+          transition_to_ STATE_CONNECTED_TO_BROKER
 
   run_step_ resources/ResourceManager -> none:
     if containers_.any_incomplete:
