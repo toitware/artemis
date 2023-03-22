@@ -14,11 +14,8 @@ import ..shared.utils.patch
 /**
 Updates the firmware for the $device to match the encoded firmware
   specified by the $new string.
-
-Returns true if the update succeeded and false if it was interrupted
-  by the loss of network.
 */
-firmware_update logger/log.Logger resources/ResourceManager -> bool
+firmware_update logger/log.Logger resources/ResourceManager -> none
     --device/Device
     --new/string:
   old_firmware := Firmware.encoded device.firmware
@@ -53,14 +50,13 @@ firmware_update logger/log.Logger resources/ResourceManager -> bool
           // such exceptions.
           if PATCH_READING_FAILED_EXCEPTION == exception.value:
             logger.warn "firmware update: interrupted due to network error"
-            return false
-          // Got an unexpected exception. Be careful and clear the
-          // checkpoint information and let the exception continue
-          // unwinding the stack.
-          device.checkpoint_update null
-          logger.warn "firmware update: abandoned due to non-network error"
+          else:
+            // Got an unexpected exception. Be careful and clear the
+            // checkpoint information and let the exception continue
+            // unwinding the stack.
+            device.checkpoint_update null
+            logger.warn "firmware update: abandoned due to non-network error"
   logger.info "firmware update: 100%" --tags={"elapsed": elapsed}
-  return true
 
 class FirmwarePatcher_ implements PatchObserver:
   logger_/log.Logger
