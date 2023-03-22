@@ -332,8 +332,6 @@ class SynchronizeJob extends TaskJob:
       device_.state_firmware_update new
       report_state resources
     finally:
-      // TODO(kasper): There is something slightly rotten with this. Will
-      // test a bit more.
       firmware.upgrade
 
   /**
