@@ -33,7 +33,7 @@ class SynchronizeJob extends TaskJob:
   /** Processing a container image update. */
   static STATE_PROCESSING_CONTAINER_IMAGE ::= 5
   /** Processing a firmware update. */
-  static STATE_PROCESSING_FIRMARE ::= 6
+  static STATE_PROCESSING_FIRMWARE ::= 6
   /** Current state is updated to goal state. */
   static STATE_SYNCHRONIZED ::= 7
 
@@ -43,7 +43,7 @@ class SynchronizeJob extends TaskJob:
     "connected to network",
     "connected to broker",
     "updating",
-    "fetching container image",
+    "downloading image",
     "firmware update initiated",
     "synchronized",
   ]
@@ -53,7 +53,7 @@ class SynchronizeJob extends TaskJob:
     "connection to network lost",
     "connection to broker lost",
     "updating failed",
-    "fetching container image failed",
+    "downloading image failed",
     "firmware update failed",
     null,
   ]
@@ -199,7 +199,7 @@ class SynchronizeJob extends TaskJob:
     firmware_from := current_state["firmware"]
     if firmware_from != firmware_to:
       device_.goal_state = new_goal
-      transition_to_ STATE_PROCESSING_FIRMARE
+      transition_to_ STATE_PROCESSING_FIRMWARE
       logger_.info "firmware update" --tags={"from": firmware_from, "to": firmware_to}
       handle_firmware_update_ resources firmware_to
       // Handling the firmware update either completes and restarts
