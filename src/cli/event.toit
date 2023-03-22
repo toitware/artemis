@@ -1,5 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import .utils
+
 /**
 An event reported by a device.
 */
@@ -14,3 +16,10 @@ class Event:
   data/any
 
   constructor .type .timestamp .data:
+
+  to_json -> Map:
+    return {
+      "type": type,
+      "timestamp": timestamp_to_string timestamp,
+      "data": data,
+    }

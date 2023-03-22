@@ -67,6 +67,11 @@ interface BrokerBackdoor:
   */
   get_state device_id/string -> Map?
 
+  /**
+  Clears all events.
+  */
+  clear_events -> none
+
 with_broker --type/string --logger/Logger=(log.default.with_name "testing-$type") [block]:
   if type == "supabase-local" or type == "supabase-local-artemis":
     sub_dir := type == "supabase-local" ? SUPABASE_BROKER : SUPABASE_ARTEMIS
@@ -91,7 +96,6 @@ with_broker --type/string --logger/Logger=(log.default.with_name "testing-$type"
       block.call test_server
   else:
     throw "Unknown broker type: $type"
-
 class ToitHttpBackdoor implements BrokerBackdoor:
   server/HttpBroker
 
@@ -105,6 +109,9 @@ class ToitHttpBackdoor implements BrokerBackdoor:
 
   get_state device_id/string -> Map?:
     return server.get_state --device_id=device_id
+
+  clear_events -> none:
+    server.clear_events
 
 with_http_broker [block]:
   server := http_servers.HttpBroker 0
@@ -150,6 +157,10 @@ class SupabaseBackdoor implements BrokerBackdoor:
       }
     unreachable
 
+  clear_events -> none:
+    with_backdoor_client_: | client/supabase.Client |
+      client.rest.rpc "toit_artemis.clear_events" {:}
+
   with_backdoor_client_ [block]:
     network := net.open
     supabase_client/supabase.Client? := null
@@ -192,6 +203,9 @@ class MqttBackdoor implements BrokerBackdoor:
         client.unsubscribe topic
       return state_latch.get
     unreachable
+
+  clear_events -> none:
+    throw "UNIMPLEMENTED"
 
   with_backdoor_client_ [block]:
     network := net.open

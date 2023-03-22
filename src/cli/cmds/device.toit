@@ -11,6 +11,7 @@ import ..cache
 import ..config
 import ..device_specification
 import ..device
+import ..event
 import ..firmware
 import ..organization
 import ..sdk
@@ -118,6 +119,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd.add default_cmd
 
   show_cmd := cli.Command "show"
+      --aliases=["status"]
       --long_help="""
         Show all available information about a device.
 
@@ -128,6 +130,15 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_name="d"
             --short_help="ID of the device."
             --type="uuid",
+        cli.Option "event-type"
+            --short_help="Only show events of this type."
+            --multi,
+        cli.Flag "show-event-values"
+            --short_help="Show the values of the events."
+            --default=false,
+        cli.OptionInt "max-events"
+            --short_help="Maximum number of events to show."
+            --default=3,
       ]
       --run=:: show it config cache ui
   cmd.add show_cmd
@@ -222,7 +233,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
       if specification_path:
         // Customize.
-        specification := DeviceSpecification.parse specification_path
+        specification := parse_device_specification_file specification_path --ui=ui
         envelope_path = "$tmp_dir/$(device_id).envelope"
         artemis.customize_envelope
             --output_path=envelope_path
@@ -270,7 +281,7 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.error "No device ID specified and no default device ID set."
     ui.abort
 
-  specification := DeviceSpecification.parse specification_path
+  specification := parse_device_specification_file specification_path --ui=ui
   with_artemis parsed config cache ui: | artemis/Artemis |
     artemis.update --device_id=device_id --device_specification=specification
 
@@ -301,9 +312,17 @@ make_default_ device_id/string config/Config ui/Ui:
 
 show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
+  event_types := parsed["event-type"]
+  show_event_values := parsed["show-event-values"]
+  max_events := parsed["max-events"]
+
   if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
   if not device_id:
     ui.error "No device ID specified and no default device ID set."
+    ui.abort
+
+  if max_events < 0:
+    ui.error "max-events must be >= 0."
     ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
@@ -314,9 +333,23 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.error "Device $device_id does not exist."
       ui.abort
     organization := artemis_server.get_organization device.organization_id
+    events/List? := null
+    if max_events != 0:
+      events_map := broker.get_events
+                        --device_ids=[device_id]
+                        --types=event_types.is_empty ? null : event_types
+                        --limit=max_events
+
+      events = events_map.get device_id
     ui.info_structured
-        --json=: device_to_json_ device organization
-        --stdout=: print_device_ device organization it
+        --json=: device_to_json_ device organization events
+        --stdout=:
+          print_device_
+              --show_event_values=show_event_values
+              device
+              organization
+              events
+              it
 
 set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max_offline := parsed["max-offline"]
@@ -334,8 +367,11 @@ set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --max_offline_seconds=max_offline_seconds
     ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
 
-device_to_json_ device/DeviceDetailed organization/OrganizationDetailed:
-  return {
+device_to_json_
+    device/DeviceDetailed
+    organization/OrganizationDetailed
+    events/List?:
+  result := {
     "id": device.id,
     "organization_id": device.organization_id,
     "organization_name": organization.name,
@@ -344,8 +380,16 @@ device_to_json_ device/DeviceDetailed organization/OrganizationDetailed:
     "reported_state_current": device.reported_state_current,
     "reported_state_firmware": device.reported_state_firmware,
   }
+  if events:
+    result["events"] = events.map: | event/Event | event.to_json
+  return result
 
-print_device_ device/DeviceDetailed organization/OrganizationDetailed ui/Ui:
+print_device_
+    --show_event_values/bool
+    device/DeviceDetailed
+    organization/OrganizationDetailed
+    events/List?
+    ui/Ui:
   ui.print "Device ID: $device.id"
   ui.print "Organization ID: $device.organization_id ($organization.name)"
 
@@ -413,6 +457,29 @@ print_device_ device/DeviceDetailed organization/OrganizationDetailed ui/Ui:
         ui.print ""
         ui.print "Goal modifications compared to the $diff_to_string:"
         print_modification_ modification --to=device.goal ui
+
+  if events:
+    ui.print ""
+    now := Time.now.local
+    are_all_today := events.every: | event/Event |
+      event_time := event.timestamp.local
+      event_time.year == now.year and event_time.month == now.month and event_time.day == now.day
+
+    event_to_string := : | event/Event |
+      event_time := event.timestamp.local
+      str/string := ""
+      if not are_all_today:
+        str += "$event_time.year-$(%02d event_time.month)-$(%02d event_time.day) "
+
+      str += "$(%02d event_time.h):$(%02d event_time.m):$(%02d event_time.s)"
+      str += ".$(%03d event_time.ns / 1000_000)"  // Only show milliseconds.
+      str += " $event.type"
+      if show_event_values:
+        str += ": $event.data"
+      str
+
+    event_strings := events.map: event_to_string.call it
+    ui.info_list --title="Events" event_strings
 
 print_map_ map/Map ui/Ui --indentation/int=0:
   indentation_str := " " * indentation

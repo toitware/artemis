@@ -208,7 +208,7 @@ create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    specification := DeviceSpecification.parse specification_path
+    specification := parse_device_specification_file specification_path --ui=ui
     artemis.customize_envelope
         --output_path=output
         --device_specification=specification
@@ -277,7 +277,7 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     with_tmp_directory: | tmp_dir/string |
       if specification_path:
         firmware_path = "$tmp_dir/firmware.envelope"
-        specification := DeviceSpecification.parse specification_path
+        specification := parse_device_specification_file specification_path --ui=ui
         artemis.customize_envelope
             --output_path=firmware_path
             --device_specification=specification
