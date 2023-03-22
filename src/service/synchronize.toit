@@ -58,6 +58,13 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
+  // We allow each step in the synchronization process to
+  // only take a specified amount of time. If it takes
+  // more time than that we run the risk of waiting for
+  // reading from a network connection that is never going
+  // to produce more bits.
+  static SYNCHRONIZE_STEP_TIMEOUT ::= Duration --m=3
+
   // We use a minimum offline setting to avoid scheduling the
   // synchronization job too often.
   static OFFLINE_MINIMUM ::= Duration --s=12
@@ -127,7 +134,7 @@ class SynchronizeJob extends TaskJob:
     // connect call actually doesn't do any waiting so the problem
     // is not really present there.
     broker_.connect --network=network --device=device_: | resources/ResourceManager |
-      with_timeout (Duration --m=5):
+      with_timeout SYNCHRONIZE_STEP_TIMEOUT:
         // TODO(florian): We don't need to report the state every time we
         // connect. We only need to do this the first time we connect or
         // if we know that the broker isn't up to date.
@@ -140,7 +147,7 @@ class SynchronizeJob extends TaskJob:
         transition_to_ STATE_CONNECTED_TO_BROKER
 
       while true:
-        with_timeout (Duration --m=5):
+        with_timeout SYNCHRONIZE_STEP_TIMEOUT:
           run_step_ resources
           if state_ != STATE_SYNCHRONIZED: continue
           if device_.max_offline: break

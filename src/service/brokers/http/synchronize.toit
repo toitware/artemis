@@ -51,19 +51,24 @@ class BrokerServiceHttp implements BrokerService:
         "state_revision": state_revision,
       }
 
-      if response["event_type"] == "goal_updated":
-        state_revision_ = response["state_revision"]
+      response_event_type := response["event_type"]
+      response_state_revision := response["state_revision"]
+      if response_event_type == "goal_updated":
+        state_revision_ = response_state_revision
         return response["goal"]
 
-      if response["event_type"] == "out_of_sync":
-        if response["state_revision"] == state_revision_:
-          // We don't have a new goal state, so we're technically
-          // not out-of-sync. This only happens when we're not
-          // waiting for a response.
-          assert: not wait
-          throw DEADLINE_EXCEEDED_ERROR
+      is_out_of_sync := response_event_type == "out_of_sync"
+      is_timed_out := response_event_type == "timed_out"
+      if is_out_of_sync and response_state_revision == state_revision_:
+        // We don't have a new goal state, so we're technically
+        // not out-of-sync. This only happens when we're not
+        // waiting for a response.
+        assert: not wait
+        throw DEADLINE_EXCEEDED_ERROR
 
-        // We need to reconcile, so we ask for a new goal.
+      if is_out_of_sync or is_timed_out:
+        // We need to reconcile or produce a new goal, so we
+        // ask explicitly for the goal.
         goal_response := connection_.send_request "get_goal" {
           "device_id": device_.id,
         }
@@ -72,10 +77,5 @@ class BrokerServiceHttp implements BrokerService:
         // the firmware state.
         state_revision_ = goal_response["state_revision"]
         return goal_response["goal"]
-
-      if response["event_type"] == "timed_out":
-        // For timeouts, we just take another iteration in the loop and
-        // issue a new request.
-        continue
 
       logger_.warn "unknown event received" --tags={"response": response}
