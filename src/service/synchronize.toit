@@ -50,17 +50,17 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
-  // We refuse to schedule the synchronization job too often
-  // and use jitter to randomize the starting times.
-  static PERIOD_MINIMUM_SECONDS_LEAST ::= 4
-  static PERIOD_MINIMUM_SECONDS_MOST  ::= 12
+  // We use a randomized minimum offline setting to avoid scheduling
+  // the synchronization job too often and to get randomized backoff.
+  static OFFLINE_MINIMUM_SECONDS_LEAST ::= 4
+  static OFFLINE_MINIMUM_SECONDS_MOST  ::= 12
 
-  static PERIOD_MINIMUM_LEAST ::=
-    Duration --s=PERIOD_MINIMUM_SECONDS_LEAST
-  static PERIOD_MINIMUM_MOST ::=
-    Duration --s=PERIOD_MINIMUM_SECONDS_MOST
-  static PERIOD_MINIMUM_JITTER_MS ::=
-    (PERIOD_MINIMUM_SECONDS_MOST - PERIOD_MINIMUM_SECONDS_LEAST) * 1_000
+  static OFFLINE_MINIMUM_LEAST ::=
+    Duration --s=OFFLINE_MINIMUM_SECONDS_LEAST
+  static OFFLINE_MINIMUM_MOST ::=
+    Duration --s=OFFLINE_MINIMUM_SECONDS_MOST
+  static OFFLINE_MINIMUM_JITTER_MS ::=
+    (OFFLINE_MINIMUM_SECONDS_MOST - OFFLINE_MINIMUM_SECONDS_LEAST) * 1_000
 
   logger_/log.Logger
   device_/Device
@@ -72,26 +72,26 @@ class SynchronizeJob extends TaskJob:
     logger_ = logger.with_name "synchronize"
     super "synchronize"
 
-  period -> Duration?:
-    return device_.max_offline
-
-  period_excludes_running -> bool:
-    return true
-
   schedule now/JobTime last/JobTime? -> JobTime?:
     if not last or firmware_is_validation_pending: return now
-    // Compute the extent of the current period by letting it
-    // run to whatever comes first of the check-in schedule or
-    // hitting max-offline (if any).
-    period := last.to (check_in_schedule now)
-    if max_offline := device_.max_offline: period = min period max_offline
-    return last + (max period PERIOD_MINIMUM_MOST)
+    max_offline := device_.max_offline
+    if not max_offline: return last + OFFLINE_MINIMUM_MOST
+    // Compute the extent of the current pause by letting it
+    // run to whatever comes first of the scheduled check-in
+    // or hitting the max-offline ceiling. Make sure to not
+    // schedule this below the minimum offline setting.
+    offline := min (last.to (check_in_schedule now)) max_offline
+    return last + (max offline OFFLINE_MINIMUM_MOST)
 
-  schedule_jitter -> Duration:
+  schedule_tune last/JobTime -> JobTime:
     // Allow the synchronization job to start early, thus pulling
-    // the effective minimum period between two runs into the
-    // PERIOD_MINIMUM_LEAST to PERIOD_MINIMUM_MOST range.
-    return Duration --ms=(random PERIOD_MINIMUM_JITTER_MS)
+    // the effective minimum offline period between two runs into
+    // the OFFLINE_MINIMUM_LEAST to OFFLINE_MINIMUM_MOST range.
+    jitter := Duration --ms=(random OFFLINE_MINIMUM_JITTER_MS)
+    // Use the current time rather than the last time we started,
+    // so the period begins when we disconnected, not when we
+    // started connecting.
+    return JobTime.now - jitter
 
   parse_uuid_ value/string -> uuid.Uuid?:
     catch: return uuid.parse value

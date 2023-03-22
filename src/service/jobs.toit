@@ -4,8 +4,6 @@ import monitor
 import .scheduler
 
 abstract class Job:
-  static JITTER_NONE ::= Duration --s=0
-
   name/string
 
   // These fields are manipulated by the scheduler. They are
@@ -22,19 +20,6 @@ abstract class Job:
   abstract is_running -> bool
   is_background -> bool: return false
 
-  // The scheduler keeps track of the last run of a job. It
-  // uses information about the period of periodic jobs to
-  // improve the scheduling and avoid constantly restarting
-  // long running periodic jobs.
-  period -> Duration?: return null
-
-  // Jobs can choose to consider their periods to be exclusive
-  // of the time they spend running. This is useful if they want
-  // their schedule to be spaced out with the period between
-  // stopping the job and starting it again. The default is to
-  // have the period between two consecutive starts.
-  period_excludes_running -> bool: return false
-
   has_run_after_boot -> bool:
     return scheduler_ran_after_boot_
 
@@ -43,14 +28,25 @@ abstract class Job:
   schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
     return schedule now last
 
-  // The schedule jitter of a job is used to allow a job
-  // to start slightly early. Jobs can use this to introduce
-  // a controlled element of randomness in the scheduling.
-  schedule_jitter -> Duration:
-    return JITTER_NONE
+  schedule_tune last/JobTime -> JobTime:
+    return last
 
   abstract start now/JobTime -> none
   abstract stop -> none
+
+  // If a periodic job runs longer than its period, it is beneficial
+  // to delay starting the job again until it gets through the period
+  // it just started. This helper achieves that by tuning the last
+  // ran timestamp and moving it into the current period.
+  static schedule_tune_periodic last/JobTime period/Duration? -> JobTime:
+    if not period: return last
+    elapsed := last.to JobTime.now
+    if elapsed <= period: return last
+    // Compute the missed number of periods and use it
+    // to update the last run to fit in the last period.
+    missed := elapsed.in_ns / period.in_ns
+    last = last + period * missed
+    return last
 
 abstract class TaskJob extends Job:
   task_/Task? := null
@@ -95,20 +91,23 @@ abstract class TaskJob extends Job:
     latch.get
 
 abstract class PeriodicJob extends TaskJob:
-  period/Duration
+  period_/Duration
 
-  constructor name/string .period:
+  constructor name/string .period_:
     super name
 
   schedule now/JobTime last/JobTime? -> JobTime?:
     if not last: return now
-    return last + period
+    return last + period_
 
   schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
     // Periodic jobs do not want to cause device
     // wakeups. They just run on their schedule
     // when the device is awake anyway.
     return null
+
+  schedule_tune last/JobTime -> JobTime:
+    return Job.schedule_tune_periodic last period_
 
 // TODO(kasper): Get rid of this again. It was originally
 // implemented to have one place to handle problems arising

@@ -148,9 +148,6 @@ class ContainerJob extends Job:
   is_background -> bool:
     return is_background_
 
-  period -> Duration?:
-    return trigger_interval_
-
   description -> Map:
     return description_
 
@@ -170,6 +167,9 @@ class ContainerJob extends Job:
       // TODO(kasper): Don't run at all. Maybe that isn't
       // a great default when you have no triggers?
       return null
+
+  schedule_tune last/JobTime -> JobTime:
+    return Job.schedule_tune_periodic last trigger_interval_
 
   start now/JobTime -> none:
     assert: is_complete
