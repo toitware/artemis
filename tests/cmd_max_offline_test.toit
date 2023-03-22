@@ -3,7 +3,7 @@
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
 import .utils
-import ..src.service.synchronize show SynchronizeJob
+import artemis.service.synchronize show SynchronizeJob
 
 main args:
   with_test_cli --args=args --start_device: | test_cli/TestCli device/TestDevice |
