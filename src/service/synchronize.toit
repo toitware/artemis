@@ -50,17 +50,14 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
-  // We use a randomized minimum offline setting to avoid scheduling
-  // the synchronization job too often and to get randomized backoff.
-  static OFFLINE_MINIMUM_SECONDS_LEAST ::= 4
-  static OFFLINE_MINIMUM_SECONDS_MOST  ::= 12
+  // We use a minimum offline setting to avoid scheduling the
+  // synchronization job too often.
+  static OFFLINE_MINIMUM ::= Duration --s=12
 
-  static OFFLINE_MINIMUM_LEAST ::=
-    Duration --s=OFFLINE_MINIMUM_SECONDS_LEAST
-  static OFFLINE_MINIMUM_MOST ::=
-    Duration --s=OFFLINE_MINIMUM_SECONDS_MOST
-  static OFFLINE_MINIMUM_JITTER_MS ::=
-    (OFFLINE_MINIMUM_SECONDS_MOST - OFFLINE_MINIMUM_SECONDS_LEAST) * 1_000
+  // We allow the synchronization job to start a bit early at
+  // random to avoid pathological cases where lots of devices
+  // synchronize at the same time over and over again.
+  static SCHEDULE_JITTER_MS ::= 8_000
 
   logger_/log.Logger
   device_/Device
@@ -75,19 +72,19 @@ class SynchronizeJob extends TaskJob:
   schedule now/JobTime last/JobTime? -> JobTime?:
     if not last or firmware_is_validation_pending: return now
     max_offline := device_.max_offline
-    if not max_offline: return last + OFFLINE_MINIMUM_MOST
+    if not max_offline: return last + OFFLINE_MINIMUM
     // Compute the duration of the current offline period by
     // letting it run to whatever comes first of the scheduled
     // check-in or hitting the max-offline ceiling, but make
     // sure to not go below the minimum offline setting.
     offline := min (last.to (check_in_schedule now)) max_offline
-    return last + (max offline OFFLINE_MINIMUM_MOST)
+    return last + (max offline OFFLINE_MINIMUM)
 
   schedule_tune last/JobTime -> JobTime:
     // Allow the synchronization job to start early, thus pulling
     // the effective minimum offline period between two runs into
     // the OFFLINE_MINIMUM_LEAST to OFFLINE_MINIMUM_MOST range.
-    jitter := Duration --ms=(random OFFLINE_MINIMUM_JITTER_MS)
+    jitter := Duration --ms=(random SCHEDULE_JITTER_MS)
     // Use the current time rather than the last time we started,
     // so the period begins when we disconnected, not when we
     // started connecting.

@@ -39,6 +39,6 @@ main args:
 
     // We've set the max-offline to 1s, but the synchronize job
     // refuses to run that often.
-    offline := Duration --s=(max 1 SynchronizeJob.OFFLINE_MINIMUM_SECONDS_MOST)
+    offline := max (Duration --s=1) SynchronizeJob.OFFLINE_MINIMUM
     with_timeout slack + offline:
       device.wait_for "synchronized {max-offline: 3m0s}"
