@@ -75,7 +75,7 @@ class HttpBroker extends HttpServer:
     device_id := data["device_id"]
     current_revision := state_revision_.get device_id --init=: 0
     // Automatically adds an event.
-    report_event device_id "goal_updated" null
+    report_event device_id "goal-updated" null
     return {
       "state_revision": current_revision,
       "goal": device_goals_.get device_id,
