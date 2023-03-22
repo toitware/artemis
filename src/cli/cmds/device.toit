@@ -233,7 +233,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
       if specification_path:
         // Customize.
-        specification := DeviceSpecification.parse specification_path
+        specification := parse_device_specification_file specification_path --ui=ui
         envelope_path = "$tmp_dir/$(device_id).envelope"
         artemis.customize_envelope
             --output_path=envelope_path
@@ -281,7 +281,7 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.error "No device ID specified and no default device ID set."
     ui.abort
 
-  specification := DeviceSpecification.parse specification_path
+  specification := parse_device_specification_file specification_path --ui=ui
   with_artemis parsed config cache ui: | artemis/Artemis |
     artemis.update --device_id=device_id --device_specification=specification
 
