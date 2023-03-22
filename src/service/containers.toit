@@ -195,7 +195,7 @@ class ContainerJob extends Job:
     trigger_boot_ = false
     trigger_install_ = false
     trigger_interval_ = null
-    description_.get "triggers" --if_present=: | triggers/List |
+    description_.get "triggers" --if_present=: | triggers/Map |
       triggers.do: | name/string value |
         if name == "boot": trigger_boot_ = true
         if name == "install": trigger_install_ = true
