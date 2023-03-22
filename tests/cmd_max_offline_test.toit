@@ -3,6 +3,7 @@
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
 import .utils
+import ..src.service.synchronize show SynchronizeJob
 
 main args:
   with_test_cli --args=args --start_device: | test_cli/TestCli device/TestDevice |
@@ -23,7 +24,10 @@ main args:
        "1",
     ]
 
-    with_timeout (Duration --s=10):
+    // We give the infrastructure some time to react.
+    slack := Duration --s=10
+
+    with_timeout slack:
       device.wait_for "synchronized {max-offline: 1s}"
 
     test_cli.run [
@@ -33,5 +37,8 @@ main args:
        "3m",
     ]
 
-    with_timeout (Duration --s=10):
+    // We've set the max-offline to 1s, but the synchronize job
+    // refuses to run that often.
+    offline := Duration --s=(max 1 SynchronizeJob.OFFLINE_MINIMUM_SECONDS_MOST)
+    with_timeout slack + offline:
       device.wait_for "synchronized {max-offline: 3m0s}"
