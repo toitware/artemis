@@ -10,7 +10,7 @@ SECURITY DEFINER  -- Allows devices to get goals without authentication.
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    PERFORM toit_artemis.report_event(_device_id, 'get_goal', 'null'::JSONB);
+    PERFORM toit_artemis.report_event(_device_id, 'get-goal', 'null'::JSONB);
     RETURN (SELECT goal FROM toit_artemis.goals WHERE device_id = _device_id);
 END;
 $$;
