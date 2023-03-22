@@ -4,6 +4,8 @@ import monitor
 import .scheduler
 
 abstract class Job:
+  static JITTER_NONE ::= Duration --s=0
+
   name/string
 
   // These fields are manipulated by the scheduler. They are
@@ -15,8 +17,23 @@ abstract class Job:
 
   constructor .name:
 
+  stringify -> string: return name
+
   abstract is_running -> bool
   is_background -> bool: return false
+
+  // The scheduler keeps track of the last run of a job. It
+  // uses information about the period of periodic jobs to
+  // improve the scheduling and avoid constantly restarting
+  // long running periodic jobs.
+  period -> Duration?: return null
+
+  // Jobs can choose to consider their periods to be exclusive
+  // of the time they spend running. This is useful if they want
+  // their schedule to be spaced out with the period between
+  // stopping the job and starting it again. The default is to
+  // have the period between two consecutive starts.
+  period_excludes_running -> bool: return false
 
   has_run_after_boot -> bool:
     return scheduler_ran_after_boot_
@@ -26,11 +43,14 @@ abstract class Job:
   schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
     return schedule now last
 
+  // The schedule jitter of a job is used to allow a job
+  // to start slightly early. Jobs can use this to introduce
+  // a controlled element of randomness in the scheduling.
+  schedule_jitter -> Duration:
+    return JITTER_NONE
+
   abstract start now/JobTime -> none
   abstract stop -> none
-
-  stringify -> string:
-    return name
 
 abstract class TaskJob extends Job:
   task_/Task? := null
@@ -75,14 +95,14 @@ abstract class TaskJob extends Job:
     latch.get
 
 abstract class PeriodicJob extends TaskJob:
-  period_/Duration
+  period/Duration
 
-  constructor name/string .period_:
+  constructor name/string .period:
     super name
 
   schedule now/JobTime last/JobTime? -> JobTime?:
     if not last: return now
-    return last + period_
+    return last + period
 
   schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
     // Periodic jobs do not want to cause device
@@ -110,6 +130,9 @@ class JobTime implements Comparable:
 
   operator + duration/Duration -> JobTime:
     return JobTime us + duration.in_us
+
+  operator - duration/Duration -> JobTime:
+    return JobTime us - duration.in_us
 
   to other/JobTime -> Duration:
     return Duration --us=other.us - us

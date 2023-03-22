@@ -31,6 +31,7 @@ class Scheduler:
         else:
           return schedule_wakeup_ now
     finally:
+      jobs_.do: jobs_ran_last_end_[it.name] = it.scheduler_ran_last_.us
       stop_all_jobs_
       // For now, we only update the flash bucket when we're shutting down.
       // This means that if we lose power or hit an exceptional case, we
@@ -50,9 +51,11 @@ class Scheduler:
   remove_job job/Job -> none:
     job.stop
     jobs_.remove job
+    jobs_ran_last_end_.remove job.name
 
   on_job_started job/Job -> none:
     job.scheduler_ran_after_boot_ = true
+    if not job.period_excludes_running: record_ran_last_ job
     logger_.info "job started" --tags={"job": job}
     signal_.awaken
 
@@ -60,14 +63,39 @@ class Scheduler:
     signal_.awaken
 
   on_job_stopped job/Job -> none:
-    last := JobTime.now
-    job.scheduler_ran_last_ = last
-    jobs_ran_last_end_[job.name] = last.us
+    if job.period_excludes_running: record_ran_last_ job
+    else: update_ran_last_ job
     logger_.info "job stopped" --tags={"job": job}
     signal_.awaken
 
+  record_ran_last_ job/Job -> none:
+    last := JobTime.now - job.schedule_jitter
+    job.scheduler_ran_last_ = last
+
+  update_ran_last_ job/Job -> none:
+    // For periodic jobs where the time spent running
+    // is included in the period, we need to adjust
+    // the last run information after the job has
+    // stopped to account for long runs that continue
+    // into the next period.
+    assert: not job.period_excludes_running
+    period := job.period
+    if not period: return
+    // Check if the elapsed run time exceeded the period.
+    // If not, no updates are necessary.
+    now := JobTime.now
+    last := job.scheduler_ran_last_
+    elapsed := last.to now
+    if elapsed <= period: return
+    // Compute the missed number of periods and use it
+    // to update the last run to fit in the last period.
+    missed := elapsed.in_ns / period.in_ns
+    last = last + period * missed
+    job.scheduler_ran_last_ = last
+
   has_running_jobs_ -> bool:
-    return jobs_.any: | job/Job | job.is_running and not job.is_background
+    return jobs_.any: | job/Job |
+      job.is_running and not job.is_background
 
   run_due_jobs_ now/JobTime -> JobTime?:
     first/JobTime? := null

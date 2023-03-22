@@ -50,6 +50,18 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
+  // We refuse to schedule the synchronization job too often
+  // and use jitter to randomize the starting times.
+  static PERIOD_MINIMUM_SECONDS_LEAST ::= 4
+  static PERIOD_MINIMUM_SECONDS_MOST  ::= 12
+
+  static PERIOD_MINIMUM_LEAST ::=
+    Duration --s=PERIOD_MINIMUM_SECONDS_LEAST
+  static PERIOD_MINIMUM_MOST ::=
+    Duration --s=PERIOD_MINIMUM_SECONDS_MOST
+  static PERIOD_MINIMUM_JITTER_MS ::=
+    (PERIOD_MINIMUM_SECONDS_MOST - PERIOD_MINIMUM_SECONDS_LEAST) * 1_000
+
   logger_/log.Logger
   device_/Device
   containers_/ContainerManager
@@ -60,11 +72,26 @@ class SynchronizeJob extends TaskJob:
     logger_ = logger.with_name "synchronize"
     super "synchronize"
 
+  period -> Duration?:
+    return device_.max_offline
+
+  period_excludes_running -> bool:
+    return true
+
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if firmware_is_validation_pending: return now
-    max_offline := device_.max_offline
-    if not last or not max_offline: return now
-    return min (check_in_schedule now) (last + max_offline)
+    if not last or firmware_is_validation_pending: return now
+    // Compute the extent of the current period by letting it
+    // run to whatever comes first of the check-in schedule or
+    // hitting max-offline (if any).
+    period := last.to (check_in_schedule now)
+    if max_offline := device_.max_offline: period = min period max_offline
+    return last + (max period PERIOD_MINIMUM_MOST)
+
+  schedule_jitter -> Duration:
+    // Allow the synchronization job to start early, thus pulling
+    // the effective minimum period between two runs into the
+    // PERIOD_MINIMUM_LEAST to PERIOD_MINIMUM_MOST range.
+    return Duration --ms=(random PERIOD_MINIMUM_JITTER_MS)
 
   parse_uuid_ value/string -> uuid.Uuid?:
     catch: return uuid.parse value
