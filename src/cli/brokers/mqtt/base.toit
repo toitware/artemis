@@ -236,7 +236,7 @@ class BrokerCliMqtt implements BrokerCli:
         log.info "$(%08d Time.monotonic_us): Releasing lock"
         client.publish topic_lock (ubjson.encode null) --retain
 
-  get_device --device_id/string -> DeviceDetailed:
+  get_device --device_id/string -> DeviceDetailed?:
     throw "UNIMPLEMENTED"
 
   upload_image -> none

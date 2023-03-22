@@ -86,7 +86,7 @@ run_test
       test_image --test_broker=test_broker broker_cli
       test_firmware --test_broker=test_broker broker_cli
       test_goal --test_broker=test_broker broker_cli
-      // Test the events last, as it depends on test_goal to have run
+      // Test the events last, as it depends on test_goal to have run.
       // It also does state updates which could interfere with the other tests.
       test_events --test_broker=test_broker broker_cli
 
@@ -290,16 +290,19 @@ test_events
   // It's not super easy to generate 'get-goal' events, so we rely
   // on the previous tests to do that for us.
 
-  events := broker_cli.get_events
-      --device_ids=[DEVICE1.id]
-      --limit=1000
-  expect (events.contains DEVICE1.id)
-  expect_not events[DEVICE1.id].is_empty
+  if broker_cli is BrokerCliSupabase:
+    // Supabase services poll for the goals, which lead to events.
+    events := broker_cli.get_events
+        --device_ids=[DEVICE1.id]
+        --types=["get-goal"]
+        --limit=1000
+    expect (events.contains DEVICE1.id)
+    expect_not events[DEVICE1.id].is_empty
 
   test_broker.backdoor.clear_events
 
   start := Time.now
-  events = broker_cli.get_events --device_ids=[DEVICE1.id] --types=["test-event"]
+  events := broker_cli.get_events --device_ids=[DEVICE1.id] --types=["test-event"]
   expect_not (events.contains DEVICE1.id)
 
   events = broker_cli.get_events --device_ids=[DEVICE1.id, DEVICE2.id] --types=["test-event"]

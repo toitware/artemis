@@ -310,6 +310,9 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     broker := artemis.connected_broker
     artemis_server := artemis.connected_artemis_server
     device := broker.get_device --device_id=device_id
+    if not device:
+      ui.error "Device $device_id does not exist."
+      ui.abort
     organization := artemis_server.get_organization device.organization_id
     ui.info_structured
         --json=: device_to_json_ device organization

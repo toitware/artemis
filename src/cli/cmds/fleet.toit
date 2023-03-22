@@ -8,6 +8,7 @@ import .broker_options_
 import ..artemis
 import ..config
 import ..cache
+import ..device
 import ..device_specification
 import ..firmware
 import ..ui
@@ -256,6 +257,14 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   seen_organizations := {}
 
   with_artemis parsed config cache ui: | artemis/Artemis |
+    broker := artemis.connected_broker
+    detailed_devices := {:}
+    devices.do: | device_id/string |
+      device := broker.get_device --device_id=device_id
+      if not device:
+        ui.error "Device $device_id does not exist."
+        ui.abort
+
     base_patches := {:}
 
     base_firmwares := diff_bases.map: | diff_base/string |
@@ -275,8 +284,7 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
       devices.do: | device_id/string |
         if not diff_bases.is_empty:
-          broker := artemis.connected_broker
-          device := broker.get_device --device_id=device_id
+          device/DeviceDetailed := detailed_devices[device_id]
           if not seen_organizations.contains device.organization_id:
             seen_organizations.add device.organization_id
             base_patches.do: | _ patch/FirmwarePatch |
