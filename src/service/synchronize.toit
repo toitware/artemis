@@ -127,16 +127,17 @@ class SynchronizeJob extends TaskJob:
     // connect call actually doesn't do any waiting so the problem
     // is not really present there.
     broker_.connect --network=network --device=device_: | resources/ResourceManager |
-      // TODO(florian): We don't need to report the state every time we
-      // connect. We only need to do this the first time we connect or
-      // if we know that the broker isn't up to date.
-      with_timeout (Duration --m=5): report_state resources
+      with_timeout (Duration --m=5):
+        // TODO(florian): We don't need to report the state every time we
+        // connect. We only need to do this the first time we connect or
+        // if we know that the broker isn't up to date.
+        report_state resources
 
-      // We're connected if we managed to report our state. If we stop
-      // reporting the state right after connecting, we may not actually
-      // be connected yet, so in that (hypothetical) case we have to
-      // avoid transitioning prematurely.
-      transition_to_ STATE_CONNECTED_TO_BROKER
+        // We're connected if we managed to report our state. If we stop
+        // reporting the state right after connecting, we may not actually
+        // be connected yet, so in that (hypothetical) case we have to
+        // avoid transitioning prematurely.
+        transition_to_ STATE_CONNECTED_TO_BROKER
 
       while true:
         with_timeout (Duration --m=5):
