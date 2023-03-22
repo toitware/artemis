@@ -169,6 +169,9 @@ class ContainerJob extends Job:
       return null
 
   schedule_tune last/JobTime -> JobTime:
+    // If running the container took a long time, we tune the
+    // schedule and postpone the next run by making it start
+    // at the beginning of the next period instead of now.
     return Job.schedule_tune_periodic last trigger_interval_
 
   start now/JobTime -> none:

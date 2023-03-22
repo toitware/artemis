@@ -107,6 +107,9 @@ abstract class PeriodicJob extends TaskJob:
     return null
 
   schedule_tune last/JobTime -> JobTime:
+    // If running the periodic task took a long time, we tune
+    // the schedule and postpone the next run by making it
+    // start at the beginning of the next period instead of now.
     return Job.schedule_tune_periodic last period_
 
 // TODO(kasper): Get rid of this again. It was originally
