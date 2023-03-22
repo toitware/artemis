@@ -78,9 +78,10 @@ class BrokerCliHttp implements BrokerCli:
     new_goal := block.call device
     send_request_ "update_goal" {"device_id": device_id, "goal": new_goal}
 
-  get_device --device_id/string -> DeviceDetailed:
+  get_device --device_id/string -> DeviceDetailed?:
     current_goal := send_request_ "get_goal" {"device_id": device_id}
     current_state := send_request_ "get_state" {"device_id": device_id}
+    if not current_goal["goal"] and not current_state: return null
     return DeviceDetailed --goal=current_goal["goal"] --state=current_state
 
   upload_image -> none
