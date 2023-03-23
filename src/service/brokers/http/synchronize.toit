@@ -52,14 +52,13 @@ class BrokerServiceHttp implements BrokerService:
       }
 
       response_event_type := response["event_type"]
-      response_state_revision := response["state_revision"]
       if response_event_type == "goal_updated":
-        state_revision_ = response_state_revision
+        state_revision_ = response["state_revision"]
         return response["goal"]
 
       is_out_of_sync := response_event_type == "out_of_sync"
       is_timed_out := response_event_type == "timed_out"
-      if is_out_of_sync and response_state_revision == state_revision_:
+      if is_out_of_sync and state_revision_ == response["state_revision"]:
         // We don't have a new goal state, so we're technically
         // not out-of-sync. This only happens when we're not
         // waiting for a response.
