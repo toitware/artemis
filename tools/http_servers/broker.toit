@@ -49,6 +49,7 @@ class HttpBroker extends HttpServer:
   run_command command/string data _ -> any:
     if command == "notify_created": return notify_created data
     if command == "get_goal": return get_goal data
+    if command == "get_goal_no_event": return get_goal_no_event data
     if command == "update_goal": return update_goal data
     if command == "upload_image": return upload_image data
     if command == "download_image": return download_image data
@@ -73,9 +74,13 @@ class HttpBroker extends HttpServer:
 
   get_goal data/Map -> Map?:
     device_id := data["device_id"]
-    current_revision := state_revision_.get device_id --init=: 0
     // Automatically adds an event.
-    report_event device_id "goal-updated" null
+    report_event device_id "get-goal" null
+    return get_goal_no_event data
+
+  get_goal_no_event data/Map -> Map?:
+    device_id := data["device_id"]
+    current_revision := state_revision_.get device_id --init=: 0
     return {
       "state_revision": current_revision,
       "goal": device_goals_.get device_id,
@@ -155,6 +160,7 @@ class HttpBroker extends HttpServer:
     if event_type != "goal_updated":
       throw "Unknown event type: $event_type"
 
+    report_event device_id "get-goal" null
     return {
       "event_type": event_type,
       "state_revision": state_revision_[device_id],
