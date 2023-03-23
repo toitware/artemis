@@ -79,11 +79,15 @@ class SynchronizeJob extends TaskJob:
 
   logger_/log.Logger
   device_/Device
+  containers_/ContainerManager
   broker_/BrokerService
   state_/int := STATE_DISCONNECTED
 
-  containers_/ContainerManager
-  containers_incomplete_/Deque ::= Deque
+  // We maintain a list of pending steps that we use to break
+  // complex updates into smaller steps. It would be ideal to
+  // make this more local and perhaps get it returned from
+  // process goal.
+  pending_steps_/Deque ::= Deque
 
   constructor logger/log.Logger .device_ .containers_ .broker_:
     logger_ = logger.with_name "synchronize"
@@ -167,23 +171,24 @@ class SynchronizeJob extends TaskJob:
       if goal_state_updated:
         process_goal_ goal_state resources
       else:
-        // We always have an incomplete container here, because
-        // the goal state is non-null for the step and that only
-        // happens when we have incomplete containers.
-        process_first_incomplete_container_image_ resources
+        // We always have a pending step here, because the goal state
+        // is non-null for the step and that only happens when we have
+        // pending steps.
+        pending/Lambda := pending_steps_.remove_first
+        pending.call resources
     else:
       with_timeout check_in_timeout:
         goal_state = broker_.fetch_goal --wait
         transition_to_connected_
         process_goal_ goal_state resources
 
-    // We only handle incomplete containers when we're done handling
-    // the other updates. This means that we prioritize firmware updates
-    // and configuration changes over fetching container images.
-    if containers_incomplete_.size > 0: return goal_state
+    // We only handle pending steps when we're done handling the other
+    // updates. This means that we prioritize firmware updates and
+    // state changes over dealing with any pending steps.
+    if pending_steps_.size > 0: return goal_state
 
-    // We have successfully finished processing the new goal state.
-    // Inform the broker.
+    // We have successfully finished processing the new goal state
+    // and any pending steps. Inform the broker.
     transition_to_ STATE_CONNECTED_TO_BROKER
     report_state_if_changed resources
     transition_to_ STATE_SYNCHRONIZED
@@ -238,7 +243,7 @@ class SynchronizeJob extends TaskJob:
   */
   process_goal_ new_goal_state/Map? resources/ResourceManager -> none:
     assert: state_ >= STATE_CONNECTED_TO_BROKER
-    containers_incomplete_.clear
+    pending_steps_.clear
 
     if not (new_goal_state or device_.is_current_state_modified):
       // The new goal indicates that we should use the firmware state.
@@ -337,23 +342,22 @@ class SynchronizeJob extends TaskJob:
     handle_container_update_ name description
 
   handle_container_install_ name/string id/uuid.Uuid description/Map -> none:
-    job := containers_.create
-        --name=name
-        --id=id
-        --description=description
-    if job:
-      // Installing a container job doesn't really do much, unless
-      // the job is already complete because we've found its
-      // container image in flash. In that case, we must remember
-      // to update the device state.
-      containers_.install job
+    if job := containers_.create --name=name --id=id --description=description:
       device_.state_container_install_or_update name description
-    else:
-      incomplete := ContainerIncomplete
-          --name=name
-          --id=id
-          --description=description
-      containers_incomplete_.add incomplete
+      containers_.install job
+      return
+
+    pending_steps_.add:: | resources/ResourceManager |
+      assert: state_ >= STATE_CONNECTED_TO_BROKER
+      transition_to_ STATE_PROCESSING_CONTAINER_IMAGE
+      resources.fetch_image id: | reader/Reader |
+        job := containers_.create
+            --name=name
+            --id=id
+            --description=description
+            --reader=reader
+        device_.state_container_install_or_update name description
+        containers_.install job
 
   handle_container_uninstall_ name/string -> none:
     job/ContainerJob? := containers_.get --name=name
@@ -370,23 +374,6 @@ class SynchronizeJob extends TaskJob:
       device_.state_container_install_or_update name description
     else:
       logger_.error "updating: container $name not found"
-
-  process_first_incomplete_container_image_ resources/ResourceManager -> none:
-    assert: state_ >= STATE_CONNECTED_TO_BROKER
-    transition_to_ STATE_PROCESSING_CONTAINER_IMAGE
-    incomplete := containers_incomplete_.first
-    resources.fetch_image incomplete.id: | reader/Reader |
-      job := containers_.create
-        --name=incomplete.name
-        --id=incomplete.id
-        --description=incomplete.description
-        --reader=reader
-      device_.state_container_install_or_update
-          incomplete.name
-          incomplete.description
-      // TODO(kasper): Think about the edge cases here.
-      containers_incomplete_.remove_first
-      containers_.install job
 
   handle_set_max_offline_ value/any -> none:
     device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
@@ -430,9 +417,3 @@ class SynchronizeJob extends TaskJob:
     transition_to_connected_
     device_.report_state_checksum = checksum
     logger_.info "synchronized state to broker"
-
-class ContainerIncomplete:
-  name/string
-  id/uuid.Uuid
-  description/Map
-  constructor --.name --.id --.description:

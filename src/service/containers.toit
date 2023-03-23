@@ -47,8 +47,7 @@ class ContainerManager:
 
   create --name/string --id/uuid.Uuid --description/Map -> ContainerJob?
       --reader/Reader?=null:
-    if not images_.contains id:
-      if not reader: return null
+    if reader:
       writer/containers.ContainerImageWriter := ?
       if reader is SizedReader:
         size := (reader as SizedReader).size
@@ -64,6 +63,8 @@ class ContainerManager:
       logger_.info "image downloaded" --tags={"id": image}
       if image != id: throw "invalid state"
       images_.add id
+    else if not images_.contains id:
+      return null
     return ContainerJob --name=name --id=id --description=description
 
   install job/ContainerJob -> none:
