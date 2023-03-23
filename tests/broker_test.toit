@@ -290,19 +290,18 @@ test_events
   // It's not super easy to generate 'get-goal' events, so we rely
   // on the previous tests to do that for us.
 
-  if broker_cli is BrokerCliSupabase:
-    // Supabase services poll for the goals, which lead to events.
-    events := broker_cli.get_events
-        --device_ids=[DEVICE1.id]
-        --types=["get-goal"]
-        --limit=1000
-    expect (events.contains DEVICE1.id)
-    expect_not events[DEVICE1.id].is_empty
+  // Services poll for the goals, which lead to events.
+  events := broker_cli.get_events
+      --device_ids=[DEVICE1.id]
+      --types=["get-goal"]
+      --limit=1000
+  expect (events.contains DEVICE1.id)
+  expect_not events[DEVICE1.id].is_empty
 
   test_broker.backdoor.clear_events
 
   start := Time.now
-  events := broker_cli.get_events --device_ids=[DEVICE1.id] --types=["test-event"]
+  events = broker_cli.get_events --device_ids=[DEVICE1.id] --types=["test-event"]
   expect_not (events.contains DEVICE1.id)
 
   events = broker_cli.get_events --device_ids=[DEVICE1.id, DEVICE2.id] --types=["test-event"]
