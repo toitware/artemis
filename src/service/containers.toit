@@ -63,11 +63,11 @@ class ContainerManager:
     writer/containers.ContainerImageWriter := ?
     if reader is SizedReader:
       size := (reader as SizedReader).size
-      logger_.info "image fetching" --tags={"id": id, "size": size}
+      logger_.info "image download" --tags={"id": id, "size": size}
       writer = containers.ContainerImageWriter size
       while data := reader.read: writer.write data
     else:
-      logger_.warn "image fetching with unknown size" --tags={"id": id}
+      logger_.warn "image download with unknown size" --tags={"id": id}
       data := utils.read_all reader
       writer = containers.ContainerImageWriter data.size
       writer.write data
