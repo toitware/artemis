@@ -46,10 +46,10 @@ check_in network/net.Interface logger/log.Logger --device/Device:
     check_in_server_.check_in network logger
     last_success_ = now
   if exception:
-    logger.warn "status reporting failed"
+    logger.warn "check-in failed"
         --tags={"exception": exception}
   else:
-    logger.info "status reporting succeeded"
+    logger.info "check-in succeeded"
 
   exception = catch:
     device.check_in_last_update {
@@ -57,7 +57,7 @@ check_in network/net.Interface logger/log.Logger --device/Device:
       "attempt": last_attempt_.us,
     }
   if exception:
-    logger.warn "status reporting failed to update state"
+    logger.warn "check-in failed to update local state"
         --tags={"exception": exception}
 
 /**

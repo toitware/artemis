@@ -79,9 +79,11 @@ class SynchronizeJob extends TaskJob:
 
   logger_/log.Logger
   device_/Device
-  containers_/ContainerManager
   broker_/BrokerService
   state_/int := STATE_DISCONNECTED
+
+  containers_/ContainerManager
+  containers_incomplete_/Deque ::= Deque
 
   constructor logger/log.Logger .device_ .containers_ .broker_:
     logger_ = logger.with_name "synchronize"
@@ -137,44 +139,55 @@ class SynchronizeJob extends TaskJob:
     // connect call actually doesn't do any waiting so the problem
     // is not really present there.
     broker_.connect --network=network --device=device_: | resources/ResourceManager |
+      goal_state/Map? := null
       while true:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
-          run_step_ resources
-          if state_ != STATE_SYNCHRONIZED: continue
+          goal_state = run_step_ resources goal_state
+          if goal_state: continue
           if device_.max_offline: break
           transition_to_ STATE_CONNECTED_TO_BROKER
 
-  run_step_ resources/ResourceManager -> none:
+  run_step_ resources/ResourceManager goal_state/Map? -> Map?:
     // If our state has changed, we communicate it to the cloud.
-    report_state_if_changed resources
+    report_state_if_changed resources --goal_state=goal_state
 
-    if containers_.any_incomplete:
-      // TODO(kasper): Change the interface so we don't have to catch
-      // exceptions here.
+    if goal_state:
+      // If we already have a goal state, it means that we're going
+      // through the steps to get the current state updated to
+      // match the goal state. We still allow the broker to give us
+      // a new updated goal state in the middle of this, so we check
+      // for that here.
+      goal_state_updated := false
+      // TODO(kasper): Change the interface so we don't have to
+      // catch exceptions to figure out if we got a new goal state.
       catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-        goal := broker_.fetch_goal --no-wait
+        goal_state = broker_.fetch_goal --no-wait
+        goal_state_updated = true
         transition_to_connected_
-        process_goal_ goal resources
+      if goal_state_updated:
+        process_goal_ goal_state resources
+      else:
+        // We always have an incomplete container here, because
+        // the goal state is non-null for the step and that only
+        // happens when we have incomplete containers.
+        process_first_incomplete_container_image_ resources
     else:
       with_timeout check_in_timeout:
-        goal := broker_.fetch_goal --wait
+        goal_state = broker_.fetch_goal --wait
         transition_to_connected_
-        process_goal_ goal resources
+        process_goal_ goal_state resources
 
     // We only handle incomplete containers when we're done handling
     // the other updates. This means that we prioritize firmware updates
     // and configuration changes over fetching container images.
-    if containers_.any_incomplete:
-      // TODO(kasper): This is problematic if we're not actually
-      // connected yet. Hmm.
-      process_first_incomplete_container_image_ resources
-      return
+    if containers_incomplete_.size > 0: return goal_state
 
     // We have successfully finished processing the new goal state.
     // Inform the broker.
     transition_to_ STATE_CONNECTED_TO_BROKER
     report_state_if_changed resources
     transition_to_ STATE_SYNCHRONIZED
+    return null
 
   transition_to_ state/int -> none:
     previous := state_
@@ -223,19 +236,20 @@ class SynchronizeJob extends TaskJob:
   /**
   Process new goal.
   */
-  process_goal_ new_goal/Map? resources/ResourceManager -> none:
+  process_goal_ new_goal_state/Map? resources/ResourceManager -> none:
     assert: state_ >= STATE_CONNECTED_TO_BROKER
-    if not (new_goal or device_.is_current_state_modified):
+    containers_incomplete_.clear
+
+    if not (new_goal_state or device_.is_current_state_modified):
       // The new goal indicates that we should use the firmware state.
       // Since there is no current state, we are currently cleanly
       // running the firmware state.
-      device_.goal_state = null
       return
 
     current_state := device_.current_state
-    new_goal = new_goal or device_.firmware_state
+    new_goal_state = new_goal_state or device_.firmware_state
 
-    firmware_to := new_goal.get "firmware"
+    firmware_to := new_goal_state.get "firmware"
     if not firmware_to:
       transition_to_ STATE_PROCESSING_GOAL
       throw "missing firmware in goal"
@@ -245,7 +259,6 @@ class SynchronizeJob extends TaskJob:
     // may not understand it before we've completed the firmware update.
     firmware_from := current_state["firmware"]
     if firmware_from != firmware_to:
-      device_.goal_state = new_goal
       transition_to_ STATE_PROCESSING_FIRMWARE
       logger_.info "firmware update" --tags={"from": firmware_from, "to": firmware_to}
       handle_firmware_update_ resources firmware_to
@@ -256,18 +269,17 @@ class SynchronizeJob extends TaskJob:
     if device_.firmware_state["firmware"] != firmware_to:
       assert: firmware_from == firmware_to
       // The firmware has been downloaded and installed, but we haven't
-      // rebooted yet.
-      // We ignore all other entries in the goal state.
-      device_.goal_state = new_goal
+      // rebooted yet. We ignore all other entries in the new goal state.
       return
 
-    modification/Modification? := Modification.compute --from=current_state --to=new_goal
+    modification/Modification? := Modification.compute
+        --from=current_state
+        --to=new_goal_state
     if not modification:
-      device_.goal_state = null
+      // No changes. All good.
       return
 
     transition_to_ STATE_PROCESSING_GOAL
-    device_.goal_state = new_goal
     logger_.info "updating" --tags={"changes": Modification.stringify modification}
 
     modification.on_map "apps"
@@ -288,7 +300,7 @@ class SynchronizeJob extends TaskJob:
           // uninstall it.
           handle_container_uninstall_ name
         --modified=: | name/string nested/Modification |
-          description := new_goal["apps"][name]
+          description := new_goal_state["apps"][name]
           handle_container_modification_ name description nested
 
     modification.on_value "max-offline"
@@ -329,13 +341,19 @@ class SynchronizeJob extends TaskJob:
         --name=name
         --id=id
         --description=description
-    containers_.install job
-    // Installing a container job doesn't really do much, unless
-    // the job is already complete because we've found its
-    // container image in flash. In that case, we must remember
-    // to update the device state.
-    if job.is_complete:
+    if job:
+      // Installing a container job doesn't really do much, unless
+      // the job is already complete because we've found its
+      // container image in flash. In that case, we must remember
+      // to update the device state.
+      containers_.install job
       device_.state_container_install_or_update name description
+    else:
+      incomplete := ContainerIncomplete
+          --name=name
+          --id=id
+          --description=description
+      containers_incomplete_.add incomplete
 
   handle_container_uninstall_ name/string -> none:
     job/ContainerJob? := containers_.get --name=name
@@ -356,15 +374,19 @@ class SynchronizeJob extends TaskJob:
   process_first_incomplete_container_image_ resources/ResourceManager -> none:
     assert: state_ >= STATE_CONNECTED_TO_BROKER
     transition_to_ STATE_PROCESSING_CONTAINER_IMAGE
-    incomplete/ContainerJob? ::= containers_.first_incomplete
-    if not incomplete: return
+    incomplete := containers_incomplete_.first
     resources.fetch_image incomplete.id: | reader/Reader |
-      containers_.complete incomplete reader
-      // The container image was successfully installed, so the job is
-      // now complete. Go ahead and update the current state!
+      job := containers_.create
+        --name=incomplete.name
+        --id=incomplete.id
+        --description=incomplete.description
+        --reader=reader
       device_.state_container_install_or_update
           incomplete.name
           incomplete.description
+      // TODO(kasper): Think about the edge cases here.
+      containers_incomplete_.remove_first
+      containers_.install job
 
   handle_set_max_offline_ value/any -> none:
     device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
@@ -388,7 +410,7 @@ class SynchronizeJob extends TaskJob:
   The reported state includes the firmware state, the current state,
     and the goal state.
   */
-  report_state_if_changed resources/ResourceManager -> none:
+  report_state_if_changed resources/ResourceManager --goal_state/Map?=null -> none:
     state := {
       "firmware-state": device_.firmware_state,
     }
@@ -396,8 +418,8 @@ class SynchronizeJob extends TaskJob:
       state["pending-firmware"] = device_.pending_firmware
     if device_.is_current_state_modified:
       state["current-state"] = device_.current_state
-    if device_.goal_state:
-      state["goal-state"] = device_.goal_state
+    if goal_state:
+      state["goal-state"] = goal_state
 
     sha := sha256.Sha256
     sha.add (tison.encode state)
@@ -407,3 +429,10 @@ class SynchronizeJob extends TaskJob:
     resources.report_state state
     transition_to_connected_
     device_.report_state_checksum = checksum
+    logger_.info "synchronized state to broker"
+
+class ContainerIncomplete:
+  name/string
+  id/uuid.Uuid
+  description/Map
+  constructor --.name --.id --.description:
