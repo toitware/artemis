@@ -18,9 +18,9 @@ class Device:
   /** UUID used to ensure that the flash's data is actually from us. */
   static FLASH_ENTRY_UUID_ ::= "ccf4efed-6825-44e6-b71d-1aa118d43824"
 
-  static FLASH_GOAL_STATE_ ::= "goal-state"
   static FLASH_CURRENT_STATE_ ::= "current-state"
   static FLASH_CHECKPOINT_ ::= "checkpoint"
+  static FLASH_REPORT_STATE_CHECKSUM_ ::= "report-state-checksum"
   flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
 
   // We store the information that contains timestamps in RAM,
@@ -83,24 +83,14 @@ class Device:
   current_state_is_modifiable_/bool := false
 
   /**
-  The configuration the device tries to reach.
-
-  This is the configuration the device is trying to reach.
-  After getting a new configuration from the broker, the device
-    applies the changes that are requested. Some of these
-    changes can be applied immediately (like changing the max-offline),
-    but some others might take more time (like installing a new
-    programs or firmware).
-
-  May return null, if the goal state is the same as the
-    $current_state.
-  */
-  goal_state/Map? := null
-
-  /**
   The firmware that is installed, but not yet running.
   */
   pending_firmware/string? := null
+
+  /**
+  The checksum of the last reported state.
+  */
+  report_state_checksum_/ByteArray? := null
 
   constructor --.id --.hardware_id --.organization_id --.firmware_state/Map:
     current_state = firmware_state
@@ -176,6 +166,19 @@ class Device:
   */
   state_firmware_update new/string:
     pending_firmware = new
+
+  /**
+  Get the checksum of the last state report.
+  */
+  report_state_checksum -> ByteArray?:
+    return report_state_checksum_
+
+  /**
+  Sets the checksum of the last state report.
+  */
+  report_state_checksum= value/ByteArray -> none:
+    flash_store_ FLASH_REPORT_STATE_CHECKSUM_ value
+    report_state_checksum_ = value
 
   /**
   Gets the last check-in state (if any).
@@ -265,18 +268,14 @@ class Device:
         // the old "current" state.
         if not is_validation_pending:
           log.error "current state has different firmware than firmware state"
-    goal_state = flash_load_ FLASH_GOAL_STATE_
+    report_state_checksum_ = flash_load_ FLASH_REPORT_STATE_CHECKSUM_
 
   /**
   Stores the states into the flash after simplifying them.
 
-  If the goal state is the same as the current state sets it to null.
   If the current state is the same as the firmware state sets it to null.
   */
   simplify_and_store_ -> none:
-    if goal_state and json_equals goal_state current_state:
-      goal_state = null
-
     if current_state and json_equals current_state firmware_state:
       current_state = firmware_state
       current_state_is_modifiable_ = false
@@ -285,7 +284,6 @@ class Device:
       log.error "validation still pending in simplify_and_store_"
 
     flash_store_ FLASH_CURRENT_STATE_ current_state
-    flash_store_ FLASH_GOAL_STATE_ goal_state
 
   flash_load_ key/string -> any:
     entry := flash_.get key

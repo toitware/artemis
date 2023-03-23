@@ -35,68 +35,58 @@ class ContainerManager:
       catch: id = uuid.parse (description.get ContainerJob.KEY_ID)
       if not id: continue.do
       job := create --name=name --id=id --description=description
-      add_ job --message="load"
-
-  any_incomplete -> bool:
-    return first_incomplete != null
-
-  first_incomplete -> ContainerJob?:
-    jobs_.do: | _ job/ContainerJob |
-      if not job.is_complete: return job
-    return null
+      // TODO(kasper): We should be able to find all container
+      // images used by the current state in flash, so it isn't
+      // very clear how we should handle it if we cannot. Should
+      // we drop such an app from the current state? Seems like
+      // the right thing to do.
+      if job: add_ job --message="load"
 
   get --name/string -> ContainerJob?:
     return jobs_.get name
 
-  create --name/string --id/uuid.Uuid --description/Map -> ContainerJob:
-    job := ContainerJob --name=name --id=id --description=description
-    if images_.contains id: job.is_complete_ = true
-    return job
+  create --name/string --id/uuid.Uuid --description/Map -> ContainerJob?
+      --reader/Reader?=null:
+    if reader:
+      writer/containers.ContainerImageWriter := ?
+      if reader is SizedReader:
+        size := (reader as SizedReader).size
+        logger_.info "image download" --tags={"id": id, "size": size}
+        writer = containers.ContainerImageWriter size
+        while data := reader.read: writer.write data
+      else:
+        logger_.warn "image download with unknown size" --tags={"id": id}
+        data := utils.read_all reader
+        writer = containers.ContainerImageWriter data.size
+        writer.write data
+      image := writer.commit
+      logger_.info "image downloaded" --tags={"id": image}
+      if image != id: throw "invalid state"
+      images_.add id
+    else if not images_.contains id:
+      return null
+    return ContainerJob --name=name --id=id --description=description
 
   install job/ContainerJob -> none:
     job.has_run_after_install_ = false
     add_ job --message="install"
 
-  complete job/ContainerJob reader/Reader -> none:
-    if job.is_complete: return
-    id := job.id
-    writer/containers.ContainerImageWriter := ?
-    if reader is SizedReader:
-      size := (reader as SizedReader).size
-      logger_.info "image download" --tags={"id": id, "size": size}
-      writer = containers.ContainerImageWriter size
-      while data := reader.read: writer.write data
-    else:
-      logger_.warn "image download with unknown size" --tags={"id": id}
-      data := utils.read_all reader
-      writer = containers.ContainerImageWriter data.size
-      writer.write data
-    image := writer.commit
-    logger_.info "image installed" --tags={"id": image}
-    if image != id: throw "invalid state"
-    job.is_complete_ = true
-    images_.add id
-    logger_.info "complete" --tags=job.tags
-    scheduler_.on_job_ready job
-
   uninstall job/ContainerJob -> none:
     jobs_.remove job.name
     scheduler_.remove_job job
     logger_.info "uninstall" --tags=job.tags
-    if not job.is_complete: return
     id := job.id
     // TODO(kasper): We could consider using reference counting
     // here instead of running through the jobs.
     preserve := images_bundled_.contains id
         or jobs_.any --values: it.id == id
-    job.is_complete_ = false
     if preserve: return
     containers.uninstall job.id
     images_.remove id
     logger_.info "image uninstalled" --tags={"id": id}
 
   update job/ContainerJob description/Map -> none:
-    if job.is_complete: scheduler_.remove_job job
+    scheduler_.remove_job job
     job.update description
     // After updating the description of an app, we
     // mark it as being newly installed for the purposes
@@ -104,7 +94,7 @@ class ContainerManager:
     // again if it has an install trigger.
     job.has_run_after_install_ = false
     logger_.info "update" --tags=job.tags
-    if job.is_complete: scheduler_.add_job job
+    scheduler_.add_job job
 
   add_ job/ContainerJob --message/string -> none:
     jobs_[job.name] = job
@@ -124,11 +114,9 @@ class ContainerJob extends Job:
   trigger_install_/bool := false
   trigger_interval_/Duration? := null
 
-  // The $ContainerManager is responsible for marking
-  // container jobs as complete and for scheduling
-  // newly installed containers, so it manipulates these
-  // fields directly.
-  is_complete_/bool := false
+  // The $ContainerManager is responsible for scheduling
+  // newly installed containers, so it manipulates this
+  // field directly.
   has_run_after_install_/bool := true
 
   constructor --name/string --.id --description/Map:
@@ -138,9 +126,6 @@ class ContainerJob extends Job:
 
   stringify -> string:
     return "container:$name"
-
-  is_complete -> bool:
-    return is_complete_
 
   is_running -> bool:
     return running_ != null
@@ -156,7 +141,6 @@ class ContainerJob extends Job:
     return { "name": name, "id": id }
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if not is_complete_: return null
     if trigger_boot_ and not has_run_after_boot:
       return now
     else if trigger_install_ and not has_run_after_install_:
@@ -175,7 +159,6 @@ class ContainerJob extends Job:
     return Job.schedule_tune_periodic last trigger_interval_
 
   start now/JobTime -> none:
-    assert: is_complete
     if running_: return
     arguments := description_.get "arguments"
     has_run_after_install_ = true

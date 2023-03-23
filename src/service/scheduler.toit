@@ -61,9 +61,6 @@ class Scheduler:
     logger_.info "job started" --tags={"job": job}
     signal_.awaken
 
-  on_job_ready job/Job -> none:
-    signal_.awaken
-
   on_job_stopped job/Job -> none:
     job.scheduler_ran_last_ = job.schedule_tune job.scheduler_ran_last_
     logger_.info "job stopped" --tags={"job": job}
