@@ -90,7 +90,9 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.error "Duplicate trigger 'interval'."
         ui.abort
       seen_triggers.add "interval"
-      duration := parse_duration it["interval"]
+      duration := parse_duration it["interval"] --on_error=:
+        ui.error "Invalid interval '$it'. Use 20s, 5m10s, 12h or similar."
+        ui.abort
       device_specification.IntervalTrigger duration
     else:
       ui.error "Invalid trigger '$it'."
