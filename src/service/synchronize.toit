@@ -174,6 +174,7 @@ class SynchronizeJob extends TaskJob:
 
     // We have successfully finished processing the new goal state.
     // Inform the broker.
+    transition_to_ STATE_CONNECTED_TO_BROKER
     report_state resources
     transition_to_ STATE_SYNCHRONIZED
 
@@ -372,6 +373,7 @@ class SynchronizeJob extends TaskJob:
     if firmware_is_validation_pending: throw "firmware update: cannot update unvalidated"
     firmware_update logger_ resources --device=device_ --new=new
     try:
+      transition_to_ STATE_CONNECTED_TO_BROKER
       device_.state_firmware_update new
       report_state resources
     finally:
