@@ -135,17 +135,7 @@ class SynchronizeJob extends TaskJob:
     // is not really present there.
     broker_.connect --network=network --device=device_: | resources/ResourceManager |
       with_timeout SYNCHRONIZE_STEP_TIMEOUT:
-        // TODO(florian): We don't need to report the state every time we
-        // connect. We only need to do this the first time we connect or
-        // if we know that the broker isn't up to date.
         report_state resources
-
-        // We're connected if we managed to report our state. If we stop
-        // reporting the state right after connecting, we may not actually
-        // be connected yet, so in that (hypothetical) case we have to
-        // avoid transitioning prematurely.
-        transition_to_ STATE_CONNECTED_TO_BROKER
-
       while true:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
           run_step_ resources
@@ -159,16 +149,20 @@ class SynchronizeJob extends TaskJob:
       // exceptions here.
       catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
         goal := broker_.fetch_goal --no-wait
+        transition_to_connected_
         process_goal_ goal resources
     else:
       with_timeout check_in_timeout:
         goal := broker_.fetch_goal --wait
+        transition_to_connected_
         process_goal_ goal resources
 
     // We only handle incomplete containers when we're done handling
     // the other updates. This means that we prioritize firmware updates
     // and configuration changes over fetching container images.
     if containers_.any_incomplete:
+      // TODO(kasper): This is problematic if we're not actually
+      // connected yet. Hmm.
       process_first_incomplete_container_image_ resources
       return
 
@@ -204,6 +198,10 @@ class SynchronizeJob extends TaskJob:
       else:
         logger_.error "firmware update failed to validate"
 
+  transition_to_connected_ -> none:
+    if state_ >= STATE_CONNECTED_TO_BROKER: return
+    transition_to_ STATE_CONNECTED_TO_BROKER
+
   transition_to_disconnected_ --error/Object? -> none:
     previous := state_
     state_ = STATE_DISCONNECTED
@@ -221,6 +219,7 @@ class SynchronizeJob extends TaskJob:
   Process new goal.
   */
   process_goal_ new_goal/Map? resources/ResourceManager -> none:
+    assert: state_ >= STATE_CONNECTED_TO_BROKER
     if not (new_goal or device_.is_current_state_modified):
       // The new goal indicates that we should use the firmware state.
       // Since there is no current state, we are currently cleanly
@@ -352,6 +351,7 @@ class SynchronizeJob extends TaskJob:
       logger_.error "updating: container $name not found"
 
   process_first_incomplete_container_image_ resources/ResourceManager -> none:
+    assert: state_ >= STATE_CONNECTED_TO_BROKER
     transition_to_ STATE_PROCESSING_CONTAINER_IMAGE
     incomplete/ContainerJob? ::= containers_.first_incomplete
     if not incomplete: return
@@ -397,4 +397,6 @@ class SynchronizeJob extends TaskJob:
       state["current-state"] = device_.current_state
     if device_.goal_state:
       state["goal-state"] = device_.goal_state
+
     resources.report_state state
+    transition_to_connected_
