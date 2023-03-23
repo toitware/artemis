@@ -78,31 +78,6 @@ run_shared_test
   }
   expect_null state
 
-  // The "get_goal" function is available to anonymous users.
-  // They need to know an existing device ID.
-  goal := client_anon.rest.rpc "toit_artemis.get_goal" {
-    "_device_id": device_id1,
-  }
-  expect_null goal  // Hasn't been set yet.
-
-  // The "set_goal" function is only available to authenticated users.
-  expect_throws --contains="row-level security":
-    client_anon.rest.rpc "toit_artemis.set_goal" {
-      "_device_id": device_id1,
-      "_goal": { "updated": "by anon" },
-    }
-
-  client1.rest.rpc "toit_artemis.set_goal" {
-    "_device_id": device_id1,
-    "_goal": { "updated": "by user1" },
-  }
-
-  // The goal is now available to the anon client.
-  goal = client_anon.rest.rpc "toit_artemis.get_goal" {
-    "_device_id": device_id1,
-  }
-  expect_equals "by user1" goal["updated"]
-
   // report_event is available to devices (and thus anonymous).
   client_anon.rest.rpc "toit_artemis.report_event" {
     "_device_id": device_id1,
@@ -136,6 +111,71 @@ run_shared_test
   row := events[0]
   expect_equals device_id1 row["device_id"]
   expect_equals "by anon" row["data"]["updated"]
+
+  all_events := client1.rest.rpc "toit_artemis.get_events" {
+    "_device_ids": [device_id1],
+    "_types": [],
+    "_limit": 10000,
+  }
+  all_events_size := all_events.size
+
+  // The "get_goal" function is available to anonymous users.
+  // They need to know an existing device ID.
+  goal := client_anon.rest.rpc "toit_artemis.get_goal" {
+    "_device_id": device_id1,
+  }
+  expect_null goal  // Hasn't been set yet.
+
+  all_events = client1.rest.rpc "toit_artemis.get_events" {
+    "_device_ids": [device_id1],
+    "_types": [],
+    "_limit": 10000,
+  }
+  expect_equals all_events_size + 1 all_events.size
+
+  // The "set_goal" function is only available to authenticated users.
+  expect_throws --contains="row-level security":
+    client_anon.rest.rpc "toit_artemis.set_goal" {
+      "_device_id": device_id1,
+      "_goal": { "updated": "by anon" },
+    }
+
+  client1.rest.rpc "toit_artemis.set_goal" {
+    "_device_id": device_id1,
+    "_goal": { "updated": "by user1" },
+  }
+
+  // The goal is now available to the anon client.
+  goal = client_anon.rest.rpc "toit_artemis.get_goal" {
+    "_device_id": device_id1,
+  }
+  expect_equals "by user1" goal["updated"]
+
+  all_events = client1.rest.rpc "toit_artemis.get_events" {
+    "_device_ids": [device_id1],
+    "_types": [],
+    "_limit": 10000,
+  }
+  all_events_size = all_events.size
+
+  // The get_goal_no_event is only available to the CLI.
+  goal = client_anon.rest.rpc "toit_artemis.get_goal_no_event" {
+    "_device_id": device_id1,
+  }
+  expect_null goal
+
+  goal = client1.rest.rpc "toit_artemis.get_goal_no_event" {
+    "_device_id": device_id1,
+  }
+  expect_equals "by user1" goal["updated"]
+
+  // The no-event version doesn't create an event.
+  all_events = client1.rest.rpc "toit_artemis.get_events" {
+    "_device_ids": [device_id1],
+    "_types": [],
+    "_limit": 10000,
+  }
+  expect_equals all_events_size all_events.size
 
   // Only authenticated can remove devices.
   client_anon.rest.rpc "toit_artemis.remove_device" {
