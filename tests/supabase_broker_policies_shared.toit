@@ -115,7 +115,7 @@ run_shared_test
   all_events := client1.rest.rpc "toit_artemis.get_events" {
     "_device_ids": [device_id1],
     "_types": [],
-    "_limit": 10000,
+    "_limit": 10_000,
   }
   all_events_size := all_events.size
 
@@ -129,7 +129,7 @@ run_shared_test
   all_events = client1.rest.rpc "toit_artemis.get_events" {
     "_device_ids": [device_id1],
     "_types": [],
-    "_limit": 10000,
+    "_limit": 10_000,
   }
   expect_equals all_events_size + 1 all_events.size
 
@@ -154,7 +154,7 @@ run_shared_test
   all_events = client1.rest.rpc "toit_artemis.get_events" {
     "_device_ids": [device_id1],
     "_types": [],
-    "_limit": 10000,
+    "_limit": 10_000,
   }
   all_events_size = all_events.size
 
@@ -173,7 +173,7 @@ run_shared_test
   all_events = client1.rest.rpc "toit_artemis.get_events" {
     "_device_ids": [device_id1],
     "_types": [],
-    "_limit": 10000,
+    "_limit": 10_000,
   }
   expect_equals all_events_size all_events.size
 
