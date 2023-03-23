@@ -313,14 +313,6 @@ class Client:
         message = body_bytes.to_string_non_throwing
       throw "FAILED: $response.status_code - $message"
 
-    // TODO(kasper): We get a status code 204 (No Content) back
-    // from RPC calls that return void and they seem to always
-    // have empty bodies. Don't try to read them. This should be
-    // handled by the http package.
-    if response.status_code == 204:
-      response.connection_.reading_done_ body
-      return parse_response_json ? null : ""
-
     if not parse_response_json:
       return (utils.read_all body).to_string_non_throwing
 
@@ -334,7 +326,7 @@ class Client:
     try:
       return json.decode_stream buffered_body
     finally:
-      catch: while body.read: null // DRAIN!
+      catch: response.drain
 
 /**
 An interface to store authentication information locally.
@@ -592,7 +584,7 @@ class Storage:
       if not okay: throw "Not found ($status)"
       block.call body
     finally:
-      catch: while body.read: null // DRAIN!
+      catch: response.drain
 
   /**
   Returns a list of all buckets.
