@@ -58,6 +58,13 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
+  // We allow each step in the synchronization process to
+  // only take a specified amount of time. If it takes
+  // more time than that we run the risk of waiting for
+  // reading from a network connection that is never going
+  // to produce more bits.
+  static SYNCHRONIZE_STEP_TIMEOUT ::= Duration --m=3
+
   // We use a minimum offline setting to avoid scheduling the
   // synchronization job too often.
   static OFFLINE_MINIMUM ::= Duration --s=12
@@ -121,44 +128,54 @@ class SynchronizeJob extends TaskJob:
       return
 
   run_ network/net.Client -> none:
+    // TODO(kasper): It would be ideal if we could wrap the call to
+    // connect and provide a timeout. It is hard to do with the current
+    // structure where it takes a block. When talking to Supabase the
+    // connect call actually doesn't do any waiting so the problem
+    // is not really present there.
     broker_.connect --network=network --device=device_: | resources/ResourceManager |
-      // TODO(florian): We don't need to report the state every time we
-      // connect. We only need to do this the first time we connect or
-      // if we know that the broker isn't up to date.
-      report_state resources
+      with_timeout SYNCHRONIZE_STEP_TIMEOUT:
+        // TODO(florian): We don't need to report the state every time we
+        // connect. We only need to do this the first time we connect or
+        // if we know that the broker isn't up to date.
+        report_state resources
 
-      // We're connected if we managed to report our state. If we stop
-      // reporting the state right after connecting, we may not actually
-      // be connected yet, so in that (hypothetical) case we have to
-      // avoid transitioning prematurely.
-      transition_to_ STATE_CONNECTED_TO_BROKER
+        // We're connected if we managed to report our state. If we stop
+        // reporting the state right after connecting, we may not actually
+        // be connected yet, so in that (hypothetical) case we have to
+        // avoid transitioning prematurely.
+        transition_to_ STATE_CONNECTED_TO_BROKER
 
       while true:
-        if containers_.any_incomplete:
-          // TODO(kasper): Change the interface so we don't have to catch
-          // exceptions here.
-          catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-            goal := broker_.fetch_goal --no-wait
-            process_goal_ goal resources
-        else:
-          with_timeout check_in_timeout:
-            goal := broker_.fetch_goal --wait
-            process_goal_ goal resources
+        with_timeout SYNCHRONIZE_STEP_TIMEOUT:
+          run_step_ resources
+          if state_ != STATE_SYNCHRONIZED: continue
+          if device_.max_offline: break
+          transition_to_ STATE_CONNECTED_TO_BROKER
 
-        // We only handle incomplete containers when we're done handling
-        // the other updates. This means that we prioritize firmware updates
-        // and configuration changes over fetching container images.
-        if containers_.any_incomplete:
-          process_first_incomplete_container_image_ resources
-          continue
+  run_step_ resources/ResourceManager -> none:
+    if containers_.any_incomplete:
+      // TODO(kasper): Change the interface so we don't have to catch
+      // exceptions here.
+      catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
+        goal := broker_.fetch_goal --no-wait
+        process_goal_ goal resources
+    else:
+      with_timeout check_in_timeout:
+        goal := broker_.fetch_goal --wait
+        process_goal_ goal resources
 
-        // We have successfully finished processing the new goal state.
-        // Inform the broker.
-        report_state resources
-        transition_to_ STATE_SYNCHRONIZED
+    // We only handle incomplete containers when we're done handling
+    // the other updates. This means that we prioritize firmware updates
+    // and configuration changes over fetching container images.
+    if containers_.any_incomplete:
+      process_first_incomplete_container_image_ resources
+      return
 
-        if device_.max_offline: return
-        transition_to_ STATE_CONNECTED_TO_BROKER
+    // We have successfully finished processing the new goal state.
+    // Inform the broker.
+    report_state resources
+    transition_to_ STATE_SYNCHRONIZED
 
   transition_to_ state/int -> none:
     previous := state_
