@@ -5,6 +5,9 @@ import net
 import reader show Reader
 import uuid
 
+import crypto.sha256
+import encoding.tison
+
 import system.containers
 import system.firmware
 
@@ -134,8 +137,6 @@ class SynchronizeJob extends TaskJob:
     // connect call actually doesn't do any waiting so the problem
     // is not really present there.
     broker_.connect --network=network --device=device_: | resources/ResourceManager |
-      with_timeout SYNCHRONIZE_STEP_TIMEOUT:
-        report_state resources
       while true:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
           run_step_ resources
@@ -144,6 +145,9 @@ class SynchronizeJob extends TaskJob:
           transition_to_ STATE_CONNECTED_TO_BROKER
 
   run_step_ resources/ResourceManager -> none:
+    // If our state has changed, we communicate it to the cloud.
+    report_state_if_changed resources
+
     if containers_.any_incomplete:
       // TODO(kasper): Change the interface so we don't have to catch
       // exceptions here.
@@ -168,7 +172,7 @@ class SynchronizeJob extends TaskJob:
 
     // We have successfully finished processing the new goal state.
     // Inform the broker.
-    report_state resources
+    report_state_if_changed resources
     transition_to_ STATE_SYNCHRONIZED
 
   transition_to_ state/int -> none:
@@ -261,10 +265,8 @@ class SynchronizeJob extends TaskJob:
       device_.goal_state = null
       return
 
-    device_.goal_state = new_goal
-    report_state resources
-
     transition_to_ STATE_PROCESSING_GOAL
+    device_.goal_state = new_goal
     logger_.info "updating" --tags={"changes": Modification.stringify modification}
 
     modification.on_map "apps"
@@ -373,21 +375,18 @@ class SynchronizeJob extends TaskJob:
     firmware_update logger_ resources --device=device_ --new=new
     try:
       device_.state_firmware_update new
-      report_state resources
+      report_state_if_changed resources
     finally:
       firmware.upgrade
 
   /**
-  Sends the current device state to the broker.
+  Reports the current device state to the broker, but only if we know
+    it may have changed.
 
-  This includes the firmware state, the current state and the goal state.
+  The reported state includes the firmware state, the current state,
+    and the goal state.
   */
-  report_state resources/ResourceManager -> none:
-    // TODO(florian): we should not send modifications all the time.
-    // 1. if nothing changed, no need to send anything.
-    // 2. if we got a new goal-state, we can delay reporting the state
-    //    for a bit, to give the goal-state time to become the current
-    //    state.
+  report_state_if_changed resources/ResourceManager -> none:
     state := {
       "firmware-state": device_.firmware_state,
     }
@@ -398,5 +397,11 @@ class SynchronizeJob extends TaskJob:
     if device_.goal_state:
       state["goal-state"] = device_.goal_state
 
+    sha := sha256.Sha256
+    sha.add (tison.encode state)
+    checksum := sha.get
+    if checksum == device_.report_state_checksum: return
+
     resources.report_state state
     transition_to_connected_
+    device_.report_state_checksum = checksum

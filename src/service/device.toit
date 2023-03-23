@@ -21,6 +21,7 @@ class Device:
   static FLASH_GOAL_STATE_ ::= "goal-state"
   static FLASH_CURRENT_STATE_ ::= "current-state"
   static FLASH_CHECKPOINT_ ::= "checkpoint"
+  static FLASH_REPORT_STATE_CHECKSUM ::= "report-state-checksum"
   flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
 
   // We store the information that contains timestamps in RAM,
@@ -102,6 +103,11 @@ class Device:
   */
   pending_firmware/string? := null
 
+  /**
+  The checksum of the last reported state.
+  */
+  report_state_checksum_/ByteArray? := null
+
   constructor --.id --.hardware_id --.organization_id --.firmware_state/Map:
     current_state = firmware_state
     load_
@@ -176,6 +182,19 @@ class Device:
   */
   state_firmware_update new/string:
     pending_firmware = new
+
+  /**
+  Get the checksum of the last state report.
+  */
+  report_state_checksum -> ByteArray?:
+    return report_state_checksum_
+
+  /**
+  Sets the checksum of the last state report.
+  */
+  report_state_checksum= value/ByteArray -> none:
+    flash_store_ FLASH_REPORT_STATE_CHECKSUM value
+    report_state_checksum_ = value
 
   /**
   Gets the last check-in state (if any).
@@ -266,6 +285,7 @@ class Device:
         if not is_validation_pending:
           log.error "current state has different firmware than firmware state"
     goal_state = flash_load_ FLASH_GOAL_STATE_
+    report_state_checksum_ = flash_load_ FLASH_REPORT_STATE_CHECKSUM
 
   /**
   Stores the states into the flash after simplifying them.
