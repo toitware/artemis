@@ -14,7 +14,7 @@ read_all reader/Reader -> ByteArray:
 
   first := reader.read
   if not first:
-    if size: throw UNEXPECTED_END_OF_READER_EXCEPTION
+    if size and size > 0: throw UNEXPECTED_END_OF_READER_EXCEPTION
     return #[]
 
   second := reader.read

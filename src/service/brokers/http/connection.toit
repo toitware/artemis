@@ -59,4 +59,4 @@ class HttpConnection_:
       if status != 200: throw "Not found ($status)"
       block.call body
     finally:
-      catch: while body.read: null // DRAIN!
+      catch: response.drain
