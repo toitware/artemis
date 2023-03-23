@@ -75,8 +75,9 @@ class HttpBroker extends HttpServer:
   get_goal data/Map -> Map?:
     device_id := data["device_id"]
     // Automatically adds an event.
+    result := get_goal_no_event data
     report_event device_id "get-goal" null
-    return get_goal_no_event data
+    return result
 
   get_goal_no_event data/Map -> Map?:
     device_id := data["device_id"]
