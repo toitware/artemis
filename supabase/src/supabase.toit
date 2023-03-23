@@ -579,7 +579,7 @@ class Storage:
     // or not we're doing a partial fetch.
     status := response.status_code
     body := response.body
-    okay := status == STATUS_OK or (partial and status == STATUS_PARTIAL_CONTENT)
+    okay := status == status_codes.STATUS_OK or (partial and status == status_codes.STATUS_PARTIAL_CONTENT)
     try:
       if not okay: throw "Not found ($status)"
       block.call body
