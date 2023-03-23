@@ -43,7 +43,7 @@ class SynchronizeJob extends TaskJob:
     "connected to network",
     "connected to broker",
     "updating",
-    "downloading image",
+    "image download initiated",
     "firmware update initiated",
     "synchronized",
   ]
@@ -53,7 +53,7 @@ class SynchronizeJob extends TaskJob:
     "connection to network lost",
     "connection to broker lost",
     "updating failed",
-    "downloading image failed",
+    "image download failed",
     "firmware update failed",
     null,
   ]
