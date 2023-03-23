@@ -69,7 +69,7 @@ class BrokerCliSupabase implements BrokerCli:
     }
 
   get_device --device_id/string -> DeviceDetailed?:
-    current_goal := client_.rest.rpc "toit_artemis.get_goal" {
+    current_goal := client_.rest.rpc "toit_artemis.get_goal_no_event" {
       "_device_id": device_id,
     }
 

@@ -30,8 +30,6 @@ RETURNS JSON
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
-DECLARE
-    _goal JSON;
 BEGIN
     RETURN (SELECT toit_artemis.get_goal(_device_id));
 END;
@@ -42,8 +40,6 @@ RETURNS JSON
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
-DECLARE
-    _state JSON;
 BEGIN
     RETURN (SELECT toit_artemis.get_state(_device_id));
 END;
