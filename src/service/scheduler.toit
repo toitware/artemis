@@ -38,7 +38,9 @@ class Scheduler:
       critical_do:
         jobs_ran_last := {:}
         jobs_.do: | job/Job |
-          jobs_ran_last[job.name] = job.scheduler_ran_last_.us
+          ran_last := job.scheduler_ran_last_
+          if ran_last:
+            jobs_ran_last[job.name] = job.scheduler_ran_last_.us
         device_.jobs_ran_last_end_update jobs_ran_last
 
   add_jobs jobs/List -> none:
