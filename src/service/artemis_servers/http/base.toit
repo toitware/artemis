@@ -34,7 +34,7 @@ class ArtemisServerServiceHttp implements ArtemisServerService:
         --port=server_config_.port
         --path="/"
 
-    if response.status_code != 200:
+    if response.status_code != http.STATUS_OK:
       throw "HTTP error: $response.status_code $response.status_message"
 
     return ubjson.decode (utils.read_all response.body)

@@ -63,7 +63,7 @@ class BrokerCliHttp implements BrokerCli:
       }
       response := client.post encoded --host=host --port=port --path="/"
 
-      if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
+      if response.status_code != http.STATUS_OK and response.status_code != STATUS_IM_A_TEAPOT:
         throw "HTTP error: $response.status_code $response.status_message"
 
       decoded := ubjson.decode (utils.read_all response.body)

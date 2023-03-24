@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Toitware ApS.
+// Copyright (C) 2023 Toitware ApS.
 // Use of this source code is governed by an MIT-style license that can be
 // found in the LICENSE file.
 
@@ -246,7 +246,7 @@ class Client:
     if method == http.GET:
       if payload: throw "GET requests cannot have a payload"
       response = http_client_.get --host=host --port=port --path=path --headers=headers
-    else if method == "PATCH" or method == http.DELETE or method == http.PUT:
+    else if method == http.PATCH or method == http.DELETE or method == http.PUT:
       // TODO(florian): the http client should support PATCH.
       // TODO(florian): we should only do this if the payload is a Map.
       encoded := json.encode payload
@@ -459,7 +459,7 @@ class PostgRest:
     headers := http.Headers
     headers.add "Prefer" RETURN_MINIMAL_
     client_.request_
-        --method="PATCH"
+        --method=http.PATCH
         --headers=headers
         --path="/rest/v1/$table"
         --payload=payload
@@ -579,7 +579,7 @@ class Storage:
     // or not we're doing a partial fetch.
     status := response.status_code
     body := response.body
-    okay := status == 200 or (partial and status == 206)
+    okay := status == status_codes.STATUS_OK or (partial and status == status_codes.STATUS_PARTIAL_CONTENT)
     try:
       if not okay: throw "Not found ($status)"
       block.call body

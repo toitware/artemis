@@ -71,7 +71,7 @@ download_url url/string --out_path/string -> none:
   path := parts.last
   log.info "Downloading $url"
   response := client.get host path
-  if response.status_code != 200:
+  if response.status_code != http.STATUS_OK:
     throw "Failed to download $url: $response.status_code $response.status_message"
   file := file.Stream.for_write out_path
   writer := writer.Writer file
