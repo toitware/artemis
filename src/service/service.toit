@@ -37,10 +37,15 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   // run the scheduler, we provide an implementation of
   // the Artemis API so user code can interact with us
   // at runtime and not just through the broker.
+  wakeup/JobTime? := null
   provider := ArtemisServiceProvider
-  provider.install
-  wakeup := scheduler.run
-  provider.uninstall
+  try:
+    provider.install
+    wakeup = scheduler.run
+  finally:
+    // We sometimes cancel the scheduler when running tests,
+    // so we have to be careful and clean up anyway.
+    critical_do: provider.uninstall
 
   // Compute the duration of the deep sleep and return it.
   duration := JobTime.now.to wakeup
