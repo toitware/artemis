@@ -1,8 +1,21 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 /**
-The version of Artemis.
 This file is automatically overwritten by the build system.
 It is ignored by git.
 */
-ARTEMIS_VERSION ::= "@ARTEMIS_GIT_VERSION@"
+
+/**
+The version of Artemis.
+*/
+ARTEMIS_VERSION /string ::= "@ARTEMIS_GIT_VERSION@"
+
+/**
+The major version of Artemis.
+*/
+ARTEMIS_VERSION_MAJOR /int ::= @ARTEMIS_GIT_VERSION_MAJOR
+
+/**
+The minor version of Artemis.
+*/
+ARTEMIS_VERSION_MINOR /int ::= @ARTEMIS_GIT_VERSION_MINOR
