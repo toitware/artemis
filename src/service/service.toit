@@ -17,7 +17,7 @@ import ..shared.version
 
 run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Duration:
   logger := log.default.with_name "artemis"
-  logger.info "starting" --tags={"device": device.id}
+  logger.info "starting" --tags={"device": device.id, "version": ARTEMIS_VERSION}
 
   scheduler ::= Scheduler logger device
   containers ::= ContainerManager logger scheduler
