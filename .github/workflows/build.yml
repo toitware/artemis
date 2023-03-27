@@ -15,7 +15,8 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        # Build on an older Ubuntu, so that we don't depend on a recent glibc.
+        os: [ ubuntu-20.04, macos-latest, windows-latest ]
 
     runs-on: ${{ matrix.os }}
 
