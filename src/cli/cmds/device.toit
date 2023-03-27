@@ -510,12 +510,12 @@ print_modification_ modification/Modification --to/Map ui/Ui:
   if has_app_changes:
     ui.print "  apps:"
     modification.on_map "apps"
-        --added=: | name id |
-          ui.print "    +$name ($id)"
-        --removed=: | name id |
+        --added=: | name description |
+          ui.print "    +$name ($description)"
+        --removed=: | name _ |
           ui.print "    -$name"
-        --updated=: | name id |
-          ui.print "    $name -> $id"
+        --updated=: | name from to |
+          print_app_update_ name from to ui
 
   already_handled := { "firmware", "max-offline", "apps" }
   modification.on_map
@@ -531,6 +531,17 @@ print_modification_ modification/Modification --to/Map ui/Ui:
       --modified=: | name _ |
         if already_handled.contains name: continue.on_map
         ui.print "  $name changed to $to[name]"
+
+print_app_update_ name/string from/Map to/Map ui/Ui:
+  ui.print "    $name:"
+  modification := Modification.compute --from=from --to=to
+  modification.on_map
+      --added=: | key value |
+        ui.print "      +$key: $value"
+      --removed=: | key _ |
+        ui.print "      -$key"
+      --updated=: | key from to |
+        ui.print "      $key -> $to"
 
 prettify_firmware firmware/string -> string:
   if firmware.size <= 80: return firmware
