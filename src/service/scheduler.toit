@@ -39,8 +39,7 @@ class Scheduler:
         jobs_ran_last := {:}
         jobs_.do: | job/Job |
           ran_last := job.scheduler_ran_last_
-          if ran_last:
-            jobs_ran_last[job.name] = job.scheduler_ran_last_.us
+          if ran_last: jobs_ran_last[job.name] = ran_last.us
         device_.jobs_ran_last_end_update jobs_ran_last
 
   add_jobs jobs/List -> none:
