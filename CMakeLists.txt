@@ -16,6 +16,11 @@ if ("${ARTEMIS_GIT_VERSION}" STREQUAL "")
   compute_git_version(ARTEMIS_GIT_VERSION)
 endif()
 
+# Pull the major and minor version from the Git version.
+string(REGEX MATCH "^v([0-9]+)\\.([0-9]+)" IGNORED "${ARTEMIS_GIT_VERSION}")
+set(ARTEMIS_GIT_VERSION_MAJOR "${CMAKE_MATCH_1}")
+set(ARTEMIS_GIT_VERSION_MINOR "${CMAKE_MATCH_2}")
+
 # Replace the version in src/shared/version.toit.
 configure_file(
   src/shared/version.toit.in

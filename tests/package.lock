@@ -1,4 +1,4 @@
-sdk: ^2.0.0-alpha.64
+sdk: ^2.0.0-alpha.69
 prefixes:
   ar: pkg-ar
   artemis: ..
@@ -14,6 +14,7 @@ packages:
     path: ..
     prefixes:
       ar: pkg-ar
+      artemis: toit-artemis
       certificate_roots: toit-cert-roots
       cli: pkg-cli
       fs: fs
@@ -63,6 +64,10 @@ packages:
     prefixes:
       host: pkg-host
       http: pkg-http
+  toit-artemis:
+    url: github.com/toitware/toit-artemis
+    version: 0.1.0
+    hash: af650b09a354b2f2c68a0d52e918cff68ef9a6b1
   toit-cert-roots:
     url: github.com/toitware/toit-cert-roots
     version: 1.4.0
