@@ -2,7 +2,7 @@
 
 import log
 import system.services
-import artemis.api.artemis as api  // TODO(kasper): Will change this to just api.
+import artemis.api
 
 import .brokers.broker
 import .containers show ContainerManager
