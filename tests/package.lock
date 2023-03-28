@@ -66,8 +66,8 @@ packages:
       http: pkg-http
   toit-artemis:
     url: github.com/toitware/toit-artemis
-    version: 0.1.0
-    hash: af650b09a354b2f2c68a0d52e918cff68ef9a6b1
+    version: 0.1.1
+    hash: 6e9a5abce9499a47bfd97277dae6ab71f1c65849
   toit-cert-roots:
     url: github.com/toitware/toit-cert-roots
     version: 1.4.0
