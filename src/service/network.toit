@@ -23,6 +23,9 @@ default_network_service_/NetworkServiceClient? ::=
     (NetworkServiceClient DEFAULT_NETWORK_SELECTOR).open --if_absent=: null
 
 class NetworkManager extends ProxyingNetworkServiceProvider:
+  static QUARANTINE_NO_DATA    ::= Duration --m=10
+  static QUARANTINE_NO_NETWORK ::= Duration --m=1
+
   logger_/log.Logger
   device_/Device
   proxy_mask_/int? := null
@@ -42,7 +45,7 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
 
   quarantine name/string -> none:
     connection/Connection? := connections_.get name
-    if connection: connection.quarantine (Duration --m=10)
+    if connection: connection.quarantine QUARANTINE_NO_DATA
 
   open_network -> net.Interface:
     if connections_.is_empty: return open_system_network_
@@ -53,7 +56,7 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
         proxy_mask_ = network.proxy_mask
         logger_.info "opened" --tags={"connection": network.name}
         return network
-      connection.quarantine (Duration --m=1)
+      connection.quarantine QUARANTINE_NO_NETWORK
     throw "CONNECT_FAILED: no available networks"
 
   open_network_ connection/Connection -> net.Client?:
@@ -84,42 +87,40 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
 abstract class Connection:
   description_/Map
   index/int
-  quarantine_/int? := null
+  quarantined_until_/int? := null
   constructor .index .description_:
 
   abstract name -> string
   abstract open -> net.Client
 
   is_quarantined -> bool:
-    quarantine := quarantine_
-    if not quarantine: return false
-    if time_now_us < quarantine: return true
-    quarantine_ = null
+    end := quarantined_until_
+    if not end: return false
+    if time_now_us < end: return true
+    quarantined_until_ = null
     return false
 
   quarantine duration/Duration -> none:
-    current := quarantine_
+    current := quarantined_until_
     proposed := time_now_us + duration.in_us
-    quarantine_ = current ? (max current proposed) : proposed
+    quarantined_until_ = current ? (max current proposed) : proposed
 
   static map device/Device --logger/log.Logger -> Map:
     result := {:}
     connections := device.current_state.get "connections" --if_absent=: []
     connections.size.repeat: | index/int |
       description/Map := connections[index]
+      connection/Connection? := null
       type := description.get "type"
-      if not type:
-        logger.error "connection has no type" --tags={"connection": description}
-        continue.repeat
-      connection/Connection? := ?
       if type == "wifi":
         connection = ConnectionWifi index description
       else if type == "cellular":
         connection = ConnectionCellular index description
-      else:
+      else if type:
         logger.warn "connection has unknown type" --tags={"connection": description}
-        continue.repeat
-      result[connection.name] = connection
+      else:
+        logger.error "connection has missing type" --tags={"connection": description}
+      if connection: result[connection.name] = connection
     return result
 
 class ConnectionWifi extends Connection:

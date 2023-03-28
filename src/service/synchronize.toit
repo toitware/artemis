@@ -130,7 +130,7 @@ class SynchronizeJob extends TaskJob:
     try:
       start := Time.monotonic_us
       limit := start + CONNECT_TO_BROKER_TIMEOUT.in_us
-      while connect_ and Time.monotonic_us < limit:
+      while not connect_ and Time.monotonic_us < limit:
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
@@ -143,8 +143,8 @@ class SynchronizeJob extends TaskJob:
   /**
   Tries to connect to the network and run the synchronization.
 
-  Returns whether the caller should retry the operation if
-    there is time left.
+  Returns whether we are done with this connection attempt (true)
+    or if another attempt makes sense if time permits (false).
   */
   connect_ -> bool:
     network/net.Client? := null
@@ -155,28 +155,28 @@ class SynchronizeJob extends TaskJob:
       transition_to_ STATE_CONNECTED_TO_NETWORK
       run_ network
       assert: device_.max_offline and state_ == STATE_SYNCHRONIZED
-      return false
+      return true
     finally: | is_exception exception |
       // We do not expect to be canceled outside of tests, but
       // if we do we prefer maintaining the proper state and
-      // get the network correctly quarantineed and closed.
+      // get the network correctly quarantined and closed.
       critical_do:
         // We retry if we connected to the network, but failed
         // to actually connect to the broker. This could be an
         // indication that the network doesn't let us connect,
         // so we prefer using a different network for a while.
-        retry := state_ == STATE_CONNECTED_TO_NETWORK
+        done := state_ != STATE_CONNECTED_TO_NETWORK
         transition_to_disconnected_ --error=(is_exception ? exception.value : null)
         if network:
           // If we are planning to retry another network,
           // we quarantine the one we just tried.
-          if retry: network.quarantine
+          if not done: network.quarantine
           network.close
         // If we're canceled, we should make sure to propagate
         // the canceled exception and not just swallow it.
         // Otherwise, the caller can easily run into a loop
         // where it is repeatedly asked to retry the connect.
-        if not Task.current.is_canceled: return retry
+        if not Task.current.is_canceled: return done
 
   run_ network/net.Client -> none:
     // TODO(kasper): It would be ideal if we could wrap the call to
