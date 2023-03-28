@@ -9,7 +9,7 @@ on:
 
 env:
   SUPPORTED_SDK_VERSIONS: |
-      v2.0.0-alpha.72
+      v2.0.0-alpha.73
 
 jobs:
   build:
@@ -31,7 +31,7 @@ jobs:
           fi
           echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
 
-          export TOIT_VERSION="v2.0.0-alpha.72"
+          export TOIT_VERSION="v2.0.0-alpha.73"
 
           export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
