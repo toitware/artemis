@@ -2,7 +2,7 @@
 
 TOIT_RUN_BIN?=toit.run
 
-SETUP_LOCAL_DEV_SDK ?= v2.0.0-alpha.72
+SETUP_LOCAL_DEV_SDK ?= v2.0.0-alpha.73
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 .PHONY: all
