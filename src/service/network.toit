@@ -10,7 +10,6 @@ import system.api.network show NetworkService NetworkServiceClient
 import system.base.network show ProxyingNetworkServiceProvider
 
 import .device
-import .jobs show time_now_us
 
 // The Artemis network manager is implemented as a network. The
 // network it provides is tagged so we can avoid finding it when
@@ -96,13 +95,13 @@ abstract class Connection:
   is_quarantined -> bool:
     end := quarantined_until_
     if not end: return false
-    if time_now_us < end: return true
+    if Time.monotonic_us < end: return true
     quarantined_until_ = null
     return false
 
   quarantine duration/Duration -> none:
     current := quarantined_until_
-    proposed := time_now_us + duration.in_us
+    proposed := Time.monotonic_us + duration.in_us
     quarantined_until_ = current ? (max current proposed) : proposed
 
   static map device/Device --logger/log.Logger -> Map:

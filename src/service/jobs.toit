@@ -3,10 +3,6 @@
 import monitor
 import .scheduler
 
-// TODO(kasper): Move this somewhere else.
-time_now_us -> int:
-  #primitive.core.get_system_time
-
 abstract class Job:
   name/string
 
@@ -126,7 +122,7 @@ class JobTime implements Comparable:
   constructor .us:
 
   constructor.now:
-    us = time_now_us
+    us = time_now_us_
 
   operator <= other/JobTime -> bool:
     return us <= other.us
@@ -144,7 +140,7 @@ class JobTime implements Comparable:
     return Duration --us=other.us - us
 
   to_monotonic_us -> int:
-    return Time.monotonic_us + (us - time_now_us)
+    return Time.monotonic_us + (us - time_now_us_)
 
   compare_to other/JobTime -> int:
     return us.compare_to other.us
@@ -154,3 +150,5 @@ class JobTime implements Comparable:
 
 // --------------------------------------------------------------------------
 
+time_now_us_ -> int:
+  #primitive.core.get_system_time
