@@ -54,7 +54,7 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     // try some networks more than once, which isn't what
     // I really wanted.
     connections_.size.repeat:
-      connection := choose_connection_
+      connection := pick_connection_
       network/net.Client? := open_network_ connection
       if not network:
         quarantine_ connection (Duration --m=2)
@@ -79,7 +79,7 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     // the default network provided by the system. For now, it feels
     // like it is worth having here if we end up running on a base
     // firmware image that has some embedded network configuration.
-    network := net.open --name="default" --service=default_network_service_
+    network := net.open --name="system" --service=default_network_service_
     proxy_mask_ = network.proxy_mask
     logger_.info "opened" --tags={"connection": network.name}
     return network
@@ -89,12 +89,13 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     network.close
     logger_.info "closed" --tags={"connection": network.name}
 
-  choose_connection_ -> Connection:
+  pick_connection_ -> Connection:
     assert: not connections_.is_empty
+    now := time_now_us
     best/Connection? := null
     connections_.do --values: | connection/Connection |
       quarantine := quarantines_[connection.index]
-      if not quarantine: return connection
+      if not quarantine or now >= quarantine: return connection
       if not best or quarantine < quarantines_[best.index]: best = connection
     return best
 

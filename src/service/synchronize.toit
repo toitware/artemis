@@ -127,37 +127,36 @@ class SynchronizeJob extends TaskJob:
     return null
 
   run -> none:
-    start := Time.monotonic_us
-    while true:
-      network/net.Client? := null
-      try:
-        state_ = STATE_DISCONNECTED
-        transition_to_ STATE_CONNECTING
-        network = net.open
-        transition_to_ STATE_CONNECTED_TO_NETWORK
-        run_ network
-      finally: | is_exception exception |
-        connected := state_ >= STATE_CONNECTED_TO_BROKER
-        transition_to_disconnected_ --error=(is_exception ? exception.value : null)
-        if network:
-          // If we didn't manage to connect, we try to quarantine
-          // the network that doesn't seem to work for us.
-          if not connected: network.quarantine
-          network.close
-        if connected:
-          if firmware_is_validation_pending:
-            logger_.error "firmware update was rejected after failing to validate"
-            firmware.rollback
-        else:
-          // If we didn't manage to connect to the broker, we
-          // try to connect again. The next time, due to the
-          // quarantining, we might pick a different network.
-          elapsed := Duration --us=Time.monotonic_us - start
-          if elapsed < CONNECT_TO_BROKER_TIMEOUT: continue
-          if firmware_is_validation_pending:
-            logger_.error "firmware update was rejected after failing to connect"
-            firmware.rollback
-        return
+    try:
+      start := Time.monotonic_us
+      limit := start + CONNECT_TO_BROKER_TIMEOUT.in_us
+      while not connect_ and Time.monotonic_us < limit:
+        // If we didn't manage to connect to the broker, we
+        // try to connect again. The next time, due to the
+        // quarantining, we might pick a different network.
+        logger_.info "connecting to broker failed - retrying"
+    finally:
+      if firmware_is_validation_pending:
+        logger_.error "firmware update was rejected after failing to connect or validate"
+        firmware.rollback
+
+  connect_ -> bool:
+    network/net.Client? := null
+    try:
+      state_ = STATE_DISCONNECTED
+      transition_to_ STATE_CONNECTING
+      network = net.open
+      transition_to_ STATE_CONNECTED_TO_NETWORK
+      run_ network
+    finally: | is_exception exception |
+      connected := state_ >= STATE_CONNECTED_TO_BROKER
+      transition_to_disconnected_ --error=(is_exception ? exception.value : null)
+      if network:
+        // If we didn't manage to connect, we try to quarantine
+        // the network that doesn't seem to work for us.
+        if not connected: network.quarantine
+        network.close
+      return connected
 
   run_ network/net.Client -> none:
     // TODO(kasper): It would be ideal if we could wrap the call to
