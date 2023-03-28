@@ -172,6 +172,10 @@ class SynchronizeJob extends TaskJob:
           // we quarantine the one we just tried.
           if retry: network.quarantine
           network.close
+        // If we're canceled, we should make sure to propagate
+        // the canceled exception and not just swallow it.
+        // Otherwise, the caller can easily run into a loop
+        // where it is repeatedly asked to retry the connect.
         if not Task.current.is_canceled: return retry
 
   run_ network/net.Client -> none:
