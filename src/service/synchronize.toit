@@ -140,6 +140,12 @@ class SynchronizeJob extends TaskJob:
         logger_.error "firmware update was rejected after failing to connect or validate"
         firmware.rollback
 
+  /**
+  Tries to connect to the network and run the synchronization.
+
+  Returns whether the caller should retry the operation if
+    there is time left.
+  */
   connect_ -> bool:
     network/net.Client? := null
     try:
