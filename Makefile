@@ -20,12 +20,9 @@ build/CMakeCache.txt:
 install-pkgs: rebuild-cmake
 	(cd build && ninja download_packages)
 
-.PHONY: disable-supabase-tests disable-mosquitto-tests
+.PHONY: disable-supabase-tests
 disable-supabase-tests: build/CMakeCache.txt
 	(cd build && cmake -DWITH_LOCAL_SUPABASE=OFF .)
-
-disable-mosquitto-tests: build/CMakeCache.txt
-	(cd build && cmake -DWITH_MOSQUITTO=OFF .)
 
 .PHONY: test
 test: install-pkgs rebuild-cmake
@@ -41,12 +38,6 @@ TOITWARE_TESTING_HOST := ghquchonjtjzuuxfmaub.supabase.co
 TOITWARE_TESTING_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdocXVjaG9uanRqenV1eGZtYXViIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQ4ODIsImV4cCI6MTk4ODk1MDg4Mn0.bJB3EdVwFN34yk50JLHv8Pw5IA5gqtEJrXU1MtjEWGc
 TOITWARE_TESTING_CERTIFICATE := Baltimore CyberTrust Root
 
-AWS_HOST := a2hn36ey2yxmvx-ats.iot.eu-west-1.amazonaws.com
-AWS_PORT := 8883
-AWS_ROOT_CERTIFICATE := Amazon Root CA 1
-AWS_CLIENT_CERTIFICATE_PATH := aws/client-certificate.pem
-AWS_CLIENT_PRIVATE_KEY_PATH := aws/client-key.pem
-
 .PHONY: add-default-brokers
 add-default-brokers: install-pkgs
 	@ # Adds the Toitware supabase Artemis server and makes it the default.
@@ -55,12 +46,6 @@ add-default-brokers: install-pkgs
 		artemis $(ARTEMIS_HOST) "$(ARTEMIS_ANON)"
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis
-	@ # Adds the AWS MQTT broker *without* making it the default.
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add --no-default mqtt \
-		--root-certificate "$(AWS_ROOT_CERTIFICATE)" \
-		--client-certificate "$(AWS_CLIENT_CERTIFICATE_PATH)" \
-		--client-private-key "$(AWS_CLIENT_PRIVATE_KEY_PATH)" \
-		aws $(AWS_HOST) $(AWS_PORT)
 
 .PHONY: start-http
 start-http: install-pkgs
@@ -127,17 +112,6 @@ use-customer-supabase-broker: start-supabase
 		broker-local-supabase \
 		`$(TOIT_RUN_BIN) tests/supabase_local_server.toit supabase_broker`
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-supabase
-
-.PHONY: start-mosquitto
-start-mosquitto:
-	@ # Adds the local broker and makes it the default.
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add mqtt \
-		broker-local-mosquitto \
-		`$(TOIT_RUN_BIN) tools/lan_ip/lan_ip.toit` \
-		3998
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-mosquitto
-	@ rm -rf $$HOME/.cache/artemis/broker-local-mosquitto
-	@ mosquitto -c tools/mosquitto.conf
 
 .PHONY: setup-local-dev
 setup-local-dev:

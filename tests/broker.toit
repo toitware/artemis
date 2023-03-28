@@ -5,7 +5,6 @@ import encoding.ubjson
 import log show Logger
 import log
 import monitor
-import mqtt
 import net
 
 import supabase
@@ -13,8 +12,6 @@ import supabase
 import artemis.cli.brokers.broker show BrokerCli
 import artemis.service.brokers.broker show BrokerService
 
-import .mqtt_broker_mosquitto
-import .mqtt_broker_toit
 import .supabase_local_server
 import ..tools.http_servers.broker show HttpBroker
 import ..tools.http_servers.broker as http_servers
@@ -23,12 +20,6 @@ import artemis.shared.server_config
     ServerConfig
     ServerConfigHttpToit
     ServerConfigSupabase
-    ServerConfigMqtt
-import artemis.shared.mqtt
-  show
-    topic_state_for
-    topic_goal_for
-    topic_revision_for
 import .utils
 
 class TestBroker:
@@ -83,17 +74,6 @@ with_broker --type/string --logger/Logger=(log.default.with_name "testing-$type"
     block.call test_server
   else if type == "http" or type == "http-toit":
     with_http_broker block
-  else if type == "mosquitto":
-    with_mosquitto --logger=logger: | host/string port/int |
-      server_config := ServerConfigMqtt "mosquitto" --host=host --port=port
-      backdoor := MqttBackdoor server_config --logger=logger
-      test_server := TestBroker server_config backdoor
-      block.call test_server
-  else if type == "toit-mqtt":
-    with_toit_mqtt_broker --logger=logger: | server_config/ServerConfigMqtt |
-      backdoor := MqttBackdoor server_config --logger=logger
-      test_server := TestBroker server_config backdoor
-      block.call test_server
   else:
     throw "Unknown broker type: $type"
 class ToitHttpBackdoor implements BrokerBackdoor:
@@ -171,52 +151,4 @@ class SupabaseBackdoor implements BrokerBackdoor:
       block.call supabase_client
     finally:
       if supabase_client: supabase_client.close
-      network.close
-
-class MqttBackdoor implements BrokerBackdoor:
-  server_config_/ServerConfigMqtt
-  logger_/Logger
-
-  constructor .server_config_ --logger/Logger:
-    logger_ = logger
-
-  create_device --device_id/string --state/Map:
-    with_backdoor_client_: | client/mqtt.Client |
-      topic := topic_state_for device_id
-      client.publish topic (ubjson.encode state) --retain --qos=1
-
-  remove_device device_id/string -> none:
-    with_backdoor_client_: | client/mqtt.Client |
-      [
-        topic_state_for device_id,
-        topic_goal_for device_id,
-        topic_revision_for device_id,
-      ].do: client.publish it #[] --retain --qos=1
-
-  get_state device_id/string -> Map?:
-    state_latch := monitor.Latch
-    with_backdoor_client_: | client/mqtt.Client |
-      topic := topic_state_for device_id
-      client.subscribe topic:: | _ payload/ByteArray |
-        if not state_latch.has_value:
-          state_latch.set (ubjson.decode payload)
-        client.unsubscribe topic
-      return state_latch.get
-    unreachable
-
-  clear_events -> none:
-    throw "UNIMPLEMENTED"
-
-  with_backdoor_client_ [block]:
-    network := net.open
-    transport := mqtt.TcpTransport
-        network
-        --host=server_config_.host
-        --port=server_config_.port
-    mqtt_client := mqtt.Client --transport=transport --logger=logger_
-    try:
-      mqtt_client.start
-      block.call mqtt_client
-    finally:
-      mqtt_client.close
       network.close

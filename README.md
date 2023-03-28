@@ -3,7 +3,7 @@
 Artemis consists of two parts:  A service that runs on the devices, and a CLI
 that allows you to control the devices.
 
-They communicate together using MQTT or HTTP via a cloud service.  Currently the
+They communicate together using HTTP via a cloud service.  Currently the
 cloud service is AWS's IoT service or a Supabase instance.  On the ESP32, the
 device keeps track of its device id after the initial flashing.
 
@@ -24,8 +24,6 @@ You can use the following `make` clauses to switch the broker (but not the
 Artemis server). They have to be run after the `start-local-*` clauses from above:
 - `use-customer-supabase-broker`: configures Artemis to use a separate customer
   Supabase broker, and starts it. You have to start docker first.
-- `start-mosquitto`: configures Artemis to use a local Mosquitto
-  broker, and starts it in the foreground.
 
 Note that the `add-local-*` clauses use your LAN IP address, so that
 flashed devices can connect to the local server. This means that you might

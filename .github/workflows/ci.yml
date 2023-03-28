@@ -69,13 +69,13 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install ninja-build mosquitto
+          sudo apt-get install ninja-build
           ninja --version
           cmake --version
       - name: Install dependencies - macOS
         if: runner.os == 'macOS'
         run: |
-          brew install ninja mosquitto
+          brew install ninja
           ninja --version
           cmake --version
       - name: Install dependencies - Windows
@@ -147,12 +147,6 @@ jobs:
         run: |
           make rebuild-cmake
           cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
-
-      - name: Disable Mosquitto tests - Windows
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          make disable-mosquitto-tests
 
       - name: Disable Supabase tests - Windows and macOS
         if: runner.os != 'Linux'

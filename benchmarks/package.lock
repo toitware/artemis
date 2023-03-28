@@ -1,4 +1,4 @@
-sdk: ^2.0.0-alpha.64
+sdk: ^2.0.0-alpha.69
 prefixes:
   artemis: ..
   cli: pkg-cli
@@ -8,12 +8,12 @@ packages:
     path: ..
     prefixes:
       ar: pkg-ar
+      artemis: toit-artemis
       certificate_roots: toit-cert-roots
       cli: pkg-cli
       fs: fs
       host: pkg-host
       http: pkg-http
-      mqtt: mqtt
       ntp: pkg-ntp
       snapshot: snapshot
       supabase: supabase
@@ -21,10 +21,6 @@ packages:
     path: ../tools/fs
     prefixes:
       host: pkg-host
-  mqtt:
-    url: github.com/toitware/mqtt
-    version: 2.1.1
-    hash: 49eab960bb1c27245bfc52e72f6f1ec840492abb
   pkg-ar:
     url: github.com/toitlang/pkg-ar
     version: 1.0.0
@@ -57,6 +53,10 @@ packages:
     prefixes:
       host: pkg-host
       http: pkg-http
+  toit-artemis:
+    url: github.com/toitware/toit-artemis
+    version: 0.1.1
+    hash: 6e9a5abce9499a47bfd97277dae6ab71f1c65849
   toit-cert-roots:
     url: github.com/toitware/toit-cert-roots
     version: 1.4.0

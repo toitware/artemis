@@ -11,7 +11,6 @@ import ..event
 import ..device
 import ..ui
 import ...shared.server_config
-import .mqtt.base
 import .supabase
 import .http.base
 
@@ -26,8 +25,6 @@ interface BrokerCli implements Authenticatable:
   constructor server_config/ServerConfig config/Config:
     if server_config is ServerConfigSupabase:
       return create_broker_cli_supabase (server_config as ServerConfigSupabase) config
-    if server_config is ServerConfigMqtt:
-      return create_broker_cli_mqtt (server_config as ServerConfigMqtt)
     if server_config is ServerConfigHttpToit:
       return create_broker_cli_http_toit (server_config as ServerConfigHttpToit)
     throw "Unknown broker config type"

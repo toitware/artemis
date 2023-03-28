@@ -85,32 +85,6 @@ create_server_config_commands config/Config ui/Ui -> List:
           --run=:: add_supabase it config ui
 
   add_cmd.add
-      cli.Command "mqtt"
-          --short_help="Add an MQTT broker."
-          --options=[
-            cli.OptionString "root-certificate"
-                --short_help="The name of the root certificate to use for the broker.",
-            cli.OptionString "client-certificate"
-                --short_help="The client certificate to use for the broker."
-                --type="file",
-            cli.OptionString "client-private-key"
-                --short_help="The private key of the client."
-                --type="file",
-          ]
-          --rest=[
-            cli.OptionString "name"
-                --short_help="The name of the broker."
-                --required,
-            cli.OptionString "host"
-                --short_help="The host of the broker."
-                --required,
-            cli.OptionInt "port"
-                --short_help="The port of the broker."
-                --required,
-          ]
-          --run=:: add_mqtt it config ui
-
-  add_cmd.add
       cli.Command "http"
           --hidden
           --short_help="Add an HTTP broker."
@@ -185,49 +159,6 @@ add_supabase parsed/cli.Parsed config/Config ui/Ui:
       --root_certificate_name=certificate_name
 
   add_server_to_config config supabase_config
-  if parsed["default"]:
-    config[CONFIG_BROKER_DEFAULT_KEY] = name
-  config.write
-
-  ui.info "Added broker $name"
-
-/**
-Reads a certificate from a file or from the certificate store.
-
-Converts it to binary DER format.
-*/
-read_der_file_ path/string -> ByteArray:
-  text := (file.read_content path).to_string.trim
-  text = text.replace --all "\r" ""
-  lines := text.split "\n"
-  lines.filter --in_place: not it.starts_with "---"
-  combined := lines.join ""
-  return base64.decode combined
-
-add_mqtt parsed/cli.Parsed config/Config ui/Ui:
-  name := parsed["name"]
-  host := parsed["host"]
-  port := parsed["port"]
-  root_certificate_name := parsed["root-certificate"]
-  client_certificate_path := parsed["client-certificate"]
-  client_private_key_path := parsed["client-private-key"]
-
-  client_certificate_der/ByteArray? := null
-  if client_certificate_path:
-    client_certificate_der = read_der_file_ client_certificate_path
-
-  client_private_key_der/ByteArray? := null
-  if client_private_key_path:
-    client_private_key_der = read_der_file_ client_private_key_path
-
-  mqtt_config := ServerConfigMqtt name
-      --host=host
-      --port=port
-      --root_certificate_name=root_certificate_name
-      --client_certificate_der=client_certificate_der
-      --client_private_key_der=client_private_key_der
-
-  add_server_to_config config mqtt_config
   if parsed["default"]:
     config[CONFIG_BROKER_DEFAULT_KEY] = name
   config.write

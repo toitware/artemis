@@ -19,9 +19,6 @@ dependencies:
   http:
     url: github.com/toitlang/pkg-http
     version: ^2.1.0
-  mqtt:
-    url: github.com/toitware/mqtt
-    version: ^2.1.1
   ntp:
     url: github.com/toitlang/pkg-ntp
     version: ^1.0.0
