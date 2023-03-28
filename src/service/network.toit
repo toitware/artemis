@@ -26,15 +26,11 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
   logger_/log.Logger
   device_/Device
   proxy_mask_/int? := null
-
   connections_/Map
-  quarantines_/List
 
   constructor logger/log.Logger .device_:
     logger_ = logger.with_name "network"
     connections_ = Connection.map device_ --logger=logger_
-    quarantines := device_.connection_quarantines
-    quarantines_ = quarantines ? quarantines.copy : (List connections_.size)
     super "artemis/network" --major=0 --minor=1
     provides NetworkService.SELECTOR
         --handler=this
@@ -45,23 +41,19 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     return proxy_mask_
 
   quarantine name/string -> none:
-    connection := connections_.get name
-    if connection: connection.quarantine (Duration --m=5)
+    connection/Connection? := connections_.get name
+    if connection: connection.quarantine (Duration --m=10)
 
   open_network -> net.Interface:
     if connections_.is_empty: return open_system_network_
-    // TODO(kasper): This seems subtle. It feels like we will
-    // try some networks more than once, which isn't what
-    // I really wanted.
-    connections_.size.repeat:
-      connection := pick_connection_
+    connections_.do --values: | connection/Connection |
+      if connection.is_quarantined: continue.do
       network/net.Client? := open_network_ connection
-      if not network:
-        quarantine_ connection (Duration --m=2)
-        continue.repeat
-      proxy_mask_ = network.proxy_mask
-      logger_.info "opened" --tags={"connection": network.name}
-      return network
+      if network:
+        proxy_mask_ = network.proxy_mask
+        logger_.info "opened" --tags={"connection": network.name}
+        return network
+      connection.quarantine (Duration --m=1)
     throw "CONNECT_FAILED: no available networks"
 
   open_network_ connection/Connection -> net.Client?:
@@ -89,37 +81,28 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     network.close
     logger_.info "closed" --tags={"connection": network.name}
 
-  pick_connection_ -> Connection:
-    assert: not connections_.is_empty
-    now := time_now_us
-    best/Connection? := null
-    connections_.do --values: | connection/Connection |
-      quarantine := quarantines_[connection.index]
-      if not quarantine or now >= quarantine: return connection
-      if not best or quarantine < quarantines_[best.index]: best = connection
-    return best
-
-  quarantine_ connection/Connection duration/Duration -> none:
-    index := connection.index
-    current/int? := quarantines_[index]
-    proposed := time_now_us + duration.in_us
-    value := current ? (max current proposed) : proposed
-    if value == current: return
-    quarantines_[index] = value
-    device_.connection_quarantines_update quarantines_
-
 abstract class Connection:
   description_/Map
   index/int
+  quarantine_/int? := null
   constructor .index .description_:
 
   abstract name -> string
   abstract open -> net.Client
 
-  static map device/Device --logger/log.Logger -> Map:
-    quarantines := device.connection_quarantines
-    quarantines = quarantines ? quarantines.copy : []
+  is_quarantined -> bool:
+    quarantine := quarantine_
+    if not quarantine: return false
+    if time_now_us < quarantine: return true
+    quarantine_ = null
+    return false
 
+  quarantine duration/Duration -> none:
+    current := quarantine_
+    proposed := time_now_us + duration.in_us
+    quarantine_ = current ? (max current proposed) : proposed
+
+  static map device/Device --logger/log.Logger -> Map:
     result := {:}
     connections := device.current_state.get "connections" --if_absent=: []
     connections.size.repeat: | index/int |

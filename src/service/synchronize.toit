@@ -130,7 +130,7 @@ class SynchronizeJob extends TaskJob:
     try:
       start := Time.monotonic_us
       limit := start + CONNECT_TO_BROKER_TIMEOUT.in_us
-      while not connect_ and Time.monotonic_us < limit:
+      while connect_ and Time.monotonic_us < limit:
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
@@ -149,20 +149,24 @@ class SynchronizeJob extends TaskJob:
       transition_to_ STATE_CONNECTED_TO_NETWORK
       run_ network
       assert: device_.max_offline and state_ == STATE_SYNCHRONIZED
-      return true
+      return false
     finally: | is_exception exception |
       // We do not expect to be canceled outside of tests, but
       // if we do we prefer maintaining the proper state and
       // get the network correctly quarantineed and closed.
       critical_do:
-        connected := state_ >= STATE_CONNECTED_TO_BROKER
+        // We retry if we connected to the network, but failed
+        // to actually connect to the broker. This could be an
+        // indication that the network doesn't let us connect,
+        // so we prefer using a different network for a while.
+        retry := state_ == STATE_CONNECTED_TO_NETWORK
         transition_to_disconnected_ --error=(is_exception ? exception.value : null)
         if network:
-          // If we didn't manage to connect, we try to quarantine
-          // the network that doesn't seem to work for us.
-          if not connected: network.quarantine
+          // If we are planning to retry another network,
+          // we quarantine the one we just tried.
+          if retry: network.quarantine
           network.close
-        if not Task.current.is_canceled: return connected
+        if not Task.current.is_canceled: return retry
 
   run_ network/net.Client -> none:
     // TODO(kasper): It would be ideal if we could wrap the call to
