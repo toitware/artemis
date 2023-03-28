@@ -7,7 +7,6 @@ import reader show Reader  // For toitdoc.
 import uuid
 
 import .supabase.synchronize show BrokerServiceSupabase
-import .mqtt.synchronize show BrokerServiceMqtt
 import .http.synchronize show BrokerServiceHttp
 
 import ..device
@@ -58,8 +57,6 @@ interface BrokerService:
   constructor logger/log.Logger server_config/ServerConfig:
     if server_config is ServerConfigSupabase:
       return BrokerServiceSupabase logger (server_config as ServerConfigSupabase)
-    else if server_config is ServerConfigMqtt:
-      return BrokerServiceMqtt logger --server_config=(server_config as ServerConfigMqtt)
     else if server_config is ServerConfigHttpToit:
       http_server_config := server_config as ServerConfigHttpToit
       return BrokerServiceHttp logger http_server_config.host http_server_config.port
@@ -73,9 +70,8 @@ interface BrokerService:
   Once the $block returns, the connection is closed.
 
   The connect call is responsible for ensuring that the service and the broker
-    are in a consistent state. For some platforms, the broker may automatically
-    inform the service (for example, through MQTT subscriptions). For others,
-    the service may need to poll the broker for changes.
+    are in a consistent state. For most platforms, the broker will need to
+    poll the broker for changes.
   */
   connect --network/net.Client --device/Device [block]
 

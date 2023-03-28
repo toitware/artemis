@@ -5,7 +5,6 @@ file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*_test.toit" "*_test_slow.
 set(TEST_TIMEOUT 40 CACHE STRING "The maximal amount of time each test is allowed to run")
 set(SLOW_TEST_TIMEOUT 200 CACHE STRING "The maximal amount of time each slow test is allowed to run")
 set(WITH_LOCAL_SUPABASE TRUE CACHE BOOL "Whether the local supabase tests should be run")
-set(WITH_MOSQUITTO TRUE CACHE BOOL "Whether broker tests should be run with mosquitto")
 
 toit_project(tests "${CMAKE_CURRENT_LIST_DIR}")
 
@@ -24,8 +23,6 @@ include(fail.cmake OPTIONAL)
 set (ARTEMIS_FLAGS "--supabase-server" "--http-server")
 set (BROKER_FLAGS
       "--http-toit-broker"
-      "--mosquitto-broker"
-      "--toit-mqtt-broker"
       "--supabase-local-broker"
       "--supabase-local-artemis-broker"
     )
@@ -33,9 +30,6 @@ set (BROKER_FLAGS
 if (NOT ${WITH_LOCAL_SUPABASE})
   list(REMOVE_ITEM ARTEMIS_FLAGS "--supabase-server")
   list(REMOVE_ITEM BROKER_FLAGS "--supabase-local-broker" "--supabase-local-artemis-broker")
-endif()
-if (NOT ${WITH_MOSQUITTO})
-  list(REMOVE_ITEM BROKER_FLAGS "--mosquitto-broker")
 endif()
 
 function (takes_artemis_flags file result)

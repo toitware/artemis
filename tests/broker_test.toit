@@ -12,10 +12,8 @@ import artemis.cli.device show DeviceDetailed
 import artemis.service.device show Device
 import artemis.cli.event show Event
 import artemis.service.brokers.broker
-import artemis.cli.brokers.mqtt.base as mqtt_broker
 import artemis.cli.brokers.http.base as http_broker
 import artemis.cli.brokers.supabase show BrokerCliSupabase
-import artemis.service.brokers.mqtt.synchronize as mqtt_broker
 import supabase
 import supabase.auth as supabase
 import supabase.utils
@@ -115,17 +113,12 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         device.goal
 
     broker_service.connect --network=network --device=DEVICE1:
-      if broker_cli is mqtt_broker.BrokerCliMqtt:
-        (broker_cli as mqtt_broker.BrokerCliMqtt).retain_timeout_ms = 500
-
       event_goal/Map? := null
       exception := catch:
         event_goal = broker_service.fetch_goal --wait=(test_iteration > 0)
 
       if test_iteration == 0:
         // None of the brokers have sent a goal-state update yet.
-        if broker_cli is mqtt_broker.BrokerCliMqtt:
-          expect_equals DEADLINE_EXCEEDED_ERROR exception
         expect_null event_goal
       else if test_iteration == 1:
         expect_equals "succeeded 2" event_goal["test-entry"]
@@ -214,12 +207,10 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --firmware_id=FIRMWARE_ID
         --organization_id=TEST_ORGANIZATION_UUID
 
-    if broker_cli is not mqtt_broker.BrokerCliMqtt:
-      // Downloading a firmware isn't implemented for the MQTT broker.
-      downloaded_bytes := broker_cli.download_firmware
-          --id=FIRMWARE_ID
-          --organization_id=TEST_ORGANIZATION_UUID
-      expect_bytes_equal content downloaded_bytes
+    downloaded_bytes := broker_cli.download_firmware
+        --id=FIRMWARE_ID
+        --organization_id=TEST_ORGANIZATION_UUID
+    expect_bytes_equal content downloaded_bytes
 
     broker_service.connect --network=network --device=DEVICE1: | resources/broker.ResourceManager |
       data := #[]
@@ -233,33 +224,27 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
 
       expect_equals content data
 
-      if broker_service is not mqtt_broker.BrokerServiceMqtt:
-        // Downloading a partial firmware isn't implemented in the MQTT service.
-        if offsets.size > 1:
-          offset_index := offsets.size / 2
-          current_offset := offsets[offset_index]
-          resources.fetch_firmware FIRMWARE_ID --offset=current_offset:
-            | reader/Reader offset |
-              expect_equals current_offset offset
-              partial_data := utils.read_all reader
-              expect_bytes_equal content[current_offset..current_offset + partial_data.size] partial_data
+      if offsets.size > 1:
+        offset_index := offsets.size / 2
+        current_offset := offsets[offset_index]
+        resources.fetch_firmware FIRMWARE_ID --offset=current_offset:
+          | reader/Reader offset |
+            expect_equals current_offset offset
+            partial_data := utils.read_all reader
+            expect_bytes_equal content[current_offset..current_offset + partial_data.size] partial_data
 
-              // If we can, advance by 3 chunks.
-              if offset_index + 3 < offsets.size:
-                offset_index += 3
-                current_offset = offsets[offset_index]
-              else:
-                // Otherwise advance chunk by chunk.
-                // Once we reached the end, we won't be called again.
-                current_offset += partial_data.size
-              // Return the new offset.
-              current_offset
+            // If we can, advance by 3 chunks.
+            if offset_index + 3 < offsets.size:
+              offset_index += 3
+              current_offset = offsets[offset_index]
+            else:
+              // Otherwise advance chunk by chunk.
+              // Once we reached the end, we won't be called again.
+              current_offset += partial_data.size
+            // Return the new offset.
+            current_offset
 
 test_events --test_broker/TestBroker broker_cli/broker.BrokerCli:
-  if broker_cli is mqtt_broker.BrokerCliMqtt:
-    // The MQTT broker doesn't support getting events.
-    return
-
   test_broker.with_service: | broker_service1/broker.BrokerService |
     test_broker.with_service: | broker_service2/broker.BrokerService |
       broker_service1.connect

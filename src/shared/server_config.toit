@@ -20,9 +20,6 @@ abstract class ServerConfig:
     if json_map["type"] == "supabase":
       config = ServerConfigSupabase.from_json name json_map
           --der_deserializer=der_deserializer
-    else if json_map["type"] == "mqtt":
-      config = ServerConfigMqtt.from_json name json_map
-          --der_deserializer=der_deserializer
     else if json_map["type"] == "toit-http":
       config = ServerConfigHttpToit.from_json name json_map
     else:
@@ -115,72 +112,6 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     if root_certificate_der:
       result["root_certificate_der_id"] = der_serializer.call root_certificate_der
     return result
-
-class ServerConfigMqtt extends ServerConfig:
-  host/string
-  port/int
-
-  root_certificate_name/string?
-  root_certificate_der/ByteArray? := ?
-  client_certificate_der/ByteArray?
-  client_private_key_der/ByteArray?
-
-  constructor.from_json name/string config/Map [--der_deserializer]:
-    root_der_id := config.get "root_certificate"
-    root_der/ByteArray? := root_der_id and (der_deserializer.call root_der_id)
-
-    client_der_id := config.get "client_certificate"
-    client_der/ByteArray? := client_der_id and (der_deserializer.call client_der_id)
-
-    private_key_der_id := config.get "client_private_key"
-    private_key_der/ByteArray? := private_key_der_id and (der_deserializer.call private_key_der_id)
-
-    return ServerConfigMqtt name
-        --host=config["host"]
-        --port=config["port"]
-        --root_certificate_name=config.get "root_certificate_name"
-        --root_certificate_der=root_der
-        --client_certificate_der=client_der
-        --client_private_key_der=private_key_der
-
-  constructor name/string
-      --.host
-      --.port
-      --.root_certificate_name=null
-      --.root_certificate_der=null
-      --.client_certificate_der=null
-      --.client_private_key_der=null:
-    if client_certificate_der and not client_private_key_der:
-      throw "Missing client_private_key"
-    super.from_sub_ name
-
-  type -> string: return "mqtt"
-
-  is_secured -> bool:
-    return root_certificate_name != null or root_certificate_der != null
-
-  has_client_certificate -> bool:
-    return client_certificate_der != null
-
-  to_json [--der_serializer] -> Map:
-    result := {
-      "type": type,
-      "host": host,
-      "port": port,
-    }
-    if root_certificate_name:
-      result["root_certificate_name"] = root_certificate_name
-    if root_certificate_der:
-      result["root_certificate"] = der_serializer.call root_certificate_der
-    if client_certificate_der:
-      result["client_certificate"] = der_serializer.call client_certificate_der
-    if client_private_key_der:
-      result["client_private_key"] = der_serializer.call client_private_key_der
-    return result
-
-  fill_certificate_ders [certificate_getter] -> none:
-    if root_certificate_name and not root_certificate_der:
-      root_certificate_der = certificate_getter.call root_certificate_name
 
 /**
 A broker configuration for an HTTP-based broker.
