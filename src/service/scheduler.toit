@@ -52,6 +52,9 @@ class Scheduler:
     jobs_.add job
     signal_.awaken
 
+  wake_up -> none:
+    signal_.awaken
+
   remove_job job/Job -> none:
     job.stop
     jobs_.remove job

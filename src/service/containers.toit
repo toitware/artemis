@@ -1,5 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import esp32
+import gpio
 import log
 import reader show Reader SizedReader
 import uuid
@@ -8,6 +10,7 @@ import system.containers
 import supabase.utils
 
 import .jobs
+import .pin_trigger
 import .scheduler
 
 class ContainerManager:
@@ -17,9 +20,11 @@ class ContainerManager:
   jobs_ ::= {:}           // Map<string, ContainerJob>
   images_ ::= {}          // Set<uuid.Uuid>
   images_bundled_ ::= {}  // Set<uuid.Uuid>
+  pin_trigger_manager_/PinTriggerManager ::= ?
 
   constructor logger/log.Logger .scheduler_:
     logger_ = logger.with_name "containers"
+    pin_trigger_manager_ = PinTriggerManager scheduler_ logger_
     containers.images.do: | image/containers.ContainerImage |
       images_.add image.id
       // TODO(kasper): It feels like a bit of a hack to determine
@@ -41,6 +46,11 @@ class ContainerManager:
       // we drop such an app from the current state? Seems like
       // the right thing to do.
       if job: add_ job --message="load"
+
+    pin_trigger_manager_.start jobs_.values
+
+  setup_deep_sleep_triggers:
+    pin_trigger_manager_.prepare_deep_sleep jobs_.values
 
   get --name/string -> ContainerJob?:
     return jobs_.get name
@@ -65,16 +75,18 @@ class ContainerManager:
       images_.add id
     else if not images_.contains id:
       return null
-    return ContainerJob --name=name --id=id --description=description
+    return ContainerJob
+        --name=name
+        --id=id
+        --description=description
+        --pin_trigger_manager=pin_trigger_manager_
 
   install job/ContainerJob -> none:
     job.has_run_after_install_ = false
     add_ job --message="install"
 
   uninstall job/ContainerJob -> none:
-    jobs_.remove job.name
-    scheduler_.remove_job job
-    logger_.info "uninstall" --tags=job.tags
+    remove_ job --message="uninstall"
     id := job.id
     // TODO(kasper): We could consider using reference counting
     // here instead of running through the jobs.
@@ -88,6 +100,7 @@ class ContainerManager:
   update job/ContainerJob description/Map -> none:
     scheduler_.remove_job job
     job.update description
+    pin_trigger_manager_.update_job job
     // After updating the description of an app, we
     // mark it as being newly installed for the purposes
     // of scheduling. This means that it will start
@@ -101,9 +114,16 @@ class ContainerManager:
     scheduler_.add_job job
     logger_.info message --tags=job.tags
 
+  remove_ job/ContainerJob --message/string -> none:
+    jobs_.remove job.name
+    scheduler_.remove_job job
+    logger_.info message --tags=job.tags
+
 class ContainerJob extends Job:
   // The key of the ID in the $description.
   static KEY_ID ::= "id"
+
+  pin_trigger_manager_/PinTriggerManager
 
   id/uuid.Uuid
   description_/Map := ?
@@ -113,15 +133,18 @@ class ContainerJob extends Job:
   trigger_boot_/bool := false
   trigger_install_/bool := false
   trigger_interval_/Duration? := null
-  triggers_pin_/Map? := null
+  trigger_pin_levels_/Map? := null
 
   // The $ContainerManager is responsible for scheduling
   // newly installed containers, so it manipulates this
   // field directly.
   has_run_after_install_/bool := true
 
-  constructor --name/string --.id --description/Map:
+  is_triggered_/bool := false
+
+  constructor --name/string --.id --description/Map --pin_trigger_manager/PinTriggerManager:
     description_ = description
+    pin_trigger_manager_ = pin_trigger_manager
     super name
     update description
 
@@ -148,6 +171,8 @@ class ContainerJob extends Job:
       return now
     else if trigger_interval_:
       return last ? last + trigger_interval_ : now
+    else if is_triggered_:
+      return now
     else:
       // TODO(kasper): Don't run at all. Maybe that isn't
       // a great default when you have no triggers?
@@ -167,7 +192,9 @@ class ContainerJob extends Job:
     scheduler_.on_job_started this
     running_.on_stopped::
       running_ = null
+      is_triggered_ = false
       scheduler_.on_job_stopped this
+      pin_trigger_manager_.rearm_job this
 
   stop -> none:
     if not running_: return
@@ -182,15 +209,21 @@ class ContainerJob extends Job:
     trigger_boot_ = false
     trigger_install_ = false
     trigger_interval_ = null
-    triggers_pin_ = null
+    trigger_pin_levels_ = null
     description_.get "triggers" --if_present=: | triggers/Map |
       triggers.do: | name/string value |
         if name == "boot": trigger_boot_ = true
         if name == "install": trigger_install_ = true
         if name == "interval": trigger_interval_ = (Duration --s=value)
         if name.starts_with "pin-high:":
-          if not triggers_pin_: triggers_pin_ = {:}
-          triggers_pin_[value] = 1  // TODO(florian): don't use hardcode integer constant.
+          if not trigger_pin_levels_: trigger_pin_levels_ = {:}
+          trigger_pin_levels_[value] = 1  // TODO(florian): don't use hardcode integer constant.
         if name.starts_with "pin-low:":
-          if not triggers_pin_: triggers_pin_ = {:}
-          triggers_pin_[value] = 0  // TODO(florian): don't use hardcode integer constant.
+          if not trigger_pin_levels_: trigger_pin_levels_ = {:}
+          trigger_pin_levels_[value] = 0  // TODO(florian): don't use hardcode integer constant.
+
+  has_pin_triggers -> bool:
+    return trigger_pin_levels_ != null
+
+  has_pin_trigger pin/int --level/int -> bool:
+    return (trigger_pin_levels_.get pin) == level
