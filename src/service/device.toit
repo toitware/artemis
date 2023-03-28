@@ -30,6 +30,7 @@ class Device:
   // monotonic clock phase starts.
   static RAM_CHECK_IN_LAST_ ::= "check-in-last"
   static RAM_JOBS_RAN_LAST_END_ ::= "jobs-ran-last-end"
+  static RAM_CONNECTION_QUARANTINES ::= "quarantines"
   ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
 
   /**
@@ -206,6 +207,19 @@ class Device:
   */
   jobs_ran_last_end_update value/Map -> none:
     ram_store_ RAM_JOBS_RAN_LAST_END_ value
+
+  /**
+  Gets the quarantine for the connections (if any).
+  */
+  connection_quarantines -> List?:
+    return ram_load_ RAM_CONNECTION_QUARANTINES
+
+  /**
+  Stores the connections quarantine in memory that is preserved
+    across deep sleeping.
+  */
+  connection_quarantines_update value/List -> none:
+    ram_store_ RAM_CONNECTION_QUARANTINES value
 
   /**
   Gets the last checkpoint (if any) for the firmware update

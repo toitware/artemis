@@ -68,6 +68,11 @@ class SynchronizeJob extends TaskJob:
   // to produce more bits.
   static SYNCHRONIZE_STEP_TIMEOUT ::= Duration --m=3
 
+  // We try to connect to networks in a loop, so to avoid
+  // spending too much time trying to connect we have a
+  // timeout that governs the total time spent in the loop.
+  static CONNECT_TO_BROKER_TIMEOUT ::= Duration --m=1
+
   // We use a minimum offline setting to avoid scheduling the
   // synchronization job too often.
   static OFFLINE_MINIMUM ::= Duration --s=12
@@ -122,19 +127,37 @@ class SynchronizeJob extends TaskJob:
     return null
 
   run -> none:
-    network/net.Client? := null
-    try:
-      state_ = STATE_DISCONNECTED
-      transition_to_ STATE_CONNECTING
-      network = net.open
-      transition_to_ STATE_CONNECTED_TO_NETWORK
-      run_ network
-    finally: | is_exception exception |
-      transition_to_disconnected_ --error=(is_exception ? exception.value : null)
-      if network: network.close
-      // TODO(kasper): Only swallow certain exceptions, so we get a
-      // proper stack trace for the others.
-      return
+    start := Time.monotonic_us
+    while true:
+      network/net.Client? := null
+      try:
+        state_ = STATE_DISCONNECTED
+        transition_to_ STATE_CONNECTING
+        network = net.open
+        transition_to_ STATE_CONNECTED_TO_NETWORK
+        run_ network
+      finally: | is_exception exception |
+        connected := state_ >= STATE_CONNECTED_TO_BROKER
+        transition_to_disconnected_ --error=(is_exception ? exception.value : null)
+        if network:
+          // If we didn't manage to connect, we try to quarantine
+          // the network that doesn't seem to work for us.
+          if not connected: network.quarantine
+          network.close
+        if connected:
+          if firmware_is_validation_pending:
+            logger_.error "firmware update was rejected after failing to validate"
+            firmware.rollback
+        else:
+          // If we didn't manage to connect to the broker, we
+          // try to connect again. The next time, due to the
+          // quarantining, we might pick a different network.
+          elapsed := Duration --us=Time.monotonic_us - start
+          if elapsed < CONNECT_TO_BROKER_TIMEOUT: continue
+          if firmware_is_validation_pending:
+            logger_.error "firmware update was rejected after failing to connect"
+            firmware.rollback
+        return
 
   run_ network/net.Client -> none:
     // TODO(kasper): It would be ideal if we could wrap the call to
@@ -230,13 +253,6 @@ class SynchronizeJob extends TaskJob:
     state_ = STATE_DISCONNECTED
     if error: logger_.warn STATE_FAILURE[previous] --tags={"error": error}
     logger_.info STATE_SUCCESS[STATE_DISCONNECTED]
-
-    // TODO(kasper): It is a bit too harsh to not give the network
-    // another chance to connect, but for now we just reject the
-    // updates if the first attempt to connect to the broker fails.
-    if firmware_is_validation_pending and previous > STATE_DISCONNECTED:
-      logger_.error "firmware update was rejected after failing to connect or validate"
-      firmware.rollback
 
   /**
   Process new goal.
