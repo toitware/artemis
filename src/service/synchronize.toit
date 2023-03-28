@@ -148,15 +148,21 @@ class SynchronizeJob extends TaskJob:
       network = net.open
       transition_to_ STATE_CONNECTED_TO_NETWORK
       run_ network
+      assert: device_.max_offline and state_ == STATE_SYNCHRONIZED
+      return true
     finally: | is_exception exception |
-      connected := state_ >= STATE_CONNECTED_TO_BROKER
-      transition_to_disconnected_ --error=(is_exception ? exception.value : null)
-      if network:
-        // If we didn't manage to connect, we try to quarantine
-        // the network that doesn't seem to work for us.
-        if not connected: network.quarantine
-        network.close
-      return connected
+      // We do not expect to be canceled outside of tests, but
+      // if we do we prefer maintaining the proper state and
+      // get the network correctly quarantineed and closed.
+      critical_do:
+        connected := state_ >= STATE_CONNECTED_TO_BROKER
+        transition_to_disconnected_ --error=(is_exception ? exception.value : null)
+        if network:
+          // If we didn't manage to connect, we try to quarantine
+          // the network that doesn't seem to work for us.
+          if not connected: network.quarantine
+          network.close
+        if not Task.current.is_canceled: return connected
 
   run_ network/net.Client -> none:
     // TODO(kasper): It would be ideal if we could wrap the call to
