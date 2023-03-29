@@ -112,7 +112,10 @@ class Scheduler:
   schedule_wakeup_ now/JobTime -> JobTime:
     first/JobTime? := null
     jobs_.do: | job/Job |
-      next ::= job.schedule_wakeup now job.scheduler_ran_last_
+      // We don't wake up just for the sake of background
+      // jobs, so filter them out.
+      if job.is_background: continue.do
+      next := job.schedule now job.scheduler_ran_last_
       if next and (not first or next < first):
         first = next
     return first or now + (Duration --m=1)
