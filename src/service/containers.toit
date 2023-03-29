@@ -189,14 +189,8 @@ class ContainerJob extends Job:
       return null
 
   schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
-    // Don't let critical background jobs force an immediate
-    // restart. Without this check, we would run into an
-    // infinite reboot loop where we would conclude that we
-    // can go to sleep (background), but also that we want
-    // to run right away.
-    return is_critical and is_background_
-        ? null  // Don't wake up for the sake of this job.
-        : schedule now last
+    // Don't wakeup for the sake of the background jobs.
+    return is_background_ ? null : schedule now last
 
   schedule_tune last/JobTime -> JobTime:
     // If running the container took a long time, we tune the
