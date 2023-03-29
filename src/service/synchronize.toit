@@ -61,6 +61,10 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
+  static STATUS_GREEN  ::= 100
+  static STATUS_YELLOW ::= 101
+  static STATUS_RED    ::= 102
+
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes
   // more time than that we run the risk of waiting for
@@ -98,16 +102,28 @@ class SynchronizeJob extends TaskJob:
     logger_ = logger.with_name "synchronize"
     super "synchronize"
 
+  runlevel -> int:
+    return Job.RUNLEVEL_SAFE
+
+
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if not last or firmware_is_validation_pending: return now
+    if firmware_is_validation_pending or not last: return now
     max_offline := device_.max_offline
-    if not max_offline: return last + OFFLINE_MINIMUM
-    // Compute the duration of the current offline period by
-    // letting it run to whatever comes first of the scheduled
-    // check-in or hitting the max-offline ceiling, but make
-    // sure to not go below the minimum offline setting.
-    offline := min (last.to (check_in_schedule now)) max_offline
-    return last + (max offline OFFLINE_MINIMUM)
+    schedule/JobTime := ?
+    if max_offline:
+      // Compute the duration of the current offline period by
+      // letting it run to whatever comes first of the scheduled
+      // check-in or hitting the max-offline ceiling, but make
+      // sure to not go below the minimum offline setting.
+      offline := min (last.to (check_in_schedule now)) max_offline
+      schedule = last + (max offline OFFLINE_MINIMUM)
+    else:
+      schedule = last + OFFLINE_MINIMUM
+    if now < schedule:
+      // If we're not going to schedule the synchronization
+      // job now, we allow running all other jobs.
+      scheduler_.transition --runlevel=Job.RUNLEVEL_NORMAL
+    return schedule
 
   schedule_tune last/JobTime -> JobTime:
     // Allow the synchronization job to start early, thus pulling
@@ -127,6 +143,17 @@ class SynchronizeJob extends TaskJob:
     return null
 
   run -> none:
+    status := determine_synchronization_status_
+    runlevel := ?
+    if firmware_is_validation_pending or status == STATUS_RED:
+      runlevel = Job.RUNLEVEL_SAFE
+    else if status == STATUS_YELLOW:
+      runlevel = Job.RUNLEVEL_CRITICAL
+    else:
+      assert: status == STATUS_GREEN
+      runlevel = Job.RUNLEVEL_NORMAL
+    scheduler_.transition --runlevel=runlevel
+
     try:
       start := Time.monotonic_us
       limit := start + CONNECT_TO_BROKER_TIMEOUT.in_us
@@ -263,6 +290,11 @@ class SynchronizeJob extends TaskJob:
       else:
         logger_.error "firmware update failed to validate"
 
+    // Keep track of the last time we succesfully synchronized.
+    if state == STATE_SYNCHRONIZED:
+      device_.synchronized_last_update JobTime.now
+      scheduler_.transition --runlevel=Job.RUNLEVEL_NORMAL
+
   transition_to_connected_ -> none:
     if state_ >= STATE_CONNECTED_TO_BROKER: return
     transition_to_ STATE_CONNECTED_TO_BROKER
@@ -272,6 +304,23 @@ class SynchronizeJob extends TaskJob:
     state_ = STATE_DISCONNECTED
     if error: logger_.warn STATE_FAILURE[previous] --tags={"error": error}
     logger_.info STATE_SUCCESS[STATE_DISCONNECTED]
+
+  determine_synchronization_status_ -> int:
+    last := device_.synchronized_last
+    now := JobTime.now
+    elapsed := last ? (last.to now) : Duration --us=now.us
+    // TODO(kasper): Tweak this so it becomes significantly
+    // less common than it is now. We probably want to go
+    // to hours instead of minutes. Also, consider computing
+    // the limits up front to make this cheaper.
+    max_offline := device_.max_offline
+    minutes := 1 + (max_offline ? max_offline.in_m : 0)
+    if elapsed < (Duration --m=minutes * 4):
+      return STATUS_GREEN
+    else if elapsed < (Duration --m=minutes * 8):
+      return STATUS_YELLOW
+    else:
+      return STATUS_RED
 
   /**
   Process new goal.
@@ -413,17 +462,20 @@ class SynchronizeJob extends TaskJob:
   handle_set_max_offline_ value/any -> none:
     device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
 
-  // TODO(kasper): Introduce run-levels for jobs and make sure we're
-  // not running a lot of other stuff while we update the firmware.
   handle_firmware_update_ resources/ResourceManager new/string -> none:
     if firmware_is_validation_pending: throw "firmware update: cannot update unvalidated"
-    firmware_update logger_ resources --device=device_ --new=new
+    runlevel := scheduler_.runlevel
+    updated := false
     try:
+      scheduler_.transition --runlevel=Job.RUNLEVEL_SAFE
+      firmware_update logger_ resources --device=device_ --new=new
+      updated = true
       transition_to_ STATE_CONNECTED_TO_BROKER
       device_.state_firmware_update new
       report_state_if_changed resources
     finally:
-      firmware.upgrade
+      if updated: firmware.upgrade
+      scheduler_.transition --runlevel=runlevel
 
   /**
   Reports the current device state to the broker, but only if we know

@@ -4,6 +4,11 @@ import monitor
 import .scheduler
 
 abstract class Job:
+  static RUNLEVEL_STOP     ::= 0
+  static RUNLEVEL_SAFE     ::= 1
+  static RUNLEVEL_CRITICAL ::= 2
+  static RUNLEVEL_NORMAL   ::= 3
+
   name/string
 
   // These fields are manipulated by the scheduler. They are
@@ -15,10 +20,11 @@ abstract class Job:
 
   constructor .name:
 
-  stringify -> string: return name
-
   abstract is_running -> bool
   is_background -> bool: return false
+
+  runlevel -> int: return RUNLEVEL_NORMAL
+  stringify -> string: return name
 
   has_run_after_boot -> bool:
     return scheduler_ran_after_boot_

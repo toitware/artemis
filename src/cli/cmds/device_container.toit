@@ -31,6 +31,9 @@ create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
         cli.Flag "background"
             --short_help="Run in background and do not delay sleep."
             --default=false,
+        cli.Flag "critical"
+            --short_help="Run automatically and restart if necessary."
+            --default=false,
       ]
       --rest=[
         cli.OptionString "name"
@@ -71,8 +74,13 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   container_name := parsed["name"]
   container_path := parsed["path"]
   arguments := parsed["arguments"]
+  is_critical := parsed["critical"]
   parsed_triggers := parsed["trigger"]
   device_id := get_device_id parsed config ui
+
+  if is_critical and not parsed_triggers.is_empty:
+    ui.error "Critical containers cannot have triggers."
+    ui.abort
 
   seen_triggers := {}
   seen_pins := {}
@@ -135,6 +143,7 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --app_name=container_name
         --arguments=arguments
         --background=parsed["background"]
+        --critical=is_critical
         --triggers=triggers
         --application_path=container_path
     ui.info "Request sent to broker. Container will be installed when device synchronizes."
