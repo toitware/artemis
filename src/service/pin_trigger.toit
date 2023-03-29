@@ -58,7 +58,7 @@ class PinTriggerManager:
     needed_watchers := {:}
     watched_jobs_.do --values: | job/ContainerJob |
       if job.is_running or job.is_triggered_: continue.do
-      job.trigger_pin_levels_.do: | pin level/int |
+      job.trigger_gpio_levels_.do: | pin level/int |
         needed_watchers.update
             pin
             --if_absent=level
@@ -127,7 +127,7 @@ class PinTriggerManager:
     if not job.has_pin_triggers: return
 
     watched_jobs_[job.name] = job
-    job.trigger_pin_levels_.do: | pin level/int |
+    job.trigger_gpio_levels_.do: | pin level/int |
       setup_watcher_ pin --level=level
 
   /**
@@ -204,7 +204,7 @@ class PinTriggerManager:
     mask := 0
     jobs.do: | job/ContainerJob |
       if job.has_pin_triggers:
-        job.trigger_pin_levels_.do: | pin pin_level/int |
+        job.trigger_gpio_levels_.do: | pin pin_level/int |
           if level == pin_level:
             mask |= 1 << pin
     return mask
@@ -248,7 +248,7 @@ class PinTriggerManager:
       // If the high_mask isn't 0, then it wins over the low mask.
       jobs.do: | job/ContainerJob |
         if job.has_pin_triggers:
-          job.trigger_pin_levels_.do: | pin level/int |
+          job.trigger_gpio_levels_.do: | pin level/int |
             pin_mask := 1 << pin
             if (triggered_pins & pin_mask) != 0:
               is_triggered := false
