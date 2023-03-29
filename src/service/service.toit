@@ -47,6 +47,8 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
     // so we have to be careful and clean up anyway.
     critical_do: provider.uninstall
 
+  containers.setup_deep_sleep_triggers
+
   // Compute the duration of the deep sleep and return it.
   duration := JobTime.now.to wakeup
   logger.info "stopping" --tags={"duration": duration}
