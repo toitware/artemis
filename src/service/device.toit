@@ -5,6 +5,7 @@ import system.storage
 import system.firmware show is_validation_pending
 
 import .firmware
+import .jobs show JobTime
 import .utils show deep_copy
 import ..shared.json_diff show json_equals Modification
 
@@ -29,7 +30,8 @@ class Device:
   // instead, we need to manually invalidate them when a new
   // monotonic clock phase starts.
   static RAM_CHECK_IN_LAST_ ::= "check-in-last"
-  static RAM_JOBS_RAN_LAST_END_ ::= "jobs-ran-last-end"
+  static RAM_SYNCHRONIZED_LAST_ ::= "synchronized-last"
+  static RAM_JOBS_RAN_LAST_ ::= "jobs-ran-last"
   ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
 
   /**
@@ -196,16 +198,30 @@ class Device:
   /**
   Gets the jobs ran last information.
   */
-  jobs_ran_last_end -> Map:
-    stored := ram_load_ RAM_JOBS_RAN_LAST_END_
+  jobs_ran_last -> Map:
+    stored := ram_load_ RAM_JOBS_RAN_LAST_
     return stored is Map ? stored : {:}
 
   /**
   Stores the jobs ran last information in memory that is preserved
     across deep sleeping.
   */
-  jobs_ran_last_end_update value/Map -> none:
-    ram_store_ RAM_JOBS_RAN_LAST_END_ value
+  jobs_ran_last_update value/Map -> none:
+    ram_store_ RAM_JOBS_RAN_LAST_ value
+
+  /**
+  Get the time of the last successful synchronization.
+  */
+  synchronized_last -> JobTime?:
+    stored := ram_load_ RAM_SYNCHRONIZED_LAST_
+    return stored is int ? (JobTime stored) : null
+
+  /**
+  Stores the time of the last successful synchronization in
+    memory that is preserved across deep sleeping.
+  */
+  synchronized_last_update time/JobTime -> none:
+    ram_store_ RAM_SYNCHRONIZED_LAST_ time.us
 
   /**
   Gets the last checkpoint (if any) for the firmware update

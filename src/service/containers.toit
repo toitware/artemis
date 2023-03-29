@@ -108,6 +108,7 @@ class ContainerJob extends Job:
   id/uuid.Uuid
   description_/Map := ?
   running_/containers.Container? := null
+  runlevel_/int := Job.RUNLEVEL_NORMAL
 
   is_background_/bool := false
   trigger_boot_/bool := false
@@ -133,6 +134,9 @@ class ContainerJob extends Job:
   is_background -> bool:
     return is_background_
 
+  runlevel -> int:
+    return runlevel_
+
   description -> Map:
     return description_
 
@@ -141,7 +145,11 @@ class ContainerJob extends Job:
     return { "name": name, "id": id }
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if trigger_boot_ and not has_run_after_boot:
+    if runlevel_ <= Job.RUNLEVEL_CRITICAL:
+      // TODO(kasper): Find a way to reboot the device if
+      // a critical container keeps restarting.
+      return now
+    else if trigger_boot_ and not has_run_after_boot:
       return now
     else if trigger_install_ and not has_run_after_install_:
       return now
@@ -175,14 +183,26 @@ class ContainerJob extends Job:
   update description/Map -> none:
     assert: not is_running
     description_ = description
-    // Update background.
+    // Clear state.
+    // Update flags.
     is_background_ = description.contains "background"
+    // Update runlevel.
+    if name.starts_with "cellular":
+      // TODO(kasper): This is a hack. We should replace this
+      // something more general.
+      runlevel_ = Job.RUNLEVEL_SAFE
+    else if description.contains "critical":
+      runlevel_ = Job.RUNLEVEL_CRITICAL
+    else:
+      runlevel_ = Job.RUNLEVEL_NORMAL
     // Update triggers.
     trigger_boot_ = false
     trigger_install_ = false
     trigger_interval_ = null
+    if runlevel_ <= Job.RUNLEVEL_CRITICAL: return
     description_.get "triggers" --if_present=: | triggers/Map |
       triggers.do: | name/string value |
         if name == "boot": trigger_boot_ = true
         if name == "install": trigger_install_ = true
         if name == "interval": trigger_interval_ = (Duration --s=value)
+

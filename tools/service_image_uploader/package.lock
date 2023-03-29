@@ -19,7 +19,6 @@ packages:
       fs: fs
       host: pkg-host
       http: pkg-http
-      mqtt: mqtt
       ntp: pkg-ntp
       snapshot: snapshot
       supabase: supabase
@@ -27,10 +26,6 @@ packages:
     path: ../fs
     prefixes:
       host: pkg-host
-  mqtt:
-    url: github.com/toitware/mqtt
-    version: 2.1.1
-    hash: 49eab960bb1c27245bfc52e72f6f1ec840492abb
   pkg-ar:
     url: github.com/toitlang/pkg-ar
     version: 1.0.0

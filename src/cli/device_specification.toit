@@ -270,6 +270,7 @@ interface Container:
   type -> string
   arguments -> List?
   is_background -> bool?
+  is_critical -> bool?
   triggers -> List? // Of type $Trigger.
 
   static check_arguments_entry arguments:
@@ -284,6 +285,7 @@ abstract class ContainerBase implements Container:
   arguments/List?
   triggers/List?
   is_background/bool?
+  is_critical/bool?
 
   constructor.from_json name/string data/Map:
     holder := "container $name"
@@ -292,11 +294,14 @@ abstract class ContainerBase implements Container:
         --type="string"
         --check=: it is string
     is_background = get_optional_bool_ data "background"
+    is_critical = get_optional_bool_ data "critical"
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
         --type="map or string"
         --check=: it is Map or it is string
     if triggers_list:
+      if is_critical:
+        format_error_ "Critical container $name cannot have triggers"
       triggers = triggers_list.map: Trigger.from_json name it
       seen_types := {}
       triggers.do: | trigger/Trigger |
