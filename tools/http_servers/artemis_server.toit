@@ -121,7 +121,7 @@ class HttpArtemisServer extends HttpServer:
     if command == "update-profile":
       return update_profile data user_id
     if command == "list-sdk-service-versions":
-      return list_sdk_service_versions data
+      return list_sdk_service_versions data user_id
     if command == "download-service-image":
       return download_service_image data
     if command == "upload-service-image":
@@ -300,35 +300,50 @@ class HttpArtemisServer extends HttpServer:
     if data.contains "name": user.name = data["name"]
     if data.contains "email": user.email = data["email"]
 
-  list_sdk_service_versions data/Map -> List:
+  list_sdk_service_versions data/Map user_id/string? -> List:
     sdk_version := data.get "sdk_version"
     service_version := data.get "service_version"
 
-    if sdk_version or service_version:
-      // Only return matching versions.
-      return sdk_service_versions.filter: | entry/Map |
-        if sdk_version and entry["sdk_version"] != sdk_version:
-          continue.filter false
-        if service_version and entry["service_version"] != service_version:
-          continue.filter false
-        true
+    // Only return matching versions.
+    return sdk_service_versions.filter: | entry/Map |
+      if sdk_version and entry["sdk_version"] != sdk_version:
+        continue.filter false
+      if service_version and entry["service_version"] != service_version:
+        continue.filter false
+      if entry.get "organization_id":
+        if not user_id: continue.filter false
+        organization := organizations.get entry["organization_id"]
+        if not organization: continue.filter false
+        if not organization.members.contains user_id: continue.filter false
+      true
     return sdk_service_versions
 
   upload_service_image data/Map:
     sdk_version := data["sdk_version"]
     service_version := data["service_version"]
     image_id := data["image_id"]
+    organization_id := data.get "organization_id"
+    force := data.get "force"
+
     image_binaries[image_id] = base64.decode data["image_content"]
     // Update any existing entry if there is already one.
     sdk_service_versions.do: | entry/Map |
       if entry["sdk_version"] == sdk_version and entry["service_version"] == service_version:
+        if not force:
+          throw "Service version already exists"
+
         entry["image"] = image_id
+        if organization_id:
+          entry["organization_id"] = organization_id
         return
-    sdk_service_versions.add {
+    new_entry := {
       "sdk_version": sdk_version,
       "service_version": service_version,
       "image": image_id,
     }
+    if organization_id:
+      new_entry["organization_id"] = organization_id
+    sdk_service_versions.add new_entry
 
   download_service_image data/Map -> string:
     image := data["image"]

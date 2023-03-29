@@ -37,7 +37,10 @@ list_sdks parsed/cli.Parsed config/Config ui/Ui:
   service_version := parsed["service-version"]
 
   with_sdk_server parsed config: | server/ArtemisServerCli |
-    versions := server.list_sdk_service_versions
+    server.ensure_authenticated:
+      ui.error "Not logged into Artemis server"
+      ui.abort
+    versions/List := server.list_sdk_service_versions
         --sdk_version=sdk_version
         --service_version=service_version
     // TODO(florian): make a nicer output.
