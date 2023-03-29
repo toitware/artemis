@@ -133,7 +133,7 @@ class ContainerJob extends Job:
   trigger_boot_/bool := false
   trigger_install_/bool := false
   trigger_interval_/Duration? := null
-  trigger_pin_levels_/Map? := null
+  trigger_gpio_levels_/Map? := null
 
   // The $ContainerManager is responsible for scheduling
   // newly installed containers, so it manipulates this
@@ -209,21 +209,21 @@ class ContainerJob extends Job:
     trigger_boot_ = false
     trigger_install_ = false
     trigger_interval_ = null
-    trigger_pin_levels_ = null
+    trigger_gpio_levels_ = null
     description_.get "triggers" --if_present=: | triggers/Map |
       triggers.do: | name/string value |
         if name == "boot": trigger_boot_ = true
         if name == "install": trigger_install_ = true
         if name == "interval": trigger_interval_ = (Duration --s=value)
-        if name.starts_with "pin-high:":
-          if not trigger_pin_levels_: trigger_pin_levels_ = {:}
-          trigger_pin_levels_[value] = 1  // TODO(florian): don't use hardcode integer constant.
-        if name.starts_with "pin-low:":
-          if not trigger_pin_levels_: trigger_pin_levels_ = {:}
-          trigger_pin_levels_[value] = 0  // TODO(florian): don't use hardcode integer constant.
+        if name.starts_with "gpio-high:":
+          if not trigger_gpio_levels_: trigger_gpio_levels_ = {:}
+          trigger_gpio_levels_[value] = 1
+        if name.starts_with "gpio-low:":
+          if not trigger_gpio_levels_: trigger_gpio_levels_ = {:}
+          trigger_gpio_levels_[value] = 0
 
   has_pin_triggers -> bool:
-    return trigger_pin_levels_ != null
+    return trigger_gpio_levels_ != null
 
   has_pin_trigger pin/int --level/int -> bool:
-    return (trigger_pin_levels_.get pin) == level
+    return (trigger_gpio_levels_.get pin) == level
