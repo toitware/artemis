@@ -264,9 +264,9 @@ class Artemis:
         id := uuid.Uuid sha.get[..uuid.SIZE]
 
         triggers := container.triggers
-        if not triggers: triggers = [
-          BootTrigger
-        ]
+        if not container.is_critical and not triggers:
+          // Non-critical containers default to having a boot trigger.
+          triggers = [BootTrigger]
         apps := device_config.get "apps" --init=:{:}
         apps[name] = build_container_description_
             --id=id
