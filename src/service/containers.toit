@@ -189,7 +189,7 @@ class ContainerJob extends Job:
       return null
 
   schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
-    // Don't wakeup for the sake of the background jobs.
+    // Don't wake up just for the sake of background jobs.
     return is_background_ ? null : schedule now last
 
   schedule_tune last/JobTime -> JobTime:
