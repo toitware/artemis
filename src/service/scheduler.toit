@@ -90,6 +90,9 @@ class Scheduler:
     logger_.info "job stopped" --tags={"job": job}
     signal_.awaken
 
+  on_job_updated -> none:
+    signal_.awaken
+
   has_running_jobs_ -> bool:
     return jobs_.any: | job/Job |
       job.is_running and not job.is_background
