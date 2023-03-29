@@ -188,10 +188,6 @@ class ContainerJob extends Job:
       // a great default when you have no triggers?
       return null
 
-  schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
-    // Don't wake up just for the sake of background jobs.
-    return is_background_ ? null : schedule now last
-
   schedule_tune last/JobTime -> JobTime:
     // If running the container took a long time, we tune the
     // schedule and postpone the next run by making it start

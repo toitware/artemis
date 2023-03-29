@@ -31,9 +31,6 @@ abstract class Job:
 
   abstract schedule now/JobTime last/JobTime? -> JobTime?
 
-  schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
-    return schedule now last
-
   schedule_tune last/JobTime -> JobTime:
     return last
 
@@ -102,15 +99,16 @@ abstract class PeriodicJob extends TaskJob:
   constructor name/string .period_:
     super name
 
+  is_background -> bool:
+    // Periodic jobs do not want to cause device
+    // wakeups or block the device from going to
+    // sleep. They just run on their schedule when
+    // the device is awake anyway.
+    return true
+
   schedule now/JobTime last/JobTime? -> JobTime?:
     if not last: return now
     return last + period_
-
-  schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
-    // Periodic jobs do not want to cause device
-    // wakeups. They just run on their schedule
-    // when the device is awake anyway.
-    return null
 
   schedule_tune last/JobTime -> JobTime:
     // If running the periodic task took a long time, we tune
