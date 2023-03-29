@@ -61,9 +61,9 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
-  static STATUS_GREEN  ::= 0
-  static STATUS_YELLOW ::= 1
-  static STATUS_RED    ::= 2
+  static STATUS_GREEN  ::= 100
+  static STATUS_YELLOW ::= 101
+  static STATUS_RED    ::= 102
 
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes

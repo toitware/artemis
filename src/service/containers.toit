@@ -184,8 +184,8 @@ class ContainerJob extends Job:
   update description/Map -> none:
     assert: not is_running
     description_ = description
-    // Update flags.
     is_background_ = description.contains "background"
+
     // Update runlevel.
     if name.starts_with "cellular":
       // TODO(kasper): This is a hack. We should replace this
@@ -195,18 +195,19 @@ class ContainerJob extends Job:
       runlevel_ = Job.RUNLEVEL_CRITICAL
     else:
       runlevel_ = Job.RUNLEVEL_NORMAL
+
     // Update triggers.
     trigger_boot_ = false
     trigger_install_ = false
     trigger_interval_ = null
     triggers_gpio_ = null
     if runlevel_ <= Job.RUNLEVEL_CRITICAL: return
+
     description_.get "triggers" --if_present=: | triggers/Map |
       triggers.do: | name/string value |
         if name == "boot": trigger_boot_ = true
         if name == "install": trigger_install_ = true
         if name == "interval": trigger_interval_ = (Duration --s=value)
-
         if name.starts_with "gpio-high:":
           if not triggers_gpio_: triggers_gpio_ = {:}
           triggers_gpio_[value] = 1
