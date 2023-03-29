@@ -183,15 +183,16 @@ class PinTriggerManager:
           gpio_pin = gpio.Pin pin_number --input
 
         watch_task := task --background::
-          // TODO(florian): should we catch here?
-          // In theory there should be nothing that could throw.
-          // TODO(florian): since we kill the watcher when the program
-          // runs, we often end up in situations where the program
-          // finishes and then starts the watcher again.
-          // And since the level is high, it immediately triggers again.
-          // We need to decide whether this is the expected behavior.
-          gpio_pin.wait_for level
-          notify_pin pin_number --level=level
+          catch:
+            // If the pin gets closed from the outside the `wait_for` might
+            // throw an exception.
+            // TODO(florian): since we kill the watcher when the program
+            // runs, we often end up in situations where the program
+            // finishes and then starts the watcher again.
+            // And since the level is high, it immediately triggers again.
+            // We need to decide whether this is the expected behavior.
+            gpio_pin.wait_for level
+            notify_pin pin_number --level=level
 
         watcher := Watcher gpio_pin watch_task
         pin_trigger_watchers_[level][pin_number] = watcher
