@@ -105,7 +105,6 @@ class SynchronizeJob extends TaskJob:
   runlevel -> int:
     return Job.RUNLEVEL_SAFE
 
-
   schedule now/JobTime last/JobTime? -> JobTime?:
     if firmware_is_validation_pending or not last: return now
     max_offline := device_.max_offline

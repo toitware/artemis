@@ -135,6 +135,9 @@ class ContainerJob extends Job:
   is_background -> bool:
     return is_background_
 
+  is_critical -> bool:
+    return runlevel_ <= Job.RUNLEVEL_CRITICAL
+
   runlevel -> int:
     return runlevel_
 
@@ -146,7 +149,7 @@ class ContainerJob extends Job:
     return { "name": name, "id": id }
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if runlevel_ <= Job.RUNLEVEL_CRITICAL:
+    if is_critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
       return now
@@ -160,6 +163,16 @@ class ContainerJob extends Job:
       // TODO(kasper): Don't run at all. Maybe that isn't
       // a great default when you have no triggers?
       return null
+
+  schedule_wakeup now/JobTime last/JobTime? -> JobTime?:
+    // Don't let critical background jobs force an immediate
+    // restart. Without this check, we would run into an
+    // infinite reboot loop where we would conclude that we
+    // can go to sleep (background), but also that we want
+    // to run right away.
+    return is_critical and is_background_
+        ? null  // Don't wake up for the sake of this job.
+        : schedule now last
 
   schedule_tune last/JobTime -> JobTime:
     // If running the container took a long time, we tune the
