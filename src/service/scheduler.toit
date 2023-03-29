@@ -52,9 +52,6 @@ class Scheduler:
     jobs_.add job
     signal_.awaken
 
-  wake_up -> none:
-    signal_.awaken
-
   remove_job job/Job -> none:
     job.stop
     jobs_.remove job
@@ -68,6 +65,9 @@ class Scheduler:
   on_job_stopped job/Job -> none:
     job.scheduler_ran_last_ = job.schedule_tune job.scheduler_ran_last_
     logger_.info "job stopped" --tags={"job": job}
+    signal_.awaken
+
+  on_job_updated -> none:
     signal_.awaken
 
   has_running_jobs_ -> bool:

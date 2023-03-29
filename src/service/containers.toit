@@ -1,6 +1,5 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import esp32
 import gpio
 import log
 import reader show Reader SizedReader
@@ -10,7 +9,7 @@ import system.containers
 import supabase.utils
 
 import .jobs
-import .pin_trigger
+import .esp32.pin_trigger
 import .scheduler
 
 class ContainerManager:

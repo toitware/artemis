@@ -3,9 +3,10 @@
 import esp32
 import gpio
 import log
+import monitor
 
-import .containers
-import .scheduler
+import ..containers
+import ..scheduler
 
 class Watcher:
   gpio_pin/gpio.Pin
@@ -26,6 +27,7 @@ class PinTriggerManager:
   watched_jobs_/Map := {:}  // Map<string, ContainerJob>
   // The pin mask that triggered a wakeup.
   startup_triggers_/int := 0
+  setup_watcher_mutex_ ::= monitor.Mutex
 
   constructor .scheduler_ .logger_:
 
@@ -59,10 +61,11 @@ class PinTriggerManager:
     watched_jobs_.do --values: | job/ContainerJob |
       if job.is_running or job.is_triggered_: continue.do
       job.trigger_gpio_levels_.do: | pin level/int |
-        needed_watchers.update
-            pin
+        // If not present set to the current level.
+        // If present, update to BOTH if we have already seen the other level.
+        needed_watchers.update pin
             --if_absent=level
-            : it == level ? level : BOTH
+            : it != level ? BOTH : level
 
     // Close all watchers we don't need anymore.
     // If we are really unlucky we might close a pin that we
@@ -153,7 +156,7 @@ class PinTriggerManager:
     // Update the triggers before we wake up the job.
     // Otherwise the job might not be able to access the pin.
     update_
-    scheduler_.wake_up
+    scheduler_.on_job_updated
 
   /**
   Sets up a watcher for the given $pin_number and $level.
@@ -162,37 +165,38 @@ class PinTriggerManager:
   If the pin is not available reports an error on the logger.
   */
   setup_watcher_ pin_number/int --level/int -> none:
-    exception := catch:
-      // TODO(florian): do we need to use a lock here?
-      correct_watcher := pin_trigger_watchers_[level].get pin_number
-      if correct_watcher:
-        return
+    setup_watcher_mutex_.do:
+      exception := catch:
+        correct_watcher := pin_trigger_watchers_[level].get pin_number
+        if correct_watcher:
+          return
 
-      other_level := level ^ 1
-      other_watcher := pin_trigger_watchers_[other_level].get pin_number
+        other_level := level ^ 1
+        other_watcher := pin_trigger_watchers_[other_level].get pin_number
 
-      gpio_pin/gpio.Pin? := ?
-      if other_watcher:
-        // Reuse the pin.
-        gpio_pin = other_watcher.gpio_pin
-      else:
-        // Create a new pin.
-        gpio_pin = gpio.Pin pin_number --input
+        gpio_pin/gpio.Pin? := ?
+        if other_watcher:
+          // Reuse the pin.
+          gpio_pin = other_watcher.gpio_pin
+        else:
+          // Create a new pin.
+          gpio_pin = gpio.Pin pin_number --input
 
-      watch_task := task --background::
-        // TODO(florian): should we catch here?
-        // In theory there should be nothing that could throw.
-        // TODO(florian): since we kill the watcher when the program
-        // runs, we often end up in situations where the program
-        // finishes and then starts the watcher again.
-        // And since the level is high, it immediately triggers again.
-        // We need to decide whether this is the expected behavior.
-        gpio_pin.wait_for level
-        notify_pin pin_number --level=level
+        watch_task := task --background::
+          // TODO(florian): should we catch here?
+          // In theory there should be nothing that could throw.
+          // TODO(florian): since we kill the watcher when the program
+          // runs, we often end up in situations where the program
+          // finishes and then starts the watcher again.
+          // And since the level is high, it immediately triggers again.
+          // We need to decide whether this is the expected behavior.
+          gpio_pin.wait_for level
+          notify_pin pin_number --level=level
 
-      watcher := Watcher gpio_pin watch_task
-      pin_trigger_watchers_[level][pin_number] = watcher
-    if exception:
+        watcher := Watcher gpio_pin watch_task
+        pin_trigger_watchers_[level][pin_number] = watcher
+
+      if not exception: return
       tags := {
         "pin": pin_number,
         "level": level,
@@ -224,27 +228,27 @@ class PinTriggerManager:
     low_mask := trigger_mask_ jobs --level=0
     if high_mask != 0:
       // TODO(florian): only some pins are allowed.
-      logger_.info "setting up deepsleep trigger any high: $(%b high_mask)"
+      logger_.info "setting up external-wakeup trigger any high: $(%b high_mask)"
       esp32.enable_external_wakeup high_mask true
       if low_mask != 0:
         logger_.warn "pin triggers for low level are ignored"
     else if low_mask != 0:
       if low_mask.population_count > 1:
         logger_.warn "device will only wake up if all trigger pins are 0"
-      logger_.info "setting up deepsleep trigger all low: $(%b low_mask)"
+      logger_.info "setting up external-wakeup trigger all low: $(%b low_mask)"
       esp32.enable_external_wakeup low_mask false
 
   handle_external_triggers_ jobs/List -> none:
     cause := esp32.wakeup_cause
     if cause != esp32.WAKEUP_UNDEFINED:
-        // Wakeup from deepsleep.
-      scheduler_.wake_up
+      // Wakeup from deepsleep.
       high_mask := trigger_mask_ jobs --level=1
       low_mask := trigger_mask_ jobs --level=0
       external_mask := high_mask != 0 ? high_mask : low_mask
 
       triggered_pins := esp32.ext1_wakeup_status external_mask
 
+      job_was_triggered := false
       // If the high_mask isn't 0, then it wins over the low mask.
       jobs.do: | job/ContainerJob |
         if job.has_pin_triggers:
@@ -259,8 +263,12 @@ class PinTriggerManager:
                 // Level 0 is only triggered if there is no level 1.
                 is_triggered = true
               if is_triggered:
+                job_was_triggered = true
                 job.is_triggered_ = true
                 tags := job.tags.copy
                 tags["pin"] = pin
                 tags["level"] = level
                 logger_.info "triggered by pin" --tags=tags
+
+      if job_was_triggered:
+        scheduler_.on_job_updated
