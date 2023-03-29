@@ -24,7 +24,7 @@ create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
       --short_help="Install a container on a device."
       --options=[
         OptionPatterns "trigger"
-            ["none", "boot", "install", "interval:<duration>", "pin-high:<pin>", "pin-low:<pin>"]
+            ["none", "boot", "install", "interval:<duration>", "gpio-high:<pin>", "gpio-low:<pin>"]
             --short_help="Trigger to start the container. Defaults to 'boot,install'."
             --split_commas
             --multi,
@@ -99,11 +99,11 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.error "Invalid interval '$parsed_trigger'. Use 20s, 5m10s, 12h or similar."
         ui.abort
       triggers.add (device_specification.IntervalTrigger duration)
-    else if parsed_trigger is Map and (parsed_trigger.contains "pin-low" or parsed_trigger.contains "pin-high"):
-      // Add an entry to the seen triggers list, so we can that it's not combined with 'none'.
-      seen_triggers.add "pin"
-      on_high := parsed_trigger.contains "pin-high"
-      pin_string := on_high ? parsed_trigger["pin-high"] : parsed_trigger["pin-low"]
+    else if parsed_trigger is Map and (parsed_trigger.contains "gpio-low" or parsed_trigger.contains "gpio-high"):
+      // Add an entry to the seen triggers list, so we can ensure that it's not combined with 'none'.
+      seen_triggers.add "gpio"
+      on_high := parsed_trigger.contains "gpio-high"
+      pin_string := on_high ? parsed_trigger["gpio-high"] : parsed_trigger["gpio-low"]
       pin := int.parse pin_string --on_error=:
         ui.error "Invalid pin '$pin_string'."
         ui.abort
@@ -114,8 +114,8 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       seen_pins.add pin
 
       triggers.add (on_high
-          ? device_specification.PinTriggerHigh pin
-          : device_specification.PinTriggerLow pin)
+          ? device_specification.GpioTriggerHigh pin
+          : device_specification.GpioTriggerLow pin)
     else:
       ui.error "Invalid trigger '$parsed_trigger'."
       ui.abort
