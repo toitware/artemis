@@ -2,7 +2,20 @@
 
 import log
 import system.services
-import artemis.api
+
+// --------------------------------------------------------------------------
+// The Artemis API has temporarily been copied from the open source
+// repository:
+//
+// https://github.com/toitware/toit-artemis/blob/main/src/api/api.toit
+//
+// When the API changes have solidified, the file will be deleted in
+// this repository and the new published version will be used instead.
+
+// WAS: import artemis.api
+import .api_temporary_copy as api
+
+// --------------------------------------------------------------------------
 
 import .brokers.broker
 import .containers show ContainerManager
