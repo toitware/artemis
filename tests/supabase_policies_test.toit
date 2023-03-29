@@ -638,7 +638,7 @@ main:
       "organization_id": organization_id,
     }
 
-    // Client1 can see it
+    // Client1 can see it.
     images = client1.rest.select "service_images"
     expect (images.any: it["sdk_id"] == sdkv1_id and it["service_id"] == service2_id)
 

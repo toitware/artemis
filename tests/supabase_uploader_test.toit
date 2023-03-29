@@ -86,7 +86,7 @@ run_test test_cli/TestCli:
     // the tag manually.
     git.tag --name=service_version --commit=TEST_COMMIT
     try:
-      // We are keeping the service for the next test.
+      // We keep the service for the next test.
       run_main_test test_cli tmp_dir service_version --keep_service:
         uploader.main
             --config=test_cli.config

@@ -38,7 +38,7 @@ list_sdks parsed/cli.Parsed config/Config ui/Ui:
 
   with_sdk_server parsed config: | server/ArtemisServerCli |
     server.ensure_authenticated:
-      ui.error "Not logged into Artemis server"
+      ui.error "Not logged into Artemis server."
       ui.abort
     versions/List := server.list_sdk_service_versions
         --sdk_version=sdk_version

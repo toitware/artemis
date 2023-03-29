@@ -12,7 +12,7 @@ ALTER POLICY "Anon and auth users can see the service-images table"
     ON public.service_images
     USING (organization_id IS NULL OR is_auth_member_of_org(organization_id));
 
--- No need to have a unique image
+-- No need to have a unique image.
 ALTER TABLE public.service_images
     DROP CONSTRAINT service_images_image_key;
 
