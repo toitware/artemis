@@ -61,6 +61,10 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
+  static STATUS_GREEN  ::= 0
+  static STATUS_YELLOW ::= 1
+  static STATUS_RED    ::= 2
+
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes
   // more time than that we run the risk of waiting for
@@ -101,11 +105,6 @@ class SynchronizeJob extends TaskJob:
   runlevel -> int:
     return Job.RUNLEVEL_SAFE
 
-  // TODO(kasper): Turn this into something useful.
-  elapsed_since_synchronized_ -> Duration:
-    last := device_.synchronized_last
-    now := JobTime.now
-    return last ? (last.to now) : Duration --us=now.us
 
   schedule now/JobTime last/JobTime? -> JobTime?:
     if firmware_is_validation_pending or not last: return now
@@ -144,11 +143,15 @@ class SynchronizeJob extends TaskJob:
     return null
 
   run -> none:
-    runlevel := Job.RUNLEVEL_NORMAL
-    if firmware_is_validation_pending:
+    status := determine_synchronization_status_
+    runlevel := ?
+    if firmware_is_validation_pending or status == STATUS_RED:
       runlevel = Job.RUNLEVEL_SAFE
+    else if status == STATUS_YELLOW:
+      runlevel = Job.RUNLEVEL_CRITICAL
     else:
-      // TODO(kasper): Fix this.
+      assert: status == STATUS_GREEN
+      runlevel = Job.RUNLEVEL_NORMAL
     scheduler_.transition --runlevel=runlevel
 
     try:
@@ -301,6 +304,23 @@ class SynchronizeJob extends TaskJob:
     state_ = STATE_DISCONNECTED
     if error: logger_.warn STATE_FAILURE[previous] --tags={"error": error}
     logger_.info STATE_SUCCESS[STATE_DISCONNECTED]
+
+  determine_synchronization_status_ -> int:
+    last := device_.synchronized_last
+    now := JobTime.now
+    elapsed := last ? (last.to now) : Duration --us=now.us
+    // TODO(kasper): Tweak this so it becomes significantly
+    // less common than it is now. We probably want to go
+    // to hours instead of minutes. Also, consider computing
+    // the limits up front to make this cheaper.
+    max_offline := device_.max_offline
+    minutes := 1 + (max_offline ? max_offline.in_m : 0)
+    if elapsed < (Duration --m=minutes * 4):
+      return STATUS_GREEN
+    else if elapsed < (Duration --m=minutes * 8):
+      return STATUS_YELLOW
+    else:
+      return STATUS_RED
 
   /**
   Process new goal.
