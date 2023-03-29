@@ -4,16 +4,17 @@ import log
 import system.services
 
 // --------------------------------------------------------------------------
-// The Artemis API has temporarily been copied from the open source
-// repository:
+// The Artemis package has temporarily been copied from the open
+// source repository:
 //
-// https://github.com/toitware/toit-artemis/blob/main/src/api/api.toit
+// https://github.com/toitware/toit-artemis/blob/main/src/
 //
-// When the API changes have solidified, the file will be deleted in
-// this repository and the new published version will be used instead.
+// When the API changes have solidified, the copied directory
+// will be deleted in this repository and the new published
+// version will be used instead.
 
 // WAS: import artemis.api
-import .api_temporary_copy as api
+import .pkg_artemis_src_copy.api as api
 
 // --------------------------------------------------------------------------
 
