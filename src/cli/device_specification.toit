@@ -442,7 +442,7 @@ abstract class Trigger:
       "boot": :: BootTrigger,
       "install": :: InstallTrigger,
       "interval": :: IntervalTrigger.from_json container_name it,
-      "gpio": :: PinTrigger.parse_json container_name it,
+      "gpio": :: GpioTrigger.parse_json container_name it,
     }
     map_triggers := { "interval", "gpio" }
 
@@ -502,7 +502,7 @@ class InstallTrigger extends Trigger:
   json_value -> string:
     return nonce_
 
-abstract class PinTrigger extends Trigger:
+abstract class GpioTrigger extends Trigger:
   pin/int
 
   constructor .pin:
@@ -524,7 +524,7 @@ abstract class PinTrigger extends Trigger:
       on_high := ?
       if on_touch:
         if level_string != null:
-          format_error_ "Both on_high and on_touch are set in $holder"
+          format_error_ "Both level $level_string and touch are set in $holder"
           unreachable
         on_high = null
       else:
@@ -536,12 +536,12 @@ abstract class PinTrigger extends Trigger:
           format_error_ "Invalid level in $holder: $level_string"
           unreachable
 
-      if on_high: PinTriggerHigh pin
-      else if on_touch: PinTriggerTouch pin
-      else: PinTriggerLow pin
+      if on_high: GpioTriggerHigh pin
+      else if on_touch: GpioTriggerTouch pin
+      else: GpioTriggerLow pin
 
     seen_pins := {}
-    pin_triggers.do: | trigger/PinTrigger |
+    pin_triggers.do: | trigger/GpioTrigger |
       if seen_pins.contains trigger.pin:
         format_error_ "Duplicate pin in gpio trigger of $holder"
       seen_pins.add trigger.pin
@@ -557,17 +557,17 @@ abstract class PinTrigger extends Trigger:
 
   abstract pin_trigger_kind -> string
 
-class PinTriggerHigh extends PinTrigger:
+class GpioTriggerHigh extends GpioTrigger:
   constructor pin/int: super pin
 
-  pin_trigger_kind -> string: return "pin-high"
+  pin_trigger_kind -> string: return "gpio-high"
 
-class PinTriggerLow extends PinTrigger:
+class GpioTriggerLow extends GpioTrigger:
   constructor pin/int: super pin
 
-  pin_trigger_kind -> string: return "pin-low"
+  pin_trigger_kind -> string: return "gpio-low"
 
-class PinTriggerTouch extends PinTrigger:
+class GpioTriggerTouch extends GpioTrigger:
   constructor pin/int: super pin
 
-  pin_trigger_kind -> string: return "pin-touch"
+  pin_trigger_kind -> string: return "gpio-touch"
