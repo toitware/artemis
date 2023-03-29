@@ -302,12 +302,23 @@ abstract class ContainerBase implements Container:
     if triggers_list:
       if is_critical:
         format_error_ "Critical container $name cannot have triggers"
-      triggers = triggers_list.map: Trigger.from_json name it
+      triggers = []
+      parsed_triggers := triggers_list.map: Trigger.parse_json name it
       seen_types := {}
-      triggers.do: | trigger/Trigger |
-        if seen_types.contains trigger.type:
-          format_error_ "Duplicate trigger '$trigger.type' in container $name"
-        seen_types.add trigger.type
+      parsed_triggers.do: | trigger_entry |
+        trigger_type/string := ?
+        if trigger_entry is List:
+          // Gpio triggers.
+          trigger_type = "gpio"
+          triggers.add_all trigger_entry
+        else:
+          trigger/Trigger := trigger_entry
+          trigger_type = trigger.type
+          triggers.add trigger
+
+        if seen_types.contains trigger_type:
+          format_error_ "Duplicate trigger '$trigger_type' in container $name"
+        seen_types.add trigger_type
     else:
       triggers = null
 
@@ -416,10 +427,6 @@ class ContainerSnapshot extends ContainerBase:
     return "snapshot"
 
 abstract class Trigger:
-  static INTERVAL ::= "interval"
-  static BOOT ::= "boot"
-  static INSTALL ::= "install"
-
   abstract type -> string
   /**
   A value that is associated with the trigger.
@@ -430,26 +437,31 @@ abstract class Trigger:
 
   constructor:
 
-  constructor.from_json container_name/string data/any:
+  /**
+  Parses the given trigger in JSON format.
+
+  May either return a single $Trigger or a list of triggers.
+  */
+  static parse_json container_name/string data/any -> any:
     known_triggers := {
       "boot": :: BootTrigger,
       "install": :: InstallTrigger,
       "interval": :: IntervalTrigger.from_json container_name it,
+      "gpio": :: GpioTrigger.parse_json container_name it,
     }
-    map_triggers := { "interval" }
+    map_triggers := { "interval", "gpio" }
 
     seen_types := {}
     trigger/Lambda? := null
     known_triggers.do: | key/string value/Lambda |
       is_map_trigger := map_triggers.contains key
-      if is_map_trigger and data is Map:
-        if data.contains key:
+      if is_map_trigger:
+        if data is Map and data.contains key:
           seen_types.add key
           trigger = value
-      else if not is_map_trigger and data is string:
-        if data == key:
-          seen_types.add key
-          trigger = value
+      else if data is string and data == key:
+        seen_types.add key
+        trigger = value
     if seen_types.size == 0:
       format_error_ "Unknown trigger in container $container_name: $data"
     if seen_types.size != 1:
@@ -467,14 +479,14 @@ class IntervalTrigger extends Trigger:
     interval = get_duration_ data "interval" --holder=holder
 
   type -> string:
-    return Trigger.INTERVAL
+    return "interval"
 
   json_value -> int:
     return interval.in_s
 
 class BootTrigger extends Trigger:
   type -> string:
-    return Trigger.BOOT
+    return "boot"
 
   json_value -> int:
     return 1
@@ -490,7 +502,77 @@ class InstallTrigger extends Trigger:
     nonce_ = base64.encode id.to_byte_array
 
   type -> string:
-    return Trigger.INSTALL
+    return "install"
 
   json_value -> string:
     return nonce_
+
+abstract class GpioTrigger extends Trigger:
+  pin/int
+
+  constructor .pin:
+
+  static parse_json container_name/string data/Map -> List:
+    holder := "container $container_name"
+    gpio_trigger_list := get_list_ data "gpio" --holder=holder
+    // Check that all entries are maps.
+    gpio_trigger_list.do: | entry |
+      if entry is not Map:
+        format_error_ "Entry in gpio trigger list of $holder is not a map"
+
+    pin_triggers := gpio_trigger_list.map: | entry/Map |
+      pin_holder := "gpio trigger in container $container_name"
+      pin := get_int_ entry "pin" --holder=pin_holder
+      pin_holder = "gpio trigger for pin $pin in container $container_name"
+      on_touch := get_optional_bool_ entry "touch" --holder=pin_holder
+      level_string := get_optional_string_ entry "level" --holder=pin_holder
+      on_high := ?
+      if on_touch:
+        if level_string != null:
+          format_error_ "Both level $level_string and touch are set in $holder"
+          unreachable
+        on_high = null
+      else:
+        if level_string == "high" or level_string == null:
+          on_high = true
+        else if level_string == "low":
+          on_high = false
+        else:
+          format_error_ "Invalid level in $holder: $level_string"
+          unreachable
+
+      if on_high: GpioTriggerHigh pin
+      else if on_touch: GpioTriggerTouch pin
+      else: GpioTriggerLow pin
+
+    seen_pins := {}
+    pin_triggers.do: | trigger/GpioTrigger |
+      if seen_pins.contains trigger.pin:
+        format_error_ "Duplicate pin in gpio trigger of $holder"
+      seen_pins.add trigger.pin
+
+    return pin_triggers
+
+  type -> string:
+    return "$pin_trigger_kind:$pin"
+
+  json_value -> int:
+    // Use the pin as value, so that the service doesn't need to decode it.
+    return pin
+
+  abstract pin_trigger_kind -> string
+
+class GpioTriggerHigh extends GpioTrigger:
+  constructor pin/int: super pin
+
+  pin_trigger_kind -> string: return "gpio-high"
+
+class GpioTriggerLow extends GpioTrigger:
+  constructor pin/int: super pin
+
+  pin_trigger_kind -> string: return "gpio-low"
+
+class GpioTriggerTouch extends GpioTrigger:
+  constructor pin/int: super pin
+
+  pin_trigger_kind -> string: return "gpio-touch"

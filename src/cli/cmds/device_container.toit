@@ -24,7 +24,7 @@ create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
       --short_help="Install a container on a device."
       --options=[
         OptionPatterns "trigger"
-            ["none", "boot", "install", "interval:<duration>"]
+            ["none", "boot", "install", "interval:<duration>", "gpio-high:<pin>", "gpio-low:<pin>"]
             --short_help="Trigger to start the container. Defaults to 'boot,install'."
             --split_commas
             --multi,
@@ -75,37 +75,60 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   container_path := parsed["path"]
   arguments := parsed["arguments"]
   is_critical := parsed["critical"]
-  json_triggers := parsed["trigger"]
+  parsed_triggers := parsed["trigger"]
   device_id := get_device_id parsed config ui
 
-  if is_critical and not json_triggers.is_empty:
+  if is_critical and not parsed_triggers.is_empty:
     ui.error "Critical containers cannot have triggers."
     ui.abort
 
   seen_triggers := {}
-  triggers := json_triggers.map:
-    if it is string:
-      if seen_triggers.contains it:
-        ui.error "Duplicate trigger '$it'."
+  seen_pins := {}
+  triggers := []
+  parsed_triggers.do: | parsed_trigger |
+    if parsed_trigger is string:
+      if seen_triggers.contains parsed_trigger:
+        ui.error "Duplicate trigger '$parsed_trigger'."
         ui.abort
-      seen_triggers.add it
-    if it == "none":
-      // Do nothing. We check that it's the only trigger later.
-    else if it == "boot": device_specification.BootTrigger
-    else if it == "install": device_specification.InstallTrigger
-    else if it is Map and it.contains "interval":
+      seen_triggers.add parsed_trigger
+
+    if parsed_trigger == "none":
+      // Do nothing. We check that parsed_trigger's the only trigger later.
+    else if parsed_trigger == "boot":
+      triggers.add device_specification.BootTrigger
+    else if parsed_trigger == "install":
+      triggers.add device_specification.InstallTrigger
+    else if parsed_trigger is Map and parsed_trigger.contains "interval":
       if seen_triggers.contains "interval":
         ui.error "Duplicate trigger 'interval'."
         ui.abort
       seen_triggers.add "interval"
-      duration := parse_duration it["interval"] --on_error=:
-        ui.error "Invalid interval '$it'. Use 20s, 5m10s, 12h or similar."
+      duration := parse_duration parsed_trigger["interval"] --on_error=:
+        ui.error "Invalid interval '$parsed_trigger'. Use 20s, 5m10s, 12h or similar."
         ui.abort
-      device_specification.IntervalTrigger duration
+      triggers.add (device_specification.IntervalTrigger duration)
+    else if parsed_trigger is Map and (parsed_trigger.contains "gpio-low" or parsed_trigger.contains "gpio-high"):
+      // Add an entry to the seen triggers list, so we can ensure that it's not combined with 'none'.
+      seen_triggers.add "gpio"
+      on_high := parsed_trigger.contains "gpio-high"
+      pin_string := on_high ? parsed_trigger["gpio-high"] : parsed_trigger["gpio-low"]
+      pin := int.parse pin_string --on_error=:
+        ui.error "Invalid pin '$pin_string'."
+        ui.abort
+
+      if seen_pins.contains pin:
+        ui.error "Duplicate trigger for pin '$pin'."
+        ui.abort
+      seen_pins.add pin
+
+      triggers.add (on_high
+          ? device_specification.GpioTriggerHigh pin
+          : device_specification.GpioTriggerLow pin)
     else:
-      ui.error "Invalid trigger '$it'."
+      ui.error "Invalid trigger '$parsed_trigger'."
       ui.abort
       unreachable
+
   if seen_triggers.contains "none":
     if seen_triggers.size != 1:
       ui.error "Trigger 'none' cannot be combined with other triggers."
