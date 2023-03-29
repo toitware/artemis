@@ -113,6 +113,7 @@ class ContainerJob extends Job:
   trigger_boot_/bool := false
   trigger_install_/bool := false
   trigger_interval_/Duration? := null
+  triggers_gpio_/Map? := null
 
   // The $ContainerManager is responsible for scheduling
   // newly installed containers, so it manipulates this
@@ -181,8 +182,15 @@ class ContainerJob extends Job:
     trigger_boot_ = false
     trigger_install_ = false
     trigger_interval_ = null
+    triggers_gpio_ = null
     description_.get "triggers" --if_present=: | triggers/Map |
       triggers.do: | name/string value |
         if name == "boot": trigger_boot_ = true
         if name == "install": trigger_install_ = true
         if name == "interval": trigger_interval_ = (Duration --s=value)
+        if name.starts_with "gpio-high:":
+          if not triggers_gpio_: triggers_gpio_ = {:}
+          triggers_gpio_[value] = 1
+        if name.starts_with "gpio-low:":
+          if not triggers_gpio_: triggers_gpio_ = {:}
+          triggers_gpio_[value] = 0
