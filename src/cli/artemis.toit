@@ -272,6 +272,7 @@ class Artemis:
             --id=id
             --arguments=container.arguments
             --background=container.is_background
+            --critical=container.is_critical
             --triggers=triggers
         ui_.info "Added container '$name' to envelope."
 
@@ -331,6 +332,7 @@ class Artemis:
       --id/uuid.Uuid
       --arguments/List?
       --background/bool?
+      --critical/bool?
       --triggers/List?:
     result := {
       "id": id.stringify,
@@ -339,6 +341,8 @@ class Artemis:
       result["arguments"] = arguments
     if background:
       result["background"] = 1
+    if critical:
+      result["critical"] = 1
     if triggers and not triggers.is_empty:
       trigger_map := {:}
       triggers.do: | trigger/Trigger |
@@ -641,6 +645,7 @@ class Artemis:
       --application_path/string
       --arguments/List?
       --background/bool
+      --critical/bool
       --triggers/List?:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       current_state := device.reported_state_current or device.reported_state_firmware
@@ -679,6 +684,7 @@ class Artemis:
           --id=id
           --arguments=arguments
           --background=background
+          --critical=critical
           --triggers=triggers
       new_goal["apps"] = apps
       new_goal
