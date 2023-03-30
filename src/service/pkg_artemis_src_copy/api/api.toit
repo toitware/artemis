@@ -8,10 +8,13 @@ interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=0
-      --minor=1
+      --minor=2
 
   version -> string
   static VERSION_INDEX /int ::= 0
+
+  container_restart --delay_until_us/int? -> none
+  static CONTAINER_RESTART_INDEX /int ::= 1
 
 class ArtemisClient extends ServiceClient
     implements ArtemisService:
@@ -22,3 +25,6 @@ class ArtemisClient extends ServiceClient
 
   version -> string:
     return invoke_ ArtemisService.VERSION_INDEX null
+
+  container_restart --delay_until_us/int? -> none:
+    invoke_ ArtemisService.CONTAINER_RESTART_INDEX delay_until_us
