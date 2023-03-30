@@ -34,7 +34,7 @@ abstract class Job:
   schedule_tune last/JobTime -> JobTime:
     return last
 
-  abstract start now/JobTime -> none
+  abstract start -> none
   abstract stop -> none
 
   // If a periodic job runs longer than its period, it is beneficial
@@ -63,7 +63,7 @@ abstract class TaskJob extends Job:
 
   abstract run -> none
 
-  start now/JobTime -> none:
+  start -> none:
     if task_: return
     task_ = task::
       try:
@@ -78,8 +78,8 @@ abstract class TaskJob extends Job:
         // so to allow monitor operations in this shutdown
         // sequence, we run the rest in a critical section.
         critical_do:
-          if latch: latch.set null
           scheduler_.on_job_stopped this
+          if latch: latch.set null
 
   stop -> none:
     if not task_: return

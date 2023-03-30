@@ -2,6 +2,7 @@
 
 import gpio
 import log
+import monitor
 import reader show Reader SizedReader
 import uuid
 
@@ -53,6 +54,13 @@ class ContainerManager:
 
   get --name/string -> ContainerJob?:
     return jobs_.get name
+
+  get --gid/int -> ContainerJob?:
+    // TODO(kasper): Consider optimizing this through
+    // the use of another map keyed by the gid.
+    jobs_.do: | job/ContainerJob |
+      if job.gid == gid: return job
+    return null
 
   create --name/string --id/uuid.Uuid --description/Map -> ContainerJob?
       --reader/Reader?=null:
@@ -127,9 +135,11 @@ class ContainerJob extends Job:
   id/uuid.Uuid
   description_/Map := ?
   running_/containers.Container? := null
-  runlevel_/int := Job.RUNLEVEL_NORMAL
+  latch_/monitor.Latch? := null
 
+  runlevel_/int := Job.RUNLEVEL_NORMAL
   is_background_/bool := false
+
   trigger_boot_/bool := false
   trigger_install_/bool := false
   trigger_interval_/Duration? := null
@@ -141,6 +151,7 @@ class ContainerJob extends Job:
   has_run_after_install_/bool := true
 
   is_triggered_/bool := false
+  delay_until_/JobTime? := null
 
   constructor --name/string --.id --description/Map --pin_trigger_manager/PinTriggerManager:
     description_ = description
@@ -160,6 +171,10 @@ class ContainerJob extends Job:
   is_critical -> bool:
     return runlevel_ <= Job.RUNLEVEL_CRITICAL
 
+  gid -> int?:
+    running := running_
+    return running and running.gid
+
   runlevel -> int:
     return runlevel_
 
@@ -171,7 +186,11 @@ class ContainerJob extends Job:
     return { "name": name, "id": id }
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if is_critical:
+    // TODO(kasper): Should the delayed restart take
+    // precedence over all other triggers?
+    if delay_until := delay_until_:
+      return delay_until
+    else if is_critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
       return now
@@ -194,21 +213,44 @@ class ContainerJob extends Job:
     // at the beginning of the next period instead of now.
     return Job.schedule_tune_periodic last trigger_interval_
 
-  start now/JobTime -> none:
+  start -> none:
     if running_: return
     arguments := description_.get "arguments"
     has_run_after_install_ = true
+    delay_until_ = null
     running_ = containers.start id arguments
+
     scheduler_.on_job_started this
     running_.on_stopped::
       running_ = null
       is_triggered_ = false
+      // TODO(kasper): Share the latch code here
+      // with the corresponding code in TaskJob.
+      latch := latch_
+      latch_ = null
       scheduler_.on_job_stopped this
+      if latch: latch.set null
       pin_trigger_manager_.rearm_job this
 
   stop -> none:
     if not running_: return
+    // TODO(kasper): Share the latch code here
+    // with the corresponding code in TaskJob.
+    latch := latch_
+    if not latch:
+      latch = monitor.Latch
+      latch_ = latch
     running_.stop
+    latch.get
+
+  restart --delay_until_us/int? -> none:
+    stop
+    delay_until := JobTime.now
+    if delay_until_us:
+      delay_until += Duration --us=(delay_until_us - Time.monotonic_us)
+    // TODO(kasper): Let the delay survive deep sleeping.
+    delay_until_ = delay_until
+    scheduler_.on_job_updated
 
   update description/Map -> none:
     assert: not is_running

@@ -104,7 +104,7 @@ class Scheduler:
       next ::= job.schedule now job.scheduler_ran_last_
       if not next: continue.do
       if next <= now:
-        job.start now
+        job.start
       else if (not first or next < first):
         first = next
     return first
