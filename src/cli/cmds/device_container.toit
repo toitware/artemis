@@ -134,7 +134,8 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.error "Trigger 'none' cannot be combined with other triggers."
       ui.abort
     triggers = []
-  else if triggers.is_empty:
+  else if not is_critical and triggers.is_empty:
+    // Non-critical containers get a boot and an install trigger by default.
     triggers = [device_specification.BootTrigger, device_specification.InstallTrigger]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
