@@ -20,3 +20,16 @@ version -> string:
   service := service_
   if not service: throw "Artemis unavailable"
   return service.version
+
+/**
+...
+*/
+class Channel:
+  topic/string
+  constructor .topic:
+
+  open topic/string -> Channel:
+    unreachable
+
+  close -> none:
+    unreachable
