@@ -225,13 +225,14 @@ class ContainerJob extends Job:
     else:
       runlevel_ = Job.RUNLEVEL_NORMAL
 
-    // Update triggers.
+    // Reset triggers.
     trigger_boot_ = false
     trigger_install_ = false
     trigger_interval_ = null
     trigger_gpio_levels_ = null
-    if runlevel_ <= Job.RUNLEVEL_CRITICAL: return
 
+    // Update triggers unless we're a critical container.
+    if is_critical: return
     description_.get "triggers" --if_present=: | triggers/Map |
       triggers.do: | name/string value |
         if name == "boot": trigger_boot_ = true
