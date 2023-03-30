@@ -175,7 +175,7 @@ class SynchronizeJob extends TaskJob:
     else if status == STATUS_GREEN:
       runlevel = Job.RUNLEVEL_NORMAL
     else:
-      assert: status == STATUS_GREEN or status == STATUS_RED
+      assert: status == STATUS_YELLOW or status == STATUS_RED
       runlevel = Job.RUNLEVEL_CRITICAL
       // If we're really, really having trouble synchronizing
       // we let the synchronizer run in safe mode every now
