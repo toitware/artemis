@@ -69,15 +69,15 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   return duration
 
 class ArtemisServiceProvider extends services.ServiceProvider
-    implements services.ServiceHandler api.ArtemisService:
+    implements services.ServiceHandlerNew api.ArtemisService:
 
   constructor:
     super "toit.io/artemis"
         --major=ARTEMIS_VERSION_MAJOR
         --minor=ARTEMIS_VERSION_MINOR
-    provides api.ArtemisService.SELECTOR --handler=this
+    provides api.ArtemisService.SELECTOR --handler=this --new
 
-  handle pid/int client/int index/int arguments/any -> any:
+  handle index/int arguments/any --gid/int --client/int -> any:
     if index == api.ArtemisService.VERSION_INDEX:
       return version
     if index == api.ArtemisService.CONTAINER_RESTART_INDEX:
