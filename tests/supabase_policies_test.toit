@@ -609,8 +609,9 @@ main:
     expect_equals service1_id service_snapshot["service_id"]
     expect_equals image images[0]["image"]
 
-    // Create a second SDK entry, so that the following test doesn't
-    // hit a unique constraint check.
+    // Create a second service entry.
+    // We need it to avoid a unique constraint check for the failing tests below.
+    // We will also use it for organization-specific services.
     services = client_admin.rest.insert "artemis_services" {
       "version": "v9.9.9",
     }
@@ -628,6 +629,24 @@ main:
       "service_id": service2_id,
       "image": image,
     }
+
+    // Upload a service for a specific organization.
+    client_admin.rest.insert "service_images" {
+      "sdk_id": sdkv1_id,
+      "service_id": service2_id,
+      "image": image,
+      "organization_id": organization_id,
+    }
+
+    // Client1 can see it.
+    images = client1.rest.select "service_images"
+    expect (images.any: it["sdk_id"] == sdkv1_id and it["service_id"] == service2_id)
+
+    // Anon and client3 can't see it.
+    images = client_anon.rest.select "service_images"
+    expect_not (images.any: it["sdk_id"] == sdkv1_id and it["service_id"] == service2_id)
+    images = client3.rest.select "service_images"
+    expect_not (images.any: it["sdk_id"] == sdkv1_id and it["service_id"] == service2_id)
 
     // Admins can write to the storage.
     // All other users (including auth) can only see it.

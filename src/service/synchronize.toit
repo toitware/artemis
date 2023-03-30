@@ -61,9 +61,27 @@ class SynchronizeJob extends TaskJob:
     null,
   ]
 
+  // The status is used to dermine the frequency and runlevel
+  // of the synchronizations. We determine the current
+  // synchronization status by comparing the ideal time between
+  // synchronizations (as dictated by the max-offline setting)
+  // with the actual time since the last successful attempt.
+  // If we have been unsuccessful in synchronizing for too long,
+  // we push the status into yellow and eventually into red.
   static STATUS_GREEN  ::= 100
   static STATUS_YELLOW ::= 101
   static STATUS_RED    ::= 102
+  static STATUS_CHANGES_AFTER_ATTEMPTS ::= 4  // TODO(kasper): This is low for testing.
+
+  // The status limit unit controls how we round when
+  // we compute the number of missed synchronization
+  // attempts. As an example, let's assume that we've
+  // decided to change the status after 8 attempts and
+  // that the unit is 1h. If max-offline is 1h or less,
+  // we will change the status after 8h. If max-offline
+  // is 12h, we will change the status after 96h.
+  static STATUS_LIMIT_UNIT_US ::= Duration.MICROSECONDS_PER_MINUTE  // TODO(kasper): This is low for testing.
+  status_limit_us_/int := ?
 
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes
@@ -100,6 +118,8 @@ class SynchronizeJob extends TaskJob:
 
   constructor logger/log.Logger .device_ .containers_ .broker_:
     logger_ = logger.with_name "synchronize"
+    max_offline := device_.max_offline
+    status_limit_us_ = compute_status_limit_us_ max_offline
     super "synchronize"
 
   runlevel -> int:
@@ -110,6 +130,12 @@ class SynchronizeJob extends TaskJob:
     max_offline := device_.max_offline
     schedule/JobTime := ?
     if max_offline:
+      // Allow the device to connect more often if we're having
+      // trouble synchronzing. This is particularly welcome on
+      // devices with a high max-offline setting (multiple hours).
+      status := determine_status_
+      if status != STATUS_GREEN:
+        max_offline /= (status == STATUS_RED) ? 4 : 2
       // Compute the duration of the current offline period by
       // letting it run to whatever comes first of the scheduled
       // check-in or hitting the max-offline ceiling, but make
@@ -142,15 +168,21 @@ class SynchronizeJob extends TaskJob:
     return null
 
   run -> none:
-    status := determine_synchronization_status_
+    status := determine_status_
     runlevel := ?
-    if firmware_is_validation_pending or status == STATUS_RED:
+    if firmware_is_validation_pending:
       runlevel = Job.RUNLEVEL_SAFE
-    else if status == STATUS_YELLOW:
-      runlevel = Job.RUNLEVEL_CRITICAL
-    else:
-      assert: status == STATUS_GREEN
+    else if status == STATUS_GREEN:
       runlevel = Job.RUNLEVEL_NORMAL
+    else:
+      assert: status == STATUS_YELLOW or status == STATUS_RED
+      runlevel = Job.RUNLEVEL_CRITICAL
+      // If we're really, really having trouble synchronizing
+      // we let the synchronizer run in safe mode every now
+      // and then. It is our get-out-of-jail option, but we
+      // really prefer running containers marked critical.
+      if status == STATUS_RED and (random 100) < 15:
+        runlevel = Job.RUNLEVEL_SAFE
     scheduler_.transition --runlevel=runlevel
 
     try:
@@ -291,7 +323,7 @@ class SynchronizeJob extends TaskJob:
 
     // Keep track of the last time we succesfully synchronized.
     if state == STATE_SYNCHRONIZED:
-      device_.synchronized_last_update JobTime.now
+      device_.synchronized_last_us_update JobTime.now.us
       scheduler_.transition --runlevel=Job.RUNLEVEL_NORMAL
 
   transition_to_connected_ -> none:
@@ -304,22 +336,29 @@ class SynchronizeJob extends TaskJob:
     if error: logger_.warn STATE_FAILURE[previous] --tags={"error": error}
     logger_.info STATE_SUCCESS[STATE_DISCONNECTED]
 
-  determine_synchronization_status_ -> int:
-    last := device_.synchronized_last
-    now := JobTime.now
-    elapsed := last ? (last.to now) : Duration --us=now.us
-    // TODO(kasper): Tweak this so it becomes significantly
-    // less common than it is now. We probably want to go
-    // to hours instead of minutes. Also, consider computing
-    // the limits up front to make this cheaper.
-    max_offline := device_.max_offline
-    minutes := 1 + (max_offline ? max_offline.in_m : 0)
-    if elapsed < (Duration --m=minutes * 4):
+  determine_status_ -> int:
+    last := device_.synchronized_last_us
+    elapsed := JobTime.now.us
+    if last: elapsed -= last
+    limit := status_limit_us_
+    if elapsed < limit:
       return STATUS_GREEN
-    else if elapsed < (Duration --m=minutes * 8):
+    else if elapsed < (limit << 1):
       return STATUS_YELLOW
     else:
       return STATUS_RED
+
+  static compute_status_limit_us_ max_offline/Duration? -> int:
+    // Compute the number of time units that correspond to
+    // the max-offline setting by using ceiling division.
+    max_offline_units := max_offline
+        ? 1 + (max_offline.in_us - 1) / STATUS_LIMIT_UNIT_US
+        : 1
+    // Convert the units back to a number of microseconds and
+    // derive the limit from that and the number of attempts
+    // between status changes.
+    max_offline_us := max_offline_units * STATUS_LIMIT_UNIT_US
+    return max_offline_us * STATUS_CHANGES_AFTER_ATTEMPTS
 
   /**
   Process new goal.
@@ -459,13 +498,19 @@ class SynchronizeJob extends TaskJob:
       logger_.error "updating: container $name not found"
 
   handle_set_max_offline_ value/any -> none:
-    device_.state_set_max_offline ((value is int) ? Duration --s=value : null)
+    max_offline := (value is int) ? Duration --s=value : null
+    device_.state_set_max_offline max_offline
+    status_limit_us_ = compute_status_limit_us_ max_offline
 
   handle_firmware_update_ resources/ResourceManager new/string -> none:
     if firmware_is_validation_pending: throw "firmware update: cannot update unvalidated"
     runlevel := scheduler_.runlevel
     updated := false
     try:
+      // TODO(kasper): We should make sure we're not increasing the
+      // runlevel here. For now, that cannot happen because we're
+      // using safe mode for firmware updates, but if we were to
+      // change this, we shouldn't increase the runlevel here.
       scheduler_.transition --runlevel=Job.RUNLEVEL_SAFE
       firmware_update logger_ resources --device=device_ --new=new
       updated = true

@@ -87,6 +87,10 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
           out code. If no service-version is provided, uses the one in the
           version.toit file.
 
+        Note that there can only be one service/sdk version combination.
+        Even if a version is uploaded to a specific organization-id, there
+        can't be the same version for other organizations.
+
         The built image is then uploaded to the Artemis server.
         """
       --options=[
@@ -99,6 +103,12 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --short_help="The commit to build.",
         cli.Flag "local"
             --short_help="Build the service from the checked out code of the current repository.",
+        cli.Option "organization-id"
+            --short_help="The organization ID to upload the service to.",
+        cli.Flag "force"
+            --short_name="f"
+            --short_help="Force the upload, even if the service already exists."
+            --default=false,
       ]
       --run=:: build_and_upload config cache ui it
   cmd.add service_cmd
@@ -113,6 +123,8 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   commit := parsed["commit"]
   use_local := parsed["local"]
   snapshot_directory := parsed["snapshot-directory"]
+  organization_id := parsed["organization-id"]
+  force := parsed["force"]
 
   git := Git
   // Get the SDK.
@@ -175,6 +187,8 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
           --image_id=image_id
           --image_content=image_content
           --snapshot=snapshot_content
+          --organization_id=organization_id
+          --force=force
 
       cache_snapshot snapshot_content
           --output_directory=snapshot_directory
