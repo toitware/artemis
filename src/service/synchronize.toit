@@ -132,7 +132,7 @@ class SynchronizeJob extends TaskJob:
     if max_offline:
       // Allow the device to connect more often if we're having
       // trouble synchronzing. This is particularly welcome on
-      // device with a high max-offline setting (multiple hours).
+      // devices with a high max-offline setting (multiple hours).
       status := determine_status_
       if status != STATUS_GREEN:
         max_offline /= (status == STATUS_RED) ? 4 : 2
