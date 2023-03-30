@@ -179,7 +179,7 @@ class SynchronizeJob extends TaskJob:
       runlevel = Job.RUNLEVEL_CRITICAL
       // If we're really, really having trouble synchronizing
       // we let the synchronizer run in safe mode every now
-      // and then. It is our get out of jail option, but we
+      // and then. It is our get-out-of-jail option, but we
       // really prefer running containers marked critical.
       if status == STATUS_RED and (random 100) < 15:
         runlevel = Job.RUNLEVEL_SAFE
