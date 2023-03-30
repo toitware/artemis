@@ -5,10 +5,12 @@ import host.directory
 import host.file
 
 import .utils
+import .artemis_server
 import ..tools.service_image_uploader.uploader as uploader
 import ..tools.service_image_uploader.downloader as downloader
 import artemis.shared.version show ARTEMIS_VERSION
 import artemis.cli.git show Git
+import supabase
 
 main args:
   // Start a TestCli, since that will set up everything the way we want.
@@ -22,7 +24,12 @@ SDK_VERSION ::= "v2.0.0-alpha.73"
 // It's safe to update the commit to a newer version.
 TEST_COMMIT ::= "58f2d290269fe497945b3faa921803c8ef56de8d"
 
-run_main_test test_cli/TestCli tmp_dir/string service_version/string [block]:
+run_main_test
+    test_cli/TestCli
+    tmp_dir/string
+    service_version/string
+    --keep_service/bool=false
+    [block]:
   block.call
   // Check that the service is available.
   available_sdks := test_cli.run [
@@ -47,6 +54,16 @@ run_main_test test_cli/TestCli tmp_dir/string service_version/string [block]:
   files_iterator.close
   expect_equals 0 files.size
 
+  if not keep_service:
+    delete_service_version test_cli service_version
+
+delete_service_version test_cli/TestCli service_version/string:
+  supabase_backdoor := test_cli.artemis_backdoor as SupabaseBackdoor
+  supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
+    client.rest.delete "artemis_services" --filters=[
+      "version=eq.$service_version",
+    ]
+
 run_test test_cli/TestCli:
   with_tmp_directory: | tmp_dir/string |
     git := Git
@@ -69,7 +86,8 @@ run_test test_cli/TestCli:
     // the tag manually.
     git.tag --name=service_version --commit=TEST_COMMIT
     try:
-      run_main_test test_cli tmp_dir service_version:
+      // We keep the service for the next test.
+      run_main_test test_cli tmp_dir service_version --keep_service:
         uploader.main
             --config=test_cli.config
             --cache=test_cli.cache
@@ -79,6 +97,33 @@ run_test test_cli/TestCli:
               "--sdk-version", SDK_VERSION,
               "--service-version", service_version,
               "--snapshot-directory", tmp_dir,
+            ]
+
+      // Without force we can't upload the same version again.
+      expect_exit_1:
+        uploader.main
+            --config=test_cli.config
+            --cache=test_cli.cache
+            --ui=TestUi
+            [
+              "service",
+              "--sdk-version", SDK_VERSION,
+              "--service-version", service_version,
+              "--snapshot-directory", tmp_dir,
+            ]
+
+      // We keep the service version for the download test.
+      run_main_test test_cli tmp_dir service_version --keep_service:
+        uploader.main
+            --config=test_cli.config
+            --cache=test_cli.cache
+            --ui=TestUi
+            [
+              "service",
+              "--sdk-version", SDK_VERSION,
+              "--service-version", service_version,
+              "--snapshot-directory", tmp_dir,
+              "--force",
             ]
 
       // Try with a specific commit.
@@ -146,3 +191,9 @@ run_test test_cli/TestCli:
     while file_name := files_iterator.next: files.add file_name
     files_iterator.close
     expect_equals 1 files.size
+
+    delete_service_version test_cli service_version
+
+expect_exit_1 [block]:
+  exception := catch: block.call
+  expect exception is TestExit

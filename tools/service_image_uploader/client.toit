@@ -29,6 +29,8 @@ interface UploadClient:
       --sdk_version/string --service_version/string
       --image_id/string --image_content/ByteArray
       --snapshot/ByteArray
+      --organization_id/string?
+      --force/bool
 
   upload --snapshot_uuid/string cli_snapshot/ByteArray
 
@@ -57,7 +59,9 @@ class UploadClientSupabase implements UploadClient:
   upload
       --sdk_version/string --service_version/string
       --image_id/string --image_content/ByteArray
-      --snapshot/ByteArray:
+      --snapshot/ByteArray
+      --organization_id/string?
+      --force/bool:
     client_.ensure_authenticated: it.sign_in --provider="github" --ui=ui_
 
     ui_.info "Uploading image archive."
@@ -87,6 +91,19 @@ class UploadClientSupabase implements UploadClient:
       }
       service_id = inserted["id"]
 
+    if not force:
+      existing_images := client_.rest.select "service_images" --filters=[
+        "sdk_id=eq.$sdk_id",
+        "service_id=eq.$service_id",
+      ]
+      if not existing_images.is_empty:
+        suffix := ""
+        if existing_images[0].get "organization_id":
+          suffix = " in organization $organization_id"
+        ui_.error "Image already exists$suffix."
+        ui_.error "Use --force to overwrite."
+        ui_.abort
+
     client_.storage.upload
         --path="service-images/$image_id"
         --content=image_content
@@ -106,6 +123,7 @@ class UploadClientSupabase implements UploadClient:
         "sdk_id": sdk_id,
         "service_id": service_id,
         "image": image_id,
+        "organization_id": organization_id,
       }
     else:
       client_.rest.update "service_images" --filters=[
@@ -113,6 +131,7 @@ class UploadClientSupabase implements UploadClient:
         "service_id=eq.$service_id",
       ] {
         "image": image_id,
+        "organization_id": organization_id,
       }
 
     ui_.info "Successfully uploaded $service_version into service-images/$image_id."
@@ -155,13 +174,17 @@ class UploadClientHttp implements UploadClient:
   upload
       --sdk_version/string --service_version/string
       --image_id/string --image_content/ByteArray
-      --snapshot/ByteArray:
+      --snapshot/ByteArray
+      --organization_id/string?
+      --force/bool:
     // We only upload the image.
     send_request_ "upload-service-image" {
       "sdk_version": sdk_version,
       "service_version": service_version,
       "image_id": image_id,
       "image_content": base64.encode image_content,
+      "organization_id": organization_id,
+      "force": force,
     }
 
   upload --snapshot_uuid/string cli_snapshot/ByteArray:
