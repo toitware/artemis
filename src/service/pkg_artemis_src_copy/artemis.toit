@@ -2,25 +2,27 @@
 // Use of this source code is governed by an MIT-style license that can be
 // found in the LICENSE file.
 
+import system.services show ServiceResourceProxy
+
 import .api as api
 import .implementation.container as implementation
 
-service_/api.ArtemisService? ::= (api.ArtemisClient).open
+artemis_client_/api.ArtemisClient? ::= (api.ArtemisClient).open
     --if_absent=: null
 
 /**
 Whether the Artemis service is available.
 */
 available -> bool:
-  return service_ != null
+  return artemis_client_ != null
 
 /**
 Returns the version of the Artemis service.
 */
 version -> string:
-  service := service_
-  if not service: throw "Artemis unavailable"
-  return service.version
+  client := artemis_client_
+  if not client: throw "Artemis unavailable"
+  return client.version
 
 /**
 A container is a schedulable unit of execution that runs
@@ -59,12 +61,21 @@ interface Container:
 /**
 ...
 */
-class Channel:
+class Channel extends ServiceResourceProxy:
   topic/string
-  constructor .topic:
 
-  open topic/string -> Channel:
+  constructor.internal_ client/api.ArtemisClient handle/int --.topic:
+    super client handle
+
+  static open --topic/string -> Channel:
+    client := artemis_client_
+    if not client: throw "Artemis unavailable"
+    handle := client.channel_open --topic=topic
+    return Channel.internal_ client handle --topic=topic
+
+  send bytes/ByteArray -> none:
     unreachable
 
-  close -> none:
+  // handle dropped?
+  receive --wait/bool=false -> ByteArray?:
     unreachable

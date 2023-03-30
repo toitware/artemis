@@ -20,6 +20,7 @@ import .pkg_artemis_src_copy.api as api
 
 import .brokers.broker
 import .containers show ContainerManager
+import .channels
 import .device
 import .ntp
 import .jobs
@@ -81,7 +82,9 @@ class ArtemisServiceProvider extends services.ServiceProvider
     if index == api.ArtemisService.VERSION_INDEX:
       return version
     if index == api.ArtemisService.CONTAINER_RESTART_INDEX:
-      return container_restart --delay_until_us=arguments[0]
+      return container_restart --delay_until_us=arguments
+    if index == api.ArtemisService.CHANNEL_OPEN_INDEX:
+      return channel_open client --topic=arguments
     unreachable
 
   version -> string:
@@ -89,3 +92,9 @@ class ArtemisServiceProvider extends services.ServiceProvider
 
   container_restart --delay_until_us/int? -> none:
     throw "UNIMPLEMENTED"
+
+  channel_open --topic/string -> int?:
+    unreachable
+
+  channel_open client/int --topic/string -> ChannelResource:
+    return ChannelResource this client --topic=topic

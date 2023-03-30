@@ -16,6 +16,9 @@ interface ArtemisService:
   container_restart --delay_until_us/int? -> none
   static CONTAINER_RESTART_INDEX /int ::= 1
 
+  channel_open --topic/string -> int?
+  static CHANNEL_OPEN_INDEX /int ::= 2
+
 class ArtemisClient extends ServiceClient
     implements ArtemisService:
   static SELECTOR ::= ArtemisService.SELECTOR
@@ -28,3 +31,6 @@ class ArtemisClient extends ServiceClient
 
   container_restart --delay_until_us/int? -> none:
     invoke_ ArtemisService.CONTAINER_RESTART_INDEX delay_until_us
+
+  channel_open --topic/string -> int?:
+    return invoke_ ArtemisService.CHANNEL_OPEN_INDEX topic
