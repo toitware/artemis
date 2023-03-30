@@ -2,6 +2,7 @@
 
 import cli
 import encoding.base64
+import host.file
 import uuid
 
 import .broker_options_
@@ -67,6 +68,11 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_name="p"
             --required,
         cli.Option "baud",
+        OptionPatterns "partition"
+            ["file:<name>=<path>", "empty:<name>=<size>"]
+            --short_help="Add a custom partition to the device."
+            --split_commas
+            --multi,
         cli.Flag "simulate"
             --hidden
             --default=false,
@@ -194,6 +200,10 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.error "Cannot specify both a firmware image and a specification file."
     ui.abort
 
+  if not firmware_path and not specification_path:
+    ui.error "Must specify either a firmware image or a specification file."
+    ui.abort
+
   device_id/string := ?
   if identity_path:
     identity := read_base64_ubjson identity_path
@@ -208,6 +218,36 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if not organization_id:
         ui.error "No organization ID specified and no default organization ID set."
         ui.abort
+
+  partitions := []
+  parsed["partition"].do: | partition/Map |
+    type := partition.contains "file" ? "file" : "empty"
+    description/string := partition[type]
+    delimiter_index := description.index_of "="
+    if delimiter_index < 0:
+      ui.error "Partition of type '$type' is malformed: '$description'."
+      ui.abort
+    name := description[..delimiter_index]
+    if name.is_empty:
+      ui.error "Partition of type '$type' has no name."
+      ui.abort
+    if name.size > 15:
+      ui.error "Partition of type '$type' has name with more than 15 characters."
+      ui.abort
+    value := description[delimiter_index + 1 ..]
+    if type == "file":
+      if not file.is_file value:
+        ui.error "Partition $type:$name refers to invalid file."
+        ui.error "No such file: $value."
+        ui.abort
+    else:
+      size := int.parse value --on_error=:
+        ui.error "Partition $type:$name has illegal size: '$it'"
+        ui.abort
+      if size <= 0:
+        ui.error "Partition $type:$name has illegal size: $size"
+        ui.abort
+    partitions.add "$type:$description"
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     if not (identity_path and firmware_path):
@@ -259,6 +299,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --config_path=config_path
             --port=port
             --baud_rate=baud
+            --partitions=partitions
         if should_make_default: make_default_ device_id config ui
       else:
         ui.info "Simulating flash."

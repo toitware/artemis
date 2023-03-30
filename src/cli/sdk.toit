@@ -216,7 +216,12 @@ class Sdk:
   Combines the $envelope_path and $config_path into a single firmware while
     flashing.
   */
-  flash --envelope_path/string --config_path/string --port/string --baud_rate/string?:
+  flash
+      --envelope_path/string
+      --config_path/string
+      --port/string
+      --baud_rate/string?
+      --partitions/List?:
     args := [
       "flash",
       "-e", envelope_path,
@@ -224,6 +229,7 @@ class Sdk:
       "--port", port,
     ]
     if baud_rate: args += [ "--baud", baud_rate ]
+    if partitions: args += [ "--partition", partitions.join "," ]
     run_firmware_tool args
 
   /**
