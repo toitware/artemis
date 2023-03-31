@@ -13,6 +13,7 @@ import ..utils
 create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
   cmd := cli.Command "container"
       --short_help="Manage the containers installed on a device."
+      --options=broker_options
 
   install_cmd := cli.Command "install"
       --short_help="Install a container on a device."
