@@ -8,47 +8,55 @@ import expect show *
 import system.storage
 
 main:
-  test_empty
-  test_sn_compare
-  test_first_read
-  test_small
-  test_large_append
-  test_append_while_reading
-  test_illegal_operations_while_reading
-  test_continue
-  test_avoid_double_read
-  test_all_committed
-  test_fill_up
-  test_full
-  test_repeated
-  test_illegal_ack
-  test_randomized
+  cases := [
+    :: test_empty,
+    :: test_sn_compare,
+    :: test_first_read,
+    :: test_small,
+    :: test_large_append,
+    :: test_append_while_reading,
+    :: test_illegal_operations_while_reading,
+    :: test_continue,
+    :: test_avoid_double_read,
+    :: test_all_committed,
+    :: test_fill_up,
+    :: test_full,
+    :: test_repeated,
+    :: test_illegal_ack,
+    :: test_randomized,
 
-  test_valid_w_corrupt
+    :: test_valid_w_corrupt,
 
-  test_valid_joined_rw_committed
-  test_valid_joined_rw_committed_page_ordering
-  test_valid_joined_rw_uncommitted
+    :: test_valid_joined_rw_committed,
+    :: test_valid_joined_rw_committed_page_ordering,
+    :: test_valid_joined_rw_uncommitted,
 
-  test_valid_split_invalid
-  test_valid_split_w_committed
-  test_valid_split_w_uncommitted
-  test_valid_split_w_page_ordering
-  test_valid_split_r_page_ordering
+    :: test_valid_split_invalid,
+    :: test_valid_split_w_committed,
+    :: test_valid_split_w_uncommitted,
+    :: test_valid_split_w_page_ordering,
+    :: test_valid_split_r_page_ordering,
 
-  test_repair_none
-  test_repair_committed_first
-  test_repair_committed_range
-  test_repair_sequence
-  test_repair_committed_wrong_order
-  test_repair_corrupt_uncommitted_page
-  test_repair_full_uncommitted_page
-  test_repair_all_read
-  test_repair_sn_wraparound
-  test_repair_on_ack
+    :: test_repair_none,
+    :: test_repair_committed_first,
+    :: test_repair_committed_range,
+    :: test_repair_sequence,
+    :: test_repair_committed_wrong_order,
+    :: test_repair_corrupt_uncommitted_page,
+    :: test_repair_full_uncommitted_page,
+    :: test_repair_all_read,
+    :: test_repair_sn_wraparound,
+    :: test_repair_on_ack,
 
-  test_invalid_page_start
-  test_invalid_write_offset
+    :: test_invalid_page_start,
+    :: test_invalid_write_offset,
+  ]
+
+  cases.do: | test/Lambda |
+    try:
+      test.call
+    finally:
+      TestFlashLog.close_all
 
 test_empty:
   flashlog := TestFlashLog 2
@@ -285,6 +293,7 @@ test_randomized:
     if flashlog.has_more:
       flashlog.dump
       expect false --message="Randomized flash logs should be empty"
+    flashlog.close
 
 test_valid_w_corrupt:
   // Corrupt write page (contains garbage at end).
@@ -1042,11 +1051,17 @@ class TestFlashLog extends FlashLog:
   static COUNTER := 0
   path_/string? := ?
 
+  static constructed_ ::= []
+
   constructor pages/int:
-    path_ = "toitlang.org/test-flashlog-$(COUNTER++)"
+    path_ = "toit.io/test-flashlog-$(COUNTER++)"
     region := storage.Region.open --flash path_ --capacity=pages * 4096
     super region
-    add_finalizer this:: close
+    constructed_.add this
+
+  static close_all -> none:
+    constructed_.do: it.close
+    constructed_.clear
 
   close:
     if not path_: return
