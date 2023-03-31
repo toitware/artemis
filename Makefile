@@ -117,11 +117,11 @@ use-customer-supabase-broker: start-supabase
 setup-local-dev:
 	@ # The HTTP server doesn't have any default users.
 	@ if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) == "artemis-local-http" ]]; then \
-	    $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis signup --email test-admin@toit.io --password password; \
+	    $(TOIT_RUN_BIN) src/cli/cli.toit auth signup --email test-admin@toit.io --password password; \
 	  fi
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test-admin@toit.io --password password
+	@ $(TOIT_RUN_BIN) src/cli/cli.toit auth login --email test-admin@toit.io --password password
 	@ if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) != $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) ]]; then \
-	    $(TOIT_RUN_BIN) src/cli/cli.toit auth broker login --email test@example.com --password password; \
+	    $(TOIT_RUN_BIN) src/cli/cli.toit auth login --broker --email test@example.com --password password; \
 	  fi
 
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit org create "Test Org"
