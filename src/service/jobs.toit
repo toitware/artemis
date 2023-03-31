@@ -18,6 +18,13 @@ abstract class Job:
   scheduler_ran_last_/JobTime? := null
   scheduler_ran_after_boot_/bool := false
 
+  // TODO(kasper): Maybe this should be called run-after? The
+  // way this interacts with the other triggers isn't super
+  // clear, so maybe this should be passed to $schedule like
+  // we do with last? You could argue that we should do the
+  // same with has_run_after_boot.
+  scheduler_delayed_until_/JobTime? := null
+
   constructor .name:
 
   abstract is_running -> bool

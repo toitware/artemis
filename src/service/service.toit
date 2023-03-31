@@ -81,16 +81,16 @@ class ArtemisServiceProvider extends services.ServiceProvider
   handle index/int arguments/any --gid/int --client/int -> any:
     if index == api.ArtemisService.VERSION_INDEX:
       return version
-    if index == api.ArtemisService.CONTAINER_RESTART_INDEX:
-      return container_restart --gid=gid --delay_until_us=arguments[0]
+    if index == api.ArtemisService.CONTAINER_CURRENT_RESTART_INDEX:
+      return container_current_restart --gid=gid --wakeup_us=arguments
     unreachable
 
   version -> string:
     return ARTEMIS_VERSION
 
-  container_restart --delay_until_us/int? -> none:
+  container_current_restart --wakeup_us/int? -> none:
     unreachable  // Not used.
 
-  container_restart --gid/int --delay_until_us/int? -> none:
+  container_current_restart --gid/int --wakeup_us/int? -> none:
     job := containers_.get --gid=gid
-    job.restart --delay_until_us=delay_until_us
+    job.restart --wakeup_us=wakeup_us

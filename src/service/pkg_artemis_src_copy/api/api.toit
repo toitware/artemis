@@ -13,8 +13,8 @@ interface ArtemisService:
   version -> string
   static VERSION_INDEX /int ::= 0
 
-  container_restart --delay_until_us/int? -> none
-  static CONTAINER_RESTART_INDEX /int ::= 1
+  container_current_restart --wakeup_us/int? -> none
+  static CONTAINER_CURRENT_RESTART_INDEX /int ::= 1
 
 class ArtemisClient extends ServiceClient
     implements ArtemisService:
@@ -26,5 +26,5 @@ class ArtemisClient extends ServiceClient
   version -> string:
     return invoke_ ArtemisService.VERSION_INDEX null
 
-  container_restart --delay_until_us/int? -> none:
-    invoke_ ArtemisService.CONTAINER_RESTART_INDEX delay_until_us
+  container_current_restart --wakeup_us/int? -> none:
+    invoke_ ArtemisService.CONTAINER_CURRENT_RESTART_INDEX wakeup_us

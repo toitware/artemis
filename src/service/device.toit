@@ -30,7 +30,7 @@ class Device:
   // monotonic clock phase starts.
   static RAM_CHECK_IN_LAST_ ::= "check-in-last"
   static RAM_SYNCHRONIZED_LAST_ ::= "synchronized-last"
-  static RAM_JOBS_RAN_LAST_ ::= "jobs-ran-last"
+  static RAM_SCHEDULER_JOBS_STATE_ ::= "scheduler-jobs"
   ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
 
   /**
@@ -195,18 +195,18 @@ class Device:
     ram_store_ RAM_CHECK_IN_LAST_ value
 
   /**
-  Gets the jobs ran last information.
+  Gets the scheduler jobs state information.
   */
-  jobs_ran_last -> Map:
-    stored := ram_load_ RAM_JOBS_RAN_LAST_
+  scheduler_jobs_state -> Map:
+    stored := ram_load_ RAM_SCHEDULER_JOBS_STATE_
     return stored is Map ? stored : {:}
 
   /**
-  Stores the jobs ran last information in memory that is preserved
-    across deep sleeping.
+  Stores the scheduler jobs state information in memory that
+    is preserved across deep sleeping.
   */
-  jobs_ran_last_update value/Map -> none:
-    ram_store_ RAM_JOBS_RAN_LAST_ value
+  scheduler_jobs_state_update value/Map -> none:
+    ram_store_ RAM_SCHEDULER_JOBS_STATE_ value
 
   /**
   Get the time of the last successful synchronization.

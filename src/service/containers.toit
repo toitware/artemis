@@ -2,7 +2,6 @@
 
 import gpio
 import log
-import monitor
 import reader show Reader SizedReader
 import uuid
 
@@ -58,7 +57,7 @@ class ContainerManager:
   get --gid/int -> ContainerJob?:
     // TODO(kasper): Consider optimizing this through
     // the use of another map keyed by the gid.
-    jobs_.do: | job/ContainerJob |
+    jobs_.do --values: | job/ContainerJob |
       if job.gid == gid: return job
     return null
 
@@ -135,11 +134,9 @@ class ContainerJob extends Job:
   id/uuid.Uuid
   description_/Map := ?
   running_/containers.Container? := null
-  latch_/monitor.Latch? := null
-
   runlevel_/int := Job.RUNLEVEL_NORMAL
-  is_background_/bool := false
 
+  is_background_/bool := false
   trigger_boot_/bool := false
   trigger_install_/bool := false
   trigger_interval_/Duration? := null
@@ -151,7 +148,6 @@ class ContainerJob extends Job:
   has_run_after_install_/bool := true
 
   is_triggered_/bool := false
-  delay_until_/JobTime? := null
 
   constructor --name/string --.id --description/Map --pin_trigger_manager/PinTriggerManager:
     description_ = description
@@ -182,14 +178,15 @@ class ContainerJob extends Job:
     return description_
 
   tags -> Map:
-    // TODO(florian): do we want to add the description here?
     return { "name": name, "id": id }
 
   schedule now/JobTime last/JobTime? -> JobTime?:
     // TODO(kasper): Should the delayed restart take
-    // precedence over all other triggers?
-    if delay_until := delay_until_:
-      return delay_until
+    // precedence over all other triggers? Also, we
+    // should probably think about how we want to access
+    // the scheduler state here.
+    if delayed_until := scheduler_delayed_until_:
+      return delayed_until
     else if is_critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
@@ -217,40 +214,29 @@ class ContainerJob extends Job:
     if running_: return
     arguments := description_.get "arguments"
     has_run_after_install_ = true
-    delay_until_ = null
     running_ = containers.start id arguments
 
     scheduler_.on_job_started this
     running_.on_stopped::
       running_ = null
       is_triggered_ = false
-      // TODO(kasper): Share the latch code here
-      // with the corresponding code in TaskJob.
-      latch := latch_
-      latch_ = null
-      scheduler_.on_job_stopped this
-      if latch: latch.set null
       pin_trigger_manager_.rearm_job this
+      scheduler_.on_job_stopped this
 
   stop -> none:
     if not running_: return
-    // TODO(kasper): Share the latch code here
-    // with the corresponding code in TaskJob.
-    latch := latch_
-    if not latch:
-      latch = monitor.Latch
-      latch_ = latch
-    running_.stop
-    latch.get
+    running_.stop  // Waits until the container has stopped.
 
-  restart --delay_until_us/int? -> none:
+  restart --wakeup_us/int? -> none:
+    wakeup := JobTime.now
+    if wakeup_us: wakeup += Duration --us=(wakeup_us - Time.monotonic_us)
+    scheduler_.delay_job this --until=wakeup
+    // If restart was called from the container being restarted,
+    // we're in the middle of doing an RPC call here. Stopping
+    // the container will cause the RPC processing task doing
+    // the call to get canceled, so this better be the very last
+    // thing we do.
     stop
-    delay_until := JobTime.now
-    if delay_until_us:
-      delay_until += Duration --us=(delay_until_us - Time.monotonic_us)
-    // TODO(kasper): Let the delay survive deep sleeping.
-    delay_until_ = delay_until
-    scheduler_.on_job_updated
 
   update description/Map -> none:
     assert: not is_running
