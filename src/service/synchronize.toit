@@ -394,6 +394,7 @@ class SynchronizeJob extends TaskJob:
 
     current_state := device_.current_state
     new_goal_state = new_goal_state or device_.firmware_state
+    report_state_if_changed resources --goal_state=new_goal_state
 
     firmware_to := new_goal_state.get "firmware"
     if not firmware_to:
