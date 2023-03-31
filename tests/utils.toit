@@ -91,8 +91,13 @@ class TestExit:
 //   default version of the console UI to be simpler anyway.
 class TestUi extends ConsoleUi:
   stdout/string := ""
+  quiet_/bool
+
+  constructor --quiet/bool=true:
+    quiet_ = quiet
 
   print_ str/string:
+    if not quiet_: print str
     stdout += "$str\n"
 
   abort:

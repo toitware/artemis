@@ -67,7 +67,7 @@ delete_service_version test_cli/TestCli service_version/string:
 
 run_test test_cli/TestCli:
   with_tmp_directory: | tmp_dir/string |
-    ui := ConsoleUi
+    ui := TestUi --no-quiet
     git := Git --ui=ui
 
     // Login using the CLI login.
