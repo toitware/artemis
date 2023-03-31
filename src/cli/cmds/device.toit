@@ -22,6 +22,12 @@ import ...shared.json_diff show Modification
 create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
       --short_help="Manage devices."
+      --options=[
+        cli.Option "device-id"
+            --short_name="d"
+            --short_help="ID of the device."
+            --type="uuid",
+      ]
 
   update_cmd := cli.Command "update"
       --long_help="""
@@ -36,10 +42,6 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --type="file"
             --short_help="The specification of the device."
             --required,
-        cli.Option "device-id"
-            --short_name="d"
-            --short_help="ID of the device."
-            --type="uuid",
       ]
       --run=:: update it config cache ui
   cmd.add update_cmd
@@ -59,8 +61,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Clear the default device.",
       ]
       --rest=[
-        cli.Option "device-id"
-            --short_name="d"
+        cli.Option "id"
             --short_help="ID of the device."
             --type="uuid",
       ]
@@ -75,10 +76,6 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         If no ID is given, shows the information of the default device.
         """
       --options=broker_options + [
-        cli.Option "device-id"
-            --short_name="d"
-            --short_help="ID of the device."
-            --type="uuid",
         cli.Option "event-type"
             --short_help="Only show events of this type."
             --multi,
@@ -94,12 +91,6 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
   max_offline_cmd := cli.Command "set-max-offline"
       --short_help="Update the max-offline time of the device."
-      --options=broker_options + [
-        cli.Option "device-id"
-            --short_name="d"
-            --short_help="ID of the device."
-            --type="uuid",
-      ]
       --rest=[
         cli.Option "max-offline"
             --short_help="The new max-offline time."
@@ -141,7 +132,8 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Default device cleared."
     return
 
-  device_id := parsed["device-id"]
+  // We allow to set the default with `-d` or by giving an ID as rest argument.
+  device_id := parsed["device-id"] or parsed["id"]
   if not device_id:
     device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
     if not device_id:
