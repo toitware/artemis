@@ -4,7 +4,7 @@ import cli
 import encoding.base64
 import uuid
 
-import .broker_options_
+import .utils_
 import .device_container
 import ..artemis
 import ..cache
@@ -37,7 +37,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         the firmware version, installed applications, connection settings,
         etc. See 'specification-format' for more information.
         """
-      --options=broker_options + [
+      --options=[
         cli.Option "specification"
             --type="file"
             --short_help="The specification of the device."
@@ -75,7 +75,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
         If no ID is given, shows the information of the default device.
         """
-      --options=broker_options + [
+      --options=[
         cli.Option "event-type"
             --short_help="Only show events of this type."
             --multi,

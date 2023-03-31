@@ -25,7 +25,6 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
       --aliases=["signin"]
       --short_help="Log in to the broker."
       --options=[
-        cli.OptionString "broker" --short_help="The broker to log in to.",
         cli.OptionString "email" --short_help="The email for a password-based login.",
         cli.OptionString "password" --short_help="The password for a password-based login.",
         cli.Flag "open-browser"
@@ -52,7 +51,6 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
       are available.
       """
       --options=[
-        cli.OptionString "server" --hidden --short_help="The server to sign up for.",
         cli.OptionString "email"
             --short_help="The email address for the account."
             --required,
@@ -67,7 +65,6 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
       --aliases=["signin"]
       --short_help="Log in to the Artemis server."
       --options=[
-        cli.OptionString "server" --hidden --short_help="The server to log in to.",
         cli.OptionString "email" --short_help="The email for a password-based login.",
         cli.OptionString "password" --short_help="The password for a password-based login.",
         cli.Flag "open-browser"
@@ -81,7 +78,7 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
 
 with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
   server_config/ServerConfig := ?
-  server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
+  server_config = get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
 
   with_server server_config config: | server/ArtemisServerCli |
     server.ensure_authenticated: | error_message |
@@ -92,11 +89,11 @@ with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
 with_authenticatable --broker/bool parsed/cli.Parsed config/Config ui/Ui [block]:
   server_config/ServerConfig := ?
   if broker:
-    server_config = get_server_from_config config parsed["broker"] CONFIG_BROKER_DEFAULT_KEY
+    server_config = get_server_from_config config CONFIG_BROKER_DEFAULT_KEY
     with_broker server_config config: | broker/BrokerCli |
       block.call broker
   else:
-    server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
+    server_config = get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
     with_server server_config config: | server/ArtemisServerCli |
       block.call server
 

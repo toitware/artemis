@@ -3,7 +3,7 @@
 import cli
 import host.file
 
-import .broker_options_
+import .utils_
 import ..artemis
 import ..cache
 import ..config
@@ -37,7 +37,7 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
         Unless '--no-default' is used, automatically makes this device the
         new default device.
         """
-      --options=broker_options + [
+      --options=[
         cli.Option "specification"
             --type="file"
             --short_help="The specification of the device.",
