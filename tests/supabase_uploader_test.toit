@@ -66,7 +66,7 @@ delete_service_version test_cli/TestCli service_version/string:
 
 run_test test_cli/TestCli:
   with_tmp_directory: | tmp_dir/string |
-    git := Git
+    git := Git --ui=TestUi
 
     // Login using the CLI login.
     // The uploader reuses the same credentials.

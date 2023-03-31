@@ -249,6 +249,7 @@ class Artemis:
             --sdk=sdk
             --output_path=snapshot_path
             --cache=cache_
+            --ui=ui_
 
         // TODO(florian): add support for assets.
         sdk.firmware_add_container name
