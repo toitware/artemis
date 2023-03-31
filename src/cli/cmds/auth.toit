@@ -30,7 +30,6 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
       are available.
       """
       --options=[
-        cli.OptionString "server" --hidden --short_help="The server to sign up for.",
         cli.Flag "broker" --hidden --short_help="Sign up for the broker.",
         cli.OptionString "email"
             --short_help="The email address for the account."
@@ -46,7 +45,6 @@ create_auth_commands config/Config cache/Cache ui/Ui -> List:
       --aliases=["signin"]
       --short_help="Log in to the Artemis server."
       --options=[
-        cli.OptionString "server" --hidden --short_help="The server to log in to.",
         cli.Flag "broker" --hidden --short_help="Log into the broker.",
         cli.OptionString "email" --short_help="The email for a password-based login.",
         cli.OptionString "password" --short_help="The password for a password-based login.",
@@ -63,11 +61,11 @@ with_authenticatable parsed/cli.Parsed config/Config ui/Ui [block]:
   broker := parsed["broker"]
   server_config/ServerConfig := ?
   if broker:
-    server_config = get_server_from_config config parsed["server"] CONFIG_BROKER_DEFAULT_KEY
+    server_config = get_server_from_config config CONFIG_BROKER_DEFAULT_KEY
     with_broker server_config config: | broker/BrokerCli |
       block.call broker
   else:
-    server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
+    server_config = get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
     with_server server_config config: | server/ArtemisServerCli |
       block.call server
 
