@@ -350,9 +350,9 @@ class ContainerPath extends ContainerBase:
       sdk.compile_to_snapshot path --out=output_path
       return
 
-    git := Git
+    git := Git --ui=ui
     git_key := "$GIT_APP_PATH/$git_url"
-    ui.info "Fetching $git_url"
+    ui.info "Fetching $git_url."
     cached_checkout := cache.get_directory_path git_key: | store/cli.DirectoryStore |
       store.with_tmp_directory: | tmp_dir/string |
         clone_dir := "$tmp_dir/clone"
@@ -391,15 +391,17 @@ class ContainerPath extends ContainerBase:
           --repository_root=clone_dir
           --ref=git_ref
           --quiet
-      ui.info "Compiling $git_url"
+      ui.info "Compiling $git_url."
       entrypoint_path := "$clone_dir/$entrypoint"
       if not file.is_file entrypoint_path:
-        throw "No such file: $entrypoint_path"
+        ui.error "No such file: $entrypoint_path"
+        ui.abort
 
       package_yaml_path := "$clone_dir/package.yaml"
       if not file.is_file package_yaml_path:
         if file.is_directory package_yaml_path:
-          throw "package.yaml is a directory in $git_url"
+          ui.error "package.yaml is a directory in $git_url"
+          ui.abort
         // Create an empty package.yaml file, so that we can safely call
         // toit.pkg without worrying that we use some file from a folder
         // above our tmp directory.

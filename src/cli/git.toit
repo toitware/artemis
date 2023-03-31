@@ -2,8 +2,14 @@
 
 import bytes
 import host.pipe
+import .ui
 
 class Git:
+  ui_/Ui
+
+  constructor --ui/Ui:
+    ui_ = ui
+
   /**
   Returns the root of the Git repository that contains the
     current working directory.
@@ -29,7 +35,7 @@ class Git:
     if quiet:
       args.add "--quiet"
 
-    run_ args --on_error=: throw "Init of $repository_root failed."
+    run_ args --description="Init of $repository_root"
 
     if origin:
       args = [
@@ -40,7 +46,7 @@ class Git:
         origin,
       ]
 
-      run_ args --on_error=: throw "Remote-add of $origin in $repository_root failed."
+      run_ args --description="Remote-add of $origin in $repository_root"
 
   /**
   Sets the configuration $key to $value in the given $repository_root.
@@ -57,7 +63,7 @@ class Git:
     if global:
       args.add "--global"
 
-    run_ args --on_error=: throw "Config of $key in $repository_root failed."
+    run_ args --description="Config of $key in $repository_root"
 
   /**
   Fetches the given $ref from the given $remote in the Git repository
@@ -90,7 +96,7 @@ class Git:
     if quiet:
       args.add "--quiet"
 
-    run_ args --on_error=: throw "Fetch of $ref from $remote failed."
+    run_ args --description="Fetch of $ref from $remote"
 
     if checkout:
       args = [
@@ -101,14 +107,13 @@ class Git:
       if quiet:
         args.add "--quiet"
 
-      run_ args --on_error=: throw "Checkout of $ref failed."
+      run_ args --description="Checkout of $ref"
 
   /**
   Tags the given $commit with the given tag $name.
   */
   tag --commit/string --name/string --repository_root/string=current_repository_root:
-    pipe.backticks [
-      "git",
+    run_ --description="Tag of $name" [
       "-C", repository_root.copy,
       "tag",
       name,
@@ -120,8 +125,7 @@ class Git:
   */
   tag --delete/bool --name/string --repository_root/string=current_repository_root:
     if not delete: throw "INVALID_ARGUMENT"
-    pipe.backticks [
-      "git",
+    run_ --description="Tag delete" [
       "-C", repository_root,
       "tag",
       "-d",
@@ -140,7 +144,6 @@ class Git:
       --force/bool=false:
     if not update: throw "INVALID_ARGUMENT"
     args := [
-      "git",
       "-C", repository_root,
       "tag",
       name,
@@ -149,16 +152,15 @@ class Git:
     if force:
       args.add "--force"
 
-    exit_value := pipe.run_program args
-    if not exit_value: throw "Tag update failed."
+    run_ args --description="Tag update"
 
   /**
   Runs the command, and only outputs stdout/stderr if there is an error.
   */
   run_ args/List -> string:
-    return run_ args --on_error=: throw "Git command failed"
+    return run_ args --description="Git command"
 
-  run_ args/List [--on_error] -> string:
+  run_ args/List --description -> string:
     output := bytes.Buffer
     stdout := bytes.Buffer
     fork_data := pipe.fork
@@ -190,8 +192,9 @@ class Git:
     stderr_task.cancel
 
     if (pipe.exit_code exit_value) != 0:
-      print_on_stderr_ output.bytes.to_string_non_throwing
-      on_error.call
+      ui_.info output.bytes.to_string_non_throwing
+      ui_.error "$description failed"
+      ui_.abort
 
     return stdout.bytes.to_string_non_throwing
 
