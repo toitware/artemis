@@ -6,7 +6,7 @@ import expect show *
 import .utils
 
 main args:
-  with_test_cli --args=args: | test_cli/TestCli _ |
+  with_test_cli --args=args: | test_cli/TestCli |
     run_test test_cli
 
 run_test test_cli/TestCli:
