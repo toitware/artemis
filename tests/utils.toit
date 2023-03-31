@@ -97,7 +97,7 @@ class TestUi extends ConsoleUi:
     quiet_ = quiet
 
   print_ str/string:
-    if not quiet_: print str
+    if not quiet_: super str
     stdout += "$str\n"
 
   abort:
