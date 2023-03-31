@@ -11,6 +11,7 @@ import ..cache
 import ..device
 import ..device_specification
 import ..firmware
+import ..fleet
 import ..ui
 import ..utils
 
@@ -208,14 +209,11 @@ create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    specification := parse_device_specification_file specification_path --ui=ui
-    artemis.customize_envelope
+    fleet := Fleet artemis --ui=ui --cache=cache
+    fleet.create_firmware
+        --specification_path=specification_path
         --output_path=output
-        --device_specification=specification
-
-    organization_ids.do: | organization_id/string |
-      artemis.upload_firmware output --organization_id=organization_id
-      ui.info "Successfully uploaded firmware to organization $organization_id."
+        --organization_ids=organization_ids
 
 create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output_directory := parsed["output-directory"]
@@ -228,17 +226,11 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.error "No organization ID specified and no default organization ID set."
       ui.abort
 
-  count.repeat: | i/int |
-    device_id := random_uuid_string
-
-    output := "$output_directory/$(device_id).identity"
-
-    with_artemis parsed config cache ui: | artemis/Artemis |
-      artemis.provision
-          --device_id=device_id
-          --out_path=output
-          --organization_id=organization_id
-      ui.info "Created $output."
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet artemis --ui=ui --cache=cache
+    fleet.create_identities count
+        --output_directory=output_directory
+        --organization_id=organization_id
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   devices := parsed["device-id"]
@@ -254,48 +246,13 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.error "Both specification and firmware given."
     ui.abort
 
-  seen_organizations := {}
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    broker := artemis.connected_broker
-    detailed_devices := {:}
-    devices.do: | device_id/string |
-      device := broker.get_device --device_id=device_id
-      if not device:
-        ui.error "Device $device_id does not exist."
-        ui.abort
-
-    base_patches := {:}
-
-    base_firmwares := diff_bases.map: | diff_base/string |
-      FirmwareContent.from_envelope diff_base --cache=cache
-
-    base_firmwares.do: | content/FirmwareContent |
-      trivial_patches := artemis.extract_trivial_patches content
-      trivial_patches.do: | key value/FirmwarePatch | base_patches[key] = value
-
-    with_tmp_directory: | tmp_dir/string |
-      if specification_path:
-        firmware_path = "$tmp_dir/firmware.envelope"
-        specification := parse_device_specification_file specification_path --ui=ui
-        artemis.customize_envelope
-            --output_path=firmware_path
-            --device_specification=specification
-
-      devices.do: | device_id/string |
-        if not diff_bases.is_empty:
-          device/DeviceDetailed := detailed_devices[device_id]
-          if not seen_organizations.contains device.organization_id:
-            seen_organizations.add device.organization_id
-            base_patches.do: | _ patch/FirmwarePatch |
-              artemis.upload_patch patch --organization_id=device.organization_id
-
-        artemis.update
-            --device_id=device_id
-            --envelope_path=firmware_path
-            --base_firmwares=base_firmwares
-
-        ui.info "Successfully updated device $device_id."
+    fleet := Fleet artemis --ui=ui --cache=cache
+    fleet.update devices
+        --specification_path=specification_path
+        --firmware_path=firmware_path
+        --diff_bases=diff_bases
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   envelope_path := parsed["firmware"]
@@ -309,6 +266,5 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     organization_ids = [organization_id]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    organization_ids.do: | organization_id/string |
-      artemis.upload_firmware envelope_path --organization_id=organization_id
-      ui.info "Successfully uploaded firmware."
+    fleet := Fleet artemis --ui=ui --cache=cache
+    fleet.upload envelope_path --to=organization_ids
