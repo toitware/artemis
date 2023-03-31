@@ -187,8 +187,8 @@ class SynchronizeJob extends TaskJob:
         // reboots of the system. Rebooting the system will reset
         // the uptime, so we end up only periodically rebooting.
         // This is in almost all ways better than disallowing
-        // some or most containers to run, so this is our starting
-        // point for all non-green statutes.
+        // some or most containers from running, so this is our
+        // starting point for all non-green statuses.
         runlevel = Job.RUNLEVEL_STOP
       else if status > STATUS_YELLOW:
         assert: status == STATUS_ORANGE or status == STATUS_RED
