@@ -67,10 +67,11 @@ class SynchronizeJob extends TaskJob:
   // synchronizations (as dictated by the max-offline setting)
   // with the actual time since the last successful attempt.
   // If we have been unsuccessful in synchronizing for too long,
-  // we push the status into yellow and eventually into red.
+  // we push the status into yellow, orange, and eventually red.
   static STATUS_GREEN  ::= 100
   static STATUS_YELLOW ::= 101
-  static STATUS_RED    ::= 102
+  static STATUS_ORANGE ::= 102
+  static STATUS_RED    ::= 103
   static STATUS_CHANGES_AFTER_ATTEMPTS ::= 4  // TODO(kasper): This is low for testing.
 
   // The status limit unit controls how we round when
@@ -82,6 +83,12 @@ class SynchronizeJob extends TaskJob:
   // is 12h, we will change the status after 96h.
   static STATUS_LIMIT_UNIT_US ::= Duration.MICROSECONDS_PER_MINUTE  // TODO(kasper): This is low for testing.
   status_limit_us_/int := ?
+
+  // We only allow the device to stay running for a
+  // specified amount of time when non-green. This
+  // is intended to let the device recover through
+  // resetting memory and (some) peripheral state.
+  static STATUS_NON_GREEN_MAX_UPTIME ::= Duration --m=10
 
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes
@@ -134,7 +141,7 @@ class SynchronizeJob extends TaskJob:
       // trouble synchronzing. This is particularly welcome on
       // devices with a high max-offline setting (multiple hours).
       status := determine_status_
-      if status != STATUS_GREEN:
+      if status > STATUS_YELLOW:
         max_offline /= (status == STATUS_RED) ? 4 : 2
       // Compute the duration of the current offline period by
       // letting it run to whatever comes first of the scheduled
@@ -169,21 +176,31 @@ class SynchronizeJob extends TaskJob:
 
   run -> none:
     status := determine_status_
-    runlevel := ?
+    runlevel := Job.RUNLEVEL_NORMAL
     if firmware_is_validation_pending:
       runlevel = Job.RUNLEVEL_SAFE
-    else if status == STATUS_GREEN:
-      runlevel = Job.RUNLEVEL_NORMAL
-    else:
-      assert: status == STATUS_YELLOW or status == STATUS_RED
-      runlevel = Job.RUNLEVEL_CRITICAL
-      // If we're really, really having trouble synchronizing
-      // we let the synchronizer run in safe mode every now
-      // and then. It is our get-out-of-jail option, but we
-      // really prefer running containers marked critical.
-      if status == STATUS_RED and (random 100) < 15:
-        runlevel = Job.RUNLEVEL_SAFE
+    else if status > STATUS_GREEN:
+      uptime := Duration --us=Time.monotonic_us
+      if uptime >= STATUS_NON_GREEN_MAX_UPTIME:
+        // If we're experiencing problems connecting, the most
+        // unjarring thing we can do is to force occassional
+        // reboots of the system. Rebooting the system will reset
+        // the uptime, so we end up only periodically rebooting.
+        // This is in almost all ways better than disallowing
+        // some or most containers from running, so this is our
+        // starting point for all non-green statuses.
+        runlevel = Job.RUNLEVEL_STOP
+      else if status > STATUS_YELLOW:
+        assert: status == STATUS_ORANGE or status == STATUS_RED
+        runlevel = Job.RUNLEVEL_CRITICAL
+        // If we're really, really having trouble synchronizing
+        // we let the synchronizer run in safe mode every now
+        // and then. It is our get-out-of-jail option, but we
+        // really prefer running containers marked critical.
+        if status == STATUS_RED and (random 100) < 15:
+          runlevel = Job.RUNLEVEL_SAFE
     scheduler_.transition --runlevel=runlevel
+    assert: runlevel != Job.RUNLEVEL_STOP  // Stop does not return.
 
     try:
       start := Time.monotonic_us
@@ -343,8 +360,10 @@ class SynchronizeJob extends TaskJob:
     limit := status_limit_us_
     if elapsed < limit:
       return STATUS_GREEN
-    else if elapsed < (limit << 1):
+    else if elapsed < (limit * 2):
       return STATUS_YELLOW
+    else if elapsed < (limit * 3):
+      return STATUS_ORANGE
     else:
       return STATUS_RED
 
