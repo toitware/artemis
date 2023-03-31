@@ -85,6 +85,15 @@ class ArtemisServiceProvider extends services.ServiceProvider
       return container_restart --delay_until_us=arguments
     if index == api.ArtemisService.CHANNEL_OPEN_INDEX:
       return channel_open client --topic=arguments
+    if index == api.ArtemisService.CHANNEL_SEND_INDEX:
+      channel := (resource client arguments[0]) as ChannelResource
+      return channel.send arguments[1]
+    if index == api.ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX:
+      channel := (resource client arguments[0]) as ChannelResource
+      return channel.receive_page --page=arguments[1]
+    if index == api.ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX:
+      channel := (resource client arguments[0]) as ChannelResource
+      return channel.acknowledge arguments[1] arguments[2]
     unreachable
 
   version -> string:
@@ -94,7 +103,16 @@ class ArtemisServiceProvider extends services.ServiceProvider
     throw "UNIMPLEMENTED"
 
   channel_open --topic/string -> int?:
-    unreachable
+    unreachable  // Here to satisfy the checker.
+
+  channel_send handle/int bytes/ByteArray -> none:
+    unreachable  // Here to satisfy the checker.
+
+  channel_receive_page handle/int --page/ByteArray? -> ByteArray:
+    unreachable  // Here to satisfy the checker.
+
+  channel_acknowledge handle/int sn/int count/int -> none:
+    unreachable  // Here to satisfy the checker.
 
   channel_open client/int --topic/string -> ChannelResource:
     return ChannelResource this client --topic=topic

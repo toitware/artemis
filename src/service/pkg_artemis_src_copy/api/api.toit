@@ -19,8 +19,14 @@ interface ArtemisService:
   channel_open --topic/string -> int?
   static CHANNEL_OPEN_INDEX /int ::= 2
 
-  channel_read_page --page/ByteArray?=null -> ByteArray?
-  static CHANNEL_READ_PAGE_INDEX /int ::= 3
+  channel_send handle/int bytes/ByteArray -> none
+  static CHANNEL_SEND_INDEX /int ::= 3
+
+  channel_receive_page handle/int --page/ByteArray? -> ByteArray?
+  static CHANNEL_RECEIVE_PAGE_INDEX /int ::= 4
+
+  channel_acknowledge handle/int sn/int count/int -> none
+  static CHANNEL_ACKNOWLEDGE_INDEX /int ::= 5
 
 class ArtemisClient extends ServiceClient
     implements ArtemisService:
@@ -37,3 +43,12 @@ class ArtemisClient extends ServiceClient
 
   channel_open --topic/string -> int?:
     return invoke_ ArtemisService.CHANNEL_OPEN_INDEX topic
+
+  channel_send handle/int bytes/ByteArray -> none:
+    invoke_ ArtemisService.CHANNEL_SEND_INDEX [handle, bytes]
+
+  channel_receive_page handle/int --page/ByteArray?=null -> ByteArray?:
+    return invoke_ ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX [handle, page]
+
+  channel_acknowledge handle/int sn/int count/int -> none:
+    invoke_ ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX [handle, sn, count]

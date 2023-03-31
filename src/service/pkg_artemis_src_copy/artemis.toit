@@ -65,7 +65,11 @@ class Channel extends ServiceResourceProxy:
   topic/string
 
   page_/ByteArray? := null
+  spare_/ByteArray? := null
+
   cursor_/int := 0
+  count_/int := 0
+  acknowledged_/int := 0
 
   constructor.internal_ client/api.ArtemisClient handle/int --.topic:
     super client handle
@@ -77,23 +81,39 @@ class Channel extends ServiceResourceProxy:
     return Channel.internal_ client handle --topic=topic
 
   send bytes/ByteArray -> none:
-    unreachable
+    (client_ as api.ArtemisClient).channel_send handle_ bytes
 
-  receive --wait/bool=false -> ByteArray?:
+  receive -> ByteArray?:
+    if cursor_ == 0:
+      if acknowledged_ < count_: return null
+      page_ = (client_ as api.ArtemisClient).channel_receive_page handle_ --page=spare_
+      spare_ = null
+      cursor_ = 18  // TODO(kasper): Avoid hardcoding this!
+      count_ = 0
+      acknowledged_ = 0
     next := receive_next_
-    if next: return next
+    if next: count_++
+    print "received: $next -- $count_"
+    return next
 
-    // wait ... fill in more.
+  acknowledge n/int=1 -> none:
+    acknowledged := acknowledged_ + n
+    count := count_
+    if acknowledged > count: throw "Bonkers!"
+    acknowledged_ = acknowledged
+    if cursor_ != 0 or acknowledged < count: return
+    (client_ as api.ArtemisClient).channel_acknowledge handle_ 0 acknowledged
+    spare_ = page_
+    page_ = null
 
   receive_next_ -> ByteArray?:
+    print "receive next from $cursor_ ($page_)"
     cursor := cursor_
     from := cursor
     page := page_
     acc := page ? page[cursor++] : 0xff
-
-    // Done?
     if acc == 0xff:
-      page_ = null
+      cursor_ = 0
       return null
 
     to := from
@@ -102,14 +122,12 @@ class Channel extends ServiceResourceProxy:
     while true:
       while bits < 8:
         if cursor >= page.size:
-          // Done. Avoid getting an out-of-bounds read
-          // on the next call to $receive_next_ by
-          // clearing out the page field.
-          page_ = null
+          cursor_ = 0
           return page[from..to]
         next := page[cursor]
         if (next & 0x80) != 0:
           cursor_ = cursor
+          print "updated cursor to $cursor"
           return page[from..to]
         acc |= (next << bits)
         bits += 7

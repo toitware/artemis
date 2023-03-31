@@ -85,6 +85,8 @@ class FlashLog:
       assert: size == encoded_size
       region_.write --from=write_offset_ buffer[..size]
       write_offset_ += size
+      print "--> write-offset = $write_offset_"
+      print "--> page = $buffer"
 
   has_more -> bool:
     // TODO(kasper): Handle reading from ack'ed pages. We
@@ -95,18 +97,21 @@ class FlashLog:
       decode_next_ buffer HEADER_SIZE_: return true
     return false
 
-  read [block] -> none:
+  read_page buffer/ByteArray -> none:
     // TODO(kasper): Handle reading from ack'ed pages. We
     // have an invariant that makes it impossible to get
     // to this point, but we should handle it gracefully.
-    with_buffer_: | buffer/ByteArray |
+    region_.read --from=read_page_ buffer
+    if (LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_) == 0xffff:
+      committed := false
+      decode_all_ buffer read_page_ --commit: committed = true
+      if committed and read_page_ == write_page_:
+        write_offset_ = write_page_ + size_per_page_
       region_.read --from=read_page_ buffer
-      if (LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_) == 0xffff:
-        committed := false
-        decode_all_ buffer read_page_ --commit: committed = true
-        if committed and read_page_ == write_page_:
-          write_offset_ = write_page_ + size_per_page_
-        region_.read --from=read_page_ buffer
+
+  read [block] -> none:
+    with_buffer_: | buffer/ByteArray |
+      read_page buffer
       decode_all_ buffer read_page_ block
 
   acknowledge sn/int -> none:
