@@ -394,7 +394,6 @@ class SynchronizeJob extends TaskJob:
 
     current_state := device_.current_state
     new_goal_state = new_goal_state or device_.firmware_state
-    report_state_if_changed resources --goal_state=new_goal_state
 
     firmware_to := new_goal_state.get "firmware"
     if not firmware_to:
@@ -408,6 +407,7 @@ class SynchronizeJob extends TaskJob:
     if firmware_from != firmware_to:
       transition_to_ STATE_PROCESSING_FIRMWARE
       logger_.info "firmware update" --tags={"from": firmware_from, "to": firmware_to}
+      report_state_if_changed resources --goal_state=new_goal_state
       handle_firmware_update_ resources firmware_to
       // Handling the firmware update either completes and restarts
       // or throws an exception. We shouldn't get here.
@@ -428,6 +428,7 @@ class SynchronizeJob extends TaskJob:
 
     transition_to_ STATE_PROCESSING_GOAL
     logger_.info "updating" --tags={"changes": Modification.stringify modification}
+    report_state_if_changed resources --goal_state=new_goal_state
 
     modification.on_map "apps"
         --added=: | name/string description |
