@@ -91,6 +91,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
   max_offline_cmd := cli.Command "set-max-offline"
       --short_help="Update the max-offline time of the device."
+      --options=broker_options
       --rest=[
         cli.Option "max-offline"
             --short_help="The new max-offline time."
