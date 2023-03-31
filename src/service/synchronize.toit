@@ -88,7 +88,7 @@ class SynchronizeJob extends TaskJob:
   // specified amount of time when non-green. This
   // is intended to let the device recover through
   // resetting memory and (some) peripheral state.
-  static STATUS_MAX_UPTIME_NON_GREEN ::= Duration --m=10
+  static STATUS_NON_GREEN_MAX_UPTIME ::= Duration --m=10
 
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes
@@ -181,7 +181,7 @@ class SynchronizeJob extends TaskJob:
       runlevel = Job.RUNLEVEL_SAFE
     else if status > STATUS_GREEN:
       uptime := Duration --us=Time.monotonic_us
-      if uptime >= STATUS_MAX_UPTIME_NON_GREEN:
+      if uptime >= STATUS_NON_GREEN_MAX_UPTIME:
         // If we're experiencing problems connecting, the most
         // unjarring thing we can do is to force occassional
         // reboots of the system. Rebooting the system will reset
@@ -200,6 +200,7 @@ class SynchronizeJob extends TaskJob:
         if status == STATUS_RED and (random 100) < 15:
           runlevel = Job.RUNLEVEL_SAFE
     scheduler_.transition --runlevel=runlevel
+    assert: runlevel != Job.RUNLEVEL_STOP  // Stop does not return.
 
     try:
       start := Time.monotonic_us
