@@ -88,12 +88,11 @@ class Channel extends ServiceResourceProxy:
       if acknowledged_ < count_: return null
       page_ = (client_ as api.ArtemisClient).channel_receive_page handle_ --page=spare_
       spare_ = null
-      cursor_ = 18  // TODO(kasper): Avoid hardcoding this!
+      cursor_ = 14  // TODO(kasper): Avoid hardcoding this!
       count_ = 0
       acknowledged_ = 0
     next := receive_next_
     if next: count_++
-    print "received: $next -- $count_"
     return next
 
   acknowledge n/int=1 -> none:
@@ -107,7 +106,6 @@ class Channel extends ServiceResourceProxy:
     page_ = null
 
   receive_next_ -> ByteArray?:
-    print "receive next from $cursor_ ($page_)"
     cursor := cursor_
     from := cursor
     page := page_
@@ -127,7 +125,6 @@ class Channel extends ServiceResourceProxy:
         next := page[cursor]
         if (next & 0x80) != 0:
           cursor_ = cursor
-          print "updated cursor to $cursor"
           return page[from..to]
         acc |= (next << bits)
         bits += 7

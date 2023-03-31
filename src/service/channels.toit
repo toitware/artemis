@@ -12,6 +12,8 @@ class ChannelResource extends ServiceResource:
   log_/FlashLog? := ?
 
   constructor provider/ArtemisServiceProvider client/int --.topic:
+    // TODO(kasper): Stop always resetting.
+    storage.Region.delete --flash "toit.io/channel/$topic"
     // TODO(kasper): Should we be reference counting this,
     // so we can have multiple resources opened on the same
     // region? Probably.
@@ -21,7 +23,6 @@ class ChannelResource extends ServiceResource:
     super provider client
 
   send bytes/ByteArray -> none:
-    print "-- appending $bytes"
     log_.append bytes
 
   receive_page --page/ByteArray? -> ByteArray:
