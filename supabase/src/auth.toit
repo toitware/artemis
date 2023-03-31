@@ -250,7 +250,7 @@ class Session_:
     if expires_in and not expires_at_epoch_ms:
       // Simply make it such that the token has expired.
       // After all, we don't know when the token was issued.
-      expires_at_epoch_ms = (Time.now).ms_since_epoch  - 100000
+      expires_at_epoch_ms = 0
     access_token = json["access_token"]
     expires_at = Time.epoch --ms=expires_at_epoch_ms
     refresh_token = json["refresh_token"]
@@ -264,8 +264,5 @@ class Session_:
       "token_type": token_type,
     }
 
-  has_expired --min_remaining_s=0 -> bool:
-    return has_expired --min_remaining=(Duration --s=min_remaining_s)
-
-  has_expired --min_remaining/Duration -> bool:
+  has_expired --min_remaining/Duration=Duration.ZERO -> bool:
     return Time.now + min_remaining > expires_at

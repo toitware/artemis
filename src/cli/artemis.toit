@@ -82,7 +82,7 @@ class Artemis:
       broker_ = BrokerCli broker_config_ config_
     if authenticated:
       broker_.ensure_authenticated: | error_message |
-        ui_.error "Broker: $error_message"
+        ui_.error "$error_message (broker)."
         ui_.abort
     return broker_
 
@@ -97,7 +97,7 @@ class Artemis:
       artemis_server_ = ArtemisServerCli network_ artemis_config_ config_
     if authenticated:
       artemis_server_.ensure_authenticated: | error_message |
-        ui_.error "Artemis: $error_message"
+        ui_.error "$error_message (artemis)."
         ui_.abort
     return artemis_server_
 

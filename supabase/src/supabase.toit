@@ -150,9 +150,9 @@ class Client:
       local_storage_.remove_auth
     reason := ?
     if exception:
-      reason = "Error while refreshing the authentication: $exception."
+      reason = "Error while refreshing the authentication: $exception"
     else:
-      reason = "Not logged in."
+      reason = "Not logged in"
     block.call reason auth
 
   close -> none:

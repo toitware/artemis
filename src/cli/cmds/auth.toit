@@ -85,7 +85,7 @@ with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
 
   with_server server_config config: | server/ArtemisServerCli |
     server.ensure_authenticated: | error_message |
-      ui.error "Artemis: $error_message"
+      ui.error "$error_message (artemis)."
       ui.abort
     block.call server
 
