@@ -22,13 +22,14 @@ run_test test_cli/TestCli:
   test_start := Time.now
 
   test_cli.run [
-    "auth", "artemis", "login",
+    "auth", "login",
     "--email", TEST_EXAMPLE_COM_EMAIL,
     "--password", TEST_EXAMPLE_COM_PASSWORD,
   ]
 
   test_cli.run [
-    "auth", "broker", "login",
+    "auth", "login",
+    "--broker",
     "--email", TEST_EXAMPLE_COM_EMAIL,
     "--password", TEST_EXAMPLE_COM_PASSWORD,
   ]
