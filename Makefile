@@ -130,7 +130,7 @@ setup-local-dev:
 
 .PHONY: upload-service
 upload-service:
-	@ $(TOIT_RUN_BIN) tools/service_image_uploader/uploader.toit service --local \
+	@ $(TOIT_RUN_BIN) tools/service_image_uploader/uploader.toit service --local --force \
 	    --sdk-version=$(SETUP_LOCAL_DEV_SDK) \
 	    --service-version=$(SETUP_LOCAL_DEV_SERVICE) \
 
