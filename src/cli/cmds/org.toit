@@ -145,8 +145,8 @@ with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
   server_config = get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
 
   with_server server_config config: | server/ArtemisServerCli |
-    server.ensure_authenticated:
-      ui.error "Not logged in."
+    server.ensure_authenticated: | error_message |
+      ui.error "$error_message (artemis)."
       ui.abort
     block.call server
 

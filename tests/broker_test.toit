@@ -54,7 +54,7 @@ run_test
   test_broker.with_cli: | broker_cli/broker.BrokerCli |
     if broker_cli is BrokerCliSupabase:
       // Make sure we are authenticated.
-      broker_cli.ensure_authenticated: | auth/supabase.Auth |
+      broker_cli.ensure_authenticated: | _ auth/supabase.Auth |
         auth.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
 
     if broker_name == "supabase-local-artemis":
