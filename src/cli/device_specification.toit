@@ -162,9 +162,6 @@ class DeviceSpecification:
     sdk_version = get_string_ data "sdk-version"
     artemis_version = get_string_ data "artemis-version"
 
-    if not data.contains "containers" and not data.contains "apps":
-      format_error_ "Missing containers in device specification."
-
     if data.contains "apps" and data.contains "containers":
       format_error_ "Both 'apps' and 'containers' are present in device specification."
 
@@ -176,13 +173,16 @@ class DeviceSpecification:
       data = data.copy
       data["containers"] = data["apps"]
       data.remove "apps"
-    else:
+    else if data.contains "containers":
       check_is_map_ data "containers"
 
-    data["containers"].do --keys:
-      check_is_map_ data["containers"] --entry_type="Container" it
+    containers_entry := data.get "containers"
+    if not containers_entry: containers_entry = {:}
 
-    containers = data["containers"].map: | name container_description |
+    containers_entry.do --keys:
+      check_is_map_ containers_entry --entry_type="Container" it
+
+    containers = containers_entry.map: | name container_description |
           Container.from_json name container_description
 
     connections_entry := get_list_ data "connections"
