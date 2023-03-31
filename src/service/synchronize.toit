@@ -172,17 +172,23 @@ class SynchronizeJob extends TaskJob:
     runlevel := ?
     if firmware_is_validation_pending:
       runlevel = Job.RUNLEVEL_SAFE
-    else if status == STATUS_GREEN:
-      runlevel = Job.RUNLEVEL_NORMAL
     else:
-      assert: status == STATUS_YELLOW or status == STATUS_RED
-      runlevel = Job.RUNLEVEL_CRITICAL
-      // If we're really, really having trouble synchronizing
-      // we let the synchronizer run in safe mode every now
-      // and then. It is our get-out-of-jail option, but we
-      // really prefer running containers marked critical.
-      if status == STATUS_RED and (random 100) < 15:
-        runlevel = Job.RUNLEVEL_SAFE
+      uptime := Duration --us=Time.monotonic_us
+      if (random 100) < 20:
+        logger_.warn "reboooooting for fun and profit" --tags={"uptime": uptime}
+        scheduler_.transition --runlevel=Job.RUNLEVEL_STOP
+        unreachable
+      if status == STATUS_GREEN:
+        runlevel = Job.RUNLEVEL_NORMAL
+      else:
+        assert: status == STATUS_YELLOW or status == STATUS_RED
+        runlevel = Job.RUNLEVEL_CRITICAL
+        // If we're really, really having trouble synchronizing
+        // we let the synchronizer run in safe mode every now
+        // and then. It is our get-out-of-jail option, but we
+        // really prefer running containers marked critical.
+        if status == STATUS_RED and (random 100) < 15:
+          runlevel = Job.RUNLEVEL_SAFE
     scheduler_.transition --runlevel=runlevel
 
     try:
