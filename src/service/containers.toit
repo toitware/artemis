@@ -54,6 +54,13 @@ class ContainerManager:
   get --name/string -> ContainerJob?:
     return jobs_.get name
 
+  get --gid/int -> ContainerJob?:
+    // TODO(kasper): Consider optimizing this through
+    // the use of another map keyed by the gid.
+    jobs_.do --values: | job/ContainerJob |
+      if job.gid == gid: return job
+    return null
+
   create --name/string --id/uuid.Uuid --description/Map -> ContainerJob?
       --reader/Reader?=null:
     if reader:
@@ -160,6 +167,10 @@ class ContainerJob extends Job:
   is_critical -> bool:
     return runlevel_ <= Job.RUNLEVEL_CRITICAL
 
+  gid -> int?:
+    running := running_
+    return running and running.gid
+
   runlevel -> int:
     return runlevel_
 
@@ -167,11 +178,16 @@ class ContainerJob extends Job:
     return description_
 
   tags -> Map:
-    // TODO(florian): do we want to add the description here?
     return { "name": name, "id": id }
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if is_critical:
+    // TODO(kasper): Should the delayed restart take
+    // precedence over all other triggers? Also, we
+    // should probably think about how we want to access
+    // the scheduler state here.
+    if delayed_until := scheduler_delayed_until_:
+      return delayed_until
+    else if is_critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
       return now
@@ -194,21 +210,33 @@ class ContainerJob extends Job:
     // at the beginning of the next period instead of now.
     return Job.schedule_tune_periodic last trigger_interval_
 
-  start now/JobTime -> none:
+  start -> none:
     if running_: return
     arguments := description_.get "arguments"
     has_run_after_install_ = true
     running_ = containers.start id arguments
+
     scheduler_.on_job_started this
     running_.on_stopped::
       running_ = null
       is_triggered_ = false
-      scheduler_.on_job_stopped this
       pin_trigger_manager_.rearm_job this
+      scheduler_.on_job_stopped this
 
   stop -> none:
     if not running_: return
-    running_.stop
+    running_.stop  // Waits until the container has stopped.
+
+  restart --wakeup_us/int? -> none:
+    wakeup := JobTime.now
+    if wakeup_us: wakeup += Duration --us=(wakeup_us - Time.monotonic_us)
+    scheduler_.delay_job this --until=wakeup
+    // If restart was called from the container being restarted,
+    // we're in the middle of doing an RPC call here. Stopping
+    // the container will cause the RPC processing task doing
+    // the call to get canceled, so this better be the very last
+    // thing we do.
+    stop
 
   update description/Map -> none:
     assert: not is_running

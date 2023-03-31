@@ -12,11 +12,11 @@ class Scheduler:
   runlevel_/int := Job.RUNLEVEL_SAFE
 
   jobs_ ::= []
-  jobs_ran_last_initial_/Map
+  jobs_state_initial_/Map
 
   constructor logger/log.Logger .device_:
     logger_ = logger.with_name "scheduler"
-    jobs_ran_last_initial_ = device_.jobs_ran_last
+    jobs_state_initial_ = device_.scheduler_jobs_state
 
   runlevel -> int:
     return runlevel_
@@ -40,20 +40,37 @@ class Scheduler:
         // For now, we only update the storage bucket when we're
         // shutting down. This means that if hit an exceptional
         // case, we will reschedule all jobs.
-        jobs_ran_last := {:}
+        jobs_state := {:}
         jobs_.do: | job/Job |
           ran_last := job.scheduler_ran_last_
-          if ran_last: jobs_ran_last[job.name] = ran_last.us
-        device_.jobs_ran_last_update jobs_ran_last
+          delayed_until := job.scheduler_delayed_until_
+          if not ran_last and not delayed_until: continue.do
+          jobs_state[job.name] = ran_last
+              // The common case is that we do not have delayed-until,
+              ? delayed_until ? [ran_last.us, delayed_until.us] : ran_last.us
+              // but we typically do have ran-last.
+              : [null, delayed_until.us]
+        device_.scheduler_jobs_state_update jobs_state
 
   add_jobs jobs/List -> none:
     jobs.do: add_job it
 
   add_job job/Job -> none:
     job.scheduler_ = this
-    last := jobs_ran_last_initial_.get job.name
-    job.scheduler_ran_last_ = last and (JobTime last)
+    entry := jobs_state_initial_.get job.name
+    if entry is List:
+      ran_last/int? := entry[0]
+      delayed_until/int := entry[1]
+      job.scheduler_ran_last_ = ran_last and (JobTime ran_last)
+      job.scheduler_delayed_until_ = JobTime delayed_until
+    else:
+      job.scheduler_ran_last_ = entry and (JobTime entry)
+      job.scheduler_delayed_until_ = null
     jobs_.add job
+    signal_.awaken
+
+  delay_job job/Job --until/JobTime -> none:
+    job.scheduler_delayed_until_ = until
     signal_.awaken
 
   remove_job job/Job -> none:
@@ -82,6 +99,7 @@ class Scheduler:
   on_job_started job/Job -> none:
     job.scheduler_ran_after_boot_ = true
     job.scheduler_ran_last_ = JobTime.now
+    job.scheduler_delayed_until_ = null
     logger_.info "job started" --tags={"job": job}
     signal_.awaken
 
@@ -100,11 +118,11 @@ class Scheduler:
   start_due_jobs_ now/JobTime -> JobTime?:
     first/JobTime? := null
     jobs_.do: | job/Job |
-      if job.is_running: continue.do
+      if job.is_running or job.runlevel > runlevel_: continue.do
       next ::= job.schedule now job.scheduler_ran_last_
       if not next: continue.do
       if next <= now:
-        job.start now
+        job.start
       else if (not first or next < first):
         first = next
     return first

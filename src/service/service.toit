@@ -53,7 +53,7 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   // the Artemis API so user code can interact with us
   // at runtime and not just through the broker.
   wakeup/JobTime? := null
-  provider := ArtemisServiceProvider
+  provider := ArtemisServiceProvider containers
   try:
     provider.install
     wakeup = scheduler.run
@@ -71,8 +71,9 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
 
 class ArtemisServiceProvider extends services.ServiceProvider
     implements services.ServiceHandlerNew api.ArtemisService:
+  containers_/ContainerManager
 
-  constructor:
+  constructor .containers_:
     super "toit.io/artemis"
         --major=ARTEMIS_VERSION_MAJOR
         --minor=ARTEMIS_VERSION_MINOR
@@ -81,8 +82,8 @@ class ArtemisServiceProvider extends services.ServiceProvider
   handle index/int arguments/any --gid/int --client/int -> any:
     if index == api.ArtemisService.VERSION_INDEX:
       return version
-    if index == api.ArtemisService.CONTAINER_RESTART_INDEX:
-      return container_restart --delay_until_us=arguments
+    if index == api.ArtemisService.CONTAINER_CURRENT_RESTART_INDEX:
+      return container_current_restart --gid=gid --wakeup_us=arguments
     if index == api.ArtemisService.CHANNEL_OPEN_INDEX:
       return channel_open client --topic=arguments
     if index == api.ArtemisService.CHANNEL_SEND_INDEX:
@@ -99,8 +100,12 @@ class ArtemisServiceProvider extends services.ServiceProvider
   version -> string:
     return ARTEMIS_VERSION
 
-  container_restart --delay_until_us/int? -> none:
-    throw "UNIMPLEMENTED"
+  container_current_restart --gid/int --wakeup_us/int? -> none:
+    job := containers_.get --gid=gid
+    job.restart --wakeup_us=wakeup_us
+
+  container_current_restart --wakeup_us/int? -> none:
+    unreachable  // Here to satisfy the checker.
 
   channel_open --topic/string -> int?:
     unreachable  // Here to satisfy the checker.
