@@ -42,7 +42,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     if user_id:
       current_user_id_ = user_id
       return
-    block.call
+    block.call "Not logged in"
 
   sign_up --email/string --password/string:
     send_request_ "sign-up" {

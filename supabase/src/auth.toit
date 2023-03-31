@@ -55,7 +55,7 @@ class Auth:
 
     session := Session_
         --access_token=access_token
-        --expires_in=expires_in
+        --expires_in_s=expires_in
         --refresh_token=refresh_token
         --token_type=token_type
 
@@ -88,7 +88,7 @@ class Auth:
         }
     session := Session_
         --access_token=response["access_token"]
-        --expires_in=response["expires_in"]
+        --expires_in_s=response["expires_in"]
         --refresh_token=response["refresh_token"]
         --token_type=response["token_type"]
     client_.set_session_ session
@@ -195,7 +195,7 @@ class Auth:
         }
     session := Session_
         --access_token=response["access_token"]
-        --expires_in=response["expires_in"]
+        --expires_in_s=response["expires_in"]
         --refresh_token=response["refresh_token"]
         --token_type=response["token_type"]
     client_.set_session_ session
@@ -224,29 +224,48 @@ class Auth:
 class Session_:
   access_token/string
 
-  // The number of seconds until the access token expires after it was issued.
-  expires_in/int
+  expires_at/Time
 
   refresh_token/string
   token_type/string
 
+  /**
+  Constructs a new session.
+
+  The $expires_in_s is the number of seconds until the access token expires
+    after it was issued. We assume that the token was issued at the time of
+    the call to the constructor.
+  */
   constructor
       --.access_token
-      --.expires_in
+      --expires_in_s
       --.refresh_token
       --.token_type:
+    expires_at = Time.now + (Duration --s=expires_in_s)
 
   constructor.from_json json/Map:
-    return Session_
-        --access_token=json["access_token"]
-        --expires_in=json["expires_in"]
-        --refresh_token=json["refresh_token"]
-        --token_type=json["token_type"]
+    // TODO(florian): remove backwards-compatibility code.
+    expires_in := json.get "expires_in"
+    expires_at_epoch_ms := json.get "expires_at_epoch_ms"
+    if expires_in and not expires_at_epoch_ms:
+      // Simply make it such that the token has expired.
+      // After all, we don't know when the token was issued.
+      expires_at_epoch_ms = (Time.now).ms_since_epoch  - 100000
+    access_token = json["access_token"]
+    expires_at = Time.epoch --ms=expires_at_epoch_ms
+    refresh_token = json["refresh_token"]
+    token_type = json["token_type"]
 
   to_json -> Map:
     return {
       "access_token": access_token,
-      "expires_in": expires_in,
+      "expires_at_epoch_ms": expires_at.ms_since_epoch,
       "refresh_token": refresh_token,
       "token_type": token_type,
     }
+
+  has_expired --min_remaining_s=0 -> bool:
+    return has_expired --min_remaining=(Duration --s=min_remaining_s)
+
+  has_expired --min_remaining/Duration -> bool:
+    return Time.now + min_remaining > expires_at

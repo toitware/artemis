@@ -138,16 +138,22 @@ class Client:
   ```
   */
   ensure_authenticated [block]:
+    exception := null
     if local_storage_.has_auth:
-      catch:
+      exception = catch:
         session_ = Session_.from_json local_storage_.get_auth
-        // TODO(florian): no need to refresh if the token is still valid.
-        auth.refresh_token
+        if session_.has_expired --min_remaining=(Duration --m=20):
+          auth.refresh_token
         return
       // There was an exception.
       // Clear the stored session, and run the block for a fresh authentication.
       local_storage_.remove_auth
-    block.call auth
+    reason := ?
+    if exception:
+      reason = "Error while refreshing the authentication: $exception."
+    else:
+      reason = "Not logged in."
+    block.call reason auth
 
   close -> none:
     if not http_client_: return
