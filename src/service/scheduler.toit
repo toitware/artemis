@@ -100,7 +100,7 @@ class Scheduler:
   start_due_jobs_ now/JobTime -> JobTime?:
     first/JobTime? := null
     jobs_.do: | job/Job |
-      if job.is_running: continue.do
+      if job.is_running or job.runlevel > runlevel_: continue.do
       next ::= job.schedule now job.scheduler_ran_last_
       if not next: continue.do
       if next <= now:
