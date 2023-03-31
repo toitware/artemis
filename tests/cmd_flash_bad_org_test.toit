@@ -18,7 +18,7 @@ run_test test_cli/TestCli:
 
   bad_id := NON_EXISTENT_UUID
   output := test_cli.run --expect_exit_1 [
-    "device", "flash",
+    "serial", "flash",
     "--organization_id", bad_id,  // We are testing the bad ID here.
     "--specification", "doesn't matter",
     "--port", "doesn't-matter",
