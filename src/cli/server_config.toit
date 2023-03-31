@@ -15,17 +15,17 @@ DEFAULT_ARTEMIS_SERVER_CONFIG ::= ServerConfigSupabase
     --root_certificate_name="Baltimore CyberTrust Root"
 
 /**
-Reads the server configuration with the given $server_name from the $config.
+Reads the server configuration with the given $key from the $config.
 */
-get_server_from_config config/Config server_name/string? default_key/string -> ServerConfig:
+get_server_from_config config/Config key/string -> ServerConfig:
   servers := config.get CONFIG_SERVERS_KEY
-  if not servers and not server_name: return DEFAULT_ARTEMIS_SERVER_CONFIG
+  if not servers: return DEFAULT_ARTEMIS_SERVER_CONFIG
 
   // We keep the name "broker" here, as the CLI user should only ever deal with
   // the term "broker". Internally we use it also to configure the Artemis server.
   if not servers: throw "No brokers configured"
-  if not server_name: server_name = config.get default_key
-  if not server_name: throw "No default broker configured $default_key"
+  server_name := config.get key
+  if not server_name: throw "No default broker configured $key"
   json_map := servers.get server_name
   if not json_map: throw "No broker named $server_name"
 

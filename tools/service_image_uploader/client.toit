@@ -35,7 +35,7 @@ interface UploadClient:
   upload --snapshot_uuid/string cli_snapshot/ByteArray
 
 get_artemis_config parsed/cli.Parsed config/cli.Config -> ServerConfig:
-  return get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
+  return get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
 
 with_upload_client parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
   server_config := get_artemis_config parsed config

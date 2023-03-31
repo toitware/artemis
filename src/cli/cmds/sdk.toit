@@ -28,8 +28,7 @@ create_sdk_commands config/Config cache/Cache ui/Ui -> List:
   return [sdk_cmd]
 
 with_sdk_server parsed/cli.Parsed config/Config [block]:
-  server_config := get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
-
+  server_config := get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
   with_server server_config config block
 
 list_sdks parsed/cli.Parsed config/Config ui/Ui:
