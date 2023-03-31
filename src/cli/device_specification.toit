@@ -13,6 +13,7 @@ import .sdk
 import .server_config
 import .utils
 import .git
+import .ui
 
 class DeviceSpecificationException:
   message/string
@@ -266,7 +267,7 @@ interface Container:
 
   All paths in the container are relative to $relative_to.
   */
-  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
+  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
   type -> string
   arguments -> List?
   is_background -> bool?
@@ -323,7 +324,7 @@ abstract class ContainerBase implements Container:
       triggers = null
 
   abstract type -> string
-  abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
+  abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
 
 class ContainerPath extends ContainerBase:
   entrypoint/string
@@ -341,7 +342,7 @@ class ContainerPath extends ContainerBase:
       format_error_"In container $name, git entry requires a relative path: $entrypoint"
     super.from_json name data
 
-  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache:
+  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
     if not git_url:
       path := entrypoint
       if fs.is_relative path:
@@ -351,10 +352,11 @@ class ContainerPath extends ContainerBase:
 
     git := Git
     git_key := "$GIT_APP_PATH/$git_url"
+    ui.info "Fetching $git_url"
     cached_checkout := cache.get_directory_path git_key: | store/cli.DirectoryStore |
       store.with_tmp_directory: | tmp_dir/string |
         clone_dir := "$tmp_dir/clone"
-        git.init clone_dir --origin=git_url
+        git.init clone_dir --origin=git_url --quiet
         git.config --repository_root=clone_dir
             --key="advice.detachedHead"
             --value="false"
@@ -362,6 +364,7 @@ class ContainerPath extends ContainerBase:
             --repository_root=clone_dir
             --depth=1
             --ref=git_ref
+            --quiet
         store.move clone_dir
     // Make sure we have the ref we need in the cache.
     git.fetch --force --depth=1 --ref=git_ref --repository_root=cached_checkout
@@ -378,7 +381,7 @@ class ContainerPath extends ContainerBase:
       // aren't affected by changes to the cache.
       clone_dir := "$tmp_dir/clone"
       file_uri := "file://$(url_encoding.encode cached_checkout)"
-      git.init clone_dir --origin=file_uri
+      git.init clone_dir --origin=file_uri --quiet
       git.config --repository_root=clone_dir
           --key="advice.detachedHead"
           --value="false"
@@ -387,6 +390,8 @@ class ContainerPath extends ContainerBase:
           --depth=1
           --repository_root=clone_dir
           --ref=git_ref
+          --quiet
+      ui.info "Compiling $git_url"
       entrypoint_path := "$clone_dir/$entrypoint"
       if not file.is_file entrypoint_path:
         throw "No such file: $entrypoint_path"
@@ -417,7 +422,7 @@ class ContainerSnapshot extends ContainerBase:
     snapshot_path = get_string_ data "snapshot" --holder=holder
     super.from_json name data
 
-  build_snapshot --relative_to/string --output_path/string --sdk/Sdk --cache/cli.Cache:
+  build_snapshot --relative_to/string --output_path/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
     path := snapshot_path
     if fs.is_relative snapshot_path:
       path = "$relative_to/$snapshot_path"

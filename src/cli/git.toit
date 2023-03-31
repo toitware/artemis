@@ -1,5 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import bytes
 import host.pipe
 
 class Git:
@@ -8,63 +9,30 @@ class Git:
     current working directory.
   */
   current_repository_root -> string:
-    out := pipe.backticks [
-      "git",
+    out := run_ [
       "rev-parse",
       "--show-toplevel"
     ]
     return out.trim
 
   /**
-  Clones the Git repository at the given URL into the $out directory.
-
-  If $ref is given, the repository is checked out at that ref. The $ref must
-    be a branch name, or a tag name.
-  if $depth is given, the repository is shallow-cloned with the given depth.
-  */
-  clone url/string
-      --out/string
-      --depth/int?=null
-      --ref/string?=null
-      --config/Map?=null:
-    args := [
-      "git",
-      "clone",
-      url,
-      out,
-    ]
-    if depth:
-      args.add "--depth"
-      args.add depth.stringify
-    if ref:
-      args.add "--branch"
-      args.add ref
-    if config:
-      config.do: | key value |
-        args.add "--config"
-        args.add "$key=$value"
-
-    exit_value := pipe.run_program args
-    if not exit_value: throw "Clone of $url failed."
-
-  /**
   Inits a new Git repository in the given $repository_root.
 
   If $origin is given adds the given remote as "origin".
   */
-  init repository_root/string --origin/string?=null:
+  init repository_root/string --origin/string?=null --quiet/bool?=false:
     args := [
-      "git",
       "init",
+      "--initial-branch=main",
       repository_root,
     ]
+    if quiet:
+      args.add "--quiet"
 
-    exit_value := pipe.run_program args
-    if not exit_value: throw "Init of $repository_root failed."
+    run_ args --on_error=: throw "Init of $repository_root failed."
 
     if origin:
       args = [
-        "git",
         "-C", repository_root,
         "remote",
         "add",
@@ -72,8 +40,7 @@ class Git:
         origin,
       ]
 
-      exit_value = pipe.run_program args
-      if not exit_value: throw "Remote-add of $origin in $repository_root failed."
+      run_ args --on_error=: throw "Remote-add of $origin in $repository_root failed."
 
   /**
   Sets the configuration $key to $value in the given $repository_root.
@@ -82,7 +49,6 @@ class Git:
   */
   config --key/string --value/string --repository_root/string=current_repository_root --global/bool=false:
     args := [
-      "git",
       "-C", repository_root,
       "config",
       key,
@@ -91,8 +57,7 @@ class Git:
     if global:
       args.add "--global"
 
-    exit_value := pipe.run_program args
-    if not exit_value: throw "Config of $key in $repository_root failed."
+    run_ args --on_error=: throw "Config of $key in $repository_root failed."
 
   /**
   Fetches the given $ref from the given $remote in the Git repository
@@ -107,9 +72,9 @@ class Git:
       --repository_root/string=current_repository_root
       --depth/int?=null
       --force/bool=false
-      --checkout/bool=false:
+      --checkout/bool=false
+      --quiet/bool?=false:
     args := [
-      "git",
       "-C", repository_root,
       "fetch",
       remote,
@@ -122,19 +87,21 @@ class Git:
       args.add depth.stringify
     if force:
       args.add "--force"
+    if quiet:
+      args.add "--quiet"
 
-    exit_value := pipe.run_program args
-    if not exit_value: throw "Fetch of $ref from $remote failed."
+    run_ args --on_error=: throw "Fetch of $ref from $remote failed."
 
     if checkout:
       args = [
-        "git",
         "-C", repository_root,
         "checkout",
         ref,
       ]
-      exit_value = pipe.run_program args
-      if not exit_value: throw "Checkout of $ref failed."
+      if quiet:
+        args.add "--quiet"
+
+      run_ args --on_error=: throw "Checkout of $ref failed."
 
   /**
   Tags the given $commit with the given tag $name.
@@ -184,3 +151,51 @@ class Git:
 
     exit_value := pipe.run_program args
     if not exit_value: throw "Tag update failed."
+
+  /**
+  Runs the command, and only outputs stdout/stderr if there is an error.
+  */
+  run_ args/List -> string:
+    return run_ args --on_error=: throw "Git command failed"
+
+  run_ args/List [--on_error] -> string:
+    output := bytes.Buffer
+    stdout := bytes.Buffer
+    fork_data := pipe.fork
+        --environment=git_env_
+        true                // use_path
+        pipe.PIPE_INHERITED // stdin
+        pipe.PIPE_CREATED   // stdout
+        pipe.PIPE_CREATED   // stderr
+        "git"
+        ["git"] + args
+
+    stdout_pipe := fork_data[1]
+    stderr_pipe := fork_data[2]
+    pid := fork_data[3]
+
+    stdout_task := task::
+      catch --trace:
+        while chunk := stdout_pipe.read:
+          output.write chunk
+          stdout.write chunk
+
+    stderr_task := task::
+      catch --trace:
+        while chunk := stderr_pipe.read:
+          output.write chunk
+
+    exit_value := pipe.wait_for pid
+    stdout_task.cancel
+    stderr_task.cancel
+
+    if (pipe.exit_code exit_value) != 0:
+      print_on_stderr_ output.bytes.to_string_non_throwing
+      on_error.call
+
+    return stdout.bytes.to_string_non_throwing
+
+  git_env_ -> Map:
+    return {
+      "GIT_TERMINAL_PROMPT": "0",  // Disable stdin.
+    }
