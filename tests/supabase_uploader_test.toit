@@ -71,7 +71,7 @@ run_test test_cli/TestCli:
     // Login using the CLI login.
     // The uploader reuses the same credentials.
     test_cli.run [
-      "auth", "artemis", "login",
+      "auth", "login",
       "--email", ADMIN_EMAIL,
       "--password", ADMIN_PASSWORD
     ]
