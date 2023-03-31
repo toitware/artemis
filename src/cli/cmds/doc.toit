@@ -52,11 +52,13 @@ SPECIFICATION_FORMAT_HELP ::= """
   to the container when it is started.
   They may have a 'triggers' entry, consisting of a list of triggers. See
   below for the format of a trigger object.
-  They may have a 'critical' boolean entry. If true, the container
-  is run even at low runlevels (for example in safemode).
   They may have a 'background' boolean entry. If true, the container
   does not keep the device awake. If only background tasks are running the
   device goes to deep sleep.
+  They may have a 'critical' boolean entry. If true, the container
+  is considered critical and prioritized by the system. Critical containers
+  run all the time and they thus cannot have triggers. They run at a
+  lower runlevel (for example in safemode) than other containers.
 
   Snapshot containers have a 'snapshot' entry which must be a path to the
   snapshot file.
