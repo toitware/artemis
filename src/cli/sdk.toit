@@ -222,15 +222,17 @@ class Sdk:
       --port/string
       --baud_rate/string?
       --partitions/List?:
-    args := [
+    arguments := [
       "flash",
       "-e", envelope_path,
       "--config", config_path,
       "--port", port,
     ]
-    if baud_rate: args += [ "--baud", baud_rate ]
-    if partitions: args += [ "--partition", partitions.join "," ]
-    run_firmware_tool args
+    if baud_rate:
+      arguments += [ "--baud", baud_rate ]
+    if partitions and not partitions.is_empty:
+      arguments += [ "--partition", partitions.join "," ]
+    run_firmware_tool arguments
 
   /**
   Installs the dependencies of the project at $project_root.
