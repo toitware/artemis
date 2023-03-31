@@ -64,6 +64,9 @@ interface Container:
 class Channel extends ServiceResourceProxy:
   topic/string
 
+  page_/ByteArray? := null
+  cursor_/int := 0
+
   constructor.internal_ client/api.ArtemisClient handle/int --.topic:
     super client handle
 
@@ -76,6 +79,41 @@ class Channel extends ServiceResourceProxy:
   send bytes/ByteArray -> none:
     unreachable
 
-  // handle dropped?
   receive --wait/bool=false -> ByteArray?:
-    unreachable
+    next := receive_next_
+    if next: return next
+
+    // wait ... fill in more.
+
+  receive_next_ -> ByteArray?:
+    cursor := cursor_
+    from := cursor
+    page := page_
+    acc := page ? page[cursor++] : 0xff
+
+    // Done?
+    if acc == 0xff:
+      page_ = null
+      return null
+
+    to := from
+    bits := 6
+    acc &= 0x3f
+    while true:
+      while bits < 8:
+        if cursor >= page.size:
+          // Done. Avoid getting an out-of-bounds read
+          // on the next call to $receive_next_ by
+          // clearing out the page field.
+          page_ = null
+          return page[from..to]
+        next := page[cursor]
+        if (next & 0x80) != 0:
+          cursor_ = cursor
+          return page[from..to]
+        acc |= (next << bits)
+        bits += 7
+        cursor++
+      page[to++] = (acc & 0xff)
+      acc >>= 8
+      bits -= 8

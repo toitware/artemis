@@ -19,6 +19,9 @@ interface ArtemisService:
   channel_open --topic/string -> int?
   static CHANNEL_OPEN_INDEX /int ::= 2
 
+  channel_read_page --page/ByteArray?=null -> ByteArray?
+  static CHANNEL_READ_PAGE_INDEX /int ::= 3
+
 class ArtemisClient extends ServiceClient
     implements ArtemisService:
   static SELECTOR ::= ArtemisService.SELECTOR
