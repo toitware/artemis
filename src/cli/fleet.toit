@@ -165,13 +165,17 @@ class Fleet:
   update devices/List --specification_path/string? --firmware_path/string? --diff_bases/List:
     broker := artemis_.connected_broker
     detailed_devices := {:}
-    fleet_devices := devices.map: | alias/string |
-      fleet_device := resolve_alias_ alias
+    fleet_devices/List := ?
+    if devices.is_empty:
+      fleet_devices = devices_
+    else:
+      fleet_devices = devices.map: resolve_alias_ it
+
+    fleet_devices.do: | fleet_device/DeviceFleet |
       device := broker.get_device --device_id=fleet_device.id
       if not device:
         ui_.error "Device $device.id does not exist on the broker."
         ui_.abort
-      fleet_device
 
     base_patches := {:}
 
