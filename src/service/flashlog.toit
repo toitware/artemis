@@ -85,8 +85,6 @@ class FlashLog:
       assert: size == encoded_size
       region_.write --from=write_offset_ buffer[..size]
       write_offset_ += size
-      print "--> write-offset = $write_offset_"
-      print "--> page = $buffer"
 
   has_more -> bool:
     // TODO(kasper): Handle reading from ack'ed pages. We
@@ -97,18 +95,55 @@ class FlashLog:
       decode_next_ buffer HEADER_SIZE_: return true
     return false
 
+  /**
+  Reads from the first unacknowledged page.
+  */
   read [block] -> none:
-    // TODO(kasper): Handle reading from ack'ed pages. We
-    // have an invariant that makes it impossible to get
-    // to this point, but we should handle it gracefully.
     with_buffer_: | buffer/ByteArray |
-      region_.read --from=read_page_ buffer
-      if (LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_) == 0xffff:
-        committed := false
-        decode_all_ buffer read_page_ --commit: committed = true
-        if committed and read_page_ == write_page_:
-          write_offset_ = write_page_ + size_per_page_
-        region_.read --from=read_page_ buffer
+      commit_and_read_ buffer read_page_
+      decode_all_ buffer -1 block
+
+  /**
+  Decode given buffer. Intended for testing.
+  */
+  decode buffer/ByteArray [block] -> none:
+    decode_all_ buffer -1 block
+
+  /**
+  Read the page $peek pages after the read page
+    into the given buffer.
+
+  Returns null if no such page has been written
+    to yet. Otherwise, returns the sequence number
+    of the last entry on the page.
+  */
+  read_page buffer/ByteArray --peek/int=0 -> int?:
+    if peek < 0 or buffer.size != size_per_page_:
+      throw "Bad Argument"
+    prevalidated := random 2  // TODO(kasper): Get this from somewhere.
+    // Run through the pages and skip or validate the ones
+    // that come before the page we're interested in.
+    page := read_page_
+    next_sn := null
+    peek.repeat: | index/int |
+      // If we reach the write page while running through
+      // the pages we're not interested in, we're done.
+      if page == write_page_: return null
+      current := page
+      page += size_per_page_
+      if page >= size_: page = 0
+      if index >= prevalidated:
+        is_committed_page_ current buffer: | sn is_acked count |
+          if index == prevalidated or sn == next_sn:
+            next_sn = SN.next sn --increment=count
+            continue.repeat
+        // Found uncommitted or wrong page. This shouldn't
+        // happen so we reset and tell the user that something
+        // was terribly wrong.
+        repair_reset_ buffer SN.new
+        throw "INVALID_STATE"
+    last_sn := commit_and_read_ buffer page
+    return last_sn and (SN.previous last_sn)
 
   acknowledge sn/int -> none:
     with_buffer_: | buffer/ByteArray |
@@ -146,6 +181,40 @@ class FlashLog:
     finally:
       if original: buffer_ = original
 
+  /**
+  Returns the next sequence number unless the page is
+  empty in which case we return null.
+  */
+  commit_and_read_ buffer/ByteArray page/int -> int?:
+    // TODO(kasper): Handle reading from ack'ed pages. We
+    // have an invariant that makes it impossible to get
+    // to this point, but we should handle it gracefully.
+
+    // TODO(kasper): We shouldn't be allowed to read
+    // beyond the write page. Can we check that here
+    // or do we need to do it outside?
+
+    region_.read --from=page buffer
+    count := LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_
+    if count != 0xffff:
+      // Already committed. We're done.
+      if count == 0: return null
+      sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
+      return SN.next sn --increment=count
+
+    // We avoid committing empty pages, so we can tell
+    // if we did by looking at whether we decoded any
+    // entries from the page.
+    committed := false
+    sn := decode_all_ buffer page --commit: committed = true
+    if not committed: return null
+    if page == write_page_:
+      write_offset_ = write_page_ + size_per_page_
+      // If we've decoded any entries to commit the
+      // page, we've modified the buffer. Read it again.
+      region_.read --from=page buffer
+    return sn
+
   advance_read_page_ buffer/ByteArray sn/int -> none:
     // Don't go beyond the write page.
     if read_page_ == write_page_:
@@ -180,6 +249,7 @@ class FlashLog:
     write_page_ = next
     write_offset_ = next + HEADER_SIZE_
 
+  // TODO(kasper): Maybe let page only be set when commit is?
   decode_all_ buffer/ByteArray page/int [block] --commit/bool=false -> int:
     crc32 := null
     if commit:
