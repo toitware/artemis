@@ -1,9 +1,8 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import system.services show ServiceResource
+import system.services show ServiceResource ServiceProvider
 import system.storage
 
-import .service show ArtemisServiceProvider
 import .flashlog show FlashLog SN
 
 class ChannelResource extends ServiceResource:
@@ -11,7 +10,7 @@ class ChannelResource extends ServiceResource:
   region_/storage.Region? := ?
   log_/FlashLog? := ?
 
-  constructor provider/ArtemisServiceProvider client/int --.topic:
+  constructor provider/ServiceProvider client/int --.topic:
     // TODO(kasper): Stop always resetting.
     storage.Region.delete --flash "toit.io/channel/$topic"
     // TODO(kasper): Should we be reference counting this,
@@ -25,14 +24,13 @@ class ChannelResource extends ServiceResource:
   send bytes/ByteArray -> none:
     log_.append bytes
 
-  receive_page --page/ByteArray? -> ByteArray:
-    page = page or (ByteArray log_.size_per_page_)
-    log_.read_page page
-    return page
+  receive_page --page/int --buffer/ByteArray? -> List:
+    buffer = buffer or (ByteArray log_.size_per_page_)
+    sn := log_.read_page buffer --peek=page
+    return [sn, buffer]
 
-  acknowledge sn/int count/int -> none:
-    last := SN.next sn --increment=count
-    log_.acknowledge last
+  acknowledge sn/int -> none:
+    log_.acknowledge sn
 
   on_closed -> none:
     region := region_

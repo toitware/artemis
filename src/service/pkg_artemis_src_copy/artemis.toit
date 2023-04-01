@@ -64,12 +64,14 @@ interface Container:
 class Channel extends ServiceResourceProxy:
   topic/string
 
-  page_/ByteArray? := null
-  spare_/ByteArray? := null
-
+  buffer_/ByteArray? := null
   cursor_/int := 0
-  count_/int := 0
-  acknowledged_/int := 0
+
+  unacked_count_/int := 0
+  unacked_count_previous_/int := 0
+  unacked_pages_/Deque := Deque
+
+  acks_/int := 0
 
   constructor.internal_ client/api.ArtemisClient handle/int --.topic:
     super client handle
@@ -84,51 +86,67 @@ class Channel extends ServiceResourceProxy:
     (client_ as api.ArtemisClient).channel_send handle_ bytes
 
   receive -> ByteArray?:
+    buffer := buffer_
     if cursor_ == 0:
-      if acknowledged_ < count_: return null
-      page_ = (client_ as api.ArtemisClient).channel_receive_page handle_ --page=spare_
-      spare_ = null
+      // We have read the entire last page. We can reuse the
+      // buffer if it has already been acked.
+      result := (client_ as api.ArtemisClient).channel_receive_page handle_
+          --page=unacked_pages_.size
+          --buffer=unacked_pages_.is_empty ? buffer : null
+      sn := result[0]
+      if not sn: return null
+      // Got another non-empty page. Wonderful.
+      buffer_ = buffer = result[1]
       cursor_ = 14  // TODO(kasper): Avoid hardcoding this!
-      count_ = 0
-      acknowledged_ = 0
-    next := receive_next_
-    if next: count_++
-    return next
+      unacked_count := unacked_count_
+      unacked_pages_.add [sn, unacked_count - unacked_count_previous_]
+      unacked_count_previous_ = unacked_count
+    result := receive_next_ buffer
+    unacked_count_++
+    return result
 
   acknowledge n/int=1 -> none:
-    acknowledged := acknowledged_ + n
-    count := count_
-    if acknowledged > count: throw "Bonkers!"
-    acknowledged_ = acknowledged
-    if cursor_ != 0 or acknowledged < count: return
-    (client_ as api.ArtemisClient).channel_acknowledge handle_ 0 acknowledged
-    spare_ = page_
-    page_ = null
+    if n < 1: throw "Bad Argument"
+    acks := acks_ + n
+    unacked_count := unacked_count_
+    if acks > unacked_count: throw "Bad Argument"
 
-  receive_next_ -> ByteArray?:
+    // Ack all the pages we can.
+    last_is_incomplete := cursor_ != 0
+    while true:
+      // Don't acknowledge the last page unless we're
+      // completely done with it.
+      if last_is_incomplete and unacked_pages_.size == 1: break
+      first := unacked_pages_.first
+      delta := first[1]
+      if acks < delta: break
+      (client_ as api.ArtemisClient).channel_acknowledge handle_ first[0]
+
+      unacked_count_ -= delta
+      unacked_count_previous_ -= delta
+      acks_ = acks = acks - delta
+      unacked_pages_.remove_first
+
+  receive_next_ buffer/ByteArray -> ByteArray:
     cursor := cursor_
     from := cursor
-    page := page_
-    acc := page ? page[cursor++] : 0xff
-    if acc == 0xff:
-      cursor_ = 0
-      return null
+    to := cursor
 
-    to := from
+    acc := buffer[cursor++]
     bits := 6
     acc &= 0x3f
     while true:
       while bits < 8:
-        if cursor >= page.size:
-          cursor_ = 0
-          return page[from..to]
-        next := page[cursor]
+        if cursor >= buffer.size:
+          cursor_ = 0  // Read last entry.
+          return buffer[from..to]
+        next := buffer[cursor]
         if (next & 0x80) != 0:
           cursor_ = cursor
-          return page[from..to]
+          return buffer[from..to]
         acc |= (next << bits)
         bits += 7
         cursor++
-      page[to++] = (acc & 0xff)
+      buffer[to++] = (acc & 0xff)
       acc >>= 8
       bits -= 8
