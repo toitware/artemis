@@ -25,6 +25,8 @@ main:
     :: test_illegal_ack,
     :: test_randomized,
 
+    :: test_read_page,
+
     :: test_valid_w_corrupt,
 
     :: test_valid_joined_rw_committed,
@@ -294,6 +296,65 @@ test_randomized:
       flashlog.dump
       expect false --message="Randomized flash logs should be empty"
     flashlog.close
+
+test_read_page:
+  test_read_page [0, 1, 2]
+  test_read_page [2, 1, 0]
+  test_read_page [1, 0, 2]
+  test_read_page [1, 2, 0]
+  test_read_page [0, 0, 2, 2, 1, 1, 0, 2]
+  test_read_page [2, 0, 1, 2, 2, 0, 0, 2]
+  10.repeat: test_read_page (List 10: random 3)
+
+test_read_page peek_order/List:
+  flashlog := TestFlashLog 8
+  buffer := ByteArray 4096
+
+  // Fill up three pages with two entries in each.
+  bytes := ByteArray 1700
+  6.repeat:
+    bytes.fill it
+    flashlog.append bytes
+
+  // Try to peek too far. We should just get null back.
+  [99, 4, 7, 3, 1000].do: expect_null (flashlog.read_page buffer --peek=it)
+
+  test_peeked ::= : | buffer/ByteArray peek/int |
+    last_sn := null
+    n := 0
+    flashlog.decode buffer: | x sn |
+      expect_equals 1700 x.size
+      expect (x.every: it == peek * 2 + n)
+      last_sn = sn
+      n++
+    last_sn
+
+  // Peek in the specified order.
+  peek_order.do: | peek/int |
+    sn := flashlog.read_page buffer --peek=peek
+    expect_not_null sn
+    last_sn := test_peeked.call buffer peek
+    expect_equals last_sn sn
+
+  // Try to peek too far. We should just get null back.
+  [99, 4, 7, 3, 1000].do: expect_null (flashlog.read_page buffer --peek=it)
+
+  // Ack the pages one by one.
+  for acked := 1; acked <= 3; acked++:
+    flashlog.acknowledge (flashlog.read_page buffer)
+    [99, 4, 7, 3 - acked, 1000].do: expect_null (flashlog.read_page buffer --peek=it)
+
+    // Peek in the specified order again but
+    // take the acks into account.
+    peek_order.do: | peek/int |
+      adjusted_peek := peek - acked
+      if adjusted_peek < 0:
+        expect_throw "Bad Argument": flashlog.read_page buffer --peek=adjusted_peek
+      else:
+        sn := flashlog.read_page buffer --peek=adjusted_peek
+        expect_not_null sn
+        last_sn := test_peeked.call buffer peek
+        expect_equals last_sn sn
 
 test_valid_w_corrupt:
   // Corrupt write page (contains garbage at end).
