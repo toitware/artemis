@@ -7,7 +7,6 @@ import log
 import net
 import encoding.json
 import encoding.base64
-import supabase.utils
 
 import ..artemis_server
 import ...config
@@ -16,6 +15,7 @@ import ...organization
 import ...ui
 
 import ....shared.server_config
+import ....shared.utils as utils
 
 STATUS_IM_A_TEAPOT ::= 418
 

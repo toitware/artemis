@@ -7,7 +7,6 @@ import encoding.ubjson
 import http
 import net
 import supabase
-import supabase.utils
 
 import artemis.cli.config as cli
 import artemis.cli.ui as ui
@@ -17,6 +16,7 @@ import artemis.cli.config
     CONFIG_SERVER_AUTHS_KEY
     ConfigLocalStorage
 import artemis.cli.server_config show *
+import artemis.shared.utils
 import uuid
 
 import .utils
