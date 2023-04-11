@@ -47,6 +47,18 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
             --default=".",
       ]
 
+  init_cmd := cli.Command "init"
+      --long_help="""
+        Initialize the fleet state.
+
+        This command initializes the fleet-root directory, so it can be
+        used by the other fleet commands.
+
+        The directory can be specified using the '--fleet-root' option.
+        """
+      --run=:: init it config cache ui
+  cmd.add init_cmd
+
   create_firmware_cmd := cli.Command "create-firmware"
       --long_help="""
         Create a firmware image.
@@ -195,6 +207,10 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   cmd.add update_cmd
 
   return [cmd]
+
+init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
+  Fleet.init fleet_root --ui=ui
 
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]

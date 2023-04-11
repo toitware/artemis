@@ -18,50 +18,60 @@ main args:
     run_test test_cli
 
 run_test test_cli/TestCli:
-  with_tmp_directory: | tmp_dir |
-    test_cli.run [
-      "auth", "login",
-      "--email", TEST_EXAMPLE_COM_EMAIL,
-      "--password", TEST_EXAMPLE_COM_PASSWORD,
-    ]
+  with_tmp_directory: | fleet_tmp_dir |
+    with_tmp_directory: | tmp_dir |
+      test_cli.run [
+        "auth", "login",
+        "--email", TEST_EXAMPLE_COM_EMAIL,
+        "--password", TEST_EXAMPLE_COM_PASSWORD,
+      ]
 
-    test_cli.run [
-      "auth", "login",
-      "--broker",
-      "--email", TEST_EXAMPLE_COM_EMAIL,
-      "--password", TEST_EXAMPLE_COM_PASSWORD,
-    ]
+      test_cli.run [
+        "auth", "login",
+        "--broker",
+        "--email", TEST_EXAMPLE_COM_EMAIL,
+        "--password", TEST_EXAMPLE_COM_PASSWORD,
+      ]
 
-    count := 3
-    test_cli.run [
-      "fleet",
-      "create-identities",
-      "--organization-id", TEST_ORGANIZATION_UUID,
-      "--output-directory", tmp_dir,
-      "$count",
-    ]
-    check_and_remove_identity_files tmp_dir count
+      test_cli.run [
+        "fleet",
+        "--fleet-root", fleet_tmp_dir,
+        "init",
+      ]
 
-    // Test an error when the organization id isn't set.
-    test_cli.run --expect_exit_1 [
-      "fleet",
-      "create-identities",
-      "--output-directory", tmp_dir,
-      "1",
-    ]
-    check_and_remove_identity_files tmp_dir 0
+      count := 3
+      test_cli.run [
+        "fleet",
+        "--fleet-root", fleet_tmp_dir,
+        "create-identities",
+        "--organization-id", TEST_ORGANIZATION_UUID,
+        "--output-directory", tmp_dir,
+        "$count",
+      ]
+      check_and_remove_identity_files tmp_dir count
 
-    test_cli.run [
-      "org", "default", TEST_ORGANIZATION_UUID,
-    ]
+      // Test an error when the organization id isn't set.
+      test_cli.run --expect_exit_1 [
+        "fleet",
+        "--fleet-root", fleet_tmp_dir,
+        "create-identities",
+        "--output-directory", tmp_dir,
+        "1",
+      ]
+      check_and_remove_identity_files tmp_dir 0
 
-    test_cli.run [
-      "fleet",
-      "create-identities",
-      "--output-directory", tmp_dir,
-      "1",
-    ]
-    check_and_remove_identity_files tmp_dir 1
+      test_cli.run [
+        "org", "default", TEST_ORGANIZATION_UUID,
+      ]
+
+      test_cli.run [
+        "fleet",
+        "--fleet-root", fleet_tmp_dir,
+        "create-identities",
+        "--output-directory", tmp_dir,
+        "1",
+      ]
+      check_and_remove_identity_files tmp_dir 1
 
 check_and_remove_identity_files tmp_dir count:
   stream := directory.DirectoryStream tmp_dir
