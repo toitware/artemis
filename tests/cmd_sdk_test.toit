@@ -24,7 +24,7 @@ run_test test_cli/TestCli:
   backdoor.install_service_images []
 
   test_cli.run [
-    "auth", "artemis", "login",
+    "auth", "login",
     "--email", TEST_EXAMPLE_COM_EMAIL,
     "--password", TEST_EXAMPLE_COM_PASSWORD,
   ]

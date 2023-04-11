@@ -1,16 +1,11 @@
 sdk: ^2.0.0-alpha.69
 prefixes:
-  ar: pkg-ar
   artemis: ..
-  certificate_roots: toit-cert-roots
   cli: pkg-cli
-  host: pkg-host
   http: pkg-http
-  snapshot: snapshot
-  supabase: toit-supabase
 packages:
   ..:
-    path: ..
+    path: ../..
     prefixes:
       ar: pkg-ar
       artemis: toit-artemis
@@ -23,7 +18,7 @@ packages:
       snapshot: snapshot
       supabase: toit-supabase
   fs:
-    path: ../tools/fs
+    path: ../../tools/fs
     prefixes:
       host: pkg-host
   pkg-ar:
@@ -47,7 +42,7 @@ packages:
     version: 1.0.0
     hash: 1c3cc4a4819f459393f00efc576f66f838665719
   snapshot:
-    path: ../tools/snapshot
+    path: ../../tools/snapshot
     prefixes:
       ar: pkg-ar
       cli: pkg-cli

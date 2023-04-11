@@ -81,8 +81,8 @@ class Artemis:
     if not broker_:
       broker_ = BrokerCli broker_config_ config_
     if authenticated:
-      broker_.ensure_authenticated:
-        ui_.error "Not logged into broker"
+      broker_.ensure_authenticated: | error_message |
+        ui_.error "$error_message (broker)."
         ui_.abort
     return broker_
 
@@ -96,8 +96,8 @@ class Artemis:
       connect_network_
       artemis_server_ = ArtemisServerCli network_ artemis_config_ config_
     if authenticated:
-      artemis_server_.ensure_authenticated:
-        ui_.error "Not logged into Artemis server"
+      artemis_server_.ensure_authenticated: | error_message |
+        ui_.error "$error_message (artemis)."
         ui_.abort
     return artemis_server_
 
@@ -249,6 +249,7 @@ class Artemis:
             --sdk=sdk
             --output_path=snapshot_path
             --cache=cache_
+            --ui=ui_
 
         // TODO(florian): add support for assets.
         sdk.firmware_add_container name

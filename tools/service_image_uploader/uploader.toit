@@ -126,7 +126,7 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   organization_id := parsed["organization-id"]
   force := parsed["force"]
 
-  git := Git
+  git := Git --ui=ui
   // Get the SDK.
   sdk := get_sdk sdk_version --cache=cache
   root := git.current_repository_root

@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import certificate_roots
+import cli
 import encoding.base64
 import encoding.json
 import encoding.ubjson
@@ -203,3 +204,40 @@ timestamp_to_string timestamp/Time -> string:
     $(utc.year)-$(%02d utc.month)-$(%02d utc.day)-T\
     $(%02d utc.h):$(%02d utc.m):$(%02d utc.s).\
     $(%09d timestamp.ns_part)Z"""
+
+
+// TODO(florian): move this into the cli package.
+class OptionPatterns extends cli.OptionEnum:
+  constructor name/string patterns/List
+      --default=null
+      --short_name/string?=null
+      --short_help/string?=null
+      --required/bool=false
+      --hidden/bool=false
+      --multi/bool=false
+      --split_commas/bool=false:
+    super name patterns
+      --default=default
+      --short_name=short_name
+      --short_help=short_help
+      --required=required
+      --hidden=hidden
+      --multi=multi
+      --split_commas=split_commas
+
+  parse str/string --for_help_example/bool=false -> any:
+    if not str.contains ":" and not str.contains "=":
+      // Make sure it's a valid one.
+      key := super str --for_help_example=for_help_example
+      return key
+
+    separator_index := str.index_of ":"
+    if separator_index < 0: separator_index = str.index_of "="
+    key := str[..separator_index]
+    key_with_equals := str[..separator_index + 1]
+    if not (values.any: it.starts_with key_with_equals):
+      throw "Invalid value for option '$name': '$str'. Valid values are: $(values.join ", ")."
+
+    return {
+      key: str[separator_index + 1..]
+    }

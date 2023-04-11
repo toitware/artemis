@@ -7,7 +7,6 @@ import log
 import net
 import encoding.json
 import encoding.base64
-import supabase.utils
 
 import ..artemis_server
 import ...config
@@ -16,6 +15,7 @@ import ...organization
 import ...ui
 
 import ....shared.server_config
+import ....shared.utils as utils
 
 STATUS_IM_A_TEAPOT ::= 418
 
@@ -42,7 +42,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     if user_id:
       current_user_id_ = user_id
       return
-    block.call
+    block.call "Not logged in"
 
   sign_up --email/string --password/string:
     send_request_ "sign-up" {

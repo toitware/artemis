@@ -6,7 +6,7 @@ import http
 import net
 import reader show Reader
 
-import supabase.utils
+import ....shared.utils as utils
 
 STATUS_IM_A_TEAPOT ::= 418
 

@@ -13,6 +13,7 @@ import .sdk
 import .server_config
 import .utils
 import .git
+import .ui
 
 class DeviceSpecificationException:
   message/string
@@ -162,9 +163,6 @@ class DeviceSpecification:
     sdk_version = get_string_ data "sdk-version"
     artemis_version = get_string_ data "artemis-version"
 
-    if not data.contains "containers" and not data.contains "apps":
-      format_error_ "Missing containers in device specification."
-
     if data.contains "apps" and data.contains "containers":
       format_error_ "Both 'apps' and 'containers' are present in device specification."
 
@@ -176,13 +174,16 @@ class DeviceSpecification:
       data = data.copy
       data["containers"] = data["apps"]
       data.remove "apps"
-    else:
+    else if data.contains "containers":
       check_is_map_ data "containers"
 
-    data["containers"].do --keys:
-      check_is_map_ data["containers"] --entry_type="Container" it
+    containers_entry := data.get "containers"
+    if not containers_entry: containers_entry = {:}
 
-    containers = data["containers"].map: | name container_description |
+    containers_entry.do --keys:
+      check_is_map_ containers_entry --entry_type="Container" it
+
+    containers = containers_entry.map: | name container_description |
           Container.from_json name container_description
 
     connections_entry := get_list_ data "connections"
@@ -266,7 +267,7 @@ interface Container:
 
   All paths in the container are relative to $relative_to.
   */
-  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
+  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
   type -> string
   arguments -> List?
   is_background -> bool?
@@ -323,7 +324,7 @@ abstract class ContainerBase implements Container:
       triggers = null
 
   abstract type -> string
-  abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache
+  abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
 
 class ContainerPath extends ContainerBase:
   entrypoint/string
@@ -341,7 +342,7 @@ class ContainerPath extends ContainerBase:
       format_error_"In container $name, git entry requires a relative path: $entrypoint"
     super.from_json name data
 
-  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache:
+  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
     if not git_url:
       path := entrypoint
       if fs.is_relative path:
@@ -349,12 +350,13 @@ class ContainerPath extends ContainerBase:
       sdk.compile_to_snapshot path --out=output_path
       return
 
-    git := Git
+    git := Git --ui=ui
     git_key := "$GIT_APP_PATH/$git_url"
+    ui.info "Fetching $git_url."
     cached_checkout := cache.get_directory_path git_key: | store/cli.DirectoryStore |
       store.with_tmp_directory: | tmp_dir/string |
         clone_dir := "$tmp_dir/clone"
-        git.init clone_dir --origin=git_url
+        git.init clone_dir --origin=git_url --quiet
         git.config --repository_root=clone_dir
             --key="advice.detachedHead"
             --value="false"
@@ -362,6 +364,7 @@ class ContainerPath extends ContainerBase:
             --repository_root=clone_dir
             --depth=1
             --ref=git_ref
+            --quiet
         store.move clone_dir
     // Make sure we have the ref we need in the cache.
     git.fetch --force --depth=1 --ref=git_ref --repository_root=cached_checkout
@@ -378,7 +381,7 @@ class ContainerPath extends ContainerBase:
       // aren't affected by changes to the cache.
       clone_dir := "$tmp_dir/clone"
       file_uri := "file://$(url_encoding.encode cached_checkout)"
-      git.init clone_dir --origin=file_uri
+      git.init clone_dir --origin=file_uri --quiet
       git.config --repository_root=clone_dir
           --key="advice.detachedHead"
           --value="false"
@@ -387,14 +390,18 @@ class ContainerPath extends ContainerBase:
           --depth=1
           --repository_root=clone_dir
           --ref=git_ref
+          --quiet
+      ui.info "Compiling $git_url."
       entrypoint_path := "$clone_dir/$entrypoint"
       if not file.is_file entrypoint_path:
-        throw "No such file: $entrypoint_path"
+        ui.error "No such file: $entrypoint_path"
+        ui.abort
 
       package_yaml_path := "$clone_dir/package.yaml"
       if not file.is_file package_yaml_path:
         if file.is_directory package_yaml_path:
-          throw "package.yaml is a directory in $git_url"
+          ui.error "package.yaml is a directory in $git_url"
+          ui.abort
         // Create an empty package.yaml file, so that we can safely call
         // toit.pkg without worrying that we use some file from a folder
         // above our tmp directory.
@@ -417,7 +424,7 @@ class ContainerSnapshot extends ContainerBase:
     snapshot_path = get_string_ data "snapshot" --holder=holder
     super.from_json name data
 
-  build_snapshot --relative_to/string --output_path/string --sdk/Sdk --cache/cli.Cache:
+  build_snapshot --relative_to/string --output_path/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
     path := snapshot_path
     if fs.is_relative snapshot_path:
       path = "$relative_to/$snapshot_path"

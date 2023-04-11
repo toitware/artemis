@@ -8,7 +8,8 @@ interface Authenticatable:
   /**
   Ensures that the user is authenticated.
 
-  If the user is not authenticated, the $block is called.
+  If the user is not authenticated, the $block is called with an
+    error string.
   */
   ensure_authenticated [block]
 
