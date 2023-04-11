@@ -59,7 +59,7 @@ run_main_test
     delete_service_version test_cli service_version
 
 delete_service_version test_cli/TestCli service_version/string:
-  supabase_backdoor := test_cli.artemis_backdoor as SupabaseBackdoor
+  supabase_backdoor := test_cli.artemis.backdoor as SupabaseBackdoor
   supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
     client.rest.delete "artemis_services" --filters=[
       "version=eq.$service_version",
