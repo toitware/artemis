@@ -209,8 +209,8 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   return [cmd]
 
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_dir := parsed["fleet-dir"]
-  Fleet.init fleet_dir --ui=ui
+  fleet_root := parsed["fleet-dir"]
+  Fleet.init fleet_root --ui=ui
 
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]

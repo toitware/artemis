@@ -42,7 +42,7 @@ class Fleet:
   constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache:
     ui_ = ui
     cache_ = cache
-    devices_ = load_devices_ fleet_dir_ --ui=ui
+    devices_ = load_devices_ fleet_root_ --ui=ui
     ambiguous_ids := {:}
     devices_.size.repeat: | i/int |
       device/DeviceFleet := devices_[i]
@@ -74,26 +74,26 @@ class Fleet:
         uuid_list := index_list.map: devices_[it].id
         ui_.warning "  $id maps to $(uuid_list.join ", ")"
 
-  static init fleet_dir/string --ui/Ui:
-    if not file.is_directory fleet_dir:
-      ui.error "Fleet directory $fleet_dir is not a directory."
+  static init fleet_root/string --ui/Ui:
+    if not file.is_directory fleet_root:
+      ui.error "Fleet root $fleet_root is not a directory."
       ui.abort
 
-    if file.is_file "$fleet_dir/$DEVICES_FILE_":
-      ui.error "Fleet directory $fleet_dir already contains a $DEVICES_FILE_ file."
+    if file.is_file "$fleet_root/$DEVICES_FILE_":
+      ui.error "Fleet root $fleet_root already contains a $DEVICES_FILE_ file."
       ui.abort
 
-    write_json_to_file "$fleet_dir/$DEVICES_FILE_" {:}
+    write_json_to_file "$fleet_root/$DEVICES_FILE_" {:}
 
-    ui.info "Initialized fleet directory $fleet_dir."
+    ui.info "Initialized fleet directory $fleet_root."
 
-  static load_devices_ fleet_dir/string --ui/Ui -> List:
-    if not file.is_directory fleet_dir:
-      ui.error "Fleet directory $fleet_dir is not a directory."
+  static load_devices_ fleet_root/string --ui/Ui -> List:
+    if not file.is_directory fleet_root:
+      ui.error "Fleet root $fleet_root is not a directory."
       ui.abort
-    devices_path := "$fleet_dir/$DEVICES_FILE_"
+    devices_path := "$fleet_root/$DEVICES_FILE_"
     if not file.is_file devices_path:
-      ui.error "Fleet directory $fleet_dir does not contain a $DEVICES_FILE_ file."
+      ui.error "Fleet root $fleet_root does not contain a $DEVICES_FILE_ file."
       ui.error "Use 'init' to initialize a directory as fleet directory."
       ui.abort
 
@@ -130,7 +130,7 @@ class Fleet:
       if device.name: entry["name"] = device.name
       if device.aliases: entry["aliases"] = device.aliases
       encoded_devices[device.id] = entry
-    write_json_to_file "$fleet_dir_/$DEVICES_FILE_" encoded_devices --pretty
+    write_json_to_file "$fleet_root_/$DEVICES_FILE_" encoded_devices --pretty
 
   create_firmware --specification_path/string --output_path/string --organization_ids/List:
     specification := parse_device_specification_file specification_path --ui=ui_
