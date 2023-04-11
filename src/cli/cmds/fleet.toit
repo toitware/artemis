@@ -159,6 +159,8 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Update the firmware of multiple devices.
 
+        If no devices are given, updates all devices in the fleet.
+
         This command takes either a firmware image or a specification file as
         input.
 
@@ -198,10 +200,8 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       ]
       --rest= [
         cli.Option "device-id"
-            --type="uuid"
             --short_help="The ID of the device."
-            --multi
-            --required,
+            --multi,
       ]
       --run=:: update it config cache ui
   cmd.add update_cmd
@@ -270,7 +270,6 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if specification_path and firmware_path:
     ui.error "Both specification and firmware given."
     ui.abort
-
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache

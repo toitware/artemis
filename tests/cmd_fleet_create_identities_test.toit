@@ -8,6 +8,7 @@ import artemis.cli.config
 import artemis.cli.server_config as cli_server_config
 import artemis.service
 import artemis.shared.server_config show ServerConfig
+import encoding.json
 import host.directory
 import host.file
 import expect show *
@@ -48,7 +49,7 @@ run_test test_cli/TestCli:
         "--output-directory", tmp_dir,
         "$count",
       ]
-      check_and_remove_identity_files tmp_dir count
+      check_and_remove_identity_files fleet_tmp_dir tmp_dir count
 
       // Test an error when the organization id isn't set.
       test_cli.run --expect_exit_1 [
@@ -58,7 +59,7 @@ run_test test_cli/TestCli:
         "--output-directory", tmp_dir,
         "1",
       ]
-      check_and_remove_identity_files tmp_dir 0
+      check_and_remove_identity_files fleet_tmp_dir tmp_dir 0
 
       test_cli.run [
         "org", "default", TEST_ORGANIZATION_UUID,
@@ -71,12 +72,20 @@ run_test test_cli/TestCli:
         "--output-directory", tmp_dir,
         "1",
       ]
-      check_and_remove_identity_files tmp_dir 1
+      check_and_remove_identity_files fleet_tmp_dir tmp_dir 1
 
-check_and_remove_identity_files tmp_dir count:
+check_and_remove_identity_files fleet_dir tmp_dir count:
+  devices := json.decode (file.read_content "$fleet_dir/devices.json")
+  expect_equals count devices.size
   stream := directory.DirectoryStream tmp_dir
   count.repeat:
     identity_file := stream.next
     expect (identity_file.ends_with "identity")
+    without_extension := identity_file[..identity_file.size - 9]
+    expect (devices.contains without_extension)
     file.delete "$tmp_dir/$identity_file"
   expect_null stream.next
+  // Reset the devices.json.
+  devices_stream := file.Stream.for_write "$fleet_dir/devices.json"
+  devices_stream.write "{}"
+  devices_stream.close
