@@ -17,7 +17,7 @@ run_test test_cli/TestCli:
   expect (output.contains "Not logged in")
 
   test_cli.run [
-    "auth", "artemis", "login",
+    "auth", "login",
     "--email", TEST_EXAMPLE_COM_EMAIL,
     "--password", TEST_EXAMPLE_COM_PASSWORD,
   ]

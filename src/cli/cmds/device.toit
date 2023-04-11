@@ -2,10 +2,9 @@
 
 import cli
 import encoding.base64
-import host.file
 import uuid
 
-import .broker_options_
+import .utils_
 import .device_container
 import ..artemis
 import ..cache
@@ -15,70 +14,20 @@ import ..device
 import ..event
 import ..firmware
 import ..organization
-import ..sdk
 import ..server_config
 import ..ui
 import ..utils
-import ...service.run.host show run_host
 import ...shared.json_diff show Modification
 
 create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
       --short_help="Manage devices."
-
-  flash_cmd := cli.Command "flash"
-      --long_help="""
-        Flashes a device with the Artemis firmware.
-
-        If no identity-file is provided, registers a new device as part
-        of the organization-id in the Artemis cloud first.
-
-        If a new device is registered, but no organization-id is provided,
-        the device is registered with the default organization.
-
-        The specification file contains the device specification. It includes
-        the firmware version, installed applications, connection settings,
-        etc. See 'specification-format' for more information.
-
-        If an identity file is provided, the device may also be flashed with
-        a firmware image instead of using a specification. In that case, the
-        Artemis tool will not connect to the Internet.
-
-        Unless '--no-default' is used, automatically makes this device the
-        new default device.
-        """
-      --options=broker_options + [
-        cli.Option "specification"
-            --type="file"
-            --short_help="The specification of the device.",
-        cli.Option "firmware"
-            --type="file"
-            --short_help="The firmware image to flash.",
-        cli.Option "identity"
-            --type="file"
-            --short_name="i"
-            --short_help="The identity file to use.",
-        cli.Option "organization-id"
-            --type="uuid"
-            --short_help="The organization to use.",
-        cli.Flag "default"
-            --default=true
-            --short_help="Make this device the default device.",
-        cli.Option "port"
-            --short_name="p"
-            --required,
-        cli.Option "baud",
-        OptionPatterns "partition"
-            ["file:<name>=<path>", "empty:<name>=<size>"]
-            --short_help="Add a custom partition to the device."
-            --split_commas
-            --multi,
-        cli.Flag "simulate"
-            --hidden
-            --default=false,
+      --options=[
+        cli.Option "device-id"
+            --short_name="d"
+            --short_help="ID of the device."
+            --type="uuid",
       ]
-      --run=:: flash it config cache ui
-  cmd.add flash_cmd
 
   update_cmd := cli.Command "update"
       --long_help="""
@@ -88,15 +37,11 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
         the firmware version, installed applications, connection settings,
         etc. See 'specification-format' for more information.
         """
-      --options=broker_options + [
+      --options=[
         cli.Option "specification"
             --type="file"
             --short_help="The specification of the device."
             --required,
-        cli.Option "device-id"
-            --short_name="d"
-            --short_help="ID of the device."
-            --type="uuid",
       ]
       --run=:: update it config cache ui
   cmd.add update_cmd
@@ -116,8 +61,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Clear the default device.",
       ]
       --rest=[
-        cli.Option "device-id"
-            --short_name="d"
+        cli.Option "id"
             --short_help="ID of the device."
             --type="uuid",
       ]
@@ -131,11 +75,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
         If no ID is given, shows the information of the default device.
         """
-      --options=broker_options + [
-        cli.Option "device-id"
-            --short_name="d"
-            --short_help="ID of the device."
-            --type="uuid",
+      --options=[
         cli.Option "event-type"
             --short_help="Only show events of this type."
             --multi,
@@ -151,12 +91,6 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
   max_offline_cmd := cli.Command "set-max-offline"
       --short_help="Update the max-offline time of the device."
-      --options=broker_options + [
-        cli.Option "device-id"
-            --short_name="d"
-            --short_help="ID of the device."
-            --type="uuid",
-      ]
       --rest=[
         cli.Option "max-offline"
             --short_help="The new max-offline time."
@@ -170,148 +104,8 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: set_max_offline it config cache ui
   cmd.add max_offline_cmd
 
-  specification_format_cmd := cli.Command "specification-format"
-      --short_help="Show the format of the device specification file."
-      --run=:: ui.info SPECIFICATION_FORMAT_HELP
-  cmd.add specification_format_cmd
-
   cmd.add (create_container_command config cache ui)
   return [cmd]
-
-flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  organization_id := parsed["organization-id"]
-  specification_path := parsed["specification"]
-  identity_path := parsed["identity"]
-  firmware_path := parsed["firmware"]
-  port := parsed["port"]
-  baud := parsed["baud"]
-  simulate := parsed["simulate"]
-  should_make_default := parsed["default"]
-
-  if identity_path and organization_id:
-    ui.error "Cannot specify both an identity file and an organization ID."
-    ui.abort
-
-  if firmware_path and not identity_path:
-    ui.error "Cannot specify a firmware image without an identity file."
-    ui.abort
-
-  if firmware_path and specification_path:
-    ui.error "Cannot specify both a firmware image and a specification file."
-    ui.abort
-
-  if not firmware_path and not specification_path:
-    ui.error "Must specify either a firmware image or a specification file."
-    ui.abort
-
-  device_id/string := ?
-  if identity_path:
-    identity := read_base64_ubjson identity_path
-    // TODO(florian): Abstract away the identity format.
-    organization_id = identity["artemis.device"]["organization_id"]
-    device_id = identity["artemis.device"]["device_id"]
-  else:
-    device_id = random_uuid_string
-
-    if not organization_id:
-      organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
-      if not organization_id:
-        ui.error "No organization ID specified and no default organization ID set."
-        ui.abort
-
-  partitions := []
-  parsed["partition"].do: | partition/Map |
-    type := partition.contains "file" ? "file" : "empty"
-    description/string := partition[type]
-    delimiter_index := description.index_of "="
-    if delimiter_index < 0:
-      ui.error "Partition of type '$type' is malformed: '$description'."
-      ui.abort
-    name := description[..delimiter_index]
-    if name.is_empty:
-      ui.error "Partition of type '$type' has no name."
-      ui.abort
-    if name.size > 15:
-      ui.error "Partition of type '$type' has name with more than 15 characters."
-      ui.abort
-    value := description[delimiter_index + 1 ..]
-    if type == "file":
-      if not file.is_file value:
-        ui.error "Partition $type:$name refers to invalid file."
-        ui.error "No such file: $value."
-        ui.abort
-    else:
-      size := int.parse value --on_error=:
-        ui.error "Partition $type:$name has illegal size: '$it'"
-        ui.abort
-      if size <= 0:
-        ui.error "Partition $type:$name has illegal size: $size"
-        ui.abort
-    partitions.add "$type:$description"
-
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    if not (identity_path and firmware_path):
-      // Don't check for the existence of the organization if we are
-      // flashing an image together with an identity. We might be
-      // on a disconnected flash station.
-      org := artemis.connected_artemis_server.get_organization organization_id
-      if not org:
-        ui.error "Organization $organization_id does not exist."
-        ui.abort
-
-    with_tmp_directory: | tmp_dir/string |
-      if not identity_path:
-        // Provision.
-        identity_path = "$tmp_dir/$(device_id).identity"
-        artemis.provision
-            --device_id=device_id
-            --out_path=identity_path
-            --organization_id=organization_id
-        ui.info "Successfully provisioned device $device_id."
-
-      envelope_path/string := ?
-
-      if specification_path:
-        // Customize.
-        specification := parse_device_specification_file specification_path --ui=ui
-        envelope_path = "$tmp_dir/$(device_id).envelope"
-        artemis.customize_envelope
-            --output_path=envelope_path
-            --device_specification=specification
-        artemis.upload_firmware envelope_path --organization_id=organization_id
-      else:
-        envelope_path = firmware_path
-
-      // Make unique for the given device.
-      config_bytes := artemis.compute_device_specific_data
-          --envelope_path=envelope_path
-          --identity_path=identity_path
-
-      config_path := "$tmp_dir/$(device_id).config"
-      write_blob_to_file config_path config_bytes
-
-      sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-      sdk := get_sdk sdk_version --cache=cache
-      if not simulate:
-        // Flash.
-        sdk.flash
-            --envelope_path=envelope_path
-            --config_path=config_path
-            --port=port
-            --baud_rate=baud
-            --partitions=partitions
-        if should_make_default: make_default_ device_id config ui
-      else:
-        ui.info "Simulating flash."
-        ui.info "Using the local Artemis service and not the one specified in the specification."
-        old_default := config.get CONFIG_ARTEMIS_DEFAULT_KEY
-        identity := read_base64_ubjson identity_path
-        if should_make_default: make_default_ device_id config ui
-        run_host
-            --envelope_path=envelope_path
-            --identity_path=identity_path
-            --cache=cache
-            --ui=ui
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
@@ -333,7 +127,8 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Default device cleared."
     return
 
-  device_id := parsed["device-id"]
+  // We allow to set the default with `-d` or by giving an ID as rest argument.
+  device_id := parsed["device-id"] or parsed["id"]
   if not device_id:
     device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
     if not device_id:
@@ -587,43 +382,3 @@ print_app_update_ name/string from/Map to/Map ui/Ui:
 prettify_firmware firmware/string -> string:
   if firmware.size <= 80: return firmware
   return firmware[0..40] + "..." + firmware[firmware.size - 40..]
-
-SPECIFICATION_FORMAT_HELP ::= """
-  The format of the device specification file.
-
-  The specification file is a JSON file with the following entries:
-
-  'version': The version of the specification file. Must be '1'.
-  'sdk': The SDK version to use. This is a string of the form
-      'major.minor.patch', e.g. '1.2.3'.
-  'artemis': The Artemis service version to use. This is a string of the
-      form 'major.minor.patch', e.g. '1.2.3'.
-  'max_offline': The duration the device can be offline before it
-      attempts to connect to the broker to sync. Expressed as
-      string of the form '1h2m3s' or '1h 2m 3s'.
-  'connections': a list of connections, each of which must be a
-      connection object. See below for the format of a connection object.
-  'apps': a list of applications, each of which must be an application
-      object. See below for the format of an application object.
-
-
-  A connection object consists of the following entries:
-  'type': The type of the connection. Must be 'wifi'.
-
-  For 'wifi' connections:
-  'ssid': The SSID of the network to connect to.
-  'password': The password of the network to connect to.
-
-
-  Applications entries are compiled to containers that are installed in
-  the firmware.
-  They always have a 'name' entry which is the name of the container.
-
-  Snapshot applications have a 'snapshot' entry which must be a path to the
-  snapshot file.
-
-  Source applications have an 'entrypoint' entry which must be a path to the
-  entrypoint file.
-  Source applications may also have a 'git' and 'branch' entry (which can be a
-  branch or tag) to checkout a git repository first.
-  """

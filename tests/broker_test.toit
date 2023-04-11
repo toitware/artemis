@@ -16,7 +16,7 @@ import artemis.cli.brokers.http.base as http_broker
 import artemis.cli.brokers.supabase show BrokerCliSupabase
 import supabase
 import supabase.auth as supabase
-import supabase.utils
+import artemis.shared.utils
 import uuid
 
 import .artemis_server
@@ -54,8 +54,8 @@ run_test
   test_broker.with_cli: | broker_cli/broker.BrokerCli |
     if broker_cli is BrokerCliSupabase:
       // Make sure we are authenticated.
-      broker_cli.ensure_authenticated: | auth/supabase.Auth |
-        auth.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
+      broker_cli.ensure_authenticated:
+        broker_cli.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
 
     if broker_name == "supabase-local-artemis":
       // Make sure the device is in the database.

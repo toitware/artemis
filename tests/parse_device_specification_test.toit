@@ -88,9 +88,8 @@ main:
 
   no_containers := new_valid
   no_containers.remove "containers"
-  expect_format_error
-      "Missing containers in device specification."
-      no_containers
+  // Should work without error.
+  DeviceSpecification.from_json no_containers --path="ignored"
 
   both_apps_and_containers := new_valid
   both_apps_and_containers["apps"] = both_apps_and_containers["containers"]
