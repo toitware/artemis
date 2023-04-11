@@ -35,11 +35,11 @@ class Fleet:
   artemis_/Artemis
   ui_/Ui
   cache_/Cache
-  fleet_dir_/string
+  fleet_root_/string
   devices_/List
   aliases_/Map := {:}
 
-  constructor .fleet_dir_ .artemis_ --ui/Ui --cache/Cache:
+  constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache:
     ui_ = ui
     cache_ = cache
     devices_ = load_devices_ fleet_dir_ --ui=ui

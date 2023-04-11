@@ -85,11 +85,6 @@ start-supabase-no-config:
 	else \
 	  supabase start --workdir supabase_broker; \
 	fi
-	@ if supabase status --workdir tests/supabase_test &> /dev/null; then \
-	  supabase db reset --workdir tests/supabase_test; \
-	else \
-	  supabase start --workdir tests/supabase_test; \
-	fi
 
 start-supabase: start-supabase-no-config
 	@ # Add the local Artemis server and makes it the default.
@@ -103,7 +98,6 @@ start-supabase: start-supabase-no-config
 stop-supabase:
 	@ supabase stop --workdir supabase_artemis
 	@ supabase stop --workdir supabase_broker
-	@ supabase stop --workdir tests/supabase_test
 
 .PHONY: use-customer-supabase-broker
 use-customer-supabase-broker: start-supabase

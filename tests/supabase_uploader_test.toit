@@ -3,6 +3,7 @@
 import expect show *
 import host.directory
 import host.file
+import artemis.cli.ui show ConsoleUi
 
 import .utils
 import .artemis_server
@@ -58,7 +59,7 @@ run_main_test
     delete_service_version test_cli service_version
 
 delete_service_version test_cli/TestCli service_version/string:
-  supabase_backdoor := test_cli.artemis_backdoor as SupabaseBackdoor
+  supabase_backdoor := test_cli.artemis.backdoor as SupabaseBackdoor
   supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
     client.rest.delete "artemis_services" --filters=[
       "version=eq.$service_version",
@@ -66,7 +67,8 @@ delete_service_version test_cli/TestCli service_version/string:
 
 run_test test_cli/TestCli:
   with_tmp_directory: | tmp_dir/string |
-    git := Git --ui=TestUi
+    ui := TestUi --no-quiet
+    git := Git --ui=ui
 
     // Login using the CLI login.
     // The uploader reuses the same credentials.
@@ -91,7 +93,7 @@ run_test test_cli/TestCli:
         uploader.main
             --config=test_cli.config
             --cache=test_cli.cache
-            --ui=TestUi
+            --ui=ui
             [
               "service",
               "--sdk-version", SDK_VERSION,
@@ -104,7 +106,7 @@ run_test test_cli/TestCli:
         uploader.main
             --config=test_cli.config
             --cache=test_cli.cache
-            --ui=TestUi
+            --ui=ui
             [
               "service",
               "--sdk-version", SDK_VERSION,
@@ -117,7 +119,7 @@ run_test test_cli/TestCli:
         uploader.main
             --config=test_cli.config
             --cache=test_cli.cache
-            --ui=TestUi
+            --ui=ui
             [
               "service",
               "--sdk-version", SDK_VERSION,
@@ -132,7 +134,7 @@ run_test test_cli/TestCli:
         uploader.main
             --config=test_cli.config
             --cache=test_cli.cache
-            --ui=TestUi
+            --ui=ui
             [
               "service",
               "--sdk-version", SDK_VERSION,
@@ -149,7 +151,7 @@ run_test test_cli/TestCli:
         uploader.main
             --config=test_cli.config
             --cache=test_cli.cache
-            --ui=TestUi
+            --ui=ui
             [
               "service",
               "--sdk-version", SDK_VERSION,
@@ -163,7 +165,7 @@ run_test test_cli/TestCli:
         uploader.main
             --config=test_cli.config
             --cache=test_cli.cache
-            --ui=TestUi
+            --ui=ui
             [
               "service",
               "--sdk-version", SDK_VERSION,
@@ -178,7 +180,7 @@ run_test test_cli/TestCli:
     downloader.main
         --config=test_cli.config
         --cache=test_cli.cache
-        --ui=TestUi
+        --ui=ui
         [
           "--sdk-version", SDK_VERSION,
           "--service-version", service_version,

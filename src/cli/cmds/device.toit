@@ -104,11 +104,6 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: set_max_offline it config cache ui
   cmd.add max_offline_cmd
 
-  specification_format_cmd := cli.Command "specification-format"
-      --short_help="Show the format of the device specification file."
-      --run=:: ui.info SPECIFICATION_FORMAT_HELP
-  cmd.add specification_format_cmd
-
   cmd.add (create_container_command config cache ui)
   return [cmd]
 
@@ -387,43 +382,3 @@ print_app_update_ name/string from/Map to/Map ui/Ui:
 prettify_firmware firmware/string -> string:
   if firmware.size <= 80: return firmware
   return firmware[0..40] + "..." + firmware[firmware.size - 40..]
-
-SPECIFICATION_FORMAT_HELP ::= """
-  The format of the device specification file.
-
-  The specification file is a JSON file with the following entries:
-
-  'version': The version of the specification file. Must be '1'.
-  'sdk': The SDK version to use. This is a string of the form
-      'major.minor.patch', e.g. '1.2.3'.
-  'artemis': The Artemis service version to use. This is a string of the
-      form 'major.minor.patch', e.g. '1.2.3'.
-  'max_offline': The duration the device can be offline before it
-      attempts to connect to the broker to sync. Expressed as
-      string of the form '1h2m3s' or '1h 2m 3s'.
-  'connections': a list of connections, each of which must be a
-      connection object. See below for the format of a connection object.
-  'apps': a list of applications, each of which must be an application
-      object. See below for the format of an application object.
-
-
-  A connection object consists of the following entries:
-  'type': The type of the connection. Must be 'wifi'.
-
-  For 'wifi' connections:
-  'ssid': The SSID of the network to connect to.
-  'password': The password of the network to connect to.
-
-
-  Applications entries are compiled to containers that are installed in
-  the firmware.
-  They always have a 'name' entry which is the name of the container.
-
-  Snapshot applications have a 'snapshot' entry which must be a path to the
-  snapshot file.
-
-  Source applications have an 'entrypoint' entry which must be a path to the
-  entrypoint file.
-  Source applications may also have a 'git' and 'branch' entry (which can be a
-  branch or tag) to checkout a git repository first.
-  """

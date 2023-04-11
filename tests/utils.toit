@@ -91,8 +91,13 @@ class TestExit:
 //   default version of the console UI to be simpler anyway.
 class TestUi extends ConsoleUi:
   stdout/string := ""
+  quiet_/bool
+
+  constructor --quiet/bool=true:
+    quiet_ = quiet
 
   print_ str/string:
+    if not quiet_: super str
     stdout += "$str\n"
 
   abort:
@@ -101,9 +106,18 @@ class TestUi extends ConsoleUi:
 class TestCli:
   config/cli.Config
   cache/cli.Cache
-  artemis_backdoor/ArtemisServerBackdoor
+  artemis/TestArtemisServer
+  broker/TestBroker
+  toit_run_/string
+  test_devices_/List ::= []
 
-  constructor .config .cache .artemis_backdoor:
+  constructor .config .cache .artemis .broker --toit_run/string:
+    toit_run_ = toit_run
+
+  close:
+    test_devices_.do: | device/TestDevice |
+      device.close
+      artemis.backdoor.remove_device device.hardware_id
 
   run args --expect_exit_1/bool=false -> string:
     ui := TestUi
@@ -113,14 +127,46 @@ class TestCli:
       throw "Expected exit 1, but got exit 0"
     return ui.stdout
 
+  /**
+  Creates and starts new device in the given $organization_id.
+  Neither the 'check-in', nor the firmware service are set up.
+  */
+  start_device --organization_id/string=TEST_ORGANIZATION_UUID -> TestDevice:
+    device_description := artemis.backdoor.create_device --organization_id=organization_id
+    hardware_id := device_description["id"]
+    alias_id := device_description["alias"]
+    initial_state := {
+      "identity": {
+        "device_id": alias_id,
+        "organization_id": organization_id,
+        "hardware_id": hardware_id,
+      }
+    }
+
+    broker.backdoor.create_device --device_id=alias_id --state=initial_state
+
+    encoded_firmware := build_encoded_firmware
+        --device_id=alias_id
+        --organization_id=TEST_ORGANIZATION_UUID
+        --hardware_id=hardware_id
+
+    result := TestDevicePipe
+        --broker=broker
+        --alias_id=alias_id
+        --hardware_id=hardware_id
+        --organization_id=TEST_ORGANIZATION_UUID
+        --toit_run=toit_run_
+        --encoded_firmware=encoded_firmware
+    test_devices_.add result
+    return result
+
 abstract class TestDevice:
   hardware_id/string
   alias_id/string
   organization_id/string
-  broker_/TestBroker
+  broker/TestBroker
 
-  constructor --broker/TestBroker --.hardware_id --.alias_id --.organization_id:
-    broker_ = broker
+  constructor --.broker --.hardware_id --.alias_id --.organization_id:
 
   /**
   Closes the test device and releases all resources.
@@ -153,7 +199,7 @@ abstract class TestDevice:
       // Wait until the device has reported its state.
       with_timeout timeout:
         while true:
-          state := broker_.backdoor.get_state alias_id
+          state := broker.backdoor.get_state alias_id
           // The initial state has the field "identity" in it.
           if not state.contains "identity": break
           sleep --ms=100
@@ -171,10 +217,9 @@ class TestDevicePipe extends TestDevice:
       --alias_id/string
       --organization_id/string
       --encoded_firmware/string
-      --broker_config/server_config.ServerConfig
       --toit_run/string:
 
-    broker_config_json := broker_config.to_json --der_serializer=: unreachable
+    broker_config_json := broker.server_config.to_json --der_serializer=: unreachable
     encoded_broker_config := json.stringify broker_config_json
     flags := [
       "test_device.toit",
@@ -278,10 +323,6 @@ class TestDevicePipe extends TestDevice:
 /**
 Starts the artemis server and broker.
 
-If $start_device is true creates a new device in the default
-  test organization and starts a service_task running Artemis.
-Neither the 'check_in', nor the firmware service are set up.
-
 Calls the given $block with a $TestCli instance and a $Device or null.
 
 If the type is supabase, uses the running supabase instances. Otherwise,
@@ -295,14 +336,12 @@ with_test_cli
     --artemis_type=(server_type_from_args args)
     --broker_type=(broker_type_from_args args)
     --logger/log.Logger=log.default
-    --start_device/bool=false
     [block]:
   with_artemis_server --type=artemis_type: | artemis_server |
     with_test_cli
         --artemis_server=artemis_server
         broker_type
         --logger=logger
-        --start_device=start_device
         --args=args
         block
 
@@ -310,7 +349,6 @@ with_test_cli
     --artemis_server/TestArtemisServer
     broker_type
     --logger/log.Logger
-    --start_device/bool=true
     --args/List
     [block]:
   with_broker --type=broker_type --logger=logger: | broker/TestBroker |
@@ -318,7 +356,6 @@ with_test_cli
         --artemis_server=artemis_server
         --broker=broker
         --logger=logger
-        --start_device=start_device
         --args=args
         block
 
@@ -326,9 +363,18 @@ with_test_cli
     --artemis_server/TestArtemisServer
     --broker/TestBroker
     --logger/log.Logger
-    --start_device/bool=true
     --args/List
     [block]:
+
+  // Use 'toit.run' (or 'toit.run.exe' on Windows), unless there is an
+  // argument `--toit-run=...`.
+  toit_run := platform == PLATFORM_WINDOWS ? "toit.run.exe" : "toit.run"
+  prefix := "--toit-run="
+  for i := 0; i < args.size; i++:
+    arg := args[i]
+    if arg.starts_with prefix:
+      toit_run = arg[prefix.size..]
+      break  // Use the first occurrence.
 
   with_tmp_directory: | tmp_dir |
     config_file := "$tmp_dir/config"
@@ -344,53 +390,14 @@ with_test_cli
 
     artemis_task/Task? := null
 
-    test_device/TestDevice? := null
-
-    if start_device:
-      device_description := artemis_server.backdoor.create_device
-          --organization_id=TEST_ORGANIZATION_UUID
-      hardware_id := device_description["id"]
-      alias_id := device_description["alias"]
-      initial_state := {
-        "identity": {
-          "device_id": alias_id,
-          "organization_id": TEST_ORGANIZATION_UUID,
-          "hardware_id": hardware_id,
-        }
-      }
-
-      broker.backdoor.create_device --device_id=alias_id --state=initial_state
-
-      toit_run := "toit.run$(platform == PLATFORM_WINDOWS ? ".exe" : "")"
-      for i := 0; i < args.size; i++:
-        arg := args[i]
-        if arg.starts_with "--toit-run=":
-          toit_run = arg[11..]
-          break
-
-      encoded_firmware := build_encoded_firmware
-          --device_id=alias_id
-          --organization_id=TEST_ORGANIZATION_UUID
-          --hardware_id=hardware_id
-
-      test_device = TestDevicePipe
-          --broker=broker
-          --alias_id=alias_id
-          --hardware_id=hardware_id
-          --organization_id=TEST_ORGANIZATION_UUID
-          --toit_run=toit_run
-          --broker_config=broker_config
-          --encoded_firmware=encoded_firmware
-
+    test_cli := TestCli config cache artemis_server broker --toit_run=toit_run
     try:
-      test_cli := TestCli config cache artemis_server.backdoor
       test_cli.run ["config", "broker", "--artemis", "default", artemis_config.name]
       test_cli.run ["config", "broker", "default", broker_config.name]
-      block.call test_cli test_device
+      block.call test_cli
     finally:
-      if test_device: test_device.close
+      test_cli.close
       if artemis_task: artemis_task.cancel
-      if test_device: artemis_server.backdoor.remove_device test_device.hardware_id
       directory.rmdir --recursive cache_dir
 
 build_encoded_firmware
