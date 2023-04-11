@@ -60,6 +60,8 @@ interface Container:
 
 /**
 ...
+
+Only one reader. Multiple writers.
 */
 class Channel extends ServiceResourceProxy:
   topic/string
@@ -67,10 +69,8 @@ class Channel extends ServiceResourceProxy:
   buffer_/ByteArray? := null
   cursor_/int := 0
 
-  unacked_count_/int := 0
-  unacked_count_previous_/int := 0
   unacked_pages_/Deque := Deque
-
+  unacked_count_/int := 0
   acks_/int := 0
 
   constructor.internal_ client/api.ArtemisClient handle/int --.topic:
@@ -82,57 +82,97 @@ class Channel extends ServiceResourceProxy:
     handle := client.channel_open --topic=topic
     return Channel.internal_ client handle --topic=topic
 
+  // something about how much is available
+  // something about how much is buffered
+  // receive - blocking
+  // receive - only latest
+
+  // read position?
+  position -> int:
+    if unacked_pages_.is_empty:
+      receive_page_: | sn buffer | return sn
+      unreachable
+    // TODO(kasper): Handle wrap around.
+    return unacked_pages_.first[0] + unacked_count_
+
+  // ...
+  write_position -> int:
+    return -1
+
   send bytes/ByteArray -> none:
     (client_ as api.ArtemisClient).channel_send handle_ bytes
 
-  receive -> ByteArray?:
-    buffer := buffer_
-    if cursor_ == 0:
-      // We have read the entire last page. We can reuse the
-      // buffer if it has already been acked.
-      result := (client_ as api.ArtemisClient).channel_receive_page handle_
-          --page=unacked_pages_.size
-          --buffer=unacked_pages_.is_empty ? buffer : null
-      sn := result[0]
-      if not sn: return null
-      // Got another non-empty page. Wonderful.
-      buffer_ = buffer = result[1]
-      cursor_ = 14  // TODO(kasper): Avoid hardcoding this!
-      unacked_count := unacked_count_
-      unacked_pages_.add [sn, unacked_count - unacked_count_previous_]
-      unacked_count_previous_ = unacked_count
-    result := receive_next_ buffer
-    unacked_count_++
-    return result
+  /**
+  Receives the next entry in the channel.
+
+  Throws an exception if the channel was found to be corrupt
+    during the reading.
+  */
+  receive -> ByteArray?:  // TODO(kasper): Add wait flag!
+    receive_page_: | sn buffer |
+      next := receive_next_ buffer
+      if next:
+        unacked_count_++
+      else:
+        receive_page_: | sn buffer |
+          next = buffer and receive_next_ buffer
+          if next: unacked_count_++
+      return next
+    unreachable
 
   acknowledge n/int=1 -> none:
     if n < 1: throw "Bad Argument"
     acks := acks_ + n
     unacked_count := unacked_count_
-    if acks > unacked_count: throw "Bad Argument"
+    if acks > unacked_count: throw "OUT_OF_RANGE: $acks > $unacked_count"
+    acks_ = acks
 
     // Ack all the pages we can.
-    last_is_incomplete := cursor_ != 0
-    while true:
-      // Don't acknowledge the last page unless we're
+    while not unacked_pages_.is_empty:
+      // Don't acknowledge the page unless we're
       // completely done with it.
-      if last_is_incomplete and unacked_pages_.size == 1: break
       first := unacked_pages_.first
       delta := first[1]
-      if acks < delta: break
-      (client_ as api.ArtemisClient).channel_acknowledge handle_ first[0]
+      if acks < delta: return
 
+      (client_ as api.ArtemisClient).channel_acknowledge handle_ first[0] delta
       unacked_count_ -= delta
-      unacked_count_previous_ -= delta
       acks_ = acks = acks - delta
       unacked_pages_.remove_first
 
-  receive_next_ buffer/ByteArray -> ByteArray:
+  // TODO(kasper): Poor name.
+  receive_page_ [block] -> any:
+    buffer := buffer_
+    if cursor_ > 0: return block.call unacked_pages_.last[0] buffer
+
+    // We have read the entire last page. We can reuse the
+    // buffer if it has already been acked.
+    page := unacked_pages_.size
+    result := (client_ as api.ArtemisClient).channel_receive_page handle_
+        --page=page
+        --buffer=(page == 0) ? buffer : null
+    sn := result[0]
+    count := result[1]
+    if count == 0: return block.call sn null
+
+    // Got another non-empty page. Wonderful.
+    buffer_ = buffer = result[2]
+    cursor_ = 14  // TODO(kasper): Avoid hardcoding this!
+
+    // ...
+    unacked_pages_.add [sn, count]
+    return block.call sn buffer
+
+  receive_next_ buffer/ByteArray -> ByteArray?:
     cursor := cursor_
     from := cursor
     to := cursor
 
     acc := buffer[cursor++]
+    if acc == 0xff:
+      cursor_ = 0  // Read last entry.
+      return null
+
     bits := 6
     acc &= 0x3f
     while true:

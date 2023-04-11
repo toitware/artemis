@@ -15,12 +15,49 @@ main:
   provider.uninstall --wait
 
 test:
+  // TODO(kasper): One reader at a time?
+  // TODO(kasper): Test multiple writers.
   channel := artemis.Channel.open --topic="fisk"
+  position := channel.position
   try:
-    channel.send #[1, 2, 3]
-    expect_bytes_equal #[1, 2, 3] channel.receive
+    list := List 200: (ByteArray 60 + (random 40): random 0x100)
+    list.do: channel.send it
+    list.size.repeat:
+      // TODO(kasper): Handle wrap-around.
+      expect_equals (position + it) channel.position
+      expect_bytes_equal list[it] channel.receive
+    expect_null channel.receive
+    position = channel.position
+    remaining := list.size
+    while remaining > 0:
+      n := 1 + (random remaining)
+      channel.acknowledge n
+      expect_equals position channel.position
+      remaining -= n
+    expect_throw "OUT_OF_RANGE: 1 > 0": channel.acknowledge
+    expect_equals position channel.position
   finally:
     channel.close
+
+/*
+wonk channel/artemis.Channel stream:
+  // so if the sequence numbers are messed up we should
+  // throw.
+  // first sn = ?
+  size := 0
+  n := 0
+  while true:
+    encoded := channel.receive
+    if not encoded: break
+    stream.write encoded
+    n++
+    size += encoded.size
+    if size > 1500: break
+
+  // send the package - wait for ack.
+  channel.acknowledge n
+*/
+
 // --------------------------------------------------------------------------
 
 // TODO(kasper): Share more code with the real Artemis implementation.
@@ -41,7 +78,7 @@ class TestServiceProvider extends services.ServiceProvider
       return channel.receive_page --page=arguments[1] --buffer=arguments[2]
     if index == api.ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX:
       channel := (resource client arguments[0]) as ChannelResource
-      return channel.acknowledge arguments[1]
+      return channel.acknowledge arguments[1] arguments[2]
     unreachable
 
   channel_open client/int --topic/string -> ChannelResource:

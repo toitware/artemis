@@ -94,7 +94,7 @@ class ArtemisServiceProvider extends services.ServiceProvider
       return channel.receive_page --page=arguments[1] --buffer=arguments[2]
     if index == api.ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX:
       channel := (resource client arguments[0]) as ChannelResource
-      return channel.acknowledge arguments[1]
+      return channel.acknowledge arguments[1] arguments[2]
     unreachable
 
   version -> string:
@@ -116,7 +116,7 @@ class ArtemisServiceProvider extends services.ServiceProvider
   channel_receive_page handle/int --page/int --buffer/ByteArray? -> ByteArray:
     unreachable  // Here to satisfy the checker.
 
-  channel_acknowledge handle/int sn/int -> none:
+  channel_acknowledge handle/int sn/int count/int -> none:
     unreachable  // Here to satisfy the checker.
 
   channel_open client/int --topic/string -> ChannelResource:

@@ -15,7 +15,7 @@ class ChannelResource extends ServiceResource:
     storage.Region.delete --flash "toit.io/channel/$topic"
     // TODO(kasper): Should we be reference counting this,
     // so we can have multiple resources opened on the same
-    // region? Probably.
+    // region? Probably not.
     region_ = storage.Region.open --flash "toit.io/channel/$topic"
         --capacity=32 * 1024
     log_ = FlashLog region_
@@ -26,11 +26,13 @@ class ChannelResource extends ServiceResource:
 
   receive_page --page/int --buffer/ByteArray? -> List:
     buffer = buffer or (ByteArray log_.size_per_page_)
-    sn := log_.read_page buffer --peek=page
-    return [sn, buffer]
+    result := log_.read_page buffer --peek=page
+    buffer.fill --to=FlashLog.HEADER_SIZE_ 0
+    return result
 
-  acknowledge sn/int -> none:
-    log_.acknowledge sn
+  acknowledge sn/int count/int -> none:
+    if count < 1: throw "Bad Argument"
+    log_.acknowledge (SN.previous (SN.next sn --increment=count))
 
   on_closed -> none:
     region := region_
