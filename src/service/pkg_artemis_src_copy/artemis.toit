@@ -61,7 +61,7 @@ interface Container:
 /**
 The channel ...
 
-Only one reader. Multiple writers.
+Only one receiver. Multiple senders.
 */
 class Channel extends ServiceResourceProxy:
   topic/string
@@ -77,18 +77,24 @@ class Channel extends ServiceResourceProxy:
   constructor.internal_ client/api.ArtemisClient handle/int --.topic:
     super client handle
 
-  static open --topic/string -> Channel:
+  static open --topic/string --read/bool=false -> Channel:
     client := artemis_client_
     if not client: throw "Artemis unavailable"
-    handle := client.channel_open --topic=topic
+    handle := client.channel_open --topic=topic --read=read
     return Channel.internal_ client handle --topic=topic
 
-  // TODO(kasper):
-  // receive - blocking
-  // receive - only latest
-
   /**
-  ...
+  Whether this channel is empty.
+
+  Receiving from an empty channel will cause $receive
+    to return null. There can be multiple senders for
+    a given channel, so it is possible to conclude that
+    a channel is empty and get a non-null result from
+    $receive because of an interleaved $send from
+    through another sender.
+
+  Receiving from an non-empty channel will cause
+    $receive to return a non-null byte array.
   */
   is_empty -> bool:
     if buffered_ > received_: return false
@@ -116,12 +122,21 @@ class Channel extends ServiceResourceProxy:
       first/Page_ := pages.first
       return Position.internal_ first.sn + received_
 
+  /**
+  ...
+  */
   send bytes/ByteArray -> none:
     (client_ as api.ArtemisClient).channel_send handle_ bytes
 
   /**
   Returns the next element in the channel or null if the
     channel has no elements.
+
+  The returned element may be invalidated after having
+    been acknowledged through a call to $acknowledge.
+    If there is a chance that the element will be used
+    after acknowledging it, the element must be copied
+    prior to that.
 
   Throws an exception if the channel was found to be corrupt
     during the reading.

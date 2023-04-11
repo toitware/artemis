@@ -27,6 +27,9 @@ class FlashLog:
   write_page_/int := -1
   write_offset_/int := -1
 
+  // Slighlty freaky.
+  usage_/int := 0
+
   constructor region/storage.Region:
     if not region.write_can_clear_bits:
       throw "Must be able to clear bits"
@@ -39,6 +42,15 @@ class FlashLog:
     size_per_page_ = region.erase_granularity
     buffer_ = ByteArray size_per_page_
     with_buffer_: ensure_valid_ it
+
+  acquire -> int:
+    return ++usage_
+
+  release -> int:
+    usage := usage_ - 1
+    usage_ = usage
+    if usage == 0: region_.close
+    return usage
 
   dump -> none:
     with_buffer_ --if_absent=(: ByteArray size_per_page_): | buffer/ByteArray |
@@ -106,21 +118,23 @@ class FlashLog:
       decode_all_ buffer -1 block
 
   /**
-  Decode given buffer. Intended for testing.
+  Decodes the given buffer. Intended for testing.
   */
   decode buffer/ByteArray [block] -> none:
     decode_all_ buffer -1 block
 
   /**
-  Read the page $peek pages after the read page
+  Reads the page $peek pages after the read page
     into the given buffer.
 
-  TODO(kasper): Fix this description.
-  Returns null if no such page has been written
-    to yet. Otherwise, returns the sequence number
-    of the first entry on the page.
+  Returns a list with the following elements:
+    [0]: page first sequence number  / int
+    [1]: page start cursor           / int?
+    [2]: page element count          / int
+    [3]: page buffer                 / ByteArray
   */
   read_page buffer/ByteArray --peek/int=0 -> List:
+
     if peek < 0 or buffer.size != size_per_page_:
       throw "Bad Argument"
     prevalidated := 0  // TODO(kasper): Get this from somewhere.
@@ -153,6 +167,8 @@ class FlashLog:
       return [sn, cursor, count, buffer]
     unreachable
 
+  // TODO(kasper): Allow passing the buffer in from the outside
+  // so we can reuse the one the client already has?
   acknowledge sn/int -> none:
     with_buffer_: | buffer/ByteArray |
       is_committed_page_ read_page_ buffer: | sn_ is_acked count |

@@ -16,7 +16,7 @@ interface ArtemisService:
   container_current_restart --wakeup_us/int? -> none
   static CONTAINER_CURRENT_RESTART_INDEX /int ::= 1
 
-  channel_open --topic/string -> int?
+  channel_open --topic/string --read/bool -> int?
   static CHANNEL_OPEN_INDEX /int ::= 2
 
   channel_send handle/int bytes/ByteArray -> none
@@ -41,8 +41,8 @@ class ArtemisClient extends ServiceClient
   container_current_restart --wakeup_us/int? -> none:
     invoke_ ArtemisService.CONTAINER_CURRENT_RESTART_INDEX wakeup_us
 
-  channel_open --topic/string -> int?:
-    return invoke_ ArtemisService.CHANNEL_OPEN_INDEX topic
+  channel_open --topic/string --read/bool -> int?:
+    return invoke_ ArtemisService.CHANNEL_OPEN_INDEX [topic, read]
 
   channel_send handle/int bytes/ByteArray -> none:
     invoke_ ArtemisService.CHANNEL_SEND_INDEX [handle, bytes]

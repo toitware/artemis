@@ -85,7 +85,7 @@ class ArtemisServiceProvider extends services.ServiceProvider
     if index == api.ArtemisService.CONTAINER_CURRENT_RESTART_INDEX:
       return container_current_restart --gid=gid --wakeup_us=arguments
     if index == api.ArtemisService.CHANNEL_OPEN_INDEX:
-      return channel_open client --topic=arguments
+      return channel_open client --topic=arguments[0] --read=arguments[1]
     if index == api.ArtemisService.CHANNEL_SEND_INDEX:
       channel := (resource client arguments[0]) as ChannelResource
       return channel.send arguments[1]
@@ -107,7 +107,7 @@ class ArtemisServiceProvider extends services.ServiceProvider
   container_current_restart --wakeup_us/int? -> none:
     unreachable  // Here to satisfy the checker.
 
-  channel_open --topic/string -> int?:
+  channel_open --topic/string --read/bool -> int?:
     unreachable  // Here to satisfy the checker.
 
   channel_send handle/int bytes/ByteArray -> none:
@@ -119,5 +119,5 @@ class ArtemisServiceProvider extends services.ServiceProvider
   channel_acknowledge handle/int sn/int count/int -> none:
     unreachable  // Here to satisfy the checker.
 
-  channel_open client/int --topic/string -> ChannelResource:
-    return ChannelResource this client --topic=topic
+  channel_open client/int --topic/string --read/bool -> ChannelResource:
+    return ChannelResource this client --topic=topic --read=read

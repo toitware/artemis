@@ -5,20 +5,23 @@ import system.storage
 
 import .flashlog show FlashLog SN
 
+flashlogs_ ::= {:}
+readers_ ::= {}
+
 class ChannelResource extends ServiceResource:
   topic/string
-  region_/storage.Region? := ?
+  read/bool
   log_/FlashLog? := ?
 
-  constructor provider/ServiceProvider client/int --.topic:
-    // TODO(kasper): Stop always resetting.
-    storage.Region.delete --flash "toit.io/channel/$topic"
-    // TODO(kasper): Should we be reference counting this,
-    // so we can have multiple resources opened on the same
-    // region? Probably not.
-    region_ = storage.Region.open --flash "toit.io/channel/$topic"
-        --capacity=32 * 1024
-    log_ = FlashLog region_
+  constructor provider/ServiceProvider client/int --.topic --.read:
+    if read:
+      if readers_.contains topic: throw "ALREADY_IN_USE"
+      readers_.add topic
+    log_ = flashlogs_.get topic --init=:
+      path := "toit.io/channel/$topic"
+      capacity := 32 * 1024
+      FlashLog (storage.Region.open --flash path --capacity=capacity)
+    log_.acquire
     super provider client
 
   send bytes/ByteArray -> none:
@@ -33,8 +36,8 @@ class ChannelResource extends ServiceResource:
     log_.acknowledge (SN.previous (SN.next sn --increment=count))
 
   on_closed -> none:
-    region := region_
-    if not region: return
-    region_ = null
+    log := log_
+    if not log: return
     log_ = null
-    region.close
+    if read: readers_.remove topic
+    if log.release == 0: flashlogs_.remove topic
