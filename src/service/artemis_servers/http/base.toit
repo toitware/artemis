@@ -4,10 +4,11 @@ import encoding.ubjson
 import http
 import log
 import net
-import supabase.utils
 
 import ..artemis_server
 import ....shared.server_config
+import ....shared.utils as utils
+
 
 class ArtemisServerServiceHttp implements ArtemisServerService:
   server_config_/ServerConfigHttpToit

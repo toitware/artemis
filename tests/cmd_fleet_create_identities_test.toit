@@ -15,7 +15,7 @@ import expect show *
 import .utils
 
 main args:
-  with_test_cli --args=args: | test_cli/TestCli _ |
+  with_test_cli --args=args: | test_cli/TestCli |
     run_test test_cli
 
 run_test test_cli/TestCli:
@@ -36,14 +36,14 @@ run_test test_cli/TestCli:
 
       test_cli.run [
         "fleet",
-        "--fleet-dir", fleet_tmp_dir,
+        "--fleet-root", fleet_tmp_dir,
         "init",
       ]
 
       count := 3
       test_cli.run [
         "fleet",
-        "--fleet-dir", fleet_tmp_dir,
+        "--fleet-root", fleet_tmp_dir,
         "create-identities",
         "--organization-id", TEST_ORGANIZATION_UUID,
         "--output-directory", tmp_dir,
@@ -54,7 +54,7 @@ run_test test_cli/TestCli:
       // Test an error when the organization id isn't set.
       test_cli.run --expect_exit_1 [
         "fleet",
-        "--fleet-dir", fleet_tmp_dir,
+        "--fleet-root", fleet_tmp_dir,
         "create-identities",
         "--output-directory", tmp_dir,
         "1",
@@ -67,7 +67,7 @@ run_test test_cli/TestCli:
 
       test_cli.run [
         "fleet",
-        "--fleet-dir", fleet_tmp_dir,
+        "--fleet-root", fleet_tmp_dir,
         "create-identities",
         "--output-directory", tmp_dir,
         "1",

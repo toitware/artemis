@@ -159,6 +159,7 @@ json_encode_pretty value/any -> ByteArray:
   buffer.close
   return buffer.buffer
 
+// TODO(florian): move this into the core library.
 json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
   indentation_string/string? := null
   newline := :
