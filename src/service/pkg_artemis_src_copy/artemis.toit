@@ -59,7 +59,7 @@ interface Container:
   restart --delay/Duration?=null -> none
 
 /**
-...
+The channel ...
 
 Only one reader. Multiple writers.
 */
@@ -70,9 +70,9 @@ class Channel extends ServiceResourceProxy:
   cursor_/int? := null
 
   pages_/Deque := Deque
-
-  unacked_count_/int := 0
-  acks_/int := 0
+  buffered_/int := 0
+  received_/int := 0
+  acknowledged_/int := 0
 
   constructor.internal_ client/api.ArtemisClient handle/int --.topic:
     super client handle
@@ -83,68 +83,93 @@ class Channel extends ServiceResourceProxy:
     handle := client.channel_open --topic=topic
     return Channel.internal_ client handle --topic=topic
 
-  // something about how much is available
-  // something about how much is buffered
+  // TODO(kasper):
   // receive - blocking
   // receive - only latest
 
+  /**
+  ...
+  */
+  is_empty -> bool:
+    if buffered_ > received_: return false
+    receive_next_page_
+    return cursor_ == null
+
+  /**
+  The number of elements currently buffered.
+  */
+  buffered -> int:
+    return buffered_ - received_
+
+  /**
+  The current position.
+
+  The position increases as elements are received
+    through calls to $receive.
+  */
   position -> Position:
     pages := pages_
-    if not pages.is_empty:
-      // TODO(kasper): Handle wrap around.
+    if pages.is_empty:
+      assert: received_ == 0
+      return Position.internal_ receive_next_page_
+    else:
       first/Page_ := pages.first
-      return Position.internal_ first.sn + unacked_count_
-    assert: unacked_count_ == 0
-    receive_page_: | sn buffer | return Position.internal_ sn
-    unreachable
+      return Position.internal_ first.sn + received_
 
   send bytes/ByteArray -> none:
     (client_ as api.ArtemisClient).channel_send handle_ bytes
 
   /**
-  Receives the next entry in the channel.
+  Returns the next element in the channel or null if the
+    channel has no elements.
 
   Throws an exception if the channel was found to be corrupt
     during the reading.
   */
-  receive -> ByteArray?:  // TODO(kasper): Add wait flag!
-    receive_page_: | sn buffer |
-      next := receive_next_ buffer
-      if next:
-        unacked_count_++
-      else:
-        receive_page_: | sn buffer |
-          next = buffer and receive_next_ buffer
-          if next: unacked_count_++
-      return next
-    unreachable
+  receive -> ByteArray?:
+    while buffered_ == received_:
+      receive_next_page_
+      if not cursor_: return null
+    next := receive_next_ buffer_
+    received_++
+    return next
 
+  /**
+  Acknowledges the handling of a received element.
+
+  The channel is allowed to discard acknowledged elements,
+    but it may do so using bulk operations, so you can
+    receive acknowledged elements again on later calls to
+    $receive.
+  */
   acknowledge n/int=1 -> none:
     if n < 1: throw "Bad Argument"
-    acks := acks_ + n
-    unacked_count := unacked_count_
-    if acks > unacked_count: throw "OUT_OF_RANGE: $acks > $unacked_count"
-    acks_ = acks
+    acknowledged := acknowledged_ + n
+    received := received_
+    if acknowledged > received: throw "OUT_OF_RANGE: $acknowledged > $received"
+    acknowledged_ = acknowledged
 
-    // Ack all the pages we can.
     pages := pages_
     while not pages.is_empty:
-      // Don't acknowledge the page unless we're
-      // completely done with it.
       first/Page_ := pages.first
       count := first.count
-      if acks < count: return
-
+      // Don't acknowledge the page until we're completely done with it.
+      if acknowledged < count: break
       (client_ as api.ArtemisClient).channel_acknowledge handle_ first.sn count
-      unacked_count_ -= count
-      acks_ = acks = acks - count
       pages.remove_first
 
-  // TODO(kasper): Poor name.
-  receive_page_ [block] -> any:
-    buffer := buffer_
+      // Adjust the bookkeeping counts, so they represent the state
+      // for the remaining pages.
+      received -= count
+      acknowledged -= count
+      buffered_ -= count
+      received_ = received
+      acknowledged_ = acknowledged
+
+  receive_next_page_ -> int:
     pages := pages_
-    if cursor_: return block.call pages.last.sn buffer
+    buffer := buffer_
+    cursor_ = null
 
     // We have read the entire last page. We can reuse the
     // buffer if it has already been acked.
@@ -155,12 +180,13 @@ class Channel extends ServiceResourceProxy:
     sn := result[0]
     count := result[2]
     buffer_ = buffer = result[3]
-    if count == 0: return block.call sn null
+    if count == 0: return sn
 
     // Got another non-empty page. Wonderful!
     cursor_ = result[1]
     pages.add (Page_ --sn=sn --count=count)
-    return block.call sn buffer
+    buffered_ += count
+    return sn
 
   receive_next_ buffer/ByteArray -> ByteArray?:
     cursor := cursor_
