@@ -28,8 +28,7 @@ create_sdk_commands config/Config cache/Cache ui/Ui -> List:
   return [sdk_cmd]
 
 with_sdk_server parsed/cli.Parsed config/Config [block]:
-  server_config := get_server_from_config config parsed["server"] CONFIG_ARTEMIS_DEFAULT_KEY
-
+  server_config := get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
   with_server server_config config block
 
 list_sdks parsed/cli.Parsed config/Config ui/Ui:
@@ -37,8 +36,8 @@ list_sdks parsed/cli.Parsed config/Config ui/Ui:
   service_version := parsed["service-version"]
 
   with_sdk_server parsed config: | server/ArtemisServerCli |
-    server.ensure_authenticated:
-      ui.error "Not logged into Artemis server."
+    server.ensure_authenticated: | error_message |
+      ui.error "$error_message (artemis)."
       ui.abort
     versions/List := server.list_sdk_service_versions
         --sdk_version=sdk_version

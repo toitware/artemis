@@ -85,11 +85,6 @@ start-supabase-no-config:
 	else \
 	  supabase start --workdir supabase_broker; \
 	fi
-	@ if supabase status --workdir tests/supabase_test &> /dev/null; then \
-	  supabase db reset --workdir tests/supabase_test; \
-	else \
-	  supabase start --workdir tests/supabase_test; \
-	fi
 
 start-supabase: start-supabase-no-config
 	@ # Add the local Artemis server and makes it the default.
@@ -103,7 +98,6 @@ start-supabase: start-supabase-no-config
 stop-supabase:
 	@ supabase stop --workdir supabase_artemis
 	@ supabase stop --workdir supabase_broker
-	@ supabase stop --workdir tests/supabase_test
 
 .PHONY: use-customer-supabase-broker
 use-customer-supabase-broker: start-supabase
@@ -117,11 +111,11 @@ use-customer-supabase-broker: start-supabase
 setup-local-dev:
 	@ # The HTTP server doesn't have any default users.
 	@ if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) == "artemis-local-http" ]]; then \
-	    $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis signup --email test-admin@toit.io --password password; \
+	    $(TOIT_RUN_BIN) src/cli/cli.toit auth signup --email test-admin@toit.io --password password; \
 	  fi
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit auth artemis login --email test-admin@toit.io --password password
+	@ $(TOIT_RUN_BIN) src/cli/cli.toit auth login --email test-admin@toit.io --password password
 	@ if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) != $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) ]]; then \
-	    $(TOIT_RUN_BIN) src/cli/cli.toit auth broker login --email test@example.com --password password; \
+	    $(TOIT_RUN_BIN) src/cli/cli.toit auth login --broker --email test@example.com --password password; \
 	  fi
 
 	@ $(TOIT_RUN_BIN) src/cli/cli.toit org create "Test Org"

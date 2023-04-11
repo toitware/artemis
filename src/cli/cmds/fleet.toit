@@ -4,7 +4,7 @@ import certificate_roots
 import cli
 import uuid
 
-import .broker_options_
+import .utils_
 import ..artemis
 import ..config
 import ..cache
@@ -52,7 +52,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         the firmware to the broker. Without any 'organization-id', uses the
         default organization. Otherwise, uploads to the given organizations.
         """
-      --options= broker_options + [
+      --options=[
         cli.Option "specification"
             --type="file"
             --short_help="The specification of the firmware."
@@ -92,7 +92,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         This command requires the broker to be configured.
         This command requires Internet access.
         """
-      --options= broker_options + [
+      --options=[
         cli.Option "organization-id"
             --type="uuid"
             --short_help="The organization to use.",
@@ -120,7 +120,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
         If no organization is given, the default organization is used.
         """
-      --options=broker_options + [
+      --options=[
         cli.Option "organization-id"
             --type="uuid"
             --short_help="The organization to use."
@@ -165,7 +165,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         Note that diff-bases are only an optimization. Without them, the
         firmware update will still work, but will not be as efficient.
         """
-      --options=broker_options + [
+      --options=[
         cli.Option "specification"
             --type="file"
             --short_help="The specification to use.",

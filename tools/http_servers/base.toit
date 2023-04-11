@@ -5,7 +5,7 @@ import net
 import net.tcp
 import encoding.ubjson
 import monitor
-import supabase.utils
+import artemis.shared.utils
 
 STATUS_IM_A_TEAPOT ::= 418
 

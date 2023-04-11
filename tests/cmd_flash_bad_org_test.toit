@@ -11,14 +11,14 @@ run_test test_cli/TestCli:
   test_start := Time.now
 
   test_cli.run [
-    "auth", "artemis", "login",
+    "auth", "login",
     "--email", TEST_EXAMPLE_COM_EMAIL,
     "--password", TEST_EXAMPLE_COM_PASSWORD,
   ]
 
   bad_id := NON_EXISTENT_UUID
   output := test_cli.run --expect_exit_1 [
-    "device", "flash",
+    "serial", "flash",
     "--organization_id", bad_id,  // We are testing the bad ID here.
     "--specification", "doesn't matter",
     "--port", "doesn't-matter",
