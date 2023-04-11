@@ -51,10 +51,10 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Initialize the fleet state.
 
-        This command initializes the fleet-dir directory, so it can be
+        This command initializes the fleet-root directory, so it can be
         used by the other fleet commands.
 
-        The directory can be specified using the '--fleet-dir' option.
+        The directory can be specified using the '--fleet-root' option.
         """
       --run=:: init it config cache ui
   cmd.add init_cmd
@@ -209,7 +209,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   return [cmd]
 
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-dir"]
+  fleet_root := parsed["fleet-root"]
   Fleet.init fleet_root --ui=ui
 
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
