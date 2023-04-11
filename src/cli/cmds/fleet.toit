@@ -40,6 +40,12 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
            station.
         4. Flash the devices using 'device flash'.
         """
+      --options=[
+        cli.Option "fleet-root"
+            --type="directory"
+            --short_help="Specify the fleet root."
+            --default=".",
+      ]
 
   create_firmware_cmd := cli.Command "create-firmware"
       --long_help="""
@@ -191,6 +197,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   return [cmd]
 
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
   specification_path := parsed["specification"]
   output := parsed["output"]
   organization_ids := parsed["organization-id"]
@@ -209,13 +216,14 @@ create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet artemis --ui=ui --cache=cache
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     fleet.create_firmware
         --specification_path=specification_path
         --output_path=output
         --organization_ids=organization_ids
 
 create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
   output_directory := parsed["output-directory"]
   organization_id := parsed["organization-id"]
   count := parsed["count"]
@@ -227,12 +235,13 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet artemis --ui=ui --cache=cache
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     fleet.create_identities count
         --output_directory=output_directory
         --organization_id=organization_id
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
   devices := parsed["device-id"]
   specification_path := parsed["specification"]
   firmware_path := parsed["firmware"]
@@ -248,13 +257,14 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet artemis --ui=ui --cache=cache
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     fleet.update devices
         --specification_path=specification_path
         --firmware_path=firmware_path
         --diff_bases=diff_bases
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
   envelope_path := parsed["firmware"]
   organization_ids := parsed["organization-id"]
 
@@ -266,5 +276,5 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     organization_ids = [organization_id]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet artemis --ui=ui --cache=cache
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     fleet.upload envelope_path --to=organization_ids
