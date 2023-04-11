@@ -17,9 +17,9 @@ class Fleet:
   artemis_/Artemis
   ui_/Ui
   cache_/Cache
-  fleet_dir_/string
+  fleet_root_/string
 
-  constructor .fleet_dir_ .artemis_ --ui/Ui --cache/Cache:
+  constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache:
     ui_ = ui
     cache_ = cache
 
