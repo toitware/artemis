@@ -110,9 +110,9 @@ class TestCli:
     toit_run_ = toit_run
 
   close:
-    test_devices_.do:
-      it.close
-      artemis.backdoor.remove_device it.hardware_id
+    test_devices_.do: | device/TestDevice |
+      device.close
+      artemis.backdoor.remove_device device.hardware_id
 
   run args --expect_exit_1/bool=false -> string:
     ui := TestUi
@@ -124,7 +124,7 @@ class TestCli:
 
   /**
   Creates and starts new device in the given $organization_id.
-  Neither the 'check_in', nor the firmware service are set up.
+  Neither the 'check-in', nor the firmware service are set up.
   */
   start_device --organization_id/string=TEST_ORGANIZATION_UUID -> TestDevice:
     device_description := artemis.backdoor.create_device --organization_id=organization_id
@@ -361,12 +361,15 @@ with_test_cli
     --args/List
     [block]:
 
-  toit_run := "toit.run$(platform == PLATFORM_WINDOWS ? ".exe" : "")"
+  // Use 'toit.run' (or 'toit.run.exe' on Windows), unless there is an
+  // argument `--toit-run=...`.
+  toit_run := platform == PLATFORM_WINDOWS ? "toit.run.exe" : "toit.run"
+  prefix := "--toit-run="
   for i := 0; i < args.size; i++:
     arg := args[i]
-    if arg.starts_with "--toit-run=":
-      toit_run = arg[11..]
-      break
+    if arg.starts_with prefix:
+      toit_run = arg[prefix.size..]
+      break  // Use the first occurrence.
 
   with_tmp_directory: | tmp_dir |
     config_file := "$tmp_dir/config"
