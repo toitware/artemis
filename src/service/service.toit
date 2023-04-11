@@ -69,7 +69,7 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   logger.info "stopping" --tags={"duration": duration}
   return duration
 
-class ArtemisServiceProvider extends services.ServiceProvider
+class ArtemisServiceProvider extends ChannelServiceProvider
     implements services.ServiceHandlerNew api.ArtemisService:
   containers_/ContainerManager
 
@@ -84,18 +84,7 @@ class ArtemisServiceProvider extends services.ServiceProvider
       return version
     if index == api.ArtemisService.CONTAINER_CURRENT_RESTART_INDEX:
       return container_current_restart --gid=gid --wakeup_us=arguments
-    if index == api.ArtemisService.CHANNEL_OPEN_INDEX:
-      return channel_open client --topic=arguments[0] --read=arguments[1]
-    if index == api.ArtemisService.CHANNEL_SEND_INDEX:
-      channel := (resource client arguments[0]) as ChannelResource
-      return channel.send arguments[1]
-    if index == api.ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX:
-      channel := (resource client arguments[0]) as ChannelResource
-      return channel.receive_page --peek=arguments[1] --buffer=arguments[2]
-    if index == api.ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX:
-      channel := (resource client arguments[0]) as ChannelResource
-      return channel.acknowledge arguments[1] arguments[2]
-    unreachable
+    return super index arguments --gid=gid --client=client
 
   version -> string:
     return ARTEMIS_VERSION
@@ -106,18 +95,3 @@ class ArtemisServiceProvider extends services.ServiceProvider
 
   container_current_restart --wakeup_us/int? -> none:
     unreachable  // Here to satisfy the checker.
-
-  channel_open --topic/string --read/bool -> int?:
-    unreachable  // Here to satisfy the checker.
-
-  channel_send handle/int bytes/ByteArray -> none:
-    unreachable  // Here to satisfy the checker.
-
-  channel_receive_page handle/int --peek/int --buffer/ByteArray? -> ByteArray:
-    unreachable  // Here to satisfy the checker.
-
-  channel_acknowledge handle/int sn/int count/int -> none:
-    unreachable  // Here to satisfy the checker.
-
-  channel_open client/int --topic/string --read/bool -> ChannelResource:
-    return ChannelResource this client --topic=topic --read=read
