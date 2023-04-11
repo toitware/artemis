@@ -4,13 +4,13 @@ import encoding.ubjson
 import http
 import net
 import uuid
-import supabase.utils
 
 import ..broker
 import ...device
 import ...event
 import ...ui
 import ....shared.server_config
+import ....shared.utils as utils
 
 STATUS_IM_A_TEAPOT ::= 418
 

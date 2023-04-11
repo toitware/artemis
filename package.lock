@@ -9,7 +9,7 @@ prefixes:
   http: pkg-http
   ntp: pkg-ntp
   snapshot: snapshot
-  supabase: supabase
+  supabase: toit-supabase
 packages:
   fs:
     path: tools/fs
@@ -42,11 +42,6 @@ packages:
       cli: pkg-cli
       fs: fs
       host: pkg-host
-  supabase:
-    path: supabase
-    prefixes:
-      host: pkg-host
-      http: pkg-http
   toit-artemis:
     url: github.com/toitware/toit-artemis
     version: 0.1.1
@@ -55,3 +50,10 @@ packages:
     url: github.com/toitware/toit-cert-roots
     version: 1.4.0
     hash: bf41ee60ebba65ba01bc9ba1aa6d697e4cc4a8c7
+  toit-supabase:
+    url: github.com/toitware/toit-supabase
+    version: 0.1.0
+    hash: 460be4b6dd3af6fadecd4d0b2029afdb672035d5
+    prefixes:
+      host: pkg-host
+      http: pkg-http
