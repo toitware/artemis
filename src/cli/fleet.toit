@@ -30,6 +30,7 @@ class DeviceFleet:
 
 class Fleet:
   static DEVICES_FILE_ ::= "devices.json"
+  /** Signal that an alias is ambiguous. */
   static AMBIGUOUS_ ::= -1
 
   artemis_/Artemis
@@ -37,42 +38,14 @@ class Fleet:
   cache_/Cache
   fleet_root_/string
   devices_/List
+  /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
   constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache:
     ui_ = ui
     cache_ = cache
     devices_ = load_devices_ fleet_root_ --ui=ui
-    ambiguous_ids := {:}
-    devices_.size.repeat: | i/int |
-      device/DeviceFleet := devices_[i]
-      add_alias := : | id/string |
-        if aliases_.contains id:
-          old := aliases_[id]
-          if old == i:
-            // The name, device-id or alias appears twice for the same
-            // device. Not best practice, but not ambiguous.
-            continue.add_alias
-
-          if old == AMBIGUOUS_:
-            ambiguous_ids[id].add id
-          else:
-            ambiguous_ids[id] = [old, id]
-            aliases_[id] = AMBIGUOUS_
-        else:
-          aliases_[id] = i
-
-      add_alias.call device.id
-      if device.name:
-        add_alias.call device.name
-      if device.aliases:
-        device.aliases.do: | alias/string |
-          add_alias.call alias
-    if ambiguous_ids.size > 0:
-      ui_.warning "The following names, device-ids or aliases are ambiguous:"
-      ambiguous_ids.do: | id index_list/List |
-        uuid_list := index_list.map: devices_[it].id
-        ui_.warning "  $id maps to $(uuid_list.join ", ")"
+    aliases_ = build_alias_map_ devices_ ui
 
   static init fleet_root/string --ui/Ui:
     if not file.is_directory fleet_root:
@@ -120,6 +93,47 @@ class Fleet:
         ui.error exception.message
         ui.abort
     return devices
+
+  /**
+  Builds an alias map.
+
+  When referring to devices we allow names, device-ids and aliases as
+    designators. This function builds a map for these and warns the
+    user if any of them is ambiguous.
+  */
+  static build_alias_map_ devices/List ui/Ui -> Map:
+    result := {:}
+    ambiguous_ids := {:}
+    devices.size.repeat: | i/int |
+      device/DeviceFleet := devices[i]
+      add_alias := : | id/string |
+        if result.contains id:
+          old := result[id]
+          if old == i:
+            // The name, device-id or alias appears twice for the same
+            // device. Not best practice, but not ambiguous.
+            continue.add_alias
+
+          if old == AMBIGUOUS_:
+            ambiguous_ids[id].add id
+          else:
+            ambiguous_ids[id] = [old, id]
+            result[id] = AMBIGUOUS_
+        else:
+          result[id] = i
+
+      add_alias.call device.id
+      if device.name:
+        add_alias.call device.name
+      if device.aliases:
+        device.aliases.do: | alias/string |
+          add_alias.call alias
+    if ambiguous_ids.size > 0:
+      ui.warning "The following names, device-ids or aliases are ambiguous:"
+      ambiguous_ids.do: | id index_list/List |
+        uuid_list := index_list.map: devices[it].id
+        ui.warning "  $id maps to $(uuid_list.join ", ")"
+    return result
 
   write_devices_ -> none:
     encoded_devices := {:}
@@ -169,7 +183,7 @@ class Fleet:
       fleet_device := resolve_alias_ alias
       device := broker.get_device --device_id=fleet_device.id
       if not device:
-        ui_.error "Device $device.id does not exist on the broker."
+        ui_.error "Device $device.id is unknown to the broker."
         ui_.abort
       fleet_device
 
@@ -213,10 +227,10 @@ class Fleet:
 
   resolve_alias_ alias/string -> DeviceFleet:
     if not aliases_.contains alias:
-      ui_.error "No device with name, device-id or alias $alias in the fleet."
+      ui_.error "No device with name, device-id, or alias $alias in the fleet."
       ui_.abort
     device_index := aliases_[alias]
     if device_index == AMBIGUOUS_:
-      ui_.error "The name, device-id or alias $alias is ambiguous."
+      ui_.error "The name, device-id, or alias $alias is ambiguous."
       ui_.abort
     return devices_[device_index]
