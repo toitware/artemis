@@ -134,14 +134,6 @@ jobs:
           echo "SUPABASE_BROKER_API_HOST=$API_HOST" >> $GITHUB_ENV
           echo "SUPABASE_BROKER_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
-      - name: Start Supabase - Supabase test
-        if: ${{ runner.os == 'Linux' }}
-        shell: bash
-        working-directory: ${{ github.workspace }}/tests/supabase_test
-        run: |
-          supabase start -x "$EXCLUDED_SUPABASE_SERVICES"
-          supabase status
-
       - name: Run cmake
         shell: bash
         run: |
