@@ -4,6 +4,8 @@ import binary show LITTLE_ENDIAN
 import crypto.crc
 import system.storage
 
+import .pkg_artemis_src_copy.artemis as artemis
+
 class FlashLog:
   static HEADER_MARKER_OFFSET_   ::= 0
   static HEADER_SN_OFFSET_       ::= 4 + HEADER_MARKER_OFFSET_
@@ -132,7 +134,7 @@ class FlashLog:
       if page == write_page_:
         region_.read --from=page buffer[..HEADER_SIZE_]
         sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
-        return [sn, 0, buffer]
+        return [sn, null, 0, buffer]
       current := page
       page += size_per_page_
       if page >= size_: page = 0
@@ -147,7 +149,8 @@ class FlashLog:
         repair_reset_ buffer SN.new
         throw "INVALID_STATE"
     commit_and_read_ buffer page: | sn count |
-      return [sn, count, buffer]
+      cursor := count == 0 ? null : HEADER_SIZE_
+      return [sn, cursor, count, buffer]
     unreachable
 
   acknowledge sn/int -> none:
@@ -361,14 +364,15 @@ class FlashLog:
               // SNs are equal, so we allow that.
               compare := (previous < read_page_) ? 0 : -1
               // TODO(kasper): Try to get rid of the write page check.
-              if previous != write_page_ and (SN.compare sn snx) <= compare: return false
+              if previous != write_page_ and (artemis.Position.compare sn snx) <= compare:
+                return false
               if sn == (SN.next snx --increment=count): return false
           read_sn = sn
           break
         return false
 
       is_committed_page_ write_page_ buffer: | sn is_acked count |
-        if (SN.compare read_sn sn) >= 0: return false
+        if (artemis.Position.compare read_sn sn) >= 0: return false
         offset := repair_find_write_offset_ buffer write_page_
         if not offset: return false
         next := write_page_ + size_per_page_
@@ -388,7 +392,7 @@ class FlashLog:
           // SN. If it hasn't, repairing would move the write page
           // forward to the next page.
           compare := (next > write_page_) ? -1 : 0
-          if count == 0 or (SN.compare sn snx) <= compare: return false
+          if count == 0 or (artemis.Position.compare sn snx) <= compare: return false
           return true
         is_uncommitted_page_ next buffer: | snx |
           if snx == (SN.next sn --increment=count): return false
@@ -396,7 +400,7 @@ class FlashLog:
         return true
 
       is_uncommitted_page_ write_page_ buffer: | sn |
-        if (SN.compare read_sn sn) >= 0: return false
+        if (artemis.Position.compare read_sn sn) >= 0: return false
         offset := repair_find_write_offset_ buffer write_page_
         if not offset: return false
         write_offset_ = offset  // Potentially repaired.
@@ -426,13 +430,13 @@ class FlashLog:
       is_committed_page_ previous buffer: | snx is_acked count |
         if not is_acked:
           compare := (previous < read_page_) ? 0 : -1
-          if (SN.compare sn snx) <= compare: return false
+          if (artemis.Position.compare sn snx) <= compare: return false
           if sn == (SN.next snx --increment=count): return false
 
       if next >= size_: next = 0
       is_committed_page_ next buffer: | snx |
         compare := (next > write_page_) ? -1 : 0
-        if (SN.compare sn snx) <= compare: return false
+        if (artemis.Position.compare sn snx) <= compare: return false
         return true
       is_uncommitted_page_ next buffer: | snx |
         if snx == (SN.next sn --increment=count): return false
@@ -461,7 +465,7 @@ class FlashLog:
 
     for page := 0; page < size_; page += size_per_page_:
       is_committed_page_ page buffer: | sn is_acked count |
-        if not last_page or (SN.compare sn last_sn) > 0:
+        if not last_page or (artemis.Position.compare sn last_sn) > 0:
           last_page = page
           last_sn = sn
           last_is_acked = is_acked
@@ -637,42 +641,24 @@ unimplemented_ message/string?=null -> none:
   throw "UNIMPLEMENTED"
 
 class SN:
-  static BITS ::= 30
-  static MASK ::= (1 << BITS) - 1
-  static HALF ::= (1 << (BITS - 1))
+  static MASK ::= artemis.Position.MASK_
 
   static is_valid sn/int -> bool:
-    return sn == (sn & MASK);
-
-  /**
-  Compares two sequence numbers $sn1 and $sn2.
-
-  Returns -1, 0, or 1 if the $sn1 is less than, equal to, or
-    greater than $sn2, respectively.
-
-  Sequence numbers wrap around when they reach the representable
-    limit while still supporting comparison. If sequence numbers
-    are close together, then they use normal comparison. However,
-    when they are far apart, then they have wrapped around which
-    means that the smaller number is considered greater than the
-    larger number.
-  */
-  static compare sn1/int sn2/int -> int:
-    if sn1 == sn2: return 0
-    return sn1 < sn2
-      ? (sn2 - sn1 < HALF ? -1 :  1)
-      : (sn1 - sn2 < HALF ?  1 : -1)
+    return sn == (sn & MASK)
 
   static next sn/int --increment/int=1 -> int:
     assert: increment >= 0
     result := (sn + increment) & MASK
-    assert: (compare result sn) == (increment == 0 ? 0 : 1)
+    assert: (artemis.Position.compare result sn) == (increment == 0 ? 0 : 1)
     return result
 
   static previous sn/int -> int:
     result := (sn - 1) & MASK
-    assert: (compare result sn) == -1
+    assert: (artemis.Position.compare result sn) == -1
     return result
+
+  static compare sn1/int sn2/int -> int:
+    return artemis.Position.compare sn1 sn2
 
   static new -> int:
     return random MASK + 1

@@ -67,9 +67,10 @@ class Channel extends ServiceResourceProxy:
   topic/string
 
   buffer_/ByteArray? := null
-  cursor_/int := 0
+  cursor_/int? := null
 
-  unacked_pages_/Deque := Deque
+  pages_/Deque := Deque
+
   unacked_count_/int := 0
   acks_/int := 0
 
@@ -87,17 +88,15 @@ class Channel extends ServiceResourceProxy:
   // receive - blocking
   // receive - only latest
 
-  // read position?
-  position -> int:
-    if unacked_pages_.is_empty:
-      receive_page_: | sn buffer | return sn
-      unreachable
-    // TODO(kasper): Handle wrap around.
-    return unacked_pages_.first[0] + unacked_count_
-
-  // ...
-  write_position -> int:
-    return -1
+  position -> Position:
+    pages := pages_
+    if not pages.is_empty:
+      // TODO(kasper): Handle wrap around.
+      first/Page_ := pages.first
+      return Position.internal_ first.sn + unacked_count_
+    assert: unacked_count_ == 0
+    receive_page_: | sn buffer | return Position.internal_ sn
+    unreachable
 
   send bytes/ByteArray -> none:
     (client_ as api.ArtemisClient).channel_send handle_ bytes
@@ -128,39 +127,39 @@ class Channel extends ServiceResourceProxy:
     acks_ = acks
 
     // Ack all the pages we can.
-    while not unacked_pages_.is_empty:
+    pages := pages_
+    while not pages.is_empty:
       // Don't acknowledge the page unless we're
       // completely done with it.
-      first := unacked_pages_.first
-      delta := first[1]
-      if acks < delta: return
+      first/Page_ := pages.first
+      count := first.count
+      if acks < count: return
 
-      (client_ as api.ArtemisClient).channel_acknowledge handle_ first[0] delta
-      unacked_count_ -= delta
-      acks_ = acks = acks - delta
-      unacked_pages_.remove_first
+      (client_ as api.ArtemisClient).channel_acknowledge handle_ first.sn count
+      unacked_count_ -= count
+      acks_ = acks = acks - count
+      pages.remove_first
 
   // TODO(kasper): Poor name.
   receive_page_ [block] -> any:
     buffer := buffer_
-    if cursor_ > 0: return block.call unacked_pages_.last[0] buffer
+    pages := pages_
+    if cursor_: return block.call pages.last.sn buffer
 
     // We have read the entire last page. We can reuse the
     // buffer if it has already been acked.
-    page := unacked_pages_.size
+    peek := pages.size
     result := (client_ as api.ArtemisClient).channel_receive_page handle_
-        --page=page
-        --buffer=(page == 0) ? buffer : null
+        --peek=peek
+        --buffer=(peek == 0) ? buffer : null
     sn := result[0]
-    count := result[1]
+    count := result[2]
+    buffer_ = buffer = result[3]
     if count == 0: return block.call sn null
 
-    // Got another non-empty page. Wonderful.
-    buffer_ = buffer = result[2]
-    cursor_ = 14  // TODO(kasper): Avoid hardcoding this!
-
-    // ...
-    unacked_pages_.add [sn, count]
+    // Got another non-empty page. Wonderful!
+    cursor_ = result[1]
+    pages.add (Page_ --sn=sn --count=count)
     return block.call sn buffer
 
   receive_next_ buffer/ByteArray -> ByteArray?:
@@ -170,7 +169,7 @@ class Channel extends ServiceResourceProxy:
 
     acc := buffer[cursor++]
     if acc == 0xff:
-      cursor_ = 0  // Read last entry.
+      cursor_ = null  // Read last entry.
       return null
 
     bits := 6
@@ -178,7 +177,7 @@ class Channel extends ServiceResourceProxy:
     while true:
       while bits < 8:
         if cursor >= buffer.size:
-          cursor_ = 0  // Read last entry.
+          cursor_ = null  // Read last entry.
           return buffer[from..to]
         next := buffer[cursor]
         if (next & 0x80) != 0:
@@ -190,3 +189,73 @@ class Channel extends ServiceResourceProxy:
       buffer[to++] = (acc & 0xff)
       acc >>= 8
       bits -= 8
+
+class Position implements Comparable:
+  static BITS_ ::= 30
+  static MASK_ ::= (1 << BITS_) - 1
+  static HALF_ ::= (1 << (BITS_ - 1))
+
+  value/int
+  constructor.internal_ value/int:
+    this.value = value & MASK_
+
+  stringify -> string:
+    return "$(%08x value)"
+
+  operator + n/int -> Position:
+    return Position.internal_ value + n
+
+  operator - n/int -> Position:
+    return Position.internal_ value - n
+
+  operator == other/any -> bool:
+    return other is Position and value == other.value
+
+  operator < other/Position -> bool:
+    return (compare value other.value) < 0
+
+  operator <= other/Position -> bool:
+    return (compare value other.value) <= 0
+
+  operator > other/Position -> bool:
+    return (compare value other.value) > 0
+
+  operator >= other/Position -> bool:
+    return (compare value other.value) >= 0
+
+  /**
+  Compares this position to $other.
+
+  Returns -1, 0, or 1 if the $this is less than, equal to, or
+    greater than $other, respectively.
+
+  Positions wrap around when they reach the representable limit
+    while still supporting comparison. If positions are close
+    together, then they use normal comparison. However, when they
+    are far apart, then they have wrapped around which means that
+    the smaller number is considered greater than the larger number.
+  */
+  compare_to other/Position -> int:
+    return compare value other.value
+
+  /**
+  Variant of $(compare_to other).
+
+  Calls $if_equal if this and $other are equal. Then returns the
+    result of the call.
+  */
+  compare_to other/Position [--if_equal] -> int:
+    result := compare value other.value
+    if result == 0: result = if_equal.call
+    return result
+
+  static compare p0/int p1/int -> int:
+    if p0 == p1: return 0
+    return p0 < p1
+      ? (p1 - p0 < HALF_ ? -1 :  1)
+      : (p0 - p1 < HALF_ ?  1 : -1)
+
+class Page_:
+  sn/int
+  count/int
+  constructor --.sn --.count:

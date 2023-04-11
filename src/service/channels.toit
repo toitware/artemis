@@ -24,11 +24,9 @@ class ChannelResource extends ServiceResource:
   send bytes/ByteArray -> none:
     log_.append bytes
 
-  receive_page --page/int --buffer/ByteArray? -> List:
+  receive_page --peek/int --buffer/ByteArray? -> List:
     buffer = buffer or (ByteArray log_.size_per_page_)
-    result := log_.read_page buffer --peek=page
-    buffer.fill --to=FlashLog.HEADER_SIZE_ 0
-    return result
+    return log_.read_page buffer --peek=peek
 
   acknowledge sn/int count/int -> none:
     if count < 1: throw "Bad Argument"

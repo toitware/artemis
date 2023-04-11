@@ -22,7 +22,7 @@ interface ArtemisService:
   channel_send handle/int bytes/ByteArray -> none
   static CHANNEL_SEND_INDEX /int ::= 3
 
-  channel_receive_page handle/int --page/int --buffer/ByteArray? -> List?
+  channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?
   static CHANNEL_RECEIVE_PAGE_INDEX /int ::= 4
 
   channel_acknowledge handle/int sn/int count/int -> none
@@ -47,8 +47,8 @@ class ArtemisClient extends ServiceClient
   channel_send handle/int bytes/ByteArray -> none:
     invoke_ ArtemisService.CHANNEL_SEND_INDEX [handle, bytes]
 
-  channel_receive_page handle/int --page/int --buffer/ByteArray? -> List?:
-    return invoke_ ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX [handle, page, buffer]
+  channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?:
+    return invoke_ ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX [handle, peek, buffer]
 
   channel_acknowledge handle/int sn/int count/int -> none:
     invoke_ ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX [handle, sn, count]
