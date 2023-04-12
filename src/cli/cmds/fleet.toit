@@ -157,12 +157,9 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   update_cmd := cli.Command "update"
       --long_help="""
-        Update the firmware of multiple devices.
+        Update the firmware of all devices in the fleet.
 
-        If no devices are given, updates all devices in the fleet.
-
-        This command takes either a firmware image or a specification file as
-        input.
+        Uses the 'default.json' specification.
 
         If diff-bases are given, then the given firmwares are uploaded to
         all organizations of the devices that are updated.
@@ -187,20 +184,9 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         firmware update will still work, but will not be as efficient.
         """
       --options=[
-        cli.Option "specification"
-            --type="file"
-            --short_help="The specification to use.",
-        cli.Option "firmware"
-            --type="file"
-            --short_help="The firmware to use.",
         cli.Option "diff-base"
             --type="file"
             --short_help="The base firmware to use for diff-based updates."
-            --multi,
-      ]
-      --rest= [
-        cli.Option "device-id"
-            --short_help="The ID of the device."
             --multi,
       ]
       --run=:: update it config cache ui
@@ -258,25 +244,11 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  devices := parsed["device-id"]
-  specification_path := parsed["specification"]
-  firmware_path := parsed["firmware"]
   diff_bases := parsed["diff-base"]
-
-  if not specification_path and not firmware_path:
-    ui.error "No specification or firmware given."
-    ui.abort
-
-  if specification_path and firmware_path:
-    ui.error "Both specification and firmware given."
-    ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    fleet.update devices
-        --specification_path=specification_path
-        --firmware_path=firmware_path
-        --diff_bases=diff_bases
+    fleet.update --diff_bases=diff_bases
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
