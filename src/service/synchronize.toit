@@ -408,6 +408,12 @@ class SynchronizeJob extends TaskJob:
       transition_to_ STATE_PROCESSING_FIRMWARE
       logger_.info "firmware update" --tags={"from": firmware_from, "to": firmware_to}
       report_state_if_changed resources --goal_state=new_goal_state
+      if device_.was_firmware_written firmware_to:
+        // We already applied this firmware. Either we haven't rebooted yet, or
+        // the update was unsuccessful. We don't apply the firmware again.
+        // TODO(florian): we should send some information to the server.
+        logger_.info "firmware was already applied and did not validate"
+        return
       handle_firmware_update_ resources firmware_to
       // Handling the firmware update either completes and restarts
       // or throws an exception. We shouldn't get here.
@@ -534,6 +540,7 @@ class SynchronizeJob extends TaskJob:
       // change this, we shouldn't increase the runlevel here.
       scheduler_.transition --runlevel=Job.RUNLEVEL_SAFE
       firmware_update logger_ resources --device=device_ --new=new
+      device_.firmware_written new
       updated = true
       transition_to_ STATE_CONNECTED_TO_BROKER
       device_.state_firmware_update new

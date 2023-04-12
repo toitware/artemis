@@ -21,6 +21,7 @@ class Device:
   static FLASH_CURRENT_STATE_ ::= "current-state"
   static FLASH_CHECKPOINT_ ::= "checkpoint"
   static FLASH_REPORT_STATE_CHECKSUM_ ::= "report-state-checksum"
+  static FLASH_FIRMWARE_WRITTEN ::= "firmware-written"
   flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
 
   // We store the information that contains timestamps in RAM,
@@ -96,6 +97,14 @@ class Device:
   constructor --.id --.hardware_id --.organization_id --.firmware_state/Map:
     current_state = firmware_state
     load_
+
+  /** Sets the last firmware that was written onto the device. */
+  firmware_written firmware/string -> none:
+    flash_store_ FLASH_FIRMWARE_WRITTEN firmware
+
+  /** Returns whether the given firmware was already written onto the device. */
+  was_firmware_written firmware/string -> bool:
+    return (flash_load_ FLASH_FIRMWARE_WRITTEN) == firmware
 
   /**
   Informs the device that the firmware has been validated.
