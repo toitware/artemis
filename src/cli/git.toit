@@ -194,6 +194,7 @@ class Git:
     if (pipe.exit_code exit_value) != 0:
       ui_.info output.bytes.to_string_non_throwing
       ui_.error "$description failed"
+      ui_.error "Git arguments: $args"
       ui_.abort
 
     return stdout.bytes.to_string_non_throwing
