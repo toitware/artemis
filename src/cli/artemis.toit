@@ -205,7 +205,10 @@ class Artemis:
     check_is_supported_version_ --sdk=sdk_version --service=service_version
 
     sdk := get_sdk sdk_version --cache=cache_
-    cached_envelope_path := get_envelope sdk_version --cache=cache_
+    cached_envelope_path := get_envelope
+        sdk_version
+        --chip=device_specification.chip
+        --cache=cache_
 
     copy_file --source=cached_envelope_path --target=output_path
 

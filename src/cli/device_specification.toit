@@ -158,10 +158,13 @@ class DeviceSpecification:
   connections/List  // Of $ConnectionInfo.
   containers/Map  // Of name -> $Container.
   path/string
+  chip/string?
 
   constructor.from_json --.path/string data/Map:
     sdk_version = get_string_ data "sdk-version"
     artemis_version = get_string_ data "artemis-version"
+
+    chip = get_optional_string_ data "chip"
 
     if data.contains "apps" and data.contains "containers":
       format_error_ "Both 'apps' and 'containers' are present in device specification."

@@ -219,6 +219,7 @@ class Sdk:
   flash
       --envelope_path/string
       --config_path/string
+      --chip/string
       --port/string
       --baud_rate/string?
       --partitions/List?:
@@ -227,6 +228,7 @@ class Sdk:
       "-e", envelope_path,
       "--config", config_path,
       "--port", port,
+      "--chip", chip,
     ]
     if baud_rate:
       arguments += [ "--baud", baud_rate ]
