@@ -5,6 +5,8 @@ TOIT_RUN_BIN?=toit.run
 SETUP_LOCAL_DEV_SDK ?= v2.0.0-alpha.74
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
+export ARTEMIS_CONFIG := $(HOME)/.config/artemis-dev/config
+
 .PHONY: all
 all: build
 
@@ -37,15 +39,6 @@ ARTEMIS_CERTIFICATE := Baltimore CyberTrust Root
 TOITWARE_TESTING_HOST := ghquchonjtjzuuxfmaub.supabase.co
 TOITWARE_TESTING_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdocXVjaG9uanRqenV1eGZtYXViIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQ4ODIsImV4cCI6MTk4ODk1MDg4Mn0.bJB3EdVwFN34yk50JLHv8Pw5IA5gqtEJrXU1MtjEWGc
 TOITWARE_TESTING_CERTIFICATE := Baltimore CyberTrust Root
-
-.PHONY: add-default-brokers
-add-default-brokers: install-pkgs
-	@ # Adds the Toitware supabase Artemis server and makes it the default.
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add --no-default supabase \
-		--certificate="$(ARTEMIS_CERTIFICATE)" \
-		artemis $(ARTEMIS_HOST) "$(ARTEMIS_ANON)"
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis
 
 .PHONY: start-http
 start-http: install-pkgs

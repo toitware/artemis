@@ -166,14 +166,20 @@ read_config [--init] -> Config:
     return read_config_file env["$(app_name_upper)_CONFIG"] --init=init
 
   config_home := xdg.config_home
+  // Hackish way to improve the developer experience.
+  // When using the toit files to run Artemis, we default to a different
+  // configuration.
+  if program_name.ends_with ".toit":
+    return read_config_file "$config_home/artemis-dev/config" --init=init
+
   // The path we are using to write configurations to.
-  app_config_path := "$(config_home)/$(APP_NAME)/config"
+  app_config_path := "$config_home/$APP_NAME/config"
   if file.is_file app_config_path:
     return read_config_file app_config_path --init=init
 
   // Try to find a configuration file in the XDG config directories.
   xdg.config_dirs.do: | dir |
-    path := "$(dir)/$(APP_NAME)/config"
+    path := "$dir/$APP_NAME/config"
     if file.is_file path:
       from_config_dir := read_config_file path --init=init
       return Config app_config_path from_config_dir.data
