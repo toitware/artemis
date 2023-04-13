@@ -1,4 +1,6 @@
--- Copyright (C) 2023 Toitware ApS. All rights reserved.
+-- Copyright (C) 2023 Toitware ApS.
+-- Use of this source code is governed by an MIT-style license that can be
+-- found in the LICENSE file.
 
 CREATE SCHEMA IF NOT EXISTS toit_artemis;
 GRANT USAGE ON SCHEMA toit_artemis TO postgres, anon, authenticated, service_role;
