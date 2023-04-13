@@ -3,6 +3,8 @@
 import system.assets
 import system.firmware
 
+import esp32
+
 import encoding.base64
 import encoding.ubjson
 import log
@@ -17,6 +19,17 @@ device_specific_ name/string -> any:
   return firmware.config[name]
 
 main arguments:
+  wakeup_cause := esp32.wakeup_cause
+  wakeup_logger := log.default.with_name "artemis"
+  if wakeup_cause == esp32.WAKEUP_EXT1:
+    wakeup_logger.info "Wakeup cause: external trigger"
+  else if wakeup_cause == esp32.WAKEUP_TIMER:
+    wakeup_logger.info "Wakeup cause: timer"
+  else if wakeup_cause == esp32.WAKEUP_TOUCHPAD:
+    wakeup_logger.info "Wakeup cause: touchpad"
+  else if wakeup_cause == esp32.WAKEUP_ULP:
+    wakeup_logger.info "Wakeup cause: ULP"
+
   firmware_description := ubjson.decode (device_specific_ "parts")
   end := firmware_description.last["to"]
   firmware_ubjson := ubjson.encode {
