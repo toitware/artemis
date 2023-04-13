@@ -30,6 +30,7 @@ class DeviceFleet:
 
 class Fleet:
   static DEVICES_FILE_ ::= "devices.json"
+  static DEFAULT_SPECIFICATION_ ::= "default.json"
   /** Signal that an alias is ambiguous. */
   static AMBIGUOUS_ ::= -1
 
@@ -176,14 +177,11 @@ class Fleet:
       if devices_.size != old_size:
         write_devices_
 
-  update devices/List --specification_path/string? --firmware_path/string? --diff_bases/List:
+  update --diff_bases/List:
     broker := artemis_.connected_broker
     detailed_devices := {:}
-    fleet_devices/List := ?
-    if devices.is_empty:
-      fleet_devices = devices_
-    else:
-      fleet_devices = devices.map: resolve_alias_ it
+    fleet_devices := devices_
+    specification_path := "$fleet_root_/$DEFAULT_SPECIFICATION_"
 
     fleet_devices.do: | fleet_device/DeviceFleet |
       device := broker.get_device --device_id=fleet_device.id
@@ -201,12 +199,11 @@ class Fleet:
       trivial_patches.do: | key value/FirmwarePatch | base_patches[key] = value
 
     with_tmp_directory: | tmp_dir/string |
-      if specification_path:
-        firmware_path = "$tmp_dir/firmware.envelope"
-        specification := parse_device_specification_file specification_path --ui=ui_
-        artemis_.customize_envelope
-            --output_path=firmware_path
-            --device_specification=specification
+      firmware_path := "$tmp_dir/firmware.envelope"
+      specification := parse_device_specification_file specification_path --ui=ui_
+      artemis_.customize_envelope
+          --output_path=firmware_path
+          --device_specification=specification
 
       seen_organizations := {}
       fleet_devices.do: | fleet_device/DeviceFleet |
