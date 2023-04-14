@@ -68,7 +68,10 @@ A channel is identified by its $topic. If two channels share
   topic, but only one of them can be a receiving channel
   opened using $(Channel.open --topic --receive).
 
-
+The elements returned by calls to $Channel.receive must
+  be acknowledged through calls to $Channel.acknowledge
+  in order to not be received again the next time the
+  channel is opened.
 */
 class Channel extends ServiceResourceProxy:
   topic/string

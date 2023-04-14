@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import system.services show ServiceSelector ServiceClient
+import ..artemis as artemis  // For toitdoc.
 
 interface ArtemisService:
   static SELECTOR ::= ServiceSelector
@@ -12,10 +13,16 @@ interface ArtemisService:
 
   static CHANNEL_POSITION_BITS_ ::= 30
   static CHANNEL_POSITION_HALF_ ::= (1 << (CHANNEL_POSITION_BITS_ - 1))
-  /** */
+
+  /** The mask used to force channel positions to wrap around. */
   static CHANNEL_POSITION_MASK ::= (1 << CHANNEL_POSITION_BITS_) - 1
 
-  /* */
+  /**
+  Compares two channel positions.
+
+  See $artemis.Position.compare_to for a description of
+    how the comparison is performed.
+  */
   static channel_position_compare p0/int p1/int -> int:
     if p0 == p1: return 0
     return p0 < p1
