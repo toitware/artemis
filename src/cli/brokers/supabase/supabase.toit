@@ -153,12 +153,7 @@ class BrokerCliSupabase implements BrokerCli:
       "_device_ids": device_ids,
       "_limit": limit,
     }
-    if since:
-      without_ns := since.stringify
-      ns := since.ns_part
-      ns_string := "$(%09d ns)"
-      with_ns := "$(without_ns[.. without_ns.size - 1]).$(ns_string)Z"
-      payload["_since"] = with_ns
+    if since: payload["_since"] = "$(since)Z"
     response := client_.rest.rpc "toit_artemis.get_events" payload
     result := {:}
     current_list/List? := null
