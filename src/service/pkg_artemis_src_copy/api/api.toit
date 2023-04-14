@@ -10,13 +10,25 @@ interface ArtemisService:
       --major=0
       --minor=3
 
+  static CHANNEL_POSITION_BITS_ ::= 30
+  static CHANNEL_POSITION_HALF_ ::= (1 << (CHANNEL_POSITION_BITS_ - 1))
+  /** */
+  static CHANNEL_POSITION_MASK ::= (1 << CHANNEL_POSITION_BITS_) - 1
+
+  /* */
+  static channel_position_compare p0/int p1/int -> int:
+    if p0 == p1: return 0
+    return p0 < p1
+      ? (p1 - p0 < CHANNEL_POSITION_HALF_ ? -1 :  1)
+      : (p0 - p1 < CHANNEL_POSITION_HALF_ ?  1 : -1)
+
   version -> string
   static VERSION_INDEX /int ::= 0
 
   container_current_restart --wakeup_us/int? -> none
   static CONTAINER_CURRENT_RESTART_INDEX /int ::= 1
 
-  channel_open --topic/string --read/bool -> int?
+  channel_open --topic/string --receive/bool -> int?
   static CHANNEL_OPEN_INDEX /int ::= 2
 
   channel_send handle/int bytes/ByteArray -> none
@@ -25,7 +37,7 @@ interface ArtemisService:
   channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?
   static CHANNEL_RECEIVE_PAGE_INDEX /int ::= 4
 
-  channel_acknowledge handle/int sn/int count/int -> none
+  channel_acknowledge handle/int position/int count/int -> none
   static CHANNEL_ACKNOWLEDGE_INDEX /int ::= 5
 
 class ArtemisClient extends ServiceClient
@@ -41,8 +53,8 @@ class ArtemisClient extends ServiceClient
   container_current_restart --wakeup_us/int? -> none:
     invoke_ ArtemisService.CONTAINER_CURRENT_RESTART_INDEX wakeup_us
 
-  channel_open --topic/string --read/bool -> int?:
-    return invoke_ ArtemisService.CHANNEL_OPEN_INDEX [topic, read]
+  channel_open --topic/string --receive/bool -> int?:
+    return invoke_ ArtemisService.CHANNEL_OPEN_INDEX [topic, receive]
 
   channel_send handle/int bytes/ByteArray -> none:
     invoke_ ArtemisService.CHANNEL_SEND_INDEX [handle, bytes]
@@ -50,6 +62,6 @@ class ArtemisClient extends ServiceClient
   channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?:
     return invoke_ ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX [handle, peek, buffer]
 
-  channel_acknowledge handle/int sn/int count/int -> none:
-    invoke_ ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX [handle, sn, count]
+  channel_acknowledge handle/int position/int count/int -> none:
+    invoke_ ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX [handle, position, count]
 

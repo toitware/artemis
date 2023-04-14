@@ -4,7 +4,7 @@ import binary show LITTLE_ENDIAN
 import crypto.crc
 import system.storage
 
-import .pkg_artemis_src_copy.artemis as artemis
+import .pkg_artemis_src_copy.api as api
 
 class FlashLog:
   static HEADER_MARKER_OFFSET_   ::= 0
@@ -27,7 +27,8 @@ class FlashLog:
   write_page_/int := -1
   write_offset_/int := -1
 
-  // Slighlty freaky.
+  // TODO(kasper): This should be cleaned up. It might make sense
+  // to combine the FlashLog and the ChannelResource more somehow.
   usage_/int := 0
 
   constructor region/storage.Region:
@@ -380,7 +381,7 @@ class FlashLog:
               // SNs are equal, so we allow that.
               compare := (previous < read_page_) ? 0 : -1
               // TODO(kasper): Try to get rid of the write page check.
-              if previous != write_page_ and (artemis.Position.compare sn snx) <= compare:
+              if previous != write_page_ and (api.ArtemisService.channel_position_compare sn snx) <= compare:
                 return false
               if sn == (SN.next snx --increment=count): return false
           read_sn = sn
@@ -388,7 +389,7 @@ class FlashLog:
         return false
 
       is_committed_page_ write_page_ buffer: | sn is_acked count |
-        if (artemis.Position.compare read_sn sn) >= 0: return false
+        if (api.ArtemisService.channel_position_compare read_sn sn) >= 0: return false
         offset := repair_find_write_offset_ buffer write_page_
         if not offset: return false
         next := write_page_ + size_per_page_
@@ -408,7 +409,8 @@ class FlashLog:
           // SN. If it hasn't, repairing would move the write page
           // forward to the next page.
           compare := (next > write_page_) ? -1 : 0
-          if count == 0 or (artemis.Position.compare sn snx) <= compare: return false
+          if count == 0 or (api.ArtemisService.channel_position_compare sn snx) <= compare:
+            return false
           return true
         is_uncommitted_page_ next buffer: | snx |
           if snx == (SN.next sn --increment=count): return false
@@ -416,7 +418,8 @@ class FlashLog:
         return true
 
       is_uncommitted_page_ write_page_ buffer: | sn |
-        if (artemis.Position.compare read_sn sn) >= 0: return false
+        if (api.ArtemisService.channel_position_compare read_sn sn) >= 0:
+          return false
         offset := repair_find_write_offset_ buffer write_page_
         if not offset: return false
         write_offset_ = offset  // Potentially repaired.
@@ -446,13 +449,13 @@ class FlashLog:
       is_committed_page_ previous buffer: | snx is_acked count |
         if not is_acked:
           compare := (previous < read_page_) ? 0 : -1
-          if (artemis.Position.compare sn snx) <= compare: return false
+          if (api.ArtemisService.channel_position_compare sn snx) <= compare: return false
           if sn == (SN.next snx --increment=count): return false
 
       if next >= size_: next = 0
       is_committed_page_ next buffer: | snx |
         compare := (next > write_page_) ? -1 : 0
-        if (artemis.Position.compare sn snx) <= compare: return false
+        if (api.ArtemisService.channel_position_compare sn snx) <= compare: return false
         return true
       is_uncommitted_page_ next buffer: | snx |
         if snx == (SN.next sn --increment=count): return false
@@ -481,7 +484,7 @@ class FlashLog:
 
     for page := 0; page < size_; page += size_per_page_:
       is_committed_page_ page buffer: | sn is_acked count |
-        if not last_page or (artemis.Position.compare sn last_sn) > 0:
+        if not last_page or (api.ArtemisService.channel_position_compare sn last_sn) > 0:
           last_page = page
           last_sn = sn
           last_is_acked = is_acked
@@ -657,7 +660,7 @@ unimplemented_ message/string?=null -> none:
   throw "UNIMPLEMENTED"
 
 class SN:
-  static MASK ::= artemis.Position.MASK_
+  static MASK ::= api.ArtemisService.CHANNEL_POSITION_MASK
 
   static is_valid sn/int -> bool:
     return sn == (sn & MASK)
@@ -665,16 +668,16 @@ class SN:
   static next sn/int --increment/int=1 -> int:
     assert: increment >= 0
     result := (sn + increment) & MASK
-    assert: (artemis.Position.compare result sn) == (increment == 0 ? 0 : 1)
+    assert: (api.ArtemisService.channel_position_compare result sn) == (increment == 0 ? 0 : 1)
     return result
 
   static previous sn/int -> int:
     result := (sn - 1) & MASK
-    assert: (artemis.Position.compare result sn) == -1
+    assert: (api.ArtemisService.channel_position_compare result sn) == -1
     return result
 
   static compare sn1/int sn2/int -> int:
-    return artemis.Position.compare sn1 sn2
+    return api.ArtemisService.channel_position_compare sn1 sn2
 
   static new -> int:
     return random MASK + 1

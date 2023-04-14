@@ -59,9 +59,16 @@ interface Container:
   restart --delay/Duration?=null -> none
 
 /**
-The channel ...
+A channel is a cyclic datastructure that persists a sequence
+  of distinct elements encoded in individual byte arrays.
 
-Only one receiver. Multiple senders.
+A channel is identified by its $topic. If two channels share
+  a topic, their elements will be stored together. It is
+  possible to open any number of channels with the same
+  topic, but only one of them can be a receiving channel
+  opened using $(Channel.open --topic --receive).
+
+
 */
 class Channel extends ServiceResourceProxy:
   topic/string
@@ -77,10 +84,10 @@ class Channel extends ServiceResourceProxy:
   constructor.internal_ client/api.ArtemisClient handle/int --.topic:
     super client handle
 
-  static open --topic/string --read/bool=false -> Channel:
+  static open --topic/string --receive/bool=false -> Channel:
     client := artemis_client_
     if not client: throw "Artemis unavailable"
-    handle := client.channel_open --topic=topic --read=read
+    handle := client.channel_open --topic=topic --receive=receive
     return Channel.internal_ client handle --topic=topic
 
   /**
@@ -119,14 +126,20 @@ class Channel extends ServiceResourceProxy:
       assert: received_ == 0
       return Position.internal_ receive_next_page_
     else:
-      first/Page_ := pages.first
-      return Position.internal_ first.sn + received_
+      first/ChannelPage_ := pages.first
+      return Position.internal_ first.position + received_
 
   /**
-  ...
+  Sends an $element of bytes to the channel.
+
+  The element is added after any existing elements in
+    the channel, so it will be returned from $receive
+    only after those elements have received.
+
+  Throws an exception if the channel is full.
   */
-  send bytes/ByteArray -> none:
-    (client_ as api.ArtemisClient).channel_send handle_ bytes
+  send element/ByteArray -> none:
+    (client_ as api.ArtemisClient).channel_send handle_ element
 
   /**
   Returns the next element in the channel or null if the
@@ -166,11 +179,11 @@ class Channel extends ServiceResourceProxy:
 
     pages := pages_
     while not pages.is_empty:
-      first/Page_ := pages.first
+      first/ChannelPage_ := pages.first
       count := first.count
       // Don't acknowledge the page until we're completely done with it.
       if acknowledged < count: break
-      (client_ as api.ArtemisClient).channel_acknowledge handle_ first.sn count
+      (client_ as api.ArtemisClient).channel_acknowledge handle_ first.position count
       pages.remove_first
 
       // Adjust the bookkeeping counts, so they represent the state
@@ -192,16 +205,16 @@ class Channel extends ServiceResourceProxy:
     result := (client_ as api.ArtemisClient).channel_receive_page handle_
         --peek=peek
         --buffer=(peek == 0) ? buffer : null
-    sn := result[0]
+    position := result[0]
     count := result[2]
     buffer_ = buffer = result[3]
-    if count == 0: return sn
+    if count == 0: return position
 
     // Got another non-empty page. Wonderful!
     cursor_ = result[1]
-    pages.add (Page_ --sn=sn --count=count)
+    pages.add (ChannelPage_ --position=position --count=count)
     buffered_ += count
-    return sn
+    return position
 
   receive_next_ buffer/ByteArray -> ByteArray?:
     cursor := cursor_
@@ -231,14 +244,26 @@ class Channel extends ServiceResourceProxy:
       acc >>= 8
       bits -= 8
 
-class Position implements Comparable:
-  static BITS_ ::= 30
-  static MASK_ ::= (1 << BITS_) - 1
-  static HALF_ ::= (1 << (BITS_ - 1))
+/**
+A position in a channel is used to identify an element
+  after having sent it to the channel.
 
+The positions can be used to de-duplicate elements that
+  are received more than once due to lost acknowledgements.
+
+The positions can also be used to find elements that were
+  lost due to corruption and thus never received. Such
+  elements will show up as gaps in the position sequence.
+
+The channels keep track of the position of all elements
+  they hold and it is possible to find the position of
+  the next element returned from $Channel.receive by
+  using $Channel.position.
+*/
+class Position implements Comparable:
   value/int
   constructor.internal_ value/int:
-    this.value = value & MASK_
+    this.value = value & api.ArtemisService.CHANNEL_POSITION_MASK
 
   stringify -> string:
     return "$(%08x value)"
@@ -253,16 +278,16 @@ class Position implements Comparable:
     return other is Position and value == other.value
 
   operator < other/Position -> bool:
-    return (compare value other.value) < 0
+    return (api.ArtemisService.channel_position_compare value other.value) < 0
 
   operator <= other/Position -> bool:
-    return (compare value other.value) <= 0
+    return (api.ArtemisService.channel_position_compare value other.value) <= 0
 
   operator > other/Position -> bool:
-    return (compare value other.value) > 0
+    return (api.ArtemisService.channel_position_compare value other.value) > 0
 
   operator >= other/Position -> bool:
-    return (compare value other.value) >= 0
+    return (api.ArtemisService.channel_position_compare value other.value) >= 0
 
   /**
   Compares this position to $other.
@@ -277,7 +302,7 @@ class Position implements Comparable:
     the smaller number is considered greater than the larger number.
   */
   compare_to other/Position -> int:
-    return compare value other.value
+    return api.ArtemisService.channel_position_compare value other.value
 
   /**
   Variant of $(compare_to other).
@@ -286,17 +311,11 @@ class Position implements Comparable:
     result of the call.
   */
   compare_to other/Position [--if_equal] -> int:
-    result := compare value other.value
+    result := api.ArtemisService.channel_position_compare value other.value
     if result == 0: result = if_equal.call
     return result
 
-  static compare p0/int p1/int -> int:
-    if p0 == p1: return 0
-    return p0 < p1
-      ? (p1 - p0 < HALF_ ? -1 :  1)
-      : (p0 - p1 < HALF_ ?  1 : -1)
-
-class Page_:
-  sn/int
+class ChannelPage_:
+  position/int
   count/int
-  constructor --.sn --.count:
+  constructor --.position --.count:

@@ -14,7 +14,7 @@ main:
   provider.uninstall --wait
 
 test:
-  channel := artemis.Channel.open --topic="fisk" --read
+  channel := artemis.Channel.open --topic="fisk" --receive
   1999.repeat: channel.send #[1, 2, 3, 4, 5]
   channel.close
 
@@ -23,7 +23,7 @@ test:
   test_multi "hest"
 
 test_simple topic/string:
-  channel := artemis.Channel.open --topic=topic --read
+  channel := artemis.Channel.open --topic=topic --receive
   drain_channel channel
 
   position := channel.position
@@ -50,9 +50,9 @@ test_simple topic/string:
     channel.close
 
 test_multi topic/string:
-  channel := artemis.Channel.open --topic=topic --read
+  channel := artemis.Channel.open --topic=topic --receive
   expect_throw "ALREADY_IN_USE":
-    artemis.Channel.open --topic=topic --read
+    artemis.Channel.open --topic=topic --receive
   drain_channel channel
 
   received := []
@@ -61,7 +61,11 @@ test_multi topic/string:
       task::
         sender := artemis.Channel.open --topic=topic
         expect_throw "ALREADY_IN_USE":
-          artemis.Channel.open --topic=topic --read
+          artemis.Channel.open --topic=topic --receive
+        expect_throw "PERMISSION_DENIED":
+          sender.receive
+        expect_throw "OUT_OF_RANGE: 1 > 0":
+          sender.acknowledge
         50.repeat:
           sender.send #[index, random 0x100]
           sleep --ms=2 + (random 7)
@@ -71,7 +75,7 @@ test_multi topic/string:
       received.add channel.receive.copy
       channel.acknowledge
     expect_throw "ALREADY_IN_USE":
-      artemis.Channel.open --topic=topic --read
+      artemis.Channel.open --topic=topic --receive
   finally:
     channel.close
 

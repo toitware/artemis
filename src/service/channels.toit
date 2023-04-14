@@ -7,17 +7,17 @@ import .flashlog show FlashLog SN
 import .pkg_artemis_src_copy.api as api
 
 flashlogs_ ::= {:}
-readers_ ::= {}
+receivers_ ::= {}
 
 class ChannelResource extends ServiceResource:
   topic/string
-  read/bool
+  receive/bool
   log_/FlashLog? := ?
 
-  constructor provider/ServiceProvider client/int --.topic --.read:
-    if read:
-      if readers_.contains topic: throw "ALREADY_IN_USE"
-      readers_.add topic
+  constructor provider/ServiceProvider client/int --.topic --.receive:
+    if receive:
+      if receivers_.contains topic: throw "ALREADY_IN_USE"
+      receivers_.add topic
     log_ = flashlogs_.get topic --init=:
       path := "toit.io/channel/$topic"
       capacity := 32 * 1024
@@ -29,10 +29,12 @@ class ChannelResource extends ServiceResource:
     log_.append bytes
 
   receive_page --peek/int --buffer/ByteArray? -> List:
+    if not receive: throw "PERMISSION_DENIED"
     buffer = buffer or (ByteArray log_.size_per_page_)
     return log_.read_page buffer --peek=peek
 
   acknowledge sn/int count/int -> none:
+    if not receive: throw "PERMISSION_DENIED"
     if count < 1: throw "Bad Argument"
     log_.acknowledge (SN.previous (SN.next sn --increment=count))
 
@@ -40,7 +42,7 @@ class ChannelResource extends ServiceResource:
     log := log_
     if not log: return
     log_ = null
-    if read: readers_.remove topic
+    if receive: receivers_.remove topic
     if log.release == 0: flashlogs_.remove topic
 
 class ChannelServiceProvider extends ServiceProvider:
@@ -49,7 +51,7 @@ class ChannelServiceProvider extends ServiceProvider:
 
   handle index/int arguments/any --gid/int --client/int -> any:
     if index == api.ArtemisService.CHANNEL_OPEN_INDEX:
-      return channel_open client --topic=arguments[0] --read=arguments[1]
+      return channel_open client --topic=arguments[0] --receive=arguments[1]
     if index == api.ArtemisService.CHANNEL_SEND_INDEX:
       channel := (resource client arguments[0]) as ChannelResource
       return channel.send arguments[1]
@@ -61,7 +63,7 @@ class ChannelServiceProvider extends ServiceProvider:
       return channel.acknowledge arguments[1] arguments[2]
     unreachable
 
-  channel_open --topic/string --read/bool -> int?:
+  channel_open --topic/string --receive/bool -> int?:
     unreachable  // Here to satisfy the checker.
 
   channel_send handle/int bytes/ByteArray -> none:
@@ -73,5 +75,5 @@ class ChannelServiceProvider extends ServiceProvider:
   channel_acknowledge handle/int sn/int count/int -> none:
     unreachable  // Here to satisfy the checker.
 
-  channel_open client/int --topic/string --read/bool -> ChannelResource:
-    return ChannelResource this client --topic=topic --read=read
+  channel_open client/int --topic/string --receive/bool -> ChannelResource:
+    return ChannelResource this client --topic=topic --receive=receive
