@@ -1,5 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import bytes
 import certificate_roots
 import cli
 import encoding.base64
@@ -33,8 +34,11 @@ write_blob_to_file path/string value -> none:
   finally:
     stream.close
 
-write_json_to_file path/string value/any -> none:
-  write_blob_to_file path (json.encode value)
+write_json_to_file path/string value/any --pretty/bool=false -> none:
+  if pretty:
+    write_blob_to_file path (json_encode_pretty value)
+  else:
+    write_blob_to_file path (json.encode value)
 
 write_ubjson_to_file path/string value/any -> none:
   encoded := ubjson.encode value
@@ -148,6 +152,58 @@ random_uuid_string -> string:
   // TODO(kasper): This is used for many things that are
   // not device ids. Clean that up.
   return (random_uuid --namespace="Device ID").stringify
+
+json_encode_pretty value/any -> ByteArray:
+  buffer := bytes.Buffer
+  json_encode_pretty_ value buffer --indentation=0
+  buffer.close
+  return buffer.buffer
+
+// TODO(florian): move this into the core library.
+json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
+  indentation_string/string? := null
+  newline := :
+    buffer.write "\n"
+    if not indentation_string: indentation_string = "  " * indentation
+    buffer.write indentation_string
+
+  if value is List:
+    list := value as List
+    buffer.write "["
+    if list.is_empty:
+      buffer.write "]"
+      return
+    newline.call
+    indentation_str := "  " * (indentation + 2)
+    list.size.repeat: | i/int |
+      element := list[i]
+      buffer.write indentation_str
+      json_encode_pretty_ element buffer --indentation=indentation + 2
+      if i < list.size - 1: buffer.write ","
+      newline.call
+    buffer.write "]"
+    return
+  if value is Map:
+    map := value as Map
+    buffer.write "{"
+    if map.is_empty:
+      buffer.write "}"
+      return
+    newline.call
+    size := map.size
+    count := 0
+    map.do: | key value |
+      count++
+      is_last := count == size
+      buffer.write "  "
+      buffer.write (json.encode key)
+      buffer.write ": "
+      json_encode_pretty_ value buffer --indentation=indentation + 2
+      if not is_last: buffer.write ","
+      newline.call
+    buffer.write "}"
+    return
+  buffer.write (json.encode value)
 
 /**
 Parses the given $path into a DeviceSpecification.

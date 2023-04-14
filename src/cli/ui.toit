@@ -84,20 +84,21 @@ class ConsoleUi implements Ui:
 
     rows.do: | row |
       row.size.repeat:
-        column_sizes[it] = max column_sizes[it] row[it].size
+        entry/string := row[it]
+        column_sizes[it] = max column_sizes[it] (entry.size --runes)
     bars := column_sizes.map: "─" * it
     print_ "┌─$(bars.join "─┬─")─┐"
     if header != null:
       sized_header_entries := List column_count:
-        entry := header[it]
+        entry/string := header[it]
         entry + " " * (column_sizes[it] - entry.size)
       print_ "│ $(sized_header_entries.join "   ") │"
       print_ "├─$(bars.join "─┼─")─┤"
 
     rows.do: | row |
       sized_row_entries := List column_count:
-        entry := row[it]
-        entry + " " * (column_sizes[it] - entry.size)
+        entry/string := row[it]
+        entry + " " * (column_sizes[it] - (entry.size --runes))
       print_ "│ $(sized_row_entries.join "   ") │"
     print_ "└─$(bars.join "─┴─")─┘"
 

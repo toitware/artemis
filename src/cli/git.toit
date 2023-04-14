@@ -82,6 +82,17 @@ class Git:
       --quiet/bool?=false:
     args := [
       "-C", repository_root,
+      "remote",
+      "-v",
+    ]
+    output := run_ args --description="Verbose remote"
+
+    // Debug sleep, to make sure that the init/clone was finished.
+    // TODO(florian): remove this again.
+    sleep --ms=20
+
+    args = [
+      "-C", repository_root,
       "fetch",
       remote,
       // TODO(florian): is the following also useful in the
@@ -96,7 +107,11 @@ class Git:
     if quiet:
       args.add "--quiet"
 
-    run_ args --description="Fetch of $ref from $remote"
+    try:
+      run_ args --description="Fetch of $ref from $remote"
+    finally: | is_exception _ |
+      if is_exception:
+        ui_.error "Verbose remote was: $output"
 
     if checkout:
       args = [
@@ -192,8 +207,9 @@ class Git:
     stderr_task.cancel
 
     if (pipe.exit_code exit_value) != 0:
-      ui_.info output.bytes.to_string_non_throwing
       ui_.error "$description failed"
+      ui_.error "Git arguments: $args"
+      ui_.error output.bytes.to_string_non_throwing
       ui_.abort
 
     return stdout.bytes.to_string_non_throwing

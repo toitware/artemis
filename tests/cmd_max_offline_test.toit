@@ -6,13 +6,15 @@ import .utils
 import artemis.service.synchronize show SynchronizeJob
 
 main args:
-  with_test_cli --args=args --start_device: | test_cli/TestCli device/TestDevice |
+  with_test_cli --args=args: | test_cli/TestCli |
     test_cli.run [
       "auth", "login",
       "--broker",
       "--email", TEST_EXAMPLE_COM_EMAIL,
       "--password", TEST_EXAMPLE_COM_PASSWORD,
     ]
+
+    device := test_cli.start_device
 
     // Transient commands only work if we know the firmware the device
     // is actually running.
@@ -22,7 +24,7 @@ main args:
       "device",
       "set-max-offline",
       "--device-id", device.alias_id,
-       "1",
+      "1",
     ]
 
     // We give the infrastructure some time to react.
@@ -35,7 +37,7 @@ main args:
       "device",
       "set-max-offline",
       "--device-id", device.alias_id,
-       "3m",
+      "3m",
     ]
 
     // We've set the max-offline to 1s, but the synchronize job

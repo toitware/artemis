@@ -11,6 +11,7 @@ import ..cache
 import ..device
 import ..device_specification
 import ..firmware
+import ..fleet
 import ..ui
 import ..utils
 
@@ -39,6 +40,24 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
            station.
         4. Flash the devices using 'device flash'.
         """
+      --options=[
+        cli.Option "fleet-root"
+            --type="directory"
+            --short_help="Specify the fleet root."
+            --default=".",
+      ]
+
+  init_cmd := cli.Command "init"
+      --long_help="""
+        Initialize the fleet state.
+
+        This command initializes the fleet-root directory, so it can be
+        used by the other fleet commands.
+
+        The directory can be specified using the '--fleet-root' option.
+        """
+      --run=:: init it config cache ui
+  cmd.add init_cmd
 
   create_firmware_cmd := cli.Command "create-firmware"
       --long_help="""
@@ -138,10 +157,9 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   update_cmd := cli.Command "update"
       --long_help="""
-        Update the firmware of multiple devices.
+        Update the firmware of all devices in the fleet.
 
-        This command takes either a firmware image or a specification file as
-        input.
+        Uses the 'default.json' specification.
 
         If diff-bases are given, then the given firmwares are uploaded to
         all organizations of the devices that are updated.
@@ -166,30 +184,22 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         firmware update will still work, but will not be as efficient.
         """
       --options=[
-        cli.Option "specification"
-            --type="file"
-            --short_help="The specification to use.",
-        cli.Option "firmware"
-            --type="file"
-            --short_help="The firmware to use.",
         cli.Option "diff-base"
             --type="file"
             --short_help="The base firmware to use for diff-based updates."
             --multi,
-      ]
-      --rest= [
-        cli.Option "device-id"
-            --type="uuid"
-            --short_help="The ID of the device."
-            --multi
-            --required,
       ]
       --run=:: update it config cache ui
   cmd.add update_cmd
 
   return [cmd]
 
+init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
+  Fleet.init fleet_root --ui=ui
+
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
   specification_path := parsed["specification"]
   output := parsed["output"]
   organization_ids := parsed["organization-id"]
@@ -208,16 +218,14 @@ create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    specification := parse_device_specification_file specification_path --ui=ui
-    artemis.customize_envelope
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    fleet.create_firmware
+        --specification_path=specification_path
         --output_path=output
-        --device_specification=specification
-
-    organization_ids.do: | organization_id/string |
-      artemis.upload_firmware output --organization_id=organization_id
-      ui.info "Successfully uploaded firmware to organization $organization_id."
+        --organization_ids=organization_ids
 
 create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
   output_directory := parsed["output-directory"]
   organization_id := parsed["organization-id"]
   count := parsed["count"]
@@ -228,76 +236,22 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.error "No organization ID specified and no default organization ID set."
       ui.abort
 
-  count.repeat: | i/int |
-    device_id := random_uuid_string
-
-    output := "$output_directory/$(device_id).identity"
-
-    with_artemis parsed config cache ui: | artemis/Artemis |
-      artemis.provision
-          --device_id=device_id
-          --out_path=output
-          --organization_id=organization_id
-      ui.info "Created $output."
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    fleet.create_identities count
+        --output_directory=output_directory
+        --organization_id=organization_id
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  devices := parsed["device-id"]
-  specification_path := parsed["specification"]
-  firmware_path := parsed["firmware"]
+  fleet_root := parsed["fleet-root"]
   diff_bases := parsed["diff-base"]
 
-  if not specification_path and not firmware_path:
-    ui.error "No specification or firmware given."
-    ui.abort
-
-  if specification_path and firmware_path:
-    ui.error "Both specification and firmware given."
-    ui.abort
-
-  seen_organizations := {}
-
   with_artemis parsed config cache ui: | artemis/Artemis |
-    broker := artemis.connected_broker
-    detailed_devices := {:}
-    devices.do: | device_id/string |
-      device := broker.get_device --device_id=device_id
-      if not device:
-        ui.error "Device $device_id does not exist."
-        ui.abort
-
-    base_patches := {:}
-
-    base_firmwares := diff_bases.map: | diff_base/string |
-      FirmwareContent.from_envelope diff_base --cache=cache
-
-    base_firmwares.do: | content/FirmwareContent |
-      trivial_patches := artemis.extract_trivial_patches content
-      trivial_patches.do: | key value/FirmwarePatch | base_patches[key] = value
-
-    with_tmp_directory: | tmp_dir/string |
-      if specification_path:
-        firmware_path = "$tmp_dir/firmware.envelope"
-        specification := parse_device_specification_file specification_path --ui=ui
-        artemis.customize_envelope
-            --output_path=firmware_path
-            --device_specification=specification
-
-      devices.do: | device_id/string |
-        if not diff_bases.is_empty:
-          device/DeviceDetailed := detailed_devices[device_id]
-          if not seen_organizations.contains device.organization_id:
-            seen_organizations.add device.organization_id
-            base_patches.do: | _ patch/FirmwarePatch |
-              artemis.upload_patch patch --organization_id=device.organization_id
-
-        artemis.update
-            --device_id=device_id
-            --envelope_path=firmware_path
-            --base_firmwares=base_firmwares
-
-        ui.info "Successfully updated device $device_id."
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    fleet.update --diff_bases=diff_bases
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
   envelope_path := parsed["firmware"]
   organization_ids := parsed["organization-id"]
 
@@ -309,6 +263,5 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     organization_ids = [organization_id]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    organization_ids.do: | organization_id/string |
-      artemis.upload_firmware envelope_path --organization_id=organization_id
-      ui.info "Successfully uploaded firmware."
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    fleet.upload envelope_path --to=organization_ids

@@ -2,6 +2,7 @@
 
 import ar
 import host.file
+import snapshot show cache_snapshot
 import uuid
 
 import .utils
@@ -25,6 +26,8 @@ class CompiledProgram:
     with_tmp_directory: | tmp/string |
       snapshot_path := "$tmp/snapshot"
       sdk.run_toit_compile ["-w", snapshot_path, path]
+      snapshot_content := file.read_content snapshot_path
+      cache_snapshot snapshot_content
       return CompiledProgram.snapshot snapshot_path --sdk=sdk
     unreachable
 

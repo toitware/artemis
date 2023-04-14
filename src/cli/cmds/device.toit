@@ -317,14 +317,38 @@ print_device_
     event_strings := events.map: event_to_string.call it
     ui.info_list --title="Events" event_strings
 
-print_map_ map/Map ui/Ui --indentation/int=0:
-  indentation_str := " " * indentation
+print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="":
+  first_indentation_str := " " * indentation + prefix
+  next_indentation_str := " " * first_indentation_str.size
+  nested_indentation := first_indentation_str.size + 2
+  is_first := true
   map.do: | key/string value |
+    if (key.ends_with "password" or key.ends_with "key") and value is string:
+      value = "***"
+    indentation_str := is_first ? first_indentation_str : next_indentation_str
+    is_first = false
     if value is Map:
       ui.print "$indentation_str$key:"
-      print_map_ value ui --indentation=indentation + 2
+      print_map_ value ui --indentation=nested_indentation
+    else if value is List:
+      ui.print "$indentation_str$key: ["
+      print_list_ value ui --indentation=indentation
+      ui.print "$indentation_str]"
     else:
       ui.print "$indentation_str$key: $value"
+
+print_list_ list/List ui/Ui --indentation/int=0:
+  indentation_str := " " * indentation
+  nested_indentation := indentation + 2
+  list.do: | value |
+    if value is Map:
+      print_map_ value ui --indentation=nested_indentation  --prefix="* "
+    else if value is List:
+      ui.print "$(indentation_str)* ["
+      print_list_ value ui --indentation=nested_indentation
+      ui.print "$(indentation_str)]"
+    else:
+      ui.print "$(indentation_str)- $value"
 
 print_modification_ modification/Modification --to/Map ui/Ui:
   modification.on_value "firmware"

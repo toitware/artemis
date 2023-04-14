@@ -49,7 +49,7 @@ abstract class Job:
   // it just started. This helper achieves that by tuning the last
   // ran timestamp and moving it into the current period.
   static schedule_tune_periodic last/JobTime period/Duration? -> JobTime:
-    if not period: return last
+    if not period or period.is_zero: return last
     elapsed := last.to JobTime.now
     if elapsed <= period: return last
     // Compute the missed number of periods and use it

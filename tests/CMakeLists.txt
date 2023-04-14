@@ -139,6 +139,6 @@ endforeach()
 if (${WITH_LOCAL_SUPABASE})
   # Lock the artemis server to a single test for the following tests.
   # They use global properties interfering with the sdk table.
-  set_tests_properties("/tests/supabase_uploader_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
+  set_tests_properties("/tests/supabase_uploader_test_slow.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
   set_tests_properties("/tests/supabase_policies_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
 endif()
