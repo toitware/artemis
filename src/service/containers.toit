@@ -47,6 +47,16 @@ class ContainerManager:
       // the right thing to do.
       if job: add_ job --message="load"
 
+    // Mark containers that are needed by connections as runlevel safemode.
+    // TODO(florian): should required containers be started on-demand?
+    connections := state.get "connections"
+    connections.do: | connection/Map |
+      requires/List? := connection.get "requires"
+      if requires:
+        requires.do: | required_name/string |
+          job := get --name=required_name
+          if job: job.runlevel_ = Job.RUNLEVEL_SAFE
+
     pin_trigger_manager_.start jobs_.values
 
   setup_deep_sleep_triggers:
