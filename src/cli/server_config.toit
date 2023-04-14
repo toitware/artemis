@@ -21,11 +21,11 @@ get_server_from_config config/Config key/string -> ServerConfig:
   servers := config.get CONFIG_SERVERS_KEY
   if not servers: return DEFAULT_ARTEMIS_SERVER_CONFIG
 
-  // We keep the name "broker" here, as the CLI user should only ever deal with
-  // the term "broker". Internally we use it also to configure the Artemis server.
-  if not servers: throw "No brokers configured"
   server_name := config.get key
-  if not server_name: throw "No default broker configured $key"
+  if not server_name:
+    if key == CONFIG_ARTEMIS_DEFAULT_KEY:
+      return DEFAULT_ARTEMIS_SERVER_CONFIG
+    throw "No default broker configured $key"
   json_map := servers.get server_name
   if not json_map: throw "No broker named $server_name"
 
