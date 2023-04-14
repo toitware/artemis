@@ -34,8 +34,8 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
         a firmware image instead of using a specification. In that case, the
         Artemis tool will not connect to the Internet.
 
-        The 'chip' argument is used to select the chip to use. This option is
-        only used if no specification file is provided.
+        The 'chip' argument is used to select the chip to target when a device
+        is flashed with a firmware image instead of a specification file.
 
         Unless '--no-default' is used, automatically makes this device the
         new default device.
