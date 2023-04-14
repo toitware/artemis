@@ -244,6 +244,9 @@ class ContainerJob extends Job:
     description_ = description
     is_background_ = description.contains "background"
 
+    runlevel_ = description.get "runlevel" --if_absent=: Job.RUNLEVEL_NORMAL
+
+    // TODO(florian): Remove updates of the runlevel_.
     // Update runlevel.
     if name.starts_with "cellular":
       // TODO(kasper): This is a hack. We should replace this
@@ -251,8 +254,6 @@ class ContainerJob extends Job:
       runlevel_ = Job.RUNLEVEL_SAFE
     else if description.contains "critical":
       runlevel_ = Job.RUNLEVEL_CRITICAL
-    else:
-      runlevel_ = Job.RUNLEVEL_NORMAL
 
     // Reset triggers.
     trigger_boot_ = false
