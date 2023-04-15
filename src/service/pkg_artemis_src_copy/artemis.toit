@@ -168,10 +168,14 @@ class Channel extends ServiceResourceProxy:
   /**
   Acknowledges the handling of a received element.
 
-  The channel is allowed to discard acknowledged elements,
-    but it may do so using bulk operations, so you can
-    receive acknowledged elements again on later calls to
-    $receive.
+  After acknowledging, old buffers that have been given through $receive may
+    be reused and modified.
+
+  The channel is allowed but not required to discard acknowledged elements.
+    It may discard entries in bulk at a later time, and it thus possible to receive
+    acknowledged elements again on later calls to $receive. This can only
+    happen when a new receive channel is opened. A single channel does
+    never receive the same elements multiple times.
   */
   acknowledge n/int=1 -> none:
     if n < 1: throw "Bad Argument"
