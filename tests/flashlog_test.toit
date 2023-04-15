@@ -316,33 +316,45 @@ test_read_page peek_order/List:
     bytes.fill it
     flashlog.append bytes
 
-  // Try to peek too far. We should just get null back.
-  [99, 4, 7, 3, 1000].do: expect_null (flashlog.read_page buffer --peek=it)
+  // Try to peek too far. We should just get empty results back.
+  [99, 4, 7, 3, 1000].do:
+    list := flashlog.read_page buffer --peek=it
+    expect_null list[1]      // Cursor.
+    expect_equals 0 list[2]  // Count.
 
   test_peeked ::= : | buffer/ByteArray peek/int |
-    last_sn := null
+    first_sn := null
     n := 0
     flashlog.decode buffer: | x sn |
       expect_equals 1700 x.size
       expect (x.every: it == peek * 2 + n)
-      last_sn = sn
+      if not first_sn: first_sn = sn
       n++
-    last_sn
+    first_sn
 
   // Peek in the specified order.
   peek_order.do: | peek/int |
-    sn := flashlog.read_page buffer --peek=peek
-    expect_not_null sn
-    last_sn := test_peeked.call buffer peek
-    expect_equals last_sn sn
+    list := flashlog.read_page buffer --peek=peek
+    sn := list[0]
+    expect_equals 14 list[1]  // Cursor.
+    expect_equals 2 list[2]   // Count.
+    first_sn := test_peeked.call buffer peek
+    expect_equals first_sn sn
 
-  // Try to peek too far. We should just get null back.
-  [99, 4, 7, 3, 1000].do: expect_null (flashlog.read_page buffer --peek=it)
+  // Try to peek too far. We should just get empty results back.
+  [99, 4, 7, 3, 1000].do:
+    list := flashlog.read_page buffer --peek=it
+    expect_null list[1]      // Cursor.
+    expect_equals 0 list[2]  // Count.
 
   // Ack the pages one by one.
   for acked := 1; acked <= 3; acked++:
-    flashlog.acknowledge (flashlog.read_page buffer)
-    [99, 4, 7, 3 - acked, 1000].do: expect_null (flashlog.read_page buffer --peek=it)
+    list := flashlog.read_page buffer
+    flashlog.acknowledge (SN.previous (SN.next list[0] --increment=list[2]))
+    [99, 4, 7, 3 - acked, 1000].do:
+      list = flashlog.read_page buffer --peek=it
+      expect_null list[1]      // Cursor.
+      expect_equals 0 list[2]  // Count.
 
     // Peek in the specified order again but
     // take the acks into account.
@@ -351,7 +363,7 @@ test_read_page peek_order/List:
       if adjusted_peek < 0:
         expect_throw "Bad Argument": flashlog.read_page buffer --peek=adjusted_peek
       else:
-        sn := flashlog.read_page buffer --peek=adjusted_peek
+        sn := (flashlog.read_page buffer --peek=adjusted_peek)[0]
         expect_not_null sn
         last_sn := test_peeked.call buffer peek
         expect_equals last_sn sn

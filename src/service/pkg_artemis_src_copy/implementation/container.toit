@@ -6,15 +6,15 @@ import ..artemis as artemis
 import ..api as api
 
 class ContainerCurrent implements artemis.Container:
-  service_/api.ArtemisService
+  client_/api.ArtemisClient
   constructor:
-    service := artemis.service_
-    if not service: throw "Artemis unavailable"
-    service_ = service
+    client := artemis.artemis_client_
+    if not client: throw "Artemis unavailable"
+    client_ = client
 
   restart --delay/Duration?=null -> none:
     wakeup_us := delay and Time.monotonic_us + delay.in_us
-    service_.container_current_restart --wakeup_us=wakeup_us
+    client_.container_current_restart --wakeup_us=wakeup_us
     // The container is restarted, so we don't not
     // return here.
     unreachable
