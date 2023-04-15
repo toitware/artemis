@@ -11,6 +11,8 @@ main:
   provider := TestServiceProvider
   provider.install
   spawn:: test
+  // Uninstall after waiting for the first client to connect
+  // and the last client to disconnect.
   provider.uninstall --wait
 
 test:
