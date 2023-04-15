@@ -14,7 +14,7 @@ main:
   provider.uninstall --wait
 
 test:
-  channel := artemis.Channel.open --topic="fisk" --receive
+  channel := artemis.Channel.open --topic="fisk"
   1999.repeat: channel.send #[1, 2, 3, 4, 5]
   channel.close
 
