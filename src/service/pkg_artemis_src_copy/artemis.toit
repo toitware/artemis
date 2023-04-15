@@ -123,14 +123,14 @@ class Channel extends ServiceResourceProxy:
   The position increases as elements are received
     through calls to $receive.
   */
-  position -> Position:
+  position -> ChannelPosition:
     pages := pages_
     if pages.is_empty:
       assert: received_ == 0
-      return Position.internal_ receive_next_page_
+      return ChannelPosition.internal_ receive_next_page_
     else:
       first/ChannelPage_ := pages.first
-      return Position.internal_ first.position + received_
+      return ChannelPosition.internal_ first.position + received_
 
   /**
   Sends an $element of bytes to the channel.
@@ -267,7 +267,7 @@ The channels keep track of the position of all elements
   the next element returned from $Channel.receive by
   using $Channel.position.
 */
-class Position implements Comparable:
+class ChannelPosition implements Comparable:
   value/int
   constructor.internal_ value/int:
     this.value = value & api.ArtemisService.CHANNEL_POSITION_MASK
@@ -275,25 +275,25 @@ class Position implements Comparable:
   stringify -> string:
     return "$(%08x value)"
 
-  operator + n/int -> Position:
-    return Position.internal_ value + n
+  operator + n/int -> ChannelPosition:
+    return ChannelPosition.internal_ value + n
 
-  operator - n/int -> Position:
-    return Position.internal_ value - n
+  operator - n/int -> ChannelPosition:
+    return ChannelPosition.internal_ value - n
 
   operator == other/any -> bool:
-    return other is Position and value == other.value
+    return other is ChannelPosition and value == other.value
 
-  operator < other/Position -> bool:
+  operator < other/ChannelPosition -> bool:
     return (api.ArtemisService.channel_position_compare value other.value) < 0
 
-  operator <= other/Position -> bool:
+  operator <= other/ChannelPosition -> bool:
     return (api.ArtemisService.channel_position_compare value other.value) <= 0
 
-  operator > other/Position -> bool:
+  operator > other/ChannelPosition -> bool:
     return (api.ArtemisService.channel_position_compare value other.value) > 0
 
-  operator >= other/Position -> bool:
+  operator >= other/ChannelPosition -> bool:
     return (api.ArtemisService.channel_position_compare value other.value) >= 0
 
   /**
@@ -308,7 +308,7 @@ class Position implements Comparable:
     are far apart, then they have wrapped around which means that
     the smaller number is considered greater than the larger number.
   */
-  compare_to other/Position -> int:
+  compare_to other/ChannelPosition -> int:
     return api.ArtemisService.channel_position_compare value other.value
 
   /**
@@ -317,7 +317,7 @@ class Position implements Comparable:
   Calls $if_equal if this and $other are equal. Then returns the
     result of the call.
   */
-  compare_to other/Position [--if_equal] -> int:
+  compare_to other/ChannelPosition [--if_equal] -> int:
     result := api.ArtemisService.channel_position_compare value other.value
     if result == 0: result = if_equal.call
     return result
