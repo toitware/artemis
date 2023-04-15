@@ -20,8 +20,8 @@ interface ArtemisService:
   /**
   Compares two channel positions.
 
-  See $artemis.Position.compare_to for a description of
-    how the comparison is performed.
+  See $artemis.ChannelPosition.compare_to for a description
+    of how the comparison is performed.
   */
   static channel_position_compare p0/int p1/int -> int:
     if p0 == p1: return 0
