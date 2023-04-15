@@ -211,7 +211,7 @@ Parses the given $path into a DeviceSpecification.
 If there is an error, calls $Ui.error followed by a call to $Ui.abort.
 */
 parse_device_specification_file path/string --ui/Ui -> DeviceSpecification:
-  exception := catch:
+  exception := catch --unwind=(: it is not DeviceSpecificationException):
     return DeviceSpecification.parse path
   ui.error "Error parsing device specification: $exception"
   ui.abort
