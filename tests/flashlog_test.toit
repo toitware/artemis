@@ -337,7 +337,7 @@ test_read_page peek_order/List:
     list := flashlog.read_page buffer --peek=peek
     sn := list[0]
     expect_equals 14 list[1]  // Cursor.
-    expect_equals 2 list[2]         // Count.
+    expect_equals 2 list[2]   // Count.
     first_sn := test_peeked.call buffer peek
     expect_equals first_sn sn
 

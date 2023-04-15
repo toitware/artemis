@@ -101,7 +101,7 @@ class Channel extends ServiceResourceProxy:
     a given channel, so it is possible to conclude that
     a channel is empty and get a non-null result from
     $receive because of an interleaved $send from
-    through another sender.
+    another sender.
 
   Receiving from an non-empty channel will cause
     $receive to return a non-null byte array.
@@ -137,7 +137,7 @@ class Channel extends ServiceResourceProxy:
 
   The element is added after any existing elements in
     the channel, so it will be returned from $receive
-    only after those elements have received.
+    only after those elements have been received.
 
   Throws an exception if the channel is full.
   */

@@ -33,6 +33,7 @@ test_simple topic/string:
     list.size.repeat:
       expect_equals (position + it) channel.position
       expect_bytes_equal list[it] channel.receive
+      // Test the < and > operator.
       expect position < channel.position
       expect channel.position > position
     expect_null channel.receive
@@ -80,9 +81,7 @@ test_multi topic/string:
     channel.close
 
   5.repeat: | index |
-    count := received.reduce --initial=0: | acc x |
-      x[0] == index ? acc + 1 : acc
-    expect_equals 50 count
+    expect_equals 50 (received.filter: it[0] == index).size
 
 drain_channel channel/artemis.Channel -> none:
   while not channel.is_empty:
