@@ -38,7 +38,7 @@ interface ArtemisService:
   channel_open --topic/string --receive/bool -> int?
   static CHANNEL_OPEN_INDEX /int ::= 2
 
-  channel_send handle/int bytes/ByteArray -> none
+  channel_send handle/int bytes/ByteArray -> bool
   static CHANNEL_SEND_INDEX /int ::= 3
 
   channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?
@@ -63,8 +63,8 @@ class ArtemisClient extends ServiceClient
   channel_open --topic/string --receive/bool -> int?:
     return invoke_ ArtemisService.CHANNEL_OPEN_INDEX [topic, receive]
 
-  channel_send handle/int bytes/ByteArray -> none:
-    invoke_ ArtemisService.CHANNEL_SEND_INDEX [handle, bytes]
+  channel_send handle/int bytes/ByteArray -> bool:
+    return invoke_ ArtemisService.CHANNEL_SEND_INDEX [handle, bytes]
 
   channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?:
     return invoke_ ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX [handle, peek, buffer]
