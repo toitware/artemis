@@ -4,6 +4,8 @@ import binary show LITTLE_ENDIAN
 import crypto.crc
 import system.storage
 
+import .pkg_artemis_src_copy.api as api
+
 class FlashLog:
   static HEADER_MARKER_OFFSET_   ::= 0
   static HEADER_SN_OFFSET_       ::= 4 + HEADER_MARKER_OFFSET_
@@ -25,6 +27,10 @@ class FlashLog:
   write_page_/int := -1
   write_offset_/int := -1
 
+  // TODO(kasper): This should be cleaned up. It might make sense
+  // to combine the FlashLog and the ChannelResource more somehow.
+  usage_/int := 0
+
   constructor region/storage.Region:
     if not region.write_can_clear_bits:
       throw "Must be able to clear bits"
@@ -38,11 +44,23 @@ class FlashLog:
     buffer_ = ByteArray size_per_page_
     with_buffer_: ensure_valid_ it
 
+  acquire -> int:
+    return ++usage_
+
+  release -> int:
+    usage := usage_ - 1
+    usage_ = usage
+    if usage == 0: region_.close
+    return usage
+
   dump -> none:
     with_buffer_ --if_absent=(: ByteArray size_per_page_): | buffer/ByteArray |
       dump_ buffer
 
   append bytes/ByteArray -> none:
+    append bytes --if_full=: throw "OUT_OF_BOUNDS"
+
+  append bytes/ByteArray [--if_full] -> none:
     // We compute the size by counting the number of bits we need.
     // The first byte is special since it only encodes 6 bits, so
     // we pull that out of the computation (add 1), so we end up
@@ -78,7 +96,9 @@ class FlashLog:
             : SN.next sn --increment=count
 
         // Advance the write page.
-        advance_write_page_ buffer next_sn
+        if not advance_write_page_ buffer next_sn:
+          if_full.call
+          return
         assert: is_valid_ buffer
 
       encoded_size := encode_next_ buffer bytes
@@ -100,27 +120,30 @@ class FlashLog:
   */
   read [block] -> none:
     with_buffer_: | buffer/ByteArray |
-      commit_and_read_ buffer read_page_
+      commit_and_read_ buffer read_page_: | sn count | null
       decode_all_ buffer -1 block
 
   /**
-  Decode given buffer. Intended for testing.
+  Decodes the given buffer. Intended for testing.
   */
   decode buffer/ByteArray [block] -> none:
     decode_all_ buffer -1 block
 
   /**
-  Read the page $peek pages after the read page
+  Reads the page $peek pages after the read page
     into the given buffer.
 
-  Returns null if no such page has been written
-    to yet. Otherwise, returns the sequence number
-    of the last entry on the page.
+  Returns a list with the following elements:
+    [0]: page first sequence number  / int
+    [1]: page start cursor           / int?
+    [2]: page element count          / int
+    [3]: page buffer                 / ByteArray
   */
-  read_page buffer/ByteArray --peek/int=0 -> int?:
+  read_page buffer/ByteArray --peek/int=0 -> List:
+
     if peek < 0 or buffer.size != size_per_page_:
       throw "Bad Argument"
-    prevalidated := random 2  // TODO(kasper): Get this from somewhere.
+    prevalidated := 0  // TODO(kasper): Get this from somewhere.
     // Run through the pages and skip or validate the ones
     // that come before the page we're interested in.
     page := read_page_
@@ -128,7 +151,10 @@ class FlashLog:
     peek.repeat: | index/int |
       // If we reach the write page while running through
       // the pages we're not interested in, we're done.
-      if page == write_page_: return null
+      if page == write_page_:
+        region_.read --from=page buffer[..HEADER_SIZE_]
+        sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
+        return [sn, null, 0, buffer]
       current := page
       page += size_per_page_
       if page >= size_: page = 0
@@ -142,9 +168,13 @@ class FlashLog:
         // was terribly wrong.
         repair_reset_ buffer SN.new
         throw "INVALID_STATE"
-    last_sn := commit_and_read_ buffer page
-    return last_sn and (SN.previous last_sn)
+    commit_and_read_ buffer page: | sn count |
+      cursor := count == 0 ? null : HEADER_SIZE_
+      return [sn, cursor, count, buffer]
+    unreachable
 
+  // TODO(kasper): Allow passing the buffer in from the outside
+  // so we can reuse the one the client already has?
   acknowledge sn/int -> none:
     with_buffer_: | buffer/ByteArray |
       is_committed_page_ read_page_ buffer: | sn_ is_acked count |
@@ -182,10 +212,10 @@ class FlashLog:
       if original: buffer_ = original
 
   /**
-  Returns the next sequence number unless the page is
-  empty in which case we return null.
+  Calls the $block with the first sequence number in the
+    page and the element count.
   */
-  commit_and_read_ buffer/ByteArray page/int -> int?:
+  commit_and_read_ buffer/ByteArray page/int [block] -> none:
     // TODO(kasper): Handle reading from ack'ed pages. We
     // have an invariant that makes it impossible to get
     // to this point, but we should handle it gracefully.
@@ -195,28 +225,30 @@ class FlashLog:
     // or do we need to do it outside?
 
     region_.read --from=page buffer
+    sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
     count := LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_
     if count != 0xffff:
       // Already committed. We're done.
-      if count == 0: return null
-      sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
-      return SN.next sn --increment=count
+      block.call sn count
+      return
 
     // We avoid committing empty pages, so we can tell
     // if we did by looking at whether we decoded any
     // entries from the page.
-    committed := false
-    sn := decode_all_ buffer page --commit: committed = true
-    if not committed: return null
-    if page == write_page_:
-      write_offset_ = write_page_ + size_per_page_
-      // If we've decoded any entries to commit the
-      // page, we've modified the buffer. Read it again.
-      region_.read --from=page buffer
-    return sn
+    count = 0
+    decode_all_ buffer page --commit: count++
+    if count > 0:
+      if page == write_page_:
+        write_offset_ = write_page_ + size_per_page_
+        // If we've decoded any entries to commit the
+        // page, we've modified the buffer. Read it again.
+        region_.read --from=page buffer
+    block.call sn count
 
   advance_read_page_ buffer/ByteArray sn/int -> none:
-    // Don't go beyond the write page.
+    // Don't go beyond the write page. We have at
+    // least two pages, so advancing the write page
+    // will succeed.
     if read_page_ == write_page_:
       advance_write_page_ buffer sn
       read_page_ = write_page_
@@ -233,12 +265,12 @@ class FlashLog:
       return
     repair_ buffer
 
-  advance_write_page_ buffer/ByteArray sn/int -> none:
+  advance_write_page_ buffer/ByteArray sn/int -> bool:
     next := write_page_ + size_per_page_
     if next >= size_: next = 0
 
     // Don't go into the read page.
-    if next == read_page_: throw "OUT_OF_BOUNDS"
+    if next == read_page_: return false
 
     // Clear the page and start writing into it!
     region_.erase --from=next --to=next + size_per_page_
@@ -248,6 +280,7 @@ class FlashLog:
     region_.write --from=(next + HEADER_MARKER_OFFSET_) buffer[.. HEADER_SN_OFFSET_ + 4]
     write_page_ = next
     write_offset_ = next + HEADER_SIZE_
+    return true
 
   // TODO(kasper): Maybe let page only be set when commit is?
   decode_all_ buffer/ByteArray page/int [block] --commit/bool=false -> int:
@@ -356,14 +389,15 @@ class FlashLog:
               // SNs are equal, so we allow that.
               compare := (previous < read_page_) ? 0 : -1
               // TODO(kasper): Try to get rid of the write page check.
-              if previous != write_page_ and (SN.compare sn snx) <= compare: return false
+              if previous != write_page_ and (api.ArtemisService.channel_position_compare sn snx) <= compare:
+                return false
               if sn == (SN.next snx --increment=count): return false
           read_sn = sn
           break
         return false
 
       is_committed_page_ write_page_ buffer: | sn is_acked count |
-        if (SN.compare read_sn sn) >= 0: return false
+        if (api.ArtemisService.channel_position_compare read_sn sn) >= 0: return false
         offset := repair_find_write_offset_ buffer write_page_
         if not offset: return false
         next := write_page_ + size_per_page_
@@ -383,7 +417,8 @@ class FlashLog:
           // SN. If it hasn't, repairing would move the write page
           // forward to the next page.
           compare := (next > write_page_) ? -1 : 0
-          if count == 0 or (SN.compare sn snx) <= compare: return false
+          if count == 0 or (api.ArtemisService.channel_position_compare sn snx) <= compare:
+            return false
           return true
         is_uncommitted_page_ next buffer: | snx |
           if snx == (SN.next sn --increment=count): return false
@@ -391,7 +426,8 @@ class FlashLog:
         return true
 
       is_uncommitted_page_ write_page_ buffer: | sn |
-        if (SN.compare read_sn sn) >= 0: return false
+        if (api.ArtemisService.channel_position_compare read_sn sn) >= 0:
+          return false
         offset := repair_find_write_offset_ buffer write_page_
         if not offset: return false
         write_offset_ = offset  // Potentially repaired.
@@ -421,13 +457,13 @@ class FlashLog:
       is_committed_page_ previous buffer: | snx is_acked count |
         if not is_acked:
           compare := (previous < read_page_) ? 0 : -1
-          if (SN.compare sn snx) <= compare: return false
+          if (api.ArtemisService.channel_position_compare sn snx) <= compare: return false
           if sn == (SN.next snx --increment=count): return false
 
       if next >= size_: next = 0
       is_committed_page_ next buffer: | snx |
         compare := (next > write_page_) ? -1 : 0
-        if (SN.compare sn snx) <= compare: return false
+        if (api.ArtemisService.channel_position_compare sn snx) <= compare: return false
         return true
       is_uncommitted_page_ next buffer: | snx |
         if snx == (SN.next sn --increment=count): return false
@@ -456,7 +492,7 @@ class FlashLog:
 
     for page := 0; page < size_; page += size_per_page_:
       is_committed_page_ page buffer: | sn is_acked count |
-        if not last_page or (SN.compare sn last_sn) > 0:
+        if not last_page or (api.ArtemisService.channel_position_compare sn last_sn) > 0:
           last_page = page
           last_sn = sn
           last_is_acked = is_acked
@@ -513,6 +549,8 @@ class FlashLog:
             // The uncommitted page after the current write
             // page is invalid. We need to construct a new
             // one to make sure it is valid after repairing.
+            // The uncommitted page cannot be the read page
+            // so advancing the write page will succeed.
             advance_write_page_ buffer sn
 
     // If the write page remains the last committed page, we
@@ -632,42 +670,24 @@ unimplemented_ message/string?=null -> none:
   throw "UNIMPLEMENTED"
 
 class SN:
-  static BITS ::= 30
-  static MASK ::= (1 << BITS) - 1
-  static HALF ::= (1 << (BITS - 1))
+  static MASK ::= api.ArtemisService.CHANNEL_POSITION_MASK
 
   static is_valid sn/int -> bool:
-    return sn == (sn & MASK);
-
-  /**
-  Compares two sequence numbers $sn1 and $sn2.
-
-  Returns -1, 0, or 1 if the $sn1 is less than, equal to, or
-    greater than $sn2, respectively.
-
-  Sequence numbers wrap around when they reach the representable
-    limit while still supporting comparison. If sequence numbers
-    are close together, then they use normal comparison. However,
-    when they are far apart, then they have wrapped around which
-    means that the smaller number is considered greater than the
-    larger number.
-  */
-  static compare sn1/int sn2/int -> int:
-    if sn1 == sn2: return 0
-    return sn1 < sn2
-      ? (sn2 - sn1 < HALF ? -1 :  1)
-      : (sn1 - sn2 < HALF ?  1 : -1)
+    return sn == (sn & MASK)
 
   static next sn/int --increment/int=1 -> int:
     assert: increment >= 0
     result := (sn + increment) & MASK
-    assert: (compare result sn) == (increment == 0 ? 0 : 1)
+    assert: (api.ArtemisService.channel_position_compare result sn) == (increment == 0 ? 0 : 1)
     return result
 
   static previous sn/int -> int:
     result := (sn - 1) & MASK
-    assert: (compare result sn) == -1
+    assert: (api.ArtemisService.channel_position_compare result sn) == -1
     return result
+
+  static compare sn1/int sn2/int -> int:
+    return api.ArtemisService.channel_position_compare sn1 sn2
 
   static new -> int:
     return random MASK + 1
