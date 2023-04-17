@@ -262,8 +262,8 @@ class Channel extends ServiceResourceProxy:
       cursor_ = null  // Read last entry.
       return null
 
-    // We now have the first 6 bits of the
-    // decoded element in $acc.
+    // Store the first 6 bits of the decoded 
+    // element in $acc.
     bits := 6
     acc &= 0x3f
 
@@ -273,9 +273,9 @@ class Channel extends ServiceResourceProxy:
           cursor_ = null  // Read last entry.
           return buffer[from..to]
         next := buffer[cursor]
-        // The current element ends when the next
-        // byte has an MSB of one.
         if (next & 0x80) != 0:
+          // The MSB of the next byte is one, and the 
+          // current element thus ends.
           cursor_ = cursor
           return buffer[from..to]
         // The next byte has 7 more significant bits
