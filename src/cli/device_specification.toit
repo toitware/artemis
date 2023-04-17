@@ -275,7 +275,12 @@ class CellularConnectionInfo implements ConnectionInfo:
     return "cellular"
 
   to_json -> Map:
-    return {"type": type, "config": config, "requires": requires}
+    result := {
+      "type": type,
+      "config": config,
+    }
+    if requires: result["requires"] = requires
+    return result
 
 interface Container:
   static RUNLEVEL_STOP     ::= 0
