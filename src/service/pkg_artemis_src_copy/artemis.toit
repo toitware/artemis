@@ -135,14 +135,39 @@ class Channel extends ServiceResourceProxy:
   /**
   Sends an $element of bytes to the channel.
 
+  Variant of $(send element [--if_full]).
+
+  The channel must not be full.
+  */
+  send element/ByteArray --copy/bool=true -> none:
+    send element --if_full=: throw "OUT_OF_BOUNDS"
+
+  /**
+  Sends an $element of bytes to the channel.
+
   The element is added after any existing elements in
     the channel, so it will be returned from $receive
     only after those elements have been received.
 
-  Throws an exception if the channel is full.
+  If the channel is full, the $if_full block is invoked
+    with the $element.
   */
-  send element/ByteArray -> none:
-    (client_ as api.ArtemisClient).channel_send handle_ element
+  send element/ByteArray [--if_full] -> none:
+    sent := element
+    if element is not ByteArraySlice_:
+      // Even small external byte arrays are neutered
+      // as part of sending them across the RPC boundary.
+      // We avoid that behaviour by wrapping them in
+      // a slice that is always copied. We could avoid
+      // looking at the size and allocating the slice
+      // if we had a quick way to tell if the element
+      // was not external, but no such check exists.
+      size := element.size
+      sent = ByteArraySlice_ element 0 size
+    success := (client_ as api.ArtemisClient).channel_send
+        handle_
+        sent
+    if not success: if_full.call element
 
   /**
   Returns the next element in the channel or null if the

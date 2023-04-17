@@ -25,8 +25,9 @@ class ChannelResource extends ServiceResource:
     log_.acquire
     super provider client
 
-  send bytes/ByteArray -> none:
-    log_.append bytes
+  send bytes/ByteArray -> bool:
+    log_.append bytes --if_full=: return false
+    return true
 
   receive_page --peek/int --buffer/ByteArray? -> List:
     if not receive: throw "PERMISSION_DENIED"
@@ -66,7 +67,7 @@ class ChannelServiceProvider extends ServiceProvider:
   channel_open --topic/string --receive/bool -> int?:
     unreachable  // Here to satisfy the checker.
 
-  channel_send handle/int bytes/ByteArray -> none:
+  channel_send handle/int bytes/ByteArray -> bool:
     unreachable  // Here to satisfy the checker.
 
   channel_receive_page handle/int --peek/int --buffer/ByteArray? -> ByteArray:
