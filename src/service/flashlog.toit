@@ -27,6 +27,9 @@ class FlashLog:
   write_page_/int := -1
   write_offset_/int := -1
 
+  // ...
+  prevalidated_/int := 0
+
   // TODO(kasper): This should be cleaned up. It might make sense
   // to combine the FlashLog and the ChannelResource more somehow.
   usage_/int := 0
@@ -116,13 +119,17 @@ class FlashLog:
   read [block] -> none:
     with_buffer_: | buffer/ByteArray |
       commit_and_read_ buffer read_page_: | sn count | null
-      decode_all_ buffer -1 block
+      decode buffer block
 
   /**
-  Decodes the given buffer. Intended for testing.
+  Decodes the given buffer.
   */
   decode buffer/ByteArray [block] -> none:
-    decode_all_ buffer -1 block
+    decode_all_ buffer -1: | from to sn |
+      // We copy the section because we're reusing buffers
+      // and it is very unfortunate to change the sections
+      // we have already handed out.
+      block.call (buffer.copy from to) sn
 
   /**
   Reads the page $peek pages after the read page
@@ -135,10 +142,9 @@ class FlashLog:
     [3]: page buffer                 / ByteArray
   */
   read_page buffer/ByteArray --peek/int=0 -> List:
-
     if peek < 0 or buffer.size != size_per_page_:
       throw "Bad Argument"
-    prevalidated := 0  // TODO(kasper): Get this from somewhere.
+    prevalidated := prevalidated_
     // Run through the pages and skip or validate the ones
     // that come before the page we're interested in.
     page := read_page_
@@ -163,6 +169,7 @@ class FlashLog:
         // was terribly wrong.
         repair_reset_ buffer SN.new
         throw "INVALID_STATE"
+    prevalidated_ = max peek prevalidated
     commit_and_read_ buffer page: | sn count |
       cursor := count == 0 ? null : HEADER_SIZE_
       return [sn, cursor, count, buffer]
@@ -182,6 +189,7 @@ class FlashLog:
           region_.write --from=(read_page_ + HEADER_COUNT_OFFSET_) #[0, 0]
 
         advance_read_page_ buffer next_sn
+        prevalidated_ = max 0 (prevalidated_ - 1)
         assert: is_valid_ buffer
         return
     throw "Cannot acknowledge unread page"
@@ -276,30 +284,36 @@ class FlashLog:
 
   // TODO(kasper): Maybe let page only be set when commit is?
   decode_all_ buffer/ByteArray page/int [block] --commit/bool=false -> int:
-    crc32 := null
-    if commit:
-      assert: (LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_) == 0xffff
-      crc32 = crc.Crc32
-
     sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
     count := 0
     cursor := HEADER_SIZE_
     while cursor < size_per_page_:
-      cursor = decode_next_ buffer cursor:
+      cursor = decode_next_ buffer cursor: | from to |
         count++
-        if crc32: crc32.add it
-        block.call it sn
+        block.call from to sn
         sn = SN.next sn
 
     if commit and count > 0:
-      LITTLE_ENDIAN.put_uint32 buffer 0 sn
-      crc32.add buffer[..4]
+      region_.read --from=page buffer
+      assert: (LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_) == 0xffff
+      assert: (LITTLE_ENDIAN.uint32 buffer HEADER_CHECKSUM_OFFSET_) == 0xffff_ffff
+      crc32 := crc.Crc32
+      crc32.add buffer
       // Write the count and checksum together.
       assert: HEADER_COUNT_OFFSET_ == HEADER_CHECKSUM_OFFSET_ + 4
       LITTLE_ENDIAN.put_uint32 buffer 0 crc32.get_as_int
       LITTLE_ENDIAN.put_uint16 buffer 4 count
       region_.write --from=(page + HEADER_CHECKSUM_OFFSET_) buffer[..6]
     return sn
+
+  decode_count_all_ buffer/ByteArray -> int:
+    // TODO(kasper): Maybe specialize the call to decode_next_?
+    count := 0
+    cursor := HEADER_SIZE_
+    while cursor < size_per_page_:
+      cursor = decode_next_ buffer cursor: | from to |
+        count++
+    return count
 
   decode_next_ buffer/ByteArray start/int [block] -> int:
     cursor := start
@@ -313,10 +327,7 @@ class FlashLog:
       while bits < 8:
         next := (cursor >= buffer.size) ? 0xff : buffer[cursor]
         if (next & 0x80) != 0:
-          // We copy the section because we're reusing buffers
-          // and it is very unfortunate to change the sections
-          // we have already handed out.
-          block.call buffer[start..end].copy
+          block.call start end
           return next == 0xff ? size_per_page_ : cursor
         acc |= (next << bits)
         bits += 7
@@ -354,6 +365,12 @@ class FlashLog:
     return true
 
   is_valid_ buffer/ByteArray -> bool:
+    result := false
+    elapsed := Duration.of: result = is_valid_x_ buffer
+    print_ "[validating took $elapsed]"
+    return result
+
+  is_valid_x_ buffer/ByteArray -> bool:
     if not (0 <= read_page_ < size_ and 0 <= write_page_ < size_): return false
     if (round_down read_page_ size_per_page_) != read_page_: return false
     if (round_down write_page_ size_per_page_) != write_page_: return false
@@ -477,6 +494,10 @@ class FlashLog:
     return false
 
   repair_ buffer/ByteArray -> none:
+    elapsed := Duration.of: repair_x_ buffer
+    print_ "[repairing took $elapsed]"
+
+  repair_x_ buffer/ByteArray -> none:
     last_page/int? := null
     last_sn/int := -1
     last_is_acked/bool := false
@@ -525,6 +546,7 @@ class FlashLog:
 
     read_page_ = first_page
     write_page_ = last_page
+    prevalidated_ = 0
 
     next_sn := SN.next last_sn --increment=last_count
     next := last_page + size_per_page_
@@ -584,11 +606,14 @@ class FlashLog:
     write_page_ = size_ - size_per_page_
     region_.erase --from=write_page_ --to=write_page_ + size_per_page_
 
+    buffer.fill 0xff
     LITTLE_ENDIAN.put_uint32 buffer HEADER_MARKER_OFFSET_ MARKER_
     LITTLE_ENDIAN.put_uint32 buffer HEADER_SN_OFFSET_ initial_sn
-    LITTLE_ENDIAN.put_uint16 buffer HEADER_COUNT_OFFSET_ 0
+    LITTLE_ENDIAN.put_uint16 buffer HEADER_COUNT_OFFSET_ 0xffff
+    LITTLE_ENDIAN.put_uint32 buffer HEADER_CHECKSUM_OFFSET_ 0xffff_ffff
     crc32 := crc.Crc32
-    crc32.add buffer[HEADER_SN_OFFSET_ .. HEADER_SN_OFFSET_ + 4]
+    crc32.add buffer
+    LITTLE_ENDIAN.put_uint16 buffer HEADER_COUNT_OFFSET_ 0
     LITTLE_ENDIAN.put_uint32 buffer HEADER_CHECKSUM_OFFSET_ crc32.get_as_int
     region_.write --from=write_page_ buffer[..HEADER_SIZE_]
     write_offset_ = write_page_ + HEADER_SIZE_
@@ -603,15 +628,16 @@ class FlashLog:
     expected_checksum := LITTLE_ENDIAN.uint32 buffer HEADER_CHECKSUM_OFFSET_
     expected_count := LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_
     if not (0 <= expected_count <= size_per_page_ - HEADER_SIZE_): return
-    actual_count := 0
-    actual_crc32 := crc.Crc32
-    decode_all_ buffer page: | x |
-      actual_crc32.add x
-      actual_count++
+    actual_count := decode_count_all_ buffer
     if expected_count > 0 and actual_count != expected_count: return
-    LITTLE_ENDIAN.put_uint32 buffer 0 (SN.next sn --increment=actual_count)
-    actual_crc32.add buffer[..4]
-    if actual_crc32.get_as_int != expected_checksum: return
+    actual_crc32 := crc.Crc32
+    // TODO(kasper): Should these be different values?
+    LITTLE_ENDIAN.put_uint16 buffer HEADER_COUNT_OFFSET_ 0xffff
+    LITTLE_ENDIAN.put_uint32 buffer HEADER_CHECKSUM_OFFSET_ 0xffff_ffff
+    actual_crc32.add buffer
+    if actual_crc32.get_as_int != expected_checksum:
+      print "[checksum: expected $expected_checksum, but was $actual_crc32.get_as_int]"
+      return
     found.call sn (expected_count == 0) actual_count
 
   is_uncommitted_page_ page/int buffer/ByteArray [found] -> none:

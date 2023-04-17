@@ -174,8 +174,8 @@ class Channel extends ServiceResourceProxy:
   The channel is allowed but not required to discard acknowledged elements.
     It may discard entries in bulk at a later time, and it thus possible to receive
     acknowledged elements again on later calls to $receive. This can only
-    happen when a new receive channel is opened. A single channel does
-    never receive the same elements multiple times.
+    happen when a new receive channel is opened. A single channel never receives
+    the same element multiple times.
   */
   acknowledge n/int=1 -> none:
     if n < 1: throw "Bad Argument"
