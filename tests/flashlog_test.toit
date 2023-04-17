@@ -1178,11 +1178,8 @@ class TestFlashLog extends FlashLog:
         region.write --from=(index * page_size + write_cursor) bytes
         write_cursor += bytes.size
         // Compute a correct write count based on the bytes.
-        write_count = 0
         region.read --from=(index * page_size) buffer
-        read_cursor := FlashLog.HEADER_SIZE_
-        while read_cursor < page_size:
-          read_cursor = log.decode_next_ buffer read_cursor: write_count++
+        write_count = log.decode_count_ buffer
       else if page.contains "entries":
         entries := page["entries"]
         write_count = 0
@@ -1196,7 +1193,6 @@ class TestFlashLog extends FlashLog:
       remaining := page_size - write_cursor
       if remaining > 0:
         fill := page.get "fill" --if_absent=: write_count and 0xff
-        print "[fill = $fill, write cursor = $write_cursor]"
         if fill:
           buffer[..remaining].fill fill
         else:
@@ -1223,7 +1219,6 @@ class TestFlashLog extends FlashLog:
         checksum = 0xffff_ffff
       else:
         region.read --from=(index * page_size) buffer
-        // read_count := log.decode_count_all_ buffer
         crc32 := crc.Crc32
         LITTLE_ENDIAN.put_uint16 buffer FlashLog.HEADER_COUNT_OFFSET_ 0xffff
         LITTLE_ENDIAN.put_uint32 buffer FlashLog.HEADER_CHECKSUM_OFFSET_ 0xffff_ffff
