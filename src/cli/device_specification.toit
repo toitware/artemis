@@ -343,7 +343,7 @@ abstract class ContainerBase implements Container:
       runlevel = Container.STRING_TO_RUNLEVEL_.get runlevel_string
           --if_absent=: format_error_ "Unknown run-level '$runlevel_string' in container $name"
     else:
-      runlevel = Container.RUNLEVEL_NORMAL
+      runlevel = null
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
         --type="map or string"
