@@ -71,4 +71,3 @@ class ArtemisClient extends ServiceClient
 
   channel_acknowledge handle/int position/int count/int -> none:
     invoke_ ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX [handle, position, count]
-
