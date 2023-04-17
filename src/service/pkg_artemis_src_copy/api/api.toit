@@ -3,18 +3,49 @@
 // found in the LICENSE file.
 
 import system.services show ServiceSelector ServiceClient
+import ..artemis as artemis  // For toitdoc.
 
 interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=0
-      --minor=2
+      --minor=3
+
+  static CHANNEL_POSITION_BITS_ ::= 30
+  static CHANNEL_POSITION_HALF_ ::= (1 << (CHANNEL_POSITION_BITS_ - 1))
+
+  /** The mask used to force channel positions to wrap around. */
+  static CHANNEL_POSITION_MASK ::= (1 << CHANNEL_POSITION_BITS_) - 1
+
+  /**
+  Compares two channel positions.
+
+  See $artemis.ChannelPosition.compare_to for a description
+    of how the comparison is performed.
+  */
+  static channel_position_compare p0/int p1/int -> int:
+    if p0 == p1: return 0
+    return p0 < p1
+      ? (p1 - p0 < CHANNEL_POSITION_HALF_ ? -1 :  1)
+      : (p0 - p1 < CHANNEL_POSITION_HALF_ ?  1 : -1)
 
   version -> string
   static VERSION_INDEX /int ::= 0
 
   container_current_restart --wakeup_us/int? -> none
   static CONTAINER_CURRENT_RESTART_INDEX /int ::= 1
+
+  channel_open --topic/string --receive/bool -> int?
+  static CHANNEL_OPEN_INDEX /int ::= 2
+
+  channel_send handle/int bytes/ByteArray -> bool
+  static CHANNEL_SEND_INDEX /int ::= 3
+
+  channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?
+  static CHANNEL_RECEIVE_PAGE_INDEX /int ::= 4
+
+  channel_acknowledge handle/int position/int count/int -> none
+  static CHANNEL_ACKNOWLEDGE_INDEX /int ::= 5
 
 class ArtemisClient extends ServiceClient
     implements ArtemisService:
@@ -28,3 +59,16 @@ class ArtemisClient extends ServiceClient
 
   container_current_restart --wakeup_us/int? -> none:
     invoke_ ArtemisService.CONTAINER_CURRENT_RESTART_INDEX wakeup_us
+
+  channel_open --topic/string --receive/bool -> int?:
+    return invoke_ ArtemisService.CHANNEL_OPEN_INDEX [topic, receive]
+
+  channel_send handle/int bytes/ByteArray -> bool:
+    return invoke_ ArtemisService.CHANNEL_SEND_INDEX [handle, bytes]
+
+  channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?:
+    return invoke_ ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX [handle, peek, buffer]
+
+  channel_acknowledge handle/int position/int count/int -> none:
+    invoke_ ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX [handle, position, count]
+
