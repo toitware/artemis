@@ -253,13 +253,45 @@ class Channel extends ServiceResourceProxy:
     from := cursor
     to := cursor
 
+    // The elements in the buffer are encoded in
+    // a sequence of 7 bit entries where the MSBs
+    // of the bytes are zero. The first byte of
+    // an element is different as it encodes only
+    // 6 bits but has the MSB set to one.
+    //
+    //   element : 0b10xxxxxx (0b0yyyyyyy)+
+    //
+    // There will always be at least two encoding
+    // bytes for an element because empty elements
+    // are not allowed.
+    //
+    // The buffer contains a sequence of elements
+    // and the bytes between the last element and
+    // the end of the buffer page (EOF) have all
+    // their bits set to one.
+    //
+    //   buffer : element* (0b11111111)* EOF
+    //
+    // Decoding is done in place, so the decoded
+    // element ends up replacing the encoded one
+    // in the buffer in the [$from, $to) range.
+    // The decoded element is guaranteed to be
+    // smaller, so $to never overtakes the $cursor.
+
+    // Read the first byte and check if we have
+    // reached the end. We will never be called
+    // with the cursor pointing to the end of
+    // the buffer.
     acc := buffer[cursor++]
     if acc == 0xff:
       cursor_ = null  // Read last entry.
       return null
 
+    // Store the first 6 bits of the decoded 
+    // element in $acc.
     bits := 6
     acc &= 0x3f
+
     while true:
       while bits < 8:
         if cursor >= buffer.size:
@@ -267,11 +299,19 @@ class Channel extends ServiceResourceProxy:
           return buffer[from..to]
         next := buffer[cursor]
         if (next & 0x80) != 0:
+          // The MSB of the next byte is one, and the 
+          // current element thus ends.
           cursor_ = cursor
           return buffer[from..to]
+        // The next byte has 7 more significant bits
+        // for us, so we extend $acc with them.
         acc |= (next << bits)
         bits += 7
         cursor++
+      // We have the necessary 8 bits, so we can
+      // construct another byte of the decoded
+      // element from the least significant bits
+      // of $acc.
       buffer[to++] = (acc & 0xff)
       acc >>= 8
       bits -= 8
