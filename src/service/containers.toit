@@ -258,11 +258,7 @@ class ContainerJob extends Job:
 
     // TODO(florian): Remove updates of the runlevel_.
     // Update runlevel.
-    if name.starts_with "cellular":
-      // TODO(kasper): This is a hack. We should replace this
-      // something more general.
-      runlevel_ = Job.RUNLEVEL_SAFE
-    else if description.contains "critical":
+    if description.contains "critical":
       runlevel_ = Job.RUNLEVEL_CRITICAL
 
     // Reset triggers.
