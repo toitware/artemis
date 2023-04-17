@@ -61,6 +61,9 @@ class FlashLog:
       dump_ buffer
 
   append bytes/ByteArray -> none:
+    append bytes --if_full=: throw "OUT_OF_BOUNDS"
+
+  append bytes/ByteArray [--if_full] -> none:
     // We compute the size by counting the number of bits we need.
     // The first byte is special since it only encodes 6 bits, so
     // we pull that out of the computation (add 1), so we end up
@@ -96,7 +99,9 @@ class FlashLog:
             : SN.next sn --increment=count
 
         // Advance the write page.
-        advance_write_page_ buffer next_sn
+        if not advance_write_page_ buffer next_sn:
+          if_full.call
+          return
         assert: is_valid_ buffer
 
       encoded_size := encode_next_ buffer bytes
@@ -249,7 +254,9 @@ class FlashLog:
     block.call sn count
 
   advance_read_page_ buffer/ByteArray sn/int -> none:
-    // Don't go beyond the write page.
+    // Don't go beyond the write page. We have at
+    // least two pages, so advancing the write page
+    // will succeed.
     if read_page_ == write_page_:
       advance_write_page_ buffer sn
       read_page_ = write_page_
@@ -266,12 +273,12 @@ class FlashLog:
       return
     repair_ buffer
 
-  advance_write_page_ buffer/ByteArray sn/int -> none:
+  advance_write_page_ buffer/ByteArray sn/int -> bool:
     next := write_page_ + size_per_page_
     if next >= size_: next = 0
 
     // Don't go into the read page.
-    if next == read_page_: throw "OUT_OF_BOUNDS"
+    if next == read_page_: return false
 
     // Clear the page and start writing into it!
     region_.erase --from=next --to=next + size_per_page_
@@ -281,6 +288,7 @@ class FlashLog:
     region_.write --from=(next + HEADER_MARKER_OFFSET_) buffer[.. HEADER_SN_OFFSET_ + 4]
     write_page_ = next
     write_offset_ = next + HEADER_SIZE_
+    return true
 
   // TODO(kasper): Maybe let page only be set when commit is?
   decode_all_ buffer/ByteArray page/int [block] --commit/bool=false -> int:
@@ -563,6 +571,8 @@ class FlashLog:
             // The uncommitted page after the current write
             // page is invalid. We need to construct a new
             // one to make sure it is valid after repairing.
+            // The uncommitted page cannot be the read page
+            // so advancing the write page will succeed.
             advance_write_page_ buffer sn
 
     // If the write page remains the last committed page, we

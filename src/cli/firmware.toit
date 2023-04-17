@@ -257,8 +257,8 @@ class FirmwarePartConfig extends FirmwarePart:
 /**
 Builds the URL for the firmware envelope for the given $version on GitHub.
 */
-envelope_url version/string -> string:
-  return "github.com/toitlang/toit/releases/download/$version/firmware-esp32.gz"
+envelope_url version/string --chip/string -> string:
+  return "github.com/toitlang/toit/releases/download/$version/firmware-$(chip).gz"
 
 /**
 Stores the snapshots inside the envelope in the user's snapshot directory.
@@ -290,9 +290,12 @@ If $cache_snapshots is true, then copies the contained snapshots
 */
 // TODO(florian): we probably want to create a class for the firmware
 // envelope.
-get_envelope version/string --cache/cli.Cache --cache_snapshots/bool=true -> string:
-  url := envelope_url version
-  path := "firmware-esp32.envelope"
+get_envelope version/string -> string
+    --chip/string="esp32"
+    --cache/cli.Cache
+    --cache_snapshots/bool=true:
+  url := envelope_url version --chip=chip
+  path := "firmware-$(chip).envelope"
   envelope_key := "$ENVELOPE_PATH/$version/$path"
   return cache.get_file_path envelope_key: | store/cli.FileStore |
     store.with_tmp_directory: | tmp_dir |

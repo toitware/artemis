@@ -26,6 +26,9 @@ class DeviceSpecificationException:
 format_error_ message/string:
   throw (DeviceSpecificationException message)
 
+validation_error_ message/string:
+  throw (DeviceSpecificationException message)
+
 check_has_key_ map/Map --holder/string="device specification" key/string:
   if not map.contains key:
     format_error_ "Missing $key in $holder."
@@ -158,10 +161,13 @@ class DeviceSpecification:
   connections/List  // Of $ConnectionInfo.
   containers/Map  // Of name -> $Container.
   path/string
+  chip/string?
 
   constructor.from_json --.path/string data/Map:
     sdk_version = get_string_ data "sdk-version"
     artemis_version = get_string_ data "artemis-version"
+
+    chip = get_optional_string_ data "chip"
 
     if data.contains "apps" and data.contains "containers":
       format_error_ "Both 'apps' and 'containers' are present in device specification."
@@ -196,6 +202,8 @@ class DeviceSpecification:
     // TODO(florian): make max-offline optional.
     max_offline_seconds = (get_duration_ data "max-offline").in_s
 
+    validate_
+
   static parse path/string -> DeviceSpecification:
     json := null
     exception := catch: json = read_json path
@@ -210,6 +218,16 @@ class DeviceSpecification:
   relative_to -> string:
     return fs.dirname path
 
+  /**
+  Checks non-syntax related invariants of the specification.
+  */
+  validate_ -> none:
+    connections.do: | connection/ConnectionInfo |
+      if connection.requires:
+        connection.requires.do: | required_container_name/string |
+          if not containers.contains required_container_name:
+            validation_error_ "Cellular connection requires container $required_container_name, but it is not installed."
+
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
     check_has_key_ data --holder="connection" "type"
@@ -222,6 +240,7 @@ interface ConnectionInfo:
     unreachable
 
   type -> string
+  requires -> List?  // Of container names.
   to_json -> Map
 
 class WifiConnectionInfo implements ConnectionInfo:
@@ -238,18 +257,39 @@ class WifiConnectionInfo implements ConnectionInfo:
   to_json -> Map:
     return {"type": type, "ssid": ssid, "password": password}
 
+  requires -> List?:
+    return null
+
 class CellularConnectionInfo implements ConnectionInfo:
   config/Map
+  requires/List?
+
   constructor.from_json data/Map:
     config = get_map_ data "config" --holder="cellular connection"
+    requires = get_optional_list_ data "requires"
+        --holder="cellular connection"
+        --type="string"
+        --check=: it is string
 
   type -> string:
     return "cellular"
 
   to_json -> Map:
-    return {"type": type, "config": config}
+    return {"type": type, "config": config, "requires": requires}
 
 interface Container:
+  static RUNLEVEL_STOP     ::= 0
+  static RUNLEVEL_SAFE     ::= 1
+  static RUNLEVEL_CRITICAL ::= 2
+  static RUNLEVEL_NORMAL   ::= 3
+
+  static STRING_TO_RUNLEVEL_ ::= {
+    "stop": RUNLEVEL_STOP,
+    "safe": RUNLEVEL_SAFE,
+    "critical": RUNLEVEL_CRITICAL,
+    "normal": RUNLEVEL_NORMAL,
+  }
+
   static from_json name/string data/Map -> Container:
     if data.contains "entrypoint" and data.contains "snapshot":
       format_error_ "Container $name has both entrypoint and snapshot."
@@ -272,6 +312,7 @@ interface Container:
   arguments -> List?
   is_background -> bool?
   is_critical -> bool?
+  runlevel -> int?
   triggers -> List? // Of type $Trigger.
 
   static check_arguments_entry arguments:
@@ -287,6 +328,7 @@ abstract class ContainerBase implements Container:
   triggers/List?
   is_background/bool?
   is_critical/bool?
+  runlevel/int?
 
   constructor.from_json name/string data/Map:
     holder := "container $name"
@@ -296,6 +338,12 @@ abstract class ContainerBase implements Container:
         --check=: it is string
     is_background = get_optional_bool_ data "background"
     is_critical = get_optional_bool_ data "critical"
+    runlevel_string := get_optional_string_ data "run-level"
+    if runlevel_string:
+      runlevel = Container.STRING_TO_RUNLEVEL_.get runlevel_string
+          --if_absent=: format_error_ "Unknown run-level '$runlevel_string' in container $name"
+    else:
+      runlevel = Container.RUNLEVEL_NORMAL
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
         --type="map or string"

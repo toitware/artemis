@@ -16,13 +16,17 @@ main:
   provider.uninstall --wait
 
 test:
-  channel := artemis.Channel.open --topic="fisk"
-  1999.repeat: channel.send #[1, 2, 3, 4, 5]
-  channel.close
-
+  test_send "fisk"
   3.repeat: test_simple "fisk"
+  test_neutering "hest"
+  test_full "fisk"
   test_multi "fisk"
   test_multi "hest"
+
+test_send topic/string:
+  channel := artemis.Channel.open --topic=topic
+  1999.repeat: channel.send #[1, 2, 3, 4, 5]
+  channel.close
 
 test_simple topic/string:
   channel := artemis.Channel.open --topic=topic --receive
@@ -51,6 +55,62 @@ test_simple topic/string:
     expect_equals position channel.position
   finally:
     channel.close
+
+test_neutering topic/string:
+  [1, 2, 5, 127, 128, 129, 512, 1024, 3000].do:
+    test_neutering topic it
+
+test_neutering topic/string size/int:
+  test_neutering topic:
+    ByteArray size: random 0x100
+  test_neutering topic:
+    bytes := ByteArray_.external_ size
+    bytes.size.repeat: bytes[it] = random 0x100
+    bytes
+
+test_neutering topic/string [create]:
+  channel := artemis.Channel.open --topic=topic --receive
+  drain_channel channel
+
+  element := create.call
+  copy := element.copy
+  channel.send element
+  expect_bytes_equal copy element
+  expect_bytes_equal copy channel.receive
+  channel.acknowledge 1
+
+  element = create.call
+  if element.size > 1:
+    element = element[1..]
+    expect element is ByteArraySlice_
+    copy = element.copy
+    channel.send element
+    expect_bytes_equal copy element
+    expect_bytes_equal copy channel.receive
+    channel.acknowledge 1
+
+  channel.close
+
+test_full topic/string:
+  channel := artemis.Channel.open --topic=topic --receive
+  drain_channel channel
+
+  sent := 0
+  while true:
+    channel.send #[1] --if_full=: break
+    sent++
+  expect_equals 16328 sent
+
+  full := false
+  element := #[1]
+  channel.send element --if_full=:
+    expect_identical element it
+    full = true
+  expect full
+
+  expect_throw "OUT_OF_BOUNDS": channel.send #[1]
+
+  channel.close
 
 test_multi topic/string:
   channel := artemis.Channel.open --topic=topic --receive

@@ -205,7 +205,10 @@ class Artemis:
     check_is_supported_version_ --sdk=sdk_version --service=service_version
 
     sdk := get_sdk sdk_version --cache=cache_
-    cached_envelope_path := get_envelope sdk_version --cache=cache_
+    cached_envelope_path := get_envelope
+        sdk_version
+        --chip=device_specification.chip
+        --cache=cache_
 
     copy_file --source=cached_envelope_path --target=output_path
 
@@ -274,6 +277,7 @@ class Artemis:
             --arguments=container.arguments
             --background=container.is_background
             --critical=container.is_critical
+            --runlevel=container.runlevel
             --triggers=triggers
         ui_.info "Added container '$name' to envelope."
 
@@ -334,6 +338,7 @@ class Artemis:
       --arguments/List?
       --background/bool?
       --critical/bool?
+      --runlevel/int?
       --triggers/List?:
     result := {
       "id": id.stringify,
@@ -344,6 +349,8 @@ class Artemis:
       result["background"] = 1
     if critical:
       result["critical"] = 1
+    if runlevel:
+      result["runlevel"] = runlevel
     if triggers and not triggers.is_empty:
       trigger_map := {:}
       triggers.do: | trigger/Trigger |
@@ -686,6 +693,7 @@ class Artemis:
           --arguments=arguments
           --background=background
           --critical=critical
+          --runlevel=null  // TODO(florian): should we allow to set the runlevel?
           --triggers=triggers
       new_goal["apps"] = apps
       new_goal
