@@ -250,6 +250,18 @@ class CellularConnectionInfo implements ConnectionInfo:
     return {"type": type, "config": config}
 
 interface Container:
+  static RUNLEVEL_STOP     ::= 0
+  static RUNLEVEL_SAFE     ::= 1
+  static RUNLEVEL_CRITICAL ::= 2
+  static RUNLEVEL_NORMAL   ::= 3
+
+  static STRING_TO_RUNLEVEL_ ::= {
+    "stop": RUNLEVEL_STOP,
+    "safe": RUNLEVEL_SAFE,
+    "critical": RUNLEVEL_CRITICAL,
+    "normal": RUNLEVEL_NORMAL,
+  }
+
   static from_json name/string data/Map -> Container:
     if data.contains "entrypoint" and data.contains "snapshot":
       format_error_ "Container $name has both entrypoint and snapshot."
@@ -272,6 +284,7 @@ interface Container:
   arguments -> List?
   is_background -> bool?
   is_critical -> bool?
+  runlevel -> int?
   triggers -> List? // Of type $Trigger.
 
   static check_arguments_entry arguments:
@@ -287,6 +300,7 @@ abstract class ContainerBase implements Container:
   triggers/List?
   is_background/bool?
   is_critical/bool?
+  runlevel/int?
 
   constructor.from_json name/string data/Map:
     holder := "container $name"
@@ -296,6 +310,12 @@ abstract class ContainerBase implements Container:
         --check=: it is string
     is_background = get_optional_bool_ data "background"
     is_critical = get_optional_bool_ data "critical"
+    runlevel_string := get_optional_string_ data "run-level"
+    if runlevel_string:
+      runlevel = Container.STRING_TO_RUNLEVEL_.get runlevel_string
+          --if_absent=: format_error_ "Unknown run-level '$runlevel_string' in container $name"
+    else:
+      runlevel = Container.RUNLEVEL_NORMAL
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
         --type="map or string"
