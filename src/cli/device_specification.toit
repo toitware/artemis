@@ -26,6 +26,9 @@ class DeviceSpecificationException:
 format_error_ message/string:
   throw (DeviceSpecificationException message)
 
+validation_error_ message/string:
+  throw (DeviceSpecificationException message)
+
 check_has_key_ map/Map --holder/string="device specification" key/string:
   if not map.contains key:
     format_error_ "Missing $key in $holder."
@@ -196,6 +199,8 @@ class DeviceSpecification:
     // TODO(florian): make max-offline optional.
     max_offline_seconds = (get_duration_ data "max-offline").in_s
 
+    validate_
+
   static parse path/string -> DeviceSpecification:
     json := null
     exception := catch: json = read_json path
@@ -210,6 +215,16 @@ class DeviceSpecification:
   relative_to -> string:
     return fs.dirname path
 
+  /**
+  Checks non-syntax related invariants of the specification.
+  */
+  validate_ -> none:
+    connections.do: | connection/ConnectionInfo |
+      if connection.requires:
+        connection.requires.do: | required_container_name/string |
+          if not containers.contains required_container_name:
+            validation_error_ "Cellular connection requires container $required_container_name, but it is not installed."
+
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
     check_has_key_ data --holder="connection" "type"
@@ -222,6 +237,7 @@ interface ConnectionInfo:
     unreachable
 
   type -> string
+  requires -> List?  // Of container names.
   to_json -> Map
 
 class WifiConnectionInfo implements ConnectionInfo:
@@ -238,16 +254,25 @@ class WifiConnectionInfo implements ConnectionInfo:
   to_json -> Map:
     return {"type": type, "ssid": ssid, "password": password}
 
+  requires -> List?:
+    return null
+
 class CellularConnectionInfo implements ConnectionInfo:
   config/Map
+  requires/List?
+
   constructor.from_json data/Map:
     config = get_map_ data "config" --holder="cellular connection"
+    requires = get_optional_list_ data "requires"
+        --holder="cellular connection"
+        --type="string"
+        --check=: it is string
 
   type -> string:
     return "cellular"
 
   to_json -> Map:
-    return {"type": type, "config": config}
+    return {"type": type, "config": config, "requires": requires}
 
 interface Container:
   static RUNLEVEL_STOP     ::= 0
