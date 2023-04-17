@@ -34,6 +34,9 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
         a firmware image instead of using a specification. In that case, the
         Artemis tool will not connect to the Internet.
 
+        The 'chip' argument is used to select the chip to target when a device
+        is flashed with a firmware image instead of a specification file.
+
         Unless '--no-default' is used, automatically makes this device the
         new default device.
         """
@@ -48,6 +51,9 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
             --type="file"
             --short_name="i"
             --short_help="The identity file to use.",
+        cli.OptionEnum "chip" ["esp32", "esp32s2", "esp32s3", "esp32c3"]
+            --default="esp32"
+            --short_help="The chip to use.",
         cli.Option "organization-id"
             --type="uuid"
             --short_help="The organization to use.",
@@ -77,6 +83,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   specification_path := parsed["specification"]
   identity_path := parsed["identity"]
   firmware_path := parsed["firmware"]
+  chip := parsed["chip"]
   port := parsed["port"]
   baud := parsed["baud"]
   simulate := parsed["simulate"]
@@ -168,6 +175,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if specification_path:
         // Customize.
         specification := parse_device_specification_file specification_path --ui=ui
+        chip = specification.chip or "esp32"
         envelope_path = "$tmp_dir/$(device_id).envelope"
         artemis.customize_envelope
             --output_path=envelope_path
@@ -194,6 +202,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --port=port
             --baud_rate=baud
             --partitions=partitions
+            --chip=chip
         if should_make_default: make_default_ device_id config ui
       else:
         ui.info "Simulating flash."
