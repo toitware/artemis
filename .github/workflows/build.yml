@@ -105,7 +105,7 @@ jobs:
           # We log in with the Artemis executable.
           # It will set the authentication in the config file which is also
           # used by the uploader.
-          build/bin/artemis$BIN_EXTENSION auth artemis login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
+          build/bin/artemis$BIN_EXTENSION auth login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
 
       - name: Upload snapshot to Artemis
         shell: bash
