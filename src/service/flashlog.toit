@@ -317,17 +317,18 @@ class FlashLog:
   commit_if_non_empty_ buffer/ByteArray page/int -> int:
     count := decode_count_ buffer
     if count == 0: return 0
-    assert: (LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_) == 0xffff
     assert: (LITTLE_ENDIAN.uint32 buffer HEADER_CHECKSUM_OFFSET_) == 0xffff_ffff
+    assert: (LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_) == 0xffff
     crc32 := crc.Crc32
     crc32.add buffer
     // Write the count and checksum together.
     assert: HEADER_COUNT_OFFSET_ == HEADER_CHECKSUM_OFFSET_ + 4
+    assert: HEADER_SIZE_ == HEADER_COUNT_OFFSET_ + 2
     LITTLE_ENDIAN.put_uint32 buffer HEADER_CHECKSUM_OFFSET_ crc32.get_as_int
-    LITTLE_ENDIAN.put_uint16 buffer HEADER_CHECKSUM_OFFSET_ + 4 count
+    LITTLE_ENDIAN.put_uint16 buffer HEADER_COUNT_OFFSET_ count
     region_.write
         --from=(page + HEADER_CHECKSUM_OFFSET_)
-        buffer[HEADER_CHECKSUM_OFFSET_ .. HEADER_COUNT_OFFSET_ + 2]
+        buffer[HEADER_CHECKSUM_OFFSET_..HEADER_SIZE_]
     return count
 
   decode_count_ buffer/ByteArray -> int:
@@ -372,12 +373,6 @@ class FlashLog:
     return true
 
   is_valid_ buffer/ByteArray -> bool:
-    result := false
-    elapsed := Duration.of: result = is_valid_x_ buffer
-    print "[validating took $elapsed]"
-    return result
-
-  is_valid_x_ buffer/ByteArray -> bool:
     if not (0 <= read_page_ < size_ and 0 <= write_page_ < size_): return false
     if (round_down read_page_ size_per_page_) != read_page_: return false
     if (round_down write_page_ size_per_page_) != write_page_: return false
@@ -501,10 +496,6 @@ class FlashLog:
     return false
 
   repair_ buffer/ByteArray -> none:
-    elapsed := Duration.of: repair_x_ buffer
-    print "[repairing took $elapsed]"
-
-  repair_x_ buffer/ByteArray -> none:
     last_page/int? := null
     last_sn/int := -1
     last_is_acked/bool := false
@@ -620,8 +611,8 @@ class FlashLog:
     LITTLE_ENDIAN.put_uint32 buffer HEADER_SN_OFFSET_ initial_sn
     crc32 := crc.Crc32
     crc32.add buffer
-    LITTLE_ENDIAN.put_uint16 buffer HEADER_COUNT_OFFSET_ 0
     LITTLE_ENDIAN.put_uint32 buffer HEADER_CHECKSUM_OFFSET_ crc32.get_as_int
+    LITTLE_ENDIAN.put_uint16 buffer HEADER_COUNT_OFFSET_ 0
     region_.write --from=write_page_ buffer[..HEADER_SIZE_]
     write_offset_ = write_page_ + HEADER_SIZE_
     advance_read_page_ buffer initial_sn
@@ -630,18 +621,25 @@ class FlashLog:
     region_.read --from=page buffer
     marker := LITTLE_ENDIAN.uint32 buffer HEADER_MARKER_OFFSET_
     if marker != MARKER_: return
+    // Validate sequence number.
     sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
     if not (SN.is_valid sn): return
+    // Validate count.
     expected_count := LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_
     if not (0 <= expected_count <= size_per_page_ - HEADER_SIZE_): return
     actual_count := decode_count_ buffer
     if expected_count > 0 and actual_count != expected_count: return
+    // Validate checksum.
     expected_checksum := LITTLE_ENDIAN.uint32 buffer HEADER_CHECKSUM_OFFSET_
     crc32 := crc.Crc32
+    // The checksum is based on the page bytes when the count and
+    // the checksum has not been filled in, so we reset those
+    // before computing the checksum.
     buffer.fill 0xff --from=HEADER_CHECKSUM_OFFSET_ --to=HEADER_SIZE_
     crc32.add buffer
     actual_checksum := crc32.get_as_int
     if actual_checksum != expected_checksum: return
+    // Invoke the block: | sn is_ack count |.
     found.call sn (expected_count == 0) actual_count
 
   is_uncommitted_page_ page/int buffer/ByteArray [found] -> none:
