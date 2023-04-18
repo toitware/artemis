@@ -32,7 +32,7 @@ jobs:
           fi
           echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
 
-          export TOIT_VERSION="v2.0.0-alpha.75"
+          export TOIT_VERSION="v2.0.0-alpha.76"
 
           export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
