@@ -3,16 +3,29 @@
 import artemis.service.pkg_artemis_src_copy.artemis
 
 main:
-  5.repeat: bench_open
+  bench_open_empty
+  bench_open_full
   bench_send
   bench_receive
 
-bench_open:
+bench_open_empty:
+  channel/artemis.Channel := artemis.Channel.open --topic="nisse" --receive
+  drain channel
+  channel.close
+  bench_open "empty"
+
+bench_open_full:
+  channel/artemis.Channel := artemis.Channel.open --topic="nisse" --receive
+  fill channel 1
+  channel.close
+  bench_open "full"
+
+bench_open marker/string:
   channel/artemis.Channel? := null
   elapsed := Duration.of:
     channel = artemis.Channel.open --topic="nisse"
   channel.close
-  print "open = $elapsed"
+  print "open = $elapsed ($marker)"
 
 bench_send:
   channel/artemis.Channel := artemis.Channel.open --topic="nisse" --receive
@@ -34,12 +47,7 @@ bench_receive:
   print "draining = $e0"
 
   n := 0
-  e1 := Duration.of:
-    e := catch:
-      while true:
-        channel.send #[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        n++
-    if e != "OUT_OF_BOUNDS": throw e
+  e1 := Duration.of: n = fill channel 10
   print "filling = $e1 ($n)"
 
   worst/Duration? := null
@@ -54,6 +62,15 @@ bench_receive:
   channel.close
   print "receive = $(elapsed / n)"
   print "receive = $worst (worst)"
+
+fill channel/artemis.Channel x/int -> int:
+  n := 0
+  bytes := ByteArray x: it
+  catch --unwind=(: it != "OUT_OF_BOUNDS"):
+    while true:
+      channel.send bytes
+      n++
+  return n
 
 drain channel/artemis.Channel:
   while not channel.is_empty:
