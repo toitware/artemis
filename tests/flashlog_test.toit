@@ -1220,8 +1220,8 @@ class TestFlashLog extends FlashLog:
       else:
         region.read --from=(index * page_size) buffer
         crc32 := crc.Crc32
-        LITTLE_ENDIAN.put_uint16 buffer FlashLog.HEADER_COUNT_OFFSET_ 0xffff
         LITTLE_ENDIAN.put_uint32 buffer FlashLog.HEADER_CHECKSUM_OFFSET_ 0xffff_ffff
+        LITTLE_ENDIAN.put_uint16 buffer FlashLog.HEADER_COUNT_OFFSET_ 0xffff
         crc32.add buffer
         checksum = crc32.get_as_int
 
