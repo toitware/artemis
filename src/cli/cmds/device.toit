@@ -220,6 +220,18 @@ device_to_json_
     result["events"] = events.map: | event/Event | event.to_json
   return result
 
+is_sensitive_ name/string -> bool:
+  return name.ends_with "password" or name.ends_with "key"
+
+filter_sensitive_ o/any -> any:
+  if o is Map:
+    return o.map: | key value |
+      if is_sensitive_ key: "***"
+      else: filter_sensitive_ value
+  if o is List:
+    return o.map: | value | filter_sensitive_ value
+  return o
+
 print_device_
     --show_event_values/bool
     device/DeviceDetailed
@@ -323,7 +335,7 @@ print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="":
   nested_indentation := first_indentation_str.size + 2
   is_first := true
   map.do: | key/string value |
-    if (key.ends_with "password" or key.ends_with "key") and value is string:
+    if is_sensitive_ key and value is string:
       value = "***"
     indentation_str := is_first ? first_indentation_str : next_indentation_str
     is_first = false
@@ -332,7 +344,7 @@ print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="":
       print_map_ value ui --indentation=nested_indentation
     else if value is List:
       ui.print "$indentation_str$key: ["
-      print_list_ value ui --indentation=indentation
+      print_list_ value ui --indentation=nested_indentation
       ui.print "$indentation_str]"
     else:
       ui.print "$indentation_str$key: $value"
@@ -342,13 +354,13 @@ print_list_ list/List ui/Ui --indentation/int=0:
   nested_indentation := indentation + 2
   list.do: | value |
     if value is Map:
-      print_map_ value ui --indentation=nested_indentation  --prefix="* "
+      print_map_ value ui --indentation=indentation  --prefix="* "
     else if value is List:
       ui.print "$(indentation_str)* ["
       print_list_ value ui --indentation=nested_indentation
       ui.print "$(indentation_str)]"
     else:
-      ui.print "$(indentation_str)- $value"
+      ui.print "$indentation_str* $value"
 
 print_modification_ modification/Modification --to/Map ui/Ui:
   modification.on_value "firmware"
@@ -381,16 +393,24 @@ print_modification_ modification/Modification --to/Map ui/Ui:
   modification.on_map
       --added=: | name new_value |
         if already_handled.contains name: continue.on_map
+        if is_sensitive_ name and new_value is string:
+          new_value = "***"
         ui.print "  +$name: $new_value"
       --removed=: | name _ |
         if already_handled.contains name: continue.on_map
         ui.print "  -$name"
       --updated=: | name _ new_value |
         if already_handled.contains name: continue.on_map
+        if is_sensitive_ name and new_value is string:
+          new_value = "***"
+        new_value = filter_sensitive_ new_value
         ui.print "  $name -> $new_value"
       --modified=: | name _ |
         if already_handled.contains name: continue.on_map
-        ui.print "  $name changed to $to[name]"
+        new_value := to[name]
+        if is_sensitive_ name and new_value is string:
+          new_value = "***"
+        ui.print "  $name changed to $new_value"
 
 print_app_update_ name/string from/Map to/Map ui/Ui:
   ui.print "    $name:"
