@@ -58,7 +58,7 @@ class SynchronizeJob extends TaskJob:
     "updating failed",
     "image download failed",
     "firmware update failed",
-    null,
+    "canceled",
   ]
 
   // The status is used to dermine the frequency and runlevel
@@ -269,7 +269,7 @@ class SynchronizeJob extends TaskJob:
           if goal_state: continue
           if device_.max_offline: break
           now := JobTime.now
-          if (check_in_schedule now) < now: break
+          if (check_in_schedule now) <= now: break
           transition_to_ STATE_CONNECTED_TO_BROKER
       finally:
         // TODO(kasper): Add timeout for close.
