@@ -112,10 +112,11 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         device.goal["test-entry"] = "succeeded while offline"
         device.goal
 
-    broker_service.connect --network=network --device=DEVICE1:
+    resources := broker_service.connect --network=network --device=DEVICE1
+    try:
       event_goal/Map? := null
       exception := catch:
-        event_goal = broker_service.fetch_goal --wait=(test_iteration > 0)
+        event_goal = resources.fetch_goal --wait=(test_iteration > 0)
 
       if test_iteration == 0:
         // None of the brokers have sent a goal-state update yet.
@@ -136,7 +137,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old["test-entry"] = "succeeded 1"
         old
 
-      event_goal = broker_service.fetch_goal --wait
+      event_goal = resources.fetch_goal --wait
       expect_equals "succeeded 1" event_goal["test-entry"]
 
       broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
@@ -145,8 +146,10 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old["test-entry"] = "succeeded 2"
         old
 
-      event_goal = broker_service.fetch_goal --wait
+      event_goal = resources.fetch_goal --wait
       expect_equals "succeeded 2" event_goal["test-entry"]
+    finally:
+      resources.close
 
 test_image --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service/broker.BrokerService |
@@ -173,7 +176,8 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --app_id=APP_ID
         --word_size=64
 
-    broker_service.connect --network=network --device=DEVICE1: | resources/broker.ResourceManager |
+    resources := broker_service.connect --network=network --device=DEVICE1
+    try:
       resources.fetch_image APP_ID:
         | reader/Reader |
           // TODO(florian): this only tests the download of the current platform. That is, on
@@ -181,6 +185,8 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           // also verify that the 32-bit image is correct.
           data := utils.read_all reader
           expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
+    finally:
+      resources.close
 
 test_firmware --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service/broker.BrokerService |
@@ -212,7 +218,8 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --organization_id=TEST_ORGANIZATION_UUID
     expect_bytes_equal content downloaded_bytes
 
-    broker_service.connect --network=network --device=DEVICE1: | resources/broker.ResourceManager |
+    resources := broker_service.connect --network=network --device=DEVICE1
+    try:
       data := #[]
       offsets := []
       resources.fetch_firmware FIRMWARE_ID:
@@ -243,25 +250,27 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
               current_offset += partial_data.size
             // Return the new offset.
             current_offset
+    finally:
+      resources.close
 
 test_events --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service1/broker.BrokerService |
     test_broker.with_service: | broker_service2/broker.BrokerService |
-      broker_service1.connect
-          --network=network
-          --device=DEVICE1
-          : | resources1/broker.ResourceManager |
-            broker_service2.connect
-                --network=network
-                --device=DEVICE2
-                : | resources2/broker.ResourceManager |
-                  test_events
-                      test_broker
-                      broker_cli
-                      broker_service1
-                      broker_service2
-                      resources1
-                      resources2
+      resources1 := null
+      resources2 := null
+      try:
+        resources1 = broker_service1.connect --network=network --device=DEVICE1
+        resources2 = broker_service2.connect --network=network --device=DEVICE2
+        test_events
+            test_broker
+            broker_cli
+            broker_service1
+            broker_service2
+            resources1
+            resources2
+      finally:
+        if resources2: resources2.close
+        if resources1: resources1.close
 
 test_events
     test_broker/TestBroker
