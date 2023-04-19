@@ -229,10 +229,10 @@ class SynchronizeJob extends TaskJob:
       // TODO(kasper): Add timeout of net.open.
       network = net.open
       transition_to_ STATE_CONNECTED_TO_NETWORK
+      run_ network
+      assert: state_ == STATE_SYNCHRONIZED
       // TODO(kasper): Add timeout for check_in.
       check_in network logger_ --device=device_
-      run_ network
-      assert: device_.max_offline and state_ == STATE_SYNCHRONIZED
       return true
     finally: | is_exception exception |
       // We do not expect to be canceled outside of tests, but
@@ -268,6 +268,8 @@ class SynchronizeJob extends TaskJob:
           goal_state = run_step_ resources goal_state
           if goal_state: continue
           if device_.max_offline: break
+          now := JobTime.now
+          if (check_in_schedule now) < now: break
           transition_to_ STATE_CONNECTED_TO_BROKER
       finally:
         // TODO(kasper): Add timeout for close.
@@ -299,10 +301,9 @@ class SynchronizeJob extends TaskJob:
         pending/Lambda := pending_steps_.remove_first
         pending.call resources
     else:
-      with_timeout check_in_timeout:
-        goal_state = resources.fetch_goal --wait
-        transition_to_connected_
-        process_goal_ goal_state resources
+      goal_state = resources.fetch_goal --wait
+      transition_to_connected_
+      process_goal_ goal_state resources
 
     // We only handle pending steps when we're done handling the other
     // updates. This means that we prioritize firmware updates and

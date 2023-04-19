@@ -24,11 +24,6 @@ check_in_schedule now/JobTime -> JobTime:
   if last_success_: next = max next (last_success_ + INTERVAL_)
   return next
 
-check_in_timeout -> Duration?:
-  now := JobTime.now
-  next := check_in_schedule now
-  return now.to next
-
 check_in network/net.Interface logger/log.Logger --device/Device:
   now := JobTime.now
   next := check_in_schedule now
