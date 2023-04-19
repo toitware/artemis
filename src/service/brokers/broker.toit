@@ -14,6 +14,8 @@ import ...shared.server_config
 
 /**
 The resource manager is used to exchange data with the broker.
+
+TODO(kasper): Rename to BrokerConnection.
 */
 interface ResourceManager:
   /**
@@ -62,7 +64,7 @@ interface ResourceManager:
   report_event --type/string data/any -> none
 
   /**
-  ...
+  Closes the connection to the broker.
   */
   close -> none
 
@@ -82,6 +84,10 @@ interface BrokerService:
   /**
   Connects to the broker.
 
-  ...
+  Returns a $ResourceManager, which can be used to interact with
+    the broker and exchange data with it.
+
+  The returned $ResourceManager should be closed through a call
+    to $ResourceManager.close when it is no longer needed.
   */
   connect --network/net.Client --device/Device -> ResourceManager
