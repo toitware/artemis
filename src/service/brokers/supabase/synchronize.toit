@@ -14,44 +14,9 @@ import ....shared.server_config
 class BrokerServiceSupabase implements BrokerService:
   logger_/log.Logger
   broker_/ServerConfigSupabase
-
-  device_/Device? := null
-  client_/supabase.Client? := null
-
-  last_poll_us_/int? := null
-
   constructor .logger_ .broker_:
 
-  connect --network/net.Client --device/Device [block]:
-    check_in network logger_ --device=device
-
+  connect --network/net.Client --device/Device -> ResourceManager:
     client := supabase.Client network --server_config=broker_
         --certificate_provider=: throw "UNSUPPORTED"
-    resources := ResourceManagerSupabase device client
-
-    try:
-      device_ = device
-      client_ = client
-      block.call resources
-    finally:
-      device_ = client_ = last_poll_us_ = null
-      client.close
-
-  fetch_goal --wait/bool -> Map?:
-    // We deliberately delay fetching from the cloud, so we
-    // can avoid fetching from the cloud over and over again.
-    last := last_poll_us_
-    if last:
-      elapsed := Duration --us=(Time.monotonic_us - last)
-      interval := broker_.poll_interval
-      if elapsed < interval:
-        if not wait: throw DEADLINE_EXCEEDED_ERROR
-        sleep interval - elapsed
-    // An null goal means that we should revert to the
-    // firmware state. We must return it instead of
-    // waiting for a non-null one to arrive.
-    result := client_.rest.rpc "toit_artemis.get_goal" {
-      "_device_id": device_.id
-    }
-    last_poll_us_ = Time.monotonic_us
-    return result
+    return ResourceManagerSupabase device client broker_.poll_interval

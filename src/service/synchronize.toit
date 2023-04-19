@@ -226,8 +226,11 @@ class SynchronizeJob extends TaskJob:
     try:
       state_ = STATE_DISCONNECTED
       transition_to_ STATE_CONNECTING
+      // TODO(kasper): Add timeout of net.open.
       network = net.open
       transition_to_ STATE_CONNECTED_TO_NETWORK
+      // TODO(kasper): Add timeout for check_in.
+      check_in network logger_ --device=device_
       run_ network
       assert: device_.max_offline and state_ == STATE_SYNCHRONIZED
       return true
@@ -245,7 +248,9 @@ class SynchronizeJob extends TaskJob:
         if network:
           // If we are planning to retry another network,
           // we quarantine the one we just tried.
+          // TODO(kasper): Add timeout for network.quarantine.
           if not done: network.quarantine
+          // TODO(kasper): Add timeout for network.close.
           network.close
         // If we're canceled, we should make sure to propagate
         // the canceled exception and not just swallow it.
@@ -254,12 +259,9 @@ class SynchronizeJob extends TaskJob:
         if not Task.current.is_canceled: return done
 
   run_ network/net.Client -> none:
-    // TODO(kasper): It would be ideal if we could wrap the call to
-    // connect and provide a timeout. It is hard to do with the current
-    // structure where it takes a block. When talking to Supabase the
-    // connect call actually doesn't do any waiting so the problem
-    // is not really present there.
-    broker_.connect --network=network --device=device_: | resources/ResourceManager |
+    // TODO(kasper): Add timeout for connect.
+    resources := broker_.connect --network=network --device=device_
+    try:
       goal_state/Map? := null
       while true:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
@@ -267,6 +269,9 @@ class SynchronizeJob extends TaskJob:
           if goal_state: continue
           if device_.max_offline: break
           transition_to_ STATE_CONNECTED_TO_BROKER
+      finally:
+        // TODO(kasper): Add timeout for close.
+        resources.close
 
   run_step_ resources/ResourceManager goal_state/Map? -> Map?:
     // If our state has changed, we communicate it to the cloud.
@@ -282,7 +287,7 @@ class SynchronizeJob extends TaskJob:
       // TODO(kasper): Change the interface so we don't have to
       // catch exceptions to figure out if we got a new goal state.
       catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-        goal_state = broker_.fetch_goal --no-wait
+        goal_state = resources.fetch_goal --no-wait
         goal_state_updated = true
         transition_to_connected_
       if goal_state_updated:
@@ -295,7 +300,7 @@ class SynchronizeJob extends TaskJob:
         pending.call resources
     else:
       with_timeout check_in_timeout:
-        goal_state = broker_.fetch_goal --wait
+        goal_state = resources.fetch_goal --wait
         transition_to_connected_
         process_goal_ goal_state resources
 
