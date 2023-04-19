@@ -58,7 +58,7 @@ class SynchronizeJob extends TaskJob:
     "updating failed",
     "image download failed",
     "firmware update failed",
-    "canceled",
+    null,
   ]
 
   // The status is used to dermine the frequency and runlevel
@@ -230,7 +230,6 @@ class SynchronizeJob extends TaskJob:
       network = net.open
       transition_to_ STATE_CONNECTED_TO_NETWORK
       run_ network
-      assert: state_ == STATE_SYNCHRONIZED
       // TODO(kasper): Add timeout for check_in.
       check_in network logger_ --device=device_
       return true
@@ -274,6 +273,7 @@ class SynchronizeJob extends TaskJob:
       finally:
         // TODO(kasper): Add timeout for close.
         resources.close
+        transition_to_ STATE_CONNECTED_TO_NETWORK
 
   run_step_ resources/ResourceManager goal_state/Map? -> Map?:
     // If our state has changed, we communicate it to the cloud.
