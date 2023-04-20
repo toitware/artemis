@@ -20,6 +20,7 @@ import writer
 import supabase
 import fs.xdg
 import fs
+import .utils
 
 APP_NAME ::= "artemis"
 CONFIG_DEVICE_DEFAULT_KEY ::= "device.default"
@@ -169,7 +170,7 @@ read_config [--init] -> Config:
   // Hackish way to improve the developer experience.
   // When using the toit files to run Artemis, we default to a different
   // configuration.
-  if program_name.ends_with ".toit":
+  if is_dev_setup:
     return read_config_file "$config_home/artemis-dev/config" --init=init
 
   // The path we are using to write configurations to.

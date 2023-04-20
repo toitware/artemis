@@ -282,6 +282,7 @@ cache_snapshots --envelope/string --output_directory/string?=null --cache/cli.Ca
 cache_snapshots_ --envelope/string --cache/cli.Cache:
   cache_snapshots --envelope=envelope --cache=cache
 
+reported_local_envelope_use_/bool := false
 /**
 Returns a path to the firmware envelope for the given $version.
 
@@ -294,6 +295,14 @@ get_envelope version/string -> string
     --chip/string="esp32"
     --cache/cli.Cache
     --cache_snapshots/bool=true:
+  if is_dev_setup:
+    local_sdk := os.env.get "DEV_TOIT_REPO_PATH"
+    if local_sdk:
+      if not reported_local_envelope_use_:
+        print_on_stderr_ "Using envelope from local SDK"
+        reported_local_envelope_use_ = true
+      return "$local_sdk/build/esp32/firmware.envelope"
+
   url := envelope_url version --chip=chip
   path := "firmware-$(chip).envelope"
   envelope_key := "$ENVELOPE_PATH/$version/$path"
