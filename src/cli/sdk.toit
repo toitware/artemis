@@ -7,6 +7,7 @@ import encoding.json
 import encoding.ubjson
 import host.file
 import host.pipe
+import host.os
 import http
 import log
 import net
@@ -300,7 +301,17 @@ sdk_url version/string -> string:
 
   return "github.com/toitlang/toit/releases/download/$version/toit-$(platform_str).tar.gz"
 
+reported_local_sdk_use_/bool := false
+
 get_sdk version/string --cache/cli.Cache -> Sdk:
+  if is_dev_setup:
+    local_sdk := os.env.get "DEV_TOIT_REPO_PATH"
+    if local_sdk:
+      if not reported_local_sdk_use_:
+        print_on_stderr_ "Using local SDK"
+        reported_local_sdk_use_ = true
+      return Sdk "$local_sdk/build/host/sdk" version
+
   url := sdk_url version
   sdk_key := "$SDK_PATH/$version"
   path := cache.get_directory_path sdk_key: | store/cli.DirectoryStore |

@@ -297,3 +297,7 @@ class OptionPatterns extends cli.OptionEnum:
     return {
       key: str[separator_index + 1..]
     }
+
+/** Whether we are running in a development setup. */
+is_dev_setup -> bool:
+  return program_name.ends_with ".toit"
