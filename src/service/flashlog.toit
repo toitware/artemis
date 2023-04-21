@@ -38,7 +38,7 @@ class FlashLog:
   // to combine the FlashLog and the ChannelResource more somehow.
   usage_/int := 0
 
-  constructor region/storage.Region:
+  constructor region/storage.Region --read/int=-1 --write/int=-1:
     if not region.write_can_clear_bits:
       throw "Must be able to clear bits"
     if region.erase_value != 0xff:
@@ -46,6 +46,8 @@ class FlashLog:
     if region.size <= region.erase_granularity:
       throw "Must have space for two pages"
     region_ = region
+    read_page_ = read
+    write_page_ = write
     size_ = region.size
     size_per_page_ = region.erase_granularity
     buffer_ = ByteArray size_per_page_

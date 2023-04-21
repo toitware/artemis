@@ -8,6 +8,7 @@ import .pkg_artemis_src_copy.api as api
 
 flashlogs_ ::= {:}
 receivers_ ::= {}
+offsets_ ::= storage.Bucket.open --flash "toit.io/channel-offsets"
 
 class ChannelResource extends ServiceResource:
   topic/string
