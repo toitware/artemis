@@ -77,11 +77,6 @@ interface BrokerCli implements Authenticatable:
   update_goal --device_id/string [block] -> none
 
   /**
-  Returns a detailed view of the device with the given $device_id.
-  */
-  get_device --device_id/string -> DeviceDetailed?
-
-  /**
   Uploads an application image with the given $app_id so that a device in
     $organization_id can fetch it.
 
@@ -126,6 +121,12 @@ interface BrokerCli implements Authenticatable:
       --device_ids/List
       --limit/int=10
       --since/Time?=null
+
+  /**
+  Fetches the device details for the given device ids.
+  Returns a map from id to $DeviceDetailed.
+  */
+  get_devices --device_ids/List -> Map
 
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config

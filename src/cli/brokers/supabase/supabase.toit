@@ -60,26 +60,15 @@ class BrokerCliSupabase implements BrokerCli:
   update_goal --device_id/string [block]:
     // TODO(florian): should we take some locks here to avoid
     // concurrent updates of the goal?
-    detailed_device := get_device --device_id=device_id
+    detailed_devices := get_devices --device_ids=[device_id]
+    if detailed_devices.size != 1: throw "Device not found: $device_id"
+    detailed_device := detailed_devices[device_id]
     new_goal := block.call detailed_device
 
     client_.rest.rpc "toit_artemis.set_goal" {
       "_device_id": device_id,
       "_goal": new_goal,
     }
-
-  get_device --device_id/string -> DeviceDetailed?:
-    current_goal := client_.rest.rpc "toit_artemis.get_goal_no_event" {
-      "_device_id": device_id,
-    }
-
-    state := client_.rest.rpc "toit_artemis.get_state" {
-      "_device_id": device_id,
-    }
-
-    if not current_goal and not state: return null
-
-    return DeviceDetailed --goal=current_goal --state=state
 
   upload_image
       --organization_id/string
@@ -168,4 +157,20 @@ class BrokerCliSupabase implements BrokerCli:
         current_id = device_id
         current_list = result.get device_id --init=:[]
       current_list.add (Event event_type time data)
+    return result
+
+  /**
+  Fetches the device details for the given device ids.
+  Returns a map from id to $DeviceDetailed.
+  */
+  get_devices --device_ids/List -> Map:
+    response := client_.rest.rpc "toit_artemis.get_devices" {
+      "_device_ids": device_ids,
+    }
+    result := {:}
+    response.do: | row/Map |
+      device_id := row["device_id"]
+      goal := row["goal"]
+      state := row["state"]
+      result[device_id] = DeviceDetailed --goal=goal --state=state
     return result

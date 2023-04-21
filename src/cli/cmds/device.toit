@@ -164,10 +164,11 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with_artemis parsed config cache ui: | artemis/Artemis |
     broker := artemis.connected_broker
     artemis_server := artemis.connected_artemis_server
-    device := broker.get_device --device_id=device_id
-    if not device:
+    devices := broker.get_devices --device_ids=[device_id]
+    if devices.is_empty:
       ui.error "Device $device_id does not exist."
       ui.abort
+    device := devices[device_id]
     organization := artemis_server.get_organization device.organization_id
     events/List? := null
     if max_events != 0:
