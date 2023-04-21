@@ -205,7 +205,7 @@ class SynchronizeJob extends TaskJob:
     try:
       start := Time.monotonic_us
       limit := start + CONNECT_TO_BROKER_TIMEOUT.in_us
-      while not connect_ and Time.monotonic_us < limit:
+      while not connect_network_ and Time.monotonic_us < limit:
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
@@ -221,7 +221,7 @@ class SynchronizeJob extends TaskJob:
   Returns whether we are done with this connection attempt (true)
     or if another attempt makes sense if time permits (false).
   */
-  connect_ -> bool:
+  connect_network_ -> bool:
     network/net.Client? := null
     try:
       state_ = STATE_DISCONNECTED
@@ -229,9 +229,10 @@ class SynchronizeJob extends TaskJob:
       // TODO(kasper): Add timeout of net.open.
       network = net.open
       transition_to_ STATE_CONNECTED_TO_NETWORK
-      run_ network
-      // TODO(kasper): Add timeout for check_in.
-      check_in network logger_ --device=device_
+      while not (connect_broker_ network):
+        // TODO(kasper): Add timeout for check_in.
+        check_in network logger_ --device=device_
+        transition_to_ STATE_CONNECTED_TO_NETWORK
       return true
     finally: | is_exception exception |
       // We do not expect to be canceled outside of tests, but
@@ -257,25 +258,32 @@ class SynchronizeJob extends TaskJob:
         // where it is repeatedly asked to retry the connect.
         if not Task.current.is_canceled: return done
 
-  run_ network/net.Client -> none:
+  /**
+  Tries to connect to the broker and step through the
+    necessary synchronization.
+
+  Returns whether we are done synchronizing (true) or if we
+    need another attempt using the already established network
+    connection (false).
+  */
+  connect_broker_ network/net.Client -> bool:
     // TODO(kasper): Add timeout for connect.
     resources := broker_.connect --network=network --device=device_
     try:
       goal_state/Map? := null
       while true:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
-          goal_state = run_step_ resources goal_state
+          goal_state = synchronize_step_ resources goal_state
           if goal_state: continue
-          if device_.max_offline: break
           now := JobTime.now
-          if (check_in_schedule now) <= now: break
+          if (check_in_schedule now) <= now: return false
+          if device_.max_offline: return true
           transition_to_ STATE_CONNECTED_TO_BROKER
       finally:
         // TODO(kasper): Add timeout for close.
         resources.close
-        transition_to_ STATE_CONNECTED_TO_NETWORK
 
-  run_step_ resources/ResourceManager goal_state/Map? -> Map?:
+  synchronize_step_ resources/ResourceManager goal_state/Map? -> Map?:
     // If our state has changed, we communicate it to the cloud.
     report_state_if_changed resources --goal_state=goal_state
 
