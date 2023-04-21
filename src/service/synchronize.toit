@@ -228,12 +228,12 @@ class SynchronizeJob extends TaskJob:
       transition_to_ STATE_CONNECTING
       // TODO(kasper): Add timeout of net.open.
       network = net.open
-      transition_to_ STATE_CONNECTED_TO_NETWORK
-      while not (connect_broker_ network):
+      while true:
+        transition_to_ STATE_CONNECTED_TO_NETWORK
+        done := connect_broker_ network
         // TODO(kasper): Add timeout for check_in.
         check_in network logger_ --device=device_
-        transition_to_ STATE_CONNECTED_TO_NETWORK
-      return true
+        if done: return true
     finally: | is_exception exception |
       // We do not expect to be canceled outside of tests, but
       // if we do we prefer maintaining the proper state and
@@ -275,9 +275,9 @@ class SynchronizeJob extends TaskJob:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
           goal_state = synchronize_step_ resources goal_state
           if goal_state: continue
+          if device_.max_offline: return true
           now := JobTime.now
           if (check_in_schedule now) <= now: return false
-          if device_.max_offline: return true
           transition_to_ STATE_CONNECTED_TO_BROKER
       finally:
         // TODO(kasper): Add timeout for close.
