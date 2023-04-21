@@ -135,10 +135,7 @@ class FirmwarePatcher_ implements PatchObserver:
       // We do not currently use checkpoints for copied parts, so
       // this should always be started from offset zero.
       assert: read_offset == 0
-      chunk := ByteArray 512
-      List.chunk_up 0 old_mapping.size chunk.size: | from to size |
-        old_mapping.copy from to --into=chunk
-        on_write chunk[0..size]
+      copy_ old_mapping
       return
 
     new_id := Firmware.id --hash=new_hash
@@ -194,6 +191,11 @@ class FirmwarePatcher_ implements PatchObserver:
   pad_ padding/int -> none:
     write_ 0 padding: | x y | writer_.pad (y - x)
 
+  copy_ mapping/firmware.FirmwareMapping -> none:
+    writer_.copy mapping: | size/int |
+      write_offset_ += size
+      on_progress_
+
   on_write data from/int=0 to/int=data.size -> none:
     write_ from to: | x y | writer_.write data[x..y]
 
@@ -222,12 +224,7 @@ class FirmwarePatcher_ implements PatchObserver:
     // Write the rest.
     write.call from to
     write_offset_ += to - from
-
-    // Give us some nice progress tracking.
-    if write_offset_ > write_offset_next_print_:
-      percent := (write_offset_ * 100) / new_.size
-      logger_.info "firmware update: $(%3d percent)%"
-      write_offset_next_print_ = write_offset_ + 64 * 1024
+    on_progress_
 
   on_new_checksum hash/ByteArray -> none:
     // Not used anymore.
@@ -249,6 +246,12 @@ class FirmwarePatcher_ implements PatchObserver:
         --write_offset=checkpoint_write_offset
         --write_skip=write_skip
     if write_skip == 0: commit_checkpoint_
+
+  on_progress_ -> none:
+    if write_offset_ <= write_offset_next_print_: return
+    percent := (write_offset_ * 100) / new_.size
+    logger_.info "firmware update: $(%3d percent)%"
+    write_offset_next_print_ = write_offset_ + 64 * 1024
 
   close -> none:
     if not writer_: return
