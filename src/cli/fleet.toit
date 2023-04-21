@@ -6,9 +6,11 @@ import host.file
 import .artemis
 import .cache
 import .device
+import .event
 import .firmware
 import .ui
 import .utils
+import ..shared.json_diff
 
 class DeviceFleet:
   id/string
@@ -27,6 +29,21 @@ class DeviceFleet:
   short_string -> string:
     if name: return "$id ($name)"
     return id
+
+class Status_:
+  static CHECKIN_VERIFICATION_COUNT ::= 5
+  static UNKNOWN_MISSED_CHECKINS ::= -1
+  never_seen/bool
+  last_seen/Time?
+  is_fully_updated/bool
+  /** Number of missed checkins out of $CHECKIN_VERIFICATION_COUNT. */
+  missed_checkins/int
+  is_modified/bool
+
+  constructor --.never_seen/bool --.is_fully_updated --.missed_checkins --.last_seen --.is_modified:
+
+  is_healthy -> bool:
+    return is_fully_updated and missed_checkins == 0
 
 class Fleet:
   static DEVICES_FILE_ ::= "devices.json"
@@ -225,6 +242,140 @@ class Fleet:
     to.do: | organization_id/string |
       artemis_.upload_firmware envelope_path --organization_id=organization_id
       ui_.info "Successfully uploaded firmware."
+
+  build_status_ device/DeviceDetailed get_state_events/List? last_event/Event? -> Status_:
+    CHECKIN_VERIFICATIONS ::= 5
+    SLACK_FACTOR ::= 0.3
+    firmware_state := device.reported_state_firmware
+    current_state := device.reported_state_current
+    if not firmware_state:
+      if not last_event:
+        return Status_
+            --is_fully_updated=false
+            --missed_checkins=Status_.UNKNOWN_MISSED_CHECKINS
+            --never_seen=true
+            --last_seen=null
+            --is_modified=false
+
+      return Status_
+          --is_fully_updated=false
+          --missed_checkins=Status_.UNKNOWN_MISSED_CHECKINS
+          --never_seen=false
+          --last_seen=last_event.timestamp
+          --is_modified=false
+
+    goal := device.goal
+    is_updated/bool := ?
+    // TODO(florian): remove the special case of `null` meaning "back to firmware".
+    if not goal and not current_state:
+      is_updated = true
+    else if not goal:
+      is_updated = false
+    else:
+      is_updated = json_equals firmware_state goal
+    max_offline_s/int? := firmware_state.get "max-offline"
+    // If the device has no max_offline, we assume it's 20 seconds.
+    // TODO(florian): handle this better.
+    if not max_offline_s:
+      max_offline_s = 20
+    max_offline := Duration --s=max_offline_s
+
+    missed_checkins/int := ?
+    if not get_state_events or get_state_events.is_empty:
+      missed_checkins = Status_.UNKNOWN_MISSED_CHECKINS
+    else:
+      slack := max_offline * SLACK_FACTOR
+      missed_checkins = 0
+      checkin_index := CHECKIN_VERIFICATIONS - 1
+      last := Time.now
+      earliest_time := last - (max_offline * CHECKIN_VERIFICATIONS)
+      for i := 0; i < get_state_events.size; i++:
+        event := get_state_events[i]
+        event_timestamp := event.timestamp
+        if event_timestamp < earliest_time:
+          event_timestamp = earliest_time
+          // No need to look at more events.
+          i = get_state_events.size
+        duration_since_last_checkin := event_timestamp.to last
+        missed := (duration_since_last_checkin - slack).in_ms / max_offline.in_ms
+        missed_checkins += missed
+        last = event.timestamp
+    return Status_
+        --is_fully_updated=is_updated
+        --missed_checkins=missed_checkins
+        --never_seen=false
+        --last_seen=last_event and last_event.timestamp
+        --is_modified=device.reported_state_current != null
+
+  status --unhealthy_only/bool --include_never_seen/bool:
+    broker := artemis_.connected_broker
+    device_ids := devices_.map: it.id
+    detailed_devices := broker.get_devices --device_ids=device_ids
+    get_state_events := broker.get_events
+        --device_ids=device_ids
+        --limit=Status_.CHECKIN_VERIFICATION_COUNT
+        --types=["get-goal"]
+    last_events := broker.get_events --device_ids=device_ids --limit=1
+
+    now := Time.now
+    statuses := devices_.map: | fleet_device/DeviceFleet |
+      device/DeviceDetailed? := detailed_devices.get fleet_device.id
+      if not device:
+        ui_.error "Device $fleet_device.id is unknown to the broker."
+        ui_.abort
+      last_events_of_device := last_events.get fleet_device.id
+      last_event := last_events_of_device and not last_events_of_device.is_empty
+          ? last_events_of_device[0]
+          : null
+      build_status_ device (get_state_events.get fleet_device.id) last_event
+
+    rows := []
+    for i := 0; i < devices_.size; i++:
+      fleet_device/DeviceFleet := devices_[i]
+      status/Status_ := statuses[i]
+      if unhealthy_only and status.is_healthy: continue
+      if not include_never_seen and status.never_seen: continue
+
+      cross := "✗"
+      // TODO(florian): when the UI wants structured output we shouldn't change the last
+      // seen to human readable.
+      human_last_seen := ""
+      if status.last_seen:
+        diff := status.last_seen.to now
+        if diff < (Duration --s=10):
+          human_last_seen = "now"
+        else if diff < (Duration --m=1):
+          human_last_seen = "$diff.in_s seconds ago"
+        else if diff < (Duration --h=1):
+          human_last_seen = "$diff.in_m minutes ago"
+        else:
+          local_now := now.local
+          local := status.last_seen.local
+          if local_now.year == local.year and local_now.month == local.month and local_now.day == local.day:
+            human_last_seen = "$(%02d local.h):$(%02d local.m):$(%02d local.s)"
+          else:
+            human_last_seen = "$local.year-$(%02d local.month)-$(%02d local.day) $(%02d local.h):$(%02d local.m):$(%02d local.s)"
+      else if status.never_seen:
+        human_last_seen = "never"
+      else:
+        human_last_seen = "unknown"
+      missed_checkins_string := ""
+      if status.missed_checkins == Status_.UNKNOWN_MISSED_CHECKINS:
+        missed_checkins_string = "?"
+      else if status.missed_checkins > 0:
+        missed_checkins_string = cross
+      rows.add [
+        fleet_device.id,
+        fleet_device.name or "",
+        status.is_fully_updated ? "" : cross,
+        status.is_modified ? cross : "",
+        missed_checkins_string,
+        human_last_seen,
+        fleet_device.aliases ? fleet_device.aliases.join ", " : "",
+      ]
+
+    ui_.info_table rows
+        --header=["Device ID", "Name", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
 
   resolve_alias_ alias/string -> DeviceFleet:
     if not aliases_.contains alias:

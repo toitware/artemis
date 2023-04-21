@@ -192,6 +192,21 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: update it config cache ui
   cmd.add update_cmd
 
+  status_cmd := cli.Command "status"
+      --long_help="""
+        Show the status of the fleet.
+        """
+      --options=[
+        cli.Flag "unhealthy"
+            --short_help="Show unhealthy devices only."
+            --default=false,
+        cli.Flag "include-never-seen"
+            --short_help="Include devices that have never connected."
+            --default=false,
+      ]
+      --run=:: status it config cache ui
+  cmd.add status_cmd
+
   return [cmd]
 
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -265,3 +280,12 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     fleet.upload envelope_path --to=organization_ids
+
+status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
+  unhealthy_only := parsed["unhealthy"]
+  include_never_seen := parsed["include-never-seen"]
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    fleet.status --unhealthy_only=unhealthy_only --include_never_seen=include_never_seen
