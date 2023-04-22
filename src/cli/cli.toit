@@ -47,6 +47,12 @@ main args --config/Config --cache/Cache --ui/Ui:
             --long_help="Show the version of the Artemis tool."
             --run=:: ui.info ARTEMIS_VERSION,
       ]
+      --options=[
+        cli.Option "fleet-root"
+            --type="directory"
+            --short_help="Specify the fleet root."
+            --default=".",
+      ]
 
   // TODO(florian): the ui should be configurable by flags.
   // This might be easier, once the UI is integrated with the cli

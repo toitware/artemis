@@ -40,12 +40,6 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
            station.
         4. Flash the devices using 'device flash'.
         """
-      --options=[
-        cli.Option "fleet-root"
-            --type="directory"
-            --short_help="Specify the fleet root."
-            --default=".",
-      ]
 
   init_cmd := cli.Command "init"
       --long_help="""
@@ -253,9 +247,10 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    fleet.create_identities count
+    created_files := fleet.create_identities count
         --output_directory=output_directory
         --organization_id=organization_id
+    ui.info "Created $created_files.size identity file(s)."
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
