@@ -2,7 +2,18 @@
 
 import expect show *
 
-import artemis.cli.device_specification show DeviceSpecification DeviceSpecificationException
+import artemis.cli.device_specification
+  show
+    DeviceSpecification
+    DeviceSpecificationException
+    EXAMPLE_DEVICE_SPECIFICATION
+
+main:
+  test_example
+  test_errors
+
+test_example:
+  DeviceSpecification.from_json EXAMPLE_DEVICE_SPECIFICATION --path="ignored"
 
 expect_format_error str/string json/Map:
   exception := catch: DeviceSpecification.from_json json --path="ignored"
@@ -55,7 +66,7 @@ deep_copy_ o/any -> any:
     return o.map: deep_copy_ it
   return o
 
-main:
+test_errors:
   no_version := new_valid
   no_version.remove "version"
   expect_format_error

@@ -15,6 +15,48 @@ import .utils
 import .git
 import .ui
 
+import ..shared.version show SDK_VERSION ARTEMIS_VERSION
+
+EXAMPLE_DEVICE_SPECIFICATION ::= {
+  "version": 1,
+  "sdk-version": SDK_VERSION,
+  "artemis-version": ARTEMIS_VERSION,
+  "max-offline": "30s",
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "my-wifi",
+      "password": "my-password",
+    }
+  ],
+  "containers": {
+    "hello": {
+      "entrypoint": "hello.toit",
+      "triggers": [
+        "boot",
+        {
+          "interval": "1m",
+        },
+      ],
+    },
+    "solar": {
+      "entrypoint": "examples/solar_example.toit",
+      "git": "https://github.com/toitware/toit-solar-position.git",
+      "branch": "v0.0.3",
+      "triggers": [
+        {
+          "gpio": [
+            {
+              "pin": 33,
+              "level": "high",
+            },
+          ],
+        },
+      ],
+    },
+  },
+}
+
 class DeviceSpecificationException:
   message/string
 

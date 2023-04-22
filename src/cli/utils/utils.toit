@@ -177,6 +177,7 @@ random_uuid_string -> string:
 json_encode_pretty value/any -> ByteArray:
   buffer := bytes.Buffer
   json_encode_pretty_ value buffer --indentation=0
+  buffer.write "\n"
   buffer.close
   return buffer.buffer
 
@@ -185,7 +186,7 @@ json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
   indentation_string/string? := null
   newline := :
     buffer.write "\n"
-    if not indentation_string: indentation_string = "  " * indentation
+    if not indentation_string: indentation_string = " " * indentation
     buffer.write indentation_string
 
   if value is List:
@@ -195,10 +196,9 @@ json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
       buffer.write "]"
       return
     newline.call
-    indentation_str := "  " * (indentation + 2)
     list.size.repeat: | i/int |
       element := list[i]
-      buffer.write indentation_str
+      buffer.write "  "
       json_encode_pretty_ element buffer --indentation=indentation + 2
       if i < list.size - 1: buffer.write ","
       newline.call

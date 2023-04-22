@@ -137,4 +137,4 @@ download-sdk: install-pkgs
 .PHONY: rebuild-cmake
 rebuild-cmake:
 	mkdir -p build
-	(cd build && cmake .. -G Ninja)
+	(cd build && cmake .. -DDEFAULT_SDK_VERSION=$(LOCAL_DEV_SDK) -G Ninja)
