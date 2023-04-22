@@ -1,8 +1,8 @@
 # Copyright (C) 2022 Toitware ApS.
 
-TOIT_RUN_BIN?=toit.run
+TOITRUN?=toit.run
 
-SETUP_LOCAL_DEV_SDK ?= v2.0.0-alpha.78
+LOCAL_DEV_SDK ?= v2.0.0-alpha.78
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 export ARTEMIS_CONFIG := $(HOME)/.config/artemis-dev/config
@@ -27,7 +27,7 @@ disable-supabase-tests: build/CMakeCache.txt
 	(cd build && cmake -DWITH_LOCAL_SUPABASE=OFF .)
 
 .PHONY: test
-test: install-pkgs rebuild-cmake
+test: install-pkgs rebuild-cmake download-sdk
 	(cd build && ninja check)
 
 # From https://app.supabase.com/project/voisfafsfolxhqpkudzd/settings/auth
@@ -45,20 +45,20 @@ start-http: install-pkgs
 	@ # Adds the local Artemis server and makes it the default.
 	@ # Use the public IP, so that we can flash devices which then can use
 	@ # the broker.
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add http \
-		--host=`$(TOIT_RUN_BIN) tools/lan_ip/lan_ip.toit` \
+	@ $(TOITRUN) src/cli/cli.toit config broker add http \
+		--host=`$(TOITRUN) tools/lan_ip/lan_ip.toit` \
 		--port 4999 \
 		artemis-local-http
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis-local-http
+	@ $(TOITRUN) src/cli/cli.toit config broker default --artemis artemis-local-http
 	@ # Adds the local broker and makes it the default.
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add http \
-		--host=`$(TOIT_RUN_BIN) tools/lan_ip/lan_ip.toit` \
+	@ $(TOITRUN) src/cli/cli.toit config broker add http \
+		--host=`$(TOITRUN) tools/lan_ip/lan_ip.toit` \
 		--port 4998 \
 		broker-local-http
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-http
+	@ $(TOITRUN) src/cli/cli.toit config broker default broker-local-http
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-http
 	@ rm -rf $$HOME/.cache/artemis/broker-local-http
-	@ $(TOIT_RUN_BIN) tools/http_servers/combined.toit \
+	@ $(TOITRUN) tools/http_servers/combined.toit \
 		--artemis-port 4999 \
 		--broker-port 4998
 
@@ -81,11 +81,11 @@ start-supabase-no-config:
 
 start-supabase: start-supabase-no-config
 	@ # Add the local Artemis server and makes it the default.
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
+	@ $(TOITRUN) src/cli/cli.toit config broker add supabase \
 		artemis-local-supabase \
-		$$($(TOIT_RUN_BIN) tests/supabase_local_server.toit supabase_artemis)
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis artemis-local-supabase
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default artemis-local-supabase
+		$$($(TOITRUN) tests/supabase_local_server.toit supabase_artemis)
+	@ $(TOITRUN) src/cli/cli.toit config broker default --artemis artemis-local-supabase
+	@ $(TOITRUN) src/cli/cli.toit config broker default artemis-local-supabase
 	@ echo "Run 'make use-customer-supabase-broker' to use the customer broker."
 
 stop-supabase:
@@ -95,31 +95,40 @@ stop-supabase:
 .PHONY: use-customer-supabase-broker
 use-customer-supabase-broker: start-supabase
 	@ # Adds the local broker using a second Supabase instance.
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker add supabase \
+	@ $(TOITRUN) src/cli/cli.toit config broker add supabase \
 		broker-local-supabase \
-		`$(TOIT_RUN_BIN) tests/supabase_local_server.toit supabase_broker`
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit config broker default broker-local-supabase
+		`$(TOITRUN) tests/supabase_local_server.toit supabase_broker`
+	@ $(TOITRUN) src/cli/cli.toit config broker default broker-local-supabase
 
 .PHONY: setup-local-dev
 setup-local-dev:
 	@ # The HTTP server doesn't have any default users.
-	@ if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) == "artemis-local-http" ]]; then \
-	    $(TOIT_RUN_BIN) src/cli/cli.toit auth signup --email test-admin@toit.io --password password; \
+	@ if [[ $$($(TOITRUN) src/cli/cli.toit config broker default --artemis) == "artemis-local-http" ]]; then \
+	    $(TOITRUN) src/cli/cli.toit auth signup --email test-admin@toit.io --password password; \
 	  fi
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit auth login --email test-admin@toit.io --password password
-	@ if [[ $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) != $$($(TOIT_RUN_BIN) src/cli/cli.toit config broker default --artemis) ]]; then \
-	    $(TOIT_RUN_BIN) src/cli/cli.toit auth login --broker --email test@example.com --password password; \
+	@ $(TOITRUN) src/cli/cli.toit auth login --email test-admin@toit.io --password password
+	@ if [[ $$($(TOITRUN) src/cli/cli.toit config broker default --artemis) != $$($(TOITRUN) src/cli/cli.toit config broker default --artemis) ]]; then \
+	    $(TOITRUN) src/cli/cli.toit auth login --broker --email test@example.com --password password; \
 	  fi
 
-	@ $(TOIT_RUN_BIN) src/cli/cli.toit org create "Test Org"
+	@ $(TOITRUN) src/cli/cli.toit org create "Test Org"
 
 	@ $(MAKE) upload-service
 
 .PHONY: upload-service
 upload-service:
-	@ $(TOIT_RUN_BIN) tools/service_image_uploader/uploader.toit service --local --force \
-	    --sdk-version=$(SETUP_LOCAL_DEV_SDK) \
-	    --service-version=$(SETUP_LOCAL_DEV_SERVICE) \
+	@ $(TOITRUN) tools/service_image_uploader/uploader.toit service --local --force \
+	    --sdk-version=$(LOCAL_DEV_SDK) \
+	    --service-version=$(SETUP_LOCAL_DEV_SERVICE)
+
+.PHONY: download-sdk
+download-sdk: install-pkgs
+	@ $(TOITRUN) tools/service_image_uploader/sdk_downloader.toit download --version $(LOCAL_DEV_SDK)
+	@ cmake \
+		-DDEV_SDK_VERSION=$(LOCAL_DEV_SDK) \
+		-DDEV_SDK_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk_downloader.toit --version $(LOCAL_DEV_SDK) print)" \
+		-DDEV_ENVELOPE_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk_downloader.toit --version $(LOCAL_DEV_SDK) print --envelope)" \
+		build
 
 # We rebuild the cmake file all the time.
 # We use "glob" in the cmakefile, and wouldn't otherwise notice if a new

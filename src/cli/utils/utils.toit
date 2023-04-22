@@ -102,6 +102,27 @@ tool_path_ tool/string -> string:
   return result
 
 /**
+Copies the $source directory into the $target directory.
+
+If the $target directory does not exist, it is created.
+*/
+copy_directory --source/string --target/string:
+  directory.mkdir --recursive target
+  with_tmp_directory: | tmp_dir |
+    tmp_tar := "$tmp_dir/tmp.tar"
+    // Tar can't handle backslashes as separators.
+    source = source.replace --all "\\" "/"
+    target = target.replace --all "\\" "/"
+    tmp_tar = tmp_tar.replace --all "\\" "/"
+    // We are using `tar` so we keep the permissions.
+    tar := tool_path_ "tar"
+    // We are using an intermediate file.
+    // Using pipes was too slow on Windows.
+    // See https://github.com/toitlang/toit/issues/1568.
+    pipe.backticks [tar, "c", "-f", tmp_tar, "-C", source, "."]
+    pipe.backticks [tar, "x", "-f", tmp_tar, "-C", target]
+
+/**
 Untars the given $path into the $target directory.
 
 Do not use this function on compressed tar files. That would work

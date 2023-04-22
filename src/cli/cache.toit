@@ -9,6 +9,7 @@ import encoding.json
 import uuid
 import writer
 import .server_config
+import .utils
 
 /**
 Handles cached files.
@@ -402,7 +403,7 @@ class DirectoryStore_ implements DirectoryStore:
   */
   copy path/string:
     store_: | dir_path/string |
-      copy_directory_ --source=path --target=dir_path
+      copy_directory --source=path --target=dir_path
 
   /**
   Moves the directory at $path to the cache under $key.
@@ -416,7 +417,7 @@ class DirectoryStore_ implements DirectoryStore:
       exception := catch: file.rename path dir_path
       if not exception: continue.store_
       // We assume that the files weren't on the same file system.
-      copy_directory_ --source=path --target=dir_path
+      copy_directory --source=path --target=dir_path
 
   // TODO(florian): add "download" method.
   // Must be a tar, tar.gz, tgz, or zip.
@@ -458,21 +459,3 @@ copy_file_ --source/string --target/string -> none:
   w.write_from in
   in.close
   out.close
-
-copy_directory_ --source/string --target/string -> none:
-  // TODO(florian): we want to keep the permissions of the original file,
-  // except that we want to make the file read-only.
-  directory.mkdir --recursive target
-  dir_entries := directory.DirectoryStream source
-  try:
-    while entry := dir_entries.next:
-      source_path := "$(source)/$(entry)"
-      target_path := "$(target)/$(entry)"
-      if file.is_file source_path:
-        copy_file_ --source=source_path --target=target_path
-      else if file.is_directory source_path:
-        copy_directory_ --source=source_path --target=target_path
-      else:
-        throw "Unknown file type: $(source_path)"
-  finally:
-    dir_entries.close
