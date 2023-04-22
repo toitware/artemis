@@ -148,12 +148,28 @@ class TestCli:
       write_blob_to_file gold_path output
       print "Updated gold file '$gold_path'."
     gold_content := (file.read_content gold_path).to_string
+    // In case we are on Windows or something else introduced \r\n.
+    gold_content = gold_content.replace --all "\r\n" "\n"
+
+    if gold_content != output:
+      print "Gold file '$gold_path' does not match output."
+      print "Output:"
+      print output
+      print "Gold:"
+      print gold_content
+      print "gold_content.size: $gold_content.size"
+      print "output.size: $output.size"
+      for i := 0; i < (min output.size gold_content.size); i++:
+        if output[i] != gold_content[i]:
+          print "First difference at $i $output[i] != $gold_content[i]"
+          break
     expect_equals gold_content output
 
   canonicalize_gold_ output/string args --description/string -> string:
     result := "# $description\n# $args\n$output"
     replacements.do: | key val|
       result = result.replace --all key val
+    result = result.replace --all "\r\n" "\n"
     return result
 
   /**
