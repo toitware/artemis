@@ -275,6 +275,11 @@ class Fleet:
   read_specification_for device_id/string -> DeviceSpecification:
     return parse_device_specification_file default_specification_path --ui=ui_
 
+  add_device --device_id/string --name/string? --aliases/List?:
+    if aliases and aliases.is_empty: aliases = null
+    devices_.add (DeviceFleet --id=device_id --name=name --aliases=aliases)
+    write_devices_
+
   build_status_ device/DeviceDetailed get_state_events/List? last_event/Event? -> Status_:
     CHECKIN_VERIFICATIONS ::= 5
     SLACK_FACTOR ::= 0.3
