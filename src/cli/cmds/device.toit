@@ -113,8 +113,7 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
   if not device_id:
-    ui.error "No device ID specified and no default device ID set."
-    ui.abort
+    ui.abort "No device ID specified and no default device ID set."
 
   specification := parse_device_specification_file specification_path --ui=ui
   with_artemis parsed config cache ui: | artemis/Artemis |
@@ -132,8 +131,7 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if not device_id:
     device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
     if not device_id:
-      ui.error "No default device set."
-      ui.abort
+      ui.abort "No default device set."
 
     ui.info "$device_id"
     return
@@ -154,20 +152,17 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
   if not device_id:
-    ui.error "No device ID specified and no default device ID set."
-    ui.abort
+    ui.abort "No device ID specified and no default device ID set."
 
   if max_events < 0:
-    ui.error "max-events must be >= 0."
-    ui.abort
+    ui.abort "max-events must be >= 0."
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     broker := artemis.connected_broker
     artemis_server := artemis.connected_artemis_server
     devices := broker.get_devices --device_ids=[device_id]
     if devices.is_empty:
-      ui.error "Device $device_id does not exist."
-      ui.abort
+      ui.abort "Device $device_id does not exist."
     device := devices[device_id]
     organization := artemis_server.get_organization device.organization_id
     events/List? := null
@@ -195,8 +190,7 @@ set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max_offline_seconds := int.parse max_offline --on_error=:
     // Assume it's a duration with units, like "5s".
     duration := parse_duration max_offline --on_error=:
-      ui.error "Invalid max-offline duration: $max_offline."
-      ui.abort
+      ui.abort "Invalid max-offline duration: $max_offline."
     duration.in_s
 
   with_artemis parsed config cache ui: | artemis/Artemis |

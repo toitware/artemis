@@ -93,22 +93,18 @@ build_partitions_table_ partition_list/List --ui/Ui -> List:
   result := []
   partition_list.do: | partition_entry |
     if partition_entry is not Map:
-      ui.error "Partition entry must be a map."
-      ui.abort
+      ui.abort "Partition entry must be a map."
     partition := partition_entry as Map
     type := partition.contains "file" ? "file" : "empty"
     description/string := partition[type]
     delimiter_index := description.index_of "="
     if delimiter_index < 0:
-      ui.error "Partition of type '$type' is malformed: '$description'."
-      ui.abort
+      ui.abort "Partition of type '$type' is malformed: '$description'."
     name := description[..delimiter_index]
     if name.is_empty:
-      ui.error "Partition of type '$type' has no name."
-      ui.abort
+      ui.abort "Partition of type '$type' has no name."
     if name.size > 15:
-      ui.error "Partition of type '$type' has name with more than 15 characters."
-      ui.abort
+      ui.abort "Partition of type '$type' has name with more than 15 characters."
     value := description[delimiter_index + 1 ..]
     if type == "file":
       if not file.is_file value:
@@ -117,11 +113,9 @@ build_partitions_table_ partition_list/List --ui/Ui -> List:
         ui.abort
     else:
       size := int.parse value --on_error=:
-        ui.error "Partition $type:$name has illegal size: '$it'"
-        ui.abort
+        ui.abort "Partition $type:$name has illegal size: '$it'"
       if size <= 0:
-        ui.error "Partition $type:$name has illegal size: $size"
-        ui.abort
+        ui.abort "Partition $type:$name has illegal size: $size"
     result.add "$type:$description"
   return result
 

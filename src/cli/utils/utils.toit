@@ -229,13 +229,12 @@ json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
 /**
 Parses the given $path into a DeviceSpecification.
 
-If there is an error, calls $Ui.error followed by a call to $Ui.abort.
+If there is an error, calls $Ui.abort with an error message.
 */
 parse_device_specification_file path/string --ui/Ui -> DeviceSpecification:
   exception := catch --unwind=(: it is not DeviceSpecificationException):
     return DeviceSpecification.parse path
-  ui.error "Error parsing device specification: $exception"
-  ui.abort
+  ui.abort "Error parsing device specification: $exception"
   unreachable
 
 // TODO(florian): move this into Duration?

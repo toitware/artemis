@@ -70,8 +70,7 @@ class Fleet:
       ui_.abort
     fleet_content := read_json "$fleet_root_/$FLEET_FILE_"
     if fleet_content is not Map:
-      ui_.error "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format."
-      ui_.abort
+      ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format."
     organization_id = fleet_content["organization"]
     default_specification_ = fleet_content["default-specification"]
     devices_ = load_devices_ fleet_root_ --ui=ui
@@ -80,26 +79,21 @@ class Fleet:
     // TODO(florian): should we always do this check?
     org := artemis_.connected_artemis_server.get_organization organization_id
     if not org:
-      ui.error "Organization $organization_id does not exist or is not accessible."
-      ui.abort
+      ui.abort "Organization $organization_id does not exist or is not accessible."
 
   static init fleet_root/string artemis/Artemis --organization_id/string --ui/Ui:
     if not file.is_directory fleet_root:
-      ui.error "Fleet root $fleet_root is not a directory."
-      ui.abort
+      ui.abort "Fleet root $fleet_root is not a directory."
 
     if file.is_file "$fleet_root/$FLEET_FILE_":
-      ui.error "Fleet root $fleet_root already contains a $FLEET_FILE_ file."
-      ui.abort
+      ui.abort "Fleet root $fleet_root already contains a $FLEET_FILE_ file."
 
     if file.is_file "$fleet_root/$DEVICES_FILE_":
-      ui.error "Fleet root $fleet_root already contains a $DEVICES_FILE_ file."
-      ui.abort
+      ui.abort "Fleet root $fleet_root already contains a $DEVICES_FILE_ file."
 
     org := artemis.connected_artemis_server.get_organization organization_id
     if not org:
-      ui.error "Organization $organization_id does not exist or is not accessible."
-      ui.abort
+      ui.abort "Organization $organization_id does not exist or is not accessible."
 
     write_json_to_file --pretty "$fleet_root/$FLEET_FILE_" {
       "organization": organization_id,
@@ -122,8 +116,7 @@ class Fleet:
 
   static load_devices_ fleet_root/string --ui/Ui -> List:
     if not file.is_directory fleet_root:
-      ui.error "Fleet root $fleet_root is not a directory."
-      ui.abort
+      ui.abort "Fleet root $fleet_root is not a directory."
     devices_path := "$fleet_root/$DEVICES_FILE_"
     if not file.is_file devices_path:
       ui.error "Fleet root $fleet_root does not contain a $DEVICES_FILE_ file."
@@ -137,14 +130,12 @@ class Fleet:
       ui.error exception.message
       ui.abort
     if encoded_devices is not Map:
-      ui.error "Fleet file $devices_path has invalid format."
-      ui.abort
+      ui.abort "Fleet file $devices_path has invalid format."
 
     devices := []
     encoded_devices.do: | device_id encoded_device |
       if encoded_device is not Map:
-        ui.error "Fleet file $devices_path has invalid format for device ID $device_id."
-        ui.abort
+        ui.abort "Fleet file $devices_path has invalid format for device ID $device_id."
       exception = catch:
         device := DeviceFleet.from_json device_id encoded_device
         devices.add device
@@ -247,8 +238,7 @@ class Fleet:
     existing_devices := broker.get_devices --device_ids=(fleet_devices.map: it.id)
     fleet_devices.do: | fleet_device/DeviceFleet |
       if not existing_devices.contains fleet_device.id:
-        ui_.error "Device $fleet_device.id is unknown to the broker."
-        ui_.abort
+        ui_.abort "Device $fleet_device.id is unknown to the broker."
 
     base_patches := {:}
 
@@ -363,8 +353,7 @@ class Fleet:
     statuses := devices_.map: | fleet_device/DeviceFleet |
       device/DeviceDetailed? := detailed_devices.get fleet_device.id
       if not device:
-        ui_.error "Device $fleet_device.id is unknown to the broker."
-        ui_.abort
+        ui_.abort "Device $fleet_device.id is unknown to the broker."
       last_events_of_device := last_events.get fleet_device.id
       last_event := last_events_of_device and not last_events_of_device.is_empty
           ? last_events_of_device[0]
@@ -421,10 +410,8 @@ class Fleet:
 
   resolve_alias_ alias/string -> DeviceFleet:
     if not aliases_.contains alias:
-      ui_.error "No device with name, device-id, or alias $alias in the fleet."
-      ui_.abort
+      ui_.abort "No device with name, device-id, or alias $alias in the fleet."
     device_index := aliases_[alias]
     if device_index == AMBIGUOUS_:
-      ui_.error "The name, device-id, or alias $alias is ambiguous."
-      ui_.abort
+      ui_.abort "The name, device-id, or alias $alias is ambiguous."
     return devices_[device_index]

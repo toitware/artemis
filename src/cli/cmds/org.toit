@@ -146,8 +146,7 @@ with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
 
   with_server server_config config: | server/ArtemisServerCli |
     server.ensure_authenticated: | error_message |
-      ui.error "$error_message (artemis)."
-      ui.abort
+      ui.abort "$error_message (artemis)."
     block.call server
 
 with_org_server_id parsed/cli.Parsed config/Config ui/Ui [block]:
@@ -155,8 +154,7 @@ with_org_server_id parsed/cli.Parsed config/Config ui/Ui [block]:
   if not org_id:
     org_id = config.get CONFIG_ORGANIZATION_DEFAULT
     if not org_id:
-      ui.error "No default organization set."
-      ui.abort
+      ui.abort "No default organization set."
 
   with_org_server parsed config ui: | server |
     block.call server org_id
@@ -181,8 +179,7 @@ show_org parsed/cli.Parsed config/Config ui/Ui -> none:
 print_org org_id/string server/ArtemisServerCli ui/Ui -> none:
   org := server.get_organization org_id
   if not org:
-    ui.error "Organization $org_id not found."
-    ui.abort
+    ui.abort "Organization $org_id not found."
   ui.info_map {
     "ID": org.id,
     "Name": org.name,
@@ -202,8 +199,7 @@ default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
 
     org_id = config.get CONFIG_ORGANIZATION_DEFAULT
     if not org_id:
-      ui.error "No default organization set."
-      ui.abort
+      ui.abort "No default organization set."
 
     if id_only:
       ui.info "$org_id"
@@ -218,8 +214,7 @@ default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
     org/OrganizationDetailed? := null
     exception := catch: org = server.get_organization org_id
     if exception or not org:
-      ui.error "Organization not found."
-      ui.abort
+      ui.abort "Organization not found."
 
     make_default_ org config ui
 
@@ -271,8 +266,7 @@ member_remove parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
     if not force:
       current_user_id := server.get_current_user_id
       if user_id == current_user_id:
-        ui.error "Use '--force' to remove yourself from an organization."
-        ui.abort
+        ui.abort "Use '--force' to remove yourself from an organization."
     server.organization_member_remove --organization_id=org_id --user_id=user_id
     ui.info "Removed user $user_id from organization $org_id."
 

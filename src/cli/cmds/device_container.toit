@@ -60,8 +60,7 @@ get_device_id parsed/cli.Parsed config/Config ui/Ui -> string:
   device_id := parsed["device-id"]
   if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
   if not device_id:
-    ui.error "No device ID specified and no default device ID set."
-    ui.abort
+    ui.abort "No device ID specified and no default device ID set."
   return device_id
 
 install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -73,8 +72,7 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := get_device_id parsed config ui
 
   if is_critical and not parsed_triggers.is_empty:
-    ui.error "Critical containers cannot have triggers."
-    ui.abort
+    ui.abort "Critical containers cannot have triggers."
 
   seen_triggers := {}
   seen_pins := {}
@@ -82,8 +80,7 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   parsed_triggers.do: | parsed_trigger |
     if parsed_trigger is string:
       if seen_triggers.contains parsed_trigger:
-        ui.error "Duplicate trigger '$parsed_trigger'."
-        ui.abort
+        ui.abort "Duplicate trigger '$parsed_trigger'."
       seen_triggers.add parsed_trigger
 
     if parsed_trigger == "none":
@@ -94,12 +91,10 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       triggers.add device_specification.InstallTrigger
     else if parsed_trigger is Map and parsed_trigger.contains "interval":
       if seen_triggers.contains "interval":
-        ui.error "Duplicate trigger 'interval'."
-        ui.abort
+        ui.abort "Duplicate trigger 'interval'."
       seen_triggers.add "interval"
       duration := parse_duration parsed_trigger["interval"] --on_error=:
-        ui.error "Invalid interval '$parsed_trigger'. Use 20s, 5m10s, 12h or similar."
-        ui.abort
+        ui.abort "Invalid interval '$parsed_trigger'. Use 20s, 5m10s, 12h or similar."
       triggers.add (device_specification.IntervalTrigger duration)
     else if parsed_trigger is Map and (parsed_trigger.contains "gpio-low" or parsed_trigger.contains "gpio-high"):
       // Add an entry to the seen triggers list, so we can ensure that it's not combined with 'none'.
@@ -107,26 +102,22 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       on_high := parsed_trigger.contains "gpio-high"
       pin_string := on_high ? parsed_trigger["gpio-high"] : parsed_trigger["gpio-low"]
       pin := int.parse pin_string --on_error=:
-        ui.error "Invalid pin '$pin_string'."
-        ui.abort
+        ui.abort "Invalid pin '$pin_string'."
 
       if seen_pins.contains pin:
-        ui.error "Duplicate trigger for pin '$pin'."
-        ui.abort
+        ui.abort "Duplicate trigger for pin '$pin'."
       seen_pins.add pin
 
       triggers.add (on_high
           ? device_specification.GpioTriggerHigh pin
           : device_specification.GpioTriggerLow pin)
     else:
-      ui.error "Invalid trigger '$parsed_trigger'."
-      ui.abort
+      ui.abort "Invalid trigger '$parsed_trigger'."
       unreachable
 
   if seen_triggers.contains "none":
     if seen_triggers.size != 1:
-      ui.error "Trigger 'none' cannot be combined with other triggers."
-      ui.abort
+      ui.abort "Trigger 'none' cannot be combined with other triggers."
     triggers = []
   else if not is_critical and triggers.is_empty:
     // Non-critical containers get a boot and an install trigger by default.
