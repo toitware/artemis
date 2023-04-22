@@ -5,6 +5,7 @@ import http
 import net
 import encoding.json
 import supabase
+import uuid
 
 import ..artemis_server
 import ...config
@@ -43,34 +44,34 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   sign_in --provider/string --ui/Ui --open_browser/bool:
     client_.auth.sign_in --provider=provider --ui=ui --open_browser=open_browser
 
-  create_device_in_organization --organization_id/string --device_id/string -> Device:
+  create_device_in_organization --organization_id/uuid.Uuid --device_id/uuid.Uuid? -> Device:
     payload := {
-      "organization_id": organization_id,
+      "organization_id": "$organization_id",
     }
 
-    if device_id != "": payload["alias"] = device_id
+    if device_id: payload["alias"] = "$device_id"
 
     inserted := client_.rest.insert "devices" payload
     return Device
-        --hardware_id=inserted["id"]
-        --id=inserted["alias"]
-        --organization_id=inserted["organization_id"]
+        --hardware_id=uuid.parse inserted["id"]
+        --id=uuid.parse inserted["alias"]
+        --organization_id=uuid.parse inserted["organization_id"]
 
-  notify_created --hardware_id/string -> none:
+  notify_created --hardware_id/uuid.Uuid -> none:
     client_.rest.insert "events" --no-return_inserted {
-      "device_id": hardware_id,
+      "device_id": "$hardware_id",
       "data": { "type": "created" }
     }
 
-  get_current_user_id -> string:
-    return client_.auth.get_current_user["id"]
+  get_current_user_id -> uuid.Uuid:
+    return uuid.parse client_.auth.get_current_user["id"]
 
   get_organizations -> List:
     // TODO(florian): we only need the id and the name.
     organizations := client_.rest.select "organizations"
     return organizations.map: Organization.from_map it
 
-  get_organization id/string -> OrganizationDetailed?:
+  get_organization id/uuid.Uuid -> OrganizationDetailed?:
     organizations := client_.rest.select "organizations" --filters=[
       "id=eq.$id"
     ]
@@ -81,49 +82,51 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     inserted := client_.rest.insert "organizations" { "name": name }
     return Organization.from_map inserted
 
-  get_organization_members id/string -> List:
+  get_organization_members organization_id/uuid.Uuid -> List:
     members := client_.rest.select "roles" --filters=[
-      "organization_id=eq.$id"
+      "organization_id=eq.$organization_id"
     ]
     return members.map: {
-      "id": it["user_id"],
+      "id": uuid.parse it["user_id"],
       "role": it["role"],
     }
 
-  organization_member_add --organization_id/string --user_id/string --role/string:
+  organization_member_add --organization_id/uuid.Uuid --user_id/uuid.Uuid --role/string:
     client_.rest.insert "roles" {
-      "organization_id": organization_id,
-      "user_id": user_id,
+      "organization_id": "$organization_id",
+      "user_id": "$user_id",
       "role": role,
     }
 
-  organization_member_remove --organization_id/string --user_id/string:
+  organization_member_remove --organization_id/uuid.Uuid --user_id/uuid.Uuid:
     client_.rest.delete "roles" --filters=[
       "organization_id=eq.$organization_id",
       "user_id=eq.$user_id",
     ]
 
-  organization_member_set_role --organization_id/string --user_id/string --role/string:
+  organization_member_set_role --organization_id/uuid.Uuid --user_id/uuid.Uuid --role/string:
     client_.rest.update "roles" --filters=[
       "organization_id=eq.$organization_id",
       "user_id=eq.$user_id",
     ] { "role": role }
 
-  get_profile --user_id/string?=null -> Map?:
+  get_profile --user_id/uuid.Uuid?=null -> Map?:
     if not user_id:
       // TODO(florian): we should have the current user cached.
       current_user := client_.auth.get_current_user
-      user_id = current_user["id"]
-    result := client_.rest.select "profiles_with_email" --filters=[
+      user_id = uuid.parse current_user["id"]
+    response := client_.rest.select "profiles_with_email" --filters=[
       "id=eq.$user_id"
     ]
-    if result.is_empty: return null
-    return result[0]
+    if response.is_empty: return null
+    result := response[0]
+    result["id"] = uuid.parse result["id"]
+    return result
 
   update_profile --name/string -> none:
     // TODO(florian): we should have the current user cached.
     current_user := client_.auth.get_current_user
-    user_id := current_user["id"]
+    user_id := uuid.parse current_user["id"]
     client_.rest.update "profiles"  { "name": name } --filters=[
       "id=eq.$user_id"
     ]

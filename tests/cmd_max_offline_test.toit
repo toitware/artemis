@@ -23,7 +23,7 @@ main args:
     test_cli.run [
       "device",
       "set-max-offline",
-      "--device-id", device.alias_id,
+      "--device-id", "$device.alias_id",
       "1",
     ]
 
@@ -36,7 +36,7 @@ main args:
     test_cli.run [
       "device",
       "set-max-offline",
-      "--device-id", device.alias_id,
+      "--device-id", "$device.alias_id",
       "3m",
     ]
 

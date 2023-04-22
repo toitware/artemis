@@ -23,7 +23,7 @@ main args:
 // Note that the service has global state (when to check in, ...).
 // Calling `run_test` twice from the same test will thus not work.
 run_test --insert_device/bool:
-  device_id := "test-device-check-in"
+  device_id := random_uuid
   device := Device
       --id=device_id
       --hardware_id=device_id
@@ -36,7 +36,7 @@ run_test --insert_device/bool:
       backdoor := artemis_server.backdoor as ToitHttpBackdoor
       server := backdoor.server
       if insert_device:
-        server.devices[device_id] = DeviceEntry device_id
+        server.devices["$device_id"] = DeviceEntry "$device_id"
             --alias="test-alias"
             --organization_id="test-organization"
 

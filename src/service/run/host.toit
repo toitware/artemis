@@ -16,6 +16,7 @@ import encoding.ubjson
 import encoding.base64
 import encoding.tison
 import encoding.hex
+import uuid
 
 import ..utils show decode_server_config
 import ..service show run_artemis
@@ -55,9 +56,9 @@ run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui
   device_identity := identity["artemis.device"]
 
   artemis_device := artemis_device.Device
-      --hardware_id=device_identity["hardware_id"]
-      --organization_id=device_identity["organization_id"]
-      --id=device_identity["device_id"]
+      --hardware_id=uuid.parse device_identity["hardware_id"]
+      --organization_id=uuid.parse device_identity["organization_id"]
+      --id=uuid.parse device_identity["device_id"]
 
   firmware := Artemis.compute_device_specific_firmware
       --envelope_path=envelope_path

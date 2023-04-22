@@ -54,8 +54,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         is given, the default organization is used.
         """
       --options=[
-        cli.Option "organization-id"
-            --type="uuid"
+        OptionUuid "organization-id"
             --short_help="The organization to use."
       ]
       --run=:: init it config cache ui
@@ -205,8 +204,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
             --split_commas,
       ]
       --rest=[
-        cli.Option "device-id"
-            --type="uuid"
+        OptionUuid "device-id"
             --short_help="The ID of the device to add."
             --required,
       ]
@@ -220,7 +218,7 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   organization_id := parsed["organization-id"]
 
   if not organization_id:
-    default_organization_id := config.get CONFIG_ORGANIZATION_DEFAULT
+    default_organization_id := default_organization_from_config config
     if not default_organization_id:
       ui.abort "No organization ID specified and no default organization ID set."
 
@@ -228,7 +226,6 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     Fleet.init fleet_root artemis --organization_id=organization_id --ui=ui
-
 
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]

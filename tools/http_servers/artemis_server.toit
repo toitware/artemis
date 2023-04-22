@@ -92,7 +92,7 @@ class HttpArtemisServer extends HttpServer:
     super port
 
   run_command command/string data user_id/string? -> any:
-    print "Request $command for $user_id"
+    print "Request $command for $user_id with $data"
     if user_id and not users.contains user_id:
       throw "User not found: $user_id"
 

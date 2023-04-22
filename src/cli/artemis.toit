@@ -123,7 +123,7 @@ class Artemis:
 
   Writes the identity file to $out_path.
   */
-  provision --device_id/string --out_path/string --organization_id/string:
+  provision --device_id/uuid.Uuid? --out_path/string --organization_id/uuid.Uuid:
     server := connected_artemis_server
     // Get the broker just after the server, in case it needs to authenticate.
     // We prefer to get an error message before we created a device on the
@@ -140,9 +140,9 @@ class Artemis:
     server.notify_created --hardware_id=hardware_id
 
     identity := {
-      "device_id": device_id,
-      "organization_id": organization_id,
-      "hardware_id": hardware_id,
+      "device_id": "$device_id",
+      "organization_id": "$organization_id",
+      "hardware_id": "$hardware_id",
     }
     state := {
       "identity": identity,
@@ -163,9 +163,9 @@ class Artemis:
   */
   write_identity_file -> none
       --out_path/string
-      --device_id/string
-      --organization_id/string
-      --hardware_id/string:
+      --device_id/uuid.Uuid
+      --organization_id/uuid.Uuid
+      --hardware_id/uuid.Uuid:
     // A map from id to DER certificates.
     der_certificates := {:}
 
@@ -174,9 +174,9 @@ class Artemis:
 
     identity ::= {
       "artemis.device": {
-        "device_id"       : device_id,
-        "organization_id" : organization_id,
-        "hardware_id"     : hardware_id,
+        "device_id"       : "$device_id",
+        "organization_id" : "$organization_id",
+        "hardware_id"     : "$hardware_id",
       },
       "artemis.broker": artemis_json,
       "broker": broker_json,
@@ -366,7 +366,7 @@ class Artemis:
   The firmware can then be used for diff-based updates, or simply as direct
     downloads for updates.
   */
-  upload_firmware envelope_path/string --organization_id/string:
+  upload_firmware envelope_path/string --organization_id/uuid.Uuid:
     firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
     firmware_content.trivial_patches.do:
       upload_patch it --organization_id=organization_id
@@ -374,7 +374,7 @@ class Artemis:
   /**
   Uploads the given $patch to the server under the given $organization_id.
   */
-  upload_patch patch/FirmwarePatch --organization_id/string:
+  upload_patch patch/FirmwarePatch --organization_id/uuid.Uuid:
     diff_and_upload_ patch --organization_id=organization_id
 
   /**
@@ -387,7 +387,7 @@ class Artemis:
   ensure_patches_are_uploaded -> none
       firmware/Firmware
       trivial_patches/Map
-      --organization_id/string:
+      --organization_id/uuid.Uuid:
     firmware.content.parts.do: | part/FirmwarePart |
       if part is not FirmwarePartPatch: continue.do
       trivial_patch_id := id_ --to=(part as FirmwarePartPatch).hash
@@ -416,7 +416,7 @@ class Artemis:
     is empty, the device must upgrade using trivial patches.
   */
   update
-      --device_id/string
+      --device_id/uuid.Uuid
       --device_specification/DeviceSpecification
       --base_firmwares/List=[]:
     with_tmp_directory: | tmp_dir/string |
@@ -435,7 +435,7 @@ class Artemis:
 
   Takes the new firmware from the given $envelope_path.
   */
-  update --device_id/string --envelope_path/string --base_firmwares/List=[]:
+  update --device_id/uuid.Uuid --envelope_path/string --base_firmwares/List=[]:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       upload_firmware envelope_path --organization_id=device.organization_id
 
@@ -571,9 +571,9 @@ class Artemis:
 
     device_map := identity["artemis.device"]
     device := Device
-        --hardware_id=device_map["hardware_id"]
-        --id=device_map["device_id"]
-        --organization_id=device_map["organization_id"]
+        --hardware_id=uuid.parse device_map["hardware_id"]
+        --id=uuid.parse device_map["device_id"]
+        --organization_id=uuid.parse device_map["organization_id"]
 
     // We don't really need the full firmware and just the device-specific data,
     // but by cooking the firmware we get the checksums correct.
@@ -644,11 +644,11 @@ class Artemis:
 
   See $BrokerCli.update_goal.
   */
-  update_goal --device_id/string [block]:
+  update_goal --device_id/uuid.Uuid [block]:
     connected_broker.update_goal --device_id=device_id block
 
   container_install -> none
-      --device_id/string
+      --device_id/uuid.Uuid
       --app_name/string
       --application_path/string
       --arguments/List?
@@ -698,7 +698,7 @@ class Artemis:
       new_goal["apps"] = apps
       new_goal
 
-  container_uninstall --device_id/string --app_name/string:
+  container_uninstall --device_id/uuid.Uuid --app_name/string:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
@@ -708,7 +708,7 @@ class Artemis:
       if apps: apps.remove app_name
       new_goal
 
-  config_set_max_offline --device_id/string --max_offline_seconds/int:
+  config_set_max_offline --device_id/uuid.Uuid --max_offline_seconds/int:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
@@ -723,7 +723,7 @@ class Artemis:
   /**
   Computes patches and uploads them to the broker.
   */
-  diff_and_upload_ patch/FirmwarePatch --organization_id/string -> none:
+  diff_and_upload_ patch/FirmwarePatch --organization_id/uuid.Uuid -> none:
     trivial_id := id_ --to=patch.to_
     cache_key := "$connected_broker.id/$organization_id/patches/$trivial_id"
     // Unless it is already cached, always create/upload the trivial one.

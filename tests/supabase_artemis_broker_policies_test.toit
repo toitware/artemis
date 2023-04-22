@@ -52,11 +52,11 @@ main:
     // We can't add a device to an organization if it's not in the public
     // devices table.
 
-    non_existent := random_uuid_string
+    non_existent := random_uuid
 
     expect_throws --contains="row-level security":
       client1.rest.rpc "toit_artemis.new_provisioned" {
-        "_device_id": non_existent,
+        "_device_id": "$non_existent",
         "_state": { "created": "by user1"},
       }
 

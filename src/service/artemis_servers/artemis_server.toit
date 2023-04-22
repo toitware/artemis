@@ -2,6 +2,7 @@
 
 import log
 import net
+import uuid
 
 import .supabase show ArtemisServerServiceSupabase
 import .http.base show ArtemisServerServiceHttp
@@ -14,7 +15,7 @@ Devices check in with the server to report that they are alive and
   should be billed.
 */
 interface ArtemisServerService:
-  constructor server_config/ServerConfig --hardware_id/string:
+  constructor server_config/ServerConfig --hardware_id/uuid.Uuid:
     if server_config is ServerConfigSupabase:
       return ArtemisServerServiceSupabase
           (server_config as ServerConfigSupabase)

@@ -8,6 +8,7 @@ import encoding.ubjson
 import host.file
 import host.os
 import snapshot show cache_snapshot
+import uuid
 
 import .sdk
 import .cache show ENVELOPE_PATH
@@ -87,9 +88,9 @@ class Firmware:
     unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache
     encoded_parts := unconfigured.encoded_parts
     device_map := {
-      "device_id":       device.id,
-      "organization_id": device.organization_id,
-      "hardware_id":     device.hardware_id,
+      "device_id":       "$device.id",
+      "organization_id": "$device.organization_id",
+      "hardware_id":     "$device.hardware_id",
     }
     while true:
       device_specific := ubjson.encode {
@@ -112,9 +113,9 @@ class Firmware:
   device -> Device:
     device_map := device_specific "artemis.device"
     return Device
-        --id=device_map["device_id"]
-        --organization_id=device_map["organization_id"]
-        --hardware_id=device_map["hardware_id"]
+        --id=uuid.parse device_map["device_id"]
+        --organization_id=uuid.parse device_map["organization_id"]
+        --hardware_id=uuid.parse device_map["hardware_id"]
 
   /** The sdk version that was used for this firmware. */
   sdk_version -> string:

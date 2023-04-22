@@ -73,49 +73,51 @@ class BrokerCliHttp implements BrokerCli:
     finally:
       client.close
 
-  update_goal --device_id/string [block] -> none:
+  update_goal --device_id/uuid.Uuid [block] -> none:
     detailed_devices := get_devices --device_ids=[device_id]
     if detailed_devices.size != 1: throw "Device not found: $device_id"
     detailed_device := detailed_devices[device_id]
     new_goal := block.call detailed_device
-    send_request_ "update_goal" {"device_id": device_id, "goal": new_goal}
+    send_request_ "update_goal" {"device_id": "$device_id", "goal": new_goal}
 
   get_devices --device_ids/List -> Map:
-    response := send_request_ "get_devices" {"device_ids": device_ids}
-    return response.map: | key value |
-      DeviceDetailed --goal=value["goal"] --state=value["state"]
+    response := send_request_ "get_devices" {"device_ids": device_ids.map: "$it"}
+    result := {:}
+    response.do: | key value |
+      result[uuid.parse key] = DeviceDetailed --goal=value["goal"] --state=value["state"]
+    return result
 
   upload_image -> none
-      --organization_id/string
+      --organization_id/uuid.Uuid
       --app_id/uuid.Uuid
       --word_size/int
       content/ByteArray:
     send_request_ "upload_image" {
-      "organization_id": organization_id,
-      "app_id": app_id.stringify,
+      "organization_id": "$organization_id",
+      "app_id": "$app_id",
       "word_size": word_size,
       "content": content,
     }
 
-  upload_firmware --organization_id/string --firmware_id/string chunks/List -> none:
+  upload_firmware --organization_id/uuid.Uuid --firmware_id/string chunks/List -> none:
     firmware := #[]
     chunks.do: firmware += it
     send_request_ "upload_firmware" {
-      "organization_id": organization_id,
+      "organization_id": "$organization_id",
       "firmware_id": firmware_id,
       "content": firmware,
     }
 
-  download_firmware --organization_id/string --id/string -> ByteArray:
+  download_firmware --organization_id/uuid.Uuid --id/string -> ByteArray:
     response := send_request_ "download_firmware" {
-      "organization_id": organization_id,
+      "organization_id": "$organization_id",
       "firmware_id": id,
     }
     return response
 
-  notify_created --device_id/string --state/Map -> none:
+  notify_created --device_id/uuid.Uuid --state/Map -> none:
     send_request_ "notify_created" {
-      "device_id": device_id,
+      "device_id": "$device_id",
       "state": state,
     }
 
@@ -126,13 +128,16 @@ class BrokerCliHttp implements BrokerCli:
       --since/Time?=null:
     response := send_request_ "get_events" {
       "types": types,
-      "device_ids": device_ids,
+      "device_ids": device_ids.map: "$it",
       "limit": limit,
       "since": since and since.ns_since_epoch,
     }
-    return response.map: | _ value/List |
-      value.map: | event/Map |
+    result := {:}
+    response.do: | id_string/string value/List |
+      decoded_events := value.map: | event/Map |
         timestamp_ns := event["timestamp_ns"]
         event_type := event["type"]
         data := event["data"]
         Event event_type (Time.epoch --ns=timestamp_ns) data
+      result[uuid.parse id_string] = decoded_events
+    return result

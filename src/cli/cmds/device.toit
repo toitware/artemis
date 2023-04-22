@@ -23,10 +23,9 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
       --short_help="Manage devices."
       --options=[
-        cli.Option "device-id"
+        OptionUuid "device-id"
             --short_name="d"
-            --short_help="ID of the device."
-            --type="uuid",
+            --short_help="ID of the device.",
       ]
 
   update_cmd := cli.Command "update"
@@ -61,9 +60,8 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Clear the default device.",
       ]
       --rest=[
-        cli.Option "id"
-            --short_help="ID of the device."
-            --type="uuid",
+        OptionUuid "id"
+            --short_help="ID of the device.",
       ]
       --run=:: default_device it config cache ui
   cmd.add default_cmd
@@ -111,7 +109,8 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
   specification_path := parsed["specification"]
 
-  if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
+  if not device_id:
+    device_id = default_device_from_config config
   if not device_id:
     ui.abort "No device ID specified and no default device ID set."
 
@@ -129,7 +128,7 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   // We allow to set the default with `-d` or by giving an ID as rest argument.
   device_id := parsed["device-id"] or parsed["id"]
   if not device_id:
-    device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
+    device_id = default_device_from_config config
     if not device_id:
       ui.abort "No default device set."
 
@@ -139,8 +138,8 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   // TODO(florian): make sure the device exists.
   make_default_ device_id config ui
 
-make_default_ device_id/string config/Config ui/Ui:
-  config[CONFIG_DEVICE_DEFAULT_KEY] = device_id
+make_default_ device_id/uuid.Uuid config/Config ui/Ui:
+  config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"
   config.write
   ui.info "Default device set to $device_id"
 
@@ -150,7 +149,8 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   show_event_values := parsed["show-event-values"]
   max_events := parsed["max-events"]
 
-  if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
+  if not device_id:
+    device_id = default_device_from_config config
   if not device_id:
     ui.abort "No device ID specified and no default device ID set."
 
@@ -203,8 +203,8 @@ device_to_json_
     organization/OrganizationDetailed
     events/List?:
   result := {
-    "id": device.id,
-    "organization_id": device.organization_id,
+    "id": "$device.id",
+    "organization_id": "$device.organization_id",
     "organization_name": organization.name,
     "goal": device.goal,
     "reported_state_goal": device.reported_state_goal,

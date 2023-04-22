@@ -2,6 +2,7 @@
 
 import cli
 import host.file
+import uuid
 
 import .utils_
 import ..artemis
@@ -135,7 +136,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       identity_path := identity_files[0]
       identity := read_base64_ubjson identity_path
       // TODO(florian): Abstract away the identity format.
-      device_id := identity["artemis.device"]["device_id"]
+      device_id := uuid.parse identity["artemis.device"]["device_id"]
       ui.info "Successfully provisioned device $device_id."
 
       envelope_path/string := ?
@@ -178,8 +179,8 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --cache=cache
             --ui=ui
 
-make_default_ device_id/string config/Config ui/Ui:
-  config[CONFIG_DEVICE_DEFAULT_KEY] = device_id
+make_default_ device_id/uuid.Uuid config/Config ui/Ui:
+  config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"
   config.write
   ui.info "Default device set to $device_id"
 

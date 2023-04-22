@@ -34,29 +34,29 @@ export Device
 /** test@example.com is an admin of the $TEST_ORGANIZATION_UUID. */
 TEST_EXAMPLE_COM_EMAIL ::= "test@example.com"
 TEST_EXAMPLE_COM_PASSWORD ::= "password"
-TEST_EXAMPLE_COM_UUID ::= "f76629c5-a070-4bbc-9918-64beaea48848"
+TEST_EXAMPLE_COM_UUID ::= uuid.parse "f76629c5-a070-4bbc-9918-64beaea48848"
 TEST_EXAMPLE_COM_NAME ::= "Test User"
 
 /** demo@example.com is a member of the $TEST_ORGANIZATION_UUID. */
 DEMO_EXAMPLE_COM_EMAIL ::= "demo@example.com"
 DEMO_EXAMPLE_COM_PASSWORD ::= "password"
-DEMO_EXAMPLE_COM_UUID ::= "d9064bb5-1501-4ec9-bfee-21ab74d645b8"
+DEMO_EXAMPLE_COM_UUID ::= uuid.parse "d9064bb5-1501-4ec9-bfee-21ab74d645b8"
 DEMO_EXAMPLE_COM_NAME ::= "Demo User"
 
 ADMIN_EMAIL ::= "test-admin@toit.io"
 ADMIN_PASSWORD ::= "password"
-ADMIN_UUID ::= "6ac69de5-7b56-4153-a31c-7b4e29bbcbcf"
+ADMIN_UUID ::= uuid.parse "6ac69de5-7b56-4153-a31c-7b4e29bbcbcf"
 ADMIN_NAME ::= "Admin User"
 
 /** Preseeded "Test Organization". */
 TEST_ORGANIZATION_NAME ::= "Test Organization"
-TEST_ORGANIZATION_UUID ::= "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
+TEST_ORGANIZATION_UUID ::= uuid.parse "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
 
 /** Preseeded test device in $TEST_ORGANIZATION_UUID. */
-TEST_DEVICE_UUID ::= "eb45c662-356c-4bea-ad8c-ede37688fddf"
-TEST_DEVICE_ALIAS ::= "191149e5-a95b-47b1-80dd-b149f953d272"
+TEST_DEVICE_UUID ::= uuid.parse "eb45c662-356c-4bea-ad8c-ede37688fddf"
+TEST_DEVICE_ALIAS ::= uuid.parse "191149e5-a95b-47b1-80dd-b149f953d272"
 
-NON_EXISTENT_UUID ::= (uuid.uuid5 "non" "existent").stringify
+NON_EXISTENT_UUID ::= uuid.uuid5 "non" "existent"
 
 with_tmp_directory [block]:
   tmp_dir := directory.mkdtemp "/tmp/artemis-test-"
@@ -164,11 +164,11 @@ class TestCli:
   By default a random token is used.
   */
   start_device -> TestDevice
-      --organization_id/string=TEST_ORGANIZATION_UUID
+      --organization_id/uuid.Uuid=TEST_ORGANIZATION_UUID
       --firmware_token/ByteArray?=null:
     device_description := create_device_ organization_id firmware_token
-    hardware_id := device_description["id"]
-    alias_id := device_description["alias"]
+    hardware_id/uuid.Uuid := device_description["id"]
+    alias_id/uuid.Uuid := device_description["alias"]
     encoded_firmware := device_description["encoded_firmware"]
 
     result := TestDevicePipe
@@ -182,11 +182,11 @@ class TestCli:
     return result
 
   start_fake_device -> FakeDevice
-      --organization_id/string=TEST_ORGANIZATION_UUID
+      --organization_id/uuid.Uuid=TEST_ORGANIZATION_UUID
       --firmware_token/ByteArray?=null:
     device_description := create_device_ organization_id firmware_token
-    hardware_id := device_description["id"]
-    alias_id := device_description["alias"]
+    hardware_id/uuid.Uuid := device_description["id"]
+    alias_id/uuid.Uuid := device_description["alias"]
     encoded_firmware := device_description["encoded_firmware"]
 
     result := FakeDevice
@@ -200,9 +200,9 @@ class TestCli:
 
   start_fake_device --identity/Map --firmware_token/ByteArray?=null -> FakeDevice:
     device_description := identity["artemis.device"]
-    hardware_id := device_description["hardware_id"]
-    alias_id := device_description["device_id"]
-    organization_id := device_description["organization_id"]
+    hardware_id/uuid.Uuid := uuid.parse device_description["hardware_id"]
+    alias_id/uuid.Uuid := uuid.parse device_description["device_id"]
+    organization_id/uuid.Uuid := uuid.parse device_description["organization_id"]
 
     encoded_firmware := build_encoded_firmware
         --firmware_token=firmware_token
@@ -219,15 +219,15 @@ class TestCli:
     test_devices_.add result
     return result
 
-  create_device_ organization_id/string firmware_token/ByteArray?=null -> Map:
+  create_device_ organization_id/uuid.Uuid firmware_token/ByteArray?=null -> Map:
     device_description := artemis.backdoor.create_device --organization_id=organization_id
-    hardware_id := device_description["id"]
-    alias_id := device_description["alias"]
+    hardware_id/uuid.Uuid := device_description["id"]
+    alias_id/uuid.Uuid := device_description["alias"]
     initial_state := {
       "identity": {
-        "device_id": alias_id,
-        "organization_id": organization_id,
-        "hardware_id": hardware_id,
+        "device_id": "$alias_id",
+        "organization_id": "$organization_id",
+        "hardware_id": "$hardware_id",
       }
     }
 
@@ -244,9 +244,9 @@ class TestCli:
     return device_description
 
 abstract class TestDevice:
-  hardware_id/string
-  alias_id/string
-  organization_id/string
+  hardware_id/uuid.Uuid
+  alias_id/uuid.Uuid
+  organization_id/uuid.Uuid
   broker/TestBroker
 
   constructor --.broker --.hardware_id --.alias_id --.organization_id:
@@ -295,9 +295,9 @@ class FakeDevice extends TestDevice:
 
   constructor
       --broker/TestBroker
-      --hardware_id/string
-      --alias_id/string
-      --organization_id/string
+      --hardware_id/uuid.Uuid
+      --alias_id/uuid.Uuid
+      --organization_id/uuid.Uuid
       --encoded_firmware/string:
     network_ = net.open
     firmware_state := {
@@ -392,9 +392,9 @@ class TestDevicePipe extends TestDevice:
 
   constructor
       --broker/TestBroker
-      --hardware_id/string
-      --alias_id/string
-      --organization_id/string
+      --hardware_id/uuid.Uuid
+      --alias_id/uuid.Uuid
+      --organization_id/uuid.Uuid
       --encoded_firmware/string
       --toit_run/string:
 
@@ -620,16 +620,16 @@ with_test_cli
       directory.rmdir --recursive cache_dir
 
 build_encoded_firmware -> string
-    --device_id/string
-    --organization_id/string=TEST_ORGANIZATION_UUID
-    --hardware_id/string=device_id
+    --device_id/uuid.Uuid
+    --organization_id/uuid.Uuid=TEST_ORGANIZATION_UUID
+    --hardware_id/uuid.Uuid=device_id
     --firmware_token/ByteArray=#[random 256, random 256, random 256, random 256]
     --sdk_version/string="v2.0.0-alpha.52":
   device_specific := ubjson.encode {
     "artemis.device": {
-      "device_id": device_id,
-      "organization_id": organization_id,
-      "hardware_id": hardware_id,
+      "device_id": "$device_id",
+      "organization_id": "$organization_id",
+      "hardware_id": "$hardware_id",
     },
     "parts": ubjson.encode [{
       "from": 0,
@@ -662,5 +662,5 @@ broker_type_from_args args/List:
     return arg[2..].trim --right "-broker"
   return "http"
 
-random_uuid_string -> string:
-  return (uuid.uuid5 "random" "uuid $Time.now.ns_since_epoch $random").stringify
+random_uuid -> uuid.Uuid:
+  return uuid.uuid5 "random" "uuid $Time.now.ns_since_epoch $random"

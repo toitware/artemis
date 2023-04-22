@@ -47,7 +47,7 @@ run_test test_cli/TestCli:
   └──────────────────────────────────────┴───────────────────┘
   */
   expect (output.contains TEST_ORGANIZATION_NAME)
-  expect (output.contains TEST_ORGANIZATION_UUID)
+  expect (output.contains "$TEST_ORGANIZATION_UUID")
   original_lines := output.split "\n"
 
   create_output := test_cli.run [ "org", "create", "Testy" ]
@@ -72,7 +72,7 @@ run_test test_cli/TestCli:
       expect (original_lines.contains line)
 
   // Test 'org show'.
-  show_output := test_cli.run [ "org", "show", "--org-id", id ]
+  show_output := test_cli.run [ "org", "show", "--organization-id", "$id" ]
   expect (show_output.contains "Testy")
   expect (show_output.contains id)
   // Find the 'Created' output.
@@ -94,11 +94,13 @@ run_test test_cli/TestCli:
   expect (default_output.contains "Name: Testy")
   expect (default_output.contains "ID: $id")
 
-  bad_use_output := test_cli.run --expect_exit_1 [ "org", "default", "bad_id" ]
-  expect (bad_use_output.contains "Organization not found")
+  // TODO(florian): this is unfortunate. We would prefer not to have a
+  // stack trace. That would require changes to the CLI package.
+  expect_throw "Invalid value for option 'organization-id': 'bad_id'. Expected a UUID.":
+    test_cli.run --expect_exit_1 [ "org", "default", "bad_id" ]
 
-  UNKNOWN_UUID ::= (uuid.uuid5 "unknown" "unknown").stringify
-  bad_use_output = test_cli.run --expect_exit_1 [ "org", "default", UNKNOWN_UUID]
+  UNKNOWN_UUID ::= uuid.uuid5 "unknown" "unknown"
+  bad_use_output := test_cli.run --expect_exit_1 [ "org", "default", "$UNKNOWN_UUID"]
   expect (bad_use_output.contains "Organization not found")
 
   // The default org is still set to Testy.
@@ -125,8 +127,10 @@ run_test test_cli/TestCli:
   expect (default_output.contains "ID: $id")
 
   // Another bad setting doesn't change the default.
-  bad_use_output = test_cli.run --expect_exit_1 [ "org", "default", "bad_id" ]
-  expect (bad_use_output.contains "Organization not found")
+  // TODO(florian): this is unfortunate. We would prefer not to have a
+  // stack trace. That would require changes to the CLI package.
+  expect_throw "Invalid value for option 'organization-id': 'bad_id'. Expected a UUID.":
+    test_cli.run --expect_exit_1 [ "org", "default", "bad_id" ]
 
   default_output = test_cli.run [ "org", "default"]
   expect (default_output.contains "Name: Testy")
@@ -145,11 +149,11 @@ run_test test_cli/TestCli:
   // roles "admin", "member"
 
   list_output := test_cli.run [ "org", "members", "list" ]
-  expect (list_output.contains TEST_EXAMPLE_COM_UUID)
+  expect (list_output.contains "$TEST_EXAMPLE_COM_UUID")
   expect (list_output.contains "admin")
-  expect_not (list_output.contains DEMO_EXAMPLE_COM_UUID)
+  expect_not (list_output.contains "$DEMO_EXAMPLE_COM_UUID")
 
-  test_cli.run [ "org", "members", "add", DEMO_EXAMPLE_COM_UUID ]
+  test_cli.run [ "org", "members", "add", "$DEMO_EXAMPLE_COM_UUID" ]
   list_output = test_cli.run [ "org", "members", "list" ]
   lines := list_output.split "\n"
   found_test_user := false
@@ -171,11 +175,11 @@ run_test test_cli/TestCli:
   lines = list_output.split "\n"
   found_test_user = false
   found_demo_user = false
-  lines.do: | line |
-    if line.contains TEST_EXAMPLE_COM_UUID:
+  lines.do: | line/string |
+    if line.contains "$TEST_EXAMPLE_COM_UUID":
       found_test_user = true
       expect_not (line.contains "admin")
-    if line.contains DEMO_EXAMPLE_COM_UUID:
+    if line.contains "$DEMO_EXAMPLE_COM_UUID":
       found_demo_user = true
       expect_not (line.contains "member")
       expect_not (line.contains DEMO_EXAMPLE_COM_NAME)
@@ -183,7 +187,7 @@ run_test test_cli/TestCli:
   expect found_demo_user
 
   // Change the demo user's role.
-  test_cli.run [ "org", "members", "set-role", DEMO_EXAMPLE_COM_UUID, "admin" ]
+  test_cli.run [ "org", "members", "set-role", "$DEMO_EXAMPLE_COM_UUID", "admin" ]
   list_output = test_cli.run [ "org", "members", "list" ]
   lines = list_output.split "\n"
   found_test_user = false
@@ -199,16 +203,16 @@ run_test test_cli/TestCli:
   expect found_demo_user
 
   // Remove the demo user.
-  test_cli.run [ "org", "members", "remove", DEMO_EXAMPLE_COM_UUID ]
+  test_cli.run [ "org", "members", "remove", "$DEMO_EXAMPLE_COM_UUID" ]
   list_output = test_cli.run [ "org", "members", "list" ]
   expect_not (list_output.contains DEMO_EXAMPLE_COM_EMAIL)
 
   // We can't remove ourselves without '--force'.
-  test_cli.run --expect_exit_1 [ "org", "members", "remove", TEST_EXAMPLE_COM_UUID ]
+  test_cli.run --expect_exit_1 [ "org", "members", "remove", "$TEST_EXAMPLE_COM_UUID" ]
   list_output = test_cli.run [ "org", "members", "list" ]
   expect (list_output.contains TEST_EXAMPLE_COM_EMAIL)
 
   // Remove ourselves with '--force'.
-  test_cli.run [ "org", "members", "remove", "--force", TEST_EXAMPLE_COM_UUID ]
+  test_cli.run [ "org", "members", "remove", "--force", "$TEST_EXAMPLE_COM_UUID" ]
   list_output = test_cli.run [ "org", "members", "list" ]
   expect_not (list_output.contains TEST_EXAMPLE_COM_EMAIL)
