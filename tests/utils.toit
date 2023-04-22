@@ -7,6 +7,8 @@ import expect show *
 import log
 import host.directory
 import host.pipe
+import host.file
+import host.os
 import net
 import uuid
 import artemis.cli
@@ -19,6 +21,7 @@ import artemis.service
 import artemis.service.brokers.broker show ResourceManager BrokerService
 import artemis.service.device show Device
 import artemis.cli.ui show ConsoleUi
+import artemis.cli.utils show write_blob_to_file
 import ..tools.http_servers.broker as http_servers
 import ..tools.http_servers.artemis_server as http_servers
 import monitor
@@ -115,8 +118,11 @@ class TestCli:
   test_devices_/List ::= []
   /** A map of strings to be replaced in the output of $run. */
   replacements/Map ::= {:}
+  gold_name/string
 
-  constructor .config .cache .artemis .broker --toit_run/string:
+  constructor .config .cache .artemis .broker
+      --toit_run/string
+      --.gold_name:
     toit_run_ = toit_run
 
   close:
@@ -124,13 +130,28 @@ class TestCli:
       device.close
       artemis.backdoor.remove_device device.hardware_id
 
-  run args --expect_exit_1/bool=false -> string:
+  run args/List --expect_exit_1/bool=false -> string:
     ui := TestUi
     exception := catch --unwind=(: not expect_exit_1 or it is not TestExit):
       cli.main args --config=config --cache=cache --ui=ui
     if expect_exit_1 and not exception:
       throw "Expected exit 1, but got exit 0"
     result := ui.stdout
+    return result
+
+  run_gold test_name/string description/string args/List --expect_exit_1/bool=false:
+    output := run args --expect_exit_1=expect_exit_1
+    output = canonicalize_gold_ output args --description=description
+    gold_path := "gold/$gold_name/$(test_name).txt"
+    if os.env.get "UPDATE_GOLD" or not file.is_file gold_path:
+      directory.mkdir --recursive "gold/$gold_name"
+      write_blob_to_file gold_path output
+      print "Updated gold file '$gold_path'."
+    gold_content := (file.read_content gold_path).to_string
+    expect_equals gold_content output
+
+  canonicalize_gold_ output/string args --description/string -> string:
+    result := "# $description\n# $args\n$output"
     replacements.do: | key val|
       result = result.replace --all key val
     return result
@@ -494,6 +515,7 @@ with_test_cli
     --artemis_type=(server_type_from_args args)
     --broker_type=(broker_type_from_args args)
     --logger/log.Logger=log.default
+    --gold_name/string?=null
     [block]:
   with_artemis_server --type=artemis_type: | artemis_server |
     with_test_cli
@@ -501,6 +523,7 @@ with_test_cli
         broker_type
         --logger=logger
         --args=args
+        --gold_name=gold_name
         block
 
 with_test_cli
@@ -508,6 +531,7 @@ with_test_cli
     broker_type
     --logger/log.Logger
     --args/List
+    --gold_name/string?
     [block]:
   with_broker --type=broker_type --logger=logger: | broker/TestBroker |
     with_test_cli
@@ -515,6 +539,7 @@ with_test_cli
         --broker=broker
         --logger=logger
         --args=args
+        --gold_name=gold_name
         block
 
 with_test_cli
@@ -522,6 +547,7 @@ with_test_cli
     --broker/TestBroker
     --logger/log.Logger
     --args/List
+    --gold_name/string?
     [block]:
 
   // Use 'toit.run' (or 'toit.run.exe' on Windows), unless there is an
@@ -576,7 +602,14 @@ with_test_cli
 
     artemis_task/Task? := null
 
-    test_cli := TestCli config cache artemis_server broker --toit_run=toit_run
+    if not gold_name:
+      toit_file := program_name
+      last_separator := max (toit_file.index_of --last "/") (toit_file.index_of --last "\\")
+      gold_name = program_name[last_separator + 1 ..].trim --right ".toit"
+
+    test_cli := TestCli config cache artemis_server broker
+        --toit_run=toit_run
+        --gold_name=gold_name
     try:
       test_cli.run ["config", "broker", "--artemis", "default", artemis_config.name]
       test_cli.run ["config", "broker", "default", broker_config.name]

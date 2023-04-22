@@ -22,6 +22,7 @@ main args:
 with_fleet --args/List --count/int [block]:
   with_test_cli --args=args: | test_cli/TestCli |
     with_tmp_directory: | fleet_dir |
+      test_cli.replacements[fleet_dir] = "<FLEET_ROOT>"
       test_cli.run [
         "auth", "login",
         "--email", TEST_EXAMPLE_COM_EMAIL,
@@ -68,103 +69,55 @@ with_fleet --args/List --count/int [block]:
       block.call test_cli fake_devices fleet_dir
 
 run_test test_cli/TestCli fake_devices/List fleet_dir/string:
-  output := test_cli.run [
-    "fleet",
-    "--fleet-root", fleet_dir,
-    "status",
-    "--include-never-seen"
-  ]
-  expect_equals
-      """
-      ┌──────────────────────────────────────┬──────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
-      │ Device ID                              Name   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
-      ├──────────────────────────────────────┼──────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤
-      │ -={| UUID-FOR-FAKE-DEVICE 00000 |}=-          ✗                     ?                 never               │
-      │ -={| UUID-FOR-FAKE-DEVICE 00001 |}=-          ✗                     ?                 never               │
-      │ -={| UUID-FOR-FAKE-DEVICE 00002 |}=-          ✗                     ?                 never               │
-      └──────────────────────────────────────┴──────┴──────────┴──────────┴─────────────────┴───────────┴─────────┘
-      """
-      output
+  test_cli.run_gold "00_never_seen"
+      "All three ids are shown as never seen"
+      [
+        "fleet",
+        "--fleet-root", fleet_dir,
+        "status",
+        "--include-never-seen"
+      ]
 
-  output = test_cli.run [
-    "fleet",
-    "--fleet-root", fleet_dir,
-    "status",
-  ]
-  expect_equals
-      """
-      ┌───────────┬──────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
-      │ Device ID   Name   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
-      ├───────────┼──────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤
-      └───────────┴──────┴──────────┴──────────┴─────────────────┴───────────┴─────────┘
-      """
-      output
+  test_cli.run_gold "10_never_seen_empty"
+      "No id is visible"
+      [
+        "fleet",
+        "--fleet-root", fleet_dir,
+        "status",
+      ]
 
   (fake_devices[0] as FakeDevice).report_state
-  output = test_cli.run [
-    "fleet",
-    "--fleet-root", fleet_dir,
-    "status",
-  ]
-  expect_equals
-      """
-      ┌──────────────────────────────────────┬──────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
-      │ Device ID                              Name   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
-      ├──────────────────────────────────────┼──────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤
-      │ -={| UUID-FOR-FAKE-DEVICE 00000 |}=-                                ?                 now                 │
-      └──────────────────────────────────────┴──────┴──────────┴──────────┴─────────────────┴───────────┴─────────┘
-      """
-      output
+  test_cli.run_gold "20_device0_is_online"
+      "Device0 is online with 'now'"
+      [
+        "fleet",
+        "--fleet-root", fleet_dir,
+        "status",
+      ]
 
   fake_devices.do: it.report_state
-  output = test_cli.run [
-    "fleet",
-    "--fleet-root", fleet_dir,
-    "status",
-  ]
-  expect_equals
-      """
-      ┌──────────────────────────────────────┬──────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
-      │ Device ID                              Name   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
-      ├──────────────────────────────────────┼──────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤
-      │ -={| UUID-FOR-FAKE-DEVICE 00000 |}=-                                ?                 now                 │
-      │ -={| UUID-FOR-FAKE-DEVICE 00001 |}=-                                ?                 now                 │
-      │ -={| UUID-FOR-FAKE-DEVICE 00002 |}=-                                ?                 now                 │
-      └──────────────────────────────────────┴──────┴──────────┴──────────┴─────────────────┴───────────┴─────────┘
-      """
-      output
+  test_cli.run_gold "30_all_devices_are_online"
+      "All devices have reported their state and are thus online"
+      [
+        "fleet",
+        "--fleet-root", fleet_dir,
+        "status",
+      ]
 
   (fake_devices[0] as FakeDevice).synchronize
-  output = test_cli.run [
-    "fleet",
-    "--fleet-root", fleet_dir,
-    "status",
-  ]
-  expect_equals
-      """
-      ┌──────────────────────────────────────┬──────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
-      │ Device ID                              Name   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
-      ├──────────────────────────────────────┼──────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤
-      │ -={| UUID-FOR-FAKE-DEVICE 00000 |}=-                                                  now                 │
-      │ -={| UUID-FOR-FAKE-DEVICE 00001 |}=-                                ?                 now                 │
-      │ -={| UUID-FOR-FAKE-DEVICE 00002 |}=-                                ?                 now                 │
-      └──────────────────────────────────────┴──────┴──────────┴──────────┴─────────────────┴───────────┴─────────┘
-      """
-      output
+  test_cli.run_gold "40_device0_checked_in"
+      "Device0 fetched its goal and thus checked in"
+      [
+        "fleet",
+        "--fleet-root", fleet_dir,
+        "status",
+      ]
 
-  output = test_cli.run [
-    "fleet",
-    "--fleet-root", fleet_dir,
-    "status",
-    "--unhealthy",
-  ]
-  expect_equals
-      """
-      ┌──────────────────────────────────────┬──────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
-      │ Device ID                              Name   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
-      ├──────────────────────────────────────┼──────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤
-      │ -={| UUID-FOR-FAKE-DEVICE 00001 |}=-                                ?                 now                 │
-      │ -={| UUID-FOR-FAKE-DEVICE 00002 |}=-                                ?                 now                 │
-      └──────────────────────────────────────┴──────┴──────────┴──────────┴─────────────────┴───────────┴─────────┘
-      """
-      output
+  test_cli.run_gold "50_unhealthy"
+      "Device1 and Device2 are still unhealthy"
+      [
+        "fleet",
+        "--fleet-root", fleet_dir,
+        "status",
+        "--unhealthy",
+      ]
