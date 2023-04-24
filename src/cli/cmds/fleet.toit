@@ -45,7 +45,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Initialize the fleet directory.
 
-        This command initializes the fleet-root directory, so it can be
+        This command initializes the fleet directory, so it can be
         used by the other fleet commands.
 
         The directory can be specified using the '--fleet-root' option.
@@ -199,7 +199,6 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     Fleet.init fleet_root artemis --organization_id=organization_id --ui=ui
-
 
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
