@@ -7,6 +7,7 @@ import expect show *
 import log
 import host.directory
 import host.pipe
+import net
 import uuid
 import artemis.cli
 import artemis.cli.server_config as cli_server_config
@@ -15,6 +16,7 @@ import artemis.cli.config as cli
 import artemis.cli.cache as artemis_cache
 import artemis.shared.server_config
 import artemis.service
+import artemis.service.brokers.broker show ResourceManager BrokerService
 import artemis.service.device show Device
 import artemis.cli.ui show ConsoleUi
 import ..tools.http_servers.broker as http_servers
@@ -111,6 +113,8 @@ class TestCli:
   broker/TestBroker
   toit_run_/string
   test_devices_/List ::= []
+  /** A map of strings to be replaced in the output of $run. */
+  replacements/Map ::= {:}
 
   constructor .config .cache .artemis .broker --toit_run/string:
     toit_run_ = toit_run
@@ -126,13 +130,75 @@ class TestCli:
       cli.main args --config=config --cache=cache --ui=ui
     if expect_exit_1 and not exception:
       throw "Expected exit 1, but got exit 0"
-    return ui.stdout
+    result := ui.stdout
+    replacements.do: | key val|
+      result = result.replace --all key val
+    return result
 
   /**
   Creates and starts new device in the given $organization_id.
   Neither the 'check-in', nor the firmware service are set up.
+
+  The $firmware_token is used to build the encoded firmware.
+  By default a random token is used.
   */
-  start_device --organization_id/string=TEST_ORGANIZATION_UUID -> TestDevice:
+  start_device -> TestDevice
+      --organization_id/string=TEST_ORGANIZATION_UUID
+      --firmware_token/ByteArray?=null:
+    device_description := create_device_ organization_id firmware_token
+    hardware_id := device_description["id"]
+    alias_id := device_description["alias"]
+    encoded_firmware := device_description["encoded_firmware"]
+
+    result := TestDevicePipe
+        --broker=broker
+        --alias_id=alias_id
+        --hardware_id=hardware_id
+        --organization_id=TEST_ORGANIZATION_UUID
+        --toit_run=toit_run_
+        --encoded_firmware=encoded_firmware
+    test_devices_.add result
+    return result
+
+  start_fake_device -> FakeDevice
+      --organization_id/string=TEST_ORGANIZATION_UUID
+      --firmware_token/ByteArray?=null:
+    device_description := create_device_ organization_id firmware_token
+    hardware_id := device_description["id"]
+    alias_id := device_description["alias"]
+    encoded_firmware := device_description["encoded_firmware"]
+
+    result := FakeDevice
+        --broker=broker
+        --alias_id=alias_id
+        --hardware_id=hardware_id
+        --organization_id=TEST_ORGANIZATION_UUID
+        --encoded_firmware=encoded_firmware
+    test_devices_.add result
+    return result
+
+  start_fake_device --identity/Map --firmware_token/ByteArray?=null -> FakeDevice:
+    device_description := identity["artemis.device"]
+    hardware_id := device_description["hardware_id"]
+    alias_id := device_description["device_id"]
+    organization_id := device_description["organization_id"]
+
+    encoded_firmware := build_encoded_firmware
+        --firmware_token=firmware_token
+        --device_id=alias_id
+        --organization_id=TEST_ORGANIZATION_UUID
+        --hardware_id=hardware_id
+
+    result := FakeDevice
+        --broker=broker
+        --alias_id=alias_id
+        --hardware_id=hardware_id
+        --organization_id=organization_id
+        --encoded_firmware=encoded_firmware
+    test_devices_.add result
+    return result
+
+  create_device_ organization_id/string firmware_token/ByteArray?=null -> Map:
     device_description := artemis.backdoor.create_device --organization_id=organization_id
     hardware_id := device_description["id"]
     alias_id := device_description["alias"]
@@ -147,19 +213,14 @@ class TestCli:
     broker.backdoor.create_device --device_id=alias_id --state=initial_state
 
     encoded_firmware := build_encoded_firmware
+        --firmware_token=firmware_token
         --device_id=alias_id
         --organization_id=TEST_ORGANIZATION_UUID
         --hardware_id=hardware_id
 
-    result := TestDevicePipe
-        --broker=broker
-        --alias_id=alias_id
-        --hardware_id=hardware_id
-        --organization_id=TEST_ORGANIZATION_UUID
-        --toit_run=toit_run_
-        --encoded_firmware=encoded_firmware
-    test_devices_.add result
-    return result
+    device_description["encoded_firmware"] = encoded_firmware
+
+    return device_description
 
 abstract class TestDevice:
   hardware_id/string
@@ -204,6 +265,102 @@ abstract class TestDevice:
           // The initial state has the field "identity" in it.
           if not state.contains "identity": break
           sleep --ms=100
+
+class FakeDevice extends TestDevice:
+  device_/Device := ?
+  pending_state_/Map? := null
+  goal_state/Map? := null
+  network_/net.Client? := ?
+
+  constructor
+      --broker/TestBroker
+      --hardware_id/string
+      --alias_id/string
+      --organization_id/string
+      --encoded_firmware/string:
+    network_ = net.open
+    firmware_state := {
+      "firmware": encoded_firmware
+    }
+    device_ = Device
+        --id=alias_id
+        --hardware_id=hardware_id
+        --organization_id=organization_id
+        --firmware_state=firmware_state
+    super --broker=broker --hardware_id=hardware_id --alias_id=alias_id --organization_id=organization_id
+  close:
+    if network_:
+      network_.close
+      network_ = null
+
+  output -> string:
+    throw "UNIMPLEMENTED"
+
+  clear_output -> none:
+    throw "UNIMPLEMENTED"
+
+  wait_for needle/string -> none:
+    throw "UNIMPLEMENTED"
+
+  wait_until_connected --timeout=(Duration --ms=5_000) -> none:
+    return
+
+  with_resources_ [block]:
+    broker.with_service: | service/BrokerService |
+      resources := service.connect --device=device_ --network=network_
+      try:
+        block.call resources
+      finally:
+        resources.close
+
+  /**
+  Reports the state to the broker.
+
+  Basically a copy of `report_state` of the synchronize library.
+  */
+  report_state:
+    state := {
+      "firmware-state": device_.firmware_state,
+    }
+    if device_.pending_firmware:
+      state["pending-firmware"] = device_.pending_firmware
+    if device_.is_current_state_modified:
+      state["current-state"] = device_.current_state
+    if goal_state:
+      state["goal-state"] = goal_state
+
+    with_resources_: | resources/ResourceManager |
+      resources.report_state state
+
+  /**
+  Synchronizes with the broker.
+  Use $flash to simulate flashing the goal.
+  */
+  synchronize:
+    with_resources_: | resources/ResourceManager |
+      goal_state = resources.fetch_goal --no-wait
+
+  /**
+  Simulates flashing the goal state.
+  */
+  flash:
+    if not goal_state: return
+    pending_state_ = goal_state
+    device_.pending_firmware = pending_state_["firmware"]
+
+  /**
+  Simulates a reboot, thus making the pending state the firmware state.
+  */
+  reboot:
+    if not pending_state_: return
+    // We can't change the firmware state (final variable).
+    // Replace the whole device object.
+    device_ = Device
+        --id=alias_id
+        --hardware_id=hardware_id
+        --organization_id=organization_id
+        --firmware_state=pending_state_
+    pending_state_ = null
 
 class TestDevicePipe extends TestDevice:
   chunks_/List := []  // Of bytearrays.
