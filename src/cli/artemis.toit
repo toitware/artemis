@@ -321,12 +321,6 @@ class Artemis:
           --trigger="boot"
           --critical
 
-    // Finally, make it unique. The system uuid will have to be used when compiling
-    // code for the device in the future. This will prove that you know which versions
-    // went into the firmware image.
-    system_uuid ::= uuid.uuid5 "system.uuid" "$(random 1_000_000)-$Time.now-$Time.monotonic_us"
-    sdk.firmware_set_property "uuid" system_uuid.stringify --envelope=output_path
-
     // For convenience save all snapshots in the user's cache.
     cache_snapshots --envelope=output_path --cache=cache_
 
