@@ -40,7 +40,7 @@ class Status_:
   missed_checkins/int
   is_modified/bool
 
-  constructor --.never_seen/bool --.is_fully_updated --.missed_checkins --.last_seen --.is_modified:
+  constructor --.never_seen --.is_fully_updated --.missed_checkins --.last_seen --.is_modified:
 
   is_healthy -> bool:
     return is_fully_updated and missed_checkins == 0
@@ -294,7 +294,8 @@ class Fleet:
         event_timestamp := event.timestamp
         if event_timestamp < earliest_time:
           event_timestamp = earliest_time
-          // No need to look at more events.
+          // We want to handle this interval, but no need to look at more
+          // events.
           i = get_state_events.size
         duration_since_last_checkin := event_timestamp.to last
         missed := (duration_since_last_checkin - slack).in_ms / max_offline.in_ms
@@ -307,7 +308,7 @@ class Fleet:
         --last_seen=last_event and last_event.timestamp
         --is_modified=device.reported_state_current != null
 
-  status --unhealthy_only/bool --include_never_seen/bool:
+  status --include_healthy/bool --include_never_seen/bool:
     broker := artemis_.connected_broker
     device_ids := devices_.map: it.id
     detailed_devices := broker.get_devices --device_ids=device_ids
@@ -333,7 +334,7 @@ class Fleet:
     for i := 0; i < devices_.size; i++:
       fleet_device/DeviceFleet := devices_[i]
       status/Status_ := statuses[i]
-      if unhealthy_only and status.is_healthy: continue
+      if not include_healthy and status.is_healthy: continue
       if not include_never_seen and status.never_seen: continue
 
       cross := "✗"
@@ -341,20 +342,7 @@ class Fleet:
       // seen to human readable.
       human_last_seen := ""
       if status.last_seen:
-        diff := status.last_seen.to now
-        if diff < (Duration --s=10):
-          human_last_seen = "now"
-        else if diff < (Duration --m=1):
-          human_last_seen = "$diff.in_s seconds ago"
-        else if diff < (Duration --h=1):
-          human_last_seen = "$diff.in_m minutes ago"
-        else:
-          local_now := now.local
-          local := status.last_seen.local
-          if local_now.year == local.year and local_now.month == local.month and local_now.day == local.day:
-            human_last_seen = "$(%02d local.h):$(%02d local.m):$(%02d local.s)"
-          else:
-            human_last_seen = "$local.year-$(%02d local.month)-$(%02d local.day) $(%02d local.h):$(%02d local.m):$(%02d local.s)"
+        human_last_seen = timestamp_to_human_readable status.last_seen
       else if status.never_seen:
         human_last_seen = "never"
       else:
