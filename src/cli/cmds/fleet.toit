@@ -45,7 +45,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Initialize the fleet directory.
 
-        This command initializes the fleet-root directory, so it can be
+        This command initializes the fleet directory, so it can be
         used by the other fleet commands.
 
         The directory can be specified using the '--fleet-root' option.
@@ -173,11 +173,11 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         Show the status of the fleet.
         """
       --options=[
-        cli.Flag "unhealthy"
-            --short_help="Show unhealthy devices only."
-            --default=false,
+        cli.Flag "include-healthy"
+            --short_help="Show healthy devices."
+            --default=true,
         cli.Flag "include-never-seen"
-            --short_help="Include devices that have never connected."
+            --short_help="Include devices that have never been seen."
             --default=false,
       ]
       --run=:: status it config cache ui
@@ -229,7 +229,6 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with_artemis parsed config cache ui: | artemis/Artemis |
     Fleet.init fleet_root artemis --organization_id=organization_id --ui=ui
 
-
 create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   specification_path := parsed["specification"]
@@ -273,7 +272,7 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  unhealthy_only := parsed["unhealthy"]
+  include_healthy := parsed["include-healthy"]
   include_never_seen := parsed["include-never-seen"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |

@@ -25,7 +25,6 @@ main args:
     server_type = "supabase"
   else:
     throw "Unknown server server type: $args[0]"
-  sdk_modifications_allowed := args.contains "--sdk-modifications-allowed"
   with_artemis_server --type=server_type: | artemis_server/TestArtemisServer |
     run_test artemis_server --authenticate=: | server/ArtemisServerCli |
       server.sign_in
