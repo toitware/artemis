@@ -174,9 +174,13 @@ class Fleet:
       artemis_.upload_firmware output_path --organization_id=organization_id
       ui_.info "Successfully uploaded firmware to organization $organization_id."
 
-  create_identities --output_directory/string --organization_id/string count/int:
+  /**
+  Returns a list of created files.
+  */
+  create_identities --output_directory/string --organization_id/string count/int -> List:
     old_size := devices_.size
     try:
+      new_identity_files := []
       count.repeat: | i/int |
         device_id := random_uuid_string
 
@@ -189,7 +193,8 @@ class Fleet:
 
         // TODO(florian): create a nice random name.
         devices_.add (DeviceFleet --id=device_id --organization_id=organization_id)
-        ui_.info "Created $output."
+        new_identity_files.add output
+      return new_identity_files
     finally:
       if devices_.size != old_size:
         write_devices_

@@ -7,6 +7,7 @@ import .utils_
 import ..artemis
 import ..cache
 import ..config
+import ..fleet
 import ..sdk
 import ..ui
 import ..utils
@@ -79,6 +80,7 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
   return [cmd]
 
 flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet_root"]
   organization_id := parsed["organization-id"]
   specification_path := parsed["specification"]
   identity_path := parsed["identity"]
@@ -105,20 +107,11 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.error "Must specify either a firmware image or a specification file."
     ui.abort
 
-  device_id/string := ?
-  if identity_path:
-    identity := read_base64_ubjson identity_path
-    // TODO(florian): Abstract away the identity format.
-    organization_id = identity["artemis.device"]["organization_id"]
-    device_id = identity["artemis.device"]["device_id"]
-  else:
-    device_id = random_uuid_string
-
+  if not identity_path and not organization_id:
+    organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
     if not organization_id:
-      organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
-      if not organization_id:
-        ui.error "No organization ID specified and no default organization ID set."
-        ui.abort
+      ui.error "No organization ID specified and no default organization ID set."
+      ui.abort
 
   partitions := []
   parsed["partition"].do: | partition/Map |
@@ -151,6 +144,8 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     partitions.add "$type:$description"
 
   with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+
     if not (identity_path and firmware_path):
       // Don't check for the existence of the organization if we are
       // flashing an image together with an identity. We might be
@@ -161,17 +156,23 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.abort
 
     with_tmp_directory: | tmp_dir/string |
+      new_provision := false
       if not identity_path:
-        // Provision.
-        identity_path = "$tmp_dir/$(device_id).identity"
-        artemis.provision
-            --device_id=device_id
-            --out_path=identity_path
+        identity_files := fleet.create_identities 1
+            --output_directory=tmp_dir
             --organization_id=organization_id
+        identity_path = identity_files[0]
+        new_provision = true
+
+      identity := read_base64_ubjson identity_path
+      // TODO(florian): Abstract away the identity format.
+      organization_id = identity["artemis.device"]["organization_id"]
+      device_id := identity["artemis.device"]["device_id"]
+
+      if new_provision:
         ui.info "Successfully provisioned device $device_id."
 
       envelope_path/string := ?
-
       if specification_path:
         // Customize.
         specification := parse_device_specification_file specification_path --ui=ui
@@ -208,7 +209,6 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.info "Simulating flash."
         ui.info "Using the local Artemis service and not the one specified in the specification."
         old_default := config.get CONFIG_ARTEMIS_DEFAULT_KEY
-        identity := read_base64_ubjson identity_path
         if should_make_default: make_default_ device_id config ui
         run_host
             --envelope_path=envelope_path
