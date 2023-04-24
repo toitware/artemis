@@ -8,7 +8,6 @@ import .pkg_artemis_src_copy.api as api
 
 flashlogs_ ::= {:}
 receivers_ ::= {}
-offsets_ ::= storage.Bucket.open --flash "toit.io/channel-offsets"
 
 class ChannelResource extends ServiceResource:
   topic/string
@@ -22,7 +21,9 @@ class ChannelResource extends ServiceResource:
     log_ = flashlogs_.get topic --init=:
       path := "toit.io/channel/$topic"
       capacity := 32 * 1024
-      FlashLog (storage.Region.open --flash path --capacity=capacity)
+      region := storage.Region.open --flash path --capacity=capacity
+      offsets := storage.Bucket.open --flash "$path/offsets"
+      FlashLog --region=region --offsets=offsets
     log_.acquire
     super provider client
 

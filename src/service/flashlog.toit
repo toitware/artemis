@@ -16,6 +16,7 @@ class FlashLog:
   static MARKER_ ::= 0x21_CE_A9_66
 
   region_/storage.Region
+  offsets/storage.Bucket?
   size_/int
   size_per_page_/int
 
@@ -38,7 +39,7 @@ class FlashLog:
   // to combine the FlashLog and the ChannelResource more somehow.
   usage_/int := 0
 
-  constructor region/storage.Region --read/int=-1 --write/int=-1:
+  constructor --region/storage.Region --.offsets/storage.Bucket?=null:
     if not region.write_can_clear_bits:
       throw "Must be able to clear bits"
     if region.erase_value != 0xff:
@@ -46,8 +47,9 @@ class FlashLog:
     if region.size <= region.erase_granularity:
       throw "Must have space for two pages"
     region_ = region
-    read_page_ = read
-    write_page_ = write
+    if offsets:
+      catch: offsets.get "read" --if_present=: read_page_ = it
+      catch: offsets.get "write" --if_present=: write_page_ = it
     size_ = region.size
     size_per_page_ = region.erase_granularity
     buffer_ = ByteArray size_per_page_
@@ -59,7 +61,9 @@ class FlashLog:
   release -> int:
     usage := usage_ - 1
     usage_ = usage
-    if usage == 0: region_.close
+    if usage == 0:
+      region_.close
+      if offsets: offsets.close
     return usage
 
   dump -> none:

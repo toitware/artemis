@@ -1129,7 +1129,7 @@ class TestFlashLog extends FlashLog:
   constructor pages/int:
     path_ = "toit.io/test-flashlog-$(COUNTER++)"
     region := storage.Region.open --flash path_ --capacity=pages * 4096
-    super region
+    super --region=region
     constructed_.add this
 
   static close_all -> none:
