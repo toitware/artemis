@@ -38,6 +38,7 @@ run_test test_cli/TestCli:
         "fleet",
         "--fleet-root", fleet_tmp_dir,
         "init",
+        "--organization-id", TEST_ORGANIZATION_UUID,
       ]
 
       count := 3
@@ -45,34 +46,10 @@ run_test test_cli/TestCli:
         "fleet",
         "--fleet-root", fleet_tmp_dir,
         "create-identities",
-        "--organization-id", TEST_ORGANIZATION_UUID,
         "--output-directory", tmp_dir,
         "$count",
       ]
       check_and_remove_identity_files fleet_tmp_dir tmp_dir count
-
-      // Test an error when the organization id isn't set.
-      test_cli.run --expect_exit_1 [
-        "fleet",
-        "--fleet-root", fleet_tmp_dir,
-        "create-identities",
-        "--output-directory", tmp_dir,
-        "1",
-      ]
-      check_and_remove_identity_files fleet_tmp_dir tmp_dir 0
-
-      test_cli.run [
-        "org", "default", TEST_ORGANIZATION_UUID,
-      ]
-
-      test_cli.run [
-        "fleet",
-        "--fleet-root", fleet_tmp_dir,
-        "create-identities",
-        "--output-directory", tmp_dir,
-        "1",
-      ]
-      check_and_remove_identity_files fleet_tmp_dir tmp_dir 1
 
 check_and_remove_identity_files fleet_dir tmp_dir count:
   devices := json.decode (file.read_content "$fleet_dir/devices.json")

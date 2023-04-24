@@ -6,6 +6,7 @@ import host.file
 import .artemis
 import .cache
 import .device
+import .device_specification
 import .event
 import .firmware
 import .ui
@@ -14,15 +15,13 @@ import ..shared.json_diff
 
 class DeviceFleet:
   id/string
-  organization_id/string
 
   name/string?
   aliases/List?
 
-  constructor --.id --.organization_id --.name=null --.aliases=null:
+  constructor --.id --.name=null --.aliases=null:
 
   constructor.from_json .id/string encoded/Map:
-    organization_id = encoded["organization_id"]
     name = encoded.get "name"
     aliases = encoded.get "aliases"
 
@@ -47,7 +46,8 @@ class Status_:
 
 class Fleet:
   static DEVICES_FILE_ ::= "devices.json"
-  static DEFAULT_SPECIFICATION_ ::= "default.json"
+  static FLEET_FILE_ ::= "fleet.json"
+  static DEFAULT_SPECIFICATION_ ::= "specification.json"
   /** Signal that an alias is ambiguous. */
   static AMBIGUOUS_ ::= -1
 
@@ -56,25 +56,67 @@ class Fleet:
   cache_/Cache
   fleet_root_/string
   devices_/List
+  organization_id/string
+  default_specification_/string
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
   constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache:
     ui_ = ui
     cache_ = cache
+    if not file.is_file "$fleet_root_/$FLEET_FILE_":
+      ui_.error "Fleet root $fleet_root_ does not contain a $FLEET_FILE_ file."
+      ui_.error "Use 'init' to initialize a directory as fleet directory."
+      ui_.abort
+    fleet_content := read_json "$fleet_root_/$FLEET_FILE_"
+    if fleet_content is not Map:
+      ui_.error "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format."
+      ui_.abort
+    organization_id = fleet_content["organization"]
+    default_specification_ = fleet_content["default-specification"]
     devices_ = load_devices_ fleet_root_ --ui=ui
     aliases_ = build_alias_map_ devices_ ui
 
-  static init fleet_root/string --ui/Ui:
+    // TODO(florian): should we always do this check?
+    org := artemis_.connected_artemis_server.get_organization organization_id
+    if not org:
+      ui.error "Organization $organization_id does not exist or is not accessible."
+      ui.abort
+
+  static init fleet_root/string artemis/Artemis --organization_id/string --ui/Ui:
     if not file.is_directory fleet_root:
       ui.error "Fleet root $fleet_root is not a directory."
+      ui.abort
+
+    if file.is_file "$fleet_root/$FLEET_FILE_":
+      ui.error "Fleet root $fleet_root already contains a $FLEET_FILE_ file."
       ui.abort
 
     if file.is_file "$fleet_root/$DEVICES_FILE_":
       ui.error "Fleet root $fleet_root already contains a $DEVICES_FILE_ file."
       ui.abort
 
-    write_json_to_file "$fleet_root/$DEVICES_FILE_" {:}
+    org := artemis.connected_artemis_server.get_organization organization_id
+    if not org:
+      ui.error "Organization $organization_id does not exist or is not accessible."
+      ui.abort
+
+    write_json_to_file --pretty "$fleet_root/$FLEET_FILE_" {
+      "organization": organization_id,
+      "default-specification": DEFAULT_SPECIFICATION_,
+    }
+    write_json_to_file --pretty "$fleet_root/$DEVICES_FILE_" {:}
+
+    default_specification_path := "$fleet_root/$DEFAULT_SPECIFICATION_"
+    if not file.is_file default_specification_path:
+      write_json_to_file --pretty default_specification_path EXAMPLE_DEVICE_SPECIFICATION
+
+    hello_path := "$fleet_root/hello.toit"
+    if not file.is_file hello_path:
+      write_blob_to_file hello_path """
+        main:
+          print "Hello, world!"
+        """
 
     ui.info "Initialized fleet directory $fleet_root."
 
@@ -156,28 +198,25 @@ class Fleet:
   write_devices_ -> none:
     encoded_devices := {:}
     devices_.do: | device/DeviceFleet |
-      entry := {
-        "organization_id": device.organization_id,
-      }
+      entry := {:}
       if device.name: entry["name"] = device.name
       if device.aliases: entry["aliases"] = device.aliases
       encoded_devices[device.id] = entry
-    write_json_to_file "$fleet_root_/$DEVICES_FILE_" encoded_devices --pretty
+    write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
-  create_firmware --specification_path/string --output_path/string --organization_ids/List:
+  create_firmware --specification_path/string --output_path/string:
     specification := parse_device_specification_file specification_path --ui=ui_
     artemis_.customize_envelope
         --output_path=output_path
         --device_specification=specification
 
-    organization_ids.do: | organization_id/string |
-      artemis_.upload_firmware output_path --organization_id=organization_id
-      ui_.info "Successfully uploaded firmware to organization $organization_id."
+    artemis_.upload_firmware output_path --organization_id=organization_id
+    ui_.info "Successfully uploaded firmware to organization $organization_id."
 
   /**
   Returns a list of created files.
   */
-  create_identities --output_directory/string --organization_id/string count/int -> List:
+  create_identities --output_directory/string count/int -> List:
     old_size := devices_.size
     try:
       new_identity_files := []
@@ -192,7 +231,7 @@ class Fleet:
             --organization_id=organization_id
 
         // TODO(florian): create a nice random name.
-        devices_.add (DeviceFleet --id=device_id --organization_id=organization_id)
+        devices_.add (DeviceFleet --id=device_id)
         new_identity_files.add output
       return new_identity_files
     finally:
@@ -218,7 +257,8 @@ class Fleet:
 
     base_firmwares.do: | content/FirmwareContent |
       trivial_patches := artemis_.extract_trivial_patches content
-      trivial_patches.do: | key value/FirmwarePatch | base_patches[key] = value
+      trivial_patches.do: | _ patch/FirmwarePatch |
+        artemis_.upload_patch patch --organization_id=organization_id
 
     with_tmp_directory: | tmp_dir/string |
       firmware_path := "$tmp_dir/firmware.envelope"
@@ -227,15 +267,7 @@ class Fleet:
           --output_path=firmware_path
           --device_specification=specification
 
-      seen_organizations := {}
       fleet_devices.do: | fleet_device/DeviceFleet |
-        if not diff_bases.is_empty:
-          device/DeviceDetailed := detailed_devices[fleet_device.id]
-          if not seen_organizations.contains device.organization_id:
-            seen_organizations.add device.organization_id
-            base_patches.do: | _ patch/FirmwarePatch |
-              artemis_.upload_patch patch --organization_id=device.organization_id
-
         artemis_.update
             --device_id=fleet_device.id
             --envelope_path=firmware_path
@@ -243,10 +275,15 @@ class Fleet:
 
         ui_.info "Successfully updated device $fleet_device.short_string."
 
-  upload envelope_path/string --to/List:
-    to.do: | organization_id/string |
-      artemis_.upload_firmware envelope_path --organization_id=organization_id
-      ui_.info "Successfully uploaded firmware."
+  upload envelope_path/string:
+    artemis_.upload_firmware envelope_path --organization_id=organization_id
+    ui_.info "Successfully uploaded firmware."
+
+  default_specification_path -> string:
+    return "$fleet_root_/$default_specification_"
+
+  read_specification_for device_id/string -> DeviceSpecification:
+    return parse_device_specification_file default_specification_path --ui=ui_
 
   build_status_ device/DeviceDetailed get_state_events/List? last_event/Event? -> Status_:
     CHECKIN_VERIFICATIONS ::= 5

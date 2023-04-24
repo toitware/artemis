@@ -40,6 +40,7 @@ with_fleet --args/List --count/int [block]:
         "fleet",
         "--fleet-root", fleet_dir,
         "init",
+        "--organization-id", TEST_ORGANIZATION_UUID,
       ]
 
       identity_dir := "$fleet_dir/identities"
@@ -48,7 +49,6 @@ with_fleet --args/List --count/int [block]:
         "fleet",
         "--fleet-root", fleet_dir,
         "create-identities",
-        "--organization-id", TEST_ORGANIZATION_UUID,
         "--output-directory", identity_dir,
         "$count",
       ]

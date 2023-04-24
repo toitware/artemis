@@ -43,13 +43,21 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   init_cmd := cli.Command "init"
       --long_help="""
-        Initialize the fleet state.
+        Initialize the fleet directory.
 
-        This command initializes the fleet-root directory, so it can be
+        This command initializes the fleet directory, so it can be
         used by the other fleet commands.
 
         The directory can be specified using the '--fleet-root' option.
+
+        The fleet will be in the given organization id. If no organization id
+        is given, the default organization is used.
         """
+      --options=[
+        cli.Option "organization-id"
+            --type="uuid"
+            --short_help="The organization to use."
+      ]
       --run=:: init it config cache ui
   cmd.add init_cmd
 
@@ -62,24 +70,19 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         'create-identities' for more information.
 
         Unless '--upload' is set to false (--no-upload), automatically uploads
-        the firmware to the broker. Without any 'organization-id', uses the
-        default organization. Otherwise, uploads to the given organizations.
+        the firmware to the broker in the fleet's organization.
+
+        By default uses the default specification file of the fleet.
         """
       --options=[
         cli.Option "specification"
             --type="file"
-            --short_help="The specification of the firmware."
-            --required,
+            --short_help="The specification of the firmware.",
         cli.Option "output"
             --type="out-file"
             --short_name="o"
             --short_help="File to write the firmware to."
             --required,
-        cli.Option "organization-id"
-            --type="uuid"
-            --short_help="The organization to upload the firmware to."
-            --split_commas
-            --multi,
         cli.Flag "upload"
             --short_help="Upload the firmware to the cloud."
             --default=true,
@@ -95,20 +98,13 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         For each written identity file, a device is provisioned in the Toit
         cloud.
 
-        If an organization-id is given, then the device is registered with
-        that organization. Otherwise, the device is registered with the
-        default organization.
-
-        Use 'device flash' to flash a device with an identity file and a
+        Use 'flash-station flash' to flash a device with an identity file and a
         specification or firmware image.
 
         This command requires the broker to be configured.
         This command requires Internet access.
         """
       --options=[
-        cli.Option "organization-id"
-            --type="uuid"
-            --short_help="The organization to use.",
         cli.Option "output-directory"
             --type="directory"
             --short_help="Directory to write the identity files to."
@@ -127,19 +123,11 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   upload_cmd := cli.Command "upload"
       --long_help="""
-        Upload the given firmware to the broker in the given organization.
+        Upload the given firmware to the broker.
 
+        After this action the firmware is available to the fleet.
         Uploaded firmwares can be used for diff-based firmware updates.
-
-        If no organization is given, the default organization is used.
         """
-      --options=[
-        cli.Option "organization-id"
-            --type="uuid"
-            --short_help="The organization to use."
-            --split_commas
-            --multi,
-      ]
       --rest= [
         cli.Option "firmware"
             --type="file"
@@ -162,17 +150,11 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         created. If a device has reported its state, then only patches
         for the reported firmwares are created.
 
-        There are two cases that make diff bases necessary:
-        1. The current state of the device is not yet known because it
-          never connected to the broker. The corresponding identity might
-          not even be used yet. In this case, one of the diff bases should be
-          the firmware that will be (or was) used to flash the device.
-        2. The device has connected and the current firmware is known. However,
-          when the firmware was created, it was not yet uploaded. It is generally
-          recommended to upload the firmware immediately after creating it, but
-          when that's not possible (for example, because the organization is
-          not known yet), then explicitly specifying the diff base is
-          necessary.
+        The most common use case for diff bases is when the current
+        state of the device is not yet known because it
+        never connected to the broker. The corresponding identity might
+        not even be used yet. In this case, one of the diff bases should be
+        the firmware that will be (or was) used to flash the device.
 
         Note that diff-bases are only an optimization. Without them, the
         firmware update will still work, but will not be as efficient.
@@ -205,51 +187,42 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  Fleet.init fleet_root --ui=ui
+  organization_id := parsed["organization-id"]
 
-create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
-  specification_path := parsed["specification"]
-  output := parsed["output"]
-  organization_ids := parsed["organization-id"]
-  should_upload := parsed["upload"]
-
-  if should_upload and organization_ids.is_empty:
+  if not organization_id:
     default_organization_id := config.get CONFIG_ORGANIZATION_DEFAULT
     if not default_organization_id:
       ui.error "No organization ID specified and no default organization ID set."
       ui.abort
 
-    organization_ids = [default_organization_id]
+    organization_id = default_organization_id
 
-  if not should_upload and not organization_ids.is_empty:
-    ui.error "Cannot specify organization IDs when not uploading."
-    ui.abort
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    Fleet.init fleet_root artemis --organization_id=organization_id --ui=ui
+
+create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
+  specification_path := parsed["specification"]
+  output := parsed["output"]
+  should_upload := parsed["upload"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    if not specification_path:
+      specification_path = fleet.default_specification_path
     fleet.create_firmware
         --specification_path=specification_path
         --output_path=output
-        --organization_ids=organization_ids
 
 create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   output_directory := parsed["output-directory"]
-  organization_id := parsed["organization-id"]
   count := parsed["count"]
-
-  if not organization_id:
-    organization_id = config.get CONFIG_ORGANIZATION_DEFAULT
-    if not organization_id:
-      ui.error "No organization ID specified and no default organization ID set."
-      ui.abort
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     created_files := fleet.create_identities count
         --output_directory=output_directory
-        --organization_id=organization_id
     ui.info "Created $created_files.size identity file(s)."
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -263,18 +236,10 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   envelope_path := parsed["firmware"]
-  organization_ids := parsed["organization-id"]
-
-  if organization_ids.is_empty:
-    organization_id := config.get CONFIG_ORGANIZATION_DEFAULT
-    if not organization_id:
-      ui.error "No organization ID specified and no default organization ID set."
-      ui.abort
-    organization_ids = [organization_id]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    fleet.upload envelope_path --to=organization_ids
+    fleet.upload envelope_path
 
 status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]

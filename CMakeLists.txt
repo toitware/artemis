@@ -8,6 +8,8 @@ set(TOITRUN "toit.run" CACHE FILEPATH "The executable used to run the tests")
 set(TOITC "toit.compile" CACHE FILEPATH "The executable used to compile executables")
 set(TOITPKG "toit.pkg" CACHE FILEPATH "The executable used to install the packages")
 
+set(DEFAULT_SDK_VERSION CACHE STRING "The default SDK version to use")
+
 set(ARTEMIS_GIT_VERSION "$ENV{ARTEMIS_GIT_VERSION}")
 if ("${ARTEMIS_GIT_VERSION}" STREQUAL "")
   include(tools/gitversion.cmake)
