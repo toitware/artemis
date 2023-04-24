@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Toitware ApS.
+// Copyright (C) 2023 Toitware ApS.
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
@@ -119,5 +119,5 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
         "fleet",
         "--fleet-root", fleet_dir,
         "status",
-        "--unhealthy",
+        "--no-include-healthy",
       ]
