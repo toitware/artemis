@@ -602,7 +602,7 @@ with_test_cli
       print "Missing SDK version, SDK path or envelope path."
       exit 1
 
-    // Prefill the cache with the Dev SDK.
+    // Prefill the cache with the Dev SDK from the Makefile.
     sdk_key := "$artemis_cache.SDK_PATH/$sdk_version"
     cache.get_directory_path sdk_key: | store/cli.DirectoryStore |
       store.copy sdk_path

@@ -173,11 +173,11 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         Show the status of the fleet.
         """
       --options=[
-        cli.Flag "unhealthy"
-            --short_help="Show unhealthy devices only."
-            --default=false,
+        cli.Flag "include-healthy"
+            --short_help="Show healthy devices."
+            --default=true,
         cli.Flag "include-never-seen"
-            --short_help="Include devices that have never connected."
+            --short_help="Include devices that have never been seen."
             --default=false,
       ]
       --run=:: status it config cache ui
@@ -244,9 +244,9 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  unhealthy_only := parsed["unhealthy"]
+  include_healthy := parsed["include-healthy"]
   include_never_seen := parsed["include-never-seen"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    fleet.status --unhealthy_only=unhealthy_only --include_never_seen=include_never_seen
+    fleet.status --include_healthy=include_healthy --include_never_seen=include_never_seen
