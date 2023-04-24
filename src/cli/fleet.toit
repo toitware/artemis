@@ -183,10 +183,10 @@ class Fleet:
     fleet_devices := devices_
     specification_path := "$fleet_root_/$DEFAULT_SPECIFICATION_"
 
+    existing_devices := broker.get_devices --device_ids=(fleet_devices.map: it.id)
     fleet_devices.do: | fleet_device/DeviceFleet |
-      device := broker.get_device --device_id=fleet_device.id
-      if not device:
-        ui_.error "Device $device.id is unknown to the broker."
+      if not existing_devices.contains fleet_device.id:
+        ui_.error "Device $fleet_device.id is unknown to the broker."
         ui_.abort
 
     base_patches := {:}

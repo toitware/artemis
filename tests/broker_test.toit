@@ -84,8 +84,10 @@ run_test
       test_image --test_broker=test_broker broker_cli
       test_firmware --test_broker=test_broker broker_cli
       test_goal --test_broker=test_broker broker_cli
+      test_state_devices --test_broker=test_broker broker_cli
       // Test the events last, as it depends on test_goal to have run.
-      // It also does state updates which could interfere with the other tests.
+      // It also does state updates which could interfere with the other tests,
+      // like the health test.
       test_events --test_broker=test_broker broker_cli
 
     finally:
@@ -252,6 +254,87 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
             current_offset
     finally:
       resources.close
+
+build_state_ device/Device token/string -> Map:
+  return {
+    "token": token,
+    "firmware": build_encoded_firmware --device=device,
+  }
+
+test_state_devices --test_broker/TestBroker broker_cli/broker.BrokerCli:
+  test_broker.with_service: | broker_service/broker.BrokerService |
+    test_state_devices broker_cli broker_service
+
+test_state_devices broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+  broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
+    {
+      "state-test": "1234",
+    }
+
+  broker_cli.update_goal --device_id=DEVICE2.id: | device/DeviceDetailed |
+    {
+      "state-test": "5678",
+    }
+
+  resources := broker_service.connect --network=network --device=DEVICE1
+  try:
+    goal_state := build_state_ DEVICE1 "goal"
+    current_state := build_state_ DEVICE1 "current"
+    firmware_state := build_state_ DEVICE1 "firmware"
+    resources.report_state {
+      "goal-state": goal_state,
+      "current-state":  current_state,
+      "firmware-state": firmware_state,
+      "pending-firmware": "pending-firmware",
+      "firmware": build_encoded_firmware --device=DEVICE1
+    }
+  finally:
+    resources.close
+
+  resources = broker_service.connect --network=network --device=DEVICE2
+  try:
+    goal_state := build_state_ DEVICE2 "goal2"
+    current_state := build_state_ DEVICE2 "current2"
+    firmware_state := build_state_ DEVICE2 "firmware2"
+    resources.report_state {
+      "goal-state": goal_state,
+      "current-state":  current_state,
+      "firmware-state": firmware_state,
+      "pending-firmware": "pending-firmware2",
+      "firmware2": build_encoded_firmware --device=DEVICE2
+    }
+  finally:
+    resources.close
+
+  2.repeat:
+    device1/DeviceDetailed := ?
+    device2/DeviceDetailed := ?
+    if it == 0:
+      devices := broker_cli.get_devices --device_ids=[DEVICE1.id]
+      expect_equals 1 devices.size
+      device1 = devices[DEVICE1.id]
+      devices = broker_cli.get_devices --device_ids=[DEVICE2.id]
+      expect_equals 1 devices.size
+      device2 = devices[DEVICE2.id]
+    else:
+      devices := broker_cli.get_devices --device_ids=[DEVICE1.id, DEVICE2.id]
+      expect_equals 2 devices.size
+      device1 = devices[DEVICE1.id]
+      device2 = devices[DEVICE2.id]
+
+      expect_equals DEVICE1.id device1.id
+      expect_equals "1234" device1.goal["state-test"]
+      expect_equals "firmware" device1.reported_state_firmware["token"]
+      expect_equals "current" device1.reported_state_current["token"]
+      expect_equals "goal" device1.reported_state_goal["token"]
+      expect_equals "pending-firmware" device1.pending_firmware
+
+      expect_equals DEVICE2.id device2.id
+      expect_equals "5678" device2.goal["state-test"]
+      expect_equals "firmware2" device2.reported_state_firmware["token"]
+      expect_equals "current2" device2.reported_state_current["token"]
+      expect_equals "goal2" device2.reported_state_goal["token"]
+      expect_equals "pending-firmware2" device2.pending_firmware
 
 test_events --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service1/broker.BrokerService |

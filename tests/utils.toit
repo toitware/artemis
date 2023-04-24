@@ -403,7 +403,8 @@ with_test_cli
 build_encoded_firmware
     --device_id/string
     --organization_id/string=TEST_ORGANIZATION_UUID
-    --hardware_id/string=device_id:
+    --hardware_id/string=device_id
+    --sdk_version/string="v2.0.0-alpha.52":
   device_specific := ubjson.encode {
     "artemis.device": {
       "device_id": device_id,
@@ -411,12 +412,19 @@ build_encoded_firmware
       "hardware_id": hardware_id,
     },
     "parts": ubjson.encode [],
-    "sdk-version": "v2.0.0-alpha.52",
+    "sdk-version": sdk_version,
   }
   return base64.encode (ubjson.encode {
     "device-specific": device_specific,
     "checksum": #[],
   })
+
+build_encoded_firmware --device/Device --sdk_version/string="v2.0.0-alpha.52":
+  return build_encoded_firmware
+      --device_id=device.id
+      --organization_id=device.organization_id
+      --hardware_id=device.hardware_id
+      --sdk_version=sdk_version
 
 server_type_from_args args/List:
   args.do: | arg |

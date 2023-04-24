@@ -60,6 +60,7 @@ class HttpBroker extends HttpServer:
     if command == "get_event": return get_event data
     if command == "report_event": return report_event data
     if command == "get_events": return get_events data
+    if command == "get_devices": return get_devices data
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
 
@@ -225,6 +226,19 @@ class HttpBroker extends HttpServer:
         count++
         if limit and count >= limit: break
       if not device_result.is_empty: result[device_id] = device_result
+    return result
+
+  get_devices data/Map:
+    device_ids := data["device_ids"]
+    result := {:}
+    device_ids.do: | device_id |
+      state := device_states_.get device_id
+      goal := device_goals_.get device_id
+      if not goal and not state: continue.do
+      result[device_id] = {
+        "state": state,
+        "goal": goal,
+      }
     return result
 
   clear_events:

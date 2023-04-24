@@ -74,15 +74,16 @@ class BrokerCliHttp implements BrokerCli:
       client.close
 
   update_goal --device_id/string [block] -> none:
-    device := get_device --device_id=device_id
-    new_goal := block.call device
+    detailed_devices := get_devices --device_ids=[device_id]
+    if detailed_devices.size != 1: throw "Device not found: $device_id"
+    detailed_device := detailed_devices[device_id]
+    new_goal := block.call detailed_device
     send_request_ "update_goal" {"device_id": device_id, "goal": new_goal}
 
-  get_device --device_id/string -> DeviceDetailed?:
-    current_goal := send_request_ "get_goal" {"device_id": device_id}
-    current_state := send_request_ "get_state" {"device_id": device_id}
-    if not current_goal["goal"] and not current_state: return null
-    return DeviceDetailed --goal=current_goal["goal"] --state=current_state
+  get_devices --device_ids/List -> Map:
+    response := send_request_ "get_devices" {"device_ids": device_ids}
+    return response.map: | key value |
+      DeviceDetailed --goal=value["goal"] --state=value["state"]
 
   upload_image -> none
       --organization_id/string
