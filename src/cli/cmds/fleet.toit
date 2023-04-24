@@ -277,7 +277,7 @@ status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    fleet.status --unhealthy_only=unhealthy_only --include_never_seen=include_never_seen
+    fleet.status --include_healthy=include_healthy --include_never_seen=include_never_seen
 
 add_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
