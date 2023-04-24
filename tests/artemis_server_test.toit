@@ -26,10 +26,10 @@ main args:
   else:
     throw "Unknown server server type: $args[0]"
   with_artemis_server --type=server_type: | artemis_server/TestArtemisServer |
-      run_test artemis_server --authenticate=: | server/ArtemisServerCli |
-        server.sign_in
-              --email=TEST_EXAMPLE_COM_EMAIL
-              --password=TEST_EXAMPLE_COM_PASSWORD
+    run_test artemis_server --authenticate=: | server/ArtemisServerCli |
+      server.sign_in
+            --email=TEST_EXAMPLE_COM_EMAIL
+            --password=TEST_EXAMPLE_COM_PASSWORD
 
 run_test artemis_server/TestArtemisServer [--authenticate]:
   server_config := artemis_server.server_config

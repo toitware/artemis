@@ -24,16 +24,27 @@ add_custom_target(
 set(TEST_PREFIX "")
 include(fail.cmake OPTIONAL)
 
-set (ARTEMIS_FLAGS "--supabase-server" "--http-server")
+set (SUPABASE_ARTEMIS_TESTS
+    "/tests/supabase_uploader_test_slow.toit"
+    "/tests/supabase_policies_test.toit"
+    )
+set (SUPABASE_BROKER_TESTS)
+set (SUPABASE_ARTEMIS_BROKER_TESTS)
+
+set (SUPABASE_ARTEMIS_FLAG "--supabase-server")
+set (SUPABASE_ARTEMIS_BROKER_FLAG "--supabase-local-artemis-broker")
+set (SUPABASE_BROKER_FLAG "--supabase-local-broker")
+
+set (ARTEMIS_FLAGS ${SUPABASE_ARTEMIS_FLAG} "--http-server")
 set (BROKER_FLAGS
       "--http-toit-broker"
-      "--supabase-local-broker"
-      "--supabase-local-artemis-broker"
+      ${SUPABASE_BROKER_FLAG}
+      ${SUPABASE_ARTEMIS_BROKER_FLAG}
     )
 
 if (NOT ${WITH_LOCAL_SUPABASE})
-  list(REMOVE_ITEM ARTEMIS_FLAGS "--supabase-server")
-  list(REMOVE_ITEM BROKER_FLAGS "--supabase-local-broker" "--supabase-local-artemis-broker")
+  list(REMOVE_ITEM ARTEMIS_FLAGS ${SUPABASE_ARTEMIS_FLAG})
+  list(REMOVE_ITEM BROKER_FLAGS ${SUPABASE_BROKER_FLAG} ${SUPABASE_ARTEMIS_BROKER_FLAG})
 endif()
 
 function (takes_artemis_flags file result)
@@ -80,7 +91,7 @@ foreach(file ${TESTS})
     endif()
     foreach (artemis_flag ${TEST_ARTEMIS_FLAGS})
       foreach (broker_flag ${TEST_BROKER_FLAGS})
-        if ("${broker_flag}" STREQUAL "--supabase-local-artemis-broker" AND NOT "${artemis_flag}" STREQUAL "--supabase-local")
+        if ("${broker_flag}" STREQUAL ${SUPABASE_ARTEMIS_BROKER_FLAG} AND NOT "${artemis_flag}" STREQUAL ${SUPABASE_ARTEMIS_FLAG})
           # Skip the artemis broker test if the artemis server is not running.
           continue()
         endif()
@@ -122,6 +133,16 @@ foreach(file ${TESTS})
     # Split the flags at " ".
     string(REPLACE " " ";" flag "${flag}")
 
+    if (SUPABASE_ARTEMIS_FLAG IN_LIST flag)
+      list(APPEND SUPABASE_ARTEMIS_TESTS "${test_name}")
+    endif()
+    if (SUPABASE_BROKER_FLAG IN_LIST flag)
+      list(APPEND SUPABASE_BROKER_TESTS "${test_name}")
+    endif()
+    if (SUPABASE_ARTEMIS_BROKER_FLAG IN_LIST flag)
+      list(APPEND SUPABASE_ARTEMIS_BROKER_TESTS "${test_name}")
+    endif()
+
     add_test(
       NAME "${test_name}"
       COMMAND "${TOITRUN}" "${file}"
@@ -146,8 +167,13 @@ foreach(file ${TESTS})
 endforeach()
 
 if (${WITH_LOCAL_SUPABASE})
-  # Lock the artemis server to a single test for the following tests.
-  # They use global properties interfering with the sdk table.
-  set_tests_properties("/tests/supabase_uploader_test_slow.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
-  set_tests_properties("/tests/supabase_policies_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
+    foreach (supabase_artemis_test ${SUPABASE_ARTEMIS_TESTS})
+      set_tests_properties("${supabase_artemis_test}" PROPERTIES RESOURCE_LOCK "artemis_server")
+    endforeach()
+    foreach (supabase_artemis_broker_test ${SUPABASE_ARTEMIS_BROKER_TESTS})
+      set_tests_properties("${supabase_artemis_broker_test}" PROPERTIES RESOURCE_LOCK "artemis_broker")
+    endforeach()
+    foreach (supabase_broker_test ${SUPABASE_BROKER_TESTS})
+      set_tests_properties("${supabase_broker_test}" PROPERTIES RESOURCE_LOCK "broker")
+    endforeach()
 endif()
