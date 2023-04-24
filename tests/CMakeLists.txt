@@ -6,6 +6,10 @@ set(TEST_TIMEOUT 40 CACHE STRING "The maximal amount of time each test is allowe
 set(SLOW_TEST_TIMEOUT 200 CACHE STRING "The maximal amount of time each slow test is allowed to run")
 set(WITH_LOCAL_SUPABASE TRUE CACHE BOOL "Whether the local supabase tests should be run")
 
+set(DEV_SDK_VERSION "" CACHE STRING "Version of the dev sdk")
+set(DEV_SDK_PATH "" CACHE STRING "Path to the dev sdk")
+set(DEV_ENVELOPE_PATH "" CACHE STRING "Path to the dev envelope")
+
 toit_project(tests "${CMAKE_CURRENT_LIST_DIR}")
 
 include(ProcessorCount)
@@ -120,7 +124,12 @@ foreach(file ${TESTS})
 
     add_test(
       NAME "${test_name}"
-      COMMAND "${TOITRUN}" "${file}" ${flag} "--toit-run=${TOITRUN}"
+      COMMAND "${TOITRUN}" "${file}"
+          ${flag}
+          "--toit-run=${TOITRUN}"
+          "--sdk-version=${DEV_SDK_VERSION}"
+          "--sdk-path=${DEV_SDK_PATH}"
+          "--envelope-path=${DEV_ENVELOPE_PATH}"
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 

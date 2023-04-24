@@ -34,7 +34,10 @@ jobs:
 
           export TOIT_VERSION="v2.0.0-alpha.79"
 
-          export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
+          export NATIVE_DOWNLOAD_DIR="${{ github.workspace }}/downloads"
+          echo "NATIVE_DOWNLOAD_DIR=$NATIVE_DOWNLOAD_DIR" >> $GITHUB_ENV
+
+          export DOWNLOAD_DIR="$PWD/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
 
           TOIT_SDK_DIR=$DOWNLOAD_DIR/toit
@@ -51,7 +54,7 @@ jobs:
         name: Download Toit
         with:
           url: ${{ env.TOIT_SDK_URL }}
-          target: ${{ env.DOWNLOAD_DIR }}
+          target: ${{ env.NATIVE_DOWNLOAD_DIR }}
 
       - name: Extract Toit
         shell: bash
@@ -147,12 +150,14 @@ jobs:
           make disable-supabase-tests
 
       - name: Build binaries
+        shell: bash
         run: |
-          make
+          make TOITRUN="$TOIT_EXEC"
 
       - name: Test
+        shell: bash
         run: |
-          make test
+          make TOITRUN="$TOIT_EXEC" test
 
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v3

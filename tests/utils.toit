@@ -12,6 +12,7 @@ import artemis.cli
 import artemis.cli.server_config as cli_server_config
 import artemis.cli.cache as cli
 import artemis.cli.config as cli
+import artemis.cli.cache as artemis_cache
 import artemis.shared.server_config
 import artemis.service
 import artemis.service.device show Device
@@ -382,6 +383,34 @@ with_test_cli
     cache_dir := "$tmp_dir/CACHE"
     directory.mkdir cache_dir
     cache := cli.Cache --app_name="artemis-test" --path=cache_dir
+
+    SDK_VERSION_OPTION ::= "--sdk-version="
+    SDK_PATH_OPTION ::= "--sdk-path="
+    ENVELOPE_PATH_OPTION ::= "--envelope-path="
+
+    sdk_version := "v0.0.0"
+    sdk_path/string? := null
+    envelope_path/string? := null
+    args.do: | arg/string |
+      if arg.starts_with SDK_VERSION_OPTION:
+        sdk_version = arg[SDK_VERSION_OPTION.size ..]
+      else if arg.starts_with SDK_PATH_OPTION:
+        sdk_path = arg[SDK_PATH_OPTION.size ..]
+      else if arg.starts_with ENVELOPE_PATH_OPTION:
+        envelope_path = arg[ENVELOPE_PATH_OPTION.size ..]
+
+    if sdk_version == "" or sdk_path == null or envelope_path == null:
+      print "Missing SDK version, SDK path or envelope path."
+      exit 1
+
+    // Prefill the cache with the Dev SDK from the Makefile.
+    sdk_key := "$artemis_cache.SDK_PATH/$sdk_version"
+    cache.get_directory_path sdk_key: | store/cli.DirectoryStore |
+      store.copy sdk_path
+
+    envelope_key := "$artemis_cache.ENVELOPE_PATH/$sdk_version/firmware-esp32.envelope"
+    cache.get_file_path envelope_key: | store/cli.FileStore |
+      store.copy envelope_path
 
     artemis_config := artemis_server.server_config
     broker_config := broker.server_config
