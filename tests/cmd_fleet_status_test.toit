@@ -156,7 +156,7 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
     "fleet",
     "--fleet-root", fleet_dir,
     "status",
-    "--unhealthy",
+    "--no-include-healthy",
   ]
   expect_equals
       """
