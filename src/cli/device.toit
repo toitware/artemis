@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import uuid
 import .firmware
 
 class Device:
@@ -11,7 +12,7 @@ class Device:
 
   This ID is generally *not* shared with the user.
   */
-  hardware_id/string
+  hardware_id/uuid.Uuid
 
   /**
   The device ID.
@@ -19,14 +20,14 @@ class Device:
   This ID is the one under which users identify a device.
   It's also called "alias" in the Artemis server.
   */
-  id/string
+  id/uuid.Uuid
 
   /**
   The organization ID of the device.
 
   The ID in which organization the device is registered in.
   */
-  organization_id/string
+  organization_id/uuid.Uuid
 
   constructor --.hardware_id --.id --.organization_id:
 
@@ -94,14 +95,14 @@ class DeviceDetailed extends Device:
 
     if initial_state:
       identity := initial_state["identity"]
-      local_organization_id = identity["organization_id"]
-      local_hardware_id = identity["hardware_id"]
-      local_id = identity["device_id"]
+      local_organization_id = uuid.parse identity["organization_id"]
+      local_hardware_id = uuid.parse identity["hardware_id"]
+      local_id = uuid.parse identity["device_id"]
     else:
       old_firmware := Firmware.encoded reported_state_firmware["firmware"]
       device := old_firmware.device_specific "artemis.device"
-      local_organization_id = device["organization_id"]
-      local_hardware_id = device["hardware_id"]
-      local_id = device["device_id"]
+      local_organization_id = uuid.parse device["organization_id"]
+      local_hardware_id = uuid.parse device["hardware_id"]
+      local_id = uuid.parse device["device_id"]
 
     super --hardware_id=local_hardware_id --id=local_id --organization_id=local_organization_id

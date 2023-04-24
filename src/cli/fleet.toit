@@ -2,6 +2,7 @@
 
 import encoding.json
 import host.file
+import uuid
 
 import .artemis
 import .cache
@@ -14,20 +15,21 @@ import .utils
 import ..shared.json_diff
 
 class DeviceFleet:
-  id/string
+  id/uuid.Uuid
 
   name/string?
   aliases/List?
 
   constructor --.id --.name=null --.aliases=null:
 
-  constructor.from_json .id/string encoded/Map:
+  constructor.from_json encoded_id/string encoded/Map:
+    id = uuid.parse encoded_id
     name = encoded.get "name"
     aliases = encoded.get "aliases"
 
   short_string -> string:
     if name: return "$id ($name)"
-    return id
+    return "$id"
 
 class Status_:
   static CHECKIN_VERIFICATION_COUNT ::= 5
@@ -56,7 +58,7 @@ class Fleet:
   cache_/Cache
   fleet_root_/string
   devices_/List
-  organization_id/string
+  organization_id/uuid.Uuid
   default_specification_/string
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
@@ -71,7 +73,7 @@ class Fleet:
     fleet_content := read_json "$fleet_root_/$FLEET_FILE_"
     if fleet_content is not Map:
       ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format."
-    organization_id = fleet_content["organization"]
+    organization_id = uuid.parse fleet_content["organization"]
     default_specification_ = fleet_content["default-specification"]
     devices_ = load_devices_ fleet_root_ --ui=ui
     aliases_ = build_alias_map_ devices_ ui
@@ -81,7 +83,7 @@ class Fleet:
     if not org:
       ui.abort "Organization $organization_id does not exist or is not accessible."
 
-  static init fleet_root/string artemis/Artemis --organization_id/string --ui/Ui:
+  static init fleet_root/string artemis/Artemis --organization_id/uuid.Uuid --ui/Ui:
     if not file.is_directory fleet_root:
       ui.abort "Fleet root $fleet_root is not a directory."
 
@@ -96,7 +98,7 @@ class Fleet:
       ui.abort "Organization $organization_id does not exist or is not accessible."
 
     write_json_to_file --pretty "$fleet_root/$FLEET_FILE_" {
-      "organization": organization_id,
+      "organization": "$organization_id",
       "default-specification": DEFAULT_SPECIFICATION_,
     }
     write_json_to_file --pretty "$fleet_root/$DEVICES_FILE_" {:}
@@ -157,7 +159,7 @@ class Fleet:
     ambiguous_ids := {:}
     devices.size.repeat: | i/int |
       device/DeviceFleet := devices[i]
-      add_alias := : | id/string |
+      add_alias := : | id/uuid.Uuid |
         if result.contains id:
           old := result[id]
           if old == i:
@@ -192,7 +194,7 @@ class Fleet:
       entry := {:}
       if device.name: entry["name"] = device.name
       if device.aliases: entry["aliases"] = device.aliases
-      encoded_devices[device.id] = entry
+      encoded_devices["$device.id"] = entry
     write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
   create_firmware --specification_path/string --output_path/string:
@@ -212,7 +214,7 @@ class Fleet:
     try:
       new_identity_files := []
       count.repeat: | i/int |
-        device_id := random_uuid_string
+        device_id := random_uuid
 
         output := "$output_directory/$(device_id).identity"
 
@@ -272,10 +274,10 @@ class Fleet:
   default_specification_path -> string:
     return "$fleet_root_/$default_specification_"
 
-  read_specification_for device_id/string -> DeviceSpecification:
+  read_specification_for device_id/uuid.Uuid -> DeviceSpecification:
     return parse_device_specification_file default_specification_path --ui=ui_
 
-  add_device --device_id/string --name/string? --aliases/List?:
+  add_device --device_id/uuid.Uuid --name/string? --aliases/List?:
     if aliases and aliases.is_empty: aliases = null
     devices_.add (DeviceFleet --id=device_id --name=name --aliases=aliases)
     write_devices_
@@ -389,7 +391,7 @@ class Fleet:
       else if status.missed_checkins > 0:
         missed_checkins_string = cross
       rows.add [
-        fleet_device.id,
+        "$fleet_device.id",
         fleet_device.name or "",
         status.is_fully_updated ? "" : cross,
         status.is_modified ? cross : "",

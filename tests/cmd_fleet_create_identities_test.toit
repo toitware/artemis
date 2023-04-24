@@ -38,7 +38,7 @@ run_test test_cli/TestCli:
         "fleet",
         "--fleet-root", fleet_tmp_dir,
         "init",
-        "--organization-id", TEST_ORGANIZATION_UUID,
+        "--organization-id", "$TEST_ORGANIZATION_UUID",
       ]
 
       count := 3

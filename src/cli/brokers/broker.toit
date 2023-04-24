@@ -74,7 +74,7 @@ interface BrokerCli implements Authenticatable:
     still required to return the new goal state. It is not enough to just
     modify the goal map of the $DeviceDetailed.
   */
-  update_goal --device_id/string [block] -> none
+  update_goal --device_id/uuid.Uuid [block] -> none
 
   /**
   Uploads an application image with the given $app_id so that a device in
@@ -84,7 +84,7 @@ interface BrokerCli implements Authenticatable:
     Generally $word_size is either 32 or 64.
   */
   upload_image
-      --organization_id/string
+      --organization_id/uuid.Uuid
       --app_id/uuid.Uuid
       --word_size/int
       content/ByteArray -> none
@@ -95,19 +95,19 @@ interface BrokerCli implements Authenticatable:
 
   The $chunks are a list of byte arrays.
   */
-  upload_firmware --organization_id/string --firmware_id/string chunks/List -> none
+  upload_firmware --organization_id/uuid.Uuid --firmware_id/string chunks/List -> none
 
   /**
   Downloads a firmware chunk inside the given $organization_id.
   */
-  download_firmware --organization_id/string --id/string -> ByteArray
+  download_firmware --organization_id/uuid.Uuid --id/string -> ByteArray
 
   /**
   Informs the broker that a device with the given $device_id has been provisioned.
   The $state map is the initial state of the device. Until it connects to the
     broker there is (probably) only identity information in it.
   */
-  notify_created --device_id/string --state/Map -> none
+  notify_created --device_id/uuid.Uuid --state/Map -> none
 
   /**
   Fetches all events of the given $types for all devices in the $device_ids list.

@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli
+import uuid
 
 import .utils_
 import ..artemis
@@ -56,9 +57,10 @@ create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
 
   return cmd
 
-get_device_id parsed/cli.Parsed config/Config ui/Ui -> string:
+get_device_id parsed/cli.Parsed config/Config ui/Ui -> uuid.Uuid:
   device_id := parsed["device-id"]
-  if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
+  if not device_id:
+    device_id = default_device_from_config config
   if not device_id:
     ui.abort "No device ID specified and no default device ID set."
   return device_id

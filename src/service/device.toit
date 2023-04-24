@@ -3,6 +3,7 @@
 import log
 import system.storage
 import system.firmware show is_validation_pending
+import uuid
 
 import .firmware
 import .utils show deep_copy
@@ -39,19 +40,19 @@ class Device:
   This ID was chosen during provisioning and is unique within
     a specific broker.
   */
-  id/string
+  id/uuid.Uuid
 
   /**
   The hardware ID of the device.
 
   This ID was chosen during provisioning and is globally unique.
   */
-  hardware_id/string
+  hardware_id/uuid.Uuid
 
   /**
   The organization ID of the device.
   */
-  organization_id/string
+  organization_id/uuid.Uuid
 
   /**
   The configuration as given by the firmware.

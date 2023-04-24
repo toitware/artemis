@@ -6,6 +6,7 @@ import artemis.shared.server_config show ServerConfigSupabase
 import expect show *
 import log
 import supabase
+import uuid
 import .broker
 import .utils
 
@@ -14,9 +15,9 @@ ASSETS_BUCKET ::= "toit-artemis-assets"
 run_shared_test
     --client1/supabase.Client
     --client_anon/supabase.Client
-    --organization_id/string=TEST_ORGANIZATION_UUID
-    --device_id1=random_uuid_string
-    --device_id2=random_uuid_string:
+    --organization_id/string="$TEST_ORGANIZATION_UUID"
+    --device_id1/string="$random_uuid"
+    --device_id2/string="$random_uuid":
 
   // We only need to worry about the functions that have been copied to the public schema.
   // The tables themselves are inaccessible from the public PostgREST.
@@ -88,7 +89,7 @@ run_shared_test
   // Only ids in the device-list are valid.
   expect_throws --contains="foreign key":
     client_anon.rest.rpc "toit_artemis.report_event" {
-      "_device_id": random_uuid_string,
+      "_device_id": "$random_uuid",
       "_type": "test",
       "_data": { "updated": "by anon" },
     }
@@ -197,7 +198,7 @@ run_shared_test
   }
   expect_null state
 
-  storage_id := random_uuid_string
+  storage_id := random_uuid
   path := "$ASSETS_BUCKET/$organization_id/$storage_id"
 
   // Authenticated can write to the storage.
@@ -224,7 +225,7 @@ run_shared_test
   expect_equals "test".to_byte_array
       client_anon.storage.download --public --path=path
 
-  storage_id2 := random_uuid_string
+  storage_id2 := random_uuid
   path2 := "$ASSETS_BUCKET/$organization_id/$storage_id2"
   // Check that anon can't write to it.
   expect_throws --contains="row-level security":

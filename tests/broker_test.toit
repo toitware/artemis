@@ -30,13 +30,13 @@ import .utils
 // When running the supabase test we need valid device ids
 // that are not already in the database.
 DEVICE1 ::= Device
-    --id=random_uuid_string
-    --hardware_id=random_uuid_string
+    --id=random_uuid
+    --hardware_id=random_uuid
     --organization_id=TEST_ORGANIZATION_UUID
     --firmware_state={:}
 DEVICE2 ::= Device
-    --id=random_uuid_string
-    --hardware_id=random_uuid_string
+    --id=random_uuid
+    --hardware_id=random_uuid
     --organization_id=TEST_ORGANIZATION_UUID
     --firmware_state={:}
 
@@ -64,15 +64,15 @@ run_test
         backdoor.with_backdoor_client_: | client/supabase.Client |
           [DEVICE1, DEVICE2].do: | device/Device |
             client.rest.insert "devices" {
-              "alias": device.id,
-              "organization_id": device.organization_id,
+              "alias": "$device.id",
+              "organization_id": "$device.organization_id",
             }
 
     [DEVICE1, DEVICE2].do: | device/Device |
       identity := {
-        "device_id": device.id,
-        "organization_id": device.organization_id,
-        "hardware_id": device.hardware_id,
+        "device_id": "$device.id",
+        "organization_id": "$device.organization_id",
+        "hardware_id": "$device.hardware_id",
       }
       state := {
         "identity": identity,

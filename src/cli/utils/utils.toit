@@ -171,13 +171,8 @@ copy_file --source/string --target/string:
     in_stream.close
     out_stream.close
 
-random_uuid --namespace/string -> uuid.Uuid:
+random_uuid --namespace/string="Artemis" -> uuid.Uuid:
   return uuid.uuid5 namespace "$Time.now $Time.monotonic_us $random"
-
-random_uuid_string -> string:
-  // TODO(kasper): This is used for many things that are
-  // not device ids. Clean that up.
-  return (random_uuid --namespace="Device ID").stringify
 
 json_encode_pretty value/any -> ByteArray:
   buffer := bytes.Buffer
@@ -336,6 +331,44 @@ class OptionPatterns extends cli.OptionEnum:
     return {
       key: str[separator_index + 1..]
     }
+
+/**
+A Uuid option.
+*/
+class OptionUuid extends cli.Option:
+  default/uuid.Uuid?
+
+  /**
+  Creates a new Uuid option.
+
+  The $default value is null.
+
+  The $type is set to 'uuid'.
+
+  Ensures that values are valid Uuids.
+  */
+  constructor name/string
+      --.default=null
+      --short_name/string?=null
+      --short_help/string?=null
+      --required/bool=false
+      --hidden/bool=false
+      --multi/bool=false
+      --split_commas/bool=false:
+    if multi and default: throw "Multi option can't have default value."
+    if required and default: throw "Option can't have default value and be required."
+    super.from_subclass name --short_name=short_name --short_help=short_help \
+        --required=required --hidden=hidden --multi=multi \
+        --split_commas=split_commas
+
+  is_flag: return false
+
+  type -> string: return "uuid"
+
+  parse str/string --for_help_example/bool=false -> uuid.Uuid:
+    catch: return uuid.parse str
+    throw "Invalid value for option '$name': '$str'. Expected a UUID."
+
 
 /** Whether we are running in a development setup. */
 is_dev_setup -> bool:

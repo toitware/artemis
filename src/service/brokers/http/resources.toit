@@ -26,7 +26,7 @@ class ResourceManagerHttp implements ResourceManager:
       // we force the server to respond with an out-of-sync message.
       state_revision := wait ? state_revision_ : STATE_REVISION_UNKNOWN_
       response := connection_.send_request "get_event" {
-        "device_id": device_.id,
+        "device_id": "$device_.id",
         "state_revision": state_revision,
       }
 
@@ -48,7 +48,7 @@ class ResourceManagerHttp implements ResourceManager:
         // We need to reconcile or produce a new goal, so we
         // ask explicitly for the goal.
         goal_response := connection_.send_request "get_goal" {
-          "device_id": device_.id,
+          "device_id": "$device_.id",
         }
         // Even if the goal in the goal-response is null we return it,
         // since a null goal means that the device should revert to
@@ -60,8 +60,8 @@ class ResourceManagerHttp implements ResourceManager:
 
   fetch_image id/uuid.Uuid [block] -> none:
     payload :=  {
-      "organization_id": device_.organization_id,
-      "app_id": id.stringify,
+      "organization_id": "$device_.organization_id",
+      "app_id": "$id",
       "word_size": BITS_PER_WORD,
     }
     connection_.send_binary_request "download_image" payload: | reader/Reader |
@@ -69,7 +69,7 @@ class ResourceManagerHttp implements ResourceManager:
 
   fetch_firmware id/string --offset/int=0 [block] -> none:
     payload := {
-      "organization_id": device_.organization_id,
+      "organization_id": "$device_.organization_id",
       "firmware_id": id,
       "offset": offset,
     }
@@ -78,13 +78,13 @@ class ResourceManagerHttp implements ResourceManager:
 
   report_state state/Map -> none:
     connection_.send_request "report_state" {
-      "device_id": device_.id,
+      "device_id": "$device_.id",
       "state": state,
     }
 
   report_event --type/string data/any -> none:
     connection_.send_request "report_event" {
-      "device_id": device_.id,
+      "device_id": "$device_.id",
       "type": type,
       "data": data,
     }

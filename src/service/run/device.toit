@@ -6,6 +6,7 @@ import system.firmware
 import encoding.base64
 import encoding.ubjson
 import log
+import uuid
 
 import ..check_in show check_in_setup
 import ..device
@@ -31,9 +32,9 @@ main arguments:
 
   artemis_device_map := device_specific_ "artemis.device"
   device := Device
-      --id=artemis_device_map["device_id"]
-      --hardware_id=artemis_device_map["hardware_id"]
-      --organization_id=artemis_device_map["organization_id"]
+      --id=uuid.parse artemis_device_map["device_id"]
+      --hardware_id=uuid.parse artemis_device_map["hardware_id"]
+      --organization_id=uuid.parse artemis_device_map["organization_id"]
       --firmware_state=config
   check_in_setup --assets=artemis_assets --device=device
 

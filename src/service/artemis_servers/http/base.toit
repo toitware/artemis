@@ -4,6 +4,7 @@ import encoding.ubjson
 import http
 import log
 import net
+import uuid
 
 import ..artemis_server
 import ....shared.server_config
@@ -12,14 +13,14 @@ import ....shared.utils as utils
 
 class ArtemisServerServiceHttp implements ArtemisServerService:
   server_config_/ServerConfigHttpToit
-  hardware_id_/string
+  hardware_id_/uuid.Uuid
 
-  constructor .server_config_ --hardware_id/string:
+  constructor .server_config_ --hardware_id/uuid.Uuid:
     hardware_id_ = hardware_id
 
   check_in network/net.Interface logger/log.Logger -> none:
     send_request_ network "check-in" {
-      "hardware_id": hardware_id_,
+      "hardware_id": "$hardware_id_",
       "data": { "type": "ping" },
     }
 

@@ -30,7 +30,7 @@ class ResourceManagerSupabase implements ResourceManager:
     // firmware state. We must return it instead of
     // waiting for a non-null one to arrive.
     result := client_.rest.rpc "toit_artemis.get_goal" {
-      "_device_id": device_.id
+      "_device_id": "$device_.id",
     }
     last_poll_us_ = Time.monotonic_us
     return result
@@ -52,13 +52,13 @@ class ResourceManagerSupabase implements ResourceManager:
 
   report_state state/Map -> none:
     client_.rest.rpc "toit_artemis.update_state" {
-      "_device_id" : device_.id,
+      "_device_id" : "$device_.id",
       "_state" : state,
     }
 
   report_event --type/string data/any -> none:
     client_.rest.rpc "toit_artemis.report_event" {
-      "_device_id" : device_.id,
+      "_device_id" : "$device_.id",
       "_type" : type,
       "_data" : data,
     }

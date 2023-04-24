@@ -28,7 +28,7 @@ CONFIG_BROKER_DEFAULT_KEY ::= "server.broker.default"
 CONFIG_ARTEMIS_DEFAULT_KEY ::= "server.artemis.default"
 CONFIG_SERVERS_KEY ::= "servers"
 CONFIG_SERVER_AUTHS_KEY ::= "auths"
-CONFIG_ORGANIZATION_DEFAULT ::= "organization.default"
+CONFIG_ORGANIZATION_DEFAULT_KEY ::= "organization.default"
 
 class ConfigLocalStorage implements supabase.LocalStorage:
   config_/Config

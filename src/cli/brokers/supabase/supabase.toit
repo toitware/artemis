@@ -57,7 +57,7 @@ class BrokerCliSupabase implements BrokerCli:
         --ui=ui
         --open_browser=open_browser
 
-  update_goal --device_id/string [block]:
+  update_goal --device_id/uuid.Uuid [block]:
     // TODO(florian): should we take some locks here to avoid
     // concurrent updates of the goal?
     detailed_devices := get_devices --device_ids=[device_id]
@@ -66,32 +66,32 @@ class BrokerCliSupabase implements BrokerCli:
     new_goal := block.call detailed_device
 
     client_.rest.rpc "toit_artemis.set_goal" {
-      "_device_id": device_id,
+      "_device_id": "$device_id",
       "_goal": new_goal,
     }
 
   upload_image
-      --organization_id/string
+      --organization_id/uuid.Uuid
       --app_id/uuid.Uuid
       --word_size/int
       content/ByteArray -> none:
     client_.storage.upload --path="toit-artemis-assets/$organization_id/images/$app_id.$word_size" --content=content
 
-  upload_firmware --organization_id/string --firmware_id/string parts/List -> none:
+  upload_firmware --organization_id/uuid.Uuid --firmware_id/string parts/List -> none:
     buffer := bytes.Buffer
     parts.do: | part/ByteArray | buffer.write part
     client_.storage.upload --path="toit-artemis-assets/$organization_id/firmware/$firmware_id" --content=buffer.bytes
 
-  download_firmware --organization_id/string --id/string -> ByteArray:
+  download_firmware --organization_id/uuid.Uuid --id/string -> ByteArray:
     buffer := bytes.Buffer
     client_.storage.download --path="toit-artemis-assets/$organization_id/firmware/$id":
       | reader/reader.Reader |
         buffer.write_from reader
     return buffer.bytes
 
-  notify_created --device_id/string --state/Map -> none:
+  notify_created --device_id/uuid.Uuid --state/Map -> none:
     client_.rest.rpc "toit_artemis.new_provisioned" {
-      "_device_id" : device_id,
+      "_device_id" : "$device_id",
       "_state" : state,
     }
 
@@ -139,16 +139,16 @@ class BrokerCliSupabase implements BrokerCli:
       --since/Time?=null:
     payload := {
       "_types": types or [],
-      "_device_ids": device_ids,
+      "_device_ids": device_ids.map: "$it",
       "_limit": limit,
     }
     if since: payload["_since"] = "$since"
     response := client_.rest.rpc "toit_artemis.get_events" payload
     result := {:}
     current_list/List? := null
-    current_id/string? := null
+    current_id/uuid.Uuid? := null
     response.do: | row/Map |
-      device_id := row["device_id"]
+      device_id := uuid.parse row["device_id"]
       event_type := row["type"]
       data := row["data"]
       timestamp := row["ts"]
@@ -165,11 +165,11 @@ class BrokerCliSupabase implements BrokerCli:
   */
   get_devices --device_ids/List -> Map:
     response := client_.rest.rpc "toit_artemis.get_devices" {
-      "_device_ids": device_ids,
+      "_device_ids": device_ids.map: "$it",
     }
     result := {:}
     response.do: | row/Map |
-      device_id := row["device_id"]
+      device_id := uuid.parse row["device_id"]
       goal := row["goal"]
       state := row["state"]
       result[device_id] = DeviceDetailed --goal=goal --state=state

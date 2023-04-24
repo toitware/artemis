@@ -37,7 +37,7 @@ run_test test_cli/TestCli:
       "fleet",
       "--fleet-root", fleet_tmp_dir,
       "init",
-      "--organization-id", TEST_ORGANIZATION_UUID,
+      "--organization-id", "$TEST_ORGANIZATION_UUID",
     ]
 
     expect (file.is_file "$fleet_tmp_dir/fleet.json")
@@ -49,7 +49,7 @@ run_test test_cli/TestCli:
       "fleet",
       "--fleet-root", fleet_tmp_dir,
       "init",
-      "--organization-id", TEST_ORGANIZATION_UUID,
+      "--organization-id", "$TEST_ORGANIZATION_UUID",
     ]
     expect (already_initialized_message.contains "already contains a fleet.json file")
 
@@ -58,6 +58,6 @@ run_test test_cli/TestCli:
       "fleet",
       "--fleet-root", fleet_tmp_dir,
       "init",
-      "--organization-id", NON_EXISTENT_UUID,
+      "--organization-id", "$NON_EXISTENT_UUID",
     ]
     expect (bad_org_id_message.contains "does not exist or")
