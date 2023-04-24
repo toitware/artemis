@@ -183,6 +183,36 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: status it config cache ui
   cmd.add status_cmd
 
+  add_device_cmd := cli.Command "add-device"
+      --long_help="""
+        Add an existing device to the fleet.
+
+        This command adds an existing device to the fleet. The device must
+        already be provisioned and be in the same organization as the fleet.
+
+        Usually, this command is not needed. Devices are automatically added
+        to the fleet when their identities are created.
+
+        This command can be useful to migrate devices from one fleet to
+        another, or to add devices that were created before fleets existed.
+        """
+      --options=[
+        cli.Option "name"
+            --short_help="The name of the device.",
+        cli.Option "alias"
+            --short_help="The alias of the device."
+            --multi
+            --split_commas,
+      ]
+      --rest=[
+        cli.Option "device-id"
+            --type="uuid"
+            --short_help="The ID of the device to add."
+            --required,
+      ]
+      --run=:: add_device it config cache ui
+  cmd.add add_device_cmd
+
   return [cmd]
 
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -248,3 +278,25 @@ status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     fleet.status --include_healthy=include_healthy --include_never_seen=include_never_seen
+
+add_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
+  device_id := parsed["device-id"]
+  name := parsed["name"]
+  aliases := parsed["alias"]
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+
+    with_artemis parsed config cache ui: | artemis/Artemis |
+      broker := artemis.connected_broker
+      devices := broker.get_devices --device_ids=[device_id]
+      if devices.is_empty:
+        ui.abort "Device $device_id not found."
+
+      device/DeviceDetailed := devices[device_id]
+      if device.organization_id != fleet.organization_id:
+        ui.abort "Device $device_id is not in the same organization as the fleet."
+
+      fleet.add_device --device_id=device.id --name=name --aliases=aliases
+      ui.info "Added device $device_id to fleet."
