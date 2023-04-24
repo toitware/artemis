@@ -40,6 +40,8 @@ interface Ui implements supabase.Ui cli.Ui:
 
   print str/string
 
+  abort str/string
+
   abort
 
 /**
@@ -115,6 +117,10 @@ class ConsoleUi implements Ui:
 
   print_ str/string:
     global_print_ str
+
+  abort str/string:
+    error str
+    abort
 
   abort -> none:
     exit 1

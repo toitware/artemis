@@ -192,8 +192,7 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if not organization_id:
     default_organization_id := config.get CONFIG_ORGANIZATION_DEFAULT
     if not default_organization_id:
-      ui.error "No organization ID specified and no default organization ID set."
-      ui.abort
+      ui.abort "No organization ID specified and no default organization ID set."
 
     organization_id = default_organization_id
 
