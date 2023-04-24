@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Toitware ApS.
+// Copyright (C) 2023 Toitware ApS.
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
