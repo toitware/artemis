@@ -261,6 +261,20 @@ timestamp_to_string timestamp/Time -> string:
     $(%02d utc.h):$(%02d utc.m):$(%02d utc.s).\
     $(%09d timestamp.ns_part)Z"""
 
+timestamp_to_human_readable timestamp/Time --now_cut_off/Duration=(Duration --s=10) -> string:
+  now := Time.now
+  diff := timestamp.to now
+  if diff < (Duration --s=10):
+    return "now"
+  if diff < (Duration --m=1):
+    return "$diff.in_s seconds ago"
+  if diff < (Duration --h=1):
+    return "$diff.in_m minutes ago"
+  local_now := Time.now.local
+  local := timestamp.local
+  if local_now.year == local.year and local_now.month == local.month and local_now.day == local.day:
+    return "$(%02d local.h):$(%02d local.m):$(%02d local.s)"
+  return "$local.year-$(%02d local.month)-$(%02d local.day) $(%02d local.h):$(%02d local.m):$(%02d local.s)"
 
 // TODO(florian): move this into the cli package.
 class OptionPatterns extends cli.OptionEnum:

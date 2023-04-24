@@ -400,10 +400,11 @@ with_test_cli
       if artemis_task: artemis_task.cancel
       directory.rmdir --recursive cache_dir
 
-build_encoded_firmware
+build_encoded_firmware -> string
     --device_id/string
     --organization_id/string=TEST_ORGANIZATION_UUID
     --hardware_id/string=device_id
+    --firmware_token/ByteArray=#[random 256, random 256, random 256, random 256]
     --sdk_version/string="v2.0.0-alpha.52":
   device_specific := ubjson.encode {
     "artemis.device": {
@@ -411,7 +412,11 @@ build_encoded_firmware
       "organization_id": organization_id,
       "hardware_id": hardware_id,
     },
-    "parts": ubjson.encode [],
+    "parts": ubjson.encode [{
+      "from": 0,
+      "to": 10,
+      "hash": firmware_token,
+    }],
     "sdk-version": sdk_version,
   }
   return base64.encode (ubjson.encode {
@@ -419,7 +424,7 @@ build_encoded_firmware
     "checksum": #[],
   })
 
-build_encoded_firmware --device/Device --sdk_version/string="v2.0.0-alpha.52":
+build_encoded_firmware --device/Device --sdk_version/string?=null -> string:
   return build_encoded_firmware
       --device_id=device.id
       --organization_id=device.organization_id
