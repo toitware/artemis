@@ -443,7 +443,6 @@ class Artemis:
         // The device might be running this firmware.
         if state: known_encoded_firmwares.add state["firmware"]
 
-
       upgrade_from := []
       if known_encoded_firmwares.is_empty:
         if base_firmwares.is_empty:
@@ -453,9 +452,10 @@ class Artemis:
       else:
         known_encoded_firmwares.do: | encoded/string |
           old_firmware := Firmware.encoded encoded
-          device_map := old_firmware.device_specific "artemis.device"
-          if device_map["device_id"] != device_id:
-            ui_.error "The device id of the firmware image ($device.id) does not match the given device id ($device_id)."
+          old_device_map := old_firmware.device_specific "artemis.device"
+          old_device_id := uuid.parse old_device_map["device_id"]
+          if device_id != old_device_id:
+            ui_.error "The device id of the firmware image ($old_device_id) does not match the given device id ($device_id)."
             ui_.abort
           upgrade_from.add old_firmware.content
 
