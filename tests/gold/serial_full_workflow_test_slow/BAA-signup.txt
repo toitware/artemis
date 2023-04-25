@@ -1,0 +1,3 @@
+# Sign up for a new account.
+# [auth, signup, --email, USER@EMAIL, --password, USER-PASSWORD]
+Successfully signed up. Check your email for a verification link.

@@ -1,0 +1,4 @@
+# Create an organization
+# [org, create, ORGANIZATION_NAME           ]
+Created organization -={| UUID-FOR-TEST-ORGANIZATION |}=- - ORGANIZATION_NAME           
+Default organization set to -={| UUID-FOR-TEST-ORGANIZATION |}=- - ORGANIZATION_NAME           

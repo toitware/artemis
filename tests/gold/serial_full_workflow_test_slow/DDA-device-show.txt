@@ -1,0 +1,20 @@
+# Show the device before update.
+# [device, show, -d, -={|    UUID-FOR-TEST-DEVICE    |}=-, --max-events, 0, --fleet-root, FLEET-DIR]
+Device ID: -={|    UUID-FOR-TEST-DEVICE    |}=-
+Organization ID: -={| UUID-FOR-TEST-ORGANIZATION |}=- (ORGANIZATION_NAME           )
+
+Firmware state as reported by the device:
+  sdk-version: SDK-VERSION
+  max-offline: 10
+  firmware: INITIAL_FIRMWARE
+  connections: [
+    * password: ***
+      ssid: WIFI-SSID
+      type: wifi
+  ]
+  apps:
+    hello:
+      id: APP_ID
+      triggers:
+        boot: 1
+        interval: 60
