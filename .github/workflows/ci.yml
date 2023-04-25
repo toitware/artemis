@@ -178,7 +178,6 @@ jobs:
           # Add a T to indicate that this is a test version and avoid this problem.
           SERVICE_VERSION=$VERSION-T
 
-
           ARTEMIS_TESTING_ORGANIZATION=3ea5b632-5739-4f40-8446-2fc102a5b338
 
           build/bin/uploader service \
