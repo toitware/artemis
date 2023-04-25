@@ -1090,13 +1090,13 @@ test_invalid_write_offset offset/int:
       [ #[1, 2], #[99], #[87], #[5, 4, 3] ]
       read_all flashlog_3 --expected_first_sn=17
 
-validate_round_trip flashlog/FlashLog input/List --append/bool=true -> none:
+validate_round_trip flashlog/TestFlashLog input/List --append/bool=true -> none:
   if append: input.do: flashlog.append it
   output := read_all flashlog
   output.size.repeat:
     expect_bytes_equal input[it] output[it]
 
-read_all flashlog/FlashLog --expected_first_sn/int?=null -> List:
+read_all flashlog/TestFlashLog --expected_first_sn/int?=null -> List:
   output := {:}
   while flashlog.has_more:
     last_sn := null
@@ -1144,6 +1144,90 @@ class TestFlashLog extends FlashLog:
 
   max_entry_size -> int:
     return ((size_per_page_ - FlashLog.HEADER_SIZE_ - 1) * 7 + 6) / 8
+
+  has_more -> bool:
+    // TODO(kasper): Handle reading from ack'ed pages. We
+    // have an invariant that makes it impossible to get
+    // to this point, but we should handle it gracefully.
+    with_buffer_: | buffer/ByteArray |
+      assert: FlashLog.HEADER_SIZE_ + 1 < 16
+      region_.read --from=read_page_ buffer[..16]
+      if (buffer[FlashLog.HEADER_SIZE_] & 0xc0) == 0x80: return true
+    return false
+
+  /**
+  Reads from the first unacknowledged page.
+  */
+  read [block] -> none:
+    with_buffer_: | buffer/ByteArray |
+      commit_and_read_ buffer read_page_: | sn count | null
+      decode buffer block
+
+  /**
+  Decodes the given buffer.
+  */
+  decode buffer/ByteArray [block] -> none:
+    sn := LITTLE_ENDIAN.uint32 buffer FlashLog.HEADER_SN_OFFSET_
+    cursor := FlashLog.HEADER_SIZE_
+    while true:
+      from := cursor
+      to := cursor
+
+      acc := buffer[cursor++]
+      if acc == 0xff: return
+
+      bits := 6
+      acc &= 0x3f
+      while true:
+        if bits < 8:
+          next := (cursor >= buffer.size) ? 0xff : buffer[cursor]
+          if (next & 0x80) != 0:
+            // We copy the section because we're reusing buffers
+            // and it is very unfortunate to change the sections
+            // we have already handed out.
+            block.call (buffer.copy from to) sn
+            if next == 0xff: return
+            sn = SN.next sn
+            break
+          acc |= (next << bits)
+          bits += 7
+          cursor++
+          continue
+        buffer[to++] = (acc & 0xff)
+        acc >>= 8
+        bits -= 8
+
+  reset -> bool:
+    read_page_ = -1
+    write_page_ = -1
+    write_offset_ = -1
+    return with_buffer_: ensure_valid_ it
+
+  dump -> none:
+    with_buffer_: | buffer/ByteArray |
+      for page := 0; page < size_; page += size_per_page_:
+        banner := ?
+        if page == read_page_ and page == write_page_:
+          banner = "RW"
+        else if page == write_page_:
+          banner = " W"
+        else if page == read_page_:
+          banner = "R "
+        else:
+          banner = "  "
+
+        is_committed_page_ page buffer: | sn is_acked count |
+          if is_acked:
+            print "- page $(%06x page):   committed $banner (sn=$(%08x sn), count=$(%04d count)) | ack'ed"
+          else:
+            print "- page $(%06x page):   committed $banner (sn=$(%08x sn), count=$(%04d count))"
+          continue
+        is_uncommitted_page_ page buffer: | sn |
+          region_.read --from=page buffer
+          count := decode_count_ buffer
+          print "- page $(%06x page): uncommitted $banner (sn=$(%08x sn), count=$(%04d count))"
+          continue
+        print "- page $(%06x page): ########### $banner (sn=$("?" * 8), count=$("?" * 4))"
 
   static construct description/List -> TestFlashLog
       --read_page/int?=null
