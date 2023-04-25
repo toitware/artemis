@@ -60,10 +60,6 @@ class FlashLog:
     if usage == 0: region_.close
     return usage
 
-  dump -> none:
-    with_buffer_ --if_absent=(: ByteArray size_per_page_): | buffer/ByteArray |
-      dump_ buffer
-
   append bytes/ByteArray -> none:
     append bytes --if_full=: throw "OUT_OF_BOUNDS"
 
@@ -112,58 +108,6 @@ class FlashLog:
       region_.write --from=write_offset_ buffer[..size]
       write_offset_ += size
 
-  has_more -> bool:
-    // TODO(kasper): Handle reading from ack'ed pages. We
-    // have an invariant that makes it impossible to get
-    // to this point, but we should handle it gracefully.
-    with_buffer_: | buffer/ByteArray |
-      assert: HEADER_SIZE_ + 1 < 16
-      region_.read --from=read_page_ buffer[..16]
-      if (buffer[HEADER_SIZE_] & 0xc0) == 0x80: return true
-    return false
-
-  /**
-  Reads from the first unacknowledged page.
-  */
-  read [block] -> none:
-    with_buffer_: | buffer/ByteArray |
-      commit_and_read_ buffer read_page_: | sn count | null
-      decode buffer block
-
-  /**
-  Decodes the given buffer.
-  */
-  decode buffer/ByteArray [block] -> none:
-    sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
-    cursor := HEADER_SIZE_
-    while true:
-      from := cursor
-      to := cursor
-
-      acc := buffer[cursor++]
-      if acc == 0xff: return
-
-      bits := 6
-      acc &= 0x3f
-      while true:
-        if bits < 8:
-          next := (cursor >= buffer.size) ? 0xff : buffer[cursor]
-          if (next & 0x80) != 0:
-            // We copy the section because we're reusing buffers
-            // and it is very unfortunate to change the sections
-            // we have already handed out.
-            block.call (buffer.copy from to) sn
-            if next == 0xff: return
-            sn = SN.next sn
-            break
-          acc |= (next << bits)
-          bits += 7
-          cursor++
-          continue
-        buffer[to++] = (acc & 0xff)
-        acc >>= 8
-        bits -= 8
-
   /**
   Reads the page $peek pages after the read page
     into the given buffer.
@@ -208,8 +152,6 @@ class FlashLog:
       return [sn, cursor, count, buffer]
     unreachable
 
-  // TODO(kasper): Allow passing the buffer in from the outside
-  // so we can reuse the one the client already has?
   acknowledge sn/int -> none:
     with_buffer_: | buffer/ByteArray |
       is_committed_page_ read_page_ buffer: | sn_ is_acked count |
@@ -226,12 +168,6 @@ class FlashLog:
         assert: is_valid_ buffer
         return
     throw "Cannot acknowledge unread page"
-
-  reset -> bool:
-    read_page_ = -1
-    write_page_ = -1
-    write_offset_ = -1
-    return with_buffer_: ensure_valid_ it
 
   // ------------------------------------------------------------------------
 
@@ -368,7 +304,6 @@ class FlashLog:
     if not is_valid_ buffer:
       // TODO(kasper): Should we delete the whole thing here? It is
       // slow but it is potentially a way out of jail.
-      dump_ buffer
       throw "INVALID_STATE"
     return true
 
@@ -650,41 +585,6 @@ class FlashLog:
     sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
     found.call sn
 
-  dump_ buffer/ByteArray -> none:
-    for page := 0; page < size_; page += size_per_page_:
-      banner := ?
-      if page == read_page_ and page == write_page_:
-        banner = "RW"
-      else if page == write_page_:
-        banner = " W"
-      else if page == read_page_:
-        banner = "R "
-      else:
-        banner = "  "
-
-      is_committed_page_ page buffer: | sn is_acked count |
-        if is_acked:
-          print "- page $(%06x page):   committed $banner (sn=$(%08x sn), count=$(%04d count)) | ack'ed"
-        else:
-          print "- page $(%06x page):   committed $banner (sn=$(%08x sn), count=$(%04d count))"
-        continue
-      is_uncommitted_page_ page buffer: | sn |
-        region_.read --from=page buffer
-        count := decode_count_ buffer
-        print "- page $(%06x page): uncommitted $banner (sn=$(%08x sn), count=$(%04d count))"
-        continue
-      print "- page $(%06x page): ########### $banner (sn=$("?" * 8), count=$("?" * 4))"
-
-// TODO(kasper): Remove this helper.
-untested_ value/bool message/string?=null -> bool:
-  message = message ? " ($message)" : ""
-  catch --trace: throw "untested$message"
-  return value
-
-// TODO(kasper): Remove this helper.
-unimplemented_ message/string?=null -> none:
-  untested_ false message
-  throw "UNIMPLEMENTED"
 
 class SN:
   static MASK ::= api.ArtemisService.CHANNEL_POSITION_MASK
