@@ -159,7 +159,7 @@ class Fleet:
     ambiguous_ids := {:}
     devices.size.repeat: | i/int |
       device/DeviceFleet := devices[i]
-      add_alias := : | id/uuid.Uuid |
+      add_alias := : | id/string |
         if result.contains id:
           old := result[id]
           if old == i:
@@ -175,7 +175,7 @@ class Fleet:
         else:
           result[id] = i
 
-      add_alias.call device.id
+      add_alias.call "$device.id"
       if device.name:
         add_alias.call device.name
       if device.aliases:

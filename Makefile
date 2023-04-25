@@ -119,16 +119,11 @@ setup-local-dev:
 dev-sdk-version:
 	@ echo $(LOCAL_DEV_SDK)
 
-.PHONY: upload-testing-service
-upload-testing-service: build
-	# It's hard to ensure that we don't upload a service with a the same tag
-	# as a release.
-	# For simplicity we use a '-T' suffix to indicate that this is a testing version.
-	build/bin/uploader service \
+.PHONY: upload-service
+upload-service:
+	@ $(TOITRUN) tools/service_image_uploader/uploader.toit service --local --force \
 		--sdk-version=$(LOCAL_DEV_SDK) \
-		--service-version=$$(cmake -DPRINT_VERSION=1 -P tools/gitversion.cmake)-T
-		--organization=$(ARTEMIS_TESTING_ORGANIZATION)
-		--local
+		--service-version=$(SETUP_LOCAL_DEV_SERVICE)
 
 .PHONY: download-sdk
 download-sdk: install-pkgs
