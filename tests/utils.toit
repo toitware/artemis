@@ -119,10 +119,12 @@ class TestCli:
   /** A map of strings to be replaced in the output of $run. */
   replacements/Map ::= {:}
   gold_name/string
+  sdk_version/string
 
   constructor .config .cache .artemis .broker
       --toit_run/string
-      --.gold_name:
+      --.gold_name
+      --.sdk_version:
     toit_run_ = toit_run
 
   close:
@@ -626,6 +628,7 @@ with_test_cli
     test_cli := TestCli config cache artemis_server broker
         --toit_run=toit_run
         --gold_name=gold_name
+        --sdk_version=sdk_version
     try:
       test_cli.run ["config", "broker", "--artemis", "default", artemis_config.name]
       test_cli.run ["config", "broker", "default", broker_config.name]

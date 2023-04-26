@@ -8,6 +8,7 @@ import uuid
 import .supabase_local_server
 import ..tools.http_servers.artemis_server show HttpArtemisServer DeviceEntry EventEntry
 import ..tools.http_servers.artemis_server as http_servers
+import ..tools.lan_ip.lan_ip
 import artemis.shared.server_config show ServerConfig ServerConfigHttpToit ServerConfigSupabase
 import .utils
 
@@ -121,8 +122,13 @@ with_http_artemis_server [block]:
   port_latch := monitor.Latch
   server_task := task:: server.start port_latch
 
+  host := "localhost"
+  if platform != PLATFORM_WINDOWS:
+    lan_ip := get_lan_ip
+    host = host.replace "localhost" lan_ip
+
   server_config := ServerConfigHttpToit "test-artemis-server"
-      --host="localhost"
+      --host=host
       --port=port_latch.get
 
   server.create_organization
