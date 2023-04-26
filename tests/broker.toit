@@ -15,6 +15,7 @@ import artemis.service.brokers.broker show BrokerService
 import .supabase_local_server
 import ..tools.http_servers.broker show HttpBroker
 import ..tools.http_servers.broker as http_servers
+import ..tools.lan_ip.lan_ip
 import artemis.shared.server_config
   show
     ServerConfig
@@ -98,8 +99,13 @@ with_http_broker [block]:
   port_latch := monitor.Latch
   server_task := task:: server.start port_latch
 
+  host := "localhost"
+  if platform != PLATFORM_WINDOWS:
+    lan_ip := get_lan_ip
+    host = host.replace "localhost" lan_ip
+
   server_config := ServerConfigHttpToit "test-broker"
-      --host="localhost"
+      --host=host
       --port=port_latch.get
 
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
