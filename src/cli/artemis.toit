@@ -13,6 +13,7 @@ import encoding.base64
 import encoding.ubjson
 import encoding.json
 
+import .afw
 import .cache as cache
 import .cache show service_image_cache_key application_image_cache_key
 import .config
@@ -354,16 +355,27 @@ class Artemis:
     return result
 
   /**
-  Uploads the given firmware $envelope_path to the server under the given
+  Variant of $(upload_firmware --envelope_path --organization_id) that takes
+    an Afw path instead.
+  */
+  upload_firmware --afw_path/string --organization_id/uuid.Uuid:
+    afw := Afw.parse afw_path --ui=ui_
+    with_tmp_directory: | tmp_dir/string |
+      envelope_path := "$tmp_dir/customized.envelope"
+      write_blob_to_file envelope_path afw.envelope
+      upload_firmware --envelope_path=envelope_path --organization_id=organization_id
+
+  /**
+  Uploads the given envelope to the server under the given
     $organization_id.
 
   The firmware can then be used for diff-based updates, or simply as direct
     downloads for updates.
   */
-  upload_firmware envelope_path/string --organization_id/uuid.Uuid:
-    firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
-    firmware_content.trivial_patches.do:
-      upload_patch it --organization_id=organization_id
+  upload_firmware --envelope_path/string --organization_id/uuid.Uuid:
+      firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
+      firmware_content.trivial_patches.do:
+        upload_patch it --organization_id=organization_id
 
   /**
   Uploads the given $patch to the server under the given $organization_id.
@@ -431,7 +443,7 @@ class Artemis:
   */
   update --device_id/uuid.Uuid --envelope_path/string --base_firmwares/List=[]:
     update_goal --device_id=device_id: | device/DeviceDetailed |
-      upload_firmware envelope_path --organization_id=device.organization_id
+      upload_firmware --envelope_path=envelope_path --organization_id=device.organization_id
 
       known_encoded_firmwares := {}
       [
