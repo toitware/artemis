@@ -15,11 +15,8 @@ import supabase
 
 main args:
   // Start a TestCli, since that will set up everything the way we want.
-  with_test_cli --args=args --artemis_type="supabase": run_test it
-
-// The SDK version that is used for this test.
-// It's safe to update the version to a newer version.
-SDK_VERSION ::= "v2.0.0-alpha.79"
+  with_test_cli --args=args --artemis_type="supabase":
+    run_test it
 
 // Just a commit that exists on main.
 // It's safe to update the commit to a newer version.
@@ -34,7 +31,7 @@ run_main_test
   block.call
   // Check that the service is available.
   available_sdks := test_cli.run [
-    "sdk", "list", "--sdk-version", SDK_VERSION, "--service-version", service_version
+    "sdk", "list", "--sdk-version", test_cli.sdk_version, "--service-version", service_version
   ]
   expect (available_sdks.contains service_version)
 
@@ -66,6 +63,7 @@ delete_service_version test_cli/TestCli service_version/string:
     ]
 
 run_test test_cli/TestCli:
+  sdk_version := test_cli.sdk_version
   with_tmp_directory: | tmp_dir/string |
     ui := TestUi --no-quiet
     git := Git --ui=ui
@@ -96,7 +94,7 @@ run_test test_cli/TestCli:
             --ui=ui
             [
               "service",
-              "--sdk-version", SDK_VERSION,
+              "--sdk-version", sdk_version,
               "--service-version", service_version,
               "--snapshot-directory", tmp_dir,
             ]
@@ -109,7 +107,7 @@ run_test test_cli/TestCli:
             --ui=ui
             [
               "service",
-              "--sdk-version", SDK_VERSION,
+              "--sdk-version", sdk_version,
               "--service-version", service_version,
               "--snapshot-directory", tmp_dir,
             ]
@@ -122,7 +120,7 @@ run_test test_cli/TestCli:
             --ui=ui
             [
               "service",
-              "--sdk-version", SDK_VERSION,
+              "--sdk-version", sdk_version,
               "--service-version", service_version,
               "--snapshot-directory", tmp_dir,
               "--force",
@@ -137,7 +135,7 @@ run_test test_cli/TestCli:
             --ui=ui
             [
               "service",
-              "--sdk-version", SDK_VERSION,
+              "--sdk-version", sdk_version,
               "--service-version", service_version,
               "--commit", TEST_COMMIT,
               "--snapshot-directory", tmp_dir,
@@ -154,7 +152,7 @@ run_test test_cli/TestCli:
             --ui=ui
             [
               "service",
-              "--sdk-version", SDK_VERSION,
+              "--sdk-version", sdk_version,
               "--service-version", local_version,
               "--local",
               "--snapshot-directory", tmp_dir,
@@ -168,7 +166,7 @@ run_test test_cli/TestCli:
             --ui=ui
             [
               "service",
-              "--sdk-version", SDK_VERSION,
+              "--sdk-version", sdk_version,
               "--local",
               "--snapshot-directory", tmp_dir,
             ]
@@ -182,7 +180,7 @@ run_test test_cli/TestCli:
         --cache=test_cli.cache
         --ui=ui
         [
-          "--sdk-version", SDK_VERSION,
+          "--sdk-version", sdk_version,
           "--service-version", service_version,
           "--output-directory", tmp_dir,
         ]
