@@ -243,6 +243,8 @@ print_device_
       if key == "firmware": prettify_firmware value
       else: value
     print_map_ prettified ui --indentation=2
+        --preferred_keys=["sdk-version", "max-offline", "firmware", "connections", "apps"]
+
 
   if device.pending_firmware:
     ui.print ""
@@ -324,25 +326,38 @@ print_device_
     event_strings := events.map: event_to_string.call it
     ui.info_list --title="Events" event_strings
 
-print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="":
+print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="" --preferred_keys/List?=null:
   first_indentation_str := " " * indentation + prefix
   next_indentation_str := " " * first_indentation_str.size
   nested_indentation := first_indentation_str.size + 2
   is_first := true
-  map.do: | key/string value |
-    if is_sensitive_ key and value is string:
-      value = "***"
-    indentation_str := is_first ? first_indentation_str : next_indentation_str
-    is_first = false
-    if value is Map:
-      ui.print "$indentation_str$key:"
-      print_map_ value ui --indentation=nested_indentation
-    else if value is List:
-      ui.print "$indentation_str$key: ["
-      print_list_ value ui --indentation=nested_indentation
-      ui.print "$indentation_str]"
-    else:
-      ui.print "$indentation_str$key: $value"
+
+  already_printed := {}
+  print_key_value := : | key/string value |
+    if not already_printed.contains key:
+      already_printed.add key
+      if is_sensitive_ key and value is string:
+        value = "***"
+      indentation_str := is_first ? first_indentation_str : next_indentation_str
+      is_first = false
+      if value is Map:
+        ui.print "$indentation_str$key:"
+        print_map_ value ui --indentation=nested_indentation
+      else if value is List:
+        ui.print "$indentation_str$key: ["
+        print_list_ value ui --indentation=nested_indentation
+        ui.print "$indentation_str]"
+      else:
+        ui.print "$indentation_str$key: $value"
+
+  if preferred_keys:
+    preferred_keys.do: | key |
+      if map.contains key:
+        print_key_value.call key map[key]
+
+  keys := map.keys.sort
+  keys.do: | key |
+    print_key_value.call key map[key]
 
 print_list_ list/List ui/Ui --indentation/int=0:
   indentation_str := " " * indentation
