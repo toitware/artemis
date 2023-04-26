@@ -21,7 +21,7 @@ import artemis.service
 import artemis.service.brokers.broker show ResourceManager BrokerService
 import artemis.service.device show Device
 import artemis.cli.ui show ConsoleUi
-import artemis.cli.utils show write_blob_to_file
+import artemis.cli.utils show write_blob_to_file read_base64_ubjson
 import ..tools.http_servers.broker as http_servers
 import ..tools.http_servers.artemis_server as http_servers
 import monitor
@@ -680,3 +680,53 @@ broker_type_from_args args/List:
 
 random_uuid -> uuid.Uuid:
   return uuid.uuid5 "random" "uuid $Time.now.ns_since_epoch $random"
+
+with_fleet --args/List --count/int [block]:
+  with_test_cli --args=args: | test_cli/TestCli |
+    with_tmp_directory: | fleet_dir |
+      test_cli.replacements[fleet_dir] = "<FLEET_ROOT>"
+      test_cli.run [
+        "auth", "login",
+        "--email", TEST_EXAMPLE_COM_EMAIL,
+        "--password", TEST_EXAMPLE_COM_PASSWORD,
+      ]
+
+      test_cli.run [
+        "auth", "login",
+        "--broker",
+        "--email", TEST_EXAMPLE_COM_EMAIL,
+        "--password", TEST_EXAMPLE_COM_PASSWORD,
+      ]
+
+      test_cli.run [
+        "fleet",
+        "--fleet-root", fleet_dir,
+        "init",
+        "--organization-id", "$TEST_ORGANIZATION_UUID",
+      ]
+
+      identity_dir := "$fleet_dir/identities"
+      directory.mkdir --recursive identity_dir
+      test_cli.run [
+        "fleet",
+        "--fleet-root", fleet_dir,
+        "create-identities",
+        "--output-directory", identity_dir,
+        "$count",
+      ]
+
+      devices := json.decode (file.read_content "$fleet_dir/devices.json")
+      ids := devices.keys
+      expect_equals count ids.size
+
+      fake_devices := []
+      ids.do: | id/string |
+        id_file := "$identity_dir/$(id).identity"
+        expect (file.is_file id_file)
+        content := read_base64_ubjson id_file
+        fake_device := test_cli.start_fake_device --identity=content
+        test_cli.replacements[id] = "-={| UUID-FOR-FAKE-DEVICE $(%05d fake_devices.size) |}=-"
+        fake_devices.add fake_device
+
+      block.call test_cli fake_devices fleet_dir
+
