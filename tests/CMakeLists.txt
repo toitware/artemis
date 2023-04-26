@@ -17,7 +17,13 @@ ProcessorCount(NUM_CPU)
 
 add_custom_target(
   check
-  COMMAND ${CMAKE_CTEST_COMMAND} -j${NUM_CPU} -T test --output-on-failure
+  COMMAND ${CMAKE_CTEST_COMMAND} -j${NUM_CPU} -T test --output-on-failure -C default
+  USES_TERMINAL
+)
+
+add_custom_target(
+  serial_check
+  COMMAND ${CMAKE_CTEST_COMMAND} -j${NUM_CPU} -T test --output-on-failure -C serial
   USES_TERMINAL
 )
 
@@ -71,6 +77,11 @@ endfunction()
 foreach(file ${TESTS})
   if ("${file}" MATCHES "supabase" AND NOT "${WITH_LOCAL_SUPABASE}")
     continue()
+  endif()
+
+  set (IS_SERIAL_TEST FALSE)
+  if ("${file}" MATCHES "^serial")
+    set (IS_SERIAL_TEST TRUE)
   endif()
 
   extract_test_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" flags)
@@ -133,14 +144,29 @@ foreach(file ${TESTS})
     # Split the flags at " ".
     string(REPLACE " " ";" flag "${flag}")
 
+    set(RESOURCE_LOCKS)
     if (SUPABASE_ARTEMIS_FLAG IN_LIST flag)
       list(APPEND SUPABASE_ARTEMIS_TESTS "${test_name}")
+      list(APPEND RESOURCE_LOCKS "artemis_server")
     endif()
     if (SUPABASE_BROKER_FLAG IN_LIST flag)
       list(APPEND SUPABASE_BROKER_TESTS "${test_name}")
+      list(APPEND RESOURCE_LOCKS "artemis_broker")
     endif()
     if (SUPABASE_ARTEMIS_BROKER_FLAG IN_LIST flag)
       list(APPEND SUPABASE_ARTEMIS_BROKER_TESTS "${test_name}")
+      list(APPEND RESOURCE_LOCKS "broker")
+    endif()
+
+    if (${IS_SERIAL_TEST})
+      list(APPEND RESOURCE_LOCKS "serial")
+    endif()
+
+    set(TEST_CONFIGURATIONS)
+    if (${IS_SERIAL_TEST})
+      set(TEST_CONFIGURATIONS "serial")
+    else()
+      set(TEST_CONFIGURATIONS "default")
     endif()
 
     add_test(
@@ -152,12 +178,17 @@ foreach(file ${TESTS})
           "--sdk-path=${DEV_SDK_PATH}"
           "--envelope-path=${DEV_ENVELOPE_PATH}"
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      CONFIGURATIONS ${TEST_CONFIGURATIONS}
     )
 
+    if (RESOURCE_LOCKS)
+      set_tests_properties("${test_name}" PROPERTIES RESOURCE_LOCK "${RESOURCE_LOCKS}")
+    endif()
+
     if ("${file}" MATCHES "_slow.toit")
-      set_tests_properties(${test_name} PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
+      set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
     else()
-      set_tests_properties(${test_name} PROPERTIES TIMEOUT ${TEST_TIMEOUT})
+      set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${TEST_TIMEOUT})
     endif()
 
     if("${test_name}" IN_LIST FAILING_TESTS)
@@ -165,15 +196,3 @@ foreach(file ${TESTS})
     endif()
   endforeach()
 endforeach()
-
-if (${WITH_LOCAL_SUPABASE})
-    foreach (supabase_artemis_test ${SUPABASE_ARTEMIS_TESTS})
-      set_tests_properties("${supabase_artemis_test}" PROPERTIES RESOURCE_LOCK "artemis_server")
-    endforeach()
-    foreach (supabase_artemis_broker_test ${SUPABASE_ARTEMIS_BROKER_TESTS})
-      set_tests_properties("${supabase_artemis_broker_test}" PROPERTIES RESOURCE_LOCK "artemis_broker")
-    endforeach()
-    foreach (supabase_broker_test ${SUPABASE_BROKER_TESTS})
-      set_tests_properties("${supabase_broker_test}" PROPERTIES RESOURCE_LOCK "broker")
-    endforeach()
-endif()

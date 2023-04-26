@@ -87,6 +87,16 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
       --.poll_interval=DEFAULT_POLL_INTERVAL:
     super.from_sub_ name
 
+  /**
+  Compares this instance to $other.
+  Does not take the $poll_interval into account.
+  */
+  operator== other:
+    if other is not ServerConfigSupabase: return false
+    return host == other.host and anon == other.anon and
+        root_certificate_name == other.root_certificate_name and
+        root_certificate_der == other.root_certificate_der
+
   type -> string: return "supabase"
 
   is_secured -> bool:
@@ -131,6 +141,10 @@ class ServerConfigHttpToit extends ServerConfig:
       --.host/string
       --.port/int:
     super.from_sub_ name
+
+  operator== other:
+    if other is not ServerConfigHttpToit: return false
+    return host == other.host and port == other.port
 
   type -> string: return "toit-http"
 

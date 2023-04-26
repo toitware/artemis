@@ -30,6 +30,10 @@ disable-supabase-tests: build/CMakeCache.txt
 test: install-pkgs rebuild-cmake download-sdk
 	(cd build && ninja check)
 
+.PHONY: serial-test
+serial-test: install-pkgs rebuild-cmake download-sdk
+	(cd build && ninja serial_check)
+
 # From https://app.supabase.com/project/voisfafsfolxhqpkudzd/settings/auth
 ARTEMIS_HOST := voisfafsfolxhqpkudzd.supabase.co
 ARTEMIS_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvaXNmYWZzZm9seGhxcGt1ZHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQyNDEsImV4cCI6MTk4ODk1MDI0MX0.dmfxNl5WssxnZ8jpvGJeryg4Fd47fOcrlZ8iGrHj2e4

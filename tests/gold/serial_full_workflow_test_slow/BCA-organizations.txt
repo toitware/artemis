@@ -1,0 +1,6 @@
+# List organizations directly aftern signup.
+# [org, list]
+┌────┬──────┐
+│ ID   Name │
+├────┼──────┤
+└────┴──────┘

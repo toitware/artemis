@@ -58,6 +58,8 @@ TEST_DEVICE_ALIAS ::= uuid.parse "191149e5-a95b-47b1-80dd-b149f953d272"
 
 NON_EXISTENT_UUID ::= uuid.uuid5 "non" "existent"
 
+UPDATE_GOLD_ENV ::= "UPDATE_GOLD"
+
 with_tmp_directory [block]:
   tmp_dir := directory.mkdtemp "/tmp/artemis-test-"
   try:
@@ -120,11 +122,13 @@ class TestCli:
   replacements/Map ::= {:}
   gold_name/string
   sdk_version/string
+  tmp_dir/string
 
   constructor .config .cache .artemis .broker
       --toit_run/string
       --.gold_name
-      --.sdk_version:
+      --.sdk_version
+      --.tmp_dir:
     toit_run_ = toit_run
 
   close:
@@ -132,20 +136,45 @@ class TestCli:
       device.close
       artemis.backdoor.remove_device device.hardware_id
 
-  run args/List --expect_exit_1/bool=false -> string:
-    ui := TestUi
-    exception := catch --unwind=(: not expect_exit_1 or it is not TestExit):
-      cli.main args --config=config --cache=cache --ui=ui
+  run args/List --expect_exit_1/bool=false --quiet/bool=true -> string:
+    ui := TestUi --quiet=quiet
+    exception := null
+    try:
+      exception = catch --unwind=(: not expect_exit_1 or it is not TestExit):
+        cli.main args --config=config --cache=cache --ui=ui
+    finally: | is_exception _ |
+      if is_exception:
+        print ui.stdout
+
     if expect_exit_1 and not exception:
       throw "Expected exit 1, but got exit 0"
     result := ui.stdout
     return result
 
+  /**
+  Variant of $(run_gold test_name description args [--before_gold]).
+  */
   run_gold test_name/string description/string args/List --expect_exit_1/bool=false:
+    run_gold test_name description args --expect_exit_1=expect_exit_1 --before_gold=: it
+
+  /**
+  Runs the CLI with the given $args.
+
+  The $test_name is used as filename for the gold file.
+  The $description is embedded in the output of the gold file.
+
+  If $expect_exit_1 then the test is negative and must fail.
+
+  The $before_gold block is called with the output of the running the command.
+    It must return a new output (or the same as the input). It can be used
+    to update the $replacements.
+  */
+  run_gold test_name/string description/string args/List --expect_exit_1/bool=false [--before_gold]:
     output := run args --expect_exit_1=expect_exit_1
+    output = before_gold.call output
     output = canonicalize_gold_ output args --description=description
     gold_path := "gold/$gold_name/$(test_name).txt"
-    if os.env.get "UPDATE_GOLD" or not file.is_file gold_path:
+    if os.env.get UPDATE_GOLD_ENV or not file.is_file gold_path:
       directory.mkdir --recursive "gold/$gold_name"
       write_blob_to_file gold_path output
       print "Updated gold file '$gold_path'."
@@ -163,7 +192,7 @@ class TestCli:
       print "output.size: $output.size"
       for i := 0; i < (min output.size gold_content.size); i++:
         if output[i] != gold_content[i]:
-          print "First difference at $i $output[i] != $gold_content[i]"
+          print "First difference at $i $output[i] != $gold_content[i]."
           break
     expect_equals gold_content output
 
@@ -629,6 +658,7 @@ with_test_cli
         --toit_run=toit_run
         --gold_name=gold_name
         --sdk_version=sdk_version
+        --tmp_dir=tmp_dir
     try:
       test_cli.run ["config", "broker", "--artemis", "default", artemis_config.name]
       test_cli.run ["config", "broker", "default", broker_config.name]
