@@ -89,7 +89,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
 
   /**
   Compares this instance to $other.
-  Does not take into account the $poll_interval.
+  Does not take the $poll_interval into account.
   */
   operator== other:
     if other is not ServerConfigSupabase: return false

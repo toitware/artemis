@@ -192,7 +192,7 @@ class TestCli:
       print "output.size: $output.size"
       for i := 0; i < (min output.size gold_content.size); i++:
         if output[i] != gold_content[i]:
-          print "First difference at $i $output[i] != $gold_content[i]"
+          print "First difference at $i $output[i] != $gold_content[i]."
           break
     expect_equals gold_content output
 

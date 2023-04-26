@@ -21,15 +21,15 @@ import ..tools.service_image_uploader.uploader as uploader
 main args/List:
   serial_port := os.env.get "ARTEMIS_TEST_SERIAL_PORT"
   if not serial_port:
-    print "Missing ARTEMIS_TEST_SERIAL_PORT environment variable"
+    print "Missing ARTEMIS_TEST_SERIAL_PORT environment variable."
     exit 1
   wifi_ssid := os.env.get "ARTEMIS_TEST_WIFI_SSID"
   if not wifi_ssid:
-    print "Missing ARTEMIS_TEST_WIFI_SSID environment variable"
+    print "Missing ARTEMIS_TEST_WIFI_SSID environment variable."
     exit 1
   wifi_password := os.env.get "ARTEMIS_TEST_WIFI_PASSWORD"
   if not wifi_password:
-    print "Missing ARTEMIS_TEST_WIFI_PASSWORD environment variable"
+    print "Missing ARTEMIS_TEST_WIFI_PASSWORD environment variable."
     exit 1
 
   with_test_cli --args=args: | test_cli/TestCli |
@@ -125,8 +125,8 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
   test_cli.replacements[test_org_name] = REPLACEMENT_PREFIX + " " * (test_org_name.size - REPLACEMENT_PREFIX.size)
 
   org_id/string? := null
-  test_cli.run_gold "BCC"
-      "Create an organization"
+  test_cli.run_gold "BCC-create-org"
+      "Create an organization."
       --before_gold=: | output/string |
         // Something like "Created organization cce84fa4-b3cc-5ed8-a7cc-96b2d76bfd37 - foobar"
         space_index := 0
@@ -167,13 +167,13 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
   default_spec["artemis-version"] = service_version
   write_json_to_file --pretty "$fleet_dir/specification.json" default_spec
 
-  print "Creating default firmware"
+  print "Creating default firmware."
   // Create a firmware.
   // Just make sure that the example file works. We are not using that firmware otherwise.
   firmware_envelope := "$tmp_dir/firmware.envelope"
   test_cli.replacements[firmware_envelope] = "FIRMWARE.ENVELOPE"
   test_cli.run_gold "DAA-default-firmware"
-      "Create the default firmware"
+      "Create the default firmware."
       [
         "fleet", "create-firmware",
         "--specification", "$fleet_dir/specification.json",
@@ -211,7 +211,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "--port", serial_port,
       ]
 
-  print "Successfully flashed"
+  print "Successfully flashed."
 
   with_timeout --ms=15_000:
     while true:
@@ -277,7 +277,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "--fleet-root", fleet_dir,
       ]
 
-  print "Waiting for the device to apply the config"
+  print "Waiting for the device to apply the config."
 
   with_timeout --ms=60_000:
     while true:
