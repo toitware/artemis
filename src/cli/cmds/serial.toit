@@ -86,7 +86,7 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="The chip to use.",
       ]
       --run=:: flash --station it config cache ui
-  flash_station_cmd.add flash_station_flash_cmd
+  cmd.add flash_station_flash_cmd
 
   return [cmd]
 
