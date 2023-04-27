@@ -187,7 +187,6 @@ make_default_ device_id/uuid.Uuid config/Config ui/Ui:
 
 flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if not station: throw "INVALID_ARGUMENT"
-  fleet_root := parsed["fleet_root"]
   identity_path := parsed["identity"]
   firmware_path := parsed["firmware"]
   chip := parsed["chip"]
@@ -197,8 +196,6 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   partitions := build_partitions_table_ parsed["partition"] --ui=ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-
     with_tmp_directory: | tmp_dir/string |
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
