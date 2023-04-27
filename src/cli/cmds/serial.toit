@@ -60,6 +60,7 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
 
         Flash station commands don't need any valid fleet root.
         """
+  cmd.add flash_station_cmd
 
   flash_station_flash_cmd := cli.Command "flash"
       --long_help="""
