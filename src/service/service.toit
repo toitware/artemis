@@ -70,14 +70,14 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   return duration
 
 class ArtemisServiceProvider extends ChannelServiceProvider
-    implements services.ServiceHandlerNew api.ArtemisService:
+    implements api.ArtemisService:
   containers_/ContainerManager
 
   constructor .containers_:
     super "toit.io/artemis"
         --major=ARTEMIS_VERSION_MAJOR
         --minor=ARTEMIS_VERSION_MINOR
-    provides api.ArtemisService.SELECTOR --handler=this --new
+    provides api.ArtemisService.SELECTOR --handler=this
 
   handle index/int arguments/any --gid/int --client/int -> any:
     if index == api.ArtemisService.VERSION_INDEX:
