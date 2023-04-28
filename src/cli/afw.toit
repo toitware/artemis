@@ -20,7 +20,6 @@ class Afw:
   // Ar files can only have 15 chars for the name.
   static MAGIC_NAME_ ::= "artemis-fw"
   static CUSTOMIZED_ENVELOPE_NAME_ := "customized.env"
-  static SPECIFICATION_NAME_ := "spec.json"
 
   static MAGIC_CONTENT_ ::= "frickin' sharks"
 
@@ -55,14 +54,7 @@ class Afw:
       if file.name != CUSTOMIZED_ENVELOPE_NAME_:
         ui.abort "The file at '$path' is not a valid Artemis Firmware."
       envelope = file.content
-      file = ar_reader.next
-      if file.name != SPECIFICATION_NAME_:
-        ui.abort "The file at '$path' is not a valid Artemis Firmware."
-      exception := catch:
-        specification_content = json.decode file.content
-      if exception:
-        ui.abort "The file at '$path' is not a valid Artemis Firmware: $exception."
-      return Afw --envelope=envelope --specification_content=specification_content
+      return Afw --envelope=envelope
     unreachable
 
   write path/string --ui/Ui:
@@ -70,4 +62,3 @@ class Afw:
       ar_writer := ArWriter writer
       ar_writer.add CUSTOMIZED_ENVELOPE_NAME_ MAGIC_CONTENT_
       ar_writer.add CUSTOMIZED_ENVELOPE_NAME_ envelope
-      ar_writer.add SPECIFICATION_NAME_ (json.encode specification_content_)
