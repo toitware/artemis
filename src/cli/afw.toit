@@ -25,13 +25,10 @@ class Afw:
   static MAGIC_CONTENT_ ::= "frickin' sharks"
 
   envelope/ByteArray
-  specification_content_/Map  // The JSON map of the specification.
 
-  constructor --.envelope --specification_content/Map:
-    specification_content_ = specification_content
+  constructor --.envelope:
 
   constructor.from_specification --path --artemis/Artemis --ui/Ui:
-    specification_content := read_json path
     parsed_specification := parse_device_specification_file path --ui=ui
     with_tmp_directory: | tmp_dir/string |
       customized_path := "$tmp_dir/customized.envelope"
@@ -40,7 +37,7 @@ class Afw:
           --device_specification=parsed_specification
 
       envelope := file.read_content customized_path
-      return Afw --envelope=envelope --specification_content=specification_content
+      return Afw --envelope=envelope
     unreachable
 
   static parse path/string --ui/Ui -> Afw:

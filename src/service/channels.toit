@@ -1,6 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import system.services show ServiceResource ServiceProvider
+import system.services show ServiceHandler ServiceResource ServiceProvider
 import system.storage
 
 import .flashlog show FlashLog SN
@@ -46,7 +46,8 @@ class ChannelResource extends ServiceResource:
     if receive: receivers_.remove topic
     if log.release == 0: flashlogs_.remove topic
 
-class ChannelServiceProvider extends ServiceProvider:
+class ChannelServiceProvider extends ServiceProvider
+    implements ServiceHandler:
   constructor name/string --major/int --minor/int:
     super name --major=major --minor=minor
 

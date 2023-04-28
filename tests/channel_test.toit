@@ -155,7 +155,7 @@ drain_channel channel/artemis.Channel -> none:
 // --------------------------------------------------------------------------
 
 class TestServiceProvider extends ChannelServiceProvider
-    implements services.ServiceHandlerNew:
+    implements services.ServiceHandler:
   constructor:
     super "toit.io/test-artemis" --major=1 --minor=0
-    provides api.ArtemisService.SELECTOR --handler=this --new
+    provides api.ArtemisService.SELECTOR --handler=this
