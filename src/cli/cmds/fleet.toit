@@ -129,7 +129,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         """
       --rest= [
         cli.Option "firmware"
-            --type="file"
+            --type="afw file"
             --short_help="The firmware to upload."
             --required,
       ]
@@ -160,7 +160,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Option "diff-base"
-            --type="file"
+            --type="afw file"
             --short_help="The base firmware to use for diff-based updates."
             --multi,
       ]
@@ -262,11 +262,11 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  envelope_path := parsed["firmware"]
+  firmware_path := parsed["firmware"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    fleet.upload envelope_path
+    fleet.upload --afw_path=firmware_path
 
 status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]

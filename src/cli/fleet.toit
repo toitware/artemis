@@ -4,6 +4,7 @@ import encoding.json
 import host.file
 import uuid
 
+import .afw
 import .artemis
 import .cache
 import .device
@@ -198,12 +199,9 @@ class Fleet:
     write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
   create_firmware --specification_path/string --output_path/string:
-    specification := parse_device_specification_file specification_path --ui=ui_
-    artemis_.customize_envelope
-        --output_path=output_path
-        --device_specification=specification
-
-    artemis_.upload_firmware output_path --organization_id=organization_id
+    afw := Afw.from_specification --path=specification_path --ui=ui_ --artemis=artemis_
+    afw.write output_path --ui=ui_
+    artemis_.upload_firmware --afw_path=output_path --organization_id=organization_id
     ui_.info "Successfully uploaded firmware to organization $organization_id."
 
   /**
@@ -245,7 +243,11 @@ class Fleet:
     base_patches := {:}
 
     base_firmwares := diff_bases.map: | diff_base/string |
-      FirmwareContent.from_envelope diff_base --cache=cache_
+      afw := Afw.parse diff_base --ui=ui_
+      with_tmp_directory: | tmp_dir/string |
+        envelope_path := "$tmp_dir/fw.envelope"
+        write_blob_to_file envelope_path afw.envelope
+        FirmwareContent.from_envelope envelope_path --cache=cache_
 
     base_firmwares.do: | content/FirmwareContent |
       trivial_patches := artemis_.extract_trivial_patches content
@@ -267,8 +269,12 @@ class Fleet:
 
         ui_.info "Successfully updated device $fleet_device.short_string."
 
-  upload envelope_path/string:
-    artemis_.upload_firmware envelope_path --organization_id=organization_id
+  upload --afw_path/string:
+    artemis_.upload_firmware --afw_path=afw_path --organization_id=organization_id
+    ui_.info "Successfully uploaded firmware."
+
+  upload --envelope_path/string:
+    artemis_.upload_firmware --envelope_path=envelope_path --organization_id=organization_id
     ui_.info "Successfully uploaded firmware."
 
   default_specification_path -> string:

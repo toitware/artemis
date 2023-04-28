@@ -67,6 +67,36 @@ read_base64_ubjson path/string -> any:
   data := file.read_content path
   return ubjson.decode (base64.decode data)
 
+read_file path/string --ui/Ui [block] -> any:
+  return read_file path block --on_error=: | exception |
+    ui.abort "Failed to open '$path' for reading ($exception)."
+
+read_file path/string [block] [--on_error] -> any:
+  stream/file.Stream? := null
+  exception := catch: stream = file.Stream.for_read path
+  if not stream:
+    return on_error.call exception
+  try:
+    return block.call stream
+  finally:
+    stream.close
+
+write_file path/string --ui/Ui [block] -> none:
+  write_file path block --on_error=: | exception |
+    ui.abort "Failed to open '$path' for writing ($exception)."
+
+write_file path/string [block] [--on_error] -> none:
+  stream/file.Stream? := null
+  exception := catch: stream = file.Stream.for_write path
+  if not stream:
+    on_error.call exception
+    return
+  try:
+    writer := writer.Writer stream
+    block.call writer
+  finally:
+    stream.close
+
 download_url url/string --out_path/string -> none:
   network := net.open
   client := http.Client.tls network

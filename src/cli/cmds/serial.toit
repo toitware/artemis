@@ -5,6 +5,7 @@ import host.file
 import uuid
 
 import .utils_
+import ..afw
 import ..artemis
 import ..cache
 import ..config
@@ -74,7 +75,7 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=flash_options + [
         cli.Option "firmware"
-            --type="file"
+            --type="afw file"
             --short_help="The firmware image to flash."
             --required,
         cli.Option "identity"
@@ -147,7 +148,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       artemis.customize_envelope
           --output_path=envelope_path
           --device_specification=specification
-      fleet.upload envelope_path
+      fleet.upload --envelope_path=envelope_path
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
@@ -193,23 +194,27 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   port := parsed["port"]
   baud := parsed["baud"]
 
+  afw := Afw.parse firmware_path --ui=ui
   partitions := build_partitions_table_ parsed["partition"] --ui=ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     with_tmp_directory: | tmp_dir/string |
+      envelope_path := "$tmp_dir/fw.envelope"
+      write_blob_to_file envelope_path afw.envelope
+
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
-          --envelope_path=firmware_path
+          --envelope_path=envelope_path
           --identity_path=identity_path
 
       config_path := "$tmp_dir/config"
       write_blob_to_file config_path config_bytes
 
-      sdk_version := Sdk.get_sdk_version_from --envelope=firmware_path
+      sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
       sdk := get_sdk sdk_version --cache=cache
       // Flash.
       sdk.flash
-          --envelope_path=firmware_path
+          --envelope_path=envelope_path
           --config_path=config_path
           --port=port
           --baud_rate=baud
