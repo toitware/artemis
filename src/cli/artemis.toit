@@ -373,9 +373,9 @@ class Artemis:
     downloads for updates.
   */
   upload_firmware --envelope_path/string --organization_id/uuid.Uuid:
-      firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
-      firmware_content.trivial_patches.do:
-        upload_patch it --organization_id=organization_id
+    firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
+    firmware_content.trivial_patches.do:
+      upload_patch it --organization_id=organization_id
 
   /**
   Uploads the given $patch to the server under the given $organization_id.
