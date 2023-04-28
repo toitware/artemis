@@ -12,13 +12,13 @@ import .ui
 import .utils
 
 /**
-An Artemis Firmware is a file that wraps a customized firmware envelope.
-In addition to the envelope it also contains helpful information, like
-  the specification that was used to create the firmware.
+An Artemis Pod contains all the information to run containers on a device.
+
+It contains the customized firmware envelope.
 */
-class Afw:
+class Pod:
   // Ar files can only have 15 chars for the name.
-  static MAGIC_NAME_ ::= "artemis-fw"
+  static MAGIC_NAME_ ::= "artemis-pod"
   static CUSTOMIZED_ENVELOPE_NAME_ := "customized.env"
 
   static MAGIC_CONTENT_ ::= "frickin' sharks"
@@ -36,10 +36,10 @@ class Afw:
           --device_specification=parsed_specification
 
       envelope := file.read_content customized_path
-      return Afw --envelope=envelope
+      return Pod --envelope=envelope
     unreachable
 
-  static parse path/string --ui/Ui -> Afw:
+  static parse path/string --ui/Ui -> Pod:
     read_file path --ui=ui: | reader/Reader |
       envelope/ByteArray? := null
       specification_content/Map? := null
@@ -54,7 +54,7 @@ class Afw:
       if file.name != CUSTOMIZED_ENVELOPE_NAME_:
         ui.abort "The file at '$path' is not a valid Artemis Firmware."
       envelope = file.content
-      return Afw --envelope=envelope
+      return Pod --envelope=envelope
     unreachable
 
   write path/string --ui/Ui:

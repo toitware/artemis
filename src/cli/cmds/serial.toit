@@ -5,11 +5,11 @@ import host.file
 import uuid
 
 import .utils_
-import ..afw
 import ..artemis
 import ..cache
 import ..config
 import ..fleet
+import ..pod
 import ..sdk
 import ..ui
 import ..utils
@@ -74,9 +74,9 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
         The 'port' argument is used to select the serial port to use.
         """
       --options=flash_options + [
-        cli.Option "firmware"
-            --type="afw file"
-            --short_help="The firmware image to flash."
+        cli.Option "pod"
+            --type="file"
+            --short_help="The pod to flash."
             --required,
         cli.Option "identity"
             --type="file"
@@ -189,18 +189,18 @@ make_default_ device_id/uuid.Uuid config/Config ui/Ui:
 flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if not station: throw "INVALID_ARGUMENT"
   identity_path := parsed["identity"]
-  firmware_path := parsed["firmware"]
+  pod_path := parsed["pod"]
   chip := parsed["chip"]
   port := parsed["port"]
   baud := parsed["baud"]
 
-  afw := Afw.parse firmware_path --ui=ui
+  pod := Pod.parse pod_path --ui=ui
   partitions := build_partitions_table_ parsed["partition"] --ui=ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     with_tmp_directory: | tmp_dir/string |
       envelope_path := "$tmp_dir/fw.envelope"
-      write_blob_to_file envelope_path afw.envelope
+      write_blob_to_file envelope_path pod.envelope
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data

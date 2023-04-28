@@ -95,12 +95,13 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
         Uses the 'default.json' specification.
 
-        If diff-bases are given, then the given firmwares are uploaded to
-        all organizations of the devices that are updated.
-
         If a device has no known state, patches for all base firmwares are
         created. If a device has reported its state, then only patches
         for the reported firmwares are created.
+
+        If diff-bases are given, then the given pods are uploaded
+        to the fleet's organization and used as diff bases for devices where
+        the current state is not known.
 
         The most common use case for diff bases is when the current
         state of the device is not yet known because it
@@ -113,7 +114,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Option "diff-base"
-            --type="afw file"
+            --type="pod file"
             --short_help="The base firmware to use for diff-based updates."
             --multi,
       ]

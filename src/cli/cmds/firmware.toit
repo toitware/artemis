@@ -8,26 +8,27 @@ import ..config
 import ..cache
 import ..device_specification
 import ..fleet
+import ..pod
 import ..ui
 
 create_firmware_commands config/Config cache/Cache ui/Ui -> List:
-  cmd := cli.Command "firmware"
-      --aliases=["fw"]
+  cmd := cli.Command "pod"
       --long_help="""
-        Create and manage firmware images.
+        Create and manage pods.
         """
 
   create_firmware_cmd := cli.Command "build"
       --aliases=["create", "compile"]
       --long_help="""
-        Create a firmware image.
+        Create a pod.
 
-        The generated image can later be used to flash or update devices.
+        The generated pod can later be used to flash or update devices.
         When flashing, it needs to be combined with an identity file first. See
-        'create-identities' for more information.
+        'fleet create-identities' for more information.
 
         Unless '--upload' is set to false (--no-upload), automatically uploads
-        the firmware to the broker in the fleet's organization.
+        the pod's data to the broker in the fleet's organization, so that
+        it can be used for updates.
 
         By default uses the default specification file of the fleet.
         """
@@ -38,10 +39,10 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "output"
             --type="out-file"
             --short_name="o"
-            --short_help="File to write the firmware to."
+            --short_help="File to write the pod to."
             --required,
         cli.Flag "upload"
-            --short_help="Upload the firmware to the cloud."
+            --short_help="Upload the pod's data to the cloud."
             --default=true,
       ]
       --run=:: create_firmware it config cache ui
@@ -49,15 +50,15 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
 
   upload_cmd := cli.Command "upload"
       --long_help="""
-        Upload the given firmware to the broker.
+        Upload the given pod to the broker.
 
-        After this action the firmware is available to the fleet.
-        Uploaded firmwares can be used for diff-based firmware updates.
+        After this action the pod is available to the fleet.
+        Uploaded pods can be used for diff-based over-the-air updates.
         """
       --rest= [
-        cli.Option "firmware"
-            --type="afw file"
-            --short_help="The firmware to upload."
+        cli.Option "pod"
+            --type="file"
+            --short_help="The pod to upload."
             --required,
       ]
       --run=:: upload it config cache ui
@@ -81,8 +82,9 @@ create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  firmware_path := parsed["firmware"]
+  pod_path := parsed["pod"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    fleet.upload --afw_path=firmware_path
+    pod := Pod.parse pod_path --ui=ui
+    fleet.upload --pod=pod
