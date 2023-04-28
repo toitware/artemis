@@ -170,17 +170,17 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
   print "Creating default firmware."
   // Create a firmware.
   // Just make sure that the example file works. We are not using that firmware otherwise.
-  firmware_envelope := "$tmp_dir/firmware.envelope"
-  test_cli.replacements[firmware_envelope] = "FIRMWARE.ENVELOPE"
+  firmware_file := "$tmp_dir/firmware.afw"
+  test_cli.replacements[firmware_file] = "FIRMWARE.AFW"
   test_cli.run_gold "DAA-default-firmware"
       "Create the default firmware."
       [
-        "fleet", "create-firmware",
+        "firmware", "build",
         "--specification", "$fleet_dir/specification.json",
-        "-o", firmware_envelope,
+        "-o", firmware_file,
         "--fleet-root", fleet_dir,
       ]
-  expect (file.is_file firmware_envelope)
+  expect (file.is_file firmware_file)
 
   // Make our own specification.
   our_spec := read_json "$fleet_dir/specification.json"
