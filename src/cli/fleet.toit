@@ -207,12 +207,6 @@ class Fleet:
       encoded_devices["$device.id"] = entry
     write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
-  create_pod --specification_path/string --output_path/string:
-    pod := Pod.from_specification --path=specification_path --ui=ui_ --artemis=artemis_
-    pod.write output_path --ui=ui_
-    artemis_.upload --pod=pod --organization_id=organization_id
-    ui_.info "Successfully uploaded pod to organization $organization_id."
-
   /**
   Returns a list of created files.
   */
@@ -275,7 +269,7 @@ class Fleet:
 
   upload --pod/Pod:
     artemis_.upload --pod=pod --organization_id=organization_id
-    ui_.info "Successfully uploaded pod."
+    ui_.info "Successfully uploaded pod to organization $organization_id."
 
   default_specification_path -> string:
     return "$fleet_root_/$default_specification_"
