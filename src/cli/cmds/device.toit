@@ -32,14 +32,14 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Updates the firmware on the device.
 
-        The specification file contains the device specification. It includes
+        The specification file contains the pod specification. It includes
         the firmware version, installed applications, connection settings,
         etc. See 'doc specification-format' for more information.
         """
       --options=[
         cli.Option "specification"
             --type="file"
-            --short_help="The specification of the device."
+            --short_help="The specification of the pod."
             --required,
       ]
       --run=:: update it config cache ui
@@ -141,7 +141,7 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 make_default_ device_id/uuid.Uuid config/Config ui/Ui:
   config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"
   config.write
-  ui.info "Default device set to $device_id"
+  ui.info "Default device set to $device_id."
 
 show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
