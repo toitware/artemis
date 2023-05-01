@@ -264,7 +264,7 @@ If there is an error, calls $Ui.abort with an error message.
 parse_pod_specification_file path/string --ui/Ui -> PodSpecification:
   exception := catch --unwind=(: it is not PodSpecificationException):
     return PodSpecification.parse path
-  ui.abort "Error parsing device specification: $exception"
+  ui.abort "Error parsing pod specification: $exception"
   unreachable
 
 // TODO(florian): move this into Duration?
