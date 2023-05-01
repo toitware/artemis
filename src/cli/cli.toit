@@ -66,7 +66,7 @@ main args --config/Config --cache/Cache --ui/Ui:
   (create_sdk_commands config cache ui).do: root_cmd.add it
   (create_device_commands config cache ui).do: root_cmd.add it
   (create_fleet_commands config cache ui).do: root_cmd.add it
-  (create_firmware_commands config cache ui).do: root_cmd.add it
+  (create_pod_commands config cache ui).do: root_cmd.add it
   (create_serial_commands config cache ui).do: root_cmd.add it
   (create_doc_commands config cache ui).do: root_cmd.add it
 

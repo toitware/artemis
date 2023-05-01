@@ -22,8 +22,8 @@ class Sdk:
 
   constructor .sdk_path .version:
 
-  constructor --envelope/string --cache/cli.Cache:
-    sdk_version := get_sdk_version_from --envelope=envelope
+  constructor --envelope_path/string --cache/cli.Cache:
+    sdk_version := get_sdk_version_from --envelope_path=envelope_path
     return get_sdk sdk_version --cache=cache
 
   is_source_build -> bool:
@@ -275,10 +275,17 @@ class Sdk:
   static exe_extension ::= (platform == PLATFORM_WINDOWS) ? ".exe" : ""
 
   /**
+  Extracts the SDK version from the given $envelope_path.
+  */
+  static get_sdk_version_from --envelope_path/string -> string:
+    return get_sdk_version_from
+        --envelope=file.read_content envelope_path
+
+  /**
   Extracts the SDK version from the given $envelope.
   */
-  static get_sdk_version_from --envelope/string -> string:
-    reader := ar.ArReader.from_bytes (file.read_content envelope)
+  static get_sdk_version_from --envelope/ByteArray -> string:
+    reader := ar.ArReader.from_bytes envelope
     file := reader.find "\$sdk-version"
     if file == null: throw "SDK version not found in envelope."
     return file.content.to_string

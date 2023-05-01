@@ -141,29 +141,24 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       device_id := uuid.parse identity["artemis.device"]["device_id"]
       ui.info "Successfully provisioned device $device_id."
 
-      envelope_path/string := ?
       specification := fleet.read_specification_for device_id
       chip := specification.chip or "esp32"
-      envelope_path = "$tmp_dir/$(device_id).envelope"
-      artemis.customize_envelope
-          --output_path=envelope_path
-          --device_specification=specification
-      fleet.upload --envelope_path=envelope_path
+      pod := Pod.from_specification --specification=specification --artemis=artemis
+      fleet.upload --pod=pod
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
-          --envelope_path=envelope_path
+          --pod=pod
           --identity_path=identity_path
 
       config_path := "$tmp_dir/$(device_id).config"
       write_blob_to_file config_path config_bytes
 
-      sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-      sdk := get_sdk sdk_version --cache=cache
+      sdk := get_sdk pod.sdk_version --cache=cache
       if not simulate:
         // Flash.
         sdk.flash
-            --envelope_path=envelope_path
+            --envelope_path=pod.envelope_path
             --config_path=config_path
             --port=port
             --baud_rate=baud
@@ -176,10 +171,9 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         old_default := config.get CONFIG_ARTEMIS_DEFAULT_KEY
         if should_make_default: make_default_ device_id config ui
         run_host
-            --envelope_path=envelope_path
+            --envelope_path=pod.envelope_path
             --identity_path=identity_path
             --cache=cache
-            --ui=ui
 
 make_default_ device_id/uuid.Uuid config/Config ui/Ui:
   config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"
@@ -193,28 +187,23 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   chip := parsed["chip"]
   port := parsed["port"]
   baud := parsed["baud"]
-
-  pod := Pod.parse pod_path --ui=ui
   partitions := build_partitions_table_ parsed["partition"] --ui=ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
+    pod := Pod.parse pod_path --artemis=artemis --ui=ui
     with_tmp_directory: | tmp_dir/string |
-      envelope_path := "$tmp_dir/fw.envelope"
-      write_blob_to_file envelope_path pod.envelope
-
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
-          --envelope_path=envelope_path
+          --pod=pod
           --identity_path=identity_path
 
       config_path := "$tmp_dir/config"
       write_blob_to_file config_path config_bytes
 
-      sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-      sdk := get_sdk sdk_version --cache=cache
       // Flash.
+      sdk := get_sdk pod.sdk_version --cache=cache
       sdk.flash
-          --envelope_path=envelope_path
+          --envelope_path=pod.envelope_path
           --config_path=config_path
           --port=port
           --baud_rate=baud
