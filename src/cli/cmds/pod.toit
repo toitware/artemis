@@ -13,11 +13,9 @@ import ..ui
 
 create_pod_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "pod"
-      --long_help="""
-        Create and manage pods.
-        """
+      --short_help="Create and manage pods."
 
-  create_pod_cmd := cli.Command "build"
+  create_cmd := cli.Command "build"
       --aliases=["create", "compile"]
       --long_help="""
         Create a pod.
@@ -46,7 +44,7 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
             --default=true,
       ]
       --run=:: create_pod it config cache ui
-  cmd.add create_pod_cmd
+  cmd.add create_cmd
 
   upload_cmd := cli.Command "upload"
       --long_help="""
