@@ -8,6 +8,7 @@ import uuid
 import ..broker
 import ...device
 import ...event
+import ...release
 import ...ui
 import ....shared.server_config
 import ....shared.utils as utils
@@ -141,3 +142,70 @@ class BrokerCliHttp implements BrokerCli:
         Event event_type (Time.epoch --ns=timestamp_ns) data
       result[uuid.parse id_string] = decoded_events
     return result
+
+
+  /**
+  Creates a new release with the given $version and $description for the $fleet_id.
+  */
+  release_create -> int
+      --fleet_id/uuid.Uuid
+      --organization_id/uuid.Uuid
+      --version/string
+      --description/string?:
+    return send_request_ "release_create" {
+      "fleet_id": "$fleet_id",
+      "organization_id": "$organization_id",
+      "version": version,
+      "description": description,
+    }
+
+  /**
+  Adds a new artifact to the given $release_id.
+
+  The $group must be a valid string and should be "" for the default group.
+  The $encoded_firmware is a base64 encoded string of the hashes of the firmware.
+  */
+  release_add_artifact --release_id/int --group/string --encoded_firmware/string -> none:
+    send_request_ "release_add_artifact" {
+      "release_id": release_id,
+      "group": group,
+      "encoded": encoded_firmware,
+    }
+
+  /**
+  Fetches releases for the given $fleet_id.
+
+  The $limit is the maximum number of releases to return (ordered by most recent
+    first).
+
+  Returns a list of $Release objects.
+  */
+  release_get --fleet_id/uuid.Uuid  --limit/int=100 -> List:
+    response := send_request_ "release_get_fleet_id" {
+      "fleet_id": "$fleet_id",
+      "limit": limit,
+    }
+    return response.map: Release.from_map it
+
+  /**
+  Fetches the releases with the given $release_ids.
+
+  Returns a list of $Release objects.
+  */
+  release_get --release_ids/List -> List:
+    response := send_request_ "release_get_release_ids" {
+      "release_ids": release_ids,
+    }
+    return response.map: Release.from_map it
+
+  /**
+  Returns the release ids for the given $encoded_firmwares in the given $fleet_id.
+
+  Returns a map from encoded firmware to release id.
+  If an encoded firmware is not found, the map does not contain an entry for it.
+  */
+  release_get_ids_for --fleet_id/uuid.Uuid --encoded_firmwares/List -> Map:
+    return send_request_ "release_get_ids_for_encoded" {
+      "fleet_id": "$fleet_id",
+      "encoded_entries": encoded_firmwares,
+    }

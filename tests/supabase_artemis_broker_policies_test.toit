@@ -170,3 +170,91 @@ main:
         "_limit": 1
       }
     expect events.is_empty
+
+    fleet_id := random_uuid
+
+    // Create a new release.
+    release_id := client1.rest.rpc "toit_artemis.insert_release" {
+      "_fleet_id": "$fleet_id",
+      "_organization_id": "$organization_id",
+      "_version": "v1.0.0",
+      "_description": "release v1.0.0",
+    }
+
+    // Client1 and client2 can see it, since they are in the same org.
+    [client1, client2].do: | client/supabase.Client |
+      releases := client.rest.rpc "toit_artemis.get_releases" {
+        "_fleet_id": "$fleet_id",
+        "_limit": 100,
+      }
+      expect_equals 1 releases.size
+      expect_equals "v1.0.0" releases[0]["version"]
+
+    // Client3 can't see it, since they are in a different org.
+    releases := client3.rest.rpc "toit_artemis.get_releases" {
+        "_fleet_id": "$fleet_id",
+        "_limit": 100,
+      }
+    expect releases.is_empty
+
+    // Client3 can't add a release in the other fleet.
+    expect_throws --contains="row-level security":
+      client3.rest.rpc "toit_artemis.insert_release" {
+        "_fleet_id": "$fleet_id",
+        "_organization_id": "$organization_id",
+        "_version": "v2.0.0",
+        "_description": "release v2.0.0",
+      }
+
+    // Add some artifacts.
+    client1.rest.rpc "toit_artemis.add_release_artifacts" {
+      "_release_id": release_id,
+      "_artifacts": [
+        {
+          "group": "group1",
+          "encoded_firmware": "encoded1",
+        },
+        {
+          "group": "group2",
+          "encoded_firmware": "encoded2",
+        },
+      ]
+    }
+
+    // Client3 can't do that.
+    expect_throws --contains="row-level security":
+      client3.rest.rpc "toit_artemis.add_release_artifacts" {
+        "_release_id": release_id,
+        "_artifacts": [
+          {
+            "group": "group3",
+            "encoded_firmware": "encoded3",
+          }
+        ]
+      }
+
+    // The group now appears in the release for client1 and client2.
+    [client1, client2].do: | client/supabase.Client |
+      releases = client.rest.rpc "toit_artemis.get_releases" {
+        "_fleet_id": "$fleet_id",
+        "_limit": 100,
+      }
+      expect_equals 1 releases.size
+      groups := releases[0]["groups"]
+      expect_equals ["group1", "group2"] groups.sort
+
+      // We can also find the release by encoded firmware.
+      release_ids := client.rest.rpc "toit_artemis.get_release_ids_for_encoded_firmwares" {
+        "_fleet_id": "$fleet_id",
+        "_encoded_firmwares": ["encoded1"],
+      }
+      expect_equals 1 release_ids.size
+      expect_equals release_id release_ids[0]["id"]
+      expect_equals "encoded1" release_ids[0]["encoded_firmware"]
+
+    // Client3 can't do that.
+    release_ids := client_anon.rest.rpc "toit_artemis.get_release_ids_for_encoded_firmwares" {
+        "_fleet_id": "$fleet_id",
+        "_encoded_firmwares": ["encoded1"],
+      }
+    expect release_ids.is_empty

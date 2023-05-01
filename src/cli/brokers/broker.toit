@@ -10,6 +10,7 @@ import ..config
 import ..event
 import ..device
 import ..ui
+import ..release
 import ...shared.server_config
 import .supabase
 import .http.base
@@ -127,6 +128,49 @@ interface BrokerCli implements Authenticatable:
   Returns a map from id to $DeviceDetailed.
   */
   get_devices --device_ids/List -> Map
+
+  /**
+  Creates a new release with the given $version and $description for the $fleet_id/$organization_id.
+  Returns the release ID.
+  */
+  release_create -> int
+      --fleet_id/uuid.Uuid
+      --organization_id/uuid.Uuid
+      --version/string
+      --description/string?
+
+  /**
+  Adds a new artifact to the given $release_id.
+
+  The $group must be a valid string and should be "" for the default group.
+  The $encoded_firmware is a base64 encoded string of the hashes of the firmware.
+  */
+  release_add_artifact --release_id/int --group/string --encoded_firmware/string -> none
+
+  /**
+  Fetches releases for the given $fleet_id.
+
+  The $limit is the maximum number of releases to return (ordered by most recent
+    first).
+
+  Returns a list of $Release objects.
+  */
+  release_get --fleet_id/uuid.Uuid  --limit/int=100 -> List
+
+  /**
+  Fetches the releases with the given $release_ids.
+
+  Returns a list of $Release objects.
+  */
+  release_get --release_ids/List -> List
+
+  /**
+  Returns the release ids for the given $encoded_firmwares in the given $fleet_id.
+
+  Returns a map from encoded firmware to release id.
+  If an encoded firmware is not found, the map does not contain an entry for it.
+  */
+  release_get_ids_for --fleet_id/uuid.Uuid --encoded_firmwares/List -> Map
 
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config

@@ -233,6 +233,117 @@ run_shared_test
           --path=path2
           --content="test".to_byte_array
 
+  // Create a release.
+  // Only authenticated users can do this.
+  fleet_id := random_uuid
+  release_id := client1.rest.rpc "toit_artemis.insert_release" {
+    "_fleet_id": "$fleet_id",
+    "_organization_id": "$organization_id",
+    "_version": "v1.0.0",
+    "_description": "release v1.0.0",
+  }
+
+  // Only authenticated users can see the release.
+  releases := client1.rest.rpc "toit_artemis.get_releases" {
+    "_fleet_id": "$fleet_id",
+    "_limit": 100,
+  }
+  expect_equals 1 releases.size
+  expect_equals release_id releases[0]["id"]
+  expect_equals "v1.0.0" releases[0]["version"]
+  expect_equals "release v1.0.0" releases[0]["description"]
+  expect_equals [] releases[0]["groups"]
+
+  // Anon can't see the release.
+  releases = client_anon.rest.rpc "toit_artemis.get_releases" {
+    "_fleet_id": "$fleet_id",
+    "_limit": 100,
+  }
+  expect releases.is_empty
+
+  // It's not possible to create the same release again.
+  expect_throws --contains="unique constraint":
+    client1.rest.rpc "toit_artemis.insert_release" {
+      "_fleet_id": "$fleet_id",
+      "_organization_id": "$organization_id",
+      "_version": "v1.0.0",
+      "_description": "release v1.0.0",
+    }
+
+  // Anon can't create a release.
+  expect_throws --contains="row-level security":
+    client_anon.rest.rpc "toit_artemis.insert_release" {
+      "_fleet_id": "$fleet_id",
+      "_organization_id": "$organization_id",
+      "_version": "v2.0.0",
+      "_description": "release not working",
+    }
+
+  // Get the releases by ID.
+  releases = client1.rest.rpc "toit_artemis.get_releases_by_ids" {
+    "_release_ids": [release_id],
+  }
+  expect_equals 1 releases.size
+  expect_equals release_id releases[0]["id"]
+
+  // Anon still can't see the release.
+  releases = client_anon.rest.rpc "toit_artemis.get_releases_by_ids" {
+    "_release_ids": [release_id],
+  }
+  expect releases.is_empty
+
+  // Add some artifacts.
+  client1.rest.rpc "toit_artemis.add_release_artifacts" {
+    "_release_id": release_id,
+    "_artifacts": [
+      {
+        "group": "group1",
+        "encoded_firmware": "encoded1",
+      },
+      {
+        "group": "group2",
+        "encoded_firmware": "encoded2",
+      },
+    ]
+  }
+
+  // Anon can't do that.
+  expect_throws --contains="row-level security":
+    client_anon.rest.rpc "toit_artemis.add_release_artifacts" {
+      "_release_id": release_id,
+      "_artifacts": [
+        {
+          "group": "group3",
+          "encoded_firmware": "encoded3",
+        }
+      ]
+    }
+
+  // The group now appears in the release.
+  releases = client1.rest.rpc "toit_artemis.get_releases" {
+    "_fleet_id": "$fleet_id",
+    "_limit": 100,
+  }
+  expect_equals 1 releases.size
+  groups := releases[0]["groups"]
+  expect_equals ["group1", "group2"] groups.sort
+
+  // We can also find the release by encoded firmware.
+  release_ids := client1.rest.rpc "toit_artemis.get_release_ids_for_encoded_firmwares" {
+    "_fleet_id": "$fleet_id",
+    "_encoded_firmwares": ["encoded1"],
+  }
+  expect_equals 1 release_ids.size
+  expect_equals release_id release_ids[0]["id"]
+  expect_equals "encoded1" release_ids[0]["encoded_firmware"]
+
+  // Anon can't do that.
+  release_ids = client_anon.rest.rpc "toit_artemis.get_release_ids_for_encoded_firmwares" {
+      "_fleet_id": "$fleet_id",
+      "_encoded_firmwares": ["encoded1"],
+    }
+  expect release_ids.is_empty
+
 expect_throws --contains/string [block]:
   exception := catch:
     block.call

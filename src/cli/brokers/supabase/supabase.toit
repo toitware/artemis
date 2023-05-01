@@ -15,6 +15,7 @@ import ..broker
 import ...config
 import ...device
 import ...event
+import ...release
 import ...ui
 import ....shared.server_config
 
@@ -173,4 +174,80 @@ class BrokerCliSupabase implements BrokerCli:
       goal := row["goal"]
       state := row["state"]
       result[device_id] = DeviceDetailed --goal=goal --state=state
+    return result
+
+  /**
+  Creates a new release with the given $version and $description for the $fleet_id.
+  */
+  release_create -> int
+      --fleet_id/uuid.Uuid
+      --organization_id/uuid.Uuid
+      --version/string
+      --description/string?:
+    return client_.rest.rpc "toit_artemis.insert_release" {
+      "_fleet_id": "$fleet_id",
+      "_organization_id": "$organization_id",
+      "_version": version,
+      "_description": description,
+    }
+
+  /**
+  Adds a new artifact to the given $release_id.
+
+  The $group must be a valid string and should be "" for the default group.
+  The $encoded_firmware is a base64 encoded string of the hashes of the firmware.
+  */
+  release_add_artifact --release_id/int --group/string --encoded_firmware/string -> none:
+    client_.rest.rpc "toit_artemis.add_release_artifacts" {
+      "_release_id": "$release_id",
+      "_artifacts": [
+        {
+          "group": group,
+          "encoded_firmware": encoded_firmware,
+        },
+      ]
+    }
+
+  /**
+  Fetches releases for the given $fleet_id.
+
+  The $limit is the maximum number of releases to return (ordered by most recent
+    first).
+
+  Returns a list of $Release objects.
+  */
+  release_get --fleet_id/uuid.Uuid  --limit/int=100 -> List:
+    response := client_.rest.rpc "toit_artemis.get_releases" {
+      "_fleet_id": "$fleet_id",
+      "_limit": limit,
+    }
+    return response.map: Release.from_map it
+
+  /**
+  Fetches the releases with the given $release_ids.
+
+  Returns a list of $Release objects.
+  */
+  release_get --release_ids/List -> List:
+    response := client_.rest.rpc "toit_artemis.get_releases_by_ids" {
+      "_release_ids": release_ids.map: "$it",
+    }
+    return response.map: Release.from_map it
+
+  /**
+  Returns the release ids for the given $encoded_firmwares in the given $fleet_id.
+
+  Returns a map from encoded firmware to release id.
+  If an encoded firmware is not found, the map does not contain an entry for it.
+  */
+  release_get_ids_for --fleet_id/uuid.Uuid --encoded_firmwares/List -> Map:
+    response := client_.rest.rpc "toit_artemis.get_release_ids_for_encoded_firmwares" {
+      "_fleet_id": "$fleet_id",
+      "_encoded_firmwares": encoded_firmwares,
+    }
+    result := {:}
+    response.do: | row/Map |
+      encoded_firmware := row["encoded_firmware"]
+      release_id := row["id"]
+      result[encoded_firmware] = release_id
     return result

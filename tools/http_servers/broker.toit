@@ -61,6 +61,13 @@ class HttpBroker extends HttpServer:
     if command == "report_event": return report_event data
     if command == "get_events": return get_events data
     if command == "get_devices": return get_devices data
+
+    if command == "release_create": return release_create data
+    if command == "release_add_artifact": return release_add_artifact data
+    if command == "release_get_fleet_id": return release_get_fleet_id data
+    if command == "release_get_release_ids": return release_get_release_ids data
+    if command == "release_get_ids_for_encoded": return release_get_ids_for_encoded data
+
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
 
@@ -243,3 +250,63 @@ class HttpBroker extends HttpServer:
 
   clear_events:
     events_.clear
+
+  release_ids_ := 0
+  releases_/Map ::= {:}  // Map from release ID to $Release object.
+  encoded_map_/Map ::= {:}  // Map from encoded firmware to release ID.
+
+  release_create data/Map:
+    id := release_ids_++
+    release := Release
+        --id=id
+        --fleet_id=data["fleet_id"]
+        --version=data["version"]
+        --description=data.get "description"
+    releases_[id] = release
+    return id
+
+  release_add_artifact data/Map:
+    release_id := data["release_id"]
+    release := releases_[release_id]
+    encoded := data["encoded"]
+    group := data["group"]
+    release.artifacts[encoded] = group
+    encoded_map_[encoded] = release_id
+
+  release_get_fleet_id data/Map:
+    fleet_id := data["fleet_id"]
+    releases := releases_.values.filter: | release/Release | release.fleet_id == fleet_id
+    return releases.map: | release/Release | release.to_json
+
+  release_get_release_ids data/Map:
+    release_ids := data["release_ids"]
+    return release_ids.map: | id/int | releases_[id].to_json
+
+  release_get_ids_for_encoded data/Map:
+    fleet_id := data["fleet_id"]
+    encoded_entries := data["encoded_entries"]
+    result := {:}
+    encoded_entries.do: | encoded/string |
+      release_id := encoded_map_.get encoded
+      if release_id and releases_[release_id].fleet_id == fleet_id:
+        result[encoded] = release_id
+    return result
+
+class Release:
+  id/int
+  version/string
+  description/string?
+  fleet_id/string
+  artifacts/Map
+
+  constructor --.id --.fleet_id --.version --.description:
+    artifacts = {:}
+
+  to_json -> Map:
+    return {
+      "id": id,
+      "fleet_id": fleet_id,
+      "version": version,
+      "description": description,
+      "groups": artifacts.values
+    }
