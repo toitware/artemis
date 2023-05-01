@@ -41,7 +41,8 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       --rest=[
         cli.Option "specification"
             --type="file"
-            --short_help="The specification of the pod.",
+            --short_help="The specification of the pod."
+            --required,
       ]
       --run=:: create_pod it config cache ui
   cmd.add create_cmd
