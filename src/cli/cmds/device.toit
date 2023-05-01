@@ -34,7 +34,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
         The specification file contains the device specification. It includes
         the firmware version, installed applications, connection settings,
-        etc. See 'specification-format' for more information.
+        etc. See 'doc specification-format' for more information.
         """
       --options=[
         cli.Option "specification"
