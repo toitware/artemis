@@ -54,6 +54,7 @@ class Fleet:
   /** Signal that an alias is ambiguous. */
   static AMBIGUOUS_ ::= -1
 
+  id/uuid.Uuid
   artemis_/Artemis
   ui_/Ui
   cache_/Cache
@@ -76,6 +77,13 @@ class Fleet:
       ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format."
     organization_id = uuid.parse fleet_content["organization"]
     default_specification_ = fleet_content["default-specification"]
+    if not fleet_content.contains "id":
+      ui.error "Fleet file $fleet_root_/$FLEET_FILE_ does not contain an ID."
+      ui.error "Please add an entry with a random UUID to $fleet_root_/$FLEET_FILE_"
+      ui.error "You can use the following line:"
+      ui.error "  \"id\": \"$random_uuid\","
+      ui.abort
+    id = uuid.parse fleet_content["id"]
     devices_ = load_devices_ fleet_root_ --ui=ui
     aliases_ = build_alias_map_ devices_ ui
 
@@ -99,6 +107,7 @@ class Fleet:
       ui.abort "Organization $organization_id does not exist or is not accessible."
 
     write_json_to_file --pretty "$fleet_root/$FLEET_FILE_" {
+      "id": "$random_uuid",
       "organization": "$organization_id",
       "default-specification": DEFAULT_SPECIFICATION_,
     }
