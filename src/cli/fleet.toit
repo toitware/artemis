@@ -7,10 +7,10 @@ import uuid
 import .artemis
 import .cache
 import .device
-import .device_specification
 import .event
 import .firmware
 import .pod
+import .pod_specification
 import .ui
 import .utils
 import ..shared.json_diff
@@ -115,7 +115,7 @@ class Fleet:
 
     default_specification_path := "$fleet_root/$DEFAULT_SPECIFICATION_"
     if not file.is_file default_specification_path:
-      write_json_to_file --pretty default_specification_path EXAMPLE_DEVICE_SPECIFICATION
+      write_json_to_file --pretty default_specification_path EXAMPLE_POD_SPECIFICATION
 
     hello_path := "$fleet_root/hello.toit"
     if not file.is_file hello_path:
@@ -280,8 +280,8 @@ class Fleet:
   default_specification_path -> string:
     return "$fleet_root_/$default_specification_"
 
-  read_specification_for device_id/uuid.Uuid -> DeviceSpecification:
-    return parse_device_specification_file default_specification_path --ui=ui_
+  read_specification_for device_id/uuid.Uuid -> PodSpecification:
+    return parse_pod_specification_file default_specification_path --ui=ui_
 
   add_device --device_id/uuid.Uuid --name/string? --aliases/List?:
     if aliases and aliases.is_empty: aliases = null

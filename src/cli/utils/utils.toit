@@ -17,7 +17,7 @@ import host.pipe
 import writer
 import uuid
 import ..ui
-import ..device_specification
+import ..pod_specification
 
 with_tmp_directory [block]:
   tmpdir := directory.mkdtemp "/tmp/artemis-"
@@ -257,13 +257,13 @@ json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
   buffer.write (json.encode value)
 
 /**
-Parses the given $path into a DeviceSpecification.
+Parses the given $path into a $PodSpecification.
 
 If there is an error, calls $Ui.abort with an error message.
 */
-parse_device_specification_file path/string --ui/Ui -> DeviceSpecification:
-  exception := catch --unwind=(: it is not DeviceSpecificationException):
-    return DeviceSpecification.parse path
+parse_pod_specification_file path/string --ui/Ui -> PodSpecification:
+  exception := catch --unwind=(: it is not PodSpecificationException):
+    return PodSpecification.parse path
   ui.abort "Error parsing device specification: $exception"
   unreachable
 

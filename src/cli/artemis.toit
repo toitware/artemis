@@ -17,8 +17,8 @@ import .cache as cache
 import .cache show service_image_cache_key application_image_cache_key
 import .config
 import .device
-import .device_specification
 import .pod
+import .pod_specification
 
 import .utils
 import .utils.patch_build show build_diff_patch build_trivial_patch
@@ -195,22 +195,22 @@ class Artemis:
     write_base64_ubjson_to_file out_path identity
 
   /**
-  Customizes a generic Toit envelope with the given $device_specification.
+  Customizes a generic Toit envelope with the given $specification.
     Also installs the Artemis service.
 
   The image is ready to be flashed together with the identity file.
   */
   customize_envelope
-      --device_specification/DeviceSpecification
+      --specification/PodSpecification
       --output_path/string:
-    sdk_version := device_specification.sdk_version
-    service_version := device_specification.artemis_version
+    sdk_version := specification.sdk_version
+    service_version := specification.artemis_version
     check_is_supported_version_ --sdk=sdk_version --service=service_version
 
     sdk := get_sdk sdk_version --cache=cache_
     cached_envelope_path := get_envelope
         sdk_version
-        --chip=device_specification.chip
+        --chip=specification.chip
         --cache=cache_
 
     copy_file --source=cached_envelope_path --target=output_path
@@ -223,11 +223,11 @@ class Artemis:
     // handles the absence of the max-offline setting differently, so
     // we cannot just add zero seconds to the config. This matches what
     // we do in $config_set_max_offline.
-    max_offline_seconds := device_specification.max_offline_seconds
+    max_offline_seconds := specification.max_offline_seconds
     if max_offline_seconds > 0: device_config["max-offline"] = max_offline_seconds
 
     connections := []
-    device_specification.connections.do: | connection/ConnectionInfo |
+    specification.connections.do: | connection/ConnectionInfo |
       if connection.type == "wifi" or connection.type == "cellular":
         connections.add connection.to_json
       else:
@@ -248,10 +248,10 @@ class Artemis:
 
     with_tmp_directory: | tmp_dir |
       // Store the containers in the envelope.
-      device_specification.containers.do: | name/string container/Container |
+      specification.containers.do: | name/string container/Container |
         snapshot_path := "$tmp_dir/$(name).snapshot"
         container.build_snapshot
-            --relative_to=device_specification.relative_to
+            --relative_to=specification.relative_to
             --sdk=sdk
             --output_path=snapshot_path
             --cache=cache_
@@ -406,7 +406,7 @@ class Artemis:
     return result
 
   /**
-  Updates the device $device_id with the given $device_specification.
+  Updates the device $device_id with the given $specification.
 
   If the device has no known current state, then uses the $base_firmwares
     (a list of $FirmwareContent) for diff-based patches. If the list
@@ -414,10 +414,10 @@ class Artemis:
   */
   update
       --device_id/uuid.Uuid
-      --device_specification/DeviceSpecification
+      --specification/PodSpecification
       --base_firmwares/List=[]:
     pod := Pod.from_specification
-        --specification=device_specification
+        --specification=specification
         --artemis=this
     update
         --device_id=device_id
@@ -425,7 +425,7 @@ class Artemis:
         --base_firmwares=base_firmwares
 
   /**
-  Variant of $(update --device_id --device_specification).
+  Variant of $(update --device_id --specification).
 
   Takes the new firmware from the given $pod.
   */
