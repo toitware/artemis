@@ -470,7 +470,7 @@ class Artemis:
 
   Uploads the patches to the broker in the same organization as the $device.
 
-  The return goal state will instruct the device to download the firmware image
+  The returned goal state will instruct the device to download the firmware image
     and install it.
   */
   compute_updated_goal --device/Device --upgrade_from/List --pod/Pod -> Map:

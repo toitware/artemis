@@ -32,7 +32,6 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
         A typical flashing workflow consists of:
         1. Create an Artemis pod using 'pod create'.
-           Use '--no-upload' if the organization isn't already known.
         2. Create identity files using 'fleet create-identities'.
         3. Transfer the pod and the identity files to the flash station.
         4. Flash the devices using 'serial flash'.
