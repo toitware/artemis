@@ -77,15 +77,13 @@ class Fleet:
       ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format."
     organization_id = uuid.parse fleet_content["organization"]
     default_specification_ = fleet_content["default-specification"]
-    if fleet_content.contains "id":
-      id = uuid.parse fleet_content["id"]
-    else:
+    if not fleet_content.contains "id":
       ui.error "Fleet file $fleet_root_/$FLEET_FILE_ does not contain an ID."
       ui.error "Please add an entry with a random UUID to $fleet_root_/$FLEET_FILE_"
       ui.error "You can use the following line:"
       ui.error "  \"id\": \"$random_uuid\","
       ui.abort
-      unreachable
+    id = uuid.parse fleet_content["id"]
     devices_ = load_devices_ fleet_root_ --ui=ui
     aliases_ = build_alias_map_ devices_ ui
 
