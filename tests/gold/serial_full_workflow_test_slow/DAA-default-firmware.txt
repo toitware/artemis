@@ -1,5 +1,5 @@
 # Create the default firmware.
-# [firmware, build, --specification, FLEET-DIR/specification.json, -o, FIRMWARE.AFW, --fleet-root, FLEET-DIR]
+# [pod, build, --specification, FLEET-DIR/specification.json, -o, FIRMWARE.POD, --fleet-root, FLEET-DIR]
 Added container 'hello' to envelope.
 Fetching https://github.com/toitware/toit-solar-position.git.
 Compiling https://github.com/toitware/toit-solar-position.git.

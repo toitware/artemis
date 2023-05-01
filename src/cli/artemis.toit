@@ -13,12 +13,12 @@ import encoding.base64
 import encoding.ubjson
 import encoding.json
 
-import .afw
 import .cache as cache
 import .cache show service_image_cache_key application_image_cache_key
 import .config
 import .device
 import .device_specification
+import .pod
 
 import .utils
 import .utils.patch_build show build_diff_patch build_trivial_patch
@@ -355,15 +355,14 @@ class Artemis:
     return result
 
   /**
-  Variant of $(upload_firmware --envelope_path --organization_id) that takes
-    an Afw path instead.
+  Variant of $(upload --envelope_path --organization_id) that takes
+    a Pod instead.
   */
-  upload_firmware --afw_path/string --organization_id/uuid.Uuid:
-    afw := Afw.parse afw_path --ui=ui_
+  upload --pod/Pod --organization_id/uuid.Uuid:
     with_tmp_directory: | tmp_dir/string |
       envelope_path := "$tmp_dir/customized.envelope"
-      write_blob_to_file envelope_path afw.envelope
-      upload_firmware --envelope_path=envelope_path --organization_id=organization_id
+      write_blob_to_file envelope_path pod.envelope
+      upload --envelope_path=envelope_path --organization_id=organization_id
 
   /**
   Uploads the given envelope to the server under the given
@@ -372,7 +371,7 @@ class Artemis:
   The firmware can then be used for diff-based updates, or simply as direct
     downloads for updates.
   */
-  upload_firmware --envelope_path/string --organization_id/uuid.Uuid:
+  upload --envelope_path/string --organization_id/uuid.Uuid:
     firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
     firmware_content.trivial_patches.do:
       upload_patch it --organization_id=organization_id
@@ -443,7 +442,7 @@ class Artemis:
   */
   update --device_id/uuid.Uuid --envelope_path/string --base_firmwares/List=[]:
     update_goal --device_id=device_id: | device/DeviceDetailed |
-      upload_firmware --envelope_path=envelope_path --organization_id=device.organization_id
+      upload --envelope_path=envelope_path --organization_id=device.organization_id
 
       known_encoded_firmwares := {}
       [

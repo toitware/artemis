@@ -4,13 +4,13 @@ import encoding.json
 import host.file
 import uuid
 
-import .afw
 import .artemis
 import .cache
 import .device
 import .device_specification
 import .event
 import .firmware
+import .pod
 import .ui
 import .utils
 import ..shared.json_diff
@@ -199,9 +199,9 @@ class Fleet:
     write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
   create_firmware --specification_path/string --output_path/string:
-    afw := Afw.from_specification --path=specification_path --ui=ui_ --artemis=artemis_
-    afw.write output_path --ui=ui_
-    artemis_.upload_firmware --afw_path=output_path --organization_id=organization_id
+    pod := Pod.from_specification --path=specification_path --ui=ui_ --artemis=artemis_
+    pod.write output_path --ui=ui_
+    artemis_.upload --pod=pod --organization_id=organization_id
     ui_.info "Successfully uploaded firmware to organization $organization_id."
 
   /**
@@ -243,10 +243,10 @@ class Fleet:
     base_patches := {:}
 
     base_firmwares := diff_bases.map: | diff_base/string |
-      afw := Afw.parse diff_base --ui=ui_
+      pod := Pod.parse diff_base --ui=ui_
       with_tmp_directory: | tmp_dir/string |
         envelope_path := "$tmp_dir/fw.envelope"
-        write_blob_to_file envelope_path afw.envelope
+        write_blob_to_file envelope_path pod.envelope
         FirmwareContent.from_envelope envelope_path --cache=cache_
 
     base_firmwares.do: | content/FirmwareContent |
@@ -269,12 +269,12 @@ class Fleet:
 
         ui_.info "Successfully updated device $fleet_device.short_string."
 
-  upload --afw_path/string:
-    artemis_.upload_firmware --afw_path=afw_path --organization_id=organization_id
+  upload --pod/Pod:
+    artemis_.upload --pod=pod --organization_id=organization_id
     ui_.info "Successfully uploaded firmware."
 
   upload --envelope_path/string:
-    artemis_.upload_firmware --envelope_path=envelope_path --organization_id=organization_id
+    artemis_.upload --envelope_path=envelope_path --organization_id=organization_id
     ui_.info "Successfully uploaded firmware."
 
   default_specification_path -> string:
