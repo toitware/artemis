@@ -18,25 +18,24 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --short_help="Manage multiple devices at the same time."
       --long_help="""
         The 'fleet' command allows you to manage multiple devices at the same
-        time. It can be used to create firmware images, create identity files,
-        upload firmware images, and update multiple devices at the same time.
+        time. It can be used to create identity files and update multiple
+        devices at the same time.
 
-        The 'update' command can be used intuitively to update multiple devices.
+        The 'fleet update' command can be used intuitively to update multiple
+        devices.
 
         The remaining commands are designed to be used in a workflow, where
-        multiple devices are flashed with the same firmware image. Frequently,
-        flash stations are not connected to the Internet, so the
-        'create-identities' and 'create-firmware' commands are used to create
-        the necessary files, which are then transferred to the flash station.
+        multiple devices are flashed with the same pod. Frequently, flash stations
+        are not connected to the Internet, so the 'fleet create-identities' and
+        'pod create' commands are used to create the necessary files, which are
+        then transferred to the flash station.
 
         A typical flashing workflow consists of:
-        1. Create a firmware image using 'create-firmware'.
-        1b. If the organization is already known, upload the firmware using
-            'upload'.
-        2. Create identity files using 'create-identities'.
-        3. Transfer the firmware image and the identity files to the flash
-           station.
-        4. Flash the devices using 'device flash'.
+        1. Create an Artemis pod using 'pod create'.
+           Use '--no-upload' if the organization isn't already known.
+        2. Create identity files using 'fleet create-identities'.
+        3. Transfer the pod and the identity files to the flash station.
+        4. Flash the devices using 'serial flash'.
         """
 
   init_cmd := cli.Command "init"
@@ -93,8 +92,6 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Update the firmware of all devices in the fleet.
 
-        Uses the 'default.json' specification.
-
         If a device has no known state, patches for all base firmwares are
         created. If a device has reported its state, then only patches
         for the reported firmwares are created.
@@ -104,10 +101,10 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         the current state is not known.
 
         The most common use case for diff bases is when the current
-        state of the device is not yet known because it
-        never connected to the broker. The corresponding identity might
-        not even be used yet. In this case, one of the diff bases should be
-        the firmware that will be (or was) used to flash the device.
+        state of the device is not yet known because it never connected to
+        the broker. The corresponding identity might not even be used yet.
+        In this case, one of the diff bases should be the pod that will be
+        (or was) used to flash the device.
 
         Note that diff-bases are only an optimization. Without them, the
         firmware update will still work, but will not be as efficient.
@@ -115,7 +112,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Option "diff-base"
             --type="pod file"
-            --short_help="The base firmware to use for diff-based updates."
+            --short_help="The base pod to use for diff-based updates."
             --multi,
       ]
       --run=:: update it config cache ui

@@ -45,8 +45,10 @@ class Artemis:
   ui_/Ui
   broker_config_/ServerConfig
   artemis_config_/ServerConfig
+  tmp_directory/string
 
   constructor --config/Config --cache/cache.Cache --ui/Ui
+      --.tmp_directory
       --broker_config/ServerConfig
       --artemis_config/ServerConfig:
     config_ = config
@@ -323,7 +325,7 @@ class Artemis:
           --critical
 
     // For convenience save all snapshots in the user's cache.
-    cache_snapshots --envelope=output_path --cache=cache_
+    cache_snapshots --envelope_path=output_path --cache=cache_
 
   /**
   Builds a container description as needed for a "container" entry in the device state.
@@ -355,24 +357,14 @@ class Artemis:
     return result
 
   /**
-  Variant of $(upload --envelope_path --organization_id) that takes
-    a Pod instead.
-  */
-  upload --pod/Pod --organization_id/uuid.Uuid:
-    with_tmp_directory: | tmp_dir/string |
-      envelope_path := "$tmp_dir/customized.envelope"
-      write_blob_to_file envelope_path pod.envelope
-      upload --envelope_path=envelope_path --organization_id=organization_id
-
-  /**
-  Uploads the given envelope to the server under the given
+  Uploads the given $pod to the server under the given
     $organization_id.
 
-  The firmware can then be used for diff-based updates, or simply as direct
+  The pod can then be used for diff-based updates, or simply as direct
     downloads for updates.
   */
-  upload --envelope_path/string --organization_id/uuid.Uuid:
-    firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
+  upload --pod/Pod --organization_id/uuid.Uuid:
+    firmware_content := FirmwareContent.from_envelope pod.envelope_path --cache=cache_
     firmware_content.trivial_patches.do:
       upload_patch it --organization_id=organization_id
 
@@ -424,25 +416,22 @@ class Artemis:
       --device_id/uuid.Uuid
       --device_specification/DeviceSpecification
       --base_firmwares/List=[]:
-    with_tmp_directory: | tmp_dir/string |
-      envelope_path := "$tmp_dir/$(device_id).envelope"
-      customize_envelope
-          --output_path=envelope_path
-          --device_specification=device_specification
-
-      update
-          --device_id=device_id
-          --envelope_path=envelope_path
-          --base_firmwares=base_firmwares
+    pod := Pod.from_specification
+        --specification=device_specification
+        --artemis=this
+    update
+        --device_id=device_id
+        --pod=pod
+        --base_firmwares=base_firmwares
 
   /**
   Variant of $(update --device_id --device_specification).
 
-  Takes the new firmware from the given $envelope_path.
+  Takes the new firmware from the given $pod.
   */
-  update --device_id/uuid.Uuid --envelope_path/string --base_firmwares/List=[]:
+  update --device_id/uuid.Uuid --pod/Pod --base_firmwares/List=[]:
     update_goal --device_id=device_id: | device/DeviceDetailed |
-      upload --envelope_path=envelope_path --organization_id=device.organization_id
+      upload --pod=pod --organization_id=device.organization_id
 
       known_encoded_firmwares := {}
       [
@@ -473,79 +462,59 @@ class Artemis:
       compute_updated_goal
           --device=device
           --upgrade_from=upgrade_from
-          --envelope_path=envelope_path
+          --pod=pod
 
   /**
   Computes the goal for the given $device, upgrading from the $upgrade_from
-    firmware content entries to the firmware image at $envelope_path.
+    firmware content entries to the firmware image given by the $pod.
 
   Uploads the patches to the broker in the same organization as the $device.
 
   The return goal state will instruct the device to download the firmware image
     and install it.
   */
-  compute_updated_goal --device/Device --upgrade_from/List --envelope_path/string -> Map:
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-    sdk := get_sdk sdk_version --cache=cache_
+  compute_updated_goal --device/Device --upgrade_from/List --pod/Pod -> Map:
+    // Compute the patches and upload them.
+    ui_.info "Computing and uploading patches."
+    upgrade_to := compute_device_specific_firmware --pod=pod --device=device
+    upgrade_from.do: | old_firmware_content/FirmwareContent |
+      patches := upgrade_to.content.patches old_firmware_content
+      patches.do: diff_and_upload_ it --organization_id=device.organization_id
 
-    with_tmp_directory: | tmp_dir/string |
-      assets_path := "$tmp_dir/assets"
-      sdk.firmware_extract_container
-          --name="artemis"  // TODO(florian): use constants for hard-coded names.
-          --assets
-          --envelope_path=envelope_path
-          --output_path=assets_path
-
-      config_asset := sdk.assets_extract
-          --name="device-config"
-          --format="ubjson"
-          --assets_path=assets_path
-
-      new_config := json.decode config_asset
-
-      upgrade_to := compute_device_specific_firmware
-          --envelope_path=envelope_path
-          --device=device
-
-      // Compute the patches and upload them.
-      ui_.info "Computing and uploading patches."
-      upgrade_from.do: | old_firmware_content/FirmwareContent |
-        patches := upgrade_to.content.patches old_firmware_content
-        patches.do: diff_and_upload_ it --organization_id=device.organization_id
-
-      new_config["firmware"] = upgrade_to.encoded
-      return new_config
-    unreachable
+    // Build the updated goal and return it.
+    sdk := get_sdk pod.sdk_version --cache=cache_
+    goal := (pod.device_config --sdk=sdk).copy
+    goal["firmware"] = upgrade_to.encoded
+    return goal
 
   /**
   Computes the device-specific data of the given envelope.
 
-  Combines the envelope ($envelope_path) and identity ($identity_path) into a
-    single firmware image and computes the configuration which depends on the
-    checksums of the individual parts.
+  Combines the $pod and identity ($identity_path) into a single firmware image
+    and computes the configuration which depends on the checksums of the
+    individual parts.
 
   In this context the configuration consists of the checksums of the individual
     parts of the firmware image, combined with the configuration that was
     stored in the envelope.
   */
-  compute_device_specific_data --envelope_path/string --identity_path/string -> ByteArray:
+  compute_device_specific_data --pod/Pod --identity_path/string -> ByteArray:
     return compute_device_specific_data
-        --envelope_path=envelope_path
+        --pod=pod
         --identity_path=identity_path
         --cache=cache_
         --ui=ui_
 
   /**
-  Variant of $(compute_device_specific_data --envelope_path --identity_path).
+  Variant of $(compute_device_specific_data --pod --identity_path).
   */
   static compute_device_specific_data -> ByteArray
-      --envelope_path/string
+      --pod/Pod
       --identity_path/string
       --cache/cache.Cache
       --ui/Ui:
-    // Use the SDK from the envelope.
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-    sdk := get_sdk sdk_version --cache=cache
+    // Use the SDK from the pod.
+    sdk := get_sdk pod.sdk_version --cache=cache
 
     // Extract the device ID from the identity file.
     // TODO(florian): abstract the identity management.
@@ -562,14 +531,14 @@ class Artemis:
     with_tmp_directory: | tmp/string |
       artemis_assets_path := "$tmp/artemis.assets"
       sdk.run_firmware_tool [
-        "-e", envelope_path,
+        "-e", pod.envelope_path,
         "container", "extract",
         "-o", artemis_assets_path,
         "--part", "assets",
         "artemis"
       ]
 
-      if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
+      if not is_same_broker "broker" identity tmp artemis_assets_path sdk:
         ui.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
       if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
         ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
@@ -583,38 +552,30 @@ class Artemis:
     // We don't really need the full firmware and just the device-specific data,
     // but by cooking the firmware we get the checksums correct.
     firmware := compute_device_specific_firmware
-        --envelope_path=envelope_path
+        --envelope_path=pod.envelope_path
         --device=device
         --cache=cache
-        --ui=ui
 
     return firmware.device_specific_data
 
   /**
-  Creates a device-specific firmware image from the given envelope.
+  Creates a device-specific firmware image from the given $pod.
   */
   compute_device_specific_firmware -> Firmware
-      --envelope_path/string
+      --pod/Pod
       --device/Device:
     return compute_device_specific_firmware
-        --envelope_path=envelope_path
+        --envelope_path=pod.envelope_path
         --device=device
         --cache=cache_
-        --ui=ui_
 
   /**
-  Variant of $(compute_device_specific_firmware --envelope_path --device).
+  Variant of $(compute_device_specific_firmware --pod --device).
   */
   static compute_device_specific_firmware -> Firmware
       --envelope_path/string
       --device/Device
-      --cache/cache.Cache
-      --ui/Ui:
-
-    // Use the SDK from the envelope.
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-    sdk := get_sdk sdk_version --cache=cache
-
+      --cache/cache.Cache:
     // Cook the firmware.
     return Firmware
         --envelope_path=envelope_path

@@ -32,7 +32,6 @@ import ...cli.device as artemis_device
 
 main arguments:
   cache := cli.Cache --app_name="artemis"
-  ui := ConsoleUi
   root_cmd := cli.Command "root"
       --options=[
         cli.OptionString "envelope"
@@ -46,10 +45,9 @@ main arguments:
           --envelope_path=it["envelope"]
           --identity_path=it["identity"]
           --cache=cache
-          --ui=ui
   root_cmd.run arguments
 
-run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui -> none:
+run_host --envelope_path/string --identity_path/string --cache/cli.Cache -> none:
   identity := read_base64_ubjson identity_path
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
   identity["broker"] = tison.encode identity["broker"]
@@ -64,10 +62,9 @@ run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui
       --envelope_path=envelope_path
       --device=artemis_device
       --cache=cache
-      --ui=ui
   encoded_firmware_description := firmware.encoded
 
-  sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+  sdk_version := Sdk.get_sdk_version_from --envelope_path=envelope_path
   sdk := get_sdk sdk_version --cache=cache
   with_tmp_directory: | tmp_dir/string |
     asset_path := "$tmp_dir/artemis_asset"

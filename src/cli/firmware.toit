@@ -84,7 +84,7 @@ class Firmware:
     the process is repeated until the encoded parts do not change anymore.
   */
   constructor --device/Device --envelope_path/string --cache/cli.Cache:
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+    sdk_version := Sdk.get_sdk_version_from --envelope_path=envelope_path
     unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache
     encoded_parts := unconfigured.encoded_parts
     device_map := {
@@ -136,7 +136,7 @@ class FirmwareContent:
     parts = list.map: FirmwarePart.encoded it
 
   constructor.from_envelope envelope_path/string --device_specific/ByteArray?=null --cache/cli.Cache:
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+    sdk_version := Sdk.get_sdk_version_from --envelope_path=envelope_path
     sdk := get_sdk sdk_version --cache=cache
     firmware_description/Map := {:}
     if device_specific:
@@ -264,24 +264,25 @@ envelope_url version/string --chip/string -> string:
 /**
 Stores the snapshots inside the envelope in the user's snapshot directory.
 */
-cache_snapshots --envelope/string --output_directory/string?=null --cache/cli.Cache:
-  sdk := Sdk --envelope=envelope --cache=cache
-  containers := sdk.firmware_list_containers --envelope_path=envelope
+cache_snapshots --envelope_path/string --output_directory/string?=null --cache/cli.Cache:
+  sdk_version := Sdk.get_sdk_version_from --envelope_path=envelope_path
+  sdk := get_sdk sdk_version --cache=cache
+  containers := sdk.firmware_list_containers --envelope_path=envelope_path
   with_tmp_directory: | tmp_dir/string |
     containers.do: | name/string description/Map |
       if description["kind"] == "snapshot":
         id := description["id"]
         tmp_snapshot_path := "$tmp_dir/$(id).snapshot"
         sdk.firmware_extract_container
-            --envelope_path=envelope
+            --envelope_path=envelope_path
             --name=name
             --output_path=tmp_snapshot_path
         snapshot_content := file.read_content tmp_snapshot_path
         cache_snapshot snapshot_content --output_directory=output_directory
 
 // A forwarding function to work around the shadowing in 'get_envelope'.
-cache_snapshots_ --envelope/string --cache/cli.Cache:
-  cache_snapshots --envelope=envelope --cache=cache
+cache_snapshots_ --envelope_path/string --cache/cli.Cache:
+  cache_snapshots --envelope_path=envelope_path --cache=cache
 
 reported_local_envelope_use_/bool := false
 /**
@@ -314,5 +315,5 @@ get_envelope version/string -> string
       gunzip out_path
       envelope_path := "$tmp_dir/$path"
       if cache_snapshots:
-        cache_snapshots_ --envelope=envelope_path --cache=cache
+        cache_snapshots_ --envelope_path=envelope_path --cache=cache
       store.move envelope_path

@@ -11,13 +11,13 @@ import ..fleet
 import ..pod
 import ..ui
 
-create_firmware_commands config/Config cache/Cache ui/Ui -> List:
+create_pod_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "pod"
       --long_help="""
         Create and manage pods.
         """
 
-  create_firmware_cmd := cli.Command "build"
+  create_pod_cmd := cli.Command "build"
       --aliases=["create", "compile"]
       --long_help="""
         Create a pod.
@@ -35,7 +35,7 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Option "specification"
             --type="file"
-            --short_help="The specification of the firmware.",
+            --short_help="The specification of the pod.",
         cli.Option "output"
             --type="out-file"
             --short_name="o"
@@ -45,8 +45,8 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Upload the pod's data to the cloud."
             --default=true,
       ]
-      --run=:: create_firmware it config cache ui
-  cmd.add create_firmware_cmd
+      --run=:: create_pod it config cache ui
+  cmd.add create_pod_cmd
 
   upload_cmd := cli.Command "upload"
       --long_help="""
@@ -66,7 +66,7 @@ create_firmware_commands config/Config cache/Cache ui/Ui -> List:
 
   return [cmd]
 
-create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+create_pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   specification_path := parsed["specification"]
   output := parsed["output"]
@@ -76,7 +76,7 @@ create_firmware parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     if not specification_path:
       specification_path = fleet.default_specification_path
-    fleet.create_firmware
+    fleet.create_pod
         --specification_path=specification_path
         --output_path=output
 
@@ -86,5 +86,5 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    pod := Pod.parse pod_path --ui=ui
+    pod := Pod.parse pod_path --artemis=artemis --ui=ui
     fleet.upload --pod=pod

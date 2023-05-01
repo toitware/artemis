@@ -198,11 +198,11 @@ class Fleet:
       encoded_devices["$device.id"] = entry
     write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
-  create_firmware --specification_path/string --output_path/string:
+  create_pod --specification_path/string --output_path/string:
     pod := Pod.from_specification --path=specification_path --ui=ui_ --artemis=artemis_
     pod.write output_path --ui=ui_
     artemis_.upload --pod=pod --organization_id=organization_id
-    ui_.info "Successfully uploaded firmware to organization $organization_id."
+    ui_.info "Successfully uploaded pod to organization $organization_id."
 
   /**
   Returns a list of created files.
@@ -243,39 +243,30 @@ class Fleet:
     base_patches := {:}
 
     base_firmwares := diff_bases.map: | diff_base/string |
-      pod := Pod.parse diff_base --ui=ui_
-      with_tmp_directory: | tmp_dir/string |
-        envelope_path := "$tmp_dir/fw.envelope"
-        write_blob_to_file envelope_path pod.envelope
-        FirmwareContent.from_envelope envelope_path --cache=cache_
+      pod := Pod.parse diff_base --artemis=artemis_ --ui=ui_
+      FirmwareContent.from_envelope pod.envelope_path --cache=cache_
 
     base_firmwares.do: | content/FirmwareContent |
       trivial_patches := artemis_.extract_trivial_patches content
       trivial_patches.do: | _ patch/FirmwarePatch |
         artemis_.upload_patch patch --organization_id=organization_id
 
-    with_tmp_directory: | tmp_dir/string |
-      firmware_path := "$tmp_dir/firmware.envelope"
-      specification := parse_device_specification_file specification_path --ui=ui_
-      artemis_.customize_envelope
-          --output_path=firmware_path
-          --device_specification=specification
+    pod := Pod.from_specification
+        --path=specification_path
+        --artemis=artemis_
+        --ui=ui_
 
-      fleet_devices.do: | fleet_device/DeviceFleet |
-        artemis_.update
-            --device_id=fleet_device.id
-            --envelope_path=firmware_path
-            --base_firmwares=base_firmwares
+    fleet_devices.do: | fleet_device/DeviceFleet |
+      artemis_.update
+          --device_id=fleet_device.id
+          --pod=pod
+          --base_firmwares=base_firmwares
 
-        ui_.info "Successfully updated device $fleet_device.short_string."
+      ui_.info "Successfully updated device $fleet_device.short_string."
 
   upload --pod/Pod:
     artemis_.upload --pod=pod --organization_id=organization_id
-    ui_.info "Successfully uploaded firmware."
-
-  upload --envelope_path/string:
-    artemis_.upload --envelope_path=envelope_path --organization_id=organization_id
-    ui_.info "Successfully uploaded firmware."
+    ui_.info "Successfully uploaded pod."
 
   default_specification_path -> string:
     return "$fleet_root_/$default_specification_"
