@@ -6,13 +6,13 @@ import .cache
 import .config
 import .ui
 
+import .cmds.auth
 import .cmds.config
 import .cmds.device
 import .cmds.doc
-import .cmds.firmware
 import .cmds.fleet
-import .cmds.auth
 import .cmds.org
+import .cmds.pod
 import .cmds.profile
 import .cmds.sdk
 import .cmds.serial
