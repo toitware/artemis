@@ -17,7 +17,7 @@ import .ui
 
 import ..shared.version show SDK_VERSION ARTEMIS_VERSION
 
-EXAMPLE_DEVICE_SPECIFICATION ::= {
+EXAMPLE_POD_SPECIFICATION ::= {
   "version": 1,
   "sdk-version": SDK_VERSION,
   "artemis-version": ARTEMIS_VERSION,
@@ -57,7 +57,7 @@ EXAMPLE_DEVICE_SPECIFICATION ::= {
   },
 }
 
-class DeviceSpecificationException:
+class PodSpecificationException:
   message/string
 
   constructor .message:
@@ -66,12 +66,12 @@ class DeviceSpecificationException:
     return message
 
 format_error_ message/string:
-  throw (DeviceSpecificationException message)
+  throw (PodSpecificationException message)
 
 validation_error_ message/string:
-  throw (DeviceSpecificationException message)
+  throw (PodSpecificationException message)
 
-check_has_key_ map/Map --holder/string="device specification" key/string:
+check_has_key_ map/Map --holder/string="pod specification" key/string:
   if not map.contains key:
     format_error_ "Missing $key in $holder."
 
@@ -79,7 +79,7 @@ check_is_map_ map/Map key/string --entry_type/string="Entry":
   get_map_ map key --entry_type=entry_type
 
 get_int_ map/Map key/string -> int
-    --holder/string="device specification"
+    --holder/string="pod specification"
     --entry_type/string="Entry":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
@@ -89,7 +89,7 @@ get_int_ map/Map key/string -> int
   return value
 
 get_string_ map/Map key/string -> string
-    --holder/string="device specification"
+    --holder/string="pod specification"
     --entry_type/string="Entry":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
@@ -99,14 +99,14 @@ get_string_ map/Map key/string -> string
   return value
 
 get_optional_string_ map/Map key/string -> string?
-    --holder/string="device specification"
+    --holder/string="pod specification"
     --entry_type/string="Entry":
   if not map.contains key: return null
   return get_string_ map key --holder=holder --entry_type=entry_type
 
 get_optional_list_ map/Map key/string --type/string [--check] -> List?
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key: return null
   value := map[key]
   if value is not List:
@@ -118,7 +118,7 @@ get_optional_list_ map/Map key/string --type/string [--check] -> List?
 
 get_map_ map/Map key/string -> Map
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
   value := map[key]
@@ -128,13 +128,13 @@ get_map_ map/Map key/string -> Map
 
 get_optional_map_ map/Map key/string -> Map?
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key: return null
   return get_map_ map key --entry_type=entry_type --holder=holder
 
 get_list_ map/Map key/string -> List
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
   value := map[key]
@@ -144,7 +144,7 @@ get_list_ map/Map key/string -> List
 
 get_duration_ map/Map key/string -> Duration
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
   // Returns 0 if the string is empty.
 
@@ -164,19 +164,19 @@ get_duration_ map/Map key/string -> Duration
 
 get_optional_duration_ map/Map key/string -> Duration?
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key: return null
   return get_duration_ map key --entry_type=entry_type --holder=holder
 
 get_optional_bool_ map/Map key/string -> bool?
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key: return null
   return get_bool_ map key --entry_type=entry_type --holder=holder
 
 get_bool_ map/Map key/string -> bool
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
   value := map[key]
@@ -185,7 +185,7 @@ get_bool_ map/Map key/string -> bool
   return value
 
 /**
-A specification of a device.
+A specification of a pod.
 
 This class contains the information needed to install/flash and
   update a device.
@@ -196,7 +196,7 @@ Relevant data includes (but is not limited to):
 - connection information (Wi-Fi, cellular, ...),
 - installed containers.
 */
-class DeviceSpecification:
+class PodSpecification:
   sdk_version/string
   artemis_version/string
   max_offline_seconds/int
@@ -212,10 +212,10 @@ class DeviceSpecification:
     chip = get_optional_string_ data "chip"
 
     if data.contains "apps" and data.contains "containers":
-      format_error_ "Both 'apps' and 'containers' are present in device specification."
+      format_error_ "Both 'apps' and 'containers' are present in pod specification."
 
     if (get_int_ data "version") != 1:
-      format_error_ "Unsupported device specification version $data["version"]"
+      format_error_ "Unsupported pod specification version $data["version"]"
 
     if data.contains "apps" and not data.contains "containers":
       check_is_map_ data "apps"
@@ -237,7 +237,7 @@ class DeviceSpecification:
     connections_entry := get_list_ data "connections"
     connections_entry.do:
       if it is not Map:
-        format_error_ "Connection in device specification is not a map: $it"
+        format_error_ "Connection in pod specification is not a map: $it"
 
     connections = data["connections"].map: ConnectionInfo.from_json it
 
@@ -246,12 +246,12 @@ class DeviceSpecification:
 
     validate_
 
-  static parse path/string -> DeviceSpecification:
+  static parse path/string -> PodSpecification:
     json := null
     exception := catch: json = read_json path
     if exception:
-      format_error_ "Failed to parse device specification as JSON: $exception"
-    return DeviceSpecification.from_json --path=path json
+      format_error_ "Failed to parse pod specification as JSON: $exception"
+    return PodSpecification.from_json --path=path json
 
   /**
   Returns the path to which all other paths of this specification are

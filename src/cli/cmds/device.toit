@@ -9,11 +9,11 @@ import .device_container
 import ..artemis
 import ..cache
 import ..config
-import ..device_specification
 import ..device
 import ..event
 import ..firmware
 import ..organization
+import ..pod_specification
 import ..server_config
 import ..ui
 import ..utils
@@ -32,14 +32,14 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Updates the firmware on the device.
 
-        The specification file contains the device specification. It includes
+        The specification file contains the pod specification. It includes
         the firmware version, installed applications, connection settings,
-        etc. See 'specification-format' for more information.
+        etc. See 'doc specification-format' for more information.
         """
       --options=[
         cli.Option "specification"
             --type="file"
-            --short_help="The specification of the device."
+            --short_help="The specification of the pod."
             --required,
       ]
       --run=:: update it config cache ui
@@ -114,9 +114,9 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if not device_id:
     ui.abort "No device ID specified and no default device ID set."
 
-  specification := parse_device_specification_file specification_path --ui=ui
+  specification := parse_pod_specification_file specification_path --ui=ui
   with_artemis parsed config cache ui: | artemis/Artemis |
-    artemis.update --device_id=device_id --device_specification=specification
+    artemis.update --device_id=device_id --specification=specification
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if parsed["clear"]:
@@ -141,7 +141,7 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 make_default_ device_id/uuid.Uuid config/Config ui/Ui:
   config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"
   config.write
-  ui.info "Default device set to $device_id"
+  ui.info "Default device set to $device_id."
 
 show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]

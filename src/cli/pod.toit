@@ -8,7 +8,7 @@ import reader show Reader
 
 import .artemis
 import .cache
-import .device_specification
+import .pod_specification
 import .sdk
 import .ui
 import .utils
@@ -36,14 +36,14 @@ class Pod:
     artemis_ = artemis
 
   constructor.from_specification --path/string --artemis/Artemis --ui/Ui:
-    specification := parse_device_specification_file path --ui=ui
+    specification := parse_pod_specification_file path --ui=ui
     return Pod.from_specification --specification=specification --artemis=artemis
 
-  constructor.from_specification --specification/DeviceSpecification --artemis/Artemis:
+  constructor.from_specification --specification/PodSpecification --artemis/Artemis:
     envelope_path := generate_envelope_path_ --artemis=artemis
     artemis.customize_envelope
         --output_path=envelope_path
-        --device_specification=specification
+        --specification=specification
     envelope := file.read_content envelope_path
     return Pod --artemis=artemis --envelope=envelope --envelope_path=envelope_path
 

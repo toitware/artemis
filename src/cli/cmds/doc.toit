@@ -8,14 +8,14 @@ create_doc_commands _ _ ui/Ui -> List:
       --short_help="Documentation."
 
   specification_format_cmd := cli.Command "specification-format"
-      --short_help="Show the format of the device specification file."
+      --short_help="Show the format of the pod specification file."
       --run=:: ui.info SPECIFICATION_FORMAT_HELP
   cmd.add specification_format_cmd
 
   return [cmd]
 
 SPECIFICATION_FORMAT_HELP ::= """
-  The format of the device specification file.
+  The format of the pod specification file.
 
   The specification file is a JSON file with the following entries:
 

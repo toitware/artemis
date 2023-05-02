@@ -110,7 +110,7 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Option "diff-base"
-            --type="pod file"
+            --type="pod-file"
             --short_help="The base pod to use for diff-based updates."
             --multi,
       ]
