@@ -143,7 +143,6 @@ class BrokerCliHttp implements BrokerCli:
       result[uuid.parse id_string] = decoded_events
     return result
 
-
   /**
   Creates a new release with the given $version and $description for the $fleet_id.
   */

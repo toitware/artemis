@@ -2,6 +2,7 @@
 -- Use of this source code is governed by an MIT-style license that can be
 -- found in the LICENSE file.
 
+-- Use 'toit_artemis' to resolve unqualified variables.
 SET search_path TO toit_artemis;
 
 -- The available releases.
@@ -123,7 +124,7 @@ AS $$
 DECLARE
     release_ids BIGINT[];
 BEGIN
-    -- Store the relevant ids in a temporary table.
+    -- Store the relevant ids in a temporary array.
     release_ids := ARRAY(
         SELECT r.id
         FROM toit_artemis.releases r

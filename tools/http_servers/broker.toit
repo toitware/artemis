@@ -23,6 +23,25 @@ main args:
 
   root_cmd.run args
 
+class ReleaseEntry:
+  id/int
+  version/string
+  description/string?
+  fleet_id/string
+  artifacts/Map
+
+  constructor --.id --.fleet_id --.version --.description:
+    artifacts = {:}
+
+  to_json -> Map:
+    return {
+      "id": id,
+      "fleet_id": fleet_id,
+      "version": version,
+      "description": description,
+      "groups": artifacts.values
+    }
+
 class HttpBroker extends HttpServer:
   images_/Map := {:}
   firmwares_/Map := {:}
@@ -42,6 +61,11 @@ class HttpBroker extends HttpServer:
     informed that it needs to reconcile its state.
   */
   state_revision_/Map := {:}
+
+  /* Release related fields. */
+  release_ids_ := 0
+  releases_/Map ::= {:}  // Map from release ID to $ReleaseEntry object.
+  encoded_map_/Map ::= {:}  // Map from encoded firmware to release ID.
 
   constructor port/int:
     super port
@@ -251,13 +275,9 @@ class HttpBroker extends HttpServer:
   clear_events:
     events_.clear
 
-  release_ids_ := 0
-  releases_/Map ::= {:}  // Map from release ID to $Release object.
-  encoded_map_/Map ::= {:}  // Map from encoded firmware to release ID.
-
   release_create data/Map:
     id := release_ids_++
-    release := Release
+    release := ReleaseEntry
         --id=id
         --fleet_id=data["fleet_id"]
         --version=data["version"]
@@ -275,8 +295,8 @@ class HttpBroker extends HttpServer:
 
   release_get_fleet_id data/Map:
     fleet_id := data["fleet_id"]
-    releases := releases_.values.filter: | release/Release | release.fleet_id == fleet_id
-    return releases.map: | release/Release | release.to_json
+    releases := releases_.values.filter: | release/ReleaseEntry | release.fleet_id == fleet_id
+    return releases.map: | release/ReleaseEntry | release.to_json
 
   release_get_release_ids data/Map:
     release_ids := data["release_ids"]
@@ -291,22 +311,3 @@ class HttpBroker extends HttpServer:
       if release_id and releases_[release_id].fleet_id == fleet_id:
         result[encoded] = release_id
     return result
-
-class Release:
-  id/int
-  version/string
-  description/string?
-  fleet_id/string
-  artifacts/Map
-
-  constructor --.id --.fleet_id --.version --.description:
-    artifacts = {:}
-
-  to_json -> Map:
-    return {
-      "id": id,
-      "fleet_id": fleet_id,
-      "version": version,
-      "description": description,
-      "groups": artifacts.values
-    }

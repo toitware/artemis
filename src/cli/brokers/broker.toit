@@ -155,7 +155,7 @@ interface BrokerCli implements Authenticatable:
 
   Returns a list of $Release objects.
   */
-  release_get --fleet_id/uuid.Uuid  --limit/int=100 -> List
+  release_get --fleet_id/uuid.Uuid --limit/int=100 -> List
 
   /**
   Fetches the releases with the given $release_ids.
