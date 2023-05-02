@@ -6,9 +6,9 @@ import .utils_
 import ..artemis
 import ..config
 import ..cache
-import ..device_specification
 import ..fleet
 import ..pod
+import ..pod_specification
 import ..ui
 
 create_pod_commands config/Config cache/Cache ui/Ui -> List:
