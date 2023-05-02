@@ -39,7 +39,7 @@ class ReleaseEntry:
       "fleet_id": fleet_id,
       "version": version,
       "description": description,
-      "groups": artifacts.values
+      "tags": artifacts.values
     }
 
 class HttpBroker extends HttpServer:
@@ -65,7 +65,7 @@ class HttpBroker extends HttpServer:
   /* Release related fields. */
   release_ids_ := 0
   releases_/Map ::= {:}  // Map from release ID to $ReleaseEntry object.
-  encoded_map_/Map ::= {:}  // Map from encoded firmware to release ID.
+  pod_id_map_/Map ::= {:}  // Map from encoded firmware to release ID.
 
   constructor port/int:
     super port
@@ -90,7 +90,7 @@ class HttpBroker extends HttpServer:
     if command == "release_add_artifact": return release_add_artifact data
     if command == "release_get_fleet_id": return release_get_fleet_id data
     if command == "release_get_release_ids": return release_get_release_ids data
-    if command == "release_get_ids_for_encoded": return release_get_ids_for_encoded data
+    if command == "release_get_ids_for_pod_ids": return release_get_ids_for_pod_ids data
 
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
@@ -288,10 +288,10 @@ class HttpBroker extends HttpServer:
   release_add_artifact data/Map:
     release_id := data["release_id"]
     release := releases_[release_id]
-    encoded := data["encoded"]
-    group := data["group"]
-    release.artifacts[encoded] = group
-    encoded_map_[encoded] = release_id
+    pod_id := data["pod_id"]
+    tag := data["tag"]
+    release.artifacts[pod_id] = tag
+    pod_id_map_[pod_id] = [release_id, tag]
 
   release_get_fleet_id data/Map:
     fleet_id := data["fleet_id"]
@@ -302,12 +302,12 @@ class HttpBroker extends HttpServer:
     release_ids := data["release_ids"]
     return release_ids.map: | id/int | releases_[id].to_json
 
-  release_get_ids_for_encoded data/Map:
+  release_get_ids_for_pod_ids data/Map:
     fleet_id := data["fleet_id"]
-    encoded_entries := data["encoded_entries"]
+    pod_ids := data["pod_ids"]
     result := {:}
-    encoded_entries.do: | encoded/string |
-      release_id := encoded_map_.get encoded
-      if release_id and releases_[release_id].fleet_id == fleet_id:
-        result[encoded] = release_id
+    pod_ids.do: | pod_id/string |
+      release_id_tag := pod_id_map_.get pod_id
+      if release_id_tag and releases_[release_id_tag[0]].fleet_id == fleet_id:
+        result[pod_id] = release_id_tag
     return result
