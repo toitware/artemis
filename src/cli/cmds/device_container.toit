@@ -7,7 +7,7 @@ import .utils_
 import ..artemis
 import ..cache
 import ..config
-import ..device_specification as device_specification
+import ..pod_specification as pod_specification
 import ..ui
 import ..utils
 
@@ -88,16 +88,16 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     if parsed_trigger == "none":
       // Do nothing. We check that parsed_trigger's the only trigger later.
     else if parsed_trigger == "boot":
-      triggers.add device_specification.BootTrigger
+      triggers.add pod_specification.BootTrigger
     else if parsed_trigger == "install":
-      triggers.add device_specification.InstallTrigger
+      triggers.add pod_specification.InstallTrigger
     else if parsed_trigger is Map and parsed_trigger.contains "interval":
       if seen_triggers.contains "interval":
         ui.abort "Duplicate trigger 'interval'."
       seen_triggers.add "interval"
       duration := parse_duration parsed_trigger["interval"] --on_error=:
         ui.abort "Invalid interval '$parsed_trigger'. Use 20s, 5m10s, 12h or similar."
-      triggers.add (device_specification.IntervalTrigger duration)
+      triggers.add (pod_specification.IntervalTrigger duration)
     else if parsed_trigger is Map and (parsed_trigger.contains "gpio-low" or parsed_trigger.contains "gpio-high"):
       // Add an entry to the seen triggers list, so we can ensure that it's not combined with 'none'.
       seen_triggers.add "gpio"
@@ -111,8 +111,8 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       seen_pins.add pin
 
       triggers.add (on_high
-          ? device_specification.GpioTriggerHigh pin
-          : device_specification.GpioTriggerLow pin)
+          ? pod_specification.GpioTriggerHigh pin
+          : pod_specification.GpioTriggerLow pin)
     else:
       ui.abort "Invalid trigger '$parsed_trigger'."
       unreachable
@@ -123,7 +123,7 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     triggers = []
   else if not is_critical and triggers.is_empty:
     // Non-critical containers get a boot and an install trigger by default.
-    triggers = [device_specification.BootTrigger, device_specification.InstallTrigger]
+    triggers = [pod_specification.BootTrigger, pod_specification.InstallTrigger]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     artemis.container_install
