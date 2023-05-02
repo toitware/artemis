@@ -84,5 +84,5 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    pod := Pod.parse pod_path --artemis=artemis --ui=ui
+    pod := Pod.parse pod_path --tmp_directory=artemis.tmp_directory --ui=ui
     fleet.upload --pod=pod

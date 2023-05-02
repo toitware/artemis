@@ -476,7 +476,7 @@ class Artemis:
   compute_updated_goal --device/Device --upgrade_from/List --pod/Pod -> Map:
     // Compute the patches and upload them.
     ui_.info "Computing and uploading patches."
-    upgrade_to := compute_device_specific_firmware --pod=pod --device=device
+    upgrade_to := Firmware --pod=pod --device=device --cache=cache_
     upgrade_from.do: | old_firmware_content/FirmwareContent |
       patches := upgrade_to.content.patches old_firmware_content
       patches.do: diff_and_upload_ it --organization_id=device.organization_id
@@ -551,36 +551,9 @@ class Artemis:
 
     // We don't really need the full firmware and just the device-specific data,
     // but by cooking the firmware we get the checksums correct.
-    firmware := compute_device_specific_firmware
-        --envelope_path=pod.envelope_path
-        --device=device
-        --cache=cache
+    firmware := Firmware --pod=pod --device=device --cache=cache
 
     return firmware.device_specific_data
-
-  /**
-  Creates a device-specific firmware image from the given $pod.
-  */
-  compute_device_specific_firmware -> Firmware
-      --pod/Pod
-      --device/Device:
-    return compute_device_specific_firmware
-        --envelope_path=pod.envelope_path
-        --device=device
-        --cache=cache_
-
-  /**
-  Variant of $(compute_device_specific_firmware --pod --device).
-  */
-  static compute_device_specific_firmware -> Firmware
-      --envelope_path/string
-      --device/Device
-      --cache/cache.Cache:
-    // Cook the firmware.
-    return Firmware
-        --envelope_path=envelope_path
-        --device=device
-        --cache=cache
 
   /**
   Gets the Artemis service image for the given $sdk and $service versions.
