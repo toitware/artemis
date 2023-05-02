@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS toit_artemis.releases
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Add uniqueness constraint for fleet_id, version, category.
+-- Add uniqueness constraint for fleet_id, version.
 CREATE UNIQUE INDEX IF NOT EXISTS releases_fleet_id_version_idx
     ON toit_artemis.releases (fleet_id, version);
 
