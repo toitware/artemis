@@ -14,6 +14,7 @@ import .sdk
 import .cache show ENVELOPE_PATH
 import .cache as cli
 import .device
+import .pod
 import .utils
 import ..shared.utils.patch
 
@@ -71,7 +72,7 @@ class Firmware:
 
   /**
   Embeds device-specific information in $device into a firmware given by
-    its $envelope_path.
+    its pod.
 
   Computes the "parts" which describes the individual parts of the
     firmware. Most parts consist of a range, and the binary hash of its content.
@@ -83,9 +84,9 @@ class Firmware:
     may change the size of the part (and thus the ranges of the other parts),
     the process is repeated until the encoded parts do not change anymore.
   */
-  constructor --device/Device --envelope_path/string --cache/cli.Cache:
-    sdk_version := Sdk.get_sdk_version_from --envelope_path=envelope_path
-    unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache
+  constructor --device/Device --pod/Pod --cache/cli.Cache:
+    sdk_version := Sdk.get_sdk_version_from --envelope_path=pod.envelope_path
+    unconfigured := FirmwareContent.from_envelope pod.envelope_path --cache=cache
     encoded_parts := unconfigured.encoded_parts
     device_map := {
       "device_id":       "$device.id",
@@ -96,11 +97,12 @@ class Firmware:
       device_specific := ubjson.encode {
         "artemis.device" : device_map,
         "parts"          : encoded_parts,
-        // TODO(florian): this doesn't feel like it's a device-specific property.
+        // TODO(florian): these don't feel like they are device-specific properties.
         "sdk-version"    : sdk_version,
+        "pod-id"         : pod.id.to_byte_array,
       }
 
-      configured := FirmwareContent.from_envelope envelope_path
+      configured := FirmwareContent.from_envelope pod.envelope_path
           --device_specific=device_specific
           --cache=cache
       if configured.encoded_parts == encoded_parts:
@@ -120,6 +122,9 @@ class Firmware:
   /** The sdk version that was used for this firmware. */
   sdk_version -> string:
     return device_specific "sdk-version"
+
+  pod_id -> uuid.Uuid:
+    return uuid.Uuid (device_specific "pod-id")
 
 class FirmwareContent:
   bits/ByteArray?
