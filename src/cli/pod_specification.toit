@@ -256,8 +256,8 @@ class PodSpecification:
 
     connections = data["connections"].map: ConnectionInfo.from_json it
 
-    // TODO(florian): make max-offline optional.
-    max_offline_seconds = (get_duration_ data "max-offline").in_s
+    max_offline := get_optional_duration_ data "max-offline"
+    max_offline_seconds = max_offline ? max_offline.in_s : 0
 
     validate_
 

@@ -89,9 +89,8 @@ test_errors:
 
   no_max_offline := new_valid
   no_max_offline.remove "max-offline"
-  expect_format_error
-      "Missing max-offline in pod specification."
-      no_max_offline
+  no_max_offline_spec := PodSpecification.from_json no_max_offline --path="ignored"
+  expect_equals 0 no_max_offline_spec.max_offline_seconds
 
   no_connections := new_valid
   no_connections.remove "connections"
