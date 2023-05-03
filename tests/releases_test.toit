@@ -48,7 +48,7 @@ test_releases --test_broker/TestBroker broker_cli/broker.BrokerCli:
   release/Release := releases[0]
   expect_equals "version1" release.version
   expect_null release.description
-  expect release.groups.is_empty
+  expect release.tags.is_empty
 
   // Create another release.
   release_id2 := broker_cli.release_create
@@ -62,11 +62,11 @@ test_releases --test_broker/TestBroker broker_cli/broker.BrokerCli:
   index2 := index1 == 0 ? 1 : 0
   expect_equals "version1" releases[index1].version
   expect_null releases[index1].description
-  expect releases[index1].groups.is_empty
+  expect releases[index1].tags.is_empty
 
   expect_equals "version2" releases[index2].version
   expect_equals "description2" releases[index2].description
-  expect releases[index2].groups.is_empty
+  expect releases[index2].tags.is_empty
 
   // Get the release by id.
   releases = broker_cli.release_get --release_ids=[release_id]
@@ -82,62 +82,71 @@ test_releases --test_broker/TestBroker broker_cli/broker.BrokerCli:
   expect_equals "version2" releases[index2].version
 
   // Add artifacts.
+  pod_id1 := random_uuid
   broker_cli.release_add_artifact
       --release_id=release_id
-      --group=""
-      --encoded_firmware="firmware1"
+      --tag=""
+      --pod_id=pod_id1
 
   releases = broker_cli.release_get --release_ids=[release_id]
   expect_equals 1 releases.size
   release = releases[0]
-  expect_equals 1 release.groups.size
-  expect_equals "" release.groups[0]
+  expect_equals 1 release.tags.size
+  expect_equals "" release.tags[0]
 
   // Find the firmware for an encoded firmware.
   release_ids := broker_cli.release_get_ids_for
       --fleet_id=fleet_id
-      --encoded_firmwares=["firmware1"]
+      --pod_ids=[pod_id1]
   expect_equals 1 release_ids.size
-  expect_equals release_id release_ids["firmware1"]
+  expect_equals release_id release_ids[pod_id1][0]
+  expect_equals "" release_ids[pod_id1][1]
 
-  groups := ["foo", "bar", "gee"]
-  groups.do:
+  tags := ["foo", "bar", "gee"]
+  pod_ids := [random_uuid, random_uuid, random_uuid]
+  3.repeat:
+    tag := tags[it]
+    pod_id := pod_ids[it]
     broker_cli.release_add_artifact
         --release_id=release_id2
-        --group=it
-        --encoded_firmware="firmware-$it"
+        --tag=tag
+        --pod_id=pod_id
 
   releases = broker_cli.release_get --release_ids=[release_id2]
   expect_equals 1 releases.size
   release = releases[0]
-  expect_equals 3 release.groups.size
+  expect_equals 3 release.tags.size
   set := {}
-  set.add_all release.groups
-  groups.do: expect (set.contains it)
+  set.add_all release.tags
+  tags.do: expect (set.contains it)
 
   // Find the firmware for an encoded firmware.
   release_ids = broker_cli.release_get_ids_for
       --fleet_id=fleet_id
-      --encoded_firmwares=["firmware-foo", "firmware-bar"]
+      --pod_ids=pod_ids[..2]
   expect_equals 2 release_ids.size
-  expect_equals release_id2 release_ids["firmware-foo"]
-  expect_equals release_id2 release_ids["firmware-bar"]
+  expect_equals release_id2 release_ids[pod_ids[0]][0]
+  expect_equals tags[0] release_ids[pod_ids[0]][1]
+  expect_equals release_id2 release_ids[pod_ids[1]][0]
+  expect_equals tags[1] release_ids[pod_ids[1]][1]
 
   // Find the firmware for an encoded firmware.
   release_ids = broker_cli.release_get_ids_for
       --fleet_id=fleet_id
-      --encoded_firmwares=["firmware1", "firmware-bar", "firmware-gee"]
+      --pod_ids=[pod_id1] + pod_ids[1..]
   expect_equals 3 release_ids.size
-  expect_equals release_id release_ids["firmware1"]
-  expect_equals release_id2 release_ids["firmware-bar"]
-  expect_equals release_id2 release_ids["firmware-gee"]
+  expect_equals release_id release_ids[pod_id1][0]
+  expect_equals "" release_ids[pod_id1][1]
+  expect_equals release_id2 release_ids[pod_ids[1]][0]
+  expect_equals tags[1] release_ids[pod_ids[1]][1]
+  expect_equals release_id2 release_ids[pod_ids[2]][0]
+  expect_equals tags[2] release_ids[pod_ids[2]][1]
 
   // Find the firmware for an non existing encoded firmware.
-  encoded_firmwares := ["firmware1", "firmware-bar", "firmware-unknown", "firmware-gee", "firmware-unknown2"]
   release_ids = broker_cli.release_get_ids_for
       --fleet_id=fleet_id
-      --encoded_firmwares=encoded_firmwares
+      --pod_ids=[pod_id1] + pod_ids[1..] + [random_uuid]
   expect_equals 3 release_ids.size
-  expect_equals release_id release_ids["firmware1"]
-  expect_equals release_id2 release_ids["firmware-bar"]
-  expect_equals release_id2 release_ids["firmware-gee"]
+  expect_equals release_id release_ids[pod_id1][0]
+  expect_equals release_id2 release_ids[pod_ids[1]][0]
+  expect_equals release_id2 release_ids[pod_ids[2]][0]

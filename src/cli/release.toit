@@ -21,16 +21,15 @@ class Release:
   description/string?
 
   /**
-  The groups that are available for this release.
+  The tags that are available for this release.
   */
-  groups/List
+  tags/List
 
-  constructor --.id --.fleet_id --.version --.description --.groups:
-    groups = []
+  constructor --.id --.fleet_id --.version --.description --.tags:
 
   constructor.from_map map/Map:
     id = map["id"]
     fleet_id = uuid.parse map["fleet_id"]
     version = map["version"]
     description = map.get "description"
-    groups = map["groups"]
+    tags = map["tags"]

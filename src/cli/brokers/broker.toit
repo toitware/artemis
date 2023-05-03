@@ -142,10 +142,9 @@ interface BrokerCli implements Authenticatable:
   /**
   Adds a new artifact to the given $release_id.
 
-  The $group must be a valid string and should be "" for the default group.
-  The $encoded_firmware is a base64 encoded string of the hashes of the firmware.
+  The $tag must be a valid string and should be "" for the default tag.
   */
-  release_add_artifact --release_id/int --group/string --encoded_firmware/string -> none
+  release_add_artifact --release_id/int --tag/string --pod_id/uuid.Uuid -> none
 
   /**
   Fetches releases for the given $fleet_id.
@@ -165,12 +164,12 @@ interface BrokerCli implements Authenticatable:
   release_get --release_ids/List -> List
 
   /**
-  Returns the release ids for the given $encoded_firmwares in the given $fleet_id.
+  Returns the release ids for the given $pod_ids in the given $fleet_id.
 
-  Returns a map from encoded firmware to release id.
-  If an encoded firmware is not found, the map does not contain an entry for it.
+  Returns a map from pod_id to a list containing the release id and a tag.
+  If a pod id is not found, the map does not contain an entry for it.
   */
-  release_get_ids_for --fleet_id/uuid.Uuid --encoded_firmwares/List -> Map
+  release_get_ids_for --fleet_id/uuid.Uuid --pod_ids/List -> Map
 
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config

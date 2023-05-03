@@ -252,7 +252,7 @@ run_shared_test
   expect_equals release_id releases[0]["id"]
   expect_equals "v1.0.0" releases[0]["version"]
   expect_equals "release v1.0.0" releases[0]["description"]
-  expect_equals [] releases[0]["groups"]
+  expect_equals [] releases[0]["tags"]
 
   // Anon can't see the release.
   releases = client_anon.rest.rpc "toit_artemis.get_releases" {
@@ -293,54 +293,58 @@ run_shared_test
   expect releases.is_empty
 
   // Add some artifacts.
+  pod_id1 := random_uuid
+  pod_id2 := random_uuid
   client1.rest.rpc "toit_artemis.add_release_artifacts" {
     "_release_id": release_id,
     "_artifacts": [
       {
-        "group": "group1",
-        "encoded_firmware": "encoded1",
+        "tag": "tag1",
+        "pod_id": "$pod_id1",
       },
       {
-        "group": "group2",
-        "encoded_firmware": "encoded2",
+        "tag": "tag2",
+        "pod_id": "$pod_id2",
       },
     ]
   }
 
   // Anon can't do that.
+  pod_id3 := random_uuid
   expect_throws --contains="row-level security":
     client_anon.rest.rpc "toit_artemis.add_release_artifacts" {
       "_release_id": release_id,
       "_artifacts": [
         {
-          "group": "group3",
-          "encoded_firmware": "encoded3",
+          "tag": "tag3",
+          "pod_id": "$pod_id3",
         }
       ]
     }
 
-  // The group now appears in the release.
+  // The tag now appears in the release.
   releases = client1.rest.rpc "toit_artemis.get_releases" {
     "_fleet_id": "$fleet_id",
     "_limit": 100,
   }
   expect_equals 1 releases.size
-  groups := releases[0]["groups"]
-  expect_equals ["group1", "group2"] groups.sort
+  tags := releases[0]["tags"]
+  expect_equals ["tag1", "tag2"] tags.sort
 
   // We can also find the release by encoded firmware.
-  release_ids := client1.rest.rpc "toit_artemis.get_release_ids_for_encoded_firmwares" {
+  release_ids := client1.rest.rpc "toit_artemis.get_release_ids_for_pod_ids" {
     "_fleet_id": "$fleet_id",
-    "_encoded_firmwares": ["encoded1"],
+    "_pod_ids": ["$pod_id1"],
   }
   expect_equals 1 release_ids.size
   expect_equals release_id release_ids[0]["id"]
-  expect_equals "encoded1" release_ids[0]["encoded_firmware"]
+  expect_equals "$pod_id1" release_ids[0]["pod_id"]
+  expect_equals "tag1" release_ids[0]["tag"]
 
   // Anon can't do that.
-  release_ids = client_anon.rest.rpc "toit_artemis.get_release_ids_for_encoded_firmwares" {
+  release_ids = client_anon.rest.rpc "toit_artemis.get_release_ids_for_pod_ids" {
       "_fleet_id": "$fleet_id",
-      "_encoded_firmwares": ["encoded1"],
+      "_pod_ids": ["$pod_id1"],
     }
   expect release_ids.is_empty
 

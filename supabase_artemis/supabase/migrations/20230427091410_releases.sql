@@ -41,24 +41,24 @@ CREATE TABLE IF NOT EXISTS toit_artemis.release_artifacts
     release_id BIGINT NOT NULL REFERENCES toit_artemis.releases(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
-    "group" TEXT NOT NULL,
-    encoded_firmware TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    pod_id UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS release_artifacts_release_id_idx
     ON toit_artemis.release_artifacts (release_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS release_artifacts_release_id_group_idx
-    ON toit_artemis.release_artifacts (release_id, "group");
+CREATE UNIQUE INDEX IF NOT EXISTS release_artifacts_release_id_tag_idx
+    ON toit_artemis.release_artifacts (release_id, tag);
 
 -- Index on release_id and insertion date, to make it easier to find the latest
 -- releases for a fleet.
 CREATE INDEX IF NOT EXISTS release_artifacts_release_id_created_at_idx
     ON toit_artemis.release_artifacts (release_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS release_artifacts_encoded_firmware_idx
-    ON toit_artemis.release_artifacts (encoded_firmware);
+CREATE INDEX IF NOT EXISTS release_artifacts_pod_id_idx
+    ON toit_artemis.release_artifacts (pod_id);
 
 ALTER TABLE toit_artemis.release_artifacts ENABLE ROW LEVEL SECURITY;
 
@@ -114,10 +114,10 @@ DECLARE
     artifact RECORD;
 BEGIN
     FOR artifact IN SELECT * FROM jsonb_to_recordset(_artifacts) AS
-        ("group" TEXT, encoded_firmware TEXT)
+        (tag TEXT, pod_id UUID)
     LOOP
-        INSERT INTO toit_artemis.release_artifacts (release_id, "group", encoded_firmware)
-            VALUES (_release_id, artifact."group", artifact.encoded_firmware);
+        INSERT INTO toit_artemis.release_artifacts (release_id, tag, pod_id)
+            VALUES (_release_id, artifact.tag, artifact.pod_id);
     END LOOP;
 END;
 $$;
@@ -128,7 +128,7 @@ CREATE TYPE toit_artemis.Release AS (
     version TEXT,
     description TEXT,
     created_at TIMESTAMPTZ,
-    groups TEXT[]
+    tags TEXT[]
 );
 
 CREATE OR REPLACE FUNCTION toit_artemis.get_releases(
@@ -169,7 +169,7 @@ BEGIN
             CASE
                 WHEN ra.release_id IS NULL
                 THEN ARRAY[]::text[]
-                ELSE ARRAY_AGG(ra."group")
+                ELSE ARRAY_AGG(ra.tag)
             END
         FROM toit_artemis.releases r
         LEFT JOIN toit_artemis.release_artifacts ra
@@ -179,22 +179,22 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION toit_artemis.get_release_ids_for_encoded_firmwares(
+CREATE OR REPLACE FUNCTION toit_artemis.get_release_ids_for_pod_ids(
         _fleet_id UUID,
-        _encoded_firmwares TEXT[]
+        _pod_ids UUID[]
     )
-RETURNS TABLE (id BIGINT, encoded_firmware TEXT)
+RETURNS TABLE (id BIGINT, pod_id UUID, tag TEXT)
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
 DECLARE release_ids BIGINT[];
 BEGIN
     RETURN QUERY
-        SELECT r.id, encoded
-        FROM unnest(_encoded_firmwares) AS encoded
+        SELECT r.id, _pod_id, ra.tag
+        FROM unnest(_pod_ids) AS _pod_id
         JOIN toit_artemis.releases r ON fleet_id = _fleet_id
         JOIN toit_artemis.release_artifacts ra
-            ON ra.encoded_firmware = encoded AND ra.release_id = r.id;
+            ON ra.pod_id = _pod_id AND ra.release_id = r.id;
 END;
 $$;
 
@@ -243,17 +243,17 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public."toit_artemis.get_release_ids_for_encoded_firmwares"(
+CREATE OR REPLACE FUNCTION public."toit_artemis.get_release_ids_for_pod_ids"(
         _fleet_id UUID,
-        _encoded_firmwares TEXT[]
+        _pod_ids UUID[]
     )
-RETURNS TABLE (id BIGINT, encoded_firmware TEXT)
+RETURNS TABLE (id BIGINT, pod_id UUID, tag TEXT)
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-        SELECT * FROM toit_artemis.get_release_ids_for_encoded_firmwares(_fleet_id, _encoded_firmwares);
+        SELECT * FROM toit_artemis.get_release_ids_for_pod_ids(_fleet_id, _pod_ids);
 END;
 $$;
 
