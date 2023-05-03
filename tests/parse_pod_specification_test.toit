@@ -6,13 +6,15 @@ import artemis.cli.pod_specification
   show
     PodSpecification
     PodSpecificationException
+    INITIAL_POD_SPECIFICATION
     EXAMPLE_POD_SPECIFICATION
 
 main:
-  test_example
+  test_examples
   test_errors
 
-test_example:
+test_examples:
+  PodSpecification.from_json INITIAL_POD_SPECIFICATION --path="ignored"
   PodSpecification.from_json EXAMPLE_POD_SPECIFICATION --path="ignored"
 
 expect_format_error str/string json/Map:

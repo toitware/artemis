@@ -115,7 +115,7 @@ class Fleet:
 
     default_specification_path := "$fleet_root/$DEFAULT_SPECIFICATION_"
     if not file.is_file default_specification_path:
-      write_json_to_file --pretty default_specification_path EXAMPLE_POD_SPECIFICATION
+      write_json_to_file --pretty default_specification_path INITIAL_POD_SPECIFICATION
 
     hello_path := "$fleet_root/hello.toit"
     if not file.is_file hello_path:
