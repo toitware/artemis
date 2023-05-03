@@ -17,6 +17,21 @@ import .ui
 
 import ..shared.version show SDK_VERSION ARTEMIS_VERSION
 
+INITIAL_POD_SPECIFICATION ::= {
+  "version": 1,
+  "sdk-version": SDK_VERSION,
+  "artemis-version": ARTEMIS_VERSION,
+  "max-offline": "0s",
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "YOUR WIFI SSID",
+      "password": "YOUR WIFI PASSWORD",
+    }
+  ],
+  "containers": {:},
+}
+
 EXAMPLE_POD_SPECIFICATION ::= {
   "version": 1,
   "sdk-version": SDK_VERSION,
@@ -25,8 +40,8 @@ EXAMPLE_POD_SPECIFICATION ::= {
   "connections": [
     {
       "type": "wifi",
-      "ssid": "my-wifi",
-      "password": "my-password",
+      "ssid": "YOUR WIFI SSID",
+      "password": "YOUR WIFI PASSWORD",
     }
   ],
   "containers": {
@@ -241,8 +256,8 @@ class PodSpecification:
 
     connections = data["connections"].map: ConnectionInfo.from_json it
 
-    // TODO(florian): make max-offline optional.
-    max_offline_seconds = (get_duration_ data "max-offline").in_s
+    max_offline := get_optional_duration_ data "max-offline"
+    max_offline_seconds = max_offline ? max_offline.in_s : 0
 
     validate_
 

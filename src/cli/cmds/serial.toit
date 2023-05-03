@@ -171,7 +171,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         old_default := config.get CONFIG_ARTEMIS_DEFAULT_KEY
         if should_make_default: make_default_ device_id config ui
         run_host
-            --envelope_path=pod.envelope_path
+            --pod=pod
             --identity_path=identity_path
             --cache=cache
 
@@ -190,7 +190,7 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   partitions := build_partitions_table_ parsed["partition"] --ui=ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
-    pod := Pod.parse pod_path --artemis=artemis --ui=ui
+    pod := Pod.parse pod_path --tmp_directory=artemis.tmp_directory --ui=ui
     with_tmp_directory: | tmp_dir/string |
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data

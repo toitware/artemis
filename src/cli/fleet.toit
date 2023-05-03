@@ -115,7 +115,7 @@ class Fleet:
 
     default_specification_path := "$fleet_root/$DEFAULT_SPECIFICATION_"
     if not file.is_file default_specification_path:
-      write_json_to_file --pretty default_specification_path EXAMPLE_POD_SPECIFICATION
+      write_json_to_file --pretty default_specification_path INITIAL_POD_SPECIFICATION
 
     hello_path := "$fleet_root/hello.toit"
     if not file.is_file hello_path:
@@ -246,7 +246,7 @@ class Fleet:
     base_patches := {:}
 
     base_firmwares := diff_bases.map: | diff_base/string |
-      pod := Pod.parse diff_base --artemis=artemis_ --ui=ui_
+      pod := Pod.parse diff_base --tmp_directory=artemis_.tmp_directory --ui=ui_
       FirmwareContent.from_envelope pod.envelope_path --cache=cache_
 
     base_firmwares.do: | content/FirmwareContent |
