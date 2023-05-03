@@ -142,7 +142,7 @@ interface BrokerCli implements Authenticatable:
   /**
   Adds a new artifact to the given $release_id.
 
-  The $tag must be a valid string and should be "" for the default group.
+  The $tag must be a valid string and should be "" for the default tag.
   */
   release_add_artifact --release_id/int --tag/string --pod_id/uuid.Uuid -> none
 
