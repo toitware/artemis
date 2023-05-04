@@ -9,7 +9,7 @@ import ..auth
 import ..config
 import ..event
 import ..device
-import ..podhub
+import ..pod_registry
 import ..ui
 import ...shared.server_config
 import .supabase
@@ -132,7 +132,7 @@ interface BrokerCli implements Authenticatable:
   /**
   Creates a new pod description.
   */
-  podhub_description_upsert -> int
+  pod_registry_description_upsert -> int
       --fleet_id/uuid.Uuid
       --organization_id/uuid.Uuid
       --name/string
@@ -141,14 +141,14 @@ interface BrokerCli implements Authenticatable:
   /**
   Adds a pod.
   */
-  podhub_add -> none
+  pod_registry_add -> none
       --pod_description_id/int
       --pod_id/uuid.Uuid
 
   /**
   Adds a tag.
   */
-  podhub_tag_set -> none
+  pod_registry_tag_set -> none
       --pod_description_id/int
       --pod_id/uuid.Uuid
       --tag/string
@@ -156,46 +156,44 @@ interface BrokerCli implements Authenticatable:
   /**
   Removes a tag.
   */
-  podhub_tag_remove -> none
+  pod_registry_tag_remove -> none
       --pod_description_id/int
       --tag/string
 
   /**
   Lists pod descriptions.
 
-  Returns a list of $PodhubDescription.
+  Returns a list of $PodRegistryDescription.
   */
-  podhub_descriptions --fleet_id/uuid.Uuid -> List
+  pod_registry_descriptions --fleet_id/uuid.Uuid -> List
 
   /**
   Returns a list of descriptions by their ids.
 
-  Returns a list of $PodhubDescription.
+  Returns a list of $PodRegistryDescription.
   */
-  podhub_descriptions --ids/List -> List
+  pod_registry_descriptions --ids/List -> List
 
   /**
   Gets pod descriptions by name.
 
-  Returns a list of $PodhubDescription.
+  Returns a list of $PodRegistryDescription.
   */
-  podhub_descriptions --fleet_id/uuid.Uuid --names/List -> List
+  pod_registry_descriptions --fleet_id/uuid.Uuid --names/List -> List
 
   /**
   Returns the pods of a pod description.
 
-  Returns a list of $PodhubEntry.
+  Returns a list of $PodRegistryEntry.
   */
-  podhub_pods --pod_description_id/int -> List
-
+  pod_registry_pods --pod_description_id/int -> List
 
   /**
-  Returns pod-description ids for the given pod ids.
+  Returns the pods with the given $pod_ids.
 
-  Returns a map from pod-id to pod-description-id.
-  If a pod-id is not found, it is not included in the map.
+  Returns a list of $PodRegistryEntry.
   */
-  podhub_description_ids --pod_ids/List -> Map
+  pod_registry_pods --fleet_id --pod_ids/List -> List
 
   /**
   Returns the pod-id for the given name/tag combinations.
@@ -205,7 +203,7 @@ interface BrokerCli implements Authenticatable:
 
   The $names_tags list must contain maps with "name" and "tag" keys.
   */
-  podhub_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List
+  pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List
 
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config

@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS toit_artemis.pod_descriptions
 CREATE UNIQUE INDEX IF NOT EXISTS pods_fleet_id_name_idx
     ON toit_artemis.pod_descriptions (fleet_id, name);
 
+CREATE INDEX IF NOT EXISTS pod_descriptions_name_idx
+    ON toit_artemis.pod_descriptions (name);
+
 ALTER TABLE toit_artemis.pod_descriptions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Authenticated have full access to pod_descriptions table"
@@ -30,12 +33,18 @@ CREATE POLICY "Authenticated have full access to pod_descriptions table"
 
 CREATE TABLE IF NOT EXISTS toit_artemis.pods
 (
-    id UUID NOT NULL PRIMARY KEY,
+    id UUID NOT NULL,
+    fleet_id UUID NOT NULL,
     pod_description_id BIGINT NOT NULL REFERENCES toit_artemis.pod_descriptions(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    revision int NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (id, fleet_id)
 );
+
+CREATE INDEX IF NOT EXISTS pods_id_idx
+    ON toit_artemis.pods (id);
 
 CREATE INDEX IF NOT EXISTS pods_pod_description_id_idx
     ON toit_artemis.pods (pod_description_id);
@@ -47,6 +56,9 @@ CREATE INDEX IF NOT EXISTS pods_created_at_idx
 
 CREATE INDEX IF NOT EXISTS pods_pod_description_id_created_at_idx
     ON toit_artemis.pods (pod_description_id, created_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS pods_pod_description_id_revision_idx
+    ON toit_artemis.pods (pod_description_id, revision);
 
 ALTER TABLE toit_artemis.pods ENABLE ROW LEVEL SECURITY;
 
@@ -60,14 +72,16 @@ CREATE POLICY "Authenticated have full access to pods table"
 CREATE TABLE IF NOT EXISTS toit_artemis.pod_tags
 (
     id BIGSERIAL NOT NULL PRIMARY KEY,
+    pod_id UUID NOT NULL,
+    fleet_id UUID NOT NULL,
     pod_description_id BIGINT NOT NULL REFERENCES toit_artemis.pod_descriptions(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
-    pod_id UUID NOT NULL REFERENCES toit_artemis.pods(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
     tag TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    FOREIGN KEY (pod_id, fleet_id) REFERENCES toit_artemis.pods(id, fleet_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS pod_tags_pod_id_idx
@@ -111,7 +125,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION toit_artemis.upsert_pod(
+CREATE OR REPLACE FUNCTION toit_artemis.insert_pod(
         _pod_id UUID,
         _pod_description_id BIGINT
     )
@@ -119,17 +133,35 @@ RETURNS VOID
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    _revision INT;
+    _fleet_id UUID;
 BEGIN
-    INSERT INTO toit_artemis.pods (id, pod_description_id)
-        VALUES (_pod_id, _pod_description_id)
-        ON CONFLICT (id)
-        DO UPDATE SET pod_description_id = _pod_description_id;
+    -- Lock the pod_description_id row so concurrent updates don't duplicate the revision.
+    PERFORM * FROM toit_artemis.pod_descriptions
+        WHERE id = _pod_description_id
+        FOR UPDATE;
+
+    -- Get a new revision for the pod.
+    -- Max + 1 of the existing revisions for this pod_description_id.
+    SELECT COALESCE(MAX(revision), 0) + 1
+        FROM toit_artemis.pods
+        WHERE pod_description_id = _pod_description_id
+        INTO _revision;
+
+    SELECT fleet_id
+        FROM toit_artemis.pod_descriptions
+        WHERE id = _pod_description_id
+        INTO _fleet_id;
+
+    INSERT INTO toit_artemis.pods (id, fleet_id, pod_description_id, revision)
+        VALUES (_pod_id, _fleet_id, _pod_description_id, _revision);
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION toit_artemis.upsert_pod_tag(
-        _pod_description_id BIGINT,
+CREATE OR REPLACE FUNCTION toit_artemis.insert_pod_tag(
         _pod_id UUID,
+        _pod_description_id BIGINT,
         _tag TEXT
     )
 RETURNS VOID
@@ -137,10 +169,12 @@ SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    INSERT INTO toit_artemis.pod_tags (pod_description_id, pod_id, tag)
-        VALUES (_pod_description_id, _pod_id, _tag)
-        ON CONFLICT (pod_description_id, tag)
-        DO UPDATE SET pod_id = _pod_id;
+    INSERT INTO toit_artemis.pod_tags (pod_id, fleet_id, pod_description_id, tag)
+        SELECT _pod_id, p.fleet_id, _pod_description_id, _tag
+        FROM toit_artemis.pods p
+        JOIN toit_artemis.pod_descriptions pd
+            ON p.pod_description_id = pd.id
+        WHERE p.id = _pod_id;
 END;
 $$;
 
@@ -154,7 +188,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     DELETE FROM toit_artemis.pod_tags
-        WHERE pod_description_id = _pod_description_id
+    WHERE pod_description_id = _pod_description_id
         AND tag = _tag;
 END;
 $$;
@@ -162,19 +196,18 @@ $$;
 CREATE TYPE toit_artemis.Pod AS (
     id UUID,
     pod_description_id BIGINT,
+    revision INT,
     tags TEXT[]
 );
 
 CREATE TYPE toit_artemis.PodDescription AS (
     id BIGINT,
     name TEXT,
-    description TEXT,
-    tags TEXT[]
+    description TEXT
 );
 
 CREATE OR REPLACE FUNCTION toit_artemis.get_pod_descriptions(
-        _fleet_id UUID,
-        _tag_since TIMESTAMPTZ
+        _fleet_id UUID
     )
 RETURNS SETOF toit_artemis.PodDescription
 SECURITY INVOKER
@@ -188,17 +221,17 @@ BEGIN
         SELECT pd.id
         FROM toit_artemis.pod_descriptions pd
         WHERE pd.fleet_id = _fleet_id
+        ORDER BY pd.id DESC
     );
 
     RETURN QUERY
-        SELECT * FROM toit_artemis.get_pod_descriptions_by_ids(description_ids, _tag_since);
+        SELECT * FROM toit_artemis.get_pod_descriptions_by_ids(description_ids);
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION toit_artemis.get_pod_descriptions_by_name(
+CREATE OR REPLACE FUNCTION toit_artemis.get_pod_descriptions_by_names(
         _fleet_id UUID,
-        _name TEXT[],
-        _tag_since TIMESTAMPTZ
+        _names TEXT[]
     )
 RETURNS SETOF toit_artemis.PodDescription
 SECURITY INVOKER
@@ -212,17 +245,65 @@ BEGIN
         SELECT pd.id
         FROM toit_artemis.pod_descriptions pd
         WHERE pd.fleet_id = _fleet_id
-            AND pd.name = ANY(_name)
+            AND pd.name = ANY(_names)
     );
 
     RETURN QUERY
-        SELECT * FROM toit_artemis.get_pod_descriptions_by_ids(description_ids, _tag_since);
+        SELECT * FROM toit_artemis.get_pod_descriptions_by_ids(description_ids);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION toit_artemis.get_pod_descriptions_by_ids(
+        _description_ids BIGINT[]
+    )
+RETURNS SETOF toit_artemis.PodDescription
+SECURITY INVOKER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+        SELECT pd.id, pd.name, pd.description
+        FROM toit_artemis.pod_descriptions pd
+        WHERE pd.id = ANY(_description_ids);
 END;
 $$;
 
 CREATE OR REPLACE FUNCTION toit_artemis.get_pods(
         _pod_description_id BIGINT,
-        _tag_since TIMESTAMPTZ
+        _limit BIGINT,
+        _offset BIGINT
+    )
+RETURNS SETOF toit_artemis.Pod
+SECURITY INVOKER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    _pod_ids UUID[];
+    _fleet_id UUID;
+BEGIN
+    SELECT ARRAY(
+        SELECT p.id
+        FROM toit_artemis.pods p
+        WHERE p.pod_description_id = _pod_description_id
+        ORDER BY p.id
+        LIMIT _limit
+        OFFSET _offset
+    )
+    INTO _pod_ids;
+
+    SELECT fleet_id
+    FROM toit_artemis.pod_descriptions
+    WHERE id = _pod_description_id
+    INTO _fleet_id;
+
+    RETURN QUERY
+        SELECT * FROM toit_artemis.get_pods_by_ids(_fleet_id, _pod_ids);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION toit_artemis.get_pods_by_ids(
+        _fleet_id UUID,
+        _pod_ids UUID[]
     )
 RETURNS SETOF toit_artemis.Pod
 SECURITY INVOKER
@@ -230,42 +311,25 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-        SELECT p.id, p.pod_description_id,
+        SELECT p.id, p.pod_description_id, p.revision,
             CASE
                 WHEN pt.pod_id IS NULL
                 THEN ARRAY[]::text[]
                 ELSE array_agg(pt.tag)
             END
         FROM toit_artemis.pods p
-        LEFT JOIN toit_artemis.pod_tags pt ON pt.pod_id = p.id
-        WHERE p.pod_description_id = _pod_description_id
-            AND pt.created_at >= _tag_since
-        GROUP BY p.id, p.pod_description_id;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION toit_artemis.get_pod_descriptions_by_ids(
-        _description_ids BIGINT[],
-        _tag_since TIMESTAMPTZ
-    )
-RETURNS SETOF toit_artemis.PodDescription
-SECURITY INVOKER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    RETURN QUERY
-        SELECT pd.id, pd.name, pd.description,
-            CASE
-                WHEN pt.pod_description_id IS NULL
-                THEN ARRAY[]::text[]
-                ELSE ARRAY_AGG(pt.tag)
-            END
-        FROM toit_artemis.pod_descriptions pd
+        JOIN toit_artemis.pod_descriptions pd
+            ON pd.id = p.pod_description_id
+            AND pd.fleet_id = _fleet_id
         LEFT JOIN toit_artemis.pod_tags pt
-            ON pt.pod_description_id = pd.id
-        WHERE pd.id = ANY(_description_ids)
-            AND pt.created_at >= _tag_since
-        GROUP BY pd.id, pd.name, pd.description;
+            ON pt.pod_id = p.id
+            AND pt.fleet_id = _fleet_id
+            AND pt.pod_description_id = p.pod_description_id
+        WHERE
+            p.id = ANY(_pod_ids)
+            AND p.fleet_id = _fleet_id
+        GROUP BY p.id, p.revision, p.pod_description_id, pt.pod_id
+        ORDER BY p.id;
 END;
 $$;
 
@@ -277,41 +341,17 @@ RETURNS TABLE (pod_id UUID, name TEXT, tag TEXT)
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
-DECLARE
-    description_ids BIGINT[];
 BEGIN
     RETURN QUERY
-        SELECT p.id, pd.name, pt.tag
-        FROM toit_artemis.pods p
-        JOIN toit_artemis.pod_tags pt ON pt.pod_id = p.id
-        JOIN toit_artemis_pod_descriptions pd ON pd.id = p.pod_description_id
-        WHERE pd.fleet_id = _fleet_id
-            AND pd.name = _names_tags->>'name'
-            AND pt.tag = _names_tags->>'label';
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION toit_artemis.get_pod_descriptions_for_pod_ids(
-        _fleet_id UUID,
-        _pod_ids UUID[]
-    )
-RETURNS SETOF toit_artemis.Pod
-SECURITY INVOKER
-LANGUAGE plpgsql
-AS $$
-DECLARE release_ids BIGINT[];
-BEGIN
-    RETURN QUERY
-        SELECT _pod_id, p.pod_description_id,
-            CASE
-                WHEN pt.pod_id IS NULL
-                THEN ARRAY[]::text[]
-                ELSE ARRAY_AGG(pt.tag)
-            END
-        FROM unnest(_pod_ids) AS _pod_id
-        JOIN toit_artemis.pods p ON p.id = _pod_id
-        LEFT JOIN toit_artemis.pod_tags pt
-            ON pt.pod_id = _pod_id;
+        SELECT pt.pod_id, nt.name, nt.tag
+        FROM jsonb_to_recordset(_names_tags) as nt(name TEXT, tag TEXT)
+        JOIN toit_artemis.pod_descriptions pd
+            ON pd.name = nt.name
+            AND pd.fleet_id = _fleet_id
+        JOIN toit_artemis.pod_tags pt
+            ON pt.pod_description_id = pd.id
+            AND pt.fleet_id = _fleet_id
+            AND pt.tag = nt.tag;
 END;
 $$;
 
@@ -333,7 +373,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public."toit_artemis.upsert_pod"(
+CREATE OR REPLACE FUNCTION public."toit_artemis.insert_pod"(
         _pod_id UUID,
         _pod_description_id BIGINT
     )
@@ -342,13 +382,13 @@ SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    PERFORM toit_artemis.upsert_pod(_pod_id, _pod_description_id);
+    PERFORM toit_artemis.insert_pod(_pod_id, _pod_description_id);
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public."toit_artemis.upsert_pod_tag"(
-        _pod_description_id BIGINT,
+CREATE OR REPLACE FUNCTION public."toit_artemis.insert_pod_tag"(
         _pod_id UUID,
+        _pod_description_id BIGINT,
         _tag TEXT
     )
 RETURNS VOID
@@ -356,7 +396,7 @@ SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    PERFORM toit_artemis.upsert_pod_tag(_pod_description_id, _pod_id, _tag);
+    PERFORM toit_artemis.insert_pod_tag(_pod_id, _pod_description_id, _tag);
 END;
 $$;
 
@@ -374,8 +414,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION public."toit_artemis.get_pod_descriptions"(
-        _fleet_id UUID,
-        _tag_since TIMESTAMPTZ
+        _fleet_id UUID
     )
 RETURNS SETOF toit_artemis.PodDescription
 SECURITY INVOKER
@@ -383,14 +422,13 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-        SELECT * FROM toit_artemis.get_pod_descriptions(_fleet_id, _tag_since);
+        SELECT * FROM toit_artemis.get_pod_descriptions(_fleet_id);
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public."toit_artemis.get_pod_descriptions_by_name"(
+CREATE OR REPLACE FUNCTION public."toit_artemis.get_pod_descriptions_by_names"(
         _fleet_id UUID,
-        _name TEXT[],
-        _tag_since TIMESTAMPTZ
+        _names TEXT[]
     )
 RETURNS SETOF toit_artemis.PodDescription
 SECURITY INVOKER
@@ -398,13 +436,14 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-        SELECT * FROM toit_artemis.get_pod_descriptions_by_name(_fleet_id, _name, _tag_since);
+        SELECT * FROM toit_artemis.get_pod_descriptions_by_names(_fleet_id, _names);
 END;
 $$;
 
 CREATE OR REPLACE FUNCTION public."toit_artemis.get_pods"(
         _pod_description_id BIGINT,
-        _tag_since TIMESTAMPTZ
+        _limit BIGINT,
+        _offset BIGINT
     )
 RETURNS SETOF toit_artemis.Pod
 SECURITY INVOKER
@@ -412,13 +451,26 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-        SELECT * FROM toit_artemis.get_pods(_pod_description_id, _tag_since);
+        SELECT * FROM toit_artemis.get_pods(_pod_description_id, _limit, _offset);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public."toit_artemis.get_pods_by_ids"(
+        _fleet_id UUID,
+        _pod_ids UUID[]
+    )
+RETURNS SETOF toit_artemis.Pod
+SECURITY INVOKER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+        SELECT * FROM toit_artemis.get_pods_by_ids(_fleet_id, _pod_ids);
 END;
 $$;
 
 CREATE OR REPLACE FUNCTION public."toit_artemis.get_pod_descriptions_by_ids"(
-        _description_ids BIGINT[],
-        _tag_since TIMESTAMPTZ
+        _description_ids BIGINT[]
     )
 RETURNS SETOF toit_artemis.PodDescription
 SECURITY INVOKER
@@ -426,21 +478,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-        SELECT * FROM toit_artemis.get_pod_descriptions_by_ids(_description_ids, _tag_since);
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public."toit_artemis.get_pod_descriptions_for_pod_ids"(
-        _fleet_id UUID,
-        _pod_ids UUID[]
-    )
-RETURNS TABLE (id BIGINT, pod_id UUID, tag TEXT[])
-SECURITY INVOKER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    RETURN QUERY
-        SELECT * FROM toit_artemis.get_pod_descriptions_for_pod_ids(_fleet_id, _pod_ids);
+        SELECT * FROM toit_artemis.get_pod_descriptions_by_ids(_description_ids);
 END;
 $$;
 

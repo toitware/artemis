@@ -15,7 +15,7 @@ import ..broker
 import ...config
 import ...device
 import ...event
-import ...podhub
+import ...pod_registry
 import ...ui
 import ....shared.server_config
 
@@ -176,8 +176,8 @@ class BrokerCliSupabase implements BrokerCli:
       result[device_id] = DeviceDetailed --goal=goal --state=state
     return result
 
-  /** See $BrokerCli.podhub_description_upsert. */
-  podhub_description_upsert -> int
+  /** See $BrokerCli.pod_registry_description_upsert. */
+  pod_registry_description_upsert -> int
       --fleet_id/uuid.Uuid
       --organization_id/uuid.Uuid
       --name/string
@@ -189,28 +189,28 @@ class BrokerCliSupabase implements BrokerCli:
       "_description": description,
     }
 
-  /** See $BrokerCli.podhub_add. */
-  podhub_add -> none
+  /** See $BrokerCli.pod_registry_add. */
+  pod_registry_add -> none
       --pod_description_id/int
       --pod_id/uuid.Uuid:
-    client_.rest.rpc "toit_artemis.upsert_pod" {
+    client_.rest.rpc "toit_artemis.insert_pod" {
       "_pod_id": "$pod_id",
       "_pod_description_id": pod_description_id,
     }
 
-  /** See $BrokerCli.podhub_tag_set. */
-  podhub_tag_set -> none
+  /** See $BrokerCli.pod_registry_tag_set. */
+  pod_registry_tag_set -> none
       --pod_description_id/int
       --pod_id/uuid.Uuid
       --tag/string:
-    client_.rest.rpc "toit_artemis.upsert_pod_tag" {
+    client_.rest.rpc "toit_artemis.insert_pod_tag" {
       "_pod_id": "$pod_id",
       "_pod_description_id": pod_description_id,
       "_tag": tag,
     }
 
-  /** See $BrokerCli.podhub_tag_remove. */
-  podhub_tag_remove -> none
+  /** See $BrokerCli.pod_registry_tag_remove. */
+  pod_registry_tag_remove -> none
       --pod_description_id/int
       --tag/string:
     client_.rest.rpc "toit_artemis.delete_pod_tag" {
@@ -218,54 +218,52 @@ class BrokerCliSupabase implements BrokerCli:
       "_tag": tag,
     }
 
-  /** See $BrokerCli.podhub_descriptions. */
-  podhub_descriptions --fleet_id/uuid.Uuid -> List:
+  /** See $BrokerCli.pod_registry_descriptions. */
+  pod_registry_descriptions --fleet_id/uuid.Uuid -> List:
     response := client_.rest.rpc "toit_artemis.get_pod_descriptions" {
       "_fleet_id": "$fleet_id",
-      "_tag_since": "1970-01-01T00:00:00Z",
     }
-    return response.map: PodhubDescription.from_map it
+    return response.map: PodRegistryDescription.from_map it
 
-  /** See $(BrokerCli.podhub_descriptions --ids). */
-  podhub_descriptions --ids/List -> List:
+  /** See $(BrokerCli.pod_registry_descriptions --ids). */
+  pod_registry_descriptions --ids/List -> List:
     response := client_.rest.rpc "toit_artemis.get_pod_descriptions_by_ids" {
       "_description_ids": ids,
-      "_tag_since": "1970-01-01T00:00:00Z",
     }
-    return response.map: PodhubDescription.from_map it
+    return response.map: PodRegistryDescription.from_map it
 
-  /** See $(BrokerCli.podhub_descriptions --fleet_id --names). */
-  podhub_descriptions --fleet_id/uuid.Uuid --names/List -> List:
+  /** See $(BrokerCli.pod_registry_descriptions --fleet_id --names). */
+  pod_registry_descriptions --fleet_id/uuid.Uuid --names/List -> List:
     response := client_.rest.rpc "toit_artemis.get_pod_descriptions_by_names" {
+      "_fleet_id": "$fleet_id",
       "_names": names,
-      "_tag_since": "1970-01-01T00:00:00Z",
     }
-    return response.map: PodhubDescription.from_map it
+    return response.map: PodRegistryDescription.from_map it
 
-  /** See $BrokerCli.podhub_pods. */
-  podhub_pods --pod_description_id/int -> List:
+  /** See $(BrokerCli.pod_registry_pods --pod_description_id). */
+  pod_registry_pods --pod_description_id/int -> List:
     response := client_.rest.rpc "toit_artemis.get_pods" {
       "_pod_description_id": pod_description_id,
-      "_tag_since": "1970-01-01T00:00:00Z",
+      "_limit": 1000,
+      "_offset": 0,
     }
-    return response.map: PodhubEntry.from_map it
+    return response.map: PodRegistryEntry.from_map it
 
-  /** See $BrokerCli.podhub_description_ids. */
-  podhub_description_ids --pod_ids/List -> Map:
-    response := client_.rest.rpc "toit_artemis.get_pod_descriptions_for_pod_ids" {
+  /** See $(BrokerCli.pod_registry_pods --fleet_id --pod_ids). */
+  pod_registry_pods --fleet_id --pod_ids/List -> List:
+    response := client_.rest.rpc "toit_artemis.get_pods_by_ids" {
+      "_fleet_id": "$fleet_id",
       "_pod_ids": pod_ids.map: "$it",
-      "_tag_since": "1970-01-01T00:00:00Z",
     }
-    result := {:}
-    response.do: | row/Map |
-      entry := PodhubEntry.from_map row
-      result[entry.id] = entry
-    return result
+    return response.map: PodRegistryEntry.from_map it
 
-  /** See $BrokerCli.podhub_pod_ids. */
-  podhub_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List:
-    return client_.rest.rpc "toit_artemis.get_pods_by_name_and_tag" {
+  /** See $BrokerCli.pod_registry_pod_ids. */
+  pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List:
+    result := client_.rest.rpc "toit_artemis.get_pods_by_name_and_tag" {
       "_fleet_id": "$fleet_id",
       "_names_tags": names_tags,
     }
+    result.do: it["pod_id"] = uuid.parse it["pod_id"]
+    return result
+
 

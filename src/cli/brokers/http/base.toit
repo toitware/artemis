@@ -8,7 +8,7 @@ import uuid
 import ..broker
 import ...device
 import ...event
-import ...release
+import ...pod_registry
 import ...ui
 import ....shared.server_config
 import ....shared.utils as utils
@@ -143,49 +143,53 @@ class BrokerCliHttp implements BrokerCli:
       result[uuid.parse id_string] = decoded_events
     return result
 
-  /** See $BrokerCli.release_create. */
-  release_create -> int
+  /** See $BrokerCli.pod_registry_description_upsert. */
+  pod_registry_description_upsert -> int
       --fleet_id/uuid.Uuid
       --organization_id/uuid.Uuid
-      --version/string
+      --name/string
       --description/string?:
-    return send_request_ "release_create" {
-      "fleet_id": "$fleet_id",
-      "organization_id": "$organization_id",
-      "version": version,
-      "description": description,
-    }
+    throw "UNIMPLEMENTED"
 
-  /** See $BrokerCli.release_add_artifact. */
-  release_add_artifact --release_id/int --tag/string --pod_id/uuid.Uuid -> none:
-    send_request_ "release_add_artifact" {
-      "release_id": release_id,
-      "tag": tag,
-      "pod_id": "$pod_id",
-    }
+  /** See $BrokerCli.pod_registry_add. */
+  pod_registry_add -> none
+      --pod_description_id/int
+      --pod_id/uuid.Uuid:
+    throw "UNIMPLEMENTED"
 
-  /** See $(BrokerCli.release_get --fleet_id). */
-  release_get --fleet_id/uuid.Uuid  --limit/int=100 -> List:
-    response := send_request_ "release_get_fleet_id" {
-      "fleet_id": "$fleet_id",
-      "limit": limit,
-    }
-    return response.map: Release.from_map it
+  /** See $BrokerCli.pod_registry_tag_set. */
+  pod_registry_tag_set -> none
+      --pod_description_id/int
+      --pod_id/uuid.Uuid
+      --tag/string:
+    throw "UNIMPLEMENTED"
 
-  /** See $(BrokerCli.release_get --release_ids). */
-  release_get --release_ids/List -> List:
-    response := send_request_ "release_get_release_ids" {
-      "release_ids": release_ids,
-    }
-    return response.map: Release.from_map it
+  /** See $BrokerCli.pod_registry_tag_remove. */
+  pod_registry_tag_remove -> none
+      --pod_description_id/int
+      --tag/string:
+    throw "UNIMPLEMENTED"
 
-  /** See $BrokerCli.release_get_ids_for. */
-  release_get_ids_for --fleet_id/uuid.Uuid --pod_ids/List -> Map:
-    response := send_request_ "release_get_ids_for_pod_ids" {
-      "fleet_id": "$fleet_id",
-      "pod_ids": pod_ids.map: "$it",
-    }
-    result := {:}
-    response.do: | key value |
-      result[uuid.parse key] = value
-    return result
+  /** See $BrokerCli.pod_registry_descriptions. */
+  pod_registry_descriptions --fleet_id/uuid.Uuid -> List:
+    throw "UNIMPLEMENTED"
+
+  /** See $(BrokerCli.pod_registry_descriptions --ids). */
+  pod_registry_descriptions --ids/List -> List:
+    throw "UNIMPLEMENTED"
+
+  /** See $(BrokerCli.pod_registry_descriptions --fleet_id --names). */
+  pod_registry_descriptions --fleet_id/uuid.Uuid --names/List -> List:
+    throw "UNIMPLEMENTED"
+
+  /** See $(BrokerCli.pod_registry_pods --pod_description_id). */
+  pod_registry_pods --pod_description_id/int -> List:
+    throw "UNIMPLEMENTED"
+
+  /** See $(BrokerCli.pod_registry_pods --fleet_id --pod_ids). */
+  pod_registry_pods --fleet_id/uuid.Uuid --pod_ids/int -> List:
+    throw "UNIMPLEMENTED"
+
+  /** See $BrokerCli.pod_registry_pod_ids. */
+  pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List:
+    throw "UNIMPLEMENTED"

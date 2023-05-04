@@ -2,24 +2,24 @@
 
 import uuid
 
-class PodhubDescription:
+class PodRegistryDescription:
   id/int
   name/string
   description/string?
-  tags/List
 
   constructor.from_map map/Map:
     id = map["id"]
     name = map["name"]
     description = map.get "description"
-    tags = map["tags"]
 
-class PodhubEntry:
+class PodRegistryEntry:
   id/uuid.Uuid
+  revision/int
   pod_description_id/int
   tags/List
 
   constructor.from_map map/Map:
-    id = uuid.Uuid map["id"]
+    id = uuid.parse map["id"]
+    revision = map["revision"]
     pod_description_id = map["pod_description_id"]
     tags = map["tags"]
