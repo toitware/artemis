@@ -17,7 +17,7 @@ import host.pipe
 import writer
 import uuid
 import ..ui
-import ..device_specification
+import ..pod_specification
 
 with_tmp_directory [block]:
   tmpdir := directory.mkdtemp "/tmp/artemis-"
@@ -67,6 +67,36 @@ read_base64_ubjson path/string -> any:
   data := file.read_content path
   return ubjson.decode (base64.decode data)
 
+read_file path/string --ui/Ui [block] -> any:
+  return read_file path block --on_error=: | exception |
+    ui.abort "Failed to open '$path' for reading ($exception)."
+
+read_file path/string [block] [--on_error] -> any:
+  stream/file.Stream? := null
+  exception := catch: stream = file.Stream.for_read path
+  if not stream:
+    return on_error.call exception
+  try:
+    return block.call stream
+  finally:
+    stream.close
+
+write_file path/string --ui/Ui [block] -> none:
+  write_file path block --on_error=: | exception |
+    ui.abort "Failed to open '$path' for writing ($exception)."
+
+write_file path/string [block] [--on_error] -> none:
+  stream/file.Stream? := null
+  exception := catch: stream = file.Stream.for_write path
+  if not stream:
+    on_error.call exception
+    return
+  try:
+    writer := writer.Writer stream
+    block.call writer
+  finally:
+    stream.close
+
 download_url url/string --out_path/string -> none:
   network := net.open
   client := http.Client.tls network
@@ -100,6 +130,32 @@ tool_path_ tool/string -> string:
   if not file.is_file result:
     throw "Could not find $result. Please install Git for Windows"
   return result
+
+/**
+Copies the $source directory into the $target directory.
+
+If the $target directory does not exist, it is created.
+*/
+copy_directory --source/string --target/string:
+  directory.mkdir --recursive target
+  with_tmp_directory: | tmp_dir |
+    // We are using `tar` so we keep the permissions.
+    tar := tool_path_ "tar"
+
+    tmp_tar := "$tmp_dir/tmp.tar"
+    extra_args := []
+    if platform == PLATFORM_WINDOWS:
+      // Tar can't handle backslashes as separators.
+      source = source.replace --all "\\" "/"
+      target = target.replace --all "\\" "/"
+      tmp_tar = tmp_tar.replace --all "\\" "/"
+      extra_args = ["--force-local"]
+
+    // We are using an intermediate file.
+    // Using pipes was too slow on Windows.
+    // See https://github.com/toitlang/toit/issues/1568.
+    pipe.backticks [tar, "c", "-f", tmp_tar, "-C", source, "."] + extra_args
+    pipe.backticks [tar, "x", "-f", tmp_tar, "-C", target] + extra_args
 
 /**
 Untars the given $path into the $target directory.
@@ -145,17 +201,13 @@ copy_file --source/string --target/string:
     in_stream.close
     out_stream.close
 
-random_uuid --namespace/string -> uuid.Uuid:
+random_uuid --namespace/string="Artemis" -> uuid.Uuid:
   return uuid.uuid5 namespace "$Time.now $Time.monotonic_us $random"
-
-random_uuid_string -> string:
-  // TODO(kasper): This is used for many things that are
-  // not device ids. Clean that up.
-  return (random_uuid --namespace="Device ID").stringify
 
 json_encode_pretty value/any -> ByteArray:
   buffer := bytes.Buffer
   json_encode_pretty_ value buffer --indentation=0
+  buffer.write "\n"
   buffer.close
   return buffer.buffer
 
@@ -164,7 +216,7 @@ json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
   indentation_string/string? := null
   newline := :
     buffer.write "\n"
-    if not indentation_string: indentation_string = "  " * indentation
+    if not indentation_string: indentation_string = " " * indentation
     buffer.write indentation_string
 
   if value is List:
@@ -174,10 +226,9 @@ json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
       buffer.write "]"
       return
     newline.call
-    indentation_str := "  " * (indentation + 2)
     list.size.repeat: | i/int |
       element := list[i]
-      buffer.write indentation_str
+      buffer.write "  "
       json_encode_pretty_ element buffer --indentation=indentation + 2
       if i < list.size - 1: buffer.write ","
       newline.call
@@ -206,15 +257,14 @@ json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
   buffer.write (json.encode value)
 
 /**
-Parses the given $path into a DeviceSpecification.
+Parses the given $path into a $PodSpecification.
 
-If there is an error, calls $Ui.error followed by a call to $Ui.abort.
+If there is an error, calls $Ui.abort with an error message.
 */
-parse_device_specification_file path/string --ui/Ui -> DeviceSpecification:
-  exception := catch:
-    return DeviceSpecification.parse path
-  ui.error "Error parsing device specification: $exception"
-  ui.abort
+parse_pod_specification_file path/string --ui/Ui -> PodSpecification:
+  exception := catch --unwind=(: it is not PodSpecificationException):
+    return PodSpecification.parse path
+  ui.abort "Error parsing pod specification: $exception"
   unreachable
 
 // TODO(florian): move this into Duration?
@@ -261,6 +311,20 @@ timestamp_to_string timestamp/Time -> string:
     $(%02d utc.h):$(%02d utc.m):$(%02d utc.s).\
     $(%09d timestamp.ns_part)Z"""
 
+timestamp_to_human_readable timestamp/Time --now_cut_off/Duration=(Duration --s=10) -> string:
+  now := Time.now
+  diff := timestamp.to now
+  if diff < (Duration --s=10):
+    return "now"
+  if diff < (Duration --m=1):
+    return "$diff.in_s seconds ago"
+  if diff < (Duration --h=1):
+    return "$diff.in_m minutes ago"
+  local_now := Time.now.local
+  local := timestamp.local
+  if local_now.year == local.year and local_now.month == local.month and local_now.day == local.day:
+    return "$(%02d local.h):$(%02d local.m):$(%02d local.s)"
+  return "$local.year-$(%02d local.month)-$(%02d local.day) $(%02d local.h):$(%02d local.m):$(%02d local.s)"
 
 // TODO(florian): move this into the cli package.
 class OptionPatterns extends cli.OptionEnum:
@@ -297,3 +361,45 @@ class OptionPatterns extends cli.OptionEnum:
     return {
       key: str[separator_index + 1..]
     }
+
+/**
+A Uuid option.
+*/
+class OptionUuid extends cli.Option:
+  default/uuid.Uuid?
+
+  /**
+  Creates a new Uuid option.
+
+  The $default value is null.
+
+  The $type is set to 'uuid'.
+
+  Ensures that values are valid Uuids.
+  */
+  constructor name/string
+      --.default=null
+      --short_name/string?=null
+      --short_help/string?=null
+      --required/bool=false
+      --hidden/bool=false
+      --multi/bool=false
+      --split_commas/bool=false:
+    if multi and default: throw "Multi option can't have default value."
+    if required and default: throw "Option can't have default value and be required."
+    super.from_subclass name --short_name=short_name --short_help=short_help \
+        --required=required --hidden=hidden --multi=multi \
+        --split_commas=split_commas
+
+  is_flag: return false
+
+  type -> string: return "uuid"
+
+  parse str/string --for_help_example/bool=false -> uuid.Uuid:
+    catch: return uuid.parse str
+    throw "Invalid value for option '$name': '$str'. Expected a UUID."
+
+
+/** Whether we are running in a development setup. */
+is_dev_setup -> bool:
+  return program_name.ends_with ".toit"

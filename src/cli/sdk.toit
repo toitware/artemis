@@ -7,6 +7,7 @@ import encoding.json
 import encoding.ubjson
 import host.file
 import host.pipe
+import host.os
 import http
 import log
 import net
@@ -21,8 +22,8 @@ class Sdk:
 
   constructor .sdk_path .version:
 
-  constructor --envelope/string --cache/cli.Cache:
-    sdk_version := get_sdk_version_from --envelope=envelope
+  constructor --envelope_path/string --cache/cli.Cache:
+    sdk_version := get_sdk_version_from --envelope_path=envelope_path
     return get_sdk sdk_version --cache=cache
 
   is_source_build -> bool:
@@ -219,6 +220,7 @@ class Sdk:
   flash
       --envelope_path/string
       --config_path/string
+      --chip/string
       --port/string
       --baud_rate/string?
       --partitions/List?:
@@ -227,6 +229,7 @@ class Sdk:
       "-e", envelope_path,
       "--config", config_path,
       "--port", port,
+      "--chip", chip,
     ]
     if baud_rate:
       arguments += [ "--baud", baud_rate ]
@@ -272,10 +275,17 @@ class Sdk:
   static exe_extension ::= (platform == PLATFORM_WINDOWS) ? ".exe" : ""
 
   /**
+  Extracts the SDK version from the given $envelope_path.
+  */
+  static get_sdk_version_from --envelope_path/string -> string:
+    return get_sdk_version_from
+        --envelope=file.read_content envelope_path
+
+  /**
   Extracts the SDK version from the given $envelope.
   */
-  static get_sdk_version_from --envelope/string -> string:
-    reader := ar.ArReader.from_bytes (file.read_content envelope)
+  static get_sdk_version_from --envelope/ByteArray -> string:
+    reader := ar.ArReader.from_bytes envelope
     file := reader.find "\$sdk-version"
     if file == null: throw "SDK version not found in envelope."
     return file.content.to_string
@@ -298,7 +308,17 @@ sdk_url version/string -> string:
 
   return "github.com/toitlang/toit/releases/download/$version/toit-$(platform_str).tar.gz"
 
+reported_local_sdk_use_/bool := false
+
 get_sdk version/string --cache/cli.Cache -> Sdk:
+  if is_dev_setup:
+    local_sdk := os.env.get "DEV_TOIT_REPO_PATH"
+    if local_sdk:
+      if not reported_local_sdk_use_:
+        print_on_stderr_ "Using local SDK"
+        reported_local_sdk_use_ = true
+      return Sdk "$local_sdk/build/host/sdk" version
+
   url := sdk_url version
   sdk_key := "$SDK_PATH/$version"
   path := cache.get_directory_path sdk_key: | store/cli.DirectoryStore |

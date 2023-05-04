@@ -20,6 +20,7 @@ import .pkg_artemis_src_copy.api as api
 
 import .brokers.broker
 import .containers show ContainerManager
+import .channels
 import .device
 import .ntp
 import .jobs
@@ -68,29 +69,29 @@ run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Du
   logger.info "stopping" --tags={"duration": duration}
   return duration
 
-class ArtemisServiceProvider extends services.ServiceProvider
-    implements services.ServiceHandlerNew api.ArtemisService:
+class ArtemisServiceProvider extends ChannelServiceProvider
+    implements api.ArtemisService:
   containers_/ContainerManager
 
   constructor .containers_:
     super "toit.io/artemis"
         --major=ARTEMIS_VERSION_MAJOR
         --minor=ARTEMIS_VERSION_MINOR
-    provides api.ArtemisService.SELECTOR --handler=this --new
+    provides api.ArtemisService.SELECTOR --handler=this
 
   handle index/int arguments/any --gid/int --client/int -> any:
     if index == api.ArtemisService.VERSION_INDEX:
       return version
     if index == api.ArtemisService.CONTAINER_CURRENT_RESTART_INDEX:
       return container_current_restart --gid=gid --wakeup_us=arguments
-    unreachable
+    return super index arguments --gid=gid --client=client
 
   version -> string:
     return ARTEMIS_VERSION
 
-  container_current_restart --wakeup_us/int? -> none:
-    unreachable  // Not used.
-
   container_current_restart --gid/int --wakeup_us/int? -> none:
     job := containers_.get --gid=gid
     job.restart --wakeup_us=wakeup_us
+
+  container_current_restart --wakeup_us/int? -> none:
+    unreachable  // Here to satisfy the checker.

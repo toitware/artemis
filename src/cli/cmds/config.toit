@@ -124,13 +124,11 @@ default_server parsed/cli.Parsed config/Config ui/Ui:
     if default_server:
       ui.info default_server
     else:
-      ui.error "No default broker."
-      ui.abort
+      ui.abort "No default broker."
     return
 
   if not has_server_in_config config name:
-    ui.error "Unknown broker $name."
-    ui.abort
+    ui.abort "Unknown broker $name."
 
   config[config_key] = name
   config.write

@@ -2,11 +2,24 @@
 
 import expect show *
 
-import artemis.cli.device_specification show DeviceSpecification DeviceSpecificationException
+import artemis.cli.pod_specification
+  show
+    PodSpecification
+    PodSpecificationException
+    INITIAL_POD_SPECIFICATION
+    EXAMPLE_POD_SPECIFICATION
+
+main:
+  test_examples
+  test_errors
+
+test_examples:
+  PodSpecification.from_json INITIAL_POD_SPECIFICATION --path="ignored"
+  PodSpecification.from_json EXAMPLE_POD_SPECIFICATION --path="ignored"
 
 expect_format_error str/string json/Map:
-  exception := catch: DeviceSpecification.from_json json --path="ignored"
-  expect exception is DeviceSpecificationException
+  exception := catch: PodSpecification.from_json json --path="ignored"
+  expect exception is PodSpecificationException
   expect_equals str exception.message
   expect_equals str "$exception"
 
@@ -55,76 +68,75 @@ deep_copy_ o/any -> any:
     return o.map: deep_copy_ it
   return o
 
-main:
+test_errors:
   no_version := new_valid
   no_version.remove "version"
   expect_format_error
-      "Missing version in device specification."
+      "Missing version in pod specification."
       no_version
 
   no_sdk_version := new_valid
   no_sdk_version.remove "sdk-version"
   expect_format_error
-      "Missing sdk-version in device specification."
+      "Missing sdk-version in pod specification."
       no_sdk_version
 
   no_artemis_version := new_valid
   no_artemis_version.remove "artemis-version"
   expect_format_error
-      "Missing artemis-version in device specification."
+      "Missing artemis-version in pod specification."
       no_artemis_version
 
   no_max_offline := new_valid
   no_max_offline.remove "max-offline"
-  expect_format_error
-      "Missing max-offline in device specification."
-      no_max_offline
+  no_max_offline_spec := PodSpecification.from_json no_max_offline --path="ignored"
+  expect_equals 0 no_max_offline_spec.max_offline_seconds
 
   no_connections := new_valid
   no_connections.remove "connections"
   expect_format_error
-      "Missing connections in device specification."
+      "Missing connections in pod specification."
       no_connections
 
   no_containers := new_valid
   no_containers.remove "containers"
   // Should work without error.
-  DeviceSpecification.from_json no_containers --path="ignored"
+  PodSpecification.from_json no_containers --path="ignored"
 
   both_apps_and_containers := new_valid
   both_apps_and_containers["apps"] = both_apps_and_containers["containers"]
   expect_format_error
-      "Both 'apps' and 'containers' are present in device specification."
+      "Both 'apps' and 'containers' are present in pod specification."
       both_apps_and_containers
 
   invalid_version := new_valid
   invalid_version["version"] = 2
   expect_format_error
-      "Unsupported device specification version 2"
+      "Unsupported pod specification version 2"
       invalid_version
 
   invalid_containers := new_valid
   invalid_containers["containers"] = 1
   expect_format_error
-      "Entry containers in device specification is not a map: 1"
+      "Entry containers in pod specification is not a map: 1"
       invalid_containers
 
   invalid_container := new_valid
   invalid_container["containers"]["app1"] = 1
   expect_format_error
-      "Container app1 in device specification is not a map: 1"
+      "Container app1 in pod specification is not a map: 1"
       invalid_container
 
   invalid_connections := new_valid
   invalid_connections["connections"] = 1
   expect_format_error
-      "Entry connections in device specification is not a list: 1"
+      "Entry connections in pod specification is not a list: 1"
       invalid_connections
 
   invalid_connection := new_valid
   invalid_connection["connections"][0] = 1
   expect_format_error
-      "Connection in device specification is not a map: 1"
+      "Connection in pod specification is not a map: 1"
       invalid_connection
 
   no_type := new_valid

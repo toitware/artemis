@@ -29,6 +29,11 @@ get_supabase_config --sub_directory/string -> ServerConfigSupabase:
   host := api_url.trim --left "http://"
   print_on_stderr_ "HOST: $host ANON_KEY: $anon_key"
   name := sub_directory.trim --left "../"
+
+  if platform != PLATFORM_WINDOWS:
+    lan_ip := get_lan_ip
+    host = host.replace "localhost" lan_ip
+
   return ServerConfigSupabase name --host=host --anon=anon_key
 
 get_supabase_service_key --sub_directory/string -> string:
@@ -53,6 +58,4 @@ main args:
   sub_directory := args[0]
   config := get_supabase_config --sub_directory=sub_directory
 
-  lan_ip := get_lan_ip
-  host := config.host.replace "localhost" lan_ip
-  print "$host $config.anon"
+  print "$config.host $config.anon"

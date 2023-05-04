@@ -15,7 +15,64 @@ import .utils
 import .git
 import .ui
 
-class DeviceSpecificationException:
+import ..shared.version show SDK_VERSION ARTEMIS_VERSION
+
+INITIAL_POD_SPECIFICATION ::= {
+  "version": 1,
+  "sdk-version": SDK_VERSION,
+  "artemis-version": ARTEMIS_VERSION,
+  "max-offline": "0s",
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "YOUR WIFI SSID",
+      "password": "YOUR WIFI PASSWORD",
+    }
+  ],
+  "containers": {:},
+}
+
+EXAMPLE_POD_SPECIFICATION ::= {
+  "version": 1,
+  "sdk-version": SDK_VERSION,
+  "artemis-version": ARTEMIS_VERSION,
+  "max-offline": "30s",
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "YOUR WIFI SSID",
+      "password": "YOUR WIFI PASSWORD",
+    }
+  ],
+  "containers": {
+    "hello": {
+      "entrypoint": "hello.toit",
+      "triggers": [
+        "boot",
+        {
+          "interval": "1m",
+        },
+      ],
+    },
+    "solar": {
+      "entrypoint": "examples/solar_example.toit",
+      "git": "https://github.com/toitware/toit-solar-position.git",
+      "branch": "v0.0.3",
+      "triggers": [
+        {
+          "gpio": [
+            {
+              "pin": 33,
+              "level": "high",
+            },
+          ],
+        },
+      ],
+    },
+  },
+}
+
+class PodSpecificationException:
   message/string
 
   constructor .message:
@@ -24,9 +81,12 @@ class DeviceSpecificationException:
     return message
 
 format_error_ message/string:
-  throw (DeviceSpecificationException message)
+  throw (PodSpecificationException message)
 
-check_has_key_ map/Map --holder/string="device specification" key/string:
+validation_error_ message/string:
+  throw (PodSpecificationException message)
+
+check_has_key_ map/Map --holder/string="pod specification" key/string:
   if not map.contains key:
     format_error_ "Missing $key in $holder."
 
@@ -34,7 +94,7 @@ check_is_map_ map/Map key/string --entry_type/string="Entry":
   get_map_ map key --entry_type=entry_type
 
 get_int_ map/Map key/string -> int
-    --holder/string="device specification"
+    --holder/string="pod specification"
     --entry_type/string="Entry":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
@@ -44,7 +104,7 @@ get_int_ map/Map key/string -> int
   return value
 
 get_string_ map/Map key/string -> string
-    --holder/string="device specification"
+    --holder/string="pod specification"
     --entry_type/string="Entry":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
@@ -54,14 +114,14 @@ get_string_ map/Map key/string -> string
   return value
 
 get_optional_string_ map/Map key/string -> string?
-    --holder/string="device specification"
+    --holder/string="pod specification"
     --entry_type/string="Entry":
   if not map.contains key: return null
   return get_string_ map key --holder=holder --entry_type=entry_type
 
 get_optional_list_ map/Map key/string --type/string [--check] -> List?
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key: return null
   value := map[key]
   if value is not List:
@@ -73,7 +133,7 @@ get_optional_list_ map/Map key/string --type/string [--check] -> List?
 
 get_map_ map/Map key/string -> Map
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
   value := map[key]
@@ -83,13 +143,13 @@ get_map_ map/Map key/string -> Map
 
 get_optional_map_ map/Map key/string -> Map?
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key: return null
   return get_map_ map key --entry_type=entry_type --holder=holder
 
 get_list_ map/Map key/string -> List
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
   value := map[key]
@@ -99,7 +159,7 @@ get_list_ map/Map key/string -> List
 
 get_duration_ map/Map key/string -> Duration
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
   // Returns 0 if the string is empty.
 
@@ -119,19 +179,19 @@ get_duration_ map/Map key/string -> Duration
 
 get_optional_duration_ map/Map key/string -> Duration?
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key: return null
   return get_duration_ map key --entry_type=entry_type --holder=holder
 
 get_optional_bool_ map/Map key/string -> bool?
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key: return null
   return get_bool_ map key --entry_type=entry_type --holder=holder
 
 get_bool_ map/Map key/string -> bool
     --entry_type/string="Entry"
-    --holder/string="device specification":
+    --holder/string="pod specification":
   if not map.contains key:
     format_error_ "Missing $key in $holder."
   value := map[key]
@@ -140,7 +200,7 @@ get_bool_ map/Map key/string -> bool
   return value
 
 /**
-A specification of a device.
+A specification of a pod.
 
 This class contains the information needed to install/flash and
   update a device.
@@ -151,23 +211,26 @@ Relevant data includes (but is not limited to):
 - connection information (Wi-Fi, cellular, ...),
 - installed containers.
 */
-class DeviceSpecification:
+class PodSpecification:
   sdk_version/string
   artemis_version/string
   max_offline_seconds/int
   connections/List  // Of $ConnectionInfo.
   containers/Map  // Of name -> $Container.
   path/string
+  chip/string?
 
   constructor.from_json --.path/string data/Map:
     sdk_version = get_string_ data "sdk-version"
     artemis_version = get_string_ data "artemis-version"
 
+    chip = get_optional_string_ data "chip"
+
     if data.contains "apps" and data.contains "containers":
-      format_error_ "Both 'apps' and 'containers' are present in device specification."
+      format_error_ "Both 'apps' and 'containers' are present in pod specification."
 
     if (get_int_ data "version") != 1:
-      format_error_ "Unsupported device specification version $data["version"]"
+      format_error_ "Unsupported pod specification version $data["version"]"
 
     if data.contains "apps" and not data.contains "containers":
       check_is_map_ data "apps"
@@ -189,19 +252,21 @@ class DeviceSpecification:
     connections_entry := get_list_ data "connections"
     connections_entry.do:
       if it is not Map:
-        format_error_ "Connection in device specification is not a map: $it"
+        format_error_ "Connection in pod specification is not a map: $it"
 
     connections = data["connections"].map: ConnectionInfo.from_json it
 
-    // TODO(florian): make max-offline optional.
-    max_offline_seconds = (get_duration_ data "max-offline").in_s
+    max_offline := get_optional_duration_ data "max-offline"
+    max_offline_seconds = max_offline ? max_offline.in_s : 0
 
-  static parse path/string -> DeviceSpecification:
+    validate_
+
+  static parse path/string -> PodSpecification:
     json := null
     exception := catch: json = read_json path
     if exception:
-      format_error_ "Failed to parse device specification as JSON: $exception"
-    return DeviceSpecification.from_json --path=path json
+      format_error_ "Failed to parse pod specification as JSON: $exception"
+    return PodSpecification.from_json --path=path json
 
   /**
   Returns the path to which all other paths of this specification are
@@ -209,6 +274,16 @@ class DeviceSpecification:
   */
   relative_to -> string:
     return fs.dirname path
+
+  /**
+  Checks non-syntax related invariants of the specification.
+  */
+  validate_ -> none:
+    connections.do: | connection/ConnectionInfo |
+      if connection.requires:
+        connection.requires.do: | required_container_name/string |
+          if not containers.contains required_container_name:
+            validation_error_ "Cellular connection requires container $required_container_name, but it is not installed."
 
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
@@ -222,6 +297,7 @@ interface ConnectionInfo:
     unreachable
 
   type -> string
+  requires -> List?  // Of container names.
   to_json -> Map
 
 class WifiConnectionInfo implements ConnectionInfo:
@@ -238,18 +314,44 @@ class WifiConnectionInfo implements ConnectionInfo:
   to_json -> Map:
     return {"type": type, "ssid": ssid, "password": password}
 
+  requires -> List?:
+    return null
+
 class CellularConnectionInfo implements ConnectionInfo:
   config/Map
+  requires/List?
+
   constructor.from_json data/Map:
     config = get_map_ data "config" --holder="cellular connection"
+    requires = get_optional_list_ data "requires"
+        --holder="cellular connection"
+        --type="string"
+        --check=: it is string
 
   type -> string:
     return "cellular"
 
   to_json -> Map:
-    return {"type": type, "config": config}
+    result := {
+      "type": type,
+      "config": config,
+    }
+    if requires: result["requires"] = requires
+    return result
 
 interface Container:
+  static RUNLEVEL_STOP     ::= 0
+  static RUNLEVEL_SAFE     ::= 1
+  static RUNLEVEL_CRITICAL ::= 2
+  static RUNLEVEL_NORMAL   ::= 3
+
+  static STRING_TO_RUNLEVEL_ ::= {
+    "stop": RUNLEVEL_STOP,
+    "safe": RUNLEVEL_SAFE,
+    "critical": RUNLEVEL_CRITICAL,
+    "normal": RUNLEVEL_NORMAL,
+  }
+
   static from_json name/string data/Map -> Container:
     if data.contains "entrypoint" and data.contains "snapshot":
       format_error_ "Container $name has both entrypoint and snapshot."
@@ -272,6 +374,7 @@ interface Container:
   arguments -> List?
   is_background -> bool?
   is_critical -> bool?
+  runlevel -> int?
   triggers -> List? // Of type $Trigger.
 
   static check_arguments_entry arguments:
@@ -287,6 +390,7 @@ abstract class ContainerBase implements Container:
   triggers/List?
   is_background/bool?
   is_critical/bool?
+  runlevel/int?
 
   constructor.from_json name/string data/Map:
     holder := "container $name"
@@ -296,6 +400,12 @@ abstract class ContainerBase implements Container:
         --check=: it is string
     is_background = get_optional_bool_ data "background"
     is_critical = get_optional_bool_ data "critical"
+    runlevel_string := get_optional_string_ data "run-level"
+    if runlevel_string:
+      runlevel = Container.STRING_TO_RUNLEVEL_.get runlevel_string
+          --if_absent=: format_error_ "Unknown run-level '$runlevel_string' in container $name"
+    else:
+      runlevel = null
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
         --type="map or string"
@@ -394,14 +504,12 @@ class ContainerPath extends ContainerBase:
       ui.info "Compiling $git_url."
       entrypoint_path := "$clone_dir/$entrypoint"
       if not file.is_file entrypoint_path:
-        ui.error "No such file: $entrypoint_path"
-        ui.abort
+        ui.abort "No such file: $entrypoint_path"
 
       package_yaml_path := "$clone_dir/package.yaml"
       if not file.is_file package_yaml_path:
         if file.is_directory package_yaml_path:
-          ui.error "package.yaml is a directory in $git_url"
-          ui.abort
+          ui.abort "package.yaml is a directory in $git_url"
         // Create an empty package.yaml file, so that we can safely call
         // toit.pkg without worrying that we use some file from a folder
         // above our tmp directory.

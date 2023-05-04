@@ -37,8 +37,7 @@ with_profile_server parsed/cli.Parsed config/Config ui/Ui [block]:
 
   with_server server_config config: | server/ArtemisServerCli |
     server.ensure_authenticated: | error_message |
-      ui.error "$error_message (artemis)."
-      ui.abort
+      ui.abort "$error_message (artemis)."
     block.call server
 
 show_profile parsed/cli.Parsed config/Config ui/Ui:
@@ -54,8 +53,7 @@ show_profile parsed/cli.Parsed config/Config ui/Ui:
 update_profile parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
   if not name:
-    ui.error "No name specified."
-    ui.abort
+    ui.abort "No name specified."
 
   with_profile_server parsed config ui: | server/ArtemisServerCli |
     server.update_profile --name=name

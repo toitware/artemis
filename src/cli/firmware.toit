@@ -8,11 +8,13 @@ import encoding.ubjson
 import host.file
 import host.os
 import snapshot show cache_snapshot
+import uuid
 
 import .sdk
 import .cache show ENVELOPE_PATH
 import .cache as cli
 import .device
+import .pod
 import .utils
 import ..shared.utils.patch
 
@@ -70,7 +72,7 @@ class Firmware:
 
   /**
   Embeds device-specific information in $device into a firmware given by
-    its $envelope_path.
+    its pod.
 
   Computes the "parts" which describes the individual parts of the
     firmware. Most parts consist of a range, and the binary hash of its content.
@@ -82,24 +84,25 @@ class Firmware:
     may change the size of the part (and thus the ranges of the other parts),
     the process is repeated until the encoded parts do not change anymore.
   */
-  constructor --device/Device --envelope_path/string --cache/cli.Cache:
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-    unconfigured := FirmwareContent.from_envelope envelope_path --cache=cache
+  constructor --device/Device --pod/Pod --cache/cli.Cache:
+    sdk_version := Sdk.get_sdk_version_from --envelope_path=pod.envelope_path
+    unconfigured := FirmwareContent.from_envelope pod.envelope_path --cache=cache
     encoded_parts := unconfigured.encoded_parts
     device_map := {
-      "device_id":       device.id,
-      "organization_id": device.organization_id,
-      "hardware_id":     device.hardware_id,
+      "device_id":       "$device.id",
+      "organization_id": "$device.organization_id",
+      "hardware_id":     "$device.hardware_id",
     }
     while true:
       device_specific := ubjson.encode {
         "artemis.device" : device_map,
         "parts"          : encoded_parts,
-        // TODO(florian): this doesn't feel like it's a device-specific property.
+        // TODO(florian): these don't feel like they are device-specific properties.
         "sdk-version"    : sdk_version,
+        "pod-id"         : pod.id.to_byte_array,
       }
 
-      configured := FirmwareContent.from_envelope envelope_path
+      configured := FirmwareContent.from_envelope pod.envelope_path
           --device_specific=device_specific
           --cache=cache
       if configured.encoded_parts == encoded_parts:
@@ -112,13 +115,16 @@ class Firmware:
   device -> Device:
     device_map := device_specific "artemis.device"
     return Device
-        --id=device_map["device_id"]
-        --organization_id=device_map["organization_id"]
-        --hardware_id=device_map["hardware_id"]
+        --id=uuid.parse device_map["device_id"]
+        --organization_id=uuid.parse device_map["organization_id"]
+        --hardware_id=uuid.parse device_map["hardware_id"]
 
   /** The sdk version that was used for this firmware. */
   sdk_version -> string:
     return device_specific "sdk-version"
+
+  pod_id -> uuid.Uuid:
+    return uuid.Uuid (device_specific "pod-id")
 
 class FirmwareContent:
   bits/ByteArray?
@@ -135,7 +141,7 @@ class FirmwareContent:
     parts = list.map: FirmwarePart.encoded it
 
   constructor.from_envelope envelope_path/string --device_specific/ByteArray?=null --cache/cli.Cache:
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+    sdk_version := Sdk.get_sdk_version_from --envelope_path=envelope_path
     sdk := get_sdk sdk_version --cache=cache
     firmware_description/Map := {:}
     if device_specific:
@@ -257,31 +263,33 @@ class FirmwarePartConfig extends FirmwarePart:
 /**
 Builds the URL for the firmware envelope for the given $version on GitHub.
 */
-envelope_url version/string -> string:
-  return "github.com/toitlang/toit/releases/download/$version/firmware-esp32.gz"
+envelope_url version/string --chip/string -> string:
+  return "github.com/toitlang/toit/releases/download/$version/firmware-$(chip).gz"
 
 /**
 Stores the snapshots inside the envelope in the user's snapshot directory.
 */
-cache_snapshots --envelope/string --output_directory/string?=null --cache/cli.Cache:
-  sdk := Sdk --envelope=envelope --cache=cache
-  containers := sdk.firmware_list_containers --envelope_path=envelope
+cache_snapshots --envelope_path/string --output_directory/string?=null --cache/cli.Cache:
+  sdk_version := Sdk.get_sdk_version_from --envelope_path=envelope_path
+  sdk := get_sdk sdk_version --cache=cache
+  containers := sdk.firmware_list_containers --envelope_path=envelope_path
   with_tmp_directory: | tmp_dir/string |
     containers.do: | name/string description/Map |
       if description["kind"] == "snapshot":
         id := description["id"]
         tmp_snapshot_path := "$tmp_dir/$(id).snapshot"
         sdk.firmware_extract_container
-            --envelope_path=envelope
+            --envelope_path=envelope_path
             --name=name
             --output_path=tmp_snapshot_path
         snapshot_content := file.read_content tmp_snapshot_path
         cache_snapshot snapshot_content --output_directory=output_directory
 
 // A forwarding function to work around the shadowing in 'get_envelope'.
-cache_snapshots_ --envelope/string --cache/cli.Cache:
-  cache_snapshots --envelope=envelope --cache=cache
+cache_snapshots_ --envelope_path/string --cache/cli.Cache:
+  cache_snapshots --envelope_path=envelope_path --cache=cache
 
+reported_local_envelope_use_/bool := false
 /**
 Returns a path to the firmware envelope for the given $version.
 
@@ -290,9 +298,20 @@ If $cache_snapshots is true, then copies the contained snapshots
 */
 // TODO(florian): we probably want to create a class for the firmware
 // envelope.
-get_envelope version/string --cache/cli.Cache --cache_snapshots/bool=true -> string:
-  url := envelope_url version
-  path := "firmware-esp32.envelope"
+get_envelope version/string -> string
+    --chip/string="esp32"
+    --cache/cli.Cache
+    --cache_snapshots/bool=true:
+  if is_dev_setup:
+    local_sdk := os.env.get "DEV_TOIT_REPO_PATH"
+    if local_sdk:
+      if not reported_local_envelope_use_:
+        print_on_stderr_ "Using envelope from local SDK"
+        reported_local_envelope_use_ = true
+      return "$local_sdk/build/esp32/firmware.envelope"
+
+  url := envelope_url version --chip=chip
+  path := "firmware-$(chip).envelope"
   envelope_key := "$ENVELOPE_PATH/$version/$path"
   return cache.get_file_path envelope_key: | store/cli.FileStore |
     store.with_tmp_directory: | tmp_dir |
@@ -301,5 +320,5 @@ get_envelope version/string --cache/cli.Cache --cache_snapshots/bool=true -> str
       gunzip out_path
       envelope_path := "$tmp_dir/$path"
       if cache_snapshots:
-        cache_snapshots_ --envelope=envelope_path --cache=cache
+        cache_snapshots_ --envelope_path=envelope_path --cache=cache
       store.move envelope_path

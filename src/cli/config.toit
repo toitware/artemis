@@ -20,6 +20,7 @@ import writer
 import supabase
 import fs.xdg
 import fs
+import .utils
 
 APP_NAME ::= "artemis"
 CONFIG_DEVICE_DEFAULT_KEY ::= "device.default"
@@ -27,7 +28,7 @@ CONFIG_BROKER_DEFAULT_KEY ::= "server.broker.default"
 CONFIG_ARTEMIS_DEFAULT_KEY ::= "server.artemis.default"
 CONFIG_SERVERS_KEY ::= "servers"
 CONFIG_SERVER_AUTHS_KEY ::= "auths"
-CONFIG_ORGANIZATION_DEFAULT ::= "organization.default"
+CONFIG_ORGANIZATION_DEFAULT_KEY ::= "organization.default"
 
 class ConfigLocalStorage implements supabase.LocalStorage:
   config_/Config
@@ -169,7 +170,7 @@ read_config [--init] -> Config:
   // Hackish way to improve the developer experience.
   // When using the toit files to run Artemis, we default to a different
   // configuration.
-  if program_name.ends_with ".toit":
+  if is_dev_setup:
     return read_config_file "$config_home/artemis-dev/config" --init=init
 
   // The path we are using to write configurations to.

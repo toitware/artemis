@@ -4,12 +4,14 @@ import cli
 import net
 import uuid
 
+import .utils_
 import ..config
 import ..cache
 import ..server_config
 import ..ui
 import ..organization
 import ..artemis_servers.artemis_server show with_server ArtemisServerCli
+import ..utils
 
 create_org_commands config/Config cache/Cache ui/Ui -> List:
   org_cmd := cli.Command "org"
@@ -46,7 +48,7 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         // TODO(florian): would be nice to accept a name here as well.
-        cli.OptionString "org-id"
+        OptionUuid "organization-id"
             --short_help="ID of the organization."
       ]
       --run=:: show_org it config ui
@@ -67,7 +69,7 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Clear the default organization.",
       ]
       --rest=[
-        cli.OptionString "org-id"
+        OptionUuid "organization-id"
             --short_help="ID of the organization."
       ]
       --run=:: default_org it config cache ui
@@ -76,7 +78,7 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
   member_cmd := cli.Command "members"
       --short_help="Manage organization members."
       --options=[
-        cli.OptionString "org-id"
+        OptionUuid "organization-id"
             --short_help="ID of the organization."
       ]
   org_cmd.add member_cmd
@@ -104,7 +106,7 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
             --default="member"
       ]
       --rest=[
-        cli.OptionString "user-id"
+        OptionUuid "user-id"
             --short_help="ID of the user to add."
             --required,
       ]
@@ -118,7 +120,7 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Force removal even if the user is self.",
       ]
       --rest=[
-        cli.OptionString "user-id"
+        OptionUuid "user-id"
             --short_help="ID of the user to remove."
             --required,
       ]
@@ -128,7 +130,7 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
   member_set_role := cli.Command "set-role"
       --short_help="Set the role of a member."
       --rest=[
-        cli.OptionString "user-id"
+        OptionUuid "user-id"
             --short_help="ID of the user to add."
             --required,
         cli.OptionEnum "role" ["member", "admin" ]
@@ -146,17 +148,15 @@ with_org_server parsed/cli.Parsed config/Config ui/Ui [block]:
 
   with_server server_config config: | server/ArtemisServerCli |
     server.ensure_authenticated: | error_message |
-      ui.error "$error_message (artemis)."
-      ui.abort
+      ui.abort "$error_message (artemis)."
     block.call server
 
 with_org_server_id parsed/cli.Parsed config/Config ui/Ui [block]:
-  org_id := parsed["org-id"]
+  org_id := parsed["organization-id"]
   if not org_id:
-    org_id = config.get CONFIG_ORGANIZATION_DEFAULT
+    org_id = default_organization_from_config config
     if not org_id:
-      ui.error "No default organization set."
-      ui.abort
+      ui.abort "No default organization set."
 
   with_org_server parsed config ui: | server |
     block.call server org_id
@@ -165,7 +165,7 @@ list_orgs parsed/cli.Parsed config/Config ui/Ui -> none:
   with_org_server parsed config ui: | server/ArtemisServerCli |
     orgs := server.get_organizations
     ui.info_table --header=["ID", "Name"]
-        orgs.map: [ it.id, it.name ]
+        orgs.map: [ "$it.id", it.name ]
 
 create_org parsed/cli.Parsed config/Config ui/Ui -> none:
   should_make_default := parsed["default"]
@@ -175,35 +175,33 @@ create_org parsed/cli.Parsed config/Config ui/Ui -> none:
     if should_make_default: make_default_ org config ui
 
 show_org parsed/cli.Parsed config/Config ui/Ui -> none:
-  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string |
+  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid |
     print_org org_id server ui
 
-print_org org_id/string server/ArtemisServerCli ui/Ui -> none:
+print_org org_id/uuid.Uuid server/ArtemisServerCli ui/Ui -> none:
   org := server.get_organization org_id
   if not org:
-    ui.error "Organization $org_id not found."
-    ui.abort
+    ui.abort "Organization $org_id not found."
   ui.info_map {
-    "ID": org.id,
+    "ID": "$org.id",
     "Name": org.name,
     "Created": org.created_at,
   }
 
 default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   if parsed["clear"]:
-    config.remove CONFIG_ORGANIZATION_DEFAULT
+    config.remove CONFIG_ORGANIZATION_DEFAULT_KEY
     config.write
     ui.info "Default organization cleared."
     return
 
-  org_id := parsed["org-id"]
+  org_id := parsed["organization-id"]
   if not org_id:
     id_only := parsed["id-only"]
 
-    org_id = config.get CONFIG_ORGANIZATION_DEFAULT
+    org_id = default_organization_from_config config
     if not org_id:
-      ui.error "No default organization set."
-      ui.abort
+      ui.abort "No default organization set."
 
     if id_only:
       ui.info "$org_id"
@@ -214,26 +212,25 @@ default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
 
     return
 
-  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string |
+  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid |
     org/OrganizationDetailed? := null
     exception := catch: org = server.get_organization org_id
     if exception or not org:
-      ui.error "Organization not found."
-      ui.abort
+      ui.abort "Organization not found."
 
     make_default_ org config ui
 
 make_default_ org/Organization config/Config ui/Ui -> none:
-    config[CONFIG_ORGANIZATION_DEFAULT] = org.id
+    config[CONFIG_ORGANIZATION_DEFAULT_KEY] = "$org.id"
     config.write
     ui.info "Default organization set to $org.id - $org.name"
 
 member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
-  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string |
+  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid |
     members := server.get_organization_members org_id
     if parsed["id-only"]:
       ui.info_table --header=["ID"]
-          members.map: [ it["id"] ]
+          members.map: [ "$it["id"]" ]
       return
     profiles := members.map: server.get_profile --user_id=it["id"]
     ui.info_table --header=["ID", "Role", "Name", "Email"]
@@ -242,21 +239,13 @@ member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
           role := members[it]["role"]
           name := profiles[it]["name"]
           email := profiles[it]["email"]
-          [ id, role, name, email ]
+          [ "$id", role, name, email ]
 
 member_add parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   user_id := parsed["user-id"]
   role := parsed["role"]
 
-  // TODO(florian): we should have a `uuid.is_valid` or `uuid.is_valid_uuid`, or
-  // at the very least: `uuid.parse --on_error`.
-  exception := catch: uuid.parse user_id
-  if exception:
-    ui.error "Invalid user ID."
-    ui.error "Ask the recipient to run 'artemis profile show' to get their ID."
-    ui.abort
-
-  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string|
+  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid|
     server.organization_member_add
         --organization_id=org_id
         --user_id=user_id
@@ -267,12 +256,11 @@ member_remove parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   user_id := parsed["user-id"]
   force := parsed["force"]
 
-  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string |
+  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid |
     if not force:
       current_user_id := server.get_current_user_id
       if user_id == current_user_id:
-        ui.error "Use '--force' to remove yourself from an organization."
-        ui.abort
+        ui.abort "Use '--force' to remove yourself from an organization."
     server.organization_member_remove --organization_id=org_id --user_id=user_id
     ui.info "Removed user $user_id from organization $org_id."
 
@@ -280,7 +268,7 @@ member_set_role parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   user_id := parsed["user-id"]
   role := parsed["role"]
 
-  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/string|
+  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid|
     server.organization_member_set_role
         --organization_id=org_id
         --user_id=user_id

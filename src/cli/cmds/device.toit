@@ -9,11 +9,11 @@ import .device_container
 import ..artemis
 import ..cache
 import ..config
-import ..device_specification
 import ..device
 import ..event
 import ..firmware
 import ..organization
+import ..pod_specification
 import ..server_config
 import ..ui
 import ..utils
@@ -23,24 +23,23 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
       --short_help="Manage devices."
       --options=[
-        cli.Option "device-id"
+        OptionUuid "device-id"
             --short_name="d"
-            --short_help="ID of the device."
-            --type="uuid",
+            --short_help="ID of the device.",
       ]
 
   update_cmd := cli.Command "update"
       --long_help="""
         Updates the firmware on the device.
 
-        The specification file contains the device specification. It includes
+        The specification file contains the pod specification. It includes
         the firmware version, installed applications, connection settings,
-        etc. See 'specification-format' for more information.
+        etc. See 'doc specification-format' for more information.
         """
       --options=[
         cli.Option "specification"
             --type="file"
-            --short_help="The specification of the device."
+            --short_help="The specification of the pod."
             --required,
       ]
       --run=:: update it config cache ui
@@ -61,9 +60,8 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Clear the default device.",
       ]
       --rest=[
-        cli.Option "id"
-            --short_help="ID of the device."
-            --type="uuid",
+        OptionUuid "id"
+            --short_help="ID of the device.",
       ]
       --run=:: default_device it config cache ui
   cmd.add default_cmd
@@ -111,14 +109,14 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
   specification_path := parsed["specification"]
 
-  if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
   if not device_id:
-    ui.error "No device ID specified and no default device ID set."
-    ui.abort
+    device_id = default_device_from_config config
+  if not device_id:
+    ui.abort "No device ID specified and no default device ID set."
 
-  specification := parse_device_specification_file specification_path --ui=ui
+  specification := parse_pod_specification_file specification_path --ui=ui
   with_artemis parsed config cache ui: | artemis/Artemis |
-    artemis.update --device_id=device_id --device_specification=specification
+    artemis.update --device_id=device_id --specification=specification
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if parsed["clear"]:
@@ -130,10 +128,9 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   // We allow to set the default with `-d` or by giving an ID as rest argument.
   device_id := parsed["device-id"] or parsed["id"]
   if not device_id:
-    device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
+    device_id = default_device_from_config config
     if not device_id:
-      ui.error "No default device set."
-      ui.abort
+      ui.abort "No default device set."
 
     ui.info "$device_id"
     return
@@ -141,10 +138,10 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   // TODO(florian): make sure the device exists.
   make_default_ device_id config ui
 
-make_default_ device_id/string config/Config ui/Ui:
-  config[CONFIG_DEVICE_DEFAULT_KEY] = device_id
+make_default_ device_id/uuid.Uuid config/Config ui/Ui:
+  config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"
   config.write
-  ui.info "Default device set to $device_id"
+  ui.info "Default device set to $device_id."
 
 show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
@@ -152,22 +149,21 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   show_event_values := parsed["show-event-values"]
   max_events := parsed["max-events"]
 
-  if not device_id: device_id = config.get CONFIG_DEVICE_DEFAULT_KEY
   if not device_id:
-    ui.error "No device ID specified and no default device ID set."
-    ui.abort
+    device_id = default_device_from_config config
+  if not device_id:
+    ui.abort "No device ID specified and no default device ID set."
 
   if max_events < 0:
-    ui.error "max-events must be >= 0."
-    ui.abort
+    ui.abort "max-events must be >= 0."
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     broker := artemis.connected_broker
     artemis_server := artemis.connected_artemis_server
-    device := broker.get_device --device_id=device_id
-    if not device:
-      ui.error "Device $device_id does not exist."
-      ui.abort
+    devices := broker.get_devices --device_ids=[device_id]
+    if devices.is_empty:
+      ui.abort "Device $device_id does not exist."
+    device := devices[device_id]
     organization := artemis_server.get_organization device.organization_id
     events/List? := null
     if max_events != 0:
@@ -194,8 +190,7 @@ set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max_offline_seconds := int.parse max_offline --on_error=:
     // Assume it's a duration with units, like "5s".
     duration := parse_duration max_offline --on_error=:
-      ui.error "Invalid max-offline duration: $max_offline."
-      ui.abort
+      ui.abort "Invalid max-offline duration: $max_offline."
     duration.in_s
 
   with_artemis parsed config cache ui: | artemis/Artemis |
@@ -208,8 +203,8 @@ device_to_json_
     organization/OrganizationDetailed
     events/List?:
   result := {
-    "id": device.id,
-    "organization_id": device.organization_id,
+    "id": "$device.id",
+    "organization_id": "$device.organization_id",
     "organization_name": organization.name,
     "goal": device.goal,
     "reported_state_goal": device.reported_state_goal,
@@ -219,6 +214,18 @@ device_to_json_
   if events:
     result["events"] = events.map: | event/Event | event.to_json
   return result
+
+is_sensitive_ name/string -> bool:
+  return name.ends_with "password" or name.ends_with "key"
+
+filter_sensitive_ o/any -> any:
+  if o is Map:
+    return o.map: | key value |
+      if is_sensitive_ key: "***"
+      else: filter_sensitive_ value
+  if o is List:
+    return o.map: | value | filter_sensitive_ value
+  return o
 
 print_device_
     --show_event_values/bool
@@ -236,6 +243,8 @@ print_device_
       if key == "firmware": prettify_firmware value
       else: value
     print_map_ prettified ui --indentation=2
+        --preferred_keys=["sdk-version", "max-offline", "firmware", "connections", "apps"]
+
 
   if device.pending_firmware:
     ui.print ""
@@ -317,38 +326,51 @@ print_device_
     event_strings := events.map: event_to_string.call it
     ui.info_list --title="Events" event_strings
 
-print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="":
+print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="" --preferred_keys/List?=null:
   first_indentation_str := " " * indentation + prefix
   next_indentation_str := " " * first_indentation_str.size
   nested_indentation := first_indentation_str.size + 2
   is_first := true
-  map.do: | key/string value |
-    if (key.ends_with "password" or key.ends_with "key") and value is string:
-      value = "***"
-    indentation_str := is_first ? first_indentation_str : next_indentation_str
-    is_first = false
-    if value is Map:
-      ui.print "$indentation_str$key:"
-      print_map_ value ui --indentation=nested_indentation
-    else if value is List:
-      ui.print "$indentation_str$key: ["
-      print_list_ value ui --indentation=indentation
-      ui.print "$indentation_str]"
-    else:
-      ui.print "$indentation_str$key: $value"
+
+  already_printed := {}
+  print_key_value := : | key/string value |
+    if not already_printed.contains key:
+      already_printed.add key
+      if is_sensitive_ key and value is string:
+        value = "***"
+      indentation_str := is_first ? first_indentation_str : next_indentation_str
+      is_first = false
+      if value is Map:
+        ui.print "$indentation_str$key:"
+        print_map_ value ui --indentation=nested_indentation
+      else if value is List:
+        ui.print "$indentation_str$key: ["
+        print_list_ value ui --indentation=nested_indentation
+        ui.print "$indentation_str]"
+      else:
+        ui.print "$indentation_str$key: $value"
+
+  if preferred_keys:
+    preferred_keys.do: | key |
+      if map.contains key:
+        print_key_value.call key map[key]
+
+  keys := map.keys.sort
+  keys.do: | key |
+    print_key_value.call key map[key]
 
 print_list_ list/List ui/Ui --indentation/int=0:
   indentation_str := " " * indentation
   nested_indentation := indentation + 2
   list.do: | value |
     if value is Map:
-      print_map_ value ui --indentation=nested_indentation  --prefix="* "
+      print_map_ value ui --indentation=indentation  --prefix="* "
     else if value is List:
       ui.print "$(indentation_str)* ["
       print_list_ value ui --indentation=nested_indentation
       ui.print "$(indentation_str)]"
     else:
-      ui.print "$(indentation_str)- $value"
+      ui.print "$indentation_str* $value"
 
 print_modification_ modification/Modification --to/Map ui/Ui:
   modification.on_value "firmware"
@@ -381,16 +403,24 @@ print_modification_ modification/Modification --to/Map ui/Ui:
   modification.on_map
       --added=: | name new_value |
         if already_handled.contains name: continue.on_map
+        if is_sensitive_ name and new_value is string:
+          new_value = "***"
         ui.print "  +$name: $new_value"
       --removed=: | name _ |
         if already_handled.contains name: continue.on_map
         ui.print "  -$name"
       --updated=: | name _ new_value |
         if already_handled.contains name: continue.on_map
+        if is_sensitive_ name and new_value is string:
+          new_value = "***"
+        new_value = filter_sensitive_ new_value
         ui.print "  $name -> $new_value"
       --modified=: | name _ |
         if already_handled.contains name: continue.on_map
-        ui.print "  $name changed to $to[name]"
+        new_value := to[name]
+        if is_sensitive_ name and new_value is string:
+          new_value = "***"
+        ui.print "  $name changed to $new_value"
 
 print_app_update_ name/string from/Map to/Map ui/Ui:
   ui.print "    $name:"

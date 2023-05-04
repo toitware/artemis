@@ -6,6 +6,7 @@ import expect show *
 import host.directory
 import log
 import net
+import uuid
 
 import .artemis_server
 import .utils
@@ -26,10 +27,10 @@ main args:
   else:
     throw "Unknown server server type: $args[0]"
   with_artemis_server --type=server_type: | artemis_server/TestArtemisServer |
-      run_test artemis_server --authenticate=: | server/ArtemisServerCli |
-        server.sign_in
-              --email=TEST_EXAMPLE_COM_EMAIL
-              --password=TEST_EXAMPLE_COM_PASSWORD
+    run_test artemis_server --authenticate=: | server/ArtemisServerCli |
+      server.sign_in
+            --email=TEST_EXAMPLE_COM_EMAIL
+            --password=TEST_EXAMPLE_COM_PASSWORD
 
 run_test artemis_server/TestArtemisServer [--authenticate]:
   server_config := artemis_server.server_config
@@ -47,17 +48,17 @@ run_test artemis_server/TestArtemisServer [--authenticate]:
     test_profile server_cli backdoor
     test_sdk server_cli backdoor
 
-test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> string:
+test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> uuid.Uuid:
   // Test without and with alias.
   device1 := server_cli.create_device_in_organization
-      --device_id=""
+      --device_id=null
       --organization_id=TEST_ORGANIZATION_UUID
   hardware_id1 := device1.hardware_id
   data := backdoor.fetch_device_information --hardware_id=hardware_id1
   expect_equals hardware_id1 data[0]
   expect_equals TEST_ORGANIZATION_UUID data[1]
 
-  alias_id := random_uuid_string
+  alias_id := random_uuid
   device2 := server_cli.create_device_in_organization
       --device_id=alias_id
       --organization_id=TEST_ORGANIZATION_UUID
@@ -70,7 +71,7 @@ test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisS
 
   return hardware_id2
 
-test_notify_created server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor --hardware_id/string:
+test_notify_created server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor --hardware_id/uuid.Uuid:
   expect_not (backdoor.has_event --hardware_id=hardware_id --type="created")
   server_cli.notify_created --hardware_id=hardware_id
   expect (backdoor.has_event --hardware_id=hardware_id --type="created")
@@ -78,7 +79,7 @@ test_notify_created server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -
 test_check_in network/net.Interface
     server_service/ArtemisServerService
     backdoor/ArtemisServerBackdoor
-    --hardware_id/string:
+    --hardware_id/uuid.Uuid:
   expect_not (backdoor.has_event --hardware_id=hardware_id --type="ping")
   server_service.check_in network log.default
   expect (backdoor.has_event --hardware_id=hardware_id --type="ping")

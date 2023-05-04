@@ -30,13 +30,13 @@ import .utils
 // When running the supabase test we need valid device ids
 // that are not already in the database.
 DEVICE1 ::= Device
-    --id=random_uuid_string
-    --hardware_id=random_uuid_string
+    --id=random_uuid
+    --hardware_id=random_uuid
     --organization_id=TEST_ORGANIZATION_UUID
     --firmware_state={:}
 DEVICE2 ::= Device
-    --id=random_uuid_string
-    --hardware_id=random_uuid_string
+    --id=random_uuid
+    --hardware_id=random_uuid
     --organization_id=TEST_ORGANIZATION_UUID
     --firmware_state={:}
 
@@ -64,15 +64,15 @@ run_test
         backdoor.with_backdoor_client_: | client/supabase.Client |
           [DEVICE1, DEVICE2].do: | device/Device |
             client.rest.insert "devices" {
-              "alias": device.id,
-              "organization_id": device.organization_id,
+              "alias": "$device.id",
+              "organization_id": "$device.organization_id",
             }
 
     [DEVICE1, DEVICE2].do: | device/Device |
       identity := {
-        "device_id": device.id,
-        "organization_id": device.organization_id,
-        "hardware_id": device.hardware_id,
+        "device_id": "$device.id",
+        "organization_id": "$device.organization_id",
+        "hardware_id": "$device.hardware_id",
       }
       state := {
         "identity": identity,
@@ -84,8 +84,10 @@ run_test
       test_image --test_broker=test_broker broker_cli
       test_firmware --test_broker=test_broker broker_cli
       test_goal --test_broker=test_broker broker_cli
+      test_state_devices --test_broker=test_broker broker_cli
       // Test the events last, as it depends on test_goal to have run.
-      // It also does state updates which could interfere with the other tests.
+      // It also does state updates which could interfere with the other tests,
+      // like the health test.
       test_events --test_broker=test_broker broker_cli
 
     finally:
@@ -112,10 +114,11 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         device.goal["test-entry"] = "succeeded while offline"
         device.goal
 
-    broker_service.connect --network=network --device=DEVICE1:
+    resources := broker_service.connect --network=network --device=DEVICE1
+    try:
       event_goal/Map? := null
       exception := catch:
-        event_goal = broker_service.fetch_goal --wait=(test_iteration > 0)
+        event_goal = resources.fetch_goal --wait=(test_iteration > 0)
 
       if test_iteration == 0:
         // None of the brokers have sent a goal-state update yet.
@@ -136,7 +139,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old["test-entry"] = "succeeded 1"
         old
 
-      event_goal = broker_service.fetch_goal --wait
+      event_goal = resources.fetch_goal --wait
       expect_equals "succeeded 1" event_goal["test-entry"]
 
       broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
@@ -145,8 +148,10 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old["test-entry"] = "succeeded 2"
         old
 
-      event_goal = broker_service.fetch_goal --wait
+      event_goal = resources.fetch_goal --wait
       expect_equals "succeeded 2" event_goal["test-entry"]
+    finally:
+      resources.close
 
 test_image --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service/broker.BrokerService |
@@ -173,7 +178,8 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --app_id=APP_ID
         --word_size=64
 
-    broker_service.connect --network=network --device=DEVICE1: | resources/broker.ResourceManager |
+    resources := broker_service.connect --network=network --device=DEVICE1
+    try:
       resources.fetch_image APP_ID:
         | reader/Reader |
           // TODO(florian): this only tests the download of the current platform. That is, on
@@ -181,6 +187,8 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           // also verify that the 32-bit image is correct.
           data := utils.read_all reader
           expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
+    finally:
+      resources.close
 
 test_firmware --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service/broker.BrokerService |
@@ -212,7 +220,8 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --organization_id=TEST_ORGANIZATION_UUID
     expect_bytes_equal content downloaded_bytes
 
-    broker_service.connect --network=network --device=DEVICE1: | resources/broker.ResourceManager |
+    resources := broker_service.connect --network=network --device=DEVICE1
+    try:
       data := #[]
       offsets := []
       resources.fetch_firmware FIRMWARE_ID:
@@ -243,25 +252,108 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
               current_offset += partial_data.size
             // Return the new offset.
             current_offset
+    finally:
+      resources.close
+
+build_state_ device/Device token/string -> Map:
+  return {
+    "token": token,
+    "firmware": build_encoded_firmware --device=device,
+  }
+
+test_state_devices --test_broker/TestBroker broker_cli/broker.BrokerCli:
+  test_broker.with_service: | broker_service/broker.BrokerService |
+    test_state_devices broker_cli broker_service
+
+test_state_devices broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+  broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
+    {
+      "state-test": "1234",
+    }
+
+  broker_cli.update_goal --device_id=DEVICE2.id: | device/DeviceDetailed |
+    {
+      "state-test": "5678",
+    }
+
+  resources := broker_service.connect --network=network --device=DEVICE1
+  try:
+    goal_state := build_state_ DEVICE1 "goal"
+    current_state := build_state_ DEVICE1 "current"
+    firmware_state := build_state_ DEVICE1 "firmware"
+    resources.report_state {
+      "goal-state": goal_state,
+      "current-state":  current_state,
+      "firmware-state": firmware_state,
+      "pending-firmware": "pending-firmware",
+      "firmware": build_encoded_firmware --device=DEVICE1
+    }
+  finally:
+    resources.close
+
+  resources = broker_service.connect --network=network --device=DEVICE2
+  try:
+    goal_state := build_state_ DEVICE2 "goal2"
+    current_state := build_state_ DEVICE2 "current2"
+    firmware_state := build_state_ DEVICE2 "firmware2"
+    resources.report_state {
+      "goal-state": goal_state,
+      "current-state":  current_state,
+      "firmware-state": firmware_state,
+      "pending-firmware": "pending-firmware2",
+      "firmware2": build_encoded_firmware --device=DEVICE2
+    }
+  finally:
+    resources.close
+
+  2.repeat:
+    device1/DeviceDetailed := ?
+    device2/DeviceDetailed := ?
+    if it == 0:
+      devices := broker_cli.get_devices --device_ids=[DEVICE1.id]
+      expect_equals 1 devices.size
+      device1 = devices[DEVICE1.id]
+      devices = broker_cli.get_devices --device_ids=[DEVICE2.id]
+      expect_equals 1 devices.size
+      device2 = devices[DEVICE2.id]
+    else:
+      devices := broker_cli.get_devices --device_ids=[DEVICE1.id, DEVICE2.id]
+      expect_equals 2 devices.size
+      device1 = devices[DEVICE1.id]
+      device2 = devices[DEVICE2.id]
+
+      expect_equals DEVICE1.id device1.id
+      expect_equals "1234" device1.goal["state-test"]
+      expect_equals "firmware" device1.reported_state_firmware["token"]
+      expect_equals "current" device1.reported_state_current["token"]
+      expect_equals "goal" device1.reported_state_goal["token"]
+      expect_equals "pending-firmware" device1.pending_firmware
+
+      expect_equals DEVICE2.id device2.id
+      expect_equals "5678" device2.goal["state-test"]
+      expect_equals "firmware2" device2.reported_state_firmware["token"]
+      expect_equals "current2" device2.reported_state_current["token"]
+      expect_equals "goal2" device2.reported_state_goal["token"]
+      expect_equals "pending-firmware2" device2.pending_firmware
 
 test_events --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service1/broker.BrokerService |
     test_broker.with_service: | broker_service2/broker.BrokerService |
-      broker_service1.connect
-          --network=network
-          --device=DEVICE1
-          : | resources1/broker.ResourceManager |
-            broker_service2.connect
-                --network=network
-                --device=DEVICE2
-                : | resources2/broker.ResourceManager |
-                  test_events
-                      test_broker
-                      broker_cli
-                      broker_service1
-                      broker_service2
-                      resources1
-                      resources2
+      resources1 := null
+      resources2 := null
+      try:
+        resources1 = broker_service1.connect --network=network --device=DEVICE1
+        resources2 = broker_service2.connect --network=network --device=DEVICE2
+        test_events
+            test_broker
+            broker_cli
+            broker_service1
+            broker_service2
+            resources1
+            resources2
+      finally:
+        if resources2: resources2.close
+        if resources1: resources1.close
 
 test_events
     test_broker/TestBroker

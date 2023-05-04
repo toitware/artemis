@@ -2,69 +2,133 @@
 
 import encoding.json
 import host.file
+import uuid
 
 import .artemis
 import .cache
 import .device
+import .event
 import .firmware
+import .pod
+import .pod_specification
 import .ui
 import .utils
+import ..shared.json_diff
 
 class DeviceFleet:
-  id/string
-  organization_id/string
+  id/uuid.Uuid
 
   name/string?
   aliases/List?
 
-  constructor --.id --.organization_id --.name=null --.aliases=null:
+  constructor --.id --.name=null --.aliases=null:
 
-  constructor.from_json .id/string encoded/Map:
-    organization_id = encoded["organization_id"]
+  constructor.from_json encoded_id/string encoded/Map:
+    id = uuid.parse encoded_id
     name = encoded.get "name"
     aliases = encoded.get "aliases"
 
   short_string -> string:
     if name: return "$id ($name)"
-    return id
+    return "$id"
+
+class Status_:
+  static CHECKIN_VERIFICATION_COUNT ::= 5
+  static UNKNOWN_MISSED_CHECKINS ::= -1
+  never_seen/bool
+  last_seen/Time?
+  is_fully_updated/bool
+  /** Number of missed checkins out of $CHECKIN_VERIFICATION_COUNT. */
+  missed_checkins/int
+  is_modified/bool
+
+  constructor --.never_seen --.is_fully_updated --.missed_checkins --.last_seen --.is_modified:
+
+  is_healthy -> bool:
+    return is_fully_updated and missed_checkins == 0
 
 class Fleet:
   static DEVICES_FILE_ ::= "devices.json"
-  static DEFAULT_SPECIFICATION_ ::= "default.json"
+  static FLEET_FILE_ ::= "fleet.json"
+  static DEFAULT_SPECIFICATION_ ::= "specification.json"
   /** Signal that an alias is ambiguous. */
   static AMBIGUOUS_ ::= -1
 
+  id/uuid.Uuid
   artemis_/Artemis
   ui_/Ui
   cache_/Cache
   fleet_root_/string
   devices_/List
+  organization_id/uuid.Uuid
+  default_specification_/string
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
   constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache:
     ui_ = ui
     cache_ = cache
+    if not file.is_file "$fleet_root_/$FLEET_FILE_":
+      ui_.error "Fleet root $fleet_root_ does not contain a $FLEET_FILE_ file."
+      ui_.error "Use 'init' to initialize a directory as fleet directory."
+      ui_.abort
+    fleet_content := read_json "$fleet_root_/$FLEET_FILE_"
+    if fleet_content is not Map:
+      ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format."
+    organization_id = uuid.parse fleet_content["organization"]
+    default_specification_ = fleet_content["default-specification"]
+    if not fleet_content.contains "id":
+      ui.error "Fleet file $fleet_root_/$FLEET_FILE_ does not contain an ID."
+      ui.error "Please add an entry with a random UUID to $fleet_root_/$FLEET_FILE_"
+      ui.error "You can use the following line:"
+      ui.error "  \"id\": \"$random_uuid\","
+      ui.abort
+    id = uuid.parse fleet_content["id"]
     devices_ = load_devices_ fleet_root_ --ui=ui
     aliases_ = build_alias_map_ devices_ ui
 
-  static init fleet_root/string --ui/Ui:
+    // TODO(florian): should we always do this check?
+    org := artemis_.connected_artemis_server.get_organization organization_id
+    if not org:
+      ui.abort "Organization $organization_id does not exist or is not accessible."
+
+  static init fleet_root/string artemis/Artemis --organization_id/uuid.Uuid --ui/Ui:
     if not file.is_directory fleet_root:
-      ui.error "Fleet root $fleet_root is not a directory."
-      ui.abort
+      ui.abort "Fleet root $fleet_root is not a directory."
+
+    if file.is_file "$fleet_root/$FLEET_FILE_":
+      ui.abort "Fleet root $fleet_root already contains a $FLEET_FILE_ file."
 
     if file.is_file "$fleet_root/$DEVICES_FILE_":
-      ui.error "Fleet root $fleet_root already contains a $DEVICES_FILE_ file."
-      ui.abort
+      ui.abort "Fleet root $fleet_root already contains a $DEVICES_FILE_ file."
 
-    write_json_to_file "$fleet_root/$DEVICES_FILE_" {:}
+    org := artemis.connected_artemis_server.get_organization organization_id
+    if not org:
+      ui.abort "Organization $organization_id does not exist or is not accessible."
+
+    write_json_to_file --pretty "$fleet_root/$FLEET_FILE_" {
+      "id": "$random_uuid",
+      "organization": "$organization_id",
+      "default-specification": DEFAULT_SPECIFICATION_,
+    }
+    write_json_to_file --pretty "$fleet_root/$DEVICES_FILE_" {:}
+
+    default_specification_path := "$fleet_root/$DEFAULT_SPECIFICATION_"
+    if not file.is_file default_specification_path:
+      write_json_to_file --pretty default_specification_path INITIAL_POD_SPECIFICATION
+
+    hello_path := "$fleet_root/hello.toit"
+    if not file.is_file hello_path:
+      write_blob_to_file hello_path """
+        main:
+          print "Hello, world!"
+        """
 
     ui.info "Initialized fleet directory $fleet_root."
 
   static load_devices_ fleet_root/string --ui/Ui -> List:
     if not file.is_directory fleet_root:
-      ui.error "Fleet root $fleet_root is not a directory."
-      ui.abort
+      ui.abort "Fleet root $fleet_root is not a directory."
     devices_path := "$fleet_root/$DEVICES_FILE_"
     if not file.is_file devices_path:
       ui.error "Fleet root $fleet_root does not contain a $DEVICES_FILE_ file."
@@ -78,14 +142,12 @@ class Fleet:
       ui.error exception.message
       ui.abort
     if encoded_devices is not Map:
-      ui.error "Fleet file $devices_path has invalid format."
-      ui.abort
+      ui.abort "Fleet file $devices_path has invalid format."
 
     devices := []
     encoded_devices.do: | device_id encoded_device |
       if encoded_device is not Map:
-        ui.error "Fleet file $devices_path has invalid format for device ID $device_id."
-        ui.abort
+        ui.abort "Fleet file $devices_path has invalid format for device ID $device_id."
       exception = catch:
         device := DeviceFleet.from_json device_id encoded_device
         devices.add device
@@ -123,7 +185,7 @@ class Fleet:
         else:
           result[id] = i
 
-      add_alias.call device.id
+      add_alias.call "$device.id"
       if device.name:
         add_alias.call device.name
       if device.aliases:
@@ -139,29 +201,21 @@ class Fleet:
   write_devices_ -> none:
     encoded_devices := {:}
     devices_.do: | device/DeviceFleet |
-      entry := {
-        "organization_id": device.organization_id,
-      }
+      entry := {:}
       if device.name: entry["name"] = device.name
       if device.aliases: entry["aliases"] = device.aliases
-      encoded_devices[device.id] = entry
-    write_json_to_file "$fleet_root_/$DEVICES_FILE_" encoded_devices --pretty
+      encoded_devices["$device.id"] = entry
+    write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
-  create_firmware --specification_path/string --output_path/string --organization_ids/List:
-    specification := parse_device_specification_file specification_path --ui=ui_
-    artemis_.customize_envelope
-        --output_path=output_path
-        --device_specification=specification
-
-    organization_ids.do: | organization_id/string |
-      artemis_.upload_firmware output_path --organization_id=organization_id
-      ui_.info "Successfully uploaded firmware to organization $organization_id."
-
-  create_identities --output_directory/string --organization_id/string count/int:
+  /**
+  Returns a list of created files.
+  */
+  create_identities --output_directory/string count/int -> List:
     old_size := devices_.size
     try:
+      new_identity_files := []
       count.repeat: | i/int |
-        device_id := random_uuid_string
+        device_id := random_uuid
 
         output := "$output_directory/$(device_id).identity"
 
@@ -171,8 +225,9 @@ class Fleet:
             --organization_id=organization_id
 
         // TODO(florian): create a nice random name.
-        devices_.add (DeviceFleet --id=device_id --organization_id=organization_id)
-        ui_.info "Created $output."
+        devices_.add (DeviceFleet --id=device_id)
+        new_identity_files.add output
+      return new_identity_files
     finally:
       if devices_.size != old_size:
         write_devices_
@@ -183,55 +238,175 @@ class Fleet:
     fleet_devices := devices_
     specification_path := "$fleet_root_/$DEFAULT_SPECIFICATION_"
 
+    existing_devices := broker.get_devices --device_ids=(fleet_devices.map: it.id)
     fleet_devices.do: | fleet_device/DeviceFleet |
-      device := broker.get_device --device_id=fleet_device.id
-      if not device:
-        ui_.error "Device $device.id is unknown to the broker."
-        ui_.abort
+      if not existing_devices.contains fleet_device.id:
+        ui_.abort "Device $fleet_device.id is unknown to the broker."
 
     base_patches := {:}
 
     base_firmwares := diff_bases.map: | diff_base/string |
-      FirmwareContent.from_envelope diff_base --cache=cache_
+      pod := Pod.parse diff_base --tmp_directory=artemis_.tmp_directory --ui=ui_
+      FirmwareContent.from_envelope pod.envelope_path --cache=cache_
 
     base_firmwares.do: | content/FirmwareContent |
       trivial_patches := artemis_.extract_trivial_patches content
-      trivial_patches.do: | key value/FirmwarePatch | base_patches[key] = value
+      trivial_patches.do: | _ patch/FirmwarePatch |
+        artemis_.upload_patch patch --organization_id=organization_id
 
-    with_tmp_directory: | tmp_dir/string |
-      firmware_path := "$tmp_dir/firmware.envelope"
-      specification := parse_device_specification_file specification_path --ui=ui_
-      artemis_.customize_envelope
-          --output_path=firmware_path
-          --device_specification=specification
+    pod := Pod.from_specification
+        --path=specification_path
+        --artemis=artemis_
+        --ui=ui_
 
-      seen_organizations := {}
-      fleet_devices.do: | fleet_device/DeviceFleet |
-        if not diff_bases.is_empty:
-          device/DeviceDetailed := detailed_devices[fleet_device.id]
-          if not seen_organizations.contains device.organization_id:
-            seen_organizations.add device.organization_id
-            base_patches.do: | _ patch/FirmwarePatch |
-              artemis_.upload_patch patch --organization_id=device.organization_id
+    fleet_devices.do: | fleet_device/DeviceFleet |
+      artemis_.update
+          --device_id=fleet_device.id
+          --pod=pod
+          --base_firmwares=base_firmwares
 
-        artemis_.update
-            --device_id=fleet_device.id
-            --envelope_path=firmware_path
-            --base_firmwares=base_firmwares
+      ui_.info "Successfully updated device $fleet_device.short_string."
 
-        ui_.info "Successfully updated device $fleet_device.short_string."
+  upload --pod/Pod:
+    artemis_.upload --pod=pod --organization_id=organization_id
+    ui_.info "Successfully uploaded pod to organization $organization_id."
 
-  upload envelope_path/string --to/List:
-    to.do: | organization_id/string |
-      artemis_.upload_firmware envelope_path --organization_id=organization_id
-      ui_.info "Successfully uploaded firmware."
+  default_specification_path -> string:
+    return "$fleet_root_/$default_specification_"
+
+  read_specification_for device_id/uuid.Uuid -> PodSpecification:
+    return parse_pod_specification_file default_specification_path --ui=ui_
+
+  add_device --device_id/uuid.Uuid --name/string? --aliases/List?:
+    if aliases and aliases.is_empty: aliases = null
+    devices_.add (DeviceFleet --id=device_id --name=name --aliases=aliases)
+    write_devices_
+
+  build_status_ device/DeviceDetailed get_state_events/List? last_event/Event? -> Status_:
+    CHECKIN_VERIFICATIONS ::= 5
+    SLACK_FACTOR ::= 0.3
+    firmware_state := device.reported_state_firmware
+    current_state := device.reported_state_current
+    if not firmware_state:
+      if not last_event:
+        return Status_
+            --is_fully_updated=false
+            --missed_checkins=Status_.UNKNOWN_MISSED_CHECKINS
+            --never_seen=true
+            --last_seen=null
+            --is_modified=false
+
+      return Status_
+          --is_fully_updated=false
+          --missed_checkins=Status_.UNKNOWN_MISSED_CHECKINS
+          --never_seen=false
+          --last_seen=last_event.timestamp
+          --is_modified=false
+
+    goal := device.goal
+    is_updated/bool := ?
+    // TODO(florian): remove the special case of `null` meaning "back to firmware".
+    if not goal and not current_state:
+      is_updated = true
+    else if not goal:
+      is_updated = false
+    else:
+      is_updated = json_equals firmware_state goal
+    max_offline_s/int? := firmware_state.get "max-offline"
+    // If the device has no max_offline, we assume it's 20 seconds.
+    // TODO(florian): handle this better.
+    if not max_offline_s:
+      max_offline_s = 20
+    max_offline := Duration --s=max_offline_s
+
+    missed_checkins/int := ?
+    if not get_state_events or get_state_events.is_empty:
+      missed_checkins = Status_.UNKNOWN_MISSED_CHECKINS
+    else:
+      slack := max_offline * SLACK_FACTOR
+      missed_checkins = 0
+      checkin_index := CHECKIN_VERIFICATIONS - 1
+      last := Time.now
+      earliest_time := last - (max_offline * CHECKIN_VERIFICATIONS)
+      for i := 0; i < get_state_events.size; i++:
+        event := get_state_events[i]
+        event_timestamp := event.timestamp
+        if event_timestamp < earliest_time:
+          event_timestamp = earliest_time
+          // We want to handle this interval, but no need to look at more
+          // events.
+          i = get_state_events.size
+        duration_since_last_checkin := event_timestamp.to last
+        missed := (duration_since_last_checkin - slack).in_ms / max_offline.in_ms
+        missed_checkins += missed
+        last = event.timestamp
+    return Status_
+        --is_fully_updated=is_updated
+        --missed_checkins=missed_checkins
+        --never_seen=false
+        --last_seen=last_event and last_event.timestamp
+        --is_modified=device.reported_state_current != null
+
+  status --include_healthy/bool --include_never_seen/bool:
+    broker := artemis_.connected_broker
+    device_ids := devices_.map: it.id
+    detailed_devices := broker.get_devices --device_ids=device_ids
+    get_state_events := broker.get_events
+        --device_ids=device_ids
+        --limit=Status_.CHECKIN_VERIFICATION_COUNT
+        --types=["get-goal"]
+    last_events := broker.get_events --device_ids=device_ids --limit=1
+
+    now := Time.now
+    statuses := devices_.map: | fleet_device/DeviceFleet |
+      device/DeviceDetailed? := detailed_devices.get fleet_device.id
+      if not device:
+        ui_.abort "Device $fleet_device.id is unknown to the broker."
+      last_events_of_device := last_events.get fleet_device.id
+      last_event := last_events_of_device and not last_events_of_device.is_empty
+          ? last_events_of_device[0]
+          : null
+      build_status_ device (get_state_events.get fleet_device.id) last_event
+
+    rows := []
+    for i := 0; i < devices_.size; i++:
+      fleet_device/DeviceFleet := devices_[i]
+      status/Status_ := statuses[i]
+      if not include_healthy and status.is_healthy: continue
+      if not include_never_seen and status.never_seen: continue
+
+      cross := "✗"
+      // TODO(florian): when the UI wants structured output we shouldn't change the last
+      // seen to human readable.
+      human_last_seen := ""
+      if status.last_seen:
+        human_last_seen = timestamp_to_human_readable status.last_seen
+      else if status.never_seen:
+        human_last_seen = "never"
+      else:
+        human_last_seen = "unknown"
+      missed_checkins_string := ""
+      if status.missed_checkins == Status_.UNKNOWN_MISSED_CHECKINS:
+        missed_checkins_string = "?"
+      else if status.missed_checkins > 0:
+        missed_checkins_string = cross
+      rows.add [
+        "$fleet_device.id",
+        fleet_device.name or "",
+        status.is_fully_updated ? "" : cross,
+        status.is_modified ? cross : "",
+        missed_checkins_string,
+        human_last_seen,
+        fleet_device.aliases ? fleet_device.aliases.join ", " : "",
+      ]
+
+    ui_.info_table rows
+        --header=["Device ID", "Name", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
 
   resolve_alias_ alias/string -> DeviceFleet:
     if not aliases_.contains alias:
-      ui_.error "No device with name, device-id, or alias $alias in the fleet."
-      ui_.abort
+      ui_.abort "No device with name, device-id, or alias $alias in the fleet."
     device_index := aliases_[alias]
     if device_index == AMBIGUOUS_:
-      ui_.error "The name, device-id, or alias $alias is ambiguous."
-      ui_.abort
+      ui_.abort "The name, device-id, or alias $alias is ambiguous."
     return devices_[device_index]

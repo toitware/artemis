@@ -9,7 +9,7 @@ on:
 
 env:
   SUPPORTED_SDK_VERSIONS: |
-      v2.0.0-alpha.74
+      v2.0.0-alpha.81
 
 jobs:
   build:
@@ -30,7 +30,7 @@ jobs:
           fi
           echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
 
-          export TOIT_VERSION="v2.0.0-alpha.74"
+          export TOIT_VERSION="v2.0.0-alpha.81"
 
           export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
@@ -105,7 +105,7 @@ jobs:
           # We log in with the Artemis executable.
           # It will set the authentication in the config file which is also
           # used by the uploader.
-          build/bin/artemis$BIN_EXTENSION auth artemis login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
+          build/bin/artemis$BIN_EXTENSION auth login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
 
       - name: Upload snapshot to Artemis
         shell: bash

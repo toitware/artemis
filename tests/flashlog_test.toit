@@ -316,33 +316,45 @@ test_read_page peek_order/List:
     bytes.fill it
     flashlog.append bytes
 
-  // Try to peek too far. We should just get null back.
-  [99, 4, 7, 3, 1000].do: expect_null (flashlog.read_page buffer --peek=it)
+  // Try to peek too far. We should just get empty results back.
+  [99, 4, 7, 3, 1000].do:
+    list := flashlog.read_page buffer --peek=it
+    expect_null list[1]      // Cursor.
+    expect_equals 0 list[2]  // Count.
 
   test_peeked ::= : | buffer/ByteArray peek/int |
-    last_sn := null
+    first_sn := null
     n := 0
     flashlog.decode buffer: | x sn |
       expect_equals 1700 x.size
       expect (x.every: it == peek * 2 + n)
-      last_sn = sn
+      if not first_sn: first_sn = sn
       n++
-    last_sn
+    first_sn
 
   // Peek in the specified order.
   peek_order.do: | peek/int |
-    sn := flashlog.read_page buffer --peek=peek
-    expect_not_null sn
-    last_sn := test_peeked.call buffer peek
-    expect_equals last_sn sn
+    list := flashlog.read_page buffer --peek=peek
+    sn := list[0]
+    expect_equals 14 list[1]  // Cursor.
+    expect_equals 2 list[2]   // Count.
+    first_sn := test_peeked.call buffer peek
+    expect_equals first_sn sn
 
-  // Try to peek too far. We should just get null back.
-  [99, 4, 7, 3, 1000].do: expect_null (flashlog.read_page buffer --peek=it)
+  // Try to peek too far. We should just get empty results back.
+  [99, 4, 7, 3, 1000].do:
+    list := flashlog.read_page buffer --peek=it
+    expect_null list[1]      // Cursor.
+    expect_equals 0 list[2]  // Count.
 
   // Ack the pages one by one.
   for acked := 1; acked <= 3; acked++:
-    flashlog.acknowledge (flashlog.read_page buffer)
-    [99, 4, 7, 3 - acked, 1000].do: expect_null (flashlog.read_page buffer --peek=it)
+    list := flashlog.read_page buffer
+    flashlog.acknowledge (SN.previous (SN.next list[0] --increment=list[2]))
+    [99, 4, 7, 3 - acked, 1000].do:
+      list = flashlog.read_page buffer --peek=it
+      expect_null list[1]      // Cursor.
+      expect_equals 0 list[2]  // Count.
 
     // Peek in the specified order again but
     // take the acks into account.
@@ -351,7 +363,7 @@ test_read_page peek_order/List:
       if adjusted_peek < 0:
         expect_throw "Bad Argument": flashlog.read_page buffer --peek=adjusted_peek
       else:
-        sn := flashlog.read_page buffer --peek=adjusted_peek
+        sn := (flashlog.read_page buffer --peek=adjusted_peek)[0]
         expect_not_null sn
         last_sn := test_peeked.call buffer peek
         expect_equals last_sn sn
@@ -1078,13 +1090,13 @@ test_invalid_write_offset offset/int:
       [ #[1, 2], #[99], #[87], #[5, 4, 3] ]
       read_all flashlog_3 --expected_first_sn=17
 
-validate_round_trip flashlog/FlashLog input/List --append/bool=true -> none:
+validate_round_trip flashlog/TestFlashLog input/List --append/bool=true -> none:
   if append: input.do: flashlog.append it
   output := read_all flashlog
   output.size.repeat:
     expect_bytes_equal input[it] output[it]
 
-read_all flashlog/FlashLog --expected_first_sn/int?=null -> List:
+read_all flashlog/TestFlashLog --expected_first_sn/int?=null -> List:
   output := {:}
   while flashlog.has_more:
     last_sn := null
@@ -1133,6 +1145,90 @@ class TestFlashLog extends FlashLog:
   max_entry_size -> int:
     return ((size_per_page_ - FlashLog.HEADER_SIZE_ - 1) * 7 + 6) / 8
 
+  has_more -> bool:
+    // TODO(kasper): Handle reading from ack'ed pages. We
+    // have an invariant that makes it impossible to get
+    // to this point, but we should handle it gracefully.
+    with_buffer_: | buffer/ByteArray |
+      assert: FlashLog.HEADER_SIZE_ + 1 < 16
+      region_.read --from=read_page_ buffer[..16]
+      if (buffer[FlashLog.HEADER_SIZE_] & 0xc0) == 0x80: return true
+    return false
+
+  /**
+  Reads from the first unacknowledged page.
+  */
+  read [block] -> none:
+    with_buffer_: | buffer/ByteArray |
+      commit_and_read_ buffer read_page_: | sn count | null
+      decode buffer block
+
+  /**
+  Decodes the given buffer.
+  */
+  decode buffer/ByteArray [block] -> none:
+    sn := LITTLE_ENDIAN.uint32 buffer FlashLog.HEADER_SN_OFFSET_
+    cursor := FlashLog.HEADER_SIZE_
+    while true:
+      from := cursor
+      to := cursor
+
+      acc := buffer[cursor++]
+      if acc == 0xff: return
+
+      bits := 6
+      acc &= 0x3f
+      while true:
+        if bits < 8:
+          next := (cursor >= buffer.size) ? 0xff : buffer[cursor]
+          if (next & 0x80) != 0:
+            // We copy the section because we're reusing buffers
+            // and it is very unfortunate to change the sections
+            // we have already handed out.
+            block.call (buffer.copy from to) sn
+            if next == 0xff: return
+            sn = SN.next sn
+            break
+          acc |= (next << bits)
+          bits += 7
+          cursor++
+          continue
+        buffer[to++] = (acc & 0xff)
+        acc >>= 8
+        bits -= 8
+
+  reset -> bool:
+    read_page_ = -1
+    write_page_ = -1
+    write_offset_ = -1
+    return with_buffer_: ensure_valid_ it
+
+  dump -> none:
+    with_buffer_: | buffer/ByteArray |
+      for page := 0; page < size_; page += size_per_page_:
+        banner := ?
+        if page == read_page_ and page == write_page_:
+          banner = "RW"
+        else if page == write_page_:
+          banner = " W"
+        else if page == read_page_:
+          banner = "R "
+        else:
+          banner = "  "
+
+        is_committed_page_ page buffer: | sn is_acked count |
+          if is_acked:
+            print "- page $(%06x page):   committed $banner (sn=$(%08x sn), count=$(%04d count)) | ack'ed"
+          else:
+            print "- page $(%06x page):   committed $banner (sn=$(%08x sn), count=$(%04d count))"
+          continue
+        is_uncommitted_page_ page buffer: | sn |
+          region_.read --from=page buffer
+          count := decode_count_ buffer
+          print "- page $(%06x page): uncommitted $banner (sn=$(%08x sn), count=$(%04d count))"
+          continue
+        print "- page $(%06x page): ########### $banner (sn=$("?" * 8), count=$("?" * 4))"
+
   static construct description/List -> TestFlashLog
       --read_page/int?=null
       --write_page/int?=null
@@ -1166,11 +1262,8 @@ class TestFlashLog extends FlashLog:
         region.write --from=(index * page_size + write_cursor) bytes
         write_cursor += bytes.size
         // Compute a correct write count based on the bytes.
-        write_count = 0
         region.read --from=(index * page_size) buffer
-        read_cursor := FlashLog.HEADER_SIZE_
-        while read_cursor < page_size:
-          read_cursor = log.decode_next_ buffer read_cursor: write_count++
+        write_count = log.decode_count_ buffer
       else if page.contains "entries":
         entries := page["entries"]
         write_count = 0
@@ -1211,15 +1304,9 @@ class TestFlashLog extends FlashLog:
       else:
         region.read --from=(index * page_size) buffer
         crc32 := crc.Crc32
-        read_cursor := FlashLog.HEADER_SIZE_
-        read_count := 0
-        while read_cursor < page_size:
-          read_cursor = log.decode_next_ buffer read_cursor:
-            crc32.add it
-            read_count++
-        sn_next := SN.next --increment=read_count (LITTLE_ENDIAN.uint32 buffer FlashLog.HEADER_SN_OFFSET_)
-        LITTLE_ENDIAN.put_uint32 buffer 0 sn_next
-        crc32.add buffer[..4]
+        LITTLE_ENDIAN.put_uint32 buffer FlashLog.HEADER_CHECKSUM_OFFSET_ 0xffff_ffff
+        LITTLE_ENDIAN.put_uint16 buffer FlashLog.HEADER_COUNT_OFFSET_ 0xffff
+        crc32.add buffer
         checksum = crc32.get_as_int
 
       LITTLE_ENDIAN.put_uint32 buffer 0 checksum

@@ -2,6 +2,7 @@
 
 import bytes
 import host.pipe
+import monitor
 import .ui
 
 class Git:
@@ -191,20 +192,22 @@ class Git:
     stderr_pipe := fork_data[2]
     pid := fork_data[3]
 
+    semaphore := monitor.Semaphore
     stdout_task := task::
       catch --trace:
         while chunk := stdout_pipe.read:
           output.write chunk
           stdout.write chunk
+      semaphore.up
 
     stderr_task := task::
       catch --trace:
         while chunk := stderr_pipe.read:
           output.write chunk
+      semaphore.up
 
+    2.repeat: semaphore.down
     exit_value := pipe.wait_for pid
-    stdout_task.cancel
-    stderr_task.cancel
 
     if (pipe.exit_code exit_value) != 0:
       ui_.error "$description failed"

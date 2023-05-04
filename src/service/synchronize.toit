@@ -205,7 +205,7 @@ class SynchronizeJob extends TaskJob:
     try:
       start := Time.monotonic_us
       limit := start + CONNECT_TO_BROKER_TIMEOUT.in_us
-      while not connect_ and Time.monotonic_us < limit:
+      while not connect_network_ and Time.monotonic_us < limit:
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
@@ -221,16 +221,19 @@ class SynchronizeJob extends TaskJob:
   Returns whether we are done with this connection attempt (true)
     or if another attempt makes sense if time permits (false).
   */
-  connect_ -> bool:
+  connect_network_ -> bool:
     network/net.Client? := null
     try:
       state_ = STATE_DISCONNECTED
       transition_to_ STATE_CONNECTING
+      // TODO(kasper): Add timeout of net.open.
       network = net.open
-      transition_to_ STATE_CONNECTED_TO_NETWORK
-      run_ network
-      assert: device_.max_offline and state_ == STATE_SYNCHRONIZED
-      return true
+      while true:
+        transition_to_ STATE_CONNECTED_TO_NETWORK
+        done := connect_broker_ network
+        // TODO(kasper): Add timeout for check_in.
+        check_in network logger_ --device=device_
+        if done: return true
     finally: | is_exception exception |
       // We do not expect to be canceled outside of tests, but
       // if we do we prefer maintaining the proper state and
@@ -245,7 +248,9 @@ class SynchronizeJob extends TaskJob:
         if network:
           // If we are planning to retry another network,
           // we quarantine the one we just tried.
+          // TODO(kasper): Add timeout for network.quarantine.
           if not done: network.quarantine
+          // TODO(kasper): Add timeout for network.close.
           network.close
         // If we're canceled, we should make sure to propagate
         // the canceled exception and not just swallow it.
@@ -253,22 +258,32 @@ class SynchronizeJob extends TaskJob:
         // where it is repeatedly asked to retry the connect.
         if not Task.current.is_canceled: return done
 
-  run_ network/net.Client -> none:
-    // TODO(kasper): It would be ideal if we could wrap the call to
-    // connect and provide a timeout. It is hard to do with the current
-    // structure where it takes a block. When talking to Supabase the
-    // connect call actually doesn't do any waiting so the problem
-    // is not really present there.
-    broker_.connect --network=network --device=device_: | resources/ResourceManager |
+  /**
+  Tries to connect to the broker and step through the
+    necessary synchronization.
+
+  Returns whether we are done synchronizing (true) or if we
+    need another attempt using the already established network
+    connection (false).
+  */
+  connect_broker_ network/net.Client -> bool:
+    // TODO(kasper): Add timeout for connect.
+    resources := broker_.connect --network=network --device=device_
+    try:
       goal_state/Map? := null
       while true:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
-          goal_state = run_step_ resources goal_state
+          goal_state = synchronize_step_ resources goal_state
           if goal_state: continue
-          if device_.max_offline: break
+          if device_.max_offline: return true
+          now := JobTime.now
+          if (check_in_schedule now) <= now: return false
           transition_to_ STATE_CONNECTED_TO_BROKER
+      finally:
+        // TODO(kasper): Add timeout for close.
+        resources.close
 
-  run_step_ resources/ResourceManager goal_state/Map? -> Map?:
+  synchronize_step_ resources/ResourceManager goal_state/Map? -> Map?:
     // If our state has changed, we communicate it to the cloud.
     report_state_if_changed resources --goal_state=goal_state
 
@@ -282,7 +297,7 @@ class SynchronizeJob extends TaskJob:
       // TODO(kasper): Change the interface so we don't have to
       // catch exceptions to figure out if we got a new goal state.
       catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-        goal_state = broker_.fetch_goal --no-wait
+        goal_state = resources.fetch_goal --no-wait
         goal_state_updated = true
         transition_to_connected_
       if goal_state_updated:
@@ -294,10 +309,9 @@ class SynchronizeJob extends TaskJob:
         pending/Lambda := pending_steps_.remove_first
         pending.call resources
     else:
-      with_timeout check_in_timeout:
-        goal_state = broker_.fetch_goal --wait
-        transition_to_connected_
-        process_goal_ goal_state resources
+      goal_state = resources.fetch_goal --wait
+      transition_to_connected_
+      process_goal_ goal_state resources
 
     // We only handle pending steps when we're done handling the other
     // updates. This means that we prioritize firmware updates and

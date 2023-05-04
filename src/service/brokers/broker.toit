@@ -14,8 +14,21 @@ import ...shared.server_config
 
 /**
 The resource manager is used to exchange data with the broker.
+
+TODO(kasper): Rename to BrokerConnection.
 */
 interface ResourceManager:
+  /**
+  Fetches the goal from the broker.
+
+  If $wait is true, waits until the goal may have changed and
+    returns the new goal.
+
+  If $wait is false, returns the goal if it is known to have
+    changed. Otherwise, throws $DEADLINE_EXCEEDED_ERROR.
+  */
+  fetch_goal --wait/bool -> Map?
+
   /**
   Downloads the application image with the given $id.
 
@@ -50,6 +63,11 @@ interface ResourceManager:
   */
   report_event --type/string data/any -> none
 
+  /**
+  Closes the connection to the broker.
+  */
+  close -> none
+
 /**
 An interface to communicate with the CLI through a broker.
 */
@@ -66,22 +84,10 @@ interface BrokerService:
   /**
   Connects to the broker.
 
-  Calls the $block with a $ResourceManager as argument.
-  Once the $block returns, the connection is closed.
+  Returns a $ResourceManager, which can be used to interact with
+    the broker and exchange data with it.
 
-  The connect call is responsible for ensuring that the service and the broker
-    are in a consistent state. For most platforms, the broker will need to
-    poll the broker for changes.
+  The returned $ResourceManager should be closed through a call
+    to $ResourceManager.close when it is no longer needed.
   */
-  connect --network/net.Client --device/Device [block]
-
-  /**
-  Fetches the goal from the broker.
-
-  If $wait is true, waits until the goal may have changed and
-    returns the new goal.
-
-  If $wait is false, returns the goal if it is known to have
-    changed. Otherwise, throws $DEADLINE_EXCEEDED_ERROR.
-  */
-  fetch_goal --wait/bool -> Map?
+  connect --network/net.Client --device/Device -> ResourceManager

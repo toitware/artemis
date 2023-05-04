@@ -16,25 +16,26 @@ import encoding.ubjson
 import encoding.base64
 import encoding.tison
 import encoding.hex
+import uuid
 
 import ..utils show decode_server_config
 import ..service show run_artemis
 import ..check_in show check_in_setup
 import ..device
-import ...cli.sdk
+import ...cli.artemis show Artemis
 import ...cli.cache as cli
+import ...cli.device as artemis_device
+import ...cli.firmware as fw
+import ...cli.pod
+import ...cli.sdk
 import ...cli.ui show Ui ConsoleUi
 import ...cli.utils
-import ...cli.firmware as fw
-import ...cli.artemis show Artemis
-import ...cli.device as artemis_device
 
 main arguments:
   cache := cli.Cache --app_name="artemis"
-  ui := ConsoleUi
   root_cmd := cli.Command "root"
       --options=[
-        cli.OptionString "envelope"
+        cli.OptionString "pod"
             --type="file"
             --required,
         cli.OptionString "identity"
@@ -42,47 +43,50 @@ main arguments:
             --required,
       ]
       --run=:: run_host
-          --envelope_path=it["envelope"]
+          --pod_path=it["pod"]
           --identity_path=it["identity"]
           --cache=cache
-          --ui=ui
   root_cmd.run arguments
 
-run_host --envelope_path/string --identity_path/string --cache/cli.Cache --ui/Ui -> none:
+run_host --pod_path/string --identity_path/string --cache/cli.Cache -> none:
+  ui := ConsoleUi
+  with_tmp_directory: | tmp_dir |
+    pod := Pod.parse pod_path --tmp_directory=tmp_dir --ui=ui
+    run_host --pod=pod --identity_path=identity_path --cache=cache
+
+run_host --pod/Pod --identity_path/string --cache/cli.Cache -> none:
   identity := read_base64_ubjson identity_path
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
   identity["broker"] = tison.encode identity["broker"]
   device_identity := identity["artemis.device"]
 
   artemis_device := artemis_device.Device
-      --hardware_id=device_identity["hardware_id"]
-      --organization_id=device_identity["organization_id"]
-      --id=device_identity["device_id"]
+      --hardware_id=uuid.parse device_identity["hardware_id"]
+      --organization_id=uuid.parse device_identity["organization_id"]
+      --id=uuid.parse device_identity["device_id"]
 
-  firmware := Artemis.compute_device_specific_firmware
-      --envelope_path=envelope_path
+  firmware := fw.Firmware
+      --pod=pod
       --device=artemis_device
       --cache=cache
-      --ui=ui
   encoded_firmware_description := firmware.encoded
 
-  sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
+  sdk_version := pod.sdk_version
   sdk := get_sdk sdk_version --cache=cache
   with_tmp_directory: | tmp_dir/string |
     asset_path := "$tmp_dir/artemis_asset"
     sdk.firmware_extract_container --assets
         --name="artemis"
-        --envelope_path=envelope_path
+        --envelope_path=pod.envelope_path
         --output_path=asset_path
     config_asset := sdk.assets_extract
         --name="device-config"
         --assets_path=asset_path
     config := json.decode config_asset
 
-    content := fw.FirmwareContent.from_envelope envelope_path --cache=cache
     config["firmware"] = encoded_firmware_description
 
-    service := FirmwareServiceProvider content.bits
+    service := FirmwareServiceProvider firmware.content.bits
     service.install
 
     while true:

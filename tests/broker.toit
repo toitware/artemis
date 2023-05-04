@@ -6,8 +6,8 @@ import log show Logger
 import log
 import monitor
 import net
-
 import supabase
+import uuid
 
 import artemis.cli.brokers.broker show BrokerCli
 import artemis.service.brokers.broker show BrokerService
@@ -15,6 +15,7 @@ import artemis.service.brokers.broker show BrokerService
 import .supabase_local_server
 import ..tools.http_servers.broker show HttpBroker
 import ..tools.http_servers.broker as http_servers
+import ..tools.lan_ip.lan_ip
 import artemis.shared.server_config
   show
     ServerConfig
@@ -46,17 +47,17 @@ interface BrokerBackdoor:
   /**
   Creates a new device with the given $device_id and initial $state.
   */
-  create_device --device_id/string --state/Map -> none
+  create_device --device_id/uuid.Uuid --state/Map -> none
 
   /**
   Removes the device with the given $device_id.
   */
-  remove_device device_id/string -> none
+  remove_device device_id/uuid.Uuid -> none
 
   /**
   Returns the reported state of the device.
   */
-  get_state device_id/string -> Map?
+  get_state device_id/uuid.Uuid -> Map?
 
   /**
   Clears all events.
@@ -81,14 +82,14 @@ class ToitHttpBackdoor implements BrokerBackdoor:
 
   constructor .server:
 
-  create_device --device_id/string --state/Map:
-    server.create_device --device_id=device_id --state=state
+  create_device --device_id/uuid.Uuid --state/Map:
+    server.create_device --device_id="$device_id" --state=state
 
-  remove_device device_id/string -> none:
-    server.remove_device device_id
+  remove_device device_id/uuid.Uuid -> none:
+    server.remove_device "$device_id"
 
-  get_state device_id/string -> Map?:
-    return server.get_state --device_id=device_id
+  get_state device_id/uuid.Uuid -> Map?:
+    return server.get_state --device_id="$device_id"
 
   clear_events -> none:
     server.clear_events
@@ -98,8 +99,13 @@ with_http_broker [block]:
   port_latch := monitor.Latch
   server_task := task:: server.start port_latch
 
+  host := "localhost"
+  if platform != PLATFORM_WINDOWS:
+    lan_ip := get_lan_ip
+    host = host.replace "localhost" lan_ip
+
   server_config := ServerConfigHttpToit "test-broker"
-      --host="localhost"
+      --host=host
       --port=port_latch.get
 
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
@@ -117,23 +123,23 @@ class SupabaseBackdoor implements BrokerBackdoor:
 
   constructor .server_config_ .service_key_:
 
-  create_device --device_id/string --state/Map:
+  create_device --device_id/uuid.Uuid --state/Map:
     with_backdoor_client_: | client/supabase.Client |
       client.rest.rpc "toit_artemis.new_provisioned" {
-        "_device_id": device_id,
+        "_device_id": "$device_id",
         "_state": state,
       }
 
-  remove_device device_id/string -> none:
+  remove_device device_id/uuid.Uuid -> none:
     with_backdoor_client_: | client/supabase.Client |
       client.rest.rpc "toit_artemis.remove_device" {
-        "_device_id": device_id,
+        "_device_id": "$device_id",
       }
 
-  get_state device_id/string -> Map?:
+  get_state device_id/uuid.Uuid -> Map?:
     with_backdoor_client_: | client/supabase.Client |
       return client.rest.rpc "toit_artemis.get_state" {
-        "_device_id": device_id,
+        "_device_id": "$device_id",
       }
     unreachable
 

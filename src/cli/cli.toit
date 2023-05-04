@@ -6,12 +6,13 @@ import .cache
 import .config
 import .ui
 
+import .cmds.auth
 import .cmds.config
 import .cmds.device
 import .cmds.doc
 import .cmds.fleet
-import .cmds.auth
 import .cmds.org
+import .cmds.pod
 import .cmds.profile
 import .cmds.sdk
 import .cmds.serial
@@ -47,6 +48,12 @@ main args --config/Config --cache/Cache --ui/Ui:
             --long_help="Show the version of the Artemis tool."
             --run=:: ui.info ARTEMIS_VERSION,
       ]
+      --options=[
+        cli.Option "fleet-root"
+            --type="directory"
+            --short_help="Specify the fleet root."
+            --default=".",
+      ]
 
   // TODO(florian): the ui should be configurable by flags.
   // This might be easier, once the UI is integrated with the cli
@@ -59,6 +66,7 @@ main args --config/Config --cache/Cache --ui/Ui:
   (create_sdk_commands config cache ui).do: root_cmd.add it
   (create_device_commands config cache ui).do: root_cmd.add it
   (create_fleet_commands config cache ui).do: root_cmd.add it
+  (create_pod_commands config cache ui).do: root_cmd.add it
   (create_serial_commands config cache ui).do: root_cmd.add it
   (create_doc_commands config cache ui).do: root_cmd.add it
 

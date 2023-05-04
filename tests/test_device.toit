@@ -6,14 +6,16 @@ import cli
 import artemis.shared.server_config
 import artemis.service.service
 import artemis.service.device as service
+import artemis.cli.utils show OptionUuid
+import uuid
 
 main args:
   cmd := cli.Command "root"
     --options=[
       cli.Option "broker-config-json" --required,
-      cli.Option "alias-id" --required,
-      cli.Option "hardware-id" --required,
-      cli.Option "organization-id" --required,
+      OptionUuid "alias-id" --required,
+      OptionUuid "hardware-id" --required,
+      OptionUuid "organization-id" --required,
       cli.Option "encoded-firmware" --required,
     ]
     --run=::
@@ -27,9 +29,9 @@ main args:
   cmd.run args
 
 run
-    --alias_id/string
-    --hardware_id/string
-    --organization_id/string
+    --alias_id/uuid.Uuid
+    --hardware_id/uuid.Uuid
+    --organization_id/uuid.Uuid
     --encoded_firmware/string
     --broker_config_json/string:
   decoded_broker_config := json.parse broker_config_json

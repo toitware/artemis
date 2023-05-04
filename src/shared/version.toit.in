@@ -19,3 +19,8 @@ ARTEMIS_VERSION_MAJOR /int ::= @ARTEMIS_GIT_VERSION_MAJOR@
 The minor version of Artemis.
 */
 ARTEMIS_VERSION_MINOR /int ::= @ARTEMIS_GIT_VERSION_MINOR@
+
+/**
+The default SDK version.
+*/
+SDK_VERSION/string ::= "@DEFAULT_SDK_VERSION@"

@@ -6,6 +6,10 @@ set(TEST_TIMEOUT 40 CACHE STRING "The maximal amount of time each test is allowe
 set(SLOW_TEST_TIMEOUT 200 CACHE STRING "The maximal amount of time each slow test is allowed to run")
 set(WITH_LOCAL_SUPABASE TRUE CACHE BOOL "Whether the local supabase tests should be run")
 
+set(DEV_SDK_VERSION "" CACHE STRING "Version of the dev sdk")
+set(DEV_SDK_PATH "" CACHE STRING "Path to the dev sdk")
+set(DEV_ENVELOPE_PATH "" CACHE STRING "Path to the dev envelope")
+
 toit_project(tests "${CMAKE_CURRENT_LIST_DIR}")
 
 include(ProcessorCount)
@@ -13,23 +17,38 @@ ProcessorCount(NUM_CPU)
 
 add_custom_target(
   check
-  COMMAND ${CMAKE_CTEST_COMMAND} -j${NUM_CPU} -T test --output-on-failure
+  COMMAND ${CMAKE_CTEST_COMMAND} -j${NUM_CPU} -T test --output-on-failure -C default
+  USES_TERMINAL
+)
+
+add_custom_target(
+  serial_check
+  COMMAND ${CMAKE_CTEST_COMMAND} -j${NUM_CPU} -T test --output-on-failure -C serial
   USES_TERMINAL
 )
 
 set(TEST_PREFIX "")
 include(fail.cmake OPTIONAL)
 
-set (ARTEMIS_FLAGS "--supabase-server" "--http-server")
+set (SUPABASE_ARTEMIS_TESTS
+    "/tests/supabase_uploader_test_slow.toit"
+    "/tests/supabase_policies_test.toit"
+    )
+
+set (SUPABASE_ARTEMIS_FLAG "--supabase-server")
+set (SUPABASE_ARTEMIS_BROKER_FLAG "--supabase-local-artemis-broker")
+set (SUPABASE_BROKER_FLAG "--supabase-local-broker")
+
+set (ARTEMIS_FLAGS ${SUPABASE_ARTEMIS_FLAG} "--http-server")
 set (BROKER_FLAGS
       "--http-toit-broker"
-      "--supabase-local-broker"
-      "--supabase-local-artemis-broker"
+      ${SUPABASE_BROKER_FLAG}
+      ${SUPABASE_ARTEMIS_BROKER_FLAG}
     )
 
 if (NOT ${WITH_LOCAL_SUPABASE})
-  list(REMOVE_ITEM ARTEMIS_FLAGS "--supabase-server")
-  list(REMOVE_ITEM BROKER_FLAGS "--supabase-local-broker" "--supabase-local-artemis-broker")
+  list(REMOVE_ITEM ARTEMIS_FLAGS ${SUPABASE_ARTEMIS_FLAG})
+  list(REMOVE_ITEM BROKER_FLAGS ${SUPABASE_BROKER_FLAG} ${SUPABASE_ARTEMIS_BROKER_FLAG})
 endif()
 
 function (takes_artemis_flags file result)
@@ -58,6 +77,11 @@ foreach(file ${TESTS})
     continue()
   endif()
 
+  set (IS_SERIAL_TEST FALSE)
+  if ("${file}" MATCHES "^serial")
+    set (IS_SERIAL_TEST TRUE)
+  endif()
+
   extract_test_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" flags)
   takes_artemis_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" artemis_match)
   takes_broker_flags("${CMAKE_CURRENT_SOURCE_DIR}/${file}" broker_match)
@@ -76,7 +100,7 @@ foreach(file ${TESTS})
     endif()
     foreach (artemis_flag ${TEST_ARTEMIS_FLAGS})
       foreach (broker_flag ${TEST_BROKER_FLAGS})
-        if ("${broker_flag}" STREQUAL "--supabase-local-artemis-broker" AND NOT "${artemis_flag}" STREQUAL "--supabase-local")
+        if ("${broker_flag}" STREQUAL ${SUPABASE_ARTEMIS_BROKER_FLAG} AND NOT "${artemis_flag}" STREQUAL ${SUPABASE_ARTEMIS_FLAG})
           # Skip the artemis broker test if the artemis server is not running.
           continue()
         endif()
@@ -118,16 +142,51 @@ foreach(file ${TESTS})
     # Split the flags at " ".
     string(REPLACE " " ";" flag "${flag}")
 
+    set(RESOURCE_LOCKS)
+    if (${test_name} IN_LIST SUPABASE_ARTEMIS_TESTS)
+      list(APPEND RESOURCE_LOCKS "artemis_server")
+    endif()
+    if (SUPABASE_ARTEMIS_FLAG IN_LIST flag)
+      list(APPEND RESOURCE_LOCKS "artemis_server")
+    endif()
+    if (SUPABASE_BROKER_FLAG IN_LIST flag)
+      list(APPEND RESOURCE_LOCKS "artemis_broker")
+    endif()
+    if (SUPABASE_ARTEMIS_BROKER_FLAG IN_LIST flag)
+      list(APPEND RESOURCE_LOCKS "broker")
+    endif()
+
+    if (${IS_SERIAL_TEST})
+      list(APPEND RESOURCE_LOCKS "serial")
+    endif()
+
+    set(TEST_CONFIGURATIONS)
+    if (${IS_SERIAL_TEST})
+      set(TEST_CONFIGURATIONS "serial")
+    else()
+      set(TEST_CONFIGURATIONS "default")
+    endif()
+
     add_test(
       NAME "${test_name}"
-      COMMAND "${TOITRUN}" "${file}" ${flag} "--toit-run=${TOITRUN}"
+      COMMAND "${TOITRUN}" "${file}"
+          ${flag}
+          "--toit-run=${TOITRUN}"
+          "--sdk-version=${DEV_SDK_VERSION}"
+          "--sdk-path=${DEV_SDK_PATH}"
+          "--envelope-path=${DEV_ENVELOPE_PATH}"
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      CONFIGURATIONS ${TEST_CONFIGURATIONS}
     )
 
+    if (RESOURCE_LOCKS)
+      set_tests_properties("${test_name}" PROPERTIES RESOURCE_LOCK "${RESOURCE_LOCKS}")
+    endif()
+
     if ("${file}" MATCHES "_slow.toit")
-      set_tests_properties(${test_name} PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
+      set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
     else()
-      set_tests_properties(${test_name} PROPERTIES TIMEOUT ${TEST_TIMEOUT})
+      set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${TEST_TIMEOUT})
     endif()
 
     if("${test_name}" IN_LIST FAILING_TESTS)
@@ -135,10 +194,3 @@ foreach(file ${TESTS})
     endif()
   endforeach()
 endforeach()
-
-if (${WITH_LOCAL_SUPABASE})
-  # Lock the artemis server to a single test for the following tests.
-  # They use global properties interfering with the sdk table.
-  set_tests_properties("/tests/supabase_uploader_test_slow.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
-  set_tests_properties("/tests/supabase_policies_test.toit" PROPERTIES RESOURCE_LOCK "artemis_server")
-endif()

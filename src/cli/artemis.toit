@@ -17,7 +17,8 @@ import .cache as cache
 import .cache show service_image_cache_key application_image_cache_key
 import .config
 import .device
-import .device_specification
+import .pod
+import .pod_specification
 
 import .utils
 import .utils.patch_build show build_diff_patch build_trivial_patch
@@ -44,8 +45,10 @@ class Artemis:
   ui_/Ui
   broker_config_/ServerConfig
   artemis_config_/ServerConfig
+  tmp_directory/string
 
   constructor --config/Config --cache/cache.Cache --ui/Ui
+      --.tmp_directory
       --broker_config/ServerConfig
       --artemis_config/ServerConfig:
     config_ = config
@@ -123,7 +126,7 @@ class Artemis:
 
   Writes the identity file to $out_path.
   */
-  provision --device_id/string --out_path/string --organization_id/string:
+  provision --device_id/uuid.Uuid? --out_path/string --organization_id/uuid.Uuid:
     server := connected_artemis_server
     // Get the broker just after the server, in case it needs to authenticate.
     // We prefer to get an error message before we created a device on the
@@ -140,9 +143,9 @@ class Artemis:
     server.notify_created --hardware_id=hardware_id
 
     identity := {
-      "device_id": device_id,
-      "organization_id": organization_id,
-      "hardware_id": hardware_id,
+      "device_id": "$device_id",
+      "organization_id": "$organization_id",
+      "hardware_id": "$hardware_id",
     }
     state := {
       "identity": identity,
@@ -163,9 +166,9 @@ class Artemis:
   */
   write_identity_file -> none
       --out_path/string
-      --device_id/string
-      --organization_id/string
-      --hardware_id/string:
+      --device_id/uuid.Uuid
+      --organization_id/uuid.Uuid
+      --hardware_id/uuid.Uuid:
     // A map from id to DER certificates.
     der_certificates := {:}
 
@@ -174,9 +177,9 @@ class Artemis:
 
     identity ::= {
       "artemis.device": {
-        "device_id"       : device_id,
-        "organization_id" : organization_id,
-        "hardware_id"     : hardware_id,
+        "device_id"       : "$device_id",
+        "organization_id" : "$organization_id",
+        "hardware_id"     : "$hardware_id",
       },
       "artemis.broker": artemis_json,
       "broker": broker_json,
@@ -192,20 +195,23 @@ class Artemis:
     write_base64_ubjson_to_file out_path identity
 
   /**
-  Customizes a generic Toit envelope with the given $device_specification.
+  Customizes a generic Toit envelope with the given $specification.
     Also installs the Artemis service.
 
   The image is ready to be flashed together with the identity file.
   */
   customize_envelope
-      --device_specification/DeviceSpecification
+      --specification/PodSpecification
       --output_path/string:
-    sdk_version := device_specification.sdk_version
-    service_version := device_specification.artemis_version
+    sdk_version := specification.sdk_version
+    service_version := specification.artemis_version
     check_is_supported_version_ --sdk=sdk_version --service=service_version
 
     sdk := get_sdk sdk_version --cache=cache_
-    cached_envelope_path := get_envelope sdk_version --cache=cache_
+    cached_envelope_path := get_envelope
+        sdk_version
+        --chip=specification.chip
+        --cache=cache_
 
     copy_file --source=cached_envelope_path --target=output_path
 
@@ -217,11 +223,11 @@ class Artemis:
     // handles the absence of the max-offline setting differently, so
     // we cannot just add zero seconds to the config. This matches what
     // we do in $config_set_max_offline.
-    max_offline_seconds := device_specification.max_offline_seconds
+    max_offline_seconds := specification.max_offline_seconds
     if max_offline_seconds > 0: device_config["max-offline"] = max_offline_seconds
 
     connections := []
-    device_specification.connections.do: | connection/ConnectionInfo |
+    specification.connections.do: | connection/ConnectionInfo |
       if connection.type == "wifi" or connection.type == "cellular":
         connections.add connection.to_json
       else:
@@ -242,10 +248,10 @@ class Artemis:
 
     with_tmp_directory: | tmp_dir |
       // Store the containers in the envelope.
-      device_specification.containers.do: | name/string container/Container |
+      specification.containers.do: | name/string container/Container |
         snapshot_path := "$tmp_dir/$(name).snapshot"
         container.build_snapshot
-            --relative_to=device_specification.relative_to
+            --relative_to=specification.relative_to
             --sdk=sdk
             --output_path=snapshot_path
             --cache=cache_
@@ -274,6 +280,7 @@ class Artemis:
             --arguments=container.arguments
             --background=container.is_background
             --critical=container.is_critical
+            --runlevel=container.runlevel
             --triggers=triggers
         ui_.info "Added container '$name' to envelope."
 
@@ -317,14 +324,8 @@ class Artemis:
           --trigger="boot"
           --critical
 
-    // Finally, make it unique. The system uuid will have to be used when compiling
-    // code for the device in the future. This will prove that you know which versions
-    // went into the firmware image.
-    system_uuid ::= uuid.uuid5 "system.uuid" "$(random 1_000_000)-$Time.now-$Time.monotonic_us"
-    sdk.firmware_set_property "uuid" system_uuid.stringify --envelope=output_path
-
     // For convenience save all snapshots in the user's cache.
-    cache_snapshots --envelope=output_path --cache=cache_
+    cache_snapshots --envelope_path=output_path --cache=cache_
 
   /**
   Builds a container description as needed for a "container" entry in the device state.
@@ -334,6 +335,7 @@ class Artemis:
       --arguments/List?
       --background/bool?
       --critical/bool?
+      --runlevel/int?
       --triggers/List?:
     result := {
       "id": id.stringify,
@@ -344,6 +346,8 @@ class Artemis:
       result["background"] = 1
     if critical:
       result["critical"] = 1
+    if runlevel:
+      result["runlevel"] = runlevel
     if triggers and not triggers.is_empty:
       trigger_map := {:}
       triggers.do: | trigger/Trigger |
@@ -353,21 +357,21 @@ class Artemis:
     return result
 
   /**
-  Uploads the given firmware $envelope_path to the server under the given
+  Uploads the given $pod to the server under the given
     $organization_id.
 
-  The firmware can then be used for diff-based updates, or simply as direct
+  The pod can then be used for diff-based updates, or simply as direct
     downloads for updates.
   */
-  upload_firmware envelope_path/string --organization_id/string:
-    firmware_content := FirmwareContent.from_envelope envelope_path --cache=cache_
+  upload --pod/Pod --organization_id/uuid.Uuid:
+    firmware_content := FirmwareContent.from_envelope pod.envelope_path --cache=cache_
     firmware_content.trivial_patches.do:
       upload_patch it --organization_id=organization_id
 
   /**
   Uploads the given $patch to the server under the given $organization_id.
   */
-  upload_patch patch/FirmwarePatch --organization_id/string:
+  upload_patch patch/FirmwarePatch --organization_id/uuid.Uuid:
     diff_and_upload_ patch --organization_id=organization_id
 
   /**
@@ -380,7 +384,7 @@ class Artemis:
   ensure_patches_are_uploaded -> none
       firmware/Firmware
       trivial_patches/Map
-      --organization_id/string:
+      --organization_id/uuid.Uuid:
     firmware.content.parts.do: | part/FirmwarePart |
       if part is not FirmwarePartPatch: continue.do
       trivial_patch_id := id_ --to=(part as FirmwarePartPatch).hash
@@ -402,35 +406,32 @@ class Artemis:
     return result
 
   /**
-  Updates the device $device_id with the given $device_specification.
+  Updates the device $device_id with the given $specification.
 
   If the device has no known current state, then uses the $base_firmwares
     (a list of $FirmwareContent) for diff-based patches. If the list
     is empty, the device must upgrade using trivial patches.
   */
   update
-      --device_id/string
-      --device_specification/DeviceSpecification
+      --device_id/uuid.Uuid
+      --specification/PodSpecification
       --base_firmwares/List=[]:
-    with_tmp_directory: | tmp_dir/string |
-      envelope_path := "$tmp_dir/$(device_id).envelope"
-      customize_envelope
-          --output_path=envelope_path
-          --device_specification=device_specification
-
-      update
-          --device_id=device_id
-          --envelope_path=envelope_path
-          --base_firmwares=base_firmwares
+    pod := Pod.from_specification
+        --specification=specification
+        --artemis=this
+    update
+        --device_id=device_id
+        --pod=pod
+        --base_firmwares=base_firmwares
 
   /**
-  Variant of $(update --device_id --device_specification).
+  Variant of $(update --device_id --specification).
 
-  Takes the new firmware from the given $envelope_path.
+  Takes the new firmware from the given $pod.
   */
-  update --device_id/string --envelope_path/string --base_firmwares/List=[]:
+  update --device_id/uuid.Uuid --pod/Pod --base_firmwares/List=[]:
     update_goal --device_id=device_id: | device/DeviceDetailed |
-      upload_firmware envelope_path --organization_id=device.organization_id
+      upload --pod=pod --organization_id=device.organization_id
 
       known_encoded_firmwares := {}
       [
@@ -442,7 +443,6 @@ class Artemis:
         // The device might be running this firmware.
         if state: known_encoded_firmwares.add state["firmware"]
 
-
       upgrade_from := []
       if known_encoded_firmwares.is_empty:
         if base_firmwares.is_empty:
@@ -452,88 +452,69 @@ class Artemis:
       else:
         known_encoded_firmwares.do: | encoded/string |
           old_firmware := Firmware.encoded encoded
-          device_map := old_firmware.device_specific "artemis.device"
-          if device_map["device_id"] != device_id:
-            ui_.error "The device id of the firmware image ($device.id) does not match the given device id ($device_id)."
+          old_device_map := old_firmware.device_specific "artemis.device"
+          old_device_id := uuid.parse old_device_map["device_id"]
+          if device_id != old_device_id:
+            ui_.error "The device id of the firmware image ($old_device_id) does not match the given device id ($device_id)."
             ui_.abort
           upgrade_from.add old_firmware.content
 
       compute_updated_goal
           --device=device
           --upgrade_from=upgrade_from
-          --envelope_path=envelope_path
+          --pod=pod
 
   /**
   Computes the goal for the given $device, upgrading from the $upgrade_from
-    firmware content entries to the firmware image at $envelope_path.
+    firmware content entries to the firmware image given by the $pod.
 
   Uploads the patches to the broker in the same organization as the $device.
 
-  The return goal state will instruct the device to download the firmware image
+  The returned goal state will instruct the device to download the firmware image
     and install it.
   */
-  compute_updated_goal --device/Device --upgrade_from/List --envelope_path/string -> Map:
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-    sdk := get_sdk sdk_version --cache=cache_
+  compute_updated_goal --device/Device --upgrade_from/List --pod/Pod -> Map:
+    // Compute the patches and upload them.
+    ui_.info "Computing and uploading patches."
+    upgrade_to := Firmware --pod=pod --device=device --cache=cache_
+    upgrade_from.do: | old_firmware_content/FirmwareContent |
+      patches := upgrade_to.content.patches old_firmware_content
+      patches.do: diff_and_upload_ it --organization_id=device.organization_id
 
-    with_tmp_directory: | tmp_dir/string |
-      assets_path := "$tmp_dir/assets"
-      sdk.firmware_extract_container
-          --name="artemis"  // TODO(florian): use constants for hard-coded names.
-          --assets
-          --envelope_path=envelope_path
-          --output_path=assets_path
-
-      config_asset := sdk.assets_extract
-          --name="device-config"
-          --format="ubjson"
-          --assets_path=assets_path
-
-      new_config := json.decode config_asset
-
-      upgrade_to := compute_device_specific_firmware
-          --envelope_path=envelope_path
-          --device=device
-
-      // Compute the patches and upload them.
-      ui_.info "Computing and uploading patches."
-      upgrade_from.do: | old_firmware_content/FirmwareContent |
-        patches := upgrade_to.content.patches old_firmware_content
-        patches.do: diff_and_upload_ it --organization_id=device.organization_id
-
-      new_config["firmware"] = upgrade_to.encoded
-      return new_config
-    unreachable
+    // Build the updated goal and return it.
+    sdk := get_sdk pod.sdk_version --cache=cache_
+    goal := (pod.device_config --sdk=sdk).copy
+    goal["firmware"] = upgrade_to.encoded
+    return goal
 
   /**
   Computes the device-specific data of the given envelope.
 
-  Combines the envelope ($envelope_path) and identity ($identity_path) into a
-    single firmware image and computes the configuration which depends on the
-    checksums of the individual parts.
+  Combines the $pod and identity ($identity_path) into a single firmware image
+    and computes the configuration which depends on the checksums of the
+    individual parts.
 
   In this context the configuration consists of the checksums of the individual
     parts of the firmware image, combined with the configuration that was
     stored in the envelope.
   */
-  compute_device_specific_data --envelope_path/string --identity_path/string -> ByteArray:
+  compute_device_specific_data --pod/Pod --identity_path/string -> ByteArray:
     return compute_device_specific_data
-        --envelope_path=envelope_path
+        --pod=pod
         --identity_path=identity_path
         --cache=cache_
         --ui=ui_
 
   /**
-  Variant of $(compute_device_specific_data --envelope_path --identity_path).
+  Variant of $(compute_device_specific_data --pod --identity_path).
   */
   static compute_device_specific_data -> ByteArray
-      --envelope_path/string
+      --pod/Pod
       --identity_path/string
       --cache/cache.Cache
       --ui/Ui:
-    // Use the SDK from the envelope.
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-    sdk := get_sdk sdk_version --cache=cache
+    // Use the SDK from the pod.
+    sdk := get_sdk pod.sdk_version --cache=cache
 
     // Extract the device ID from the identity file.
     // TODO(florian): abstract the identity management.
@@ -550,64 +531,29 @@ class Artemis:
     with_tmp_directory: | tmp/string |
       artemis_assets_path := "$tmp/artemis.assets"
       sdk.run_firmware_tool [
-        "-e", envelope_path,
+        "-e", pod.envelope_path,
         "container", "extract",
         "-o", artemis_assets_path,
         "--part", "assets",
         "artemis"
       ]
 
-      if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
+      if not is_same_broker "broker" identity tmp artemis_assets_path sdk:
         ui.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
       if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
         ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
 
     device_map := identity["artemis.device"]
     device := Device
-        --hardware_id=device_map["hardware_id"]
-        --id=device_map["device_id"]
-        --organization_id=device_map["organization_id"]
+        --hardware_id=uuid.parse device_map["hardware_id"]
+        --id=uuid.parse device_map["device_id"]
+        --organization_id=uuid.parse device_map["organization_id"]
 
     // We don't really need the full firmware and just the device-specific data,
     // but by cooking the firmware we get the checksums correct.
-    firmware := compute_device_specific_firmware
-        --envelope_path=envelope_path
-        --device=device
-        --cache=cache
-        --ui=ui
+    firmware := Firmware --pod=pod --device=device --cache=cache
 
     return firmware.device_specific_data
-
-  /**
-  Creates a device-specific firmware image from the given envelope.
-  */
-  compute_device_specific_firmware -> Firmware
-      --envelope_path/string
-      --device/Device:
-    return compute_device_specific_firmware
-        --envelope_path=envelope_path
-        --device=device
-        --cache=cache_
-        --ui=ui_
-
-  /**
-  Variant of $(compute_device_specific_firmware --envelope_path --device).
-  */
-  static compute_device_specific_firmware -> Firmware
-      --envelope_path/string
-      --device/Device
-      --cache/cache.Cache
-      --ui/Ui:
-
-    // Use the SDK from the envelope.
-    sdk_version := Sdk.get_sdk_version_from --envelope=envelope_path
-    sdk := get_sdk sdk_version --cache=cache
-
-    // Cook the firmware.
-    return Firmware
-        --envelope_path=envelope_path
-        --device=device
-        --cache=cache
 
   /**
   Gets the Artemis service image for the given $sdk and $service versions.
@@ -637,11 +583,11 @@ class Artemis:
 
   See $BrokerCli.update_goal.
   */
-  update_goal --device_id/string [block]:
+  update_goal --device_id/uuid.Uuid [block]:
     connected_broker.update_goal --device_id=device_id block
 
   container_install -> none
-      --device_id/string
+      --device_id/uuid.Uuid
       --app_name/string
       --application_path/string
       --arguments/List?
@@ -686,11 +632,12 @@ class Artemis:
           --arguments=arguments
           --background=background
           --critical=critical
+          --runlevel=null  // TODO(florian): should we allow to set the runlevel?
           --triggers=triggers
       new_goal["apps"] = apps
       new_goal
 
-  container_uninstall --device_id/string --app_name/string:
+  container_uninstall --device_id/uuid.Uuid --app_name/string:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
@@ -700,7 +647,7 @@ class Artemis:
       if apps: apps.remove app_name
       new_goal
 
-  config_set_max_offline --device_id/string --max_offline_seconds/int:
+  config_set_max_offline --device_id/uuid.Uuid --max_offline_seconds/int:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
@@ -715,7 +662,7 @@ class Artemis:
   /**
   Computes patches and uploads them to the broker.
   */
-  diff_and_upload_ patch/FirmwarePatch --organization_id/string -> none:
+  diff_and_upload_ patch/FirmwarePatch --organization_id/uuid.Uuid -> none:
     trivial_id := id_ --to=patch.to_
     cache_key := "$connected_broker.id/$organization_id/patches/$trivial_id"
     // Unless it is already cached, always create/upload the trivial one.

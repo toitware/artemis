@@ -1,0 +1,6 @@
+# Update the firmware.
+# [fleet, update, --fleet-root, FLEET-DIR]
+Added container 'hello' to envelope.
+Computing and uploading patches.
+Uploading patch PATCH-HASH-SIZE
+Successfully updated device -={|    UUID-FOR-TEST-DEVICE    |}=-.

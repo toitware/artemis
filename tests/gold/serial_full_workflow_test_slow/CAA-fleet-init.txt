@@ -1,0 +1,3 @@
+# Initialize a fleet.
+# [fleet, init, --fleet-root, FLEET-DIR]
+Initialized fleet directory FLEET-DIR.
