@@ -30,9 +30,13 @@ import .synchronize show SynchronizeJob
 import ..shared.server_config
 import ..shared.version
 
-run_artemis device/Device server_config/ServerConfig --start_ntp/bool=true -> Duration:
+run_artemis device/Device server_config/ServerConfig -> Duration
+    --start_ntp/bool=true
+    --cause/string?=null:
   logger := log.default.with_name "artemis"
-  logger.info "starting" --tags={"device": device.id, "version": ARTEMIS_VERSION}
+  tags := {"device": device.id, "version": ARTEMIS_VERSION}
+  if cause: tags["cause"] = cause
+  logger.info "starting" --tags=tags
 
   scheduler ::= Scheduler logger device
   containers ::= ContainerManager logger scheduler
