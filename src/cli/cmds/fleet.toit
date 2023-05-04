@@ -39,9 +39,9 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   init_cmd := cli.Command "init"
       --long_help="""
-        Initialize the fleet directory.
+        Initialize a fleet root.
 
-        This command initializes the fleet directory, so it can be
+        This command initializes a fleet root in a directory, so it can be
         used by the other fleet commands.
 
         The directory can be specified using the '--fleet-root' option.

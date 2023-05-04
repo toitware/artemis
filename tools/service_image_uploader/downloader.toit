@@ -75,11 +75,11 @@ download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       image := row["image"]
       cache_key := "snapshot-downloader/$image"
       snapshot := cache.get cache_key: | store/cli.FileStore |
-        ui.info "Downloading $row["sdk_version"]-$row["service_version"]"
+        ui.info "Downloading $row["sdk_version"]-$row["service_version"]."
         store.save (client.storage.download --path="service-snapshots/$image")
 
       uuid := cache_snapshot snapshot --output_directory=output_directory
-      ui.info "Wrote service snapshot $uuid"
+      ui.info "Wrote service snapshot $uuid."
 
     if not sdk_version and not service_version:
       // Download all CLI snapshots.
@@ -88,8 +88,8 @@ download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
         name := file_description["name"]
         cache_key := "snapshot-downloader/$name"
         snapshot := cache.get cache_key: | store/cli.FileStore |
-          ui.info "Downloading $name"
+          ui.info "Downloading $name."
           store.save (client.storage.download --path="cli-snapshots/$name")
 
         uuid := cache_snapshot snapshot --output_directory=output_directory
-        ui.info "Wrote CLI snapshot $uuid"
+        ui.info "Wrote CLI snapshot $uuid."

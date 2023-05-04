@@ -504,12 +504,12 @@ class ContainerPath extends ContainerBase:
       ui.info "Compiling $git_url."
       entrypoint_path := "$clone_dir/$entrypoint"
       if not file.is_file entrypoint_path:
-        ui.abort "No such file: $entrypoint_path"
+        ui.abort "Entry point $entrypoint_path does not exist."
 
       package_yaml_path := "$clone_dir/package.yaml"
       if not file.is_file package_yaml_path:
         if file.is_directory package_yaml_path:
-          ui.abort "package.yaml is a directory in $git_url"
+          ui.abort "package.yaml is a directory in $git_url."
         // Create an empty package.yaml file, so that we can safely call
         // toit.pkg without worrying that we use some file from a folder
         // above our tmp directory.

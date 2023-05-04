@@ -70,7 +70,7 @@ class Fleet:
     cache_ = cache
     if not file.is_file "$fleet_root_/$FLEET_FILE_":
       ui_.error "Fleet root $fleet_root_ does not contain a $FLEET_FILE_ file."
-      ui_.error "Use 'init' to initialize a directory as fleet directory."
+      ui_.error "Use 'init' to initialize a fleet root."
       ui_.abort
     fleet_content := read_json "$fleet_root_/$FLEET_FILE_"
     if fleet_content is not Map:
@@ -79,7 +79,7 @@ class Fleet:
     default_specification_ = fleet_content["default-specification"]
     if not fleet_content.contains "id":
       ui.error "Fleet file $fleet_root_/$FLEET_FILE_ does not contain an ID."
-      ui.error "Please add an entry with a random UUID to $fleet_root_/$FLEET_FILE_"
+      ui.error "Please add an entry with a random UUID to it."
       ui.error "You can use the following line:"
       ui.error "  \"id\": \"$random_uuid\","
       ui.abort
@@ -117,14 +117,7 @@ class Fleet:
     if not file.is_file default_specification_path:
       write_json_to_file --pretty default_specification_path INITIAL_POD_SPECIFICATION
 
-    hello_path := "$fleet_root/hello.toit"
-    if not file.is_file hello_path:
-      write_blob_to_file hello_path """
-        main:
-          print "Hello, world!"
-        """
-
-    ui.info "Initialized fleet directory $fleet_root."
+    ui.info "Fleet root $fleet_root initialized."
 
   static load_devices_ fleet_root/string --ui/Ui -> List:
     if not file.is_directory fleet_root:
@@ -132,7 +125,7 @@ class Fleet:
     devices_path := "$fleet_root/$DEVICES_FILE_"
     if not file.is_file devices_path:
       ui.error "Fleet root $fleet_root does not contain a $DEVICES_FILE_ file."
-      ui.error "Use 'init' to initialize a directory as fleet directory."
+      ui.error "Use 'init' to initialize a fleet root."
       ui.abort
 
     encoded_devices := null

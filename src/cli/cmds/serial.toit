@@ -116,9 +116,9 @@ build_partitions_table_ partition_list/List --ui/Ui -> List:
         ui.abort
     else:
       size := int.parse value --on_error=:
-        ui.abort "Partition $type:$name has illegal size: '$it'"
+        ui.abort "Partition $type:$name has illegal size: '$it'."
       if size <= 0:
-        ui.abort "Partition $type:$name has illegal size: $size"
+        ui.abort "Partition $type:$name has illegal size: $size."
     result.add "$type:$description"
   return result
 
@@ -178,7 +178,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 make_default_ device_id/uuid.Uuid config/Config ui/Ui:
   config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"
   config.write
-  ui.info "Default device set to $device_id"
+  ui.info "Default device set to $device_id."
 
 flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if not station: throw "INVALID_ARGUMENT"
