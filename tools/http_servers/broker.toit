@@ -23,23 +23,25 @@ main args:
 
   root_cmd.run args
 
-class ReleaseEntry:
+class PodDescription:
   id/int
-  version/string
+  name/string
   description/string?
   fleet_id/string
-  artifacts/Map
+  pods/Map  // Map from pod-id to list of tags.
+  pod_revisions/Map // Map from pod-id to revision.
+  revision_counter/int := 0
 
-  constructor --.id --.fleet_id --.version --.description:
-    artifacts = {:}
+  constructor --.id --.fleet_id --.name --.description:
+    pods = {:}
+    pod_revisions = {:}
 
   to_json -> Map:
     return {
       "id": id,
       "fleet_id": fleet_id,
-      "version": version,
+      "name": name,
       "description": description,
-      "tags": artifacts.values
     }
 
 class HttpBroker extends HttpServer:
@@ -62,10 +64,9 @@ class HttpBroker extends HttpServer:
   */
   state_revision_/Map := {:}
 
-  /* Release related fields. */
-  release_ids_ := 0
-  releases_/Map ::= {:}  // Map from release ID to $ReleaseEntry object.
-  pod_id_map_/Map ::= {:}  // Map from encoded firmware to release ID.
+  /* Pod description related fields. */
+  pod_description_ids_ := 0
+  pod_registry_/Map ::= {:}  // Map from pod-description ID to $PodDescription object.
 
   constructor port/int:
     super port
@@ -86,11 +87,16 @@ class HttpBroker extends HttpServer:
     if command == "get_events": return get_events data
     if command == "get_devices": return get_devices data
 
-    if command == "release_create": return release_create data
-    if command == "release_add_artifact": return release_add_artifact data
-    if command == "release_get_fleet_id": return release_get_fleet_id data
-    if command == "release_get_release_ids": return release_get_release_ids data
-    if command == "release_get_ids_for_pod_ids": return release_get_ids_for_pod_ids data
+    if command == "pod_registry_description_upsert": return pod_registry_description_upsert data
+    if command == "pod_registry_add": return pod_registry_add data
+    if command == "pod_registry_tag_set": return pod_registry_tag_set data
+    if command == "pod_registry_tag_remove": return pod_registry_tag_remove data
+    if command == "pod_registry_descriptions": return pod_registry_descriptions data
+    if command == "pod_registry_descriptions_by_ids": return pod_registry_descriptions_by_ids data
+    if command == "pod_registry_descriptions_by_names": return pod_registry_descriptions_by_names data
+    if command == "pod_registry_pods": return pod_registry_pods data
+    if command == "pod_registry_pods_by_ids": return pod_registry_pods_by_ids data
+    if command == "pod_registry_pods_by_names_tags": return pod_registry_pods_by_names_tags data
 
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
@@ -275,39 +281,148 @@ class HttpBroker extends HttpServer:
   clear_events:
     events_.clear
 
-  release_create data/Map:
-    id := release_ids_++
-    release := ReleaseEntry
+  pod_registry_description_upsert data/Map:
+    fleet_id := data["fleet_id"]
+    organization_id := data["organization_id"]
+    name := data["name"]
+    description := data.get "description"
+
+    id := pod_description_ids_++
+    pod_description := PodDescription
         --id=id
-        --fleet_id=data["fleet_id"]
-        --version=data["version"]
-        --description=data.get "description"
-    releases_[id] = release
+        --name=name
+        --description=description
+        --fleet_id=fleet_id
+    pod_registry_[id] = pod_description
     return id
 
-  release_add_artifact data/Map:
-    release_id := data["release_id"]
-    release := releases_[release_id]
+  pod_registry_add data/Map:
+    pod_description_id := data["pod_description_id"]
+    pod_id := data["pod_id"]
+    description/PodDescription := pod_registry_[pod_description_id]
+    revision := description.revision_counter + 1
+    description.revision_counter++
+    description.pods[pod_id] = []
+    description.pod_revisions[pod_id] = revision
+
+  pod_registry_tag_set data/Map:
+    pod_description_id := data["pod_description_id"]
     pod_id := data["pod_id"]
     tag := data["tag"]
-    release.artifacts[pod_id] = tag
-    pod_id_map_[pod_id] = [release_id, tag]
 
-  release_get_fleet_id data/Map:
+    description/PodDescription := pod_registry_[pod_description_id]
+    description.pods.do: | _ tags |
+      if tags.contains tag: throw "Tag already exists: $tag"
+    description.pods[pod_id].add tag
+
+  pod_registry_tag_remove data/Map:
+    pod_description_id := data["pod_description_id"]
+    tag := data["tag"]
+
+    description/PodDescription := pod_registry_[pod_description_id]
+    description.pods.do: | _ tags/List |
+      if tags.contains tag:
+        tags.remove tag
+        return
+
+  pod_registry_descriptions data/Map:
     fleet_id := data["fleet_id"]
-    releases := releases_.values.filter: | release/ReleaseEntry | release.fleet_id == fleet_id
-    return releases.map: | release/ReleaseEntry | release.to_json
 
-  release_get_release_ids data/Map:
-    release_ids := data["release_ids"]
-    return release_ids.map: | id/int | releases_[id].to_json
+    result := []
+    pod_registry_.do: | _ description/PodDescription |
+      if description.fleet_id == fleet_id:
+        result.add {
+          "id": description.id,
+          "name": description.name,
+          "description": description.description,
+        }
+    return result
 
-  release_get_ids_for_pod_ids data/Map:
+  pod_registry_descriptions_by_ids data/Map:
+    pod_description_ids := data["ids"]
+
+    result := []
+    pod_description_ids.do: | pod_description_id |
+      description/PodDescription? := pod_registry_.get pod_description_id
+      if description:
+        result.add {
+          "id": description.id,
+          "name": description.name,
+          "description": description.description,
+        }
+    return result
+
+  pod_registry_descriptions_by_names data/Map:
+    fleet_id := data["fleet_id"]
+    names := data["names"]
+    names_set := {}
+    names_set.add_all names
+
+    result := []
+    pod_registry_.do: | _ description/PodDescription |
+      if description.fleet_id == fleet_id and names_set.contains description.name:
+        result.add {
+          "id": description.id,
+          "name": description.name,
+          "description": description.description,
+        }
+    return result
+
+  pod_registry_pods data/Map:
+    pod_description_id := data["pod_description_id"]
+
+    description/PodDescription := pod_registry_[pod_description_id]
+    result := []
+    description.pods.do: | pod_id _ |
+      result.add {
+        "id": pod_id,
+        "revision": description.pod_revisions[pod_id],
+        "pod_description_id": pod_description_id,
+        "tags": description.pods[pod_id],
+      }
+    return result
+
+  pod_registry_pods_by_ids data/Map:
     fleet_id := data["fleet_id"]
     pod_ids := data["pod_ids"]
-    result := {:}
-    pod_ids.do: | pod_id/string |
-      release_id_tag := pod_id_map_.get pod_id
-      if release_id_tag and releases_[release_id_tag[0]].fleet_id == fleet_id:
-        result[pod_id] = release_id_tag
+
+    pod_ids_set := {}
+    pod_ids_set.add_all pod_ids
+
+    result := []
+    pod_registry_.do: | _ description/PodDescription |
+      if description.fleet_id == fleet_id:
+        description.pods.do: | pod_id _ |
+          if pod_ids_set.contains pod_id:
+            result.add {
+              "id": pod_id,
+              "revision": description.pod_revisions[pod_id],
+              "pod_description_id": description.id,
+              "tags": description.pods[pod_id],
+            }
+    return result
+
+  pod_registry_pods_by_names_tags data/Map:
+    fleet_id := data["fleet_id"]
+    names_tags := data["names_tags"]
+
+    names_to_descriptions := {:}
+    pod_registry_.do: | _ description/PodDescription |
+      if description.fleet_id == fleet_id:
+        names_to_descriptions[description.name] = description
+
+    result := []
+    names_tags.do: | name_tag |
+      name := name_tag["name"]
+      tag := name_tag["tag"]
+      description/PodDescription? := names_to_descriptions.get name
+      if description:
+        description.pods.do: | pod_id tags |
+          if tags.contains tag:
+            result.add {
+              "pod_id": pod_id,
+              "name": name,
+              "tag": tag,
+            }
+
     return result

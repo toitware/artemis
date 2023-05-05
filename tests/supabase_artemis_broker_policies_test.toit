@@ -80,6 +80,12 @@ main:
     client3.auth.sign_up --email=email3 --password=password
     client3.auth.sign_in --email=email3 --password=password
 
+    // Client3 is not in the same org as client1 and client2.
+    run_shared_pod_description_test
+        --client1=client1
+        --organization_id=organization_id
+        --other_clients=[client_anon, client3]
+
     // client3 can't provision id3 since they aren't in the same organization.
     expect_throws --contains="row-level security":
       client3.rest.rpc "toit_artemis.new_provisioned" {
@@ -170,95 +176,3 @@ main:
         "_limit": 1
       }
     expect events.is_empty
-
-    fleet_id := random_uuid
-
-    // Create a new release.
-    release_id := client1.rest.rpc "toit_artemis.insert_release" {
-      "_fleet_id": "$fleet_id",
-      "_organization_id": "$organization_id",
-      "_version": "v1.0.0",
-      "_description": "release v1.0.0",
-    }
-
-    // Client1 and client2 can see it, since they are in the same org.
-    [client1, client2].do: | client/supabase.Client |
-      releases := client.rest.rpc "toit_artemis.get_releases" {
-        "_fleet_id": "$fleet_id",
-        "_limit": 100,
-      }
-      expect_equals 1 releases.size
-      expect_equals "v1.0.0" releases[0]["version"]
-
-    // Client3 can't see it, since they are in a different org.
-    releases := client3.rest.rpc "toit_artemis.get_releases" {
-        "_fleet_id": "$fleet_id",
-        "_limit": 100,
-      }
-    expect releases.is_empty
-
-    // Client3 can't add a release in the other fleet.
-    expect_throws --contains="row-level security":
-      client3.rest.rpc "toit_artemis.insert_release" {
-        "_fleet_id": "$fleet_id",
-        "_organization_id": "$organization_id",
-        "_version": "v2.0.0",
-        "_description": "release v2.0.0",
-      }
-
-    // Add some artifacts.
-    pod_id1 := random_uuid
-    pod_id2 := random_uuid
-    client1.rest.rpc "toit_artemis.add_release_artifacts" {
-      "_release_id": release_id,
-      "_artifacts": [
-        {
-          "tag": "tag1",
-          "pod_id": "$pod_id1",
-        },
-        {
-          "tag": "tag2",
-          "pod_id": "$pod_id2",
-        },
-      ]
-    }
-
-    // Client3 can't do that.
-    pod_id3 := random_uuid
-    expect_throws --contains="row-level security":
-      client3.rest.rpc "toit_artemis.add_release_artifacts" {
-        "_release_id": release_id,
-        "_artifacts": [
-          {
-            "tag": "tag3",
-            "pod_id": "$pod_id3",
-          },
-        ]
-      }
-
-    // The tags now appears in the release for client1 and client2.
-    [client1, client2].do: | client/supabase.Client |
-      releases = client.rest.rpc "toit_artemis.get_releases" {
-        "_fleet_id": "$fleet_id",
-        "_limit": 100,
-      }
-      expect_equals 1 releases.size
-      tags := releases[0]["tags"]
-      expect_equals ["tag1", "tag2"] tags.sort
-
-      // We can also find the release by encoded firmware.
-      release_ids := client.rest.rpc "toit_artemis.get_release_ids_for_pod_ids" {
-        "_fleet_id": "$fleet_id",
-        "_pod_ids": ["$pod_id1"],
-      }
-      expect_equals 1 release_ids.size
-      expect_equals release_id release_ids[0]["id"]
-      expect_equals "$pod_id1" release_ids[0]["pod_id"]
-      expect_equals "tag1" release_ids[0]["tag"]
-
-    // Client3 can't do that.
-    release_ids := client_anon.rest.rpc "toit_artemis.get_release_ids_for_pod_ids" {
-        "_fleet_id": "$fleet_id",
-        "_pod_ids": ["$pod_id1"],
-      }
-    expect release_ids.is_empty
