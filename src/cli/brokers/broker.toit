@@ -193,7 +193,7 @@ interface BrokerCli implements Authenticatable:
 
   Returns a list of $PodRegistryEntry.
   */
-  pod_registry_pods --fleet_id --pod_ids/List -> List
+  pod_registry_pods --fleet_id/uuid.Uuid --pod_ids/List -> List
 
   /**
   Returns the pod-id for the given name/tag combinations.

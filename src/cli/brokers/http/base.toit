@@ -215,10 +215,10 @@ class BrokerCliHttp implements BrokerCli:
     return response.map: PodRegistryEntry.from_map it
 
   /** See $(BrokerCli.pod_registry_pods --fleet_id --pod_ids). */
-  pod_registry_pods --fleet_id/uuid.Uuid --pod_ids/int -> List:
+  pod_registry_pods --fleet_id/uuid.Uuid --pod_ids/List -> List:
     response := send_request_ "pod_registry_pods_by_ids" {
       "fleet_id": "$fleet_id",
-      "pod_ids": pod_ids,
+      "pod_ids": (pod_ids.map: "$it"),
     }
     return response.map: PodRegistryEntry.from_map it
 

@@ -96,7 +96,7 @@ class HttpBroker extends HttpServer:
     if command == "pod_registry_descriptions_by_names": return pod_registry_descriptions_by_names data
     if command == "pod_registry_pods": return pod_registry_pods data
     if command == "pod_registry_pods_by_ids": return pod_registry_pods_by_ids data
-    if command == "pod_registry_pods_by_names_tags": return pod_registry_pods_by_names_tags data
+    if command == "pod_registry_pod_ids_by_names_tags": return pod_registry_pod_ids_by_names_tags data
 
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
@@ -402,7 +402,7 @@ class HttpBroker extends HttpServer:
             }
     return result
 
-  pod_registry_pods_by_names_tags data/Map:
+  pod_registry_pod_ids_by_names_tags data/Map:
     fleet_id := data["fleet_id"]
     names_tags := data["names_tags"]
 
