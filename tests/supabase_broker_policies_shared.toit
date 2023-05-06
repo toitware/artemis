@@ -233,6 +233,226 @@ run_shared_test
           --path=path2
           --content="test".to_byte_array
 
+run_shared_pod_description_test
+    --client1/supabase.Client
+    --other_clients/List
+    --organization_id/string="$TEST_ORGANIZATION_UUID":
+  other_clients.do: | other_client/supabase.Client |
+    // Create a pod description.
+    // Only authenticated users can do this.
+    fleet_id := random_uuid
+    pod_desc1 := "pod_desc1"
+    description_id := client1.rest.rpc "toit_artemis.upsert_pod_description" {
+      "_fleet_id": "$fleet_id",
+      "_organization_id": "$organization_id",
+      "_name": pod_desc1,
+      "_description": "pod description 1",
+    }
+
+    // Only authenticated users can see the description.
+    descriptions := client1.rest.rpc "toit_artemis.get_pod_descriptions" {
+      "_fleet_id": "$fleet_id",
+    }
+    expect_equals 1 descriptions.size
+    expect_equals description_id descriptions[0]["id"]
+    expect_equals pod_desc1 descriptions[0]["name"]
+    expect_equals "pod description 1" descriptions[0]["description"]
+
+    // Other can't see the description.
+    descriptions = other_client.rest.rpc "toit_artemis.get_pod_descriptions" {
+      "_fleet_id": "$fleet_id",
+    }
+    expect descriptions.is_empty
+
+    // Calling it again updates the description
+    client1.rest.rpc "toit_artemis.upsert_pod_description" {
+      "_fleet_id": "$fleet_id",
+      "_organization_id": "$organization_id",
+      "_name": pod_desc1,
+      "_description": "pod description 1 - changed",
+    }
+
+    descriptions = client1.rest.rpc "toit_artemis.get_pod_descriptions" {
+      "_fleet_id": "$fleet_id",
+    }
+    expect_equals 1 descriptions.size
+    expect_equals "pod description 1 - changed" descriptions[0]["description"]
+
+    // Other can't create a description.
+    pod_name2 := "pod_name2"
+    expect_throws --contains="row-level security":
+      other_client.rest.rpc "toit_artemis.upsert_pod_description" {
+        "_fleet_id": "$fleet_id",
+        "_organization_id": "$organization_id",
+        "_name": pod_name2,
+        "_description": "pod description 2",
+      }
+
+    // Get the descriptions by ID.
+    descriptions = client1.rest.rpc "toit_artemis.get_pod_descriptions_by_ids" {
+      "_description_ids": [description_id],
+    }
+    expect_equals 1 descriptions.size
+    expect_equals description_id descriptions[0]["id"]
+    expect_equals pod_desc1 descriptions[0]["name"]
+    expect_equals "pod description 1 - changed" descriptions[0]["description"]
+
+    // Other still can't see the description.
+    descriptions = other_client.rest.rpc "toit_artemis.get_pod_descriptions_by_ids" {
+      "_description_ids": [description_id],
+    }
+    expect descriptions.is_empty
+
+    pods := client1.rest.rpc "toit_artemis.get_pods" {
+      "_pod_description_id": "$description_id",
+      "_limit": 10_000,
+      "_offset": 0,
+    }
+    expect pods.is_empty
+
+    // Add some pods.
+    pod_id1 := random_uuid
+    pod_id2 := random_uuid
+    client1.rest.rpc "toit_artemis.insert_pod" {
+      "_pod_id": "$pod_id1",
+      "_pod_description_id": "$description_id",
+    }
+    client1.rest.rpc "toit_artemis.insert_pod" {
+      "_pod_id": "$pod_id2",
+      "_pod_description_id": "$description_id",
+    }
+
+    // Other can't do that.
+    pod_id3 := random_uuid
+    expect_throws --contains="row-level security":
+      other_client.rest.rpc "toit_artemis.insert_pod" {
+        "_pod_id": "$pod_id3",
+        "_pod_description_id": "$description_id",
+      }
+
+    // The pods now appear for the description.
+    pods = client1.rest.rpc "toit_artemis.get_pods" {
+      "_pod_description_id": "$description_id",
+      "_limit": 10_000,
+      "_offset": 0,
+    }
+    expect_equals 2 pods.size
+    // Most recently created pods come first.
+    expect_equals "$pod_id2" pods[0]["id"]
+    expect_equals "$pod_id1" pods[1]["id"]
+
+    // Other can't see the pods.
+    pods = other_client.rest.rpc "toit_artemis.get_pods" {
+      "_pod_description_id": "$description_id",
+      "_limit": 10_000,
+      "_offset": 0,
+    }
+    expect pods.is_empty
+
+    // Add tags to the pods.
+    client1.rest.rpc "toit_artemis.insert_pod_tag" {
+      "_pod_id": "$pod_id1",
+      "_pod_description_id": "$description_id",
+      "_tag": "tag1",
+    }
+    client1.rest.rpc "toit_artemis.insert_pod_tag" {
+      "_pod_id": "$pod_id1",
+      "_pod_description_id": "$description_id",
+      "_tag": "tag2",
+    }
+
+    // Other can try, but it won't have any effect.
+    other_client.rest.rpc "toit_artemis.insert_pod_tag" {
+      "_pod_id": "$pod_id1",
+      "_pod_description_id": "$description_id",
+      "_tag": "tag3",
+    }
+
+    // Get the pod1 to see its tags.
+    pods = client1.rest.rpc "toit_artemis.get_pods_by_ids" {
+      "_fleet_id": "$fleet_id",
+      "_pod_ids": ["$pod_id1"],
+    }
+    expect_equals 1 pods.size
+    expect_equals "$pod_id1" pods[0]["id"]
+    expect_equals ["tag1", "tag2"] pods[0]["tags"]
+
+    // Only one pod per description is allowed to have the same tag.
+    expect_throws --contains="duplicate key value violates unique constraint":
+      client1.rest.rpc "toit_artemis.insert_pod_tag" {
+        "_pod_id": "$pod_id2",
+        "_pod_description_id": "$description_id",
+        "_tag": "tag1",
+      }
+
+    // Other doesn't even see that message.
+    other_client.rest.rpc "toit_artemis.insert_pod_tag" {
+      "_pod_id": "$pod_id2",
+      "_pod_description_id": "$description_id",
+      "_tag": "tag1",
+    }
+
+    // Client1 can remove the tag.
+    client1.rest.rpc "toit_artemis.delete_pod_tag" {
+      "_pod_description_id": "$description_id",
+      "_tag": "tag1",
+    }
+
+    // Other can try, but it won't do anything.
+    other_client.rest.rpc "toit_artemis.delete_pod_tag" {
+      "_pod_description_id": "$description_id",
+      "_tag": "tag2",
+    }
+
+    // Get the pod1 to see its tags.
+    pods = client1.rest.rpc "toit_artemis.get_pods_by_ids" {
+      "_fleet_id": "$fleet_id",
+      "_pod_ids": ["$pod_id1"],
+    }
+    expect_equals 1 pods.size
+    expect_equals ["tag2"] pods[0]["tags"]
+
+    // Get the pods by name.
+    pods = client1.rest.rpc "toit_artemis.get_pod_descriptions_by_names" {
+      "_fleet_id": "$fleet_id",
+      "_names": [pod_desc1],
+    }
+    expect_equals 1 pods.size
+    expect_equals description_id pods[0]["id"]
+
+    // Other doesn't see anything.
+    pods = other_client.rest.rpc "toit_artemis.get_pod_descriptions_by_names" {
+      "_fleet_id": "$fleet_id",
+      "_names": [pod_desc1],
+    }
+    expect pods.is_empty
+
+    // Get pods by name and tag.
+    response := client1.rest.rpc "toit_artemis.get_pods_by_name_and_tag" {
+      "_fleet_id": "$fleet_id",
+      "_names_tags": [
+        {
+          "name": pod_desc1,
+          "tag": "tag2",
+        }
+      ],
+    }
+    expect_equals "$pod_id1" response[0]["pod_id"]
+    expect_equals "tag2" response[0]["tag"]
+    expect_equals pod_desc1 response[0]["name"]
+
+    // Other doesn't see anything.
+    response = other_client.rest.rpc "toit_artemis.get_pods_by_name_and_tag" {
+      "_fleet_id": "$fleet_id",
+      "_names_tags": [
+        {
+          "name": pod_desc1,
+          "tag": "tag2",
+        }
+      ],
+    }
+    expect response.is_empty
+
 expect_throws --contains/string [block]:
   exception := catch:
     block.call

@@ -9,6 +9,7 @@ import ..auth
 import ..config
 import ..event
 import ..device
+import ..pod_registry
 import ..ui
 import ...shared.server_config
 import .supabase
@@ -127,6 +128,82 @@ interface BrokerCli implements Authenticatable:
   Returns a map from id to $DeviceDetailed.
   */
   get_devices --device_ids/List -> Map
+
+  /**
+  Creates a new pod description.
+  */
+  pod_registry_description_upsert -> int
+      --fleet_id/uuid.Uuid
+      --organization_id/uuid.Uuid
+      --name/string
+      --description/string?
+
+  /**
+  Adds a pod.
+  */
+  pod_registry_add -> none
+      --pod_description_id/int
+      --pod_id/uuid.Uuid
+
+  /**
+  Adds a tag.
+  */
+  pod_registry_tag_set -> none
+      --pod_description_id/int
+      --pod_id/uuid.Uuid
+      --tag/string
+
+  /**
+  Removes a tag.
+  */
+  pod_registry_tag_remove -> none
+      --pod_description_id/int
+      --tag/string
+
+  /**
+  Lists pod descriptions.
+
+  Returns a list of $PodRegistryDescription.
+  */
+  pod_registry_descriptions --fleet_id/uuid.Uuid -> List
+
+  /**
+  Returns a list of descriptions by their ids.
+
+  Returns a list of $PodRegistryDescription.
+  */
+  pod_registry_descriptions --ids/List -> List
+
+  /**
+  Gets pod descriptions by name.
+
+  Returns a list of $PodRegistryDescription.
+  */
+  pod_registry_descriptions --fleet_id/uuid.Uuid --names/List -> List
+
+  /**
+  Returns the pods of a pod description.
+
+  Returns a list of $PodRegistryEntry.
+  */
+  pod_registry_pods --pod_description_id/int -> List
+
+  /**
+  Returns the pods with the given $pod_ids.
+
+  Returns a list of $PodRegistryEntry.
+  */
+  pod_registry_pods --fleet_id/uuid.Uuid --pod_ids/List -> List
+
+  /**
+  Returns the pod-id for the given name/tag combinations.
+
+  Returns a list of maps containing "pod_id", "name", and "tag".
+  Combinations that are not found are not included in the list.
+
+  The $names_tags list must contain maps with "name" and "tag" keys.
+  */
+  pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List
 
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config

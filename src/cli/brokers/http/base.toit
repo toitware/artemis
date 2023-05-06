@@ -8,6 +8,7 @@ import uuid
 import ..broker
 import ...device
 import ...event
+import ...pod_registry
 import ...ui
 import ....shared.server_config
 import ....shared.utils as utils
@@ -140,4 +141,92 @@ class BrokerCliHttp implements BrokerCli:
         data := event["data"]
         Event event_type (Time.epoch --ns=timestamp_ns) data
       result[uuid.parse id_string] = decoded_events
+    return result
+
+  /** See $BrokerCli.pod_registry_description_upsert. */
+  pod_registry_description_upsert -> int
+      --fleet_id/uuid.Uuid
+      --organization_id/uuid.Uuid
+      --name/string
+      --description/string?:
+    return send_request_ "pod_registry_description_upsert" {
+      "fleet_id": "$fleet_id",
+      "organization_id": "$organization_id",
+      "name": name,
+      "description": description,
+    }
+
+  /** See $BrokerCli.pod_registry_add. */
+  pod_registry_add -> none
+      --pod_description_id/int
+      --pod_id/uuid.Uuid:
+    send_request_ "pod_registry_add" {
+      "pod_description_id": pod_description_id,
+      "pod_id": "$pod_id",
+    }
+
+  /** See $BrokerCli.pod_registry_tag_set. */
+  pod_registry_tag_set -> none
+      --pod_description_id/int
+      --pod_id/uuid.Uuid
+      --tag/string:
+    send_request_ "pod_registry_tag_set" {
+      "pod_description_id": pod_description_id,
+      "pod_id": "$pod_id",
+      "tag": tag,
+    }
+
+  /** See $BrokerCli.pod_registry_tag_remove. */
+  pod_registry_tag_remove -> none
+      --pod_description_id/int
+      --tag/string:
+    send_request_ "pod_registry_tag_remove" {
+      "pod_description_id": pod_description_id,
+      "tag": tag,
+    }
+
+  /** See $BrokerCli.pod_registry_descriptions. */
+  pod_registry_descriptions --fleet_id/uuid.Uuid -> List:
+    response := send_request_ "pod_registry_descriptions" {
+      "fleet_id": "$fleet_id",
+    }
+    return response.map: PodRegistryDescription.from_map it
+
+  /** See $(BrokerCli.pod_registry_descriptions --ids). */
+  pod_registry_descriptions --ids/List -> List:
+    response := send_request_ "pod_registry_descriptions_by_ids" {
+      "ids": ids,
+    }
+    return response.map: PodRegistryDescription.from_map it
+
+  /** See $(BrokerCli.pod_registry_descriptions --fleet_id --names). */
+  pod_registry_descriptions --fleet_id/uuid.Uuid --names/List -> List:
+    response := send_request_ "pod_registry_descriptions_by_names" {
+      "fleet_id": "$fleet_id",
+      "names": names,
+    }
+    return response.map: PodRegistryDescription.from_map it
+
+  /** See $(BrokerCli.pod_registry_pods --pod_description_id). */
+  pod_registry_pods --pod_description_id/int -> List:
+    response := send_request_ "pod_registry_pods" {
+      "pod_description_id": pod_description_id,
+    }
+    return response.map: PodRegistryEntry.from_map it
+
+  /** See $(BrokerCli.pod_registry_pods --fleet_id --pod_ids). */
+  pod_registry_pods --fleet_id/uuid.Uuid --pod_ids/List -> List:
+    response := send_request_ "pod_registry_pods_by_ids" {
+      "fleet_id": "$fleet_id",
+      "pod_ids": (pod_ids.map: "$it"),
+    }
+    return response.map: PodRegistryEntry.from_map it
+
+  /** See $BrokerCli.pod_registry_pod_ids. */
+  pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List:
+    result := send_request_ "pod_registry_pod_ids_by_names_tags" {
+      "fleet_id": "$fleet_id",
+      "names_tags": names_tags,
+    }
+    result.do: it["pod_id"] = uuid.parse it["pod_id"]
     return result

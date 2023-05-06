@@ -80,6 +80,12 @@ main:
     client3.auth.sign_up --email=email3 --password=password
     client3.auth.sign_in --email=email3 --password=password
 
+    // Client3 is not in the same org as client1 and client2.
+    run_shared_pod_description_test
+        --client1=client1
+        --organization_id=organization_id
+        --other_clients=[client_anon, client3]
+
     // client3 can't provision id3 since they aren't in the same organization.
     expect_throws --contains="row-level security":
       client3.rest.rpc "toit_artemis.new_provisioned" {
