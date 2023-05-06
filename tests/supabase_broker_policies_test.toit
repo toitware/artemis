@@ -22,3 +22,6 @@ main:
     client1.auth.sign_in --email=email --password=password
 
     run_shared_test --client1=client1 --client_anon=client_anon
+    run_shared_pod_description_test
+        --client1=client1
+        --other_clients=[client_anon]

@@ -9,8 +9,8 @@ import ..auth
 import ..config
 import ..event
 import ..device
+import ..pod_registry
 import ..ui
-import ..release
 import ...shared.server_config
 import .supabase
 import .http.base
@@ -130,46 +130,80 @@ interface BrokerCli implements Authenticatable:
   get_devices --device_ids/List -> Map
 
   /**
-  Creates a new release with the given $version and $description for the $fleet_id/$organization_id.
-  Returns the release ID.
+  Creates a new pod description.
   */
-  release_create -> int
+  pod_registry_description_upsert -> int
       --fleet_id/uuid.Uuid
       --organization_id/uuid.Uuid
-      --version/string
+      --name/string
       --description/string?
 
   /**
-  Adds a new artifact to the given $release_id.
-
-  The $tag must be a valid string and should be "" for the default tag.
+  Adds a pod.
   */
-  release_add_artifact --release_id/int --tag/string --pod_id/uuid.Uuid -> none
+  pod_registry_add -> none
+      --pod_description_id/int
+      --pod_id/uuid.Uuid
 
   /**
-  Fetches releases for the given $fleet_id.
-
-  The $limit is the maximum number of releases to return (ordered by most recent
-    first).
-
-  Returns a list of $Release objects.
+  Adds a tag.
   */
-  release_get --fleet_id/uuid.Uuid --limit/int=100 -> List
+  pod_registry_tag_set -> none
+      --pod_description_id/int
+      --pod_id/uuid.Uuid
+      --tag/string
 
   /**
-  Fetches the releases with the given $release_ids.
-
-  Returns a list of $Release objects.
+  Removes a tag.
   */
-  release_get --release_ids/List -> List
+  pod_registry_tag_remove -> none
+      --pod_description_id/int
+      --tag/string
 
   /**
-  Returns the release ids for the given $pod_ids in the given $fleet_id.
+  Lists pod descriptions.
 
-  Returns a map from pod_id to a list containing the release id and a tag.
-  If a pod id is not found, the map does not contain an entry for it.
+  Returns a list of $PodRegistryDescription.
   */
-  release_get_ids_for --fleet_id/uuid.Uuid --pod_ids/List -> Map
+  pod_registry_descriptions --fleet_id/uuid.Uuid -> List
+
+  /**
+  Returns a list of descriptions by their ids.
+
+  Returns a list of $PodRegistryDescription.
+  */
+  pod_registry_descriptions --ids/List -> List
+
+  /**
+  Gets pod descriptions by name.
+
+  Returns a list of $PodRegistryDescription.
+  */
+  pod_registry_descriptions --fleet_id/uuid.Uuid --names/List -> List
+
+  /**
+  Returns the pods of a pod description.
+
+  Returns a list of $PodRegistryEntry.
+  */
+  pod_registry_pods --pod_description_id/int -> List
+
+  /**
+  Returns the pods with the given $pod_ids.
+
+  Returns a list of $PodRegistryEntry.
+  */
+  pod_registry_pods --fleet_id/uuid.Uuid --pod_ids/List -> List
+
+  /**
+  Returns the pod-id for the given name/tag combinations.
+
+  Returns a list of maps containing "pod_id", "name", and "tag".
+  Combinations that are not found are not included in the list.
+
+  The $names_tags list must contain maps with "name" and "tag" keys.
+  */
+  pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List
 
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config
