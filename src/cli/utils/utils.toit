@@ -104,10 +104,11 @@ download_url url/string --out_path/string -> none:
   parts := url.split --at_first "/"
   host := parts.first
   path := parts.last
-  log.info "Downloading $url"
+  log.info "Downloading $url."
   response := client.get host path
   if response.status_code != http.STATUS_OK:
-    throw "Failed to download $url: $response.status_code $response.status_message"
+    log.error "Failed to download $url: $response.status_code $response.status_message."
+    exit 1
   file := file.Stream.for_write out_path
   writer := writer.Writer file
   writer.write_from response.body
@@ -264,7 +265,7 @@ If there is an error, calls $Ui.abort with an error message.
 parse_pod_specification_file path/string --ui/Ui -> PodSpecification:
   exception := catch --unwind=(: it is not PodSpecificationException):
     return PodSpecification.parse path
-  ui.abort "Error parsing pod specification: $exception"
+  ui.abort "Cannot parse pod specification: $exception."
   unreachable
 
 // TODO(florian): move this into Duration?

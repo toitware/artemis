@@ -161,7 +161,7 @@ add_supabase parsed/cli.Parsed config/Config ui/Ui:
     config[CONFIG_BROKER_DEFAULT_KEY] = name
   config.write
 
-  ui.info "Added broker $name"
+  ui.info "Added broker $name."
 
 add_http parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
@@ -177,4 +177,4 @@ add_http parsed/cli.Parsed config/Config ui/Ui:
     config[CONFIG_BROKER_DEFAULT_KEY] = name
   config.write
 
-  ui.info "Added broker $name"
+  ui.info "Added broker $name."
