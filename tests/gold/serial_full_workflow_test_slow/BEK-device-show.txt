@@ -12,11 +12,5 @@ Firmware state as reported by the device:
       ssid: WIFI-SSID
       type: wifi
   ]
-  apps:
-    hello:
-      id: APP_ID
-      triggers:
-        boot: 1
-        interval: 60
 
 Goal is the same as the reported firmware state.

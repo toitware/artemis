@@ -176,9 +176,9 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
       "Create the default firmware."
       [
         "pod", "build",
-        "--specification", "$fleet_dir/specification.json",
-        "-o", pod_file,
         "--fleet-root", fleet_dir,
+        "-o", pod_file,
+        "$fleet_dir/specification.json",
       ]
   expect (file.is_file pod_file)
 
