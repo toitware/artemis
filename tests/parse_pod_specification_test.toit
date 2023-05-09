@@ -25,6 +25,7 @@ expect_format_error str/string json/Map:
 
 VALID_SPECIFICATION ::= {
   "version": 1,
+  "name": "test-spec",
   "sdk-version": "1.0.0",
   "artemis-version": "1.0.0",
   "max-offline": "1h",
@@ -74,6 +75,12 @@ test_errors:
   expect_format_error
       "Missing version in pod specification."
       no_version
+
+  no_name := new_valid
+  no_name.remove "name"
+  expect_format_error
+      "Missing name in pod specification."
+      no_name
 
   no_sdk_version := new_valid
   no_sdk_version.remove "sdk-version"

@@ -19,6 +19,7 @@ import ..shared.version show SDK_VERSION ARTEMIS_VERSION
 
 INITIAL_POD_SPECIFICATION ::= {
   "version": 1,
+  "name": "my-pod",
   "sdk-version": SDK_VERSION,
   "artemis-version": ARTEMIS_VERSION,
   "max-offline": "0s",
@@ -34,6 +35,7 @@ INITIAL_POD_SPECIFICATION ::= {
 
 EXAMPLE_POD_SPECIFICATION ::= {
   "version": 1,
+  "name": "examlpe-pod",
   "sdk-version": SDK_VERSION,
   "artemis-version": ARTEMIS_VERSION,
   "max-offline": "30s",
@@ -212,6 +214,7 @@ Relevant data includes (but is not limited to):
 - installed containers.
 */
 class PodSpecification:
+  name/string
   sdk_version/string
   artemis_version/string
   max_offline_seconds/int
@@ -221,6 +224,7 @@ class PodSpecification:
   chip/string?
 
   constructor.from_json --.path/string data/Map:
+    name = get_string_ data "name"
     sdk_version = get_string_ data "sdk-version"
     artemis_version = get_string_ data "artemis-version"
 
