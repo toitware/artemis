@@ -2,6 +2,7 @@
 
 // ARTEMIS_TEST_FLAGS: BROKER
 
+import encoding.ubjson
 import expect show *
 import log
 import monitor
@@ -83,6 +84,7 @@ run_test
     try:
       test_image --test_broker=test_broker broker_cli
       test_firmware --test_broker=test_broker broker_cli
+      test_pods --test_broker=test_broker broker_cli
       test_goal --test_broker=test_broker broker_cli
       test_state_devices --test_broker=test_broker broker_cli
       // Test the events last, as it depends on test_goal to have run.
@@ -254,6 +256,51 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
             current_offset
     finally:
       resources.close
+
+test_pods --test_broker/TestBroker broker_cli/broker.BrokerCli:
+  3.repeat: | iteration |
+    pod_id := random_uuid
+    id1 := "$random_uuid"
+    id2 := "$random_uuid"
+    id3 := "myMXwslBoXkTDQ0olhq1QsiHRWWL4yj1V0IuoK+PYOg="
+    pod_content := {
+      id1: "entry1 - $iteration",
+      id2: "entry2 - $iteration",
+      id3: "sha256 base64 - $iteration",
+    }
+    pod := {
+      "name1": id1,
+      "name2": id2,
+      "name3": id3,
+    }
+
+    pod_content.do: | key/string value/string |
+      broker_cli.pod_registry_upload_pod_part
+          --organization_id=TEST_ORGANIZATION_UUID
+          --part_id=key
+          value.to_byte_array
+
+    // Upload the keys as a manifest.
+    manifest := ubjson.encode pod
+    broker_cli.pod_registry_upload_pod_manifest
+        --organization_id=TEST_ORGANIZATION_UUID
+        --pod_id=pod_id
+        manifest
+
+    // Download the manifest.
+    downloaded_manifest := broker_cli.pod_registry_download_pod_manifest
+        --organization_id=TEST_ORGANIZATION_UUID
+        --pod_id=pod_id
+    expect_equals manifest downloaded_manifest
+    decoded := ubjson.decode downloaded_manifest
+    expect_equals pod.keys decoded.keys
+    expect_equals pod.values decoded.values
+
+    // Download the parts.
+    decoded.do: | _ id/string |
+      downloaded_part := broker_cli.pod_registry_download_pod_part id
+          --organization_id=TEST_ORGANIZATION_UUID
+      expect_equals pod_content[id] downloaded_part.to_string
 
 build_state_ device/Device token/string -> Map:
   return {

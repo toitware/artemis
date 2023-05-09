@@ -104,29 +104,31 @@ main:
     }
     organization_id3 := organization3["id"]
 
-    // Client1 and client2 can use storage in bucket/org-id, but client3 can't.
-    path_org1 := "$ASSETS_BUCKET/$organization_id"
-    client1.storage.upload
-        --path="$path_org1/foo.txt"
-        --content="foo".to_byte_array
-    expect_equals "foo".to_byte_array
-        client1.storage.download --path="$path_org1/foo.txt"
-    expect_equals "foo".to_byte_array
-        client2.storage.download --path="$path_org1/foo.txt"
+    2.repeat:
+      bucket := it == 0 ? ASSETS_BUCKET : PODS_BUCKET
+      // Client1 and client2 can use storage in bucket/org-id, but client3 can't.
+      path_org1 := "$bucket/$organization_id"
+      client1.storage.upload
+          --path="$path_org1/foo.txt"
+          --content="foo".to_byte_array
+      expect_equals "foo".to_byte_array
+          client1.storage.download --path="$path_org1/foo.txt"
+      expect_equals "foo".to_byte_array
+          client2.storage.download --path="$path_org1/foo.txt"
 
-    expect_throws --contains="Not found":
-        client3.storage.download --path="$path_org1/foo.txt"
+      expect_throws --contains="Not found":
+          client3.storage.download --path="$path_org1/foo.txt"
 
-    // Client3 has access to its own org bucket/path.
-    path_org3 := "$ASSETS_BUCKET/$organization_id3"
-    client3.storage.upload
-        --path="$path_org3/bar.txt"
-        --content="bar".to_byte_array
-    expect_equals "bar".to_byte_array
-        client3.storage.download --path="$path_org3/bar.txt"
+      // Client3 has access to its own org bucket/path.
+      path_org3 := "$bucket/$organization_id3"
+      client3.storage.upload
+          --path="$path_org3/bar.txt"
+          --content="bar".to_byte_array
+      expect_equals "bar".to_byte_array
+          client3.storage.download --path="$path_org3/bar.txt"
 
-    expect_throws --contains="Not found":
-        client1.storage.download --path="$path_org3/bar.txt"
+      expect_throws --contains="Not found":
+          client1.storage.download --path="$path_org3/bar.txt"
 
     // Remember: device_id3 is in the same org as client1 and client2 (organization_id).
     // client3 is in a different org.

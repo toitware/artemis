@@ -11,6 +11,7 @@ import .broker
 import .utils
 
 ASSETS_BUCKET ::= "toit-artemis-assets"
+PODS_BUCKET ::= "toit-artemis-pods"
 
 run_shared_test
     --client1/supabase.Client
@@ -198,40 +199,48 @@ run_shared_test
   }
   expect_null state
 
-  storage_id := random_uuid
-  path := "$ASSETS_BUCKET/$organization_id/$storage_id"
+  2.repeat:
+    bucket := it == 0 ? ASSETS_BUCKET : PODS_BUCKET
+    others_can_see := (bucket == ASSETS_BUCKET)
 
-  // Authenticated can write to the storage.
-  // All other users (including anon) can only see it.
-  client1.storage.upload
-      --path=path
-      --content="test".to_byte_array
+    storage_id := random_uuid
+    path := "$bucket/$organization_id/$storage_id"
 
-  // Check that anon can see it with public download.
-  expect_equals "test".to_byte_array
-      client_anon.storage.download --public --path=path
-
-  // Anon doesn't see it with regular download.
-  expect_throws --contains="Not found":
-      client_anon.storage.download --path=path
-
-  // Check that anon can't update it.
-  expect_throws --contains="row-level security":
-    client_anon.storage.upload
+    // Authenticated can write to the storage.
+    client1.storage.upload
         --path=path
-        --content="bad".to_byte_array
+        --content="test".to_byte_array
 
-  // Check that it's still the same.
-  expect_equals "test".to_byte_array
-      client_anon.storage.download --public --path=path
+    if others_can_see:
+      // Check that anon can see it with public download.
+      expect_equals "test".to_byte_array
+          client_anon.storage.download --public --path=path
+    else:
+      expect_throws --contains="Not found":
+          client_anon.storage.download --public --path=path
 
-  storage_id2 := random_uuid
-  path2 := "$ASSETS_BUCKET/$organization_id/$storage_id2"
-  // Check that anon can't write to it.
-  expect_throws --contains="row-level security":
+    // Anon doesn't see it with regular download.
+    expect_throws --contains="Not found":
+        client_anon.storage.download --path=path
+
+    // Check that anon can't update it.
+    expect_throws --contains="row-level security":
       client_anon.storage.upload
-          --path=path2
-          --content="test".to_byte_array
+          --path=path
+          --content="bad".to_byte_array
+
+    if others_can_see:
+      // Check that it's still the same.
+      expect_equals "test".to_byte_array
+          client_anon.storage.download --public --path=path
+
+    storage_id2 := random_uuid
+    path2 := "$bucket/$organization_id/$storage_id2"
+    // Check that anon can't write to it.
+    expect_throws --contains="row-level security":
+        client_anon.storage.upload
+            --path=path2
+            --content="test".to_byte_array
 
 run_shared_pod_description_test
     --client1/supabase.Client
