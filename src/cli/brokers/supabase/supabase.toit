@@ -76,16 +76,16 @@ class BrokerCliSupabase implements BrokerCli:
       --app_id/uuid.Uuid
       --word_size/int
       content/ByteArray -> none:
-    client_.storage.upload --path="toit-artemis-assets/$organization_id/images/$app_id.$word_size" --content=content
+    client_.storage.upload --path="/toit-artemis-assets/$organization_id/images/$app_id.$word_size" --content=content
 
   upload_firmware --organization_id/uuid.Uuid --firmware_id/string parts/List -> none:
     buffer := bytes.Buffer
     parts.do: | part/ByteArray | buffer.write part
-    client_.storage.upload --path="toit-artemis-assets/$organization_id/firmware/$firmware_id" --content=buffer.bytes
+    client_.storage.upload --path="/toit-artemis-assets/$organization_id/firmware/$firmware_id" --content=buffer.bytes
 
   download_firmware --organization_id/uuid.Uuid --id/string -> ByteArray:
     buffer := bytes.Buffer
-    client_.storage.download --path="toit-artemis-assets/$organization_id/firmware/$id":
+    client_.storage.download --path="/toit-artemis-assets/$organization_id/firmware/$id":
       | reader/reader.Reader |
         buffer.write_from reader
     return buffer.bytes

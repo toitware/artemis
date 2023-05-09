@@ -93,28 +93,23 @@ class BrokerCliHttp implements BrokerCli:
       --app_id/uuid.Uuid
       --word_size/int
       content/ByteArray:
-    send_request_ "upload_image" {
-      "organization_id": "$organization_id",
-      "app_id": "$app_id",
-      "word_size": word_size,
+    send_request_ "upload" {
+      "path": "/toit-artemis-assets/$organization_id/images/$app_id.$word_size",
       "content": content,
     }
 
   upload_firmware --organization_id/uuid.Uuid --firmware_id/string chunks/List -> none:
     firmware := #[]
     chunks.do: firmware += it
-    send_request_ "upload_firmware" {
-      "organization_id": "$organization_id",
-      "firmware_id": firmware_id,
+    send_request_ "upload" {
+      "path": "/toit-artemis-assets/$organization_id/firmware/$firmware_id",
       "content": firmware,
     }
 
   download_firmware --organization_id/uuid.Uuid --id/string -> ByteArray:
-    response := send_request_ "download_firmware" {
-      "organization_id": "$organization_id",
-      "firmware_id": id,
+    return send_request_ "download" {
+      "path": "/toit-artemis-assets/$organization_id/firmware/$id",
     }
-    return response
 
   notify_created --device_id/uuid.Uuid --state/Map -> none:
     send_request_ "notify_created" {
