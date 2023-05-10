@@ -205,6 +205,37 @@ interface BrokerCli implements Authenticatable:
   */
   pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List
 
+  /**
+  Uploads a pod part to the registry.
+  */
+  pod_registry_upload_pod_part -> none
+      --organization_id/uuid.Uuid
+      --part_id/string
+      content/ByteArray
+
+  /**
+  Downloads a pod part from the registry.
+  */
+  pod_registry_download_pod_part part_id/string --organization_id/uuid.Uuid -> ByteArray
+
+  /**
+  Saves the manifest of a pod.
+
+  The $content is a binary blob (for example a UBJSON map) that can be used to recover
+    a pod from its parts.
+  */
+  pod_registry_upload_pod_manifest -> none
+      --organization_id/uuid.Uuid
+      --pod_id/uuid.Uuid
+      content/ByteArray
+
+  /**
+  Downloads the manifest of a pod.
+  */
+  pod_registry_download_pod_manifest -> ByteArray
+      --organization_id/uuid.Uuid
+      --pod_id/uuid.Uuid
+
 with_broker server_config/ServerConfig config/Config [block]:
   broker := BrokerCli server_config config
   try:

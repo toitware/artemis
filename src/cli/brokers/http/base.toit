@@ -225,3 +225,35 @@ class BrokerCliHttp implements BrokerCli:
     }
     result.do: it["pod_id"] = uuid.parse it["pod_id"]
     return result
+
+  /** See $BrokerCli.pod_registry_upload_pod_part. */
+  pod_registry_upload_pod_part -> none
+      --organization_id/uuid.Uuid
+      --part_id/string
+      content/ByteArray:
+    send_request_ "upload" {
+      "path": "toit-artemis-pods/$organization_id/part/$part_id",
+      "content": content,
+    }
+
+  /** See $BrokerCli.pod_registry_download_pod_part. */
+  pod_registry_download_pod_part part_id/string --organization_id/uuid.Uuid -> ByteArray:
+    return send_request_ "download" {
+      "path": "toit-artemis-pods/$organization_id/part/$part_id",
+    }
+
+  /** See $BrokerCli.pod_registry_upload_pod_manifest. */
+  pod_registry_upload_pod_manifest -> none
+      --organization_id/uuid.Uuid
+      --pod_id/uuid.Uuid
+      content/ByteArray:
+    send_request_ "upload" {
+      "path": "toit-artemis-pods/$organization_id/manifest/$pod_id",
+      "content": content,
+    }
+
+  /** See $BrokerCli.pod_registry_download_pod_manifest. */
+  pod_registry_download_pod_manifest --organization_id/uuid.Uuid --pod_id/uuid.Uuid -> ByteArray:
+    return send_request_ "download" {
+      "path": "toit-artemis-pods/$organization_id/manifest/$pod_id",
+    }
