@@ -25,7 +25,7 @@ expect_format_error str/string json/Map:
 
 VALID_SPECIFICATION ::= {
   "version": 1,
-  "name": "test-spec",
+  "name": "test-pod",
   "sdk-version": "1.0.0",
   "artemis-version": "1.0.0",
   "max-offline": "1h",

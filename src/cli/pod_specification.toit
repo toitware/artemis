@@ -35,7 +35,7 @@ INITIAL_POD_SPECIFICATION ::= {
 
 EXAMPLE_POD_SPECIFICATION ::= {
   "version": 1,
-  "name": "examlpe-pod",
+  "name": "example-pod",
   "sdk-version": SDK_VERSION,
   "artemis-version": ARTEMIS_VERSION,
   "max-offline": "30s",
