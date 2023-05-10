@@ -308,7 +308,7 @@ get_envelope version/string -> string
       if not reported_local_envelope_use_:
         print_on_stderr_ "Using envelope from local SDK"
         reported_local_envelope_use_ = true
-      return "$local_sdk/build/esp32/firmware.envelope"
+      return "$local_sdk/build/$chip/firmware.envelope"
 
   url := envelope_url version --chip=chip
   path := "firmware-$(chip).envelope"
