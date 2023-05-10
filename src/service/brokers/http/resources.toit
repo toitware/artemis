@@ -60,20 +60,17 @@ class ResourceManagerHttp implements ResourceManager:
 
   fetch_image id/uuid.Uuid [block] -> none:
     payload :=  {
-      "organization_id": "$device_.organization_id",
-      "app_id": "$id",
-      "word_size": BITS_PER_WORD,
+      "path": "/toit-artemis-assets/$device_.organization_id/images/$id.$BITS_PER_WORD",
     }
-    connection_.send_binary_request "download_image" payload: | reader/Reader |
+    connection_.send_binary_request "download" payload: | reader/Reader |
       block.call reader
 
   fetch_firmware id/string --offset/int=0 [block] -> none:
     payload := {
-      "organization_id": "$device_.organization_id",
-      "firmware_id": id,
+      "path": "/toit-artemis-assets/$device_.organization_id/firmware/$id",
       "offset": offset,
     }
-    connection_.send_binary_request "download_firmware" payload: | reader/Reader |
+    connection_.send_binary_request "download" payload: | reader/Reader |
       block.call reader offset
 
   report_state state/Map -> none:

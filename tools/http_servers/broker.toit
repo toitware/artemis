@@ -45,8 +45,7 @@ class PodDescription:
     }
 
 class HttpBroker extends HttpServer:
-  images_/Map := {:}
-  firmwares_/Map := {:}
+  storage_/Map := {:}
   device_states_/Map := {:}
   device_goals_/Map := {:}
   events_/Map := {:}  // Map from device-id to list of events.
@@ -76,10 +75,8 @@ class HttpBroker extends HttpServer:
     if command == "get_goal": return get_goal data
     if command == "get_goal_no_event": return get_goal_no_event data
     if command == "update_goal": return update_goal data
-    if command == "upload_image": return upload_image data
-    if command == "download_image": return download_image data
-    if command == "upload_firmware": return upload_firmware data
-    if command == "download_firmware": return download_firmware data
+    if command == "upload": return upload data
+    if command == "download": return download data
     if command == "report_state": return report_state data
     if command == "get_state": return get_state data
     if command == "get_event": return get_event data
@@ -131,37 +128,23 @@ class HttpBroker extends HttpServer:
     print "Updating goal state for $device_id to $device_goals_[device_id] and notifying."
     notify_device device_id "goal_updated"
 
-  upload_image data/Map:
-    organization_id := data["organization_id"]
-    app_id := data["app_id"]
-    word_size := data["word_size"]
-    images_["$(organization_id)-$(app_id)-$word_size"] = data["content"]
+  upload data/Map:
+    path := data["path"]
+    storage_[path] = data["content"]
 
-  download_image data/Map:
-    organization_id := data["organization_id"]
-    app_id := data["app_id"]
-    word_size := data["word_size"]
-    return images_["$(organization_id)-$(app_id)-$word_size"]
-
-  upload_firmware data/Map:
-    organization_id := data["organization_id"]
-    firmware_id := data["firmware_id"]
-    firmwares_["$(organization_id)-$firmware_id"] = data["content"]
-
-  download_firmware data/Map:
-    organization_id := data["organization_id"]
-    firmware_id := data["firmware_id"]
+  download data/Map:
+    path := data["path"]
+    bytes := storage_[path]
     offset := (data.get "offset") or 0
     size := data.get "size"
-    firmware := firmwares_["$(organization_id)-$firmware_id"]
     part_end := ?
     if size:
-      part_end = min firmware.size (offset + size)
+      part_end = min bytes.size (offset + size)
     else:
-      part_end = firmware.size
-    if offset != 0 or part_end != firmware.size:
-      return PartialResponse firmware[offset..part_end] firmware.size
-    return firmware
+      part_end = bytes.size
+    if offset != 0 or part_end != bytes.size:
+      return PartialResponse bytes[offset..part_end] bytes.size
+    return bytes
 
   report_state data/Map:
     device_id := data["device_id"]
