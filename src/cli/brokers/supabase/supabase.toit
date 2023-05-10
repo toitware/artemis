@@ -96,43 +96,6 @@ class BrokerCliSupabase implements BrokerCli:
       "_state" : state,
     }
 
-  // TODO(florian): improve the core Time parsing.
-  // TODO(florian): move this function to the supabase library?
-  /**
-  Parses a Supabase timestamp string into a Time object.
-
-  A Supabase timestamp looks like the following: `2023-03-16T16:59:33.031716`. Despite
-    being in UTC, it does not end with 'Z'.
-  Also, the built-in Time.parse function does not support parsing the fractional part
-    of the timestamp.
-  */
-  timestamp_to_time_ str/string -> Time:
-    parts := str.split "T"
-    str_to_int := :int.parse it --on_error=: throw "Cannot parse $it as integer"
-    if parts.size != 2: throw "Expected 'T' to separate date and time"
-    date_parts := (parts[0].split "-").map str_to_int
-    if date_parts.size != 3: throw "Expected 3 segments separated by - for date"
-    time_str_parts := parts[1].split ":"
-    if time_str_parts.size != 3: throw "Expected 3 segments separated by : for time"
-    fraction_index := time_str_parts[2].index_of "."
-    ns_part := 0
-    if fraction_index >= 0:
-      fractional_part := time_str_parts[2][fraction_index + 1 ..]
-      time_str_parts[2] = time_str_parts[2][.. fraction_index]
-      ns_part = str_to_int.call "$(fractional_part)000000000"[.. 9]
-    time_parts := time_str_parts.map str_to_int
-
-    return Time.utc
-        date_parts[0]
-        date_parts[1]
-        date_parts[2]
-        time_parts[0]
-        time_parts[1]
-        time_parts[2]
-        --ms=0
-        --us=0
-        --ns=ns_part
-
   get_events -> Map
       --types/List?=null
       --device_ids/List
@@ -153,7 +116,7 @@ class BrokerCliSupabase implements BrokerCli:
       event_type := row["type"]
       data := row["data"]
       timestamp := row["ts"]
-      time := timestamp_to_time_ timestamp
+      time := Time.from_string timestamp
       if device_id != current_id:
         current_id = device_id
         current_list = result.get device_id --init=:[]
