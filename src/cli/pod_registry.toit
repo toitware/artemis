@@ -12,6 +12,16 @@ class PodRegistryDescription:
     name = map["name"]
     description = map.get "description"
 
+  hash_code -> int:
+    return (id * 11) & 0xFFFFFFFF
+
+  to_json -> Map:
+    return {
+      "id": id,
+      "name": name,
+      "description": description,
+    }
+
 class PodRegistryEntry:
   id/uuid.Uuid
   revision/int
@@ -25,3 +35,11 @@ class PodRegistryEntry:
     created_at =  Time.from_string map["created_at"]
     pod_description_id = map["pod_description_id"]
     tags = map["tags"]
+
+  to_json -> Map:
+    return {
+      "id": id,
+      "revision": revision,
+      "pod_description_id": pod_description_id,
+      "tags": tags,
+    }

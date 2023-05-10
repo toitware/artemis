@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import encoding.json
+import encoding.ubjson
 import host.file
 import uuid
 
@@ -11,6 +12,7 @@ import .event
 import .firmware
 import .pod
 import .pod_specification
+import .pod_registry
 import .ui
 import .utils
 import ..shared.json_diff
@@ -260,9 +262,66 @@ class Fleet:
 
       ui_.info "Successfully updated device $fleet_device.short_string."
 
-  upload --pod/Pod:
+  /**
+  Uploads the given $pod to the broker.
+
+  Also uploads the trivial patches.
+  */
+  upload --pod/Pod --tags/List -> none:
     artemis_.upload --pod=pod --organization_id=organization_id
+
+    broker := artemis_.connected_broker
+    pod.split: | manifest/Map parts/Map |
+      parts.do: | id/string content/ByteArray |
+        // Only upload if we don't have it in our cache.
+        key := "$POD_PARTS_PATH/$organization_id/$id"
+        cache_.get_file_path key: | store/FileStore |
+          broker.pod_registry_upload_pod_part content --part_id=id
+              --organization_id=organization_id
+          store.save content
+      key := "$POD_MANIFEST_PATH/$organization_id/$pod.id"
+      cache_.get_file_path key: | store/FileStore |
+        encoded := ubjson.encode manifest
+        broker.pod_registry_upload_pod_manifest encoded --pod_id=pod.id
+            --organization_id=organization_id
+        store.save encoded
+
+    description_ids := broker.pod_registry_descriptions
+        --fleet_id=this.id
+        --organization_id=this.organization_id
+        --names=[pod.name]
+        --create_if_missing
+
+    description_id := (description_ids[0] as PodRegistryDescription).id
+
+    broker.pod_registry_add
+        --pod_description_id=description_id
+        --pod_id=pod.id
+
+    tags.do:
+      broker.pod_registry_tag_set
+          --pod_description_id=description_id
+          --pod_id=pod.id
+          --tag=it
+
     ui_.info "Successfully uploaded pod to organization $organization_id."
+
+  list_pods --names/List -> Map:
+    broker := artemis_.connected_broker
+    descriptions := ?
+    if names.is_empty:
+      descriptions = broker.pod_registry_descriptions --fleet_id=this.id
+    else:
+      descriptions = broker.pod_registry_descriptions
+          --fleet_id=this.id
+          --organization_id=this.organization_id
+          --names=names
+          --no-create_if_missing
+    result := {:}
+    descriptions.do: | description/PodRegistryDescription |
+      pods := broker.pod_registry_pods --pod_description_id=description.id
+      result[description] = pods
+    return result
 
   default_specification_path -> string:
     return "$fleet_root_/$default_specification_"

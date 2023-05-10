@@ -357,10 +357,11 @@ class Artemis:
     return result
 
   /**
-  Uploads the given $pod to the server under the given
-    $organization_id.
+  Uploads the given $pod to the server under the given $organization_id.
 
-  The pod can then be used for diff-based updates, or simply as direct
+  Uploads the trivial patches and the pod itself.
+
+  Once uploaded, the pod can be used for diff-based updates, or simply as direct
     downloads for updates.
   */
   upload --pod/Pod --organization_id/uuid.Uuid:
