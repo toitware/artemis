@@ -206,7 +206,7 @@ interface BrokerCli implements Authenticatable:
   pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List
 
   /**
-  Uploads a pod to the registry.
+  Uploads a pod part to the registry.
   */
   pod_registry_upload_pod_part -> none
       --organization_id/uuid.Uuid
@@ -214,7 +214,7 @@ interface BrokerCli implements Authenticatable:
       content/ByteArray
 
   /**
-  Downloads a pod part from the registry
+  Downloads a pod part from the registry.
   */
   pod_registry_download_pod_part part_id/string --organization_id/uuid.Uuid -> ByteArray
 
