@@ -206,6 +206,14 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
       --pod_id=pod_id4
       --tag="tag_pod4"
 
+  pods = broker_cli.pod_registry_pods --pod_description_id=description_id
+  expect_equals 2 pods.size
+  // Make sure that the more recent pod is first.
+  pod2 := pods[0]
+  pod1 := pods[1]
+  expect_equals pod_id1 pod1.id
+  expect_equals pod_id2 pod2.id
+
   names_tags := [
     {
       "name": "pod1",
