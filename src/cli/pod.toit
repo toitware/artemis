@@ -23,19 +23,26 @@ class Pod:
   // Ar files can only have 15 chars for the name.
   static MAGIC_NAME_ ::= "artemis-pod"
   static ID_NAME_ ::= "id"
+  static NAME_NAME_ ::= "name"
   static CUSTOMIZED_ENVELOPE_NAME_ := "customized.env"
 
   static MAGIC_CONTENT_ ::= "frickin' sharks"
 
   envelope/ByteArray
   id/uuid.Uuid
+  name/string
 
   envelope_path_/string? := null
   sdk_version_/string? := null
   device_config_/Map? := null
   tmp_dir_/string := ?
 
-  constructor --.id --tmp_directory/string --.envelope --envelope_path/string?=null:
+  constructor
+      --.id
+      --.name
+      --tmp_directory/string
+      --.envelope
+      --envelope_path/string?=null:
     tmp_dir_ = tmp_directory
 
   constructor.from_specification --path/string --artemis/Artemis --ui/Ui:
@@ -51,6 +58,7 @@ class Pod:
     id := random_uuid
     return Pod
         --id=id
+        --name=specification.name
         --tmp_directory=artemis.tmp_directory
         --envelope=envelope
         --envelope_path=envelope_path
@@ -65,10 +73,15 @@ class Pod:
       if file.name != ID_NAME_:
         ui.abort "The file at '$path' is not a valid Artemis pod."
       id := uuid.Uuid file.content
+      file = ar_reader.next
+      if file.name != NAME_NAME_:
+        ui.abort "The file at '$path' is not a valid Artemis pod."
+      name := file.content.to_string
+      file = ar_reader.next
       if file.name != CUSTOMIZED_ENVELOPE_NAME_:
         ui.abort "The file at '$path' is not a valid Artemis pod."
       envelope := file.content
-      return Pod --id=id --tmp_directory=tmp_directory --envelope=envelope
+      return Pod --id=id --name=name --tmp_directory=tmp_directory --envelope=envelope
     unreachable
 
   static envelope_count_/int := 0
@@ -113,4 +126,5 @@ class Pod:
       ar_writer := ArWriter writer
       ar_writer.add MAGIC_NAME_ MAGIC_CONTENT_
       ar_writer.add ID_NAME_ id.to_byte_array
+      ar_writer.add NAME_NAME_ name.to_byte_array
       ar_writer.add CUSTOMIZED_ENVELOPE_NAME_ envelope
