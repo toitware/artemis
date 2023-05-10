@@ -210,15 +210,45 @@ $$;
 
 CREATE OR REPLACE FUNCTION toit_artemis.get_pod_descriptions_by_names(
         _fleet_id UUID,
-        _names TEXT[]
+        _organization_id UUID,
+        _names TEXT[],
+        _create_if_missing BOOLEAN
     )
 RETURNS SETOF toit_artemis.PodDescription
 SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
 DECLARE
+    i INTEGER := 1;
+    name_exists BOOLEAN;
     description_ids BIGINT[];
 BEGIN
+    IF _create_if_missing THEN
+        WHILE i <= array_length(_names, 1) LOOP
+            -- Check if the name already exists.
+            SELECT EXISTS(
+                    SELECT 1
+                    FROM toit_artemis.pod_descriptions pd
+                    WHERE pd.fleet_id = _fleet_id
+                        AND pd.name = _names[i]
+                )
+                INTO name_exists
+                FOR UPDATE;  -- Lock the rows so concurrent updates don't duplicate the name.
+
+            IF NOT name_exists THEN
+                -- Create the pod description.
+                PERFORM toit_artemis.upsert_pod_description(
+                        _fleet_id,
+                        _organization_id,
+                        _names[i],
+                        NULL
+                    );
+            END IF;
+
+            i := i + 1;
+        END LOOP;
+    END IF;
+
     -- Store the relevant ids in a temporary array.
     description_ids := ARRAY(
         SELECT pd.id
@@ -407,7 +437,9 @@ $$;
 
 CREATE OR REPLACE FUNCTION public."toit_artemis.get_pod_descriptions_by_names"(
         _fleet_id UUID,
-        _names TEXT[]
+        _organization_id UUID,
+        _names TEXT[],
+        _create_if_missing BOOLEAN
     )
 RETURNS SETOF toit_artemis.PodDescription
 SECURITY INVOKER
@@ -415,7 +447,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-        SELECT * FROM toit_artemis.get_pod_descriptions_by_names(_fleet_id, _names);
+        SELECT * FROM toit_artemis.get_pod_descriptions_by_names(_fleet_id, _organization_id, _names, _create_if_missing);
 END;
 $$;
 

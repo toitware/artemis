@@ -88,10 +88,26 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
   expect_equals "pod2" descriptions[index2].name
 
   // Get the descriptions by name.
-  descriptions = broker_cli.pod_registry_descriptions --fleet_id=fleet_id --names=["pod1"]
+  descriptions = broker_cli.pod_registry_descriptions
+      --fleet_id=fleet_id
+      --organization_id=TEST_ORGANIZATION_UUID
+      --names=["pod1"]
+      --no-create_if_missing
   expect_equals 1 descriptions.size
   description = descriptions[0]
   expect_equals "pod1" description.name
+
+  // Do the same but create the missing description.
+  descriptions = broker_cli.pod_registry_descriptions
+      --fleet_id=fleet_id
+      --organization_id=TEST_ORGANIZATION_UUID
+      --names=["pod1", "pod3"]
+      --create_if_missing
+  expect_equals 2 descriptions.size
+  index1 = descriptions[0].name == "pod1" ? 0 : 1
+  index2 = index1 == 0 ? 1 : 0
+  expect_equals "pod1" descriptions[index1].name
+  expect_equals "pod3" descriptions[index2].name
 
   // Add a pod.
   pod_id1 := random_uuid
