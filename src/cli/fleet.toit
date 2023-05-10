@@ -409,6 +409,31 @@ class Fleet:
         --types=["get-goal"]
     last_events := broker.get_events --device_ids=device_ids --limit=1
 
+    pod_ids := []
+    devices_.do: | fleet_device/DeviceFleet |
+      device/DeviceDetailed? := detailed_devices.get fleet_device.id
+      if not device:
+        ui_.abort "Device $fleet_device.id is unknown to the broker."
+      pod_id := device.pod_id_current or device.pod_id_firmware
+      // Add nulls as well.
+      pod_ids.add pod_id
+
+    pod_id_entries := broker.pod_registry_pods
+        --fleet_id=this.id
+        --pod_ids=(pod_ids.filter: it != null)
+    pod_entry_map := {:}
+    pod_id_entries.do: | entry/PodRegistryEntry |
+      pod_entry_map[entry.id] = entry
+    description_set := {}
+    description_set.add_all
+        (pod_id_entries.map: | entry/PodRegistryEntry | entry.pod_description_id)
+    description_ids := []
+    description_ids.add_all description_set
+    descriptions := broker.pod_registry_descriptions --ids=description_ids
+    description_map := {:}
+    descriptions.do: | description/PodRegistryDescription |
+      description_map[description.id] = description
+
     now := Time.now
     statuses := devices_.map: | fleet_device/DeviceFleet |
       device/DeviceDetailed? := detailed_devices.get fleet_device.id
@@ -423,9 +448,19 @@ class Fleet:
     rows := []
     for i := 0; i < devices_.size; i++:
       fleet_device/DeviceFleet := devices_[i]
+      pod_id/uuid.Uuid? := pod_ids[i]
       status/Status_ := statuses[i]
       if not include_healthy and status.is_healthy: continue
       if not include_never_seen and status.never_seen: continue
+
+      pod_name := ""
+      if pod_id:
+        entry/PodRegistryEntry? := pod_entry_map.get pod_id
+        if entry:
+          description/PodRegistryDescription := description_map.get entry.pod_description_id
+          pod_name = description.name
+          if not entry.tags.is_empty:
+            pod_name += "-$(entry.tags.join ",")"
 
       cross := "✗"
       // TODO(florian): when the UI wants structured output we shouldn't change the last
@@ -445,6 +480,8 @@ class Fleet:
       rows.add [
         "$fleet_device.id",
         fleet_device.name or "",
+        pod_id ? "$pod_id" : "",
+        pod_name,
         status.is_fully_updated ? "" : cross,
         status.is_modified ? cross : "",
         missed_checkins_string,
@@ -453,7 +490,7 @@ class Fleet:
       ]
 
     ui_.info_table rows
-        --header=["Device ID", "Name", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
+        --header=["Device ID", "Name", "Pod ID", "Pod Name", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
 
   resolve_alias_ alias/string -> DeviceFleet:
     if not aliases_.contains alias:
