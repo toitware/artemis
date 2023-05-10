@@ -176,6 +176,7 @@ CREATE TYPE toit_artemis.Pod AS (
     id UUID,
     pod_description_id BIGINT,
     revision INT,
+    created_at TIMESTAMPTZ,
     tags TEXT[]
 );
 
@@ -320,7 +321,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-        SELECT p.id, p.pod_description_id, p.revision,
+        SELECT p.id, p.pod_description_id, p.revision, p.created_at,
             CASE
                 WHEN pt.pod_id IS NULL
                 THEN ARRAY[]::text[]
@@ -337,7 +338,7 @@ BEGIN
         WHERE
             p.id = ANY(_pod_ids)
             AND p.fleet_id = _fleet_id
-        GROUP BY p.id, p.created_at, p.revision, p.pod_description_id, pt.pod_id
+        GROUP BY p.id, p.revision, p.created_at, p.pod_description_id, pt.pod_id
         ORDER BY p.created_at DESC;
 END;
 $$;

@@ -110,6 +110,7 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
   expect_equals "pod3" descriptions[index2].name
 
   // Add a pod.
+  pod1_creation_start := Time.now
   pod_id1 := random_uuid
   broker_cli.pod_registry_add
       --pod_description_id=description_id
@@ -121,6 +122,9 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
   expect_equals pod_id1 pod.id
   expect_equals description_id pod.pod_description_id
   expect_equals 1 pod.revision
+  timestamp := pod.created_at
+  expect timestamp >= pod1_creation_start
+  expect timestamp <= Time.now
 
   // Tag the pod.
   broker_cli.pod_registry_tag_set
