@@ -49,6 +49,14 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
   expect_equals "pod1" description.name
   expect_null description.description
 
+  // Create the same description again.
+  description_id_received := broker_cli.pod_registry_description_upsert
+      --fleet_id=fleet_id
+      --organization_id=TEST_ORGANIZATION_UUID
+      --name="pod1"
+      --description=null
+  expect_equals description_id description_id_received
+
   // Create another description.
   description_id2 := broker_cli.pod_registry_description_upsert
       --fleet_id=fleet_id

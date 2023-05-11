@@ -26,7 +26,7 @@ main args:
 class PodDescription:
   id/int
   name/string
-  description/string?
+  description/string? := ?
   fleet_id/string
   pods/Map  // Map from pod-id to list of tags.
   pod_revisions/Map // Map from pod-id to revision.
@@ -269,6 +269,12 @@ class HttpBroker extends HttpServer:
     organization_id := data["organization_id"]
     name := data["name"]
     description := data.get "description"
+
+    pod_registry_.do: | id pod_description/PodDescription |
+      if pod_description.fleet_id == fleet_id and
+          pod_description.name == name:
+        pod_description.description = description
+        return id
 
     id := pod_description_ids_++
     pod_description := PodDescription
