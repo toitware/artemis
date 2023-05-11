@@ -2,6 +2,7 @@
 
 // ARTEMIS_TEST_FLAGS: BROKER
 
+import encoding.ubjson
 import expect show *
 import log
 import net
@@ -29,6 +30,7 @@ run_test
         broker_cli.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
 
     test_pod_registry --test_broker=test_broker broker_cli
+    test_pods --test_broker=test_broker broker_cli
 
 test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
   fleet_id := random_uuid
@@ -218,3 +220,48 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
       expect_equals "tag_pod4" tag
       expect_equals pod_id4 pod_id
   expect_equals 3 seen.size
+
+test_pods --test_broker/TestBroker broker_cli/broker.BrokerCli:
+  3.repeat: | iteration |
+    pod_id := random_uuid
+    id1 := "$random_uuid"
+    id2 := "$random_uuid"
+    id3 := "myMXwslBoXkTDQ0olhq1QsiHRWWL4yj1V0IuoK+PYOg="
+    pod_content := {
+      id1: "entry1 - $iteration",
+      id2: "entry2 - $iteration",
+      id3: "sha256 base64 - $iteration",
+    }
+    pod := {
+      "name1": id1,
+      "name2": id2,
+      "name3": id3,
+    }
+
+    pod_content.do: | key/string value/string |
+      broker_cli.pod_registry_upload_pod_part
+          --organization_id=TEST_ORGANIZATION_UUID
+          --part_id=key
+          value.to_byte_array
+
+    // Upload the keys as a manifest.
+    manifest := ubjson.encode pod
+    broker_cli.pod_registry_upload_pod_manifest
+        --organization_id=TEST_ORGANIZATION_UUID
+        --pod_id=pod_id
+        manifest
+
+    // Download the manifest.
+    downloaded_manifest := broker_cli.pod_registry_download_pod_manifest
+        --organization_id=TEST_ORGANIZATION_UUID
+        --pod_id=pod_id
+    expect_equals manifest downloaded_manifest
+    decoded := ubjson.decode downloaded_manifest
+    expect_equals pod.keys decoded.keys
+    expect_equals pod.values decoded.values
+
+    // Download the parts.
+    decoded.do: | _ id/string |
+      downloaded_part := broker_cli.pod_registry_download_pod_part id
+          --organization_id=TEST_ORGANIZATION_UUID
+      expect_equals pod_content[id] downloaded_part.to_string
