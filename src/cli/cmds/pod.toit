@@ -11,6 +11,7 @@ import ..pod
 import ..pod_specification
 import ..pod_registry
 import ..ui
+import ..utils.names
 
 create_pod_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "pod"
@@ -43,10 +44,10 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
 
   upload_cmd := cli.Command "upload"
       --long_help="""
-        Upload the given pod to the broker.
+        Upload the given pod(s) to the broker.
 
-        After this action the pod is available to the fleet.
-        Uploaded pods can be used for diff-based over-the-air updates.
+        When a pod has been uploaded to the fleet, it can be used for flashing
+        new devices and for diff-based over-the-air updates.
         """
       --options=[
         cli.Option "tag"
@@ -56,7 +57,8 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       --rest=[
         cli.Option "pod"
             --type="file"
-            --short_help="The pod to upload."
+            --short_help="A pod to upload."
+            --multi
             --required,
       ]
       --run=:: upload it config cache ui
@@ -88,13 +90,20 @@ create_pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  pod_path := parsed["pod"]
+  pod_paths := parsed["pod"]
   tags := parsed["tag"]
+
+  if tags.is_empty:
+    name := random_name
+    time := Time.now.utc
+    tag := "$(time.year)$(%02d time.month)$(%02d time.day)$(%02d time.h)$(%02d time.m)$(%02d time.s):$name"
+    tags = [ tag ]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    pod := Pod.parse pod_path --tmp_directory=artemis.tmp_directory --ui=ui
-    fleet.upload --pod=pod --tags=tags
+    pod_paths.do: | pod_path/string |
+      pod := Pod.parse pod_path --tmp_directory=artemis.tmp_directory --ui=ui
+      fleet.upload --pod=pod --tags=tags
 
 list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
