@@ -456,11 +456,13 @@ class Fleet:
       pod_name := ""
       if pod_id:
         entry/PodRegistryEntry? := pod_entry_map.get pod_id
-        if entry:
+        if not entry:
+          pod_name = "$pod_id"
+        else:
           description/PodRegistryDescription := description_map.get entry.pod_description_id
-          pod_name = description.name
+          pod_name = "$description.name#$entry.revision"
           if not entry.tags.is_empty:
-            pod_name += "-$(entry.tags.join ",")"
+            pod_name += " $(entry.tags.join ",")"
 
       cross := "✗"
       // TODO(florian): when the UI wants structured output we shouldn't change the last
@@ -480,7 +482,6 @@ class Fleet:
       rows.add [
         "$fleet_device.id",
         fleet_device.name or "",
-        pod_id ? "$pod_id" : "",
         pod_name,
         status.is_fully_updated ? "" : cross,
         status.is_modified ? cross : "",
@@ -490,7 +491,7 @@ class Fleet:
       ]
 
     ui_.info_table rows
-        --header=["Device ID", "Name", "Pod ID", "Pod Name", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
+        --header=["Device ID", "Name", "Pod", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
 
   resolve_alias_ alias/string -> DeviceFleet:
     if not aliases_.contains alias:

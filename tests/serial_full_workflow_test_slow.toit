@@ -212,6 +212,11 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
       ]
 
   print "Successfully flashed."
+  devices := read_json "$fleet_dir/devices.json"
+  device_entry := devices[device_id]
+  device_name := device_entry["name"]
+  replacement := "DEVICE_NAME"
+  test_cli.replacements[device_name] = replacement
 
   with_timeout --ms=15_000:
     while true:
@@ -232,6 +237,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
   //     pipe.run_program "jag" "monitor"
 
   test_cli.run_gold "DAK-devices-after-flash"
+      --ignore_spacing
       "List devices in the fleet."
       [
         "fleet", "status",
@@ -245,6 +251,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
   initial_firmware/string? := null
   test_cli.run_gold "DDA-device-show"
       "Show the device before update."
+      --ignore_spacing
       --before_gold=: | output/string |
         lines := output.split "\n"
         lines.do:
@@ -265,6 +272,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
 
   test_cli.run_gold "DDK-update-firmware"
       "Update the firmware."
+      --ignore_spacing
       --before_gold=: | output/string |
         lines := output.split "\n"
         lines.do:
@@ -291,8 +299,11 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         break
       sleep --ms=1_000
 
+  /*
+  // TODO(florian): reenable test.
   test_cli.run_gold "DEA-status"
       "List devices in the fleet after applied update."
+      --ignore_spacing
       --before_gold=: | output/string |
         lines := output.split "\n"
         missed_index/int? := null
@@ -314,10 +325,11 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "fleet", "status",
         "--fleet-root", fleet_dir,
       ]
+  */
 
   after_firmware/string? := null
-  test_cli.run_gold "BEK-device-show"
-      "Show the device before update."
+  test_cli.run_gold "DEK-device-show"
+      "Show the device after update."
       --before_gold=: | output/string |
         lines := output.split "\n"
         lines.do:

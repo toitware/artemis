@@ -2,4 +2,4 @@
 # [fleet, update, --fleet-root, FLEET-DIR]
 Computing and uploading patches.
 Uploading patch PATCH-HASH-SIZE
-Successfully updated device -={|    UUID-FOR-TEST-DEVICE    |}=-.
+Successfully updated device -={|    UUID-FOR-TEST-DEVICE    |}=- (DEVICE_NAME ).

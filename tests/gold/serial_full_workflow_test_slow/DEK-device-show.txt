@@ -1,4 +1,4 @@
-# Show the device before update.
+# Show the device after update.
 # [device, show, -d, -={|    UUID-FOR-TEST-DEVICE    |}=-, --max-events, 0, --fleet-root, FLEET-DIR]
 Device ID: -={|    UUID-FOR-TEST-DEVICE    |}=-
 Organization ID: -={| UUID-FOR-TEST-ORGANIZATION |}=- (ORGANIZATION_NAME           )

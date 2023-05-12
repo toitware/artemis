@@ -154,8 +154,18 @@ class TestCli:
   /**
   Variant of $(run_gold test_name description args [--before_gold]).
   */
-  run_gold test_name/string description/string args/List --expect_exit_1/bool=false:
-    run_gold test_name description args --expect_exit_1=expect_exit_1 --before_gold=: it
+  run_gold
+      test_name/string
+      description/string
+      args/List
+      --ignore_spacing/bool=false
+      --expect_exit_1/bool=false:
+    run_gold test_name
+        description
+        args
+        --expect_exit_1=expect_exit_1
+        --ignore_spacing=ignore_spacing
+        --before_gold=: it
 
   /**
   Runs the CLI with the given $args.
@@ -165,11 +175,20 @@ class TestCli:
 
   If $expect_exit_1 then the test is negative and must fail.
 
+  If $ignore_spacing is true, then all whitespace is ignored when comparing.
+    Also, all table characters (like "┌────┬────────┐") are ignored.
+
   The $before_gold block is called with the output of the running the command.
     It must return a new output (or the same as the input). It can be used
     to update the $replacements.
   */
-  run_gold test_name/string description/string args/List --expect_exit_1/bool=false [--before_gold]:
+  run_gold
+      test_name/string
+      description/string
+      args/List
+      --ignore_spacing/bool=false
+      --expect_exit_1/bool=false
+      [--before_gold]:
     output := run args --expect_exit_1=expect_exit_1
     output = before_gold.call output
     output = canonicalize_gold_ output args --description=description
@@ -182,6 +201,10 @@ class TestCli:
     // In case we are on Windows or something else introduced \r\n.
     gold_content = gold_content.replace --all "\r\n" "\n"
 
+    if ignore_spacing:
+      [" ", "┌", "─", "┬", "┐", "│", "├",  "┼", "┤", "└", "┴", "┘"].do: | char |
+        gold_content = gold_content.replace --all char ""
+        output = output.replace --all char ""
     if gold_content != output:
       print "Gold file '$gold_path' does not match output."
       print "Output:"
