@@ -13,7 +13,11 @@ class PodRegistryDescription:
     description = map.get "description"
 
   hash_code -> int:
-    return (id * 11) & 0xFFFFFFFF
+    return (id * 11) & 0x7FFF_FFFF
+
+  operator== other -> bool:
+    if other is not PodRegistryDescription: return false
+    return id == other.id and name == other.name and description == other.description
 
   to_json -> Map:
     return {
