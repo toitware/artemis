@@ -194,11 +194,17 @@ class BrokerCliHttp implements BrokerCli:
     }
     return response.map: PodRegistryDescription.from_map it
 
-  /** See $(BrokerCli.pod_registry_descriptions --fleet_id --names). */
-  pod_registry_descriptions --fleet_id/uuid.Uuid --names/List -> List:
+  /** See $(BrokerCli.pod_registry_descriptions --fleet_id --organization_id --names --create_if_absent). */
+  pod_registry_descriptions -> List
+      --fleet_id/uuid.Uuid
+      --organization_id/uuid.Uuid
+      --names/List
+      --create_if_absent/bool:
     response := send_request_ "pod_registry_descriptions_by_names" {
       "fleet_id": "$fleet_id",
+      "organization_id": "$organization_id",
       "names": names,
+      "create_if_absent": create_if_absent,
     }
     return response.map: PodRegistryDescription.from_map it
 

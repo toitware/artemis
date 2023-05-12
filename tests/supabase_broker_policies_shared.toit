@@ -424,7 +424,9 @@ run_shared_pod_description_test
     // Get the pods by name.
     pods = client1.rest.rpc "toit_artemis.get_pod_descriptions_by_names" {
       "_fleet_id": "$fleet_id",
+      "_organization_id": "$organization_id",
       "_names": [pod_desc1],
+      "_create_if_absent": false
     }
     expect_equals 1 pods.size
     expect_equals description_id pods[0]["id"]
@@ -432,7 +434,9 @@ run_shared_pod_description_test
     // Other doesn't see anything.
     pods = other_client.rest.rpc "toit_artemis.get_pod_descriptions_by_names" {
       "_fleet_id": "$fleet_id",
+      "_organization_id": "$organization_id",
       "_names": [pod_desc1],
+      "_create_if_absent": false
     }
     expect pods.is_empty
 
