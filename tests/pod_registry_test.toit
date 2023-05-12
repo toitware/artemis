@@ -89,7 +89,7 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
       --fleet_id=fleet_id
       --organization_id=TEST_ORGANIZATION_UUID
       --names=["pod1"]
-      --no-create_if_missing
+      --no-create_if_absent
   expect_equals 1 descriptions.size
   description = descriptions[0]
   expect_equals "pod1" description.name
@@ -99,7 +99,7 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
       --fleet_id=fleet_id
       --organization_id=TEST_ORGANIZATION_UUID
       --names=["pod1", "pod3"]
-      --create_if_missing
+      --create_if_absent
   names = descriptions.map: it.name
   names.sort --in_place
   expect_equals ["pod1", "pod3"] names

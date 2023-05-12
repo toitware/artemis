@@ -232,17 +232,17 @@ class BrokerCliSupabase implements BrokerCli:
     }
     return response.map: PodRegistryDescription.from_map it
 
-  /** See $(BrokerCli.pod_registry_descriptions --fleet_id --organization_id --names --create_if_missing). */
+  /** See $(BrokerCli.pod_registry_descriptions --fleet_id --organization_id --names --create_if_absent). */
   pod_registry_descriptions -> List
       --fleet_id/uuid.Uuid
       --organization_id/uuid.Uuid
       --names/List
-      --create_if_missing/bool:
+      --create_if_absent/bool:
     response := client_.rest.rpc "toit_artemis.get_pod_descriptions_by_names" {
       "_fleet_id": "$fleet_id",
       "_organization_id": "$organization_id",
       "_names": names,
-      "_create_if_missing": create_if_missing,
+      "_create_if_absent": create_if_absent,
     }
     return response.map: PodRegistryDescription.from_map it
 
