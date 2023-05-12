@@ -1,3 +1,2 @@
 # Create the default firmware.
 # [pod, build, --fleet-root, FLEET-DIR, -o, FIRMWARE.POD, FLEET-DIR/specification.json]
-Successfully uploaded pod to organization -={| UUID-FOR-TEST-ORGANIZATION |}=-.

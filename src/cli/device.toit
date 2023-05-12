@@ -106,3 +106,19 @@ class DeviceDetailed extends Device:
       local_id = uuid.parse device["device_id"]
 
     super --hardware_id=local_hardware_id --id=local_id --organization_id=local_organization_id
+
+  pod_id_firmware -> uuid.Uuid?:
+    return pod_id_from_state_ reported_state_firmware
+
+  pod_id_current -> uuid.Uuid?:
+    return pod_id_from_state_ reported_state_current
+
+  pod_id_goal -> uuid.Uuid?:
+    return pod_id_from_state_ reported_state_goal
+
+  pod_id_from_state_ state/Map? -> uuid.Uuid?:
+    if not state: return null
+    if not state.contains "firmware": return null
+
+    firmware := Firmware.encoded state["firmware"]
+    return firmware.pod_id
