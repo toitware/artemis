@@ -137,6 +137,9 @@ class FirmwareServiceProvider extends FirmwareServiceProviderBase:
     // byte array on the other side.
     return content_.copy
 
+  uri -> string?:
+    return null
+
   firmware_writer_open client/int from/int to/int -> FirmwareWriter:
     return FirmwareWriter_ this client from to
 
