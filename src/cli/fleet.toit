@@ -15,6 +15,7 @@ import .pod_specification
 import .pod_registry
 import .ui
 import .utils
+import .utils.names
 import ..shared.json_diff
 
 class DeviceFleet:
@@ -23,7 +24,7 @@ class DeviceFleet:
   name/string?
   aliases/List?
 
-  constructor --.id --.name=null --.aliases=null:
+  constructor --.id --.name=(random_name --uuid=id) --.aliases=null:
 
   constructor.from_json encoded_id/string encoded/Map:
     id = uuid.parse encoded_id
@@ -219,7 +220,6 @@ class Fleet:
             --out_path=output
             --organization_id=organization_id
 
-        // TODO(florian): create a nice random name.
         devices_.add (DeviceFleet --id=device_id)
         new_identity_files.add output
       return new_identity_files
