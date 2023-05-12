@@ -30,19 +30,13 @@ class PodDescription:
   fleet_id/string
   pods/Map  // Map from pod-id to list of tags.
   pod_revisions/Map // Map from pod-id to revision.
+  pod_created_ats/Map // Map from pod-id to created-at timestamp.
   revision_counter/int := 0
 
   constructor --.id --.fleet_id --.name --.description:
     pods = {:}
     pod_revisions = {:}
-
-  to_json -> Map:
-    return {
-      "id": id,
-      "fleet_id": fleet_id,
-      "name": name,
-      "description": description,
-    }
+    pod_created_ats = {:}
 
 class HttpBroker extends HttpServer:
   storage_/Map := {:}
@@ -290,9 +284,11 @@ class HttpBroker extends HttpServer:
     pod_id := data["pod_id"]
     description/PodDescription := pod_registry_[pod_description_id]
     revision := description.revision_counter + 1
+    created_at := Time.now.utc.to_iso8601_string
     description.revision_counter++
     description.pods[pod_id] = []
     description.pod_revisions[pod_id] = revision
+    description.pod_created_ats[pod_id] = created_at
 
   pod_registry_tag_set data/Map:
     pod_description_id := data["pod_description_id"]
@@ -379,15 +375,10 @@ class HttpBroker extends HttpServer:
     pod_description_id := data["pod_description_id"]
 
     description/PodDescription := pod_registry_[pod_description_id]
-    result := []
-    description.pods.do: | pod_id _ |
-      result.add {
-        "id": pod_id,
-        "revision": description.pod_revisions[pod_id],
-        "pod_description_id": pod_description_id,
-        "tags": description.pods[pod_id],
-      }
-    return result
+    return pod_registry_pods_by_ids {
+      "fleet_id": description.fleet_id,
+      "pod_ids": description.pods.keys,
+    }
 
   pod_registry_pods_by_ids data/Map:
     fleet_id := data["fleet_id"]
@@ -404,6 +395,7 @@ class HttpBroker extends HttpServer:
             result.add {
               "id": pod_id,
               "revision": description.pod_revisions[pod_id],
+              "created_at": description.pod_created_ats[pod_id],
               "pod_description_id": description.id,
               "tags": description.pods[pod_id],
             }
