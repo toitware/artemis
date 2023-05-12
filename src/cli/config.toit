@@ -105,7 +105,7 @@ class Config:
   The key is split on dots, and the value is searched for in the nested map.
   */
   get key/string -> any:
-    return get_ key --no-initialize_if_missing --init=: unreachable
+    return get_ key --no-initialize_if_absent --init=: unreachable
 
   /**
   Variant of $(get key).
@@ -116,9 +116,9 @@ class Config:
   Creates all intermediate maps if they don't exist.
   */
   get key/string [--init] -> any:
-    return get_ key --initialize_if_missing --init=init
+    return get_ key --initialize_if_absent --init=init
 
-  get_ key/string --initialize_if_missing/bool [--init]:
+  get_ key/string --initialize_if_absent/bool [--init]:
     parts := key.split "."
     result := data
     for i := 0; i < parts.size; i++:
@@ -126,7 +126,7 @@ class Config:
       if result is not Map:
         throw "Invalid key. $(parts[.. i - 1].join ".") is not a map"
       result = result.get part_key --init=:
-        if not initialize_if_missing: return null
+        if not initialize_if_absent: return null
         i != parts.size - 1 ? {:} : init.call
     return result
 

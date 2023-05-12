@@ -426,7 +426,7 @@ run_shared_pod_description_test
       "_fleet_id": "$fleet_id",
       "_organization_id": "$organization_id",
       "_names": [pod_desc1],
-      "_create_if_missing": false
+      "_create_if_absent": false
     }
     expect_equals 1 pods.size
     expect_equals description_id pods[0]["id"]
@@ -436,7 +436,7 @@ run_shared_pod_description_test
       "_fleet_id": "$fleet_id",
       "_organization_id": "$organization_id",
       "_names": [pod_desc1],
-      "_create_if_missing": false
+      "_create_if_absent": false
     }
     expect pods.is_empty
 
