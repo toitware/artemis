@@ -177,7 +177,7 @@ interface BrokerCli implements Authenticatable:
   /**
   Gets pod descriptions by name.
 
-  If $create_if_missing is true, a new description is created if none
+  If $create_if_absent is true, a new description is created if none
     with the given name exists.
 
   Returns a list of $PodRegistryDescription.
@@ -186,7 +186,7 @@ interface BrokerCli implements Authenticatable:
       --fleet_id/uuid.Uuid
       --organization_id/uuid.Uuid
       --names/List
-      --create_if_missing/bool
+      --create_if_absent/bool
 
   /**
   Returns the pods of a pod description.

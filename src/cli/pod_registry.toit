@@ -32,7 +32,7 @@ class PodRegistryEntry:
   constructor.from_map map/Map:
     id = uuid.parse map["id"]
     revision = map["revision"]
-    created_at =  Time.from_string map["created_at"]
+    created_at = Time.from_string map["created_at"]
     pod_description_id = map["pod_description_id"]
     tags = map["tags"]
 
