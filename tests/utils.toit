@@ -57,6 +57,8 @@ TEST_ORGANIZATION_UUID ::= uuid.parse "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
 TEST_DEVICE_UUID ::= uuid.parse "eb45c662-356c-4bea-ad8c-ede37688fddf"
 TEST_DEVICE_ALIAS ::= uuid.parse "191149e5-a95b-47b1-80dd-b149f953d272"
 
+TEST_POD_UUID ::= uuid.parse "0e29c450-f802-49cc-b695-c5add71fdac3"
+
 NON_EXISTENT_UUID ::= uuid.uuid5 "non" "existent"
 
 UPDATE_GOLD_ENV ::= "UPDATE_GOLD"
@@ -697,7 +699,8 @@ build_encoded_firmware -> string
     --organization_id/uuid.Uuid=TEST_ORGANIZATION_UUID
     --hardware_id/uuid.Uuid=device_id
     --firmware_token/ByteArray=#[random 256, random 256, random 256, random 256]
-    --sdk_version/string="v2.0.0-alpha.52":
+    --sdk_version/string="v2.0.0-alpha.52"
+    --pod_id/uuid.Uuid=TEST_POD_UUID:
   device_specific := ubjson.encode {
     "artemis.device": {
       "device_id": "$device_id",
@@ -710,18 +713,23 @@ build_encoded_firmware -> string
       "hash": firmware_token,
     }],
     "sdk-version": sdk_version,
+    "pod-id": pod_id.to_byte_array
   }
   return base64.encode (ubjson.encode {
     "device-specific": device_specific,
     "checksum": #[],
   })
 
-build_encoded_firmware --device/Device --sdk_version/string?=null -> string:
+build_encoded_firmware -> string
+    --device/Device
+    --sdk_version/string?=null
+    --pod_id/uuid.Uuid?=null:
   return build_encoded_firmware
       --device_id=device.id
       --organization_id=device.organization_id
       --hardware_id=device.hardware_id
       --sdk_version=sdk_version
+      --pod_id=pod_id
 
 server_type_from_args args/List:
   args.do: | arg |
