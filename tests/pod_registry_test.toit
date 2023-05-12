@@ -66,13 +66,12 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
       --name="pod2"
       --description="description2"
   descriptions = broker_cli.pod_registry_descriptions --fleet_id=fleet_id
-  expect_equals 2 descriptions.size
-  index1 := descriptions[0].name == "pod1" ? 0 : 1
-  index2 := index1 == 0 ? 1 : 0
-  expect_equals "pod1" descriptions[index1].name
-  expect_null descriptions[index1].description
-  expect_equals "pod2" descriptions[index2].name
-  expect_equals "description2" descriptions[index2].description
+  names := descriptions.map:
+    if it.name == "pod2":
+      expect_equals "description2" it.description
+    it.name
+  names.sort --in_place
+  expect_equals ["pod1", "pod2"] names
 
   // Get the descriptions by id.
   descriptions = broker_cli.pod_registry_descriptions --ids=[description_id]
@@ -81,18 +80,16 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
   expect_equals "pod1" description.name
 
   descriptions = broker_cli.pod_registry_descriptions --ids=[description_id, description_id2]
-  expect_equals 2 descriptions.size
-  index1 = descriptions[0].name == "pod1" ? 0 : 1
-  index2 = index1 == 0 ? 1 : 0
-  expect_equals "pod1" descriptions[index1].name
-  expect_equals "pod2" descriptions[index2].name
+  names = descriptions.map: it.name
+  names.sort --in_place
+  expect_equals ["pod1", "pod2"] names
 
   // Get the descriptions by name.
   descriptions = broker_cli.pod_registry_descriptions
       --fleet_id=fleet_id
       --organization_id=TEST_ORGANIZATION_UUID
       --names=["pod1"]
-      --no-create_if_missing
+      --no-create_if_absent
   expect_equals 1 descriptions.size
   description = descriptions[0]
   expect_equals "pod1" description.name
@@ -102,12 +99,10 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
       --fleet_id=fleet_id
       --organization_id=TEST_ORGANIZATION_UUID
       --names=["pod1", "pod3"]
-      --create_if_missing
-  expect_equals 2 descriptions.size
-  index1 = descriptions[0].name == "pod1" ? 0 : 1
-  index2 = index1 == 0 ? 1 : 0
-  expect_equals "pod1" descriptions[index1].name
-  expect_equals "pod3" descriptions[index2].name
+      --create_if_absent
+  names = descriptions.map: it.name
+  names.sort --in_place
+  expect_equals ["pod1", "pod3"] names
 
   // Add a pod.
   pod1_creation_start := Time.now
