@@ -314,6 +314,26 @@ class Fleet:
 
     ui_.info "Successfully uploaded pod to organization $organization_id."
 
+  download --pod_id/uuid.Uuid -> Pod:
+    broker := artemis_.connected_broker
+    manifest_key := "$POD_MANIFEST_PATH/$organization_id/$pod_id"
+    encoded_manifest := cache_.get manifest_key: | store/FileStore |
+      bytes := broker.pod_registry_download_pod_manifest
+        --pod_id=pod_id
+        --organization_id=this.organization_id
+      store.save bytes
+    manifest := ubjson.decode encoded_manifest
+    return Pod.from_manifest
+        manifest
+        --tmp_directory=artemis_.tmp_directory
+        --download=: | part_id/string |
+          key := "$POD_PARTS_PATH/$organization_id/$part_id"
+          cache_.get key: | store/FileStore |
+            bytes := broker.pod_registry_download_pod_part
+                part_id
+                --organization_id=this.organization_id
+            store.save bytes
+
   list_pods --names/List -> Map:
     broker := artemis_.connected_broker
     descriptions := ?
@@ -528,3 +548,18 @@ class Fleet:
         return PodFleet --id=pod_id --name=description[0].name --revision=pod_entry[0].revision --tags=pod_entry[0].tags
 
     return PodFleet --id=pod_id --name=null --revision=null --tags=null
+
+  get_pod_id --name/string --tag/string? --revision/int? -> uuid.Uuid:
+    if not tag and not revision:
+      throw "Either tag or revision must be specified."
+    broker := artemis_.connected_broker
+    if revision: throw "UNIMPLEMENTED"
+    pod_ids := broker.pod_registry_pod_ids --fleet_id=this.id --names_tags=[
+      {
+        "name": name,
+        "tag": tag,
+      }
+    ]
+    if pod_ids.is_empty:
+      ui_.abort "No pod with name $name and tag $tag in the fleet."
+    return pod_ids[0]["pod_id"]

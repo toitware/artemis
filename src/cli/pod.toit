@@ -66,6 +66,18 @@ class Pod:
         --envelope=envelope
         --envelope_path=envelope_path
 
+  constructor.from_manifest manifest/Map [--download] --tmp_directory/string:
+    id = uuid.parse manifest[ID_NAME_]
+    name = manifest[NAME_NAME_]
+    parts := manifest["parts"]
+    byte_builder := bytes.Buffer
+    writer := ArWriter byte_builder
+    parts.do: | name/string part_id/string |
+      writer.add name (download.call part_id)
+    byte_builder.close
+    envelope = byte_builder.buffer
+    tmp_dir_ = tmp_directory
+
   static parse path/string --tmp_directory/string --ui/Ui -> Pod:
     read_file path --ui=ui: | reader/Reader |
       ar_reader := ArReader reader
