@@ -3,10 +3,12 @@
 import cli
 import uuid
 
+import .device
 import .utils_
 import ..artemis
 import ..cache
 import ..config
+import ..fleet
 import ..pod_specification as pod_specification
 import ..ui
 import ..utils
@@ -57,21 +59,12 @@ create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
 
   return cmd
 
-get_device_id parsed/cli.Parsed config/Config ui/Ui -> uuid.Uuid:
-  device_id := parsed["device-id"]
-  if not device_id:
-    device_id = default_device_from_config config
-  if not device_id:
-    ui.abort "No device ID specified and no default device ID set."
-  return device_id
-
 install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   container_name := parsed["name"]
   container_path := parsed["path"]
   arguments := parsed["arguments"]
   is_critical := parsed["critical"]
   parsed_triggers := parsed["trigger"]
-  device_id := get_device_id parsed config ui
 
   if is_critical and not parsed_triggers.is_empty:
     ui.abort "Critical containers cannot have triggers."
@@ -125,9 +118,9 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     // Non-critical containers get a boot and an install trigger by default.
     triggers = [pod_specification.BootTrigger, pod_specification.InstallTrigger]
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
+  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
     artemis.container_install
-        --device_id=device_id
+        --device_id=device.id
         --app_name=container_name
         --arguments=arguments
         --background=parsed["background"]
@@ -138,8 +131,7 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 uninstall_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   container_name := parsed["name"]
-  device_id := get_device_id parsed config ui
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
+  with_device parsed config cache ui: | device_id/uuid.Uuid artemis/Artemis _ |
     artemis.container_uninstall --device_id=device_id --app_name=container_name
     ui.info "Request sent to broker. Container will be uninstalled when device synchronizes."
