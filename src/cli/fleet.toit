@@ -290,7 +290,7 @@ class Fleet:
         --fleet_id=this.id
         --organization_id=this.organization_id
         --names=[pod.name]
-        --create_if_missing
+        --create_if_absent
 
     description_id := (description_ids[0] as PodRegistryDescription).id
 
@@ -316,7 +316,7 @@ class Fleet:
           --fleet_id=this.id
           --organization_id=this.organization_id
           --names=names
-          --no-create_if_missing
+          --no-create_if_absent
     result := {:}
     descriptions.do: | description/PodRegistryDescription |
       pods := broker.pod_registry_pods --pod_description_id=description.id
