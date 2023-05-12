@@ -1,6 +1,8 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import ar
 import cli
+import host.file
 
 import .utils_
 import ..artemis
@@ -99,10 +101,24 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     tag := "$(time.year)$(%02d time.month)$(%02d time.day)$(%02d time.h)$(%02d time.m)$(%02d time.s):$name"
     tags = [ tag ]
 
+  tags.add "latest"
+
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     pod_paths.do: | pod_path/string |
-      pod := Pod.parse pod_path --tmp_directory=artemis.tmp_directory --ui=ui
+      is_compiled_pod := false
+      catch --unwind=(: it != "Invalid Ar File"):
+        stream := file.Stream.for_read pod_path
+        try:
+          ar.ArReader stream
+          is_compiled_pod = true
+        finally:
+          stream.close
+      pod/Pod := ?
+      if is_compiled_pod:
+        pod = Pod.parse pod_path --tmp_directory=artemis.tmp_directory --ui=ui
+      else:
+        pod = Pod.from_specification --path=pod_path --artemis=artemis --ui=ui
       fleet.upload --pod=pod --tags=tags
 
 list parsed/cli.Parsed config/Config cache/Cache ui/Ui:

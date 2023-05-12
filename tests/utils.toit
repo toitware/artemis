@@ -16,6 +16,7 @@ import artemis.cli.server_config as cli_server_config
 import artemis.cli.cache as cli
 import artemis.cli.config as cli
 import artemis.cli.cache as artemis_cache
+import artemis.cli.utils show read_json write_json_to_file
 import artemis.shared.server_config
 import artemis.service
 import artemis.service.brokers.broker show ResourceManager BrokerService
@@ -771,7 +772,13 @@ with_fleet --args/List --count/int [block]:
         "$count",
       ]
 
-      devices := json.decode (file.read_content "$fleet_dir/devices.json")
+      devices := read_json "$fleet_dir/devices.json"
+      // Replace the names with something deterministic.
+      counter := 0
+      devices.do: | _ device |
+        device["name"] = "name-$(counter++)"
+      write_json_to_file "$fleet_dir/devices.json" devices --pretty
+
       ids := devices.keys
       expect_equals count ids.size
 
