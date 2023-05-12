@@ -9,6 +9,12 @@ main args:
   with_test_cli --args=args: | test_cli/TestCli |
     test_cli.run [
       "auth", "login",
+      "--email", TEST_EXAMPLE_COM_EMAIL,
+      "--password", TEST_EXAMPLE_COM_PASSWORD,
+    ]
+
+    test_cli.run [
+      "auth", "login",
       "--broker",
       "--email", TEST_EXAMPLE_COM_EMAIL,
       "--password", TEST_EXAMPLE_COM_PASSWORD,
@@ -21,9 +27,17 @@ main args:
     device.wait_until_connected
 
     test_cli.run [
+        "fleet", "init",
+        "--fleet-root", test_cli.tmp_dir,
+        "--organization-id", "$device.organization_id",
+    ]
+    test_cli.run ["fleet", "add-device", "--fleet-root", test_cli.tmp_dir, "$device.alias_id"]
+
+    test_cli.run [
+      "--fleet-root", test_cli.tmp_dir,
       "device",
       "set-max-offline",
-      "--device-id", "$device.alias_id",
+      "--device", "$device.alias_id",
       "1",
     ]
 
@@ -34,9 +48,10 @@ main args:
       device.wait_for "synchronized {max-offline: 1s}"
 
     test_cli.run [
+      "--fleet-root", test_cli.tmp_dir,
       "device",
       "set-max-offline",
-      "--device-id", "$device.alias_id",
+      "--device", "$device.alias_id",
       "3m",
     ]
 
