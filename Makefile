@@ -128,6 +128,9 @@ upload-service:
 	@ $(TOITRUN) tools/service_image_uploader/uploader.toit service --local --force \
 		--sdk-version=$(LOCAL_DEV_SDK) \
 		--service-version=$(SETUP_LOCAL_DEV_SERVICE)
+	@ $(TOITRUN) tools/service_image_uploader/uploader.toit service --local --force \
+		--sdk-version=$(LOCAL_DEV_SDK) \
+		--service-version=$$(cmake -DPRINT_VERSION=1 -P tools/gitversion.cmake)
 
 .PHONY: download-sdk
 download-sdk: install-pkgs

@@ -344,7 +344,7 @@ class HttpBroker extends HttpServer:
   pod_registry_descriptions_by_names data/Map:
     fleet_id := data["fleet_id"]
     names := data["names"]
-    create_if_missing := data["create_if_missing"]
+    create_if_absent := data["create_if_absent"]
     names_set := {}
     names_set.add_all names
 
@@ -358,7 +358,7 @@ class HttpBroker extends HttpServer:
           "description": description.description,
         }
 
-    if create_if_missing:
+    if create_if_absent:
       names_set.do: | name/string |
         id := pod_description_ids_++
         pod_description := PodDescription
