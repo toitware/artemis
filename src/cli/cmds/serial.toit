@@ -144,7 +144,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       specification := fleet.read_specification_for device_id
       chip := specification.chip or "esp32"
       pod := Pod.from_specification --specification=specification --artemis=artemis
-      fleet.upload --pod=pod
+      fleet.upload --pod=pod --tags=[]
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data

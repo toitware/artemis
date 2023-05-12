@@ -9,6 +9,7 @@ import ..cache
 import ..fleet
 import ..pod
 import ..pod_specification
+import ..pod_registry
 import ..ui
 
 create_pod_commands config/Config cache/Cache ui/Ui -> List:
@@ -23,10 +24,6 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
         The generated pod can later be used to flash or update devices.
         When flashing, it needs to be combined with an identity file first. See
         'fleet create-identities' for more information.
-
-        Unless '--upload' is set to false (--no-upload), automatically uploads
-        the pod's data to the broker in the fleet's organization, so that
-        it can be used for updates.
         """
       --options=[
         cli.Option "output"
@@ -34,9 +31,6 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
             --short_name="o"
             --short_help="File to write the pod to."
             --required,
-        cli.Flag "upload"
-            --short_help="Upload the pod's data to the cloud."
-            --default=true,
       ]
       --rest=[
         cli.Option "specification"
@@ -54,7 +48,12 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
         After this action the pod is available to the fleet.
         Uploaded pods can be used for diff-based over-the-air updates.
         """
-      --rest= [
+      --options=[
+        cli.Option "tag"
+            --short_help="A tag to attach to the pod."
+            --multi,
+      ]
+      --rest=[
         cli.Option "pod"
             --type="file"
             --short_help="The pod to upload."
@@ -63,26 +62,73 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: upload it config cache ui
   cmd.add upload_cmd
 
+  list_cmd := cli.Command "list"
+      --long_help="""
+        List all pods available on the broker.
+
+        If no names are given, all pods for this fleet are listed.
+        """
+      --options=[
+        cli.Option "name"
+            --short_help="List pods with this name."
+            --multi,
+      ]
+      --run=:: list it config cache ui
+  cmd.add list_cmd
+
   return [cmd]
 
 create_pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   specification_path := parsed["specification"]
   output := parsed["output"]
-  should_upload := parsed["upload"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     pod := Pod.from_specification --path=specification_path --ui=ui --artemis=artemis
     pod.write output --ui=ui
-    if should_upload:
-      fleet_root := parsed["fleet-root"]
-      fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-      fleet.upload --pod=pod
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   pod_path := parsed["pod"]
+  tags := parsed["tag"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     pod := Pod.parse pod_path --tmp_directory=artemis.tmp_directory --ui=ui
-    fleet.upload --pod=pod
+    fleet.upload --pod=pod --tags=tags
+
+list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
+  names := parsed["name"]
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    pods := fleet.list_pods --names=names
+    // TODO(florian):
+    // we want to have 'created_at' in the registry entry.
+    // we want to have a second way of listing: one where we only list the ones that
+    // have tags. One, where we list all of them.
+    // we probably also want to list only entries for a specific name.
+    ui.info_structured
+        --json=:
+          json_descriptions := {:}
+          json_pods := []
+          pods.do: | key/PodRegistryDescription pod_entries/List |
+            json_descriptions[key.id] = key.to_json
+            json_pods.add_all (pod_entries.map: | entry/PodRegistryEntry | entry.to_json)
+        --stdout=:
+          print_pods_ pods --ui=ui
+
+print_pods_ pods/Map --ui/Ui:
+  is_first := true
+  pods.do: | description/PodRegistryDescription pod_entries/List |
+    if is_first:
+      is_first = false
+    else:
+      ui.info ""
+    description_line := "$description.name"
+    if description.description:
+      description_line += " - $description.description"
+    ui.info description_line
+    rows := pod_entries.map: | entry/PodRegistryEntry |
+      ["$entry.id", "$entry.revision", entry.tags.join ", ", "$entry.created_at"]
+    ui.info_table --header=["ID", "Revision", "Tags", "Created At"] rows

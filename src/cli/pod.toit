@@ -1,7 +1,10 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar show *
+import bytes
+import crypto.sha256
 import encoding.json
+import encoding.base64
 import host.file
 import writer show Writer
 import reader show Reader
@@ -128,3 +131,29 @@ class Pod:
       ar_writer.add ID_NAME_ id.to_byte_array
       ar_writer.add NAME_NAME_ name.to_byte_array
       ar_writer.add CUSTOMIZED_ENVELOPE_NAME_ envelope
+
+  /**
+  Splits this pod into smaller parts.
+
+  The given $block is called with a "manifest" (a $Map), and
+    parts (as a $Map from name to $ByteArray).
+
+  Together, these can be used to reconstruct the pod.
+  */
+  split [block] -> none:
+    manifest := {:}
+    manifest[ID_NAME_] = "$id"
+    manifest[NAME_NAME_] = name
+    part_names := {:}
+    parts := {:}
+    reader := bytes.Reader envelope
+    ar_reader := ArReader reader
+    while file := ar_reader.next:
+      // TODO(florian): if we wanted to have an easy way to find
+      // snapshots, we should use the uuid of the snapshot (when it is one).
+      hash := sha256.sha256 file.content
+      part_name := base64.encode hash --url_mode
+      part_names[file.name] = part_name
+      parts[part_name] = file.content
+    manifest["parts"] = part_names
+    block.call manifest parts
