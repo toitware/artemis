@@ -13,7 +13,11 @@ class PodRegistryDescription:
     description = map.get "description"
 
   hash_code -> int:
-    return (id * 11) & 0xFFFFFFFF
+    return (id * 11) & 0x7FFF_FFFF
+
+  operator== other -> bool:
+    if other is not PodRegistryDescription: return false
+    return id == other.id and name == other.name and description == other.description
 
   to_json -> Map:
     return {
@@ -32,7 +36,7 @@ class PodRegistryEntry:
   constructor.from_map map/Map:
     id = uuid.parse map["id"]
     revision = map["revision"]
-    created_at =  Time.from_string map["created_at"]
+    created_at = Time.from_string map["created_at"]
     pod_description_id = map["pod_description_id"]
     tags = map["tags"]
 
