@@ -399,6 +399,8 @@ class HttpBroker extends HttpServer:
               "pod_description_id": description.id,
               "tags": description.pods[pod_id],
             }
+    result.sort --in_place: | a b |
+      -((Time.from_string a["created_at"]).compare_to (Time.from_string b["created_at"]))
     return result
 
   pod_registry_pod_ids_by_names_tags data/Map:
