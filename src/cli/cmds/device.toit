@@ -11,6 +11,7 @@ import ..cache
 import ..config
 import ..device
 import ..event
+import ..fleet
 import ..firmware
 import ..organization
 import ..pod_specification
@@ -23,9 +24,9 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
       --short_help="Manage devices."
       --options=[
-        OptionUuid "device-id"
+        cli.Option "device"
             --short_name="d"
-            --short_help="ID of the device.",
+            --short_help="ID, name or alias of the device.",
       ]
 
   update_cmd := cli.Command "update"
@@ -60,8 +61,8 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Clear the default device.",
       ]
       --rest=[
-        OptionUuid "id"
-            --short_help="ID of the device.",
+        cli.Option "device-rest"
+            --short_help="ID, name or alias of the device.",
       ]
       --run=:: default_device it config cache ui
   cmd.add default_cmd
@@ -105,38 +106,60 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd.add (create_container_command config cache ui)
   return [cmd]
 
+with_device parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
+  device_designation := parsed["device"]
+  fleet_root := parsed["fleet-root"]
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    device/DeviceFleet := ?
+    if not device_designation:
+      device_id := default_device_from_config config
+      if not device_id:
+        ui.abort "No device specified and no default device ID set."
+      device = fleet.device device_id
+    else:
+      device = fleet.resolve_alias device_designation
+
+    block.call device artemis fleet
+
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device_id := parsed["device-id"]
+  device := parsed["device"]
+  fleet_root := parsed["fleet-root"]
   specification_path := parsed["specification"]
 
-  if not device_id:
-    device_id = default_device_from_config config
-  if not device_id:
-    ui.abort "No device ID specified and no default device ID set."
-
-  specification := parse_pod_specification_file specification_path --ui=ui
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    artemis.update --device_id=device_id --specification=specification
+  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
+    specification := parse_pod_specification_file specification_path --ui=ui
+    artemis.update --device_id=device.id --specification=specification
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
+
   if parsed["clear"]:
     config.remove CONFIG_DEVICE_DEFAULT_KEY
     config.write
     ui.info "Default device cleared."
     return
 
-  // We allow to set the default with `-d` or by giving an ID as rest argument.
-  device_id := parsed["device-id"] or parsed["id"]
-  if not device_id:
-    device_id = default_device_from_config config
-    if not device_id:
-      ui.abort "No default device set."
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
 
-    ui.info "$device_id"
-    return
+    // We allow to set the default with `-d` or by giving it as rest argument.
+    device := parsed["device"] or parsed["device-rest"]
+    device_id := ?
+    if not device:
+      // TODO(florian): make sure the device exists in the fleet.
+      device_id = default_device_from_config config
+      if not device_id:
+        ui.abort "No default device set."
 
-  // TODO(florian): make sure the device exists.
-  make_default_ device_id config ui
+      ui.info "$device_id"
+      return
+    else:
+      device_id = fleet.resolve_alias device
+
+    // TODO(florian): make sure the device exists on the broker.
+    make_default_ device_id config ui
 
 make_default_ device_id/uuid.Uuid config/Config ui/Ui:
   config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"
@@ -144,58 +167,53 @@ make_default_ device_id/uuid.Uuid config/Config ui/Ui:
   ui.info "Default device set to $device_id."
 
 show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device_id := parsed["device-id"]
+  device_designation := parsed["device"]
   event_types := parsed["event-type"]
+  fleet_root := parsed["fleet-root"]
   show_event_values := parsed["show-event-values"]
   max_events := parsed["max-events"]
-
-  if not device_id:
-    device_id = default_device_from_config config
-  if not device_id:
-    ui.abort "No device ID specified and no default device ID set."
 
   if max_events < 0:
     ui.abort "max-events must be >= 0."
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
+  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis fleet/Fleet |
     broker := artemis.connected_broker
     artemis_server := artemis.connected_artemis_server
-    devices := broker.get_devices --device_ids=[device_id]
+    devices := broker.get_devices --device_ids=[device.id]
     if devices.is_empty:
-      ui.abort "Device $device_id does not exist."
-    device := devices[device_id]
-    organization := artemis_server.get_organization device.organization_id
+      ui.abort "Device $device_designation does not exist on the broker."
+    broker_device := devices[device.id]
+    organization := artemis_server.get_organization broker_device.organization_id
     events/List? := null
     if max_events != 0:
       events_map := broker.get_events
-                        --device_ids=[device_id]
+                        --device_ids=[device.id]
                         --types=event_types.is_empty ? null : event_types
                         --limit=max_events
 
-      events = events_map.get device_id
+      events = events_map.get device.id
     ui.info_structured
-        --json=: device_to_json_ device organization events
+        --json=: device_to_json_ broker_device organization events
         --stdout=:
           print_device_
               --show_event_values=show_event_values
-              device
+              broker_device
               organization
               events
               it
 
 set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max_offline := parsed["max-offline"]
-  device_id := get_device_id parsed config ui
 
-  max_offline_seconds := int.parse max_offline --on_error=:
-    // Assume it's a duration with units, like "5s".
-    duration := parse_duration max_offline --on_error=:
-      ui.abort "Invalid max-offline duration: $max_offline."
-    duration.in_s
+  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
+    max_offline_seconds := int.parse max_offline --on_error=:
+      // Assume it's a duration with units, like "5s".
+      duration := parse_duration max_offline --on_error=:
+        ui.abort "Invalid max-offline duration: $max_offline."
+      duration.in_s
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    artemis.config_set_max_offline --device_id=device_id
-        --max_offline_seconds=max_offline_seconds
+    artemis.config_set_max_offline --device_id=device.id
+          --max_offline_seconds=max_offline_seconds
     ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
 
 device_to_json_

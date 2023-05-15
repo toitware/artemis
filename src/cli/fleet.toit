@@ -493,10 +493,17 @@ class Fleet:
     ui_.info_table rows
         --header=["Device ID", "Name", "Pod", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
 
-  resolve_alias_ alias/string -> DeviceFleet:
+  resolve_alias alias/string -> DeviceFleet:
     if not aliases_.contains alias:
       ui_.abort "No device with name, device-id, or alias $alias in the fleet."
     device_index := aliases_[alias]
     if device_index == AMBIGUOUS_:
       ui_.abort "The name, device-id, or alias $alias is ambiguous."
     return devices_[device_index]
+
+  device device_id/uuid.Uuid ->  DeviceFleet:
+    devices_.do: | device/DeviceFleet |
+      if device.id == device_id:
+        return device
+    ui_.abort "No device with id $device_id in the fleet."
+    unreachable
