@@ -124,7 +124,14 @@ class Firmware:
     return device_specific "sdk-version"
 
   pod_id -> uuid.Uuid:
-    return uuid.Uuid (device_specific "pod-id")
+    // TODO(kasper): Device configurations prior to Artemis v0.6
+    // do not (generally) contain pod ids. To ease migration, we
+    // let them have a nil id to indicate that we don't know which
+    // pod they are running. It feels safe to remove this workaround
+    // in a couple of weeks (early June, 2023).
+    device_pod_id := device_specific "pod-id"
+    if not device_pod_id: return uuid.NIL
+    return uuid.Uuid device_pod_id
 
 class FirmwareContent:
   bits/ByteArray?
