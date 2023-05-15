@@ -314,6 +314,14 @@ class Fleet:
 
     ui_.info "Successfully uploaded pod to organization $organization_id."
 
+  download designation/PodDesignation -> Pod:
+    if designation.name and not (designation.tag or designation.revision):
+      designation = designation.with --tag="latest"
+    pod_id := designation.id
+    if not pod_id:
+      pod_id = get_pod_id designation
+    return download --pod_id=pod_id
+
   download --pod_id/uuid.Uuid -> Pod:
     broker := artemis_.connected_broker
     manifest_key := "$POD_MANIFEST_PATH/$organization_id/$pod_id"
