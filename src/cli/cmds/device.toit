@@ -223,14 +223,14 @@ device_to_json_
     events/List?:
   result := {
     "id": "$broker_device.id",
+    "name": fleet_device.name,
+    "aliases": fleet_device.aliases,
     "organization_id": "$broker_device.organization_id",
     "organization_name": organization.name,
     "goal": broker_device.goal,
     "reported_state_goal": broker_device.reported_state_goal,
     "reported_state_current": broker_device.reported_state_current,
     "reported_state_firmware": broker_device.reported_state_firmware,
-    "name": fleet_device.name,
-    "aliases": fleet_device.aliases,
   }
   if events:
     result["events"] = events.map: | event/Event | event.to_json
