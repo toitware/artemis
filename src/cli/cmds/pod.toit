@@ -81,12 +81,10 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
             --short_name="o"
             --short_help="File to write the pod to."
             --required,
-        cli.Option "tag" --short_help="The tag to download.",
-        cli.OptionInt "revision" --short_help="The revision to download.",
       ]
       --rest=[
-        cli.Option "name-or-id"
-            --short_help="The name or ID of the pod to download."
+        cli.Option "designation"
+            --short_help="The pod to download; a UUID, name@tag, or name#revision."
             --required,
       ]
       --run=:: download it config cache ui
@@ -149,41 +147,24 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  name_or_id := parsed["name-or-id"]
+  designation_str := parsed["designation"]
   output := parsed["output"]
-  tag := parsed["tag"]
-  revision := parsed["revision"]
 
-  id/uuid.Uuid? := null
-  // If the name_or_id resembles a UUID, we assume it's an ID.
-  if name_or_id.size == 36 and
-      name_or_id[8] == "-" and
-      name_or_id[13] == "-" and
-      name_or_id[18] == "-" and
-      name_or_id[23] == "-":
-    catch: id = uuid.parse name_or_id
-    if id and (tag or revision):
-      ui.abort "Cannot specify tag or revision when downloading by ID."
+  designation := PodDesignation.parse designation_str --allow_name_only --ui=ui
+  if designation.name and not (designation.tag or designation.revision):
+    designation = designation.with --tag="latest"
 
-  hash_index := name_or_id.index_of "#"
-  if hash_index >= 0:
-    if revision:
-      ui.abort "Cannot specify the revision as option and in the name."
-    revision_string := name_or_id[hash_index + 1..]
-    revision = int.parse revision_string --on_error=(: ui.abort "Invalid revision: $revision_string")
-    name_or_id = name_or_id[..hash_index]
-
-  if tag and revision:
-    ui.abort "Cannot specify both tag and revision."
+  if designation.revision:
+    ui.abort "Revision download is not implemented yet."
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    id := designation.id
     if not id:
-      if not tag and not revision: tag = "latest"
-      id = fleet.get_pod_id --name=name_or_id --tag=tag --revision=revision
+      id = fleet.get_pod_id designation
     pod := fleet.download --pod_id=id
     pod.write output --ui=ui
-    ui.info "Downloaded pod '$name_or_id' to '$output'."
+    ui.info "Downloaded pod '$designation_str' to '$output'."
 
 list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
