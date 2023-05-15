@@ -61,7 +61,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Clear the default device.",
       ]
       --rest=[
-        OptionUuid "device"
+        cli.Option "device-rest"
             --short_help="ID, name or alias of the device.",
       ]
       --run=:: default_device it config cache ui
@@ -144,10 +144,11 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
 
-    // We allow to set the default with `-d` or by giving an ID as rest argument.
-    device := parsed["device"] or parsed["id"]
+    // We allow to set the default with `-d` or by giving it as rest argument.
+    device := parsed["device"] or parsed["device-rest"]
     device_id := ?
     if not device:
+      // TODO(florian): make sure the device exists in the fleet.
       device_id = default_device_from_config config
       if not device_id:
         ui.abort "No default device set."
@@ -157,7 +158,7 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     else:
       device_id = fleet.resolve_alias device
 
-    // TODO(florian): make sure the device exists.
+    // TODO(florian): make sure the device exists on the broker.
     make_default_ device_id config ui
 
 make_default_ device_id/uuid.Uuid config/Config ui/Ui:
