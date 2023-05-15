@@ -73,16 +73,6 @@ class PodDesignation:
     if revision: throw "Cannot specify tag for designation with revision."
     return PodDesignation --name=name --tag=tag
 
-  /**
-  Returns the latest designation that fits this instance.
-
-  Only has an effect if the instance has a name and no revision or tag.
-  */
-  latest -> PodDesignation:
-    if name and not (revision or tag):
-      return with --tag="latest"
-    return this
-
   stringify -> string:
     if id: return id.to_string
     if revision: return "$name#$revision"

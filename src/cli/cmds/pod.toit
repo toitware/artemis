@@ -151,8 +151,8 @@ download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output := parsed["output"]
 
   designation := PodDesignation.parse designation_str --allow_name_only --ui=ui
-  // If no ID, tag or revision is specified, download the latest revision.
-  designation = designation.latest
+  if designation.name and not (designation.tag or designation.revision):
+    designation = designation.with --tag="latest"
 
   if designation.revision:
     ui.abort "Revision download is not implemented yet."
