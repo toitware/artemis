@@ -3,6 +3,7 @@
 import ar
 import cli
 import host.file
+import uuid
 
 import .utils_
 import ..artemis
@@ -66,6 +67,31 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: upload it config cache ui
   cmd.add upload_cmd
 
+  download_cmd := cli.Command "download"
+      --long_help="""
+        Download a pod from the broker.
+
+        A revision can also be specified by appending '#<revision>' to the name.
+
+        If no revision or tag is specified, the pod with the 'latest' tag is downloaded.
+        """
+      --options=[
+        cli.Option "output"
+            --type="file"
+            --short_name="o"
+            --short_help="File to write the pod to."
+            --required,
+        cli.Option "tag" --short_help="The tag to download.",
+        cli.OptionInt "revision" --short_help="The revision to download.",
+      ]
+      --rest=[
+        cli.Option "name-or-id"
+            --short_help="The name or ID of the pod to download."
+            --required,
+      ]
+      --run=:: download it config cache ui
+  cmd.add download_cmd
+
   list_cmd := cli.Command "list"
       --long_help="""
         List all pods available on the broker.
@@ -120,6 +146,44 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       else:
         pod = Pod.from_specification --path=pod_path --artemis=artemis --ui=ui
       fleet.upload --pod=pod --tags=tags
+
+download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
+  name_or_id := parsed["name-or-id"]
+  output := parsed["output"]
+  tag := parsed["tag"]
+  revision := parsed["revision"]
+
+  id/uuid.Uuid? := null
+  // If the name_or_id resembles a UUID, we assume it's an ID.
+  if name_or_id.size == 36 and
+      name_or_id[8] == "-" and
+      name_or_id[13] == "-" and
+      name_or_id[18] == "-" and
+      name_or_id[23] == "-":
+    catch: id = uuid.parse name_or_id
+    if id and (tag or revision):
+      ui.abort "Cannot specify tag or revision when downloading by ID."
+
+  hash_index := name_or_id.index_of "#"
+  if hash_index >= 0:
+    if revision:
+      ui.abort "Cannot specify the revision as option and in the name."
+    revision_string := name_or_id[hash_index + 1..]
+    revision = int.parse revision_string --on_error=(: ui.abort "Invalid revision: $revision_string")
+    name_or_id = name_or_id[..hash_index]
+
+  if tag and revision:
+    ui.abort "Cannot specify both tag and revision."
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    if not id:
+      if not tag and not revision: tag = "latest"
+      id = fleet.get_pod_id --name=name_or_id --tag=tag --revision=revision
+    pod := fleet.download --pod_id=id
+    pod.write output --ui=ui
+    ui.info "Downloaded pod '$name_or_id' to '$output'."
 
 list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
