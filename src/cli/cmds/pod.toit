@@ -151,18 +151,12 @@ download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output := parsed["output"]
 
   designation := PodDesignation.parse designation_str --allow_name_only --ui=ui
-  if designation.name and not (designation.tag or designation.revision):
-    designation = designation.with --tag="latest"
-
   if designation.revision:
     ui.abort "Revision download is not implemented yet."
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    id := designation.id
-    if not id:
-      id = fleet.get_pod_id designation
-    pod := fleet.download --pod_id=id
+    pod := fleet.download designation
     pod.write output --ui=ui
     ui.info "Downloaded pod '$designation_str' to '$output'."
 
