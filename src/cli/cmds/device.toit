@@ -197,6 +197,7 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --stdout=:
           print_device_
               --show_event_values=show_event_values
+              fleet
               fleet_device
               broker_device
               organization
@@ -251,6 +252,7 @@ filter_sensitive_ o/any -> any:
 
 print_device_
     --show_event_values/bool
+    fleet/Fleet
     fleet_device/DeviceFleet
     broker_device/DeviceDetailed
     organization/OrganizationDetailed
@@ -265,17 +267,20 @@ print_device_
   if broker_device.reported_state_firmware:
     ui.print ""
     ui.print "Firmware state as reported by the device:"
-    prettified := broker_device.reported_state_firmware.map: | key value |
-      if key == "firmware": prettify_firmware value
-      else: value
-    print_map_ prettified ui --indentation=2
-        --preferred_keys=["sdk-version", "max-offline", "firmware", "connections", "apps"]
-
+    state := broker_device.reported_state_firmware
+    if state["firmware"]:
+      state = state.copy
+      pod_description/string? := null
+      pod_description = firmware_to_pod_description_ --fleet=fleet state["firmware"]
+      state["pod"] = pod_description
+      state.remove "firmware"
+    print_map_ state ui --indentation=2
+        --preferred_keys=["sdk-version", "max-offline", "pod", "connections", "apps"]
 
   if broker_device.pending_firmware:
     ui.print ""
-    ui.print "Firmware installed but not running (pending a reboot):"
-    ui.print "   $(prettify_firmware broker_device.pending_firmware)"
+    ui.print "Pod installed but not running (pending a reboot):"
+    ui.print "   $(firmware_to_pod_description_ --fleet=fleet broker_device.pending_firmware)"
 
   if broker_device.reported_state_current:
     modification := Modification.compute
@@ -284,7 +289,7 @@ print_device_
     if modification:
       ui.print ""
       ui.print "Current state modifications as reported by the device:"
-      print_modification_ modification --to=broker_device.reported_state_current ui
+      print_modification_ modification --to=broker_device.reported_state_current ui --fleet=fleet
 
   if broker_device.reported_state_goal:
     diff_to := broker_device.reported_state_current or broker_device.reported_state_firmware
@@ -293,7 +298,7 @@ print_device_
         --to=broker_device.reported_state_goal
     ui.print ""
     ui.print "Goal state modifications compared to the current state as reported by the device:"
-    print_modification_ modification --to=broker_device.reported_state_goal ui
+    print_modification_ modification --to=broker_device.reported_state_goal ui --fleet=fleet
 
   if broker_device.goal:
     if not broker_device.reported_state_firmware:
@@ -327,7 +332,7 @@ print_device_
       else:
         ui.print ""
         ui.print "Goal modifications compared to the $diff_to_string:"
-        print_modification_ modification --to=broker_device.goal ui
+        print_modification_ modification --to=broker_device.goal ui --fleet=fleet
 
   if events:
     ui.print ""
@@ -398,11 +403,11 @@ print_list_ list/List ui/Ui --indentation/int=0:
     else:
       ui.print "$indentation_str* $value"
 
-print_modification_ modification/Modification --to/Map ui/Ui:
+print_modification_ modification/Modification --to/Map --fleet/Fleet ui/Ui:
   modification.on_value "firmware"
-      --added=: ui.print   "  +firmware: $(prettify_firmware it)"
-      --removed=: ui.print "  -firmware"
-      --updated=: | _ to | ui.print "  firmware -> $(prettify_firmware to)"
+      --added=: ui.print   "  +pod: $(firmware_to_pod_description_ it --fleet=fleet)"
+      --removed=: ui.print "  -pod"
+      --updated=: | _ to | ui.print "  pod -> $(firmware_to_pod_description_ to --fleet=fleet)"
 
   modification.on_value "max-offline"
       --added=: ui.print   "  +max-offline: $it"
@@ -462,3 +467,10 @@ print_app_update_ name/string from/Map to/Map ui/Ui:
 prettify_firmware firmware/string -> string:
   if firmware.size <= 80: return firmware
   return firmware[0..40] + "..." + firmware[firmware.size - 40..]
+
+firmware_to_pod_description_ --fleet/Fleet encoded_firmware/string -> string:
+  firmware := Firmware.encoded encoded_firmware
+  pod_id := firmware.pod_id
+  fleet_pod := fleet.pod pod_id
+  if not fleet_pod.name: return "$pod_id"
+  return "$pod_id - $fleet_pod.name#$fleet_pod.revision $(fleet_pod.tags.join ",")"

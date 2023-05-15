@@ -35,6 +35,14 @@ class DeviceFleet:
     if name: return "$id ($name)"
     return "$id"
 
+class PodFleet:
+  id/uuid.Uuid
+  name/string?
+  revision/int?
+  tags/List?
+
+  constructor --.id --.name --.revision --.tags:
+
 class Status_:
   static CHECKIN_VERIFICATION_COUNT ::= 5
   static UNKNOWN_MISSED_CHECKINS ::= -1
@@ -507,3 +515,16 @@ class Fleet:
         return device
     ui_.abort "No device with id $device_id in the fleet."
     unreachable
+
+  pod pod_id/uuid.Uuid -> PodFleet:
+    broker := artemis_.connected_broker
+    pod_entry := broker.pod_registry_pods
+        --fleet_id=this.id
+        --pod_ids=[pod_id]
+    if not pod_entry.is_empty:
+      description_id := pod_entry[0].pod_description_id
+      description := broker.pod_registry_descriptions --ids=[description_id]
+      if not description.is_empty:
+        return PodFleet --id=pod_id --name=description[0].name --revision=pod_entry[0].revision --tags=pod_entry[0].tags
+
+    return PodFleet --id=pod_id --name=null --revision=null --tags=null
