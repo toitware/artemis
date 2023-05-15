@@ -18,18 +18,24 @@ import .utils
 import .utils.names
 import ..shared.json_diff
 
+DEFAULT_GROUP ::= "default"
 class DeviceFleet:
   id/uuid.Uuid
-
   name/string?
+  group/string
   aliases/List?
 
-  constructor --.id --.name=(random_name --uuid=id) --.aliases=null:
+  constructor
+      --.id
+      --.group=DEFAULT_GROUP
+      --.name=(random_name --uuid=id)
+      --.aliases=null:
 
   constructor.from_json encoded_id/string encoded/Map:
     id = uuid.parse encoded_id
     name = encoded.get "name"
     aliases = encoded.get "aliases"
+    group = (encoded.get "group") or DEFAULT_GROUP
 
   short_string -> string:
     if name: return "$id ($name)"
@@ -61,7 +67,6 @@ class Status_:
 class Fleet:
   static DEVICES_FILE_ ::= "devices.json"
   static FLEET_FILE_ ::= "fleet.json"
-  static DEFAULT_SPECIFICATION_ ::= "specification.json"
   /** Signal that an alias is ambiguous. */
   static AMBIGUOUS_ ::= -1
 
@@ -72,7 +77,8 @@ class Fleet:
   fleet_root_/string
   devices_/List
   organization_id/uuid.Uuid
-  default_specification_/string
+  /** A map from group-name to $PodDesignation. */
+  group_pods_/Map
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
@@ -87,7 +93,6 @@ class Fleet:
     if fleet_content is not Map:
       ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format."
     organization_id = uuid.parse fleet_content["organization"]
-    default_specification_ = fleet_content["default-specification"]
     if not fleet_content.contains "id":
       ui.error "Fleet file $fleet_root_/$FLEET_FILE_ does not contain an ID."
       ui.error "Please add an entry with a random UUID to it."
@@ -97,6 +102,19 @@ class Fleet:
     id = uuid.parse fleet_content["id"]
     devices_ = load_devices_ fleet_root_ --ui=ui
     aliases_ = build_alias_map_ devices_ ui
+    group_entry := fleet_content.get "groups"
+    if not group_entry:
+      ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ does not contain a 'groups' entry."
+    if group_entry is not Map:
+      ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format for 'groups'."
+    group_pods_ = (group_entry as Map).map: | group_name/string entry |
+      if entry is not Map:
+        ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format for group '$group_name'."
+      if not entry.contains "pod":
+        ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ does not contain a 'pod' entry for group '$group_name'."
+      if entry["pod"] is not string:
+        ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format for 'pod' in group '$group_name'."
+      PodDesignation.parse entry["pod"] --ui=ui
 
     // TODO(florian): should we always do this check?
     org := artemis_.connected_artemis_server.get_organization organization_id
@@ -120,11 +138,15 @@ class Fleet:
     write_json_to_file --pretty "$fleet_root/$FLEET_FILE_" {
       "id": "$random_uuid",
       "organization": "$organization_id",
-      "default-specification": DEFAULT_SPECIFICATION_,
+      "groups": {
+        DEFAULT_GROUP: {
+          "pod": "$INITIAL_POD_NAME@latest",
+        },
+      }
     }
     write_json_to_file --pretty "$fleet_root/$DEVICES_FILE_" {:}
 
-    default_specification_path := "$fleet_root/$DEFAULT_SPECIFICATION_"
+    default_specification_path := "$fleet_root/$(INITIAL_POD_NAME).json"
     if not file.is_file default_specification_path:
       write_json_to_file --pretty default_specification_path INITIAL_POD_SPECIFICATION
 
@@ -239,7 +261,6 @@ class Fleet:
     broker := artemis_.connected_broker
     detailed_devices := {:}
     fleet_devices := devices_
-    specification_path := "$fleet_root_/$DEFAULT_SPECIFICATION_"
 
     existing_devices := broker.get_devices --device_ids=(fleet_devices.map: it.id)
     fleet_devices.do: | fleet_device/DeviceFleet |
@@ -257,15 +278,17 @@ class Fleet:
       trivial_patches.do: | _ patch/FirmwarePatch |
         artemis_.upload_patch patch --organization_id=organization_id
 
-    pod := Pod.from_specification
-        --path=specification_path
-        --artemis=artemis_
-        --ui=ui_
+    pods := {:}  // From group-name to Pod.
+    fleet_devices.do: | fleet_device/DeviceFleet |
+      group_name := fleet_device.group
+      if pods.contains group_name: continue.do
+      designation := pod_designation_for_group group_name
+      pods[group_name] = download designation
 
     fleet_devices.do: | fleet_device/DeviceFleet |
       artemis_.update
           --device_id=fleet_device.id
-          --pod=pod
+          --pod=pods[fleet_device.group]
           --base_firmwares=base_firmwares
 
       ui_.info "Successfully updated device $fleet_device.short_string."
@@ -359,11 +382,10 @@ class Fleet:
       result[description] = pods
     return result
 
-  default_specification_path -> string:
-    return "$fleet_root_/$default_specification_"
-
-  read_specification_for device_id/uuid.Uuid -> PodSpecification:
-    return parse_pod_specification_file default_specification_path --ui=ui_
+  pod_designation_for_group name/string -> PodDesignation:
+    if name == "": name = "default"
+    return group_pods_.get name
+        --if_absent=: ui_.abort "Unknown group $name"
 
   add_device --device_id/uuid.Uuid --name/string? --aliases/List?:
     if aliases and aliases.is_empty: aliases = null

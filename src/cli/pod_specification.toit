@@ -17,9 +17,10 @@ import .ui
 
 import ..shared.version show SDK_VERSION ARTEMIS_VERSION
 
+INITIAL_POD_NAME ::= "my-pod"
 INITIAL_POD_SPECIFICATION ::= {
   "version": 1,
-  "name": "my-pod",
+  "name": "$INITIAL_POD_NAME",
   "sdk-version": SDK_VERSION,
   "artemis-version": ARTEMIS_VERSION,
   "max-offline": "0s",

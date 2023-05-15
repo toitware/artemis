@@ -42,9 +42,9 @@ run_test test_cli/TestCli:
 
     expect (file.is_file "$fleet_tmp_dir/fleet.json")
     expect (file.is_file "$fleet_tmp_dir/devices.json")
-    expect (file.is_file "$fleet_tmp_dir/specification.json")
+    expect (file.is_file "$fleet_tmp_dir/my-pod.json")
 
-    // We are not allowed to
+    // We are not allowed to initialize a folder twice.
     already_initialized_message := test_cli.run --expect_exit_1 [
       "fleet",
       "--fleet-root", fleet_tmp_dir,
