@@ -176,27 +176,28 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if max_events < 0:
     ui.abort "max-events must be >= 0."
 
-  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis fleet/Fleet |
+  with_device parsed config cache ui: | fleet_device/DeviceFleet artemis/Artemis fleet/Fleet |
     broker := artemis.connected_broker
     artemis_server := artemis.connected_artemis_server
-    devices := broker.get_devices --device_ids=[device.id]
+    devices := broker.get_devices --device_ids=[fleet_device.id]
     if devices.is_empty:
       ui.abort "Device $device_designation does not exist on the broker."
-    broker_device := devices[device.id]
+    broker_device := devices[fleet_device.id]
     organization := artemis_server.get_organization broker_device.organization_id
     events/List? := null
     if max_events != 0:
       events_map := broker.get_events
-                        --device_ids=[device.id]
+                        --device_ids=[fleet_device.id]
                         --types=event_types.is_empty ? null : event_types
                         --limit=max_events
 
-      events = events_map.get device.id
+      events = events_map.get fleet_device.id
     ui.info_structured
-        --json=: device_to_json_ broker_device organization events
+        --json=: device_to_json_ fleet_device broker_device organization events
         --stdout=:
           print_device_
               --show_event_values=show_event_values
+              fleet_device
               broker_device
               organization
               events
@@ -217,17 +218,20 @@ set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
 
 device_to_json_
-    device/DeviceDetailed
+    fleet_device/DeviceFleet
+    broker_device/DeviceDetailed
     organization/OrganizationDetailed
     events/List?:
   result := {
-    "id": "$device.id",
-    "organization_id": "$device.organization_id",
+    "id": "$broker_device.id",
+    "name": fleet_device.name,
+    "aliases": fleet_device.aliases,
+    "organization_id": "$broker_device.organization_id",
     "organization_name": organization.name,
-    "goal": device.goal,
-    "reported_state_goal": device.reported_state_goal,
-    "reported_state_current": device.reported_state_current,
-    "reported_state_firmware": device.reported_state_firmware,
+    "goal": broker_device.goal,
+    "reported_state_goal": broker_device.reported_state_goal,
+    "reported_state_current": broker_device.reported_state_current,
+    "reported_state_firmware": broker_device.reported_state_firmware,
   }
   if events:
     result["events"] = events.map: | event/Event | event.to_json
@@ -247,52 +251,56 @@ filter_sensitive_ o/any -> any:
 
 print_device_
     --show_event_values/bool
-    device/DeviceDetailed
+    fleet_device/DeviceFleet
+    broker_device/DeviceDetailed
     organization/OrganizationDetailed
     events/List?
     ui/Ui:
-  ui.print "Device ID: $device.id"
-  ui.print "Organization ID: $device.organization_id ($organization.name)"
+  ui.print "Device ID: $broker_device.id"
+  ui.print "Organization ID: $broker_device.organization_id ($organization.name)"
+  ui.print "Device name: $(fleet_device.name or "")"
+  aliases := fleet_device.aliases or []
+  ui.print "Device aliases: $(aliases.join ", ")"
 
-  if device.reported_state_firmware:
+  if broker_device.reported_state_firmware:
     ui.print ""
     ui.print "Firmware state as reported by the device:"
-    prettified := device.reported_state_firmware.map: | key value |
+    prettified := broker_device.reported_state_firmware.map: | key value |
       if key == "firmware": prettify_firmware value
       else: value
     print_map_ prettified ui --indentation=2
         --preferred_keys=["sdk-version", "max-offline", "firmware", "connections", "apps"]
 
 
-  if device.pending_firmware:
+  if broker_device.pending_firmware:
     ui.print ""
     ui.print "Firmware installed but not running (pending a reboot):"
-    ui.print "   $(prettify_firmware device.pending_firmware)"
+    ui.print "   $(prettify_firmware broker_device.pending_firmware)"
 
-  if device.reported_state_current:
+  if broker_device.reported_state_current:
     modification := Modification.compute
-        --from=device.reported_state_firmware
-        --to=device.reported_state_current
+        --from=broker_device.reported_state_firmware
+        --to=broker_device.reported_state_current
     if modification:
       ui.print ""
       ui.print "Current state modifications as reported by the device:"
-      print_modification_ modification --to=device.reported_state_current ui
+      print_modification_ modification --to=broker_device.reported_state_current ui
 
-  if device.reported_state_goal:
-    diff_to := device.reported_state_current or device.reported_state_firmware
+  if broker_device.reported_state_goal:
+    diff_to := broker_device.reported_state_current or broker_device.reported_state_firmware
     modification := Modification.compute
         --from=diff_to
-        --to=device.reported_state_goal
+        --to=broker_device.reported_state_goal
     ui.print ""
     ui.print "Goal state modifications compared to the current state as reported by the device:"
-    print_modification_ modification --to=device.reported_state_goal ui
+    print_modification_ modification --to=broker_device.reported_state_goal ui
 
-  if device.goal:
-    if not device.reported_state_firmware:
+  if broker_device.goal:
+    if not broker_device.reported_state_firmware:
       // Hasn't checked in yet.
       ui.print ""
       ui.print "Goal state:"
-      prettified := device.goal.map: | key value |
+      prettified := broker_device.goal.map: | key value |
         if key == "firmware": prettify_firmware value
         else: value
       print_map_ prettified ui --indentation=2
@@ -300,26 +308,26 @@ print_device_
       diff_to/Map := ?
       diff_to_string/string := ?
 
-      if device.reported_state_goal:
-        diff_to = device.reported_state_goal
+      if broker_device.reported_state_goal:
+        diff_to = broker_device.reported_state_goal
         diff_to_string = "reported goal state"
-      else if device.reported_state_current:
-        diff_to = device.reported_state_current
+      else if broker_device.reported_state_current:
+        diff_to = broker_device.reported_state_current
         diff_to_string = "reported current state"
       else:
-        diff_to = device.reported_state_firmware
+        diff_to = broker_device.reported_state_firmware
         diff_to_string = "reported firmware state"
 
       modification := Modification.compute
           --from=diff_to
-          --to=device.goal
+          --to=broker_device.goal
       if modification == null:
         ui.print ""
         ui.print "Goal is the same as the $diff_to_string."
       else:
         ui.print ""
         ui.print "Goal modifications compared to the $diff_to_string:"
-        print_modification_ modification --to=device.goal ui
+        print_modification_ modification --to=broker_device.goal ui
 
   if events:
     ui.print ""
