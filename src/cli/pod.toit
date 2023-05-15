@@ -62,10 +62,11 @@ class Pod:
         --specification=specification
     envelope := file.read_content envelope_path
     id := random_uuid
+    chip := specification.chip or "esp32"
     return Pod
         --id=id
         --name=specification.name
-        --chip=specification.chip
+        --chip=chip
         --tmp_directory=artemis.tmp_directory
         --envelope=envelope
         --envelope_path=envelope_path

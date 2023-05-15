@@ -141,10 +141,9 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       device_id := uuid.parse identity["artemis.device"]["device_id"]
       ui.info "Successfully provisioned device $device_id."
 
-      specification := fleet.read_specification_for device_id
-      chip := specification.chip or "esp32"
-      pod := Pod.from_specification --specification=specification --artemis=artemis
-      fleet.upload --pod=pod --tags=[]
+      // TODO(florian): Make this configurable.
+      pod_designation := fleet.pod_designation_for_group DEFAULT_GROUP
+      pod := fleet.download pod_designation
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
@@ -163,7 +162,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --port=port
             --baud_rate=baud
             --partitions=partitions
-            --chip=chip
+            --chip=pod.chip
         if should_make_default: make_default_ device_id config ui
       else:
         ui.info "Simulating flash."
