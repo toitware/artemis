@@ -549,6 +549,13 @@ class Fleet:
 
     return PodFleet --id=pod_id --name=null --revision=null --tags=null
 
+  get_pod_id designation/PodDesignation -> uuid.Uuid:
+    if designation.id:
+      return designation.id
+    if not designation.name:
+      throw "Either id or name must be specified."
+    return get_pod_id --name=designation.name --tag=designation.tag --revision=designation.revision
+
   get_pod_id --name/string --tag/string? --revision/int? -> uuid.Uuid:
     if not tag and not revision:
       throw "Either tag or revision must be specified."
