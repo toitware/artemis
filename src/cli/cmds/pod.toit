@@ -69,11 +69,11 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
 
   download_cmd := cli.Command "download"
       --long_help="""
-        Downloads a pod from the broker.
+        Download a pod from the broker.
 
         A revision can also be specified by appending '#<revision>' to the name.
 
-        If no revision or tag is specified downloades the pod with the 'latest' tag.
+        If no revision or tag is specified, the pod with the 'latest' tag is downloaded.
         """
       --options=[
         cli.Option "output"
