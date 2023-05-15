@@ -142,7 +142,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.info "Successfully provisioned device $device_id."
 
       // TODO(florian): Make this configurable.
-      pod_designation := fleet.pod_designation_for_group "default"
+      pod_designation := fleet.pod_designation_for_group DEFAULT_GROUP
       pod := fleet.download pod_designation
 
       // Make unique for the given device.

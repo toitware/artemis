@@ -19,6 +19,7 @@ import .utils.names
 import ..shared.json_diff
 
 DEFAULT_GROUP ::= "default"
+
 class DeviceFleet:
   id/uuid.Uuid
   name/string?
@@ -383,7 +384,7 @@ class Fleet:
     return result
 
   pod_designation_for_group name/string -> PodDesignation:
-    if name == "": name = "default"
+    if name == "": name = DEFAULT_GROUP
     return group_pods_.get name
         --if_absent=: ui_.abort "Unknown group $name"
 
