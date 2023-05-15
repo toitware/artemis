@@ -28,12 +28,14 @@ class Pod:
   static ID_NAME_ ::= "id"
   static NAME_NAME_ ::= "name"
   static CUSTOMIZED_ENVELOPE_NAME_ := "customized.env"
+  static CHIP_NAME_ ::= "chip"
 
   static MAGIC_CONTENT_ ::= "frickin' sharks"
 
   envelope/ByteArray
   id/uuid.Uuid
   name/string
+  chip/string
 
   envelope_path_/string? := null
   sdk_version_/string? := null
@@ -43,6 +45,7 @@ class Pod:
   constructor
       --.id
       --.name
+      --.chip
       --tmp_directory/string
       --.envelope
       --envelope_path/string?=null:
@@ -62,6 +65,7 @@ class Pod:
     return Pod
         --id=id
         --name=specification.name
+        --chip=specification.chip
         --tmp_directory=artemis.tmp_directory
         --envelope=envelope
         --envelope_path=envelope_path
@@ -69,6 +73,7 @@ class Pod:
   constructor.from_manifest manifest/Map [--download] --tmp_directory/string:
     id = uuid.parse manifest[ID_NAME_]
     name = manifest[NAME_NAME_]
+    chip = (manifest.get "chip") or "esp32"
     parts := manifest["parts"]
     byte_builder := bytes.Buffer
     writer := ArWriter byte_builder
@@ -80,23 +85,43 @@ class Pod:
 
   static parse path/string --tmp_directory/string --ui/Ui -> Pod:
     read_file path --ui=ui: | reader/Reader |
+      id/uuid.Uuid? := null
+      name/string? := null
+      chip/string? := null
+      envelope/ByteArray? := null
+
       ar_reader := ArReader reader
       file := ar_reader.next
       if file.name != MAGIC_NAME_ or file.content != MAGIC_CONTENT_.to_byte_array:
         ui.abort "The file at '$path' is not a valid Artemis pod."
-      file = ar_reader.next
-      if file.name != ID_NAME_:
-        ui.abort "The file at '$path' is not a valid Artemis pod."
-      id := uuid.Uuid file.content
-      file = ar_reader.next
-      if file.name != NAME_NAME_:
-        ui.abort "The file at '$path' is not a valid Artemis pod."
-      name := file.content.to_string
-      file = ar_reader.next
-      if file.name != CUSTOMIZED_ENVELOPE_NAME_:
-        ui.abort "The file at '$path' is not a valid Artemis pod."
-      envelope := file.content
-      return Pod --id=id --name=name --tmp_directory=tmp_directory --envelope=envelope
+
+      while true:
+        file = ar_reader.next
+        if not file: break
+        if file.name == ID_NAME_:
+          if id:
+            ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple IDs."
+          id = uuid.Uuid file.content
+        else if file.name == CHIP_NAME_:
+          if chip:
+            ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple chip entries."
+          chip = file.content.to_string
+        else if file.name == NAME_NAME_:
+          if name:
+            ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple names."
+          name = file.content.to_string
+        else if file.name == CUSTOMIZED_ENVELOPE_NAME_:
+          if envelope:
+            ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple envelopes."
+          envelope = file.content
+
+      if not id:       ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain an ID."
+      if not name:     ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain a name."
+      if not envelope: ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain an envelope."
+
+      if not chip: chip = "esp32"
+      return Pod --id=id --chip=chip --name=name --envelope=envelope
+          --tmp_directory=tmp_directory
     unreachable
 
   static envelope_count_/int := 0
@@ -142,6 +167,7 @@ class Pod:
       ar_writer.add MAGIC_NAME_ MAGIC_CONTENT_
       ar_writer.add ID_NAME_ id.to_byte_array
       ar_writer.add NAME_NAME_ name.to_byte_array
+      ar_writer.add CHIP_NAME_ chip.to_byte_array
       ar_writer.add CUSTOMIZED_ENVELOPE_NAME_ envelope
 
   /**
@@ -156,6 +182,7 @@ class Pod:
     manifest := {:}
     manifest[ID_NAME_] = "$id"
     manifest[NAME_NAME_] = name
+    manifest[CHIP_NAME_] = chip
     part_names := {:}
     parts := {:}
     reader := bytes.Reader envelope
