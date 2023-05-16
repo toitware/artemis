@@ -71,9 +71,11 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Download a pod from the broker.
 
-        A revision can also be specified by appending '#<revision>' to the name.
+        The pod to download is specified through a remote pod reference like
+        name@tag or name#revision.
 
-        If no revision or tag is specified, the pod with the 'latest' tag is downloaded.
+        If only the pod name is provided, the pod with the 'latest' tag is
+        downloaded.
         """
       --options=[
         cli.Option "output"
@@ -83,8 +85,8 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --rest=[
-        cli.Option "designation"
-            --short_help="The pod to download; a UUID, name@tag, or name#revision."
+        cli.Option "remote"
+            --short_help="A remote pod reference; a UUID, name@tag, or name#revision."
             --required,
       ]
       --run=:: download it config cache ui
@@ -150,10 +152,10 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  designation_str := parsed["designation"]
+  remote := parsed["remote"]
   output := parsed["output"]
 
-  designation := PodDesignation.parse designation_str --allow_name_only --ui=ui
+  designation := PodDesignation.parse remote --allow_name_only --ui=ui
   if designation.revision:
     ui.abort "Revision download is not implemented yet."
 
@@ -161,7 +163,7 @@ download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     pod := fleet.download designation
     pod.write output --ui=ui
-    ui.info "Downloaded pod '$designation_str' to '$output'."
+    ui.info "Downloaded pod '$remote' to '$output'."
 
 list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
