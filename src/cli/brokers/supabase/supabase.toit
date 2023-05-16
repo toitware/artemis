@@ -232,7 +232,7 @@ class BrokerCliSupabase implements BrokerCli:
   pod_registry_pod_ids --fleet_id/uuid.Uuid --references/List -> Map:
     response := client_.rest.rpc "toit_artemis.get_pods_by_reference" {
       "_fleet_id": "$fleet_id",
-      "_references": references.map: | reference/PodDesignation |
+      "_references": references.map: | reference/PodReference |
         reference_object := {
           "name": reference.name,
         }
@@ -243,7 +243,7 @@ class BrokerCliSupabase implements BrokerCli:
     result := {:}
     response.do: | row/Map |
       pod_id := uuid.parse row["pod_id"]
-      reference := PodDesignation
+      reference := PodReference
           --name=row["name"]
           --tag=row["tag"]
           --revision=row["revision"]

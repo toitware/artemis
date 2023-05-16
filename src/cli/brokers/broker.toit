@@ -206,10 +206,10 @@ interface BrokerCli implements Authenticatable:
   /**
   Returns the pod-id for the given name/tag combinations.
 
-  Returns a map from $PodDesignation to pod ID. References that were not
+  Returns a map from $PodReference to pod ID. References that were not
     found are not included in the map.
 
-  The $references list must contain $PodDesignation objects.
+  The $references list must contain $PodReference objects.
   */
   pod_registry_pod_ids --fleet_id/uuid.Uuid --references/List -> Map
 

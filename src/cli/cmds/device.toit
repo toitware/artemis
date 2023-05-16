@@ -111,19 +111,19 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   return [cmd]
 
 with_device parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
-  device_designation := parsed["device"]
+  device_reference := parsed["device"]
   fleet_root := parsed["fleet-root"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     device/DeviceFleet := ?
-    if not device_designation:
+    if not device_reference:
       device_id := default_device_from_config config
       if not device_id:
         ui.abort "No device specified and no default device ID set."
       device = fleet.device device_id
     else:
-      device = fleet.resolve_alias device_designation
+      device = fleet.resolve_alias device_reference
 
     block.call device artemis fleet
 
@@ -133,20 +133,20 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   local := parsed["local"]
   remote := parsed["remote"]
 
-  designation/PodDesignation? := null
+  reference/PodReference? := null
   if local:
     if remote:
       ui.abort "Cannot specify both a local pod file and a remote pod reference."
   else if remote:
-    designation = PodDesignation.parse remote --allow_name_only --ui=ui
+    reference = PodReference.parse remote --allow_name_only --ui=ui
   else:
     ui.abort "No pod specified."
 
   with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
     pod/Pod := ?
-    if designation:
+    if reference:
       fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-      pod = fleet.download designation
+      pod = fleet.download reference
     else:
       pod = Pod.from_file local --artemis=artemis --ui=ui
     artemis.update --device_id=device.id --pod=pod
@@ -186,7 +186,7 @@ make_default_ device_id/uuid.Uuid config/Config ui/Ui:
   ui.info "Default device set to $device_id."
 
 show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device_designation := parsed["device"]
+  device_reference := parsed["device"]
   event_types := parsed["event-type"]
   fleet_root := parsed["fleet-root"]
   show_event_values := parsed["show-event-values"]
@@ -200,7 +200,7 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     artemis_server := artemis.connected_artemis_server
     devices := broker.get_devices --device_ids=[fleet_device.id]
     if devices.is_empty:
-      ui.abort "Device $device_designation does not exist on the broker."
+      ui.abort "Device $device_reference does not exist on the broker."
     broker_device := devices[fleet_device.id]
     organization := artemis_server.get_organization broker_device.organization_id
     events/List? := null

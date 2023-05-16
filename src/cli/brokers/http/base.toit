@@ -229,7 +229,7 @@ class BrokerCliHttp implements BrokerCli:
   pod_registry_pod_ids --fleet_id/uuid.Uuid --references/List -> Map:
     response := send_request_ "pod_registry_pod_ids_by_reference" {
       "fleet_id": "$fleet_id",
-      "references": references.map: | reference/PodDesignation |
+      "references": references.map: | reference/PodReference |
         {
           "name": reference.name,
           "tag": reference.tag,
@@ -239,7 +239,7 @@ class BrokerCliHttp implements BrokerCli:
     result := {:}
     response.do: | it/Map |
       pod_id := uuid.parse it["pod_id"]
-      reference := PodDesignation
+      reference := PodReference
           --name=it["name"]
           --tag=it.get "tag"
           --revision=it.get "revision"

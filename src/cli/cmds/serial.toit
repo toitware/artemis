@@ -160,11 +160,11 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if local:
         pod = Pod.from_file local --artemis=artemis --ui=ui
       else:
-        reference/PodDesignation := ?
+        reference/PodReference := ?
         if remote:
-          reference = PodDesignation.parse remote --allow_name_only --ui=ui
+          reference = PodReference.parse remote --allow_name_only --ui=ui
         else:
-          reference = fleet.pod_designation_for_group group
+          reference = fleet.pod_reference_for_group group
         pod = fleet.download reference
 
       // Make unique for the given device.
