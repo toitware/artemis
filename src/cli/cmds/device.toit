@@ -130,25 +130,27 @@ with_device parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device := parsed["device"]
   fleet_root := parsed["fleet-root"]
-
-  pod/Pod? := null
   local := parsed["local"]
   remote := parsed["remote"]
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    if local:
-      if remote:
-        ui.abort "Cannot specify both a local pod file and a remote pod reference."
-      pod = Pod.from_file local --artemis=artemis --ui=ui
-    else if remote:
-      designation := PodDesignation.parse remote --allow_name_only --ui=ui
-      if designation.revision:
-        ui.abort "Revision download is not implemented yet."
+
+  designation/PodDesignation? := null
+  if local:
+    if remote:
+      ui.abort "Cannot specify both a local pod file and a remote pod reference."
+  else if remote:
+    designation = PodDesignation.parse remote --allow_name_only --ui=ui
+    if designation.revision:
+      ui.abort "Revision download is not implemented yet."
+  else:
+    ui.abort "No pod specified."
+
+  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
+    pod/Pod := ?
+    if designation:
       fleet := Fleet fleet_root artemis --ui=ui --cache=cache
       pod = fleet.download designation
     else:
-      ui.abort "No pod specified."
-
-  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
+      pod = Pod.from_file local --artemis=artemis --ui=ui
     artemis.update --device_id=device.id --pod=pod
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
