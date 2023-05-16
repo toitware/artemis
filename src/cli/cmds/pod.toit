@@ -25,6 +25,10 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Create a pod.
 
+        The specification file contains the pod specification. It includes
+        the firmware version, installed applications, connection settings,
+        etc. See 'doc specification-format' for more information.
+
         The generated pod can later be used to flash or update devices.
         When flashing, it needs to be combined with an identity file first. See
         'fleet create-identities' for more information.
@@ -130,19 +134,7 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     pod_paths.do: | pod_path/string |
-      is_compiled_pod := false
-      catch --unwind=(: it != "Invalid Ar File"):
-        stream := file.Stream.for_read pod_path
-        try:
-          ar.ArReader stream
-          is_compiled_pod = true
-        finally:
-          stream.close
-      pod/Pod := ?
-      if is_compiled_pod:
-        pod = Pod.parse pod_path --tmp_directory=artemis.tmp_directory --ui=ui
-      else:
-        pod = Pod.from_specification --path=pod_path --artemis=artemis --ui=ui
+      pod := Pod.from_file pod_path --artemis=artemis --ui=ui
       fleet.upload --pod=pod --tags=tags
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
