@@ -185,6 +185,7 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     created_files := fleet.create_identities count
+        --group=DEFAULT_GROUP  // TODO(kasper): Make this configurable.
         --output_directory=output_directory
     ui.info "Created $created_files.size identity file(s)."
 

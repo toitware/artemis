@@ -28,7 +28,7 @@ class DeviceFleet:
 
   constructor
       --.id
-      --.group=DEFAULT_GROUP
+      --.group
       --.name=(random_name --uuid=id)
       --.aliases=null:
 
@@ -231,13 +231,16 @@ class Fleet:
       entry := {:}
       if device.name: entry["name"] = device.name
       if device.aliases: entry["aliases"] = device.aliases
+      entry["group"] = device.group
       encoded_devices["$device.id"] = entry
     write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
   /**
   Returns a list of created files.
   */
-  create_identities --output_directory/string count/int -> List:
+  create_identities count/int -> List
+      --group/string
+      --output_directory/string:
     old_size := devices_.size
     try:
       new_identity_files := []
@@ -251,7 +254,7 @@ class Fleet:
             --out_path=output
             --organization_id=organization_id
 
-        devices_.add (DeviceFleet --id=device_id)
+        devices_.add (DeviceFleet --id=device_id --group=group)
         new_identity_files.add output
       return new_identity_files
     finally:

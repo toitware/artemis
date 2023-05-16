@@ -134,7 +134,9 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
 
     with_tmp_directory: | tmp_dir/string |
-      identity_files := fleet.create_identities 1 --output_directory=tmp_dir
+      identity_files := fleet.create_identities 1
+          --group=group
+          --output_directory=tmp_dir
       identity_path := identity_files[0]
       identity := read_base64_ubjson identity_path
       // TODO(florian): Abstract away the identity format.
