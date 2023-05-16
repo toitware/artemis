@@ -228,47 +228,32 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
   expect_equals pod_id1 pod1.id
   expect_equals pod_id2 pod2.id
 
-  names_tags := [
-    {
-      "name": "pod1",
-      "tag": "tag1",
-    },
-    {
-      "name": "pod1",
-      "tag": "tag_pod2-2",
-    },
-    {
-      "name": "pod2",
-      "tag": "tag_pod4",
-    },
-    {
-      "name": "pod1",
-      "tag": "test-tag-force",
-    }
+  reference_tests := [
+    [pod_id1, PodDesignation --name="pod1" --tag="tag1"],
+    [pod_id2, PodDesignation --name="pod1" --tag="tag_pod2-2"],
+    [pod_id4, PodDesignation --name="pod2" --tag="tag_pod4"],
+    [pod_id2, PodDesignation --name="pod1" --tag="test-tag-force"],
+    [pod_id1, PodDesignation --name="pod1" --revision=1],
+    [pod_id2, PodDesignation --name="pod1" --revision=2],
+    [pod_id3, PodDesignation --name="pod2" --revision=1],
+    [pod_id4, PodDesignation --name="pod2" --revision=2],
+    [null, PodDesignation --name="pod1" --tag="not found"],
+    [null, PodDesignation --name="pod1" --revision=499],
   ]
   // Get the pod ids given names and tags.
   pod_ids := broker_cli.pod_registry_pod_ids
       --fleet_id=fleet_id
-      --names_tags=names_tags
-  expect_equals 4 pod_ids.size
-  seen := {}
-  pod_ids.do:
-    name := it["name"]
-    tag := it["tag"]
-    pod_id := it["pod_id"]
-    seen.add tag
-    if name == "pod1" and tag == "tag1":
-      expect_equals pod_id pod_id
-    else if name == "pod1" and tag == "tag_pod2-2":
-      expect_equals pod_id2 pod_id
-    else if name == "pod2" and tag == "tag_pod4":
-      expect_equals pod_id4 pod_id
-    else if name == "pod1" and tag == "test-tag-force":
-      // After the forced update the tag should point to pod2.
-      expect_equals pod_id2 pod_id
+      --references=reference_tests.map: it[1]
+  count := 0
+  reference_tests.do: | row/List |
+    expected_id := row[0]
+    reference/PodDesignation := row[1]
+    if expected_id == null:
+      expect_not (pod_ids.contains reference)
     else:
-      throw "Unexpected response"
-  expect_equals 4 seen.size
+      count++
+      expect_equals expected_id pod_ids[reference]
+  expect_equals count pod_ids.size
 
 test_pods --test_broker/TestBroker broker_cli/broker.BrokerCli:
   3.repeat: | iteration |

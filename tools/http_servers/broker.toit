@@ -87,7 +87,7 @@ class HttpBroker extends HttpServer:
     if command == "pod_registry_descriptions_by_names": return pod_registry_descriptions_by_names data
     if command == "pod_registry_pods": return pod_registry_pods data
     if command == "pod_registry_pods_by_ids": return pod_registry_pods_by_ids data
-    if command == "pod_registry_pod_ids_by_names_tags": return pod_registry_pod_ids_by_names_tags data
+    if command == "pod_registry_pod_ids_by_reference": return pod_registry_pod_ids_by_reference data
 
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
@@ -407,9 +407,9 @@ class HttpBroker extends HttpServer:
       -((Time.from_string a["created_at"]).compare_to (Time.from_string b["created_at"]))
     return result
 
-  pod_registry_pod_ids_by_names_tags data/Map:
+  pod_registry_pod_ids_by_reference data/Map:
     fleet_id := data["fleet_id"]
-    names_tags := data["names_tags"]
+    references := data["references"]
 
     names_to_descriptions := {:}
     pod_registry_.do: | _ description/PodDescription |
@@ -417,17 +417,32 @@ class HttpBroker extends HttpServer:
         names_to_descriptions[description.name] = description
 
     result := []
-    names_tags.do: | name_tag |
-      name := name_tag["name"]
-      tag := name_tag["tag"]
+    for i := 0; i < references.size; i++:
+      reference := references[i]
+      name := reference["name"]
+      tag := reference["tag"]
+      revision := reference["revision"]
       description/PodDescription? := names_to_descriptions.get name
       if description:
-        description.pods.do: | pod_id tags |
-          if tags.contains tag:
-            result.add {
-              "pod_id": pod_id,
-              "name": name,
-              "tag": tag,
-            }
+        if tag:
+          description.pods.do: | pod_id tags |
+            if tags.contains tag:
+              result.add {
+                "pod_id": pod_id,
+                "name": name,
+                "tag": tag,
+              }
+              continue
+        else if revision:
+          description.pod_revisions.do: | pod_id pod_revision |
+            if pod_revision == revision:
+              result.add {
+                "pod_id": pod_id,
+                "name": name,
+                "revision": revision,
+              }
+              continue
+        else:
+          throw "Either tag or revision must be specified"
 
     return result
