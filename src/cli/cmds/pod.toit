@@ -117,15 +117,18 @@ create_pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   pod_paths := parsed["pod"]
-  tags := parsed["tag"]
+  tags/List := parsed["tag"]
 
   if tags.is_empty:
     name := random_name
     time := Time.now.utc
-    tag := "$(time.year)$(%02d time.month)$(%02d time.day)$(%02d time.h)$(%02d time.m)$(%02d time.s):$name"
+    tag := "$(time.year)$(%02d time.month)$(%02d time.day)$(%02d time.h)$(%02d time.m)$(%02d time.s)-$name"
     tags = [ tag ]
 
-  tags.add "latest"
+  if tags.contains "latest":
+    ui.warning "The latest tag is automatically added."
+  else:
+    tags.add "latest"
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
