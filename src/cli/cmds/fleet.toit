@@ -75,6 +75,9 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
             --type="directory"
             --short_help="Directory to write the identity files to."
             --default=".",
+        cli.Option "group"
+            --default=DEFAULT_GROUP
+            --short_help="Add the devices to a group.",
       ]
       --aliases=[
         "provision",
@@ -152,6 +155,9 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="The alias of the device."
             --multi
             --split_commas,
+        cli.Option "group"
+            --default=DEFAULT_GROUP
+            --short_help="Add the device to a group.",
       ]
       --rest=[
         OptionUuid "device-id"
@@ -181,10 +187,12 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   output_directory := parsed["output-directory"]
   count := parsed["count"]
+  group := parsed["group"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     created_files := fleet.create_identities count
+        --group=group
         --output_directory=output_directory
     ui.info "Created $created_files.size identity file(s)."
 
@@ -210,6 +218,7 @@ add_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_id := parsed["device-id"]
   name := parsed["name"]
   aliases := parsed["alias"]
+  group := parsed["group"]
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
@@ -224,5 +233,5 @@ add_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if device.organization_id != fleet.organization_id:
         ui.abort "Device $device_id is not in the same organization as the fleet."
 
-      fleet.add_device --device_id=device.id --name=name --aliases=aliases
+      fleet.add_device --device_id=device.id --group=group --name=name --aliases=aliases
       ui.info "Added device $device_id to fleet."
