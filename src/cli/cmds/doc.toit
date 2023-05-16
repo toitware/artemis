@@ -9,7 +9,7 @@ create_doc_commands _ _ ui/Ui -> List:
 
   specification_format_cmd := cli.Command "specification-format"
       --short_help="Show the format of the pod specification file."
-      --run=:: ui.info SPECIFICATION_FORMAT_HELP
+      --run=:: ui.result SPECIFICATION_FORMAT_HELP
   cmd.add specification_format_cmd
 
   return [cmd]

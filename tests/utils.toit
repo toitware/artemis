@@ -21,7 +21,7 @@ import artemis.shared.server_config
 import artemis.service
 import artemis.service.brokers.broker show ResourceManager BrokerService
 import artemis.service.device show Device
-import artemis.cli.ui show ConsoleUi
+import artemis.cli.ui show ConsolePrinter ConsoleUi Ui
 import artemis.cli.utils show write_blob_to_file read_base64_ubjson
 import ..tools.http_servers.broker as http_servers
 import ..tools.http_servers.artemis_server as http_servers
@@ -100,16 +100,26 @@ class TestExit:
 // TODO(florian): Maybe it's better to use a simplified version of the
 //   the UI, so it's easier to match against it. We probably want the
 //   default version of the console UI to be simpler anyway.
+
+class TestPrinter extends ConsolePrinter:
+  test_ui_/TestUi
+  constructor .test_ui_ prefix/string?:
+    super prefix
+
+  print_ str/string:
+    if not test_ui_.quiet_: super str
+    test_ui_.stdout += "$str\n"
+
 class TestUi extends ConsoleUi:
   stdout/string := ""
   quiet_/bool
 
-  constructor --quiet/bool=true:
+  constructor --level/int=Ui.NORMAL_LEVEL --quiet/bool=true:
     quiet_ = quiet
+    super --level=level
 
-  print_ str/string:
-    if not quiet_: super str
-    stdout += "$str\n"
+  create_printer_ prefix/string? -> TestPrinter:
+    return TestPrinter this prefix
 
   abort:
     throw TestExit

@@ -122,7 +122,7 @@ default_server parsed/cli.Parsed config/Config ui/Ui:
   if not name:
     default_server := config.get config_key
     if default_server:
-      ui.info default_server
+      ui.result default_server
     else:
       ui.abort "No default broker."
     return
@@ -137,7 +137,8 @@ get_certificate_ name/string ui/Ui -> string:
   certificate := certificate_roots.MAP.get name
   if certificate: return certificate
   ui.error "Unknown certificate."
-  ui.info_list --title="Available certificates:"
+  ui.do: | printer/Printer |
+    printer.emit --title="Available certificates:"
       certificate_roots.MAP.keys
   throw "Unknown certificate"
 

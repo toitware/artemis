@@ -7,7 +7,7 @@ import cli
 import artemis.cli.config as cli
 import artemis.cli.cache as cli
 import artemis.cli.sdk show *
-import artemis.cli.ui as ui
+import artemis.cli.ui show *
 import host.file
 import snapshot show cache_snapshot
 import supabase
@@ -21,11 +21,11 @@ main args:
   // Use the same cache as the CLI.
   // This way we can reuse the SDKs.
   cache := cli.Cache --app_name="artemis"
-  ui := ui.ConsoleUi
+  ui := ConsoleUi
 
   main --config=config --cache=cache --ui=ui args
 
-main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
+main --config/cli.Config --cache/cli.Cache --ui/Ui args:
   cmd := cli.Command "downloader"
       --long_help="""
         Downloads snapshots from the Artemis server and stores them in the Jaguar cache.
@@ -54,7 +54,7 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
       --run=:: download config cache ui it
   cmd.run args
 
-download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
+download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
   sdk_version := parsed["sdk-version"]
   service_version := parsed["service-version"]
   output_directory := parsed["output-directory"]
@@ -68,8 +68,9 @@ download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
     if service_version: filters.add "service_version=eq.$service_version"
     service_images := client.rest.select "sdk_service_versions" --filters=filters
     ui.info "Downloading snapshots for:"
-    ui.info_table --header=[ "SDK", "Service" ]
-      service_images.map: | row | [ row["sdk_version"], row["service_version"] ]
+    ui.do --kind=Ui.INFO: | printer/Printer |
+      printer.emit_table --header=[ "SDK", "Service" ]
+          service_images.map: | row | [ row["sdk_version"], row["service_version"] ]
 
     service_images.do: | row |
       image := row["image"]
