@@ -149,7 +149,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     // can fold this into the pod resolution step further down.
     designation = PodDesignation.parse remote --allow_name_only --ui=ui
     if designation.revision:
-      ui.abort "Revision download is not implemented yet."
+      ui.abort "Revision flashing is not implemented yet."
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
