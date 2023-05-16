@@ -590,24 +590,21 @@ class Fleet:
 
     return PodFleet --id=pod_id --name=null --revision=null --tags=null
 
-  get_pod_id designation/PodDesignation -> uuid.Uuid:
-    if designation.id:
-      return designation.id
-    if not designation.name:
+  get_pod_id reference/PodDesignation -> uuid.Uuid:
+    if reference.id:
+      return reference.id
+    if not reference.name:
       throw "Either id or name must be specified."
-    return get_pod_id --name=designation.name --tag=designation.tag --revision=designation.revision
-
-  get_pod_id --name/string --tag/string? --revision/int? -> uuid.Uuid:
-    if not tag and not revision:
+    if not reference.tag and not reference.revision:
       throw "Either tag or revision must be specified."
     broker := artemis_.connected_broker
-    if revision: throw "UNIMPLEMENTED"
-    pod_ids := broker.pod_registry_pod_ids --fleet_id=this.id --names_tags=[
-      {
-        "name": name,
-        "tag": tag,
-      }
-    ]
+    pod_ids := broker.pod_registry_pod_ids --fleet_id=this.id --references=[reference]
     if pod_ids.is_empty:
-      ui_.abort "No pod with name $name and tag $tag in the fleet."
-    return pod_ids[0]["pod_id"]
+      if reference.tag:
+        ui_.abort "No pod with name $reference.name and tag $reference.tag in the fleet."
+      else:
+        ui_.abort "No pod with name $reference.name and revision $reference.revision in the fleet."
+    return pod_ids[reference]
+
+  get_pod_id --name/string --tag/string? --revision/int? -> uuid.Uuid:
+    return get_pod_id (PodDesignation --name=name --tag=tag --revision=revision)

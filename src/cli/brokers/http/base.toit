@@ -226,12 +226,24 @@ class BrokerCliHttp implements BrokerCli:
     return response.map: PodRegistryEntry.from_map it
 
   /** See $BrokerCli.pod_registry_pod_ids. */
-  pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List:
-    result := send_request_ "pod_registry_pod_ids_by_names_tags" {
+  pod_registry_pod_ids --fleet_id/uuid.Uuid --references/List -> Map:
+    response := send_request_ "pod_registry_pod_ids_by_reference" {
       "fleet_id": "$fleet_id",
-      "names_tags": names_tags,
+      "references": references.map: | reference/PodDesignation |
+        {
+          "name": reference.name,
+          "tag": reference.tag,
+          "revision": reference.revision,
+        },
     }
-    result.do: it["pod_id"] = uuid.parse it["pod_id"]
+    result := {:}
+    response.do: | it/Map |
+      pod_id := uuid.parse it["pod_id"]
+      reference := PodDesignation
+          --name=it["name"]
+          --tag=it.get "tag"
+          --revision=it.get "revision"
+      result[reference] = pod_id
     return result
 
   /** See $BrokerCli.pod_registry_upload_pod_part. */

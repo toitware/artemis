@@ -148,8 +148,6 @@ download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output := parsed["output"]
 
   designation := PodDesignation.parse remote --allow_name_only --ui=ui
-  if designation.revision:
-    ui.abort "Revision download is not implemented yet."
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache

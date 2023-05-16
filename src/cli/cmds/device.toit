@@ -139,8 +139,6 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.abort "Cannot specify both a local pod file and a remote pod reference."
   else if remote:
     designation = PodDesignation.parse remote --allow_name_only --ui=ui
-    if designation.revision:
-      ui.abort "Revision download is not implemented yet."
   else:
     ui.abort "No pod specified."
 

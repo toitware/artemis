@@ -140,16 +140,8 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   remote := parsed["remote"]
   partitions := build_partitions_table_ parsed["partition"] --ui=ui
 
-  designation/PodDesignation? := null
-  if local:
-    if remote:
-      ui.abort "Cannot specify both a local pod file and a remote pod reference."
-  else if remote:
-    // TODO(kasper): Once revision downloads are supported, we
-    // can fold this into the pod resolution step further down.
-    designation = PodDesignation.parse remote --allow_name_only --ui=ui
-    if designation.revision:
-      ui.abort "Revision flashing is not implemented yet."
+  if local and remote:
+    ui.abort "Cannot specify both a local pod file and a remote pod reference."
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
@@ -167,11 +159,13 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       pod/Pod := ?
       if local:
         pod = Pod.from_file local --artemis=artemis --ui=ui
-      else if designation:
-        pod = fleet.download designation
       else:
-        designation = fleet.pod_designation_for_group group
-        pod = fleet.download designation
+        reference/PodDesignation := ?
+        if remote:
+          reference = PodDesignation.parse remote --allow_name_only --ui=ui
+        else:
+          reference = fleet.pod_designation_for_group group
+        pod = fleet.download reference
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data

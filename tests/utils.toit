@@ -800,6 +800,7 @@ with_fleet --args/List --count/int [block]:
         fake_devices.add fake_device
 
       block.call test_cli fake_devices fleet_dir
+
 expect_throws [--check_exception] [block]:
   exception := catch: block.call
   expect_not_null exception

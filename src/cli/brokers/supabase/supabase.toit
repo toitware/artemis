@@ -229,12 +229,25 @@ class BrokerCliSupabase implements BrokerCli:
     return response.map: PodRegistryEntry.from_map it
 
   /** See $BrokerCli.pod_registry_pod_ids. */
-  pod_registry_pod_ids --fleet_id/uuid.Uuid --names_tags/List -> List:
-    result := client_.rest.rpc "toit_artemis.get_pods_by_name_and_tag" {
+  pod_registry_pod_ids --fleet_id/uuid.Uuid --references/List -> Map:
+    response := client_.rest.rpc "toit_artemis.get_pods_by_reference" {
       "_fleet_id": "$fleet_id",
-      "_names_tags": names_tags,
+      "_references": references.map: | reference/PodDesignation |
+        reference_object := {
+          "name": reference.name,
+        }
+        if reference.tag: reference_object["tag"] = reference.tag
+        if reference.revision: reference_object["revision"] = reference.revision
+        reference_object
     }
-    result.do: it["pod_id"] = uuid.parse it["pod_id"]
+    result := {:}
+    response.do: | row/Map |
+      pod_id := uuid.parse row["pod_id"]
+      reference := PodDesignation
+          --name=row["name"]
+          --tag=row["tag"]
+          --revision=row["revision"]
+      result[reference] = pod_id
     return result
 
   /** See $BrokerCli.pod_registry_upload_pod_part. */

@@ -446,9 +446,9 @@ run_shared_pod_description_test
     expect pods.is_empty
 
     // Get pods by name and tag.
-    response := client1.rest.rpc "toit_artemis.get_pods_by_name_and_tag" {
+    response := client1.rest.rpc "toit_artemis.get_pods_by_reference" {
       "_fleet_id": "$fleet_id",
-      "_names_tags": [
+      "_references": [
         {
           "name": pod_desc1,
           "tag": "tag2",
@@ -460,9 +460,9 @@ run_shared_pod_description_test
     expect_equals pod_desc1 response[0]["name"]
 
     // Other doesn't see anything.
-    response = other_client.rest.rpc "toit_artemis.get_pods_by_name_and_tag" {
+    response = other_client.rest.rpc "toit_artemis.get_pods_by_reference" {
       "_fleet_id": "$fleet_id",
-      "_names_tags": [
+      "_references": [
         {
           "name": pod_desc1,
           "tag": "tag2",

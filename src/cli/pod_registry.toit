@@ -20,6 +20,18 @@ class PodDesignation:
     if revision and tag:
       throw "Cannot specify both revision and tag."
 
+  hash_code -> int:
+    result := 0
+    if id: result = id.hash_code
+    if name: result = result * 31 + name.hash_code
+    if revision: result = result * 31 + revision.hash_code
+    if tag: result = result * 31 + tag.hash_code
+    return result
+
+  operator== other -> bool:
+    if other is not PodDesignation: return false
+    return id == other.id and name == other.name and revision == other.revision and tag == other.tag
+
   static parse str/string --allow_name_only/bool=false --ui/Ui -> PodDesignation:
     return parse str --allow_name_only=allow_name_only
         --on_error=(: ui.abort it)
