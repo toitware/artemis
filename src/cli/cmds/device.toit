@@ -132,15 +132,15 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
 
   pod/Pod? := null
-  pod_path := parsed["local"]
-  remote_str := parsed["remote"]
+  local := parsed["local"]
+  remote := parsed["remote"]
   with_artemis parsed config cache ui: | artemis/Artemis |
-    if pod_path:
-      if remote_str:
+    if local:
+      if remote:
         ui.abort "Cannot specify both a local pod file and a remote pod reference."
-      pod = Pod.from_file pod_path --artemis=artemis --ui=ui
-    else if remote_str:
-      designation := PodDesignation.parse remote_str --allow_name_only --ui=ui
+      pod = Pod.from_file local --artemis=artemis --ui=ui
+    else if remote:
+      designation := PodDesignation.parse remote --allow_name_only --ui=ui
       if designation.revision:
         ui.abort "Revision download is not implemented yet."
       fleet := Fleet fleet_root artemis --ui=ui --cache=cache
