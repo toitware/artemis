@@ -141,7 +141,6 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       device_id := uuid.parse identity["artemis.device"]["device_id"]
       ui.info "Successfully provisioned device $device_id."
 
-      // TODO(florian): Make this configurable.
       pod_designation := fleet.pod_designation_for_group group
       pod := fleet.download pod_designation
 
