@@ -229,16 +229,16 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
   expect_equals pod_id2 pod2.id
 
   reference_tests := [
-    [pod_id1, PodDesignation --name="pod1" --tag="tag1"],
-    [pod_id2, PodDesignation --name="pod1" --tag="tag_pod2-2"],
-    [pod_id4, PodDesignation --name="pod2" --tag="tag_pod4"],
-    [pod_id2, PodDesignation --name="pod1" --tag="test-tag-force"],
-    [pod_id1, PodDesignation --name="pod1" --revision=1],
-    [pod_id2, PodDesignation --name="pod1" --revision=2],
-    [pod_id3, PodDesignation --name="pod2" --revision=1],
-    [pod_id4, PodDesignation --name="pod2" --revision=2],
-    [null, PodDesignation --name="pod1" --tag="not found"],
-    [null, PodDesignation --name="pod1" --revision=499],
+    [pod_id1, PodReference --name="pod1" --tag="tag1"],
+    [pod_id2, PodReference --name="pod1" --tag="tag_pod2-2"],
+    [pod_id4, PodReference --name="pod2" --tag="tag_pod4"],
+    [pod_id2, PodReference --name="pod1" --tag="test-tag-force"],
+    [pod_id1, PodReference --name="pod1" --revision=1],
+    [pod_id2, PodReference --name="pod1" --revision=2],
+    [pod_id3, PodReference --name="pod2" --revision=1],
+    [pod_id4, PodReference --name="pod2" --revision=2],
+    [null, PodReference --name="pod1" --tag="not found"],
+    [null, PodReference --name="pod1" --revision=499],
   ]
   // Get the pod ids given names and tags.
   pod_ids := broker_cli.pod_registry_pod_ids
@@ -247,7 +247,7 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
   count := 0
   reference_tests.do: | row/List |
     expected_id := row[0]
-    reference/PodDesignation := row[1]
+    reference/PodReference := row[1]
     if expected_id == null:
       expect_not (pod_ids.contains reference)
     else:

@@ -4,9 +4,9 @@ import uuid
 import .ui
 
 /**
-A designation to refer to a specific pod.
+A reference to refer to a specific pod.
 */
-class PodDesignation:
+class PodReference:
   id/uuid.Uuid?
   name/string?
   revision/int?
@@ -29,14 +29,14 @@ class PodDesignation:
     return result
 
   operator== other -> bool:
-    if other is not PodDesignation: return false
+    if other is not PodReference: return false
     return id == other.id and name == other.name and revision == other.revision and tag == other.tag
 
-  static parse str/string --allow_name_only/bool=false --ui/Ui -> PodDesignation:
+  static parse str/string --allow_name_only/bool=false --ui/Ui -> PodReference:
     return parse str --allow_name_only=allow_name_only
         --on_error=(: ui.abort it)
 
-  static parse str/string --allow_name_only/bool=false [--on_error] -> PodDesignation:
+  static parse str/string --allow_name_only/bool=false [--on_error] -> PodReference:
     name/string? := null
     revision/int? := null
     tag/string? := null
@@ -52,12 +52,12 @@ class PodDesignation:
       revision = int.parse revision_string
           --on_error=(: on_error.call "Invalid revision: '$revision_string'.")
       name = str[..hash_index]
-      return PodDesignation --name=name --revision=revision
+      return PodReference --name=name --revision=revision
 
     if at_index >= 0:
       tag = str[at_index + 1..]
       name = str[..at_index]
-      return PodDesignation --name=name --tag=tag
+      return PodReference --name=name --tag=tag
 
     if str.size == 36 and
         str[8] == '-' and
@@ -71,19 +71,19 @@ class PodDesignation:
       if exception:
         if allow_name_only:
           name = str
-          return PodDesignation --name=name
+          return PodReference --name=name
         on_error.call "Invalid pod uuid: '$str'."
-      return PodDesignation --id=id
+      return PodReference --id=id
 
     if not allow_name_only:
-      on_error.call "Invalid pod designation: '$str'."
+      on_error.call "Invalid pod reference: '$str'."
 
-    return PodDesignation --name=str
+    return PodReference --name=str
 
-  with --tag/string -> PodDesignation:
-    if id: throw "Cannot specify tag for designation with id."
-    if revision: throw "Cannot specify tag for designation with revision."
-    return PodDesignation --name=name --tag=tag
+  with --tag/string -> PodReference:
+    if id: throw "Cannot specify tag for reference with id."
+    if revision: throw "Cannot specify tag for reference with revision."
+    return PodReference --name=name --tag=tag
 
   stringify -> string:
     if id: return id.to_string

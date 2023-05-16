@@ -78,7 +78,7 @@ class Fleet:
   fleet_root_/string
   devices_/List
   organization_id/uuid.Uuid
-  /** A map from group-name to $PodDesignation. */
+  /** A map from group-name to $PodReference. */
   group_pods_/Map
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
@@ -115,7 +115,7 @@ class Fleet:
         ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ does not contain a 'pod' entry for group '$group_name'."
       if entry["pod"] is not string:
         ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format for 'pod' in group '$group_name'."
-      PodDesignation.parse entry["pod"] --ui=ui
+      PodReference.parse entry["pod"] --ui=ui
 
     // TODO(florian): should we always do this check?
     org := artemis_.connected_artemis_server.get_organization organization_id
@@ -287,8 +287,8 @@ class Fleet:
     fleet_devices.do: | fleet_device/DeviceFleet |
       group_name := fleet_device.group
       if pods.contains group_name: continue.do
-      designation := pod_designation_for_group group_name
-      pods[group_name] = download designation
+      reference := pod_reference_for_group group_name
+      pods[group_name] = download reference
 
     fleet_devices.do: | fleet_device/DeviceFleet |
       artemis_.update
@@ -348,12 +348,12 @@ class Fleet:
     ui_.info "  references:"
     tags.do: ui_.info "   - $pod.name@$it"
 
-  download designation/PodDesignation -> Pod:
-    if designation.name and not (designation.tag or designation.revision):
-      designation = designation.with --tag="latest"
-    pod_id := designation.id
+  download reference/PodReference -> Pod:
+    if reference.name and not (reference.tag or reference.revision):
+      reference = reference.with --tag="latest"
+    pod_id := reference.id
     if not pod_id:
-      pod_id = get_pod_id designation
+      pod_id = get_pod_id reference
     return download --pod_id=pod_id
 
   download --pod_id/uuid.Uuid -> Pod:
@@ -393,7 +393,7 @@ class Fleet:
       result[description] = pods
     return result
 
-  pod_designation_for_group name/string -> PodDesignation:
+  pod_reference_for_group name/string -> PodReference:
     if name == "": name = DEFAULT_GROUP
     return group_pods_.get name
         --if_absent=: ui_.abort "Unknown group $name"
@@ -590,7 +590,7 @@ class Fleet:
 
     return PodFleet --id=pod_id --name=null --revision=null --tags=null
 
-  get_pod_id reference/PodDesignation -> uuid.Uuid:
+  get_pod_id reference/PodReference -> uuid.Uuid:
     if reference.id:
       return reference.id
     if not reference.name:
@@ -607,4 +607,4 @@ class Fleet:
     return pod_ids[reference]
 
   get_pod_id --name/string --tag/string? --revision/int? -> uuid.Uuid:
-    return get_pod_id (PodDesignation --name=name --tag=tag --revision=revision)
+    return get_pod_id (PodReference --name=name --tag=tag --revision=revision)

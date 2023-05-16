@@ -147,11 +147,11 @@ download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   remote := parsed["remote"]
   output := parsed["output"]
 
-  designation := PodDesignation.parse remote --allow_name_only --ui=ui
+  reference := PodReference.parse remote --allow_name_only --ui=ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    pod := fleet.download designation
+    pod := fleet.download reference
     pod.write output --ui=ui
     ui.info "Downloaded pod '$remote' to '$output'."
 
