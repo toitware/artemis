@@ -125,6 +125,21 @@ class Pod:
           --tmp_directory=tmp_directory
     unreachable
 
+  constructor.from_file path/string --artemis/Artemis --ui/Ui:
+    is_compiled_pod := false
+    catch --unwind=(: it != "Invalid Ar File"):
+      stream := file.Stream.for_read path
+      try:
+        ArReader stream
+        is_compiled_pod = true
+      finally:
+        stream.close
+    pod/Pod := ?
+    if is_compiled_pod:
+      return Pod.parse path --tmp_directory=artemis.tmp_directory --ui=ui
+    else:
+      return Pod.from_specification --path=path --artemis=artemis --ui=ui
+
   static envelope_count_/int := 0
   static generate_envelope_path_ --tmp_directory/string -> string:
     return "$tmp_directory/pod-$(envelope_count_++).envelope"

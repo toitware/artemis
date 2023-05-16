@@ -14,6 +14,8 @@ import ..event
 import ..fleet
 import ..firmware
 import ..organization
+import ..pod
+import ..pod_registry
 import ..pod_specification
 import ..server_config
 import ..ui
@@ -31,17 +33,19 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
 
   update_cmd := cli.Command "update"
       --long_help="""
-        Updates the firmware on the device.
+        Updates the firmware on a device.
 
-        The specification file contains the pod specification. It includes
-        the firmware version, installed applications, connection settings,
-        etc. See 'doc specification-format' for more information.
+        The firmware can be specified through a local pod file using '--local'
+        or it can be a remote pod reference like name@tag or name#revision.
         """
       --options=[
-        cli.Option "specification"
+        cli.Option "local"
             --type="file"
-            --short_help="The specification of the pod."
-            --required,
+            --short_help="A local pod file to update to.",
+      ]
+      --rest=[
+        cli.Option "remote"
+            --short_help="A remote pod reference; a UUID, name@tag, or name#revision.",
       ]
       --run=:: update it config cache ui
   cmd.add update_cmd
@@ -89,7 +93,7 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd.add show_cmd
 
   max_offline_cmd := cli.Command "set-max-offline"
-      --short_help="Update the max-offline time of the device."
+      --short_help="Update the max-offline time of a device."
       --rest=[
         cli.Option "max-offline"
             --short_help="The new max-offline time."
@@ -126,11 +130,28 @@ with_device parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device := parsed["device"]
   fleet_root := parsed["fleet-root"]
-  specification_path := parsed["specification"]
+  local := parsed["local"]
+  remote := parsed["remote"]
+
+  designation/PodDesignation? := null
+  if local:
+    if remote:
+      ui.abort "Cannot specify both a local pod file and a remote pod reference."
+  else if remote:
+    designation = PodDesignation.parse remote --allow_name_only --ui=ui
+    if designation.revision:
+      ui.abort "Revision download is not implemented yet."
+  else:
+    ui.abort "No pod specified."
 
   with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
-    specification := parse_pod_specification_file specification_path --ui=ui
-    artemis.update --device_id=device.id --specification=specification
+    pod/Pod := ?
+    if designation:
+      fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+      pod = fleet.download designation
+    else:
+      pod = Pod.from_file local --artemis=artemis --ui=ui
+    artemis.update --device_id=device.id --pod=pod
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
