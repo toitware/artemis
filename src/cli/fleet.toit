@@ -330,7 +330,6 @@ class Fleet:
 
     description_id := (description_ids[0] as PodRegistryDescription).id
 
-    revision := 1  // TODO(kasper): Get the right revision from pod_registry_add.
     broker.pod_registry_add
         --pod_description_id=description_id
         --pod_id=pod.id
@@ -343,10 +342,13 @@ class Fleet:
           --tag=it
           --force=force
 
-    ui_.info "Successfully uploaded $pod.name#$revision to fleet $this.id."
-    ui_.info "  id: $pod.id"
+    registered_pods := broker.pod_registry_pods --fleet_id=this.id --pod_ids=[pod.id]
+    pod_entry/PodRegistryEntry := registered_pods[0]
+
+    ui_.info "Successfully uploaded $pod.name#$pod_entry.revision to fleet $this.id."
+    ui_.info "  id: $pod_entry.id"
     ui_.info "  references:"
-    tags.do: ui_.info "   - $pod.name@$it"
+    pod_entry.tags.do: ui_.info "    - $pod.name@$it"
 
   download reference/PodReference -> Pod:
     if reference.name and not (reference.tag or reference.revision):
