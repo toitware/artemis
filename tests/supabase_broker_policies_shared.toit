@@ -359,22 +359,25 @@ run_shared_pod_description_test
     expect pods.is_empty
 
     // Add tags to the pods.
-    client1.rest.rpc "toit_artemis.insert_pod_tag" {
+    client1.rest.rpc "toit_artemis.set_pod_tag" {
       "_pod_id": "$pod_id1",
       "_pod_description_id": "$description_id",
       "_tag": "tag1",
+      "_force": false,
     }
-    client1.rest.rpc "toit_artemis.insert_pod_tag" {
+    client1.rest.rpc "toit_artemis.set_pod_tag" {
       "_pod_id": "$pod_id1",
       "_pod_description_id": "$description_id",
       "_tag": "tag2",
+      "_force": false,
     }
 
     // Other can try, but it won't have any effect.
-    other_client.rest.rpc "toit_artemis.insert_pod_tag" {
+    other_client.rest.rpc "toit_artemis.set_pod_tag" {
       "_pod_id": "$pod_id1",
       "_pod_description_id": "$description_id",
       "_tag": "tag3",
+      "_force": false,
     }
 
     // Get the pod1 to see its tags.
@@ -388,17 +391,19 @@ run_shared_pod_description_test
 
     // Only one pod per description is allowed to have the same tag.
     expect_throws --contains="duplicate key value violates unique constraint":
-      client1.rest.rpc "toit_artemis.insert_pod_tag" {
+      client1.rest.rpc "toit_artemis.set_pod_tag" {
         "_pod_id": "$pod_id2",
         "_pod_description_id": "$description_id",
         "_tag": "tag1",
+        "_force": false,
       }
 
     // Other doesn't even see that message.
-    other_client.rest.rpc "toit_artemis.insert_pod_tag" {
+    other_client.rest.rpc "toit_artemis.set_pod_tag" {
       "_pod_id": "$pod_id2",
       "_pod_description_id": "$description_id",
       "_tag": "tag1",
+      "_force": false,
     }
 
     // Client1 can remove the tag.
@@ -465,10 +470,3 @@ run_shared_pod_description_test
       ],
     }
     expect response.is_empty
-
-expect_throws --contains/string [block]:
-  exception := catch:
-    block.call
-    print "Expected exception, but none was thrown."
-    expect false
-  expect (exception.contains contains)

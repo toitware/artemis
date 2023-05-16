@@ -335,10 +335,12 @@ class Fleet:
         --pod_id=pod.id
 
     tags.do:
+      force := it == "latest"
       broker.pod_registry_tag_set
           --pod_description_id=description_id
           --pod_id=pod.id
           --tag=it
+          --force=force
 
     ui_.info "Successfully uploaded pod to organization $organization_id."
 

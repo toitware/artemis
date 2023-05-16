@@ -152,6 +152,7 @@ interface BrokerCli implements Authenticatable:
       --pod_description_id/int
       --pod_id/uuid.Uuid
       --tag/string
+      --force/bool=false
 
   /**
   Removes a tag.

@@ -294,10 +294,14 @@ class HttpBroker extends HttpServer:
     pod_description_id := data["pod_description_id"]
     pod_id := data["pod_id"]
     tag := data["tag"]
+    force := data["force"]
 
     description/PodDescription := pod_registry_[pod_description_id]
     description.pods.do: | _ tags |
-      tags.remove tag
+      if force:
+        tags.remove tag
+      else if tags.contains tag:
+        throw "Tag already exists: $tag"
     description.pods[pod_id].add tag
 
   pod_registry_tag_remove data/Map:

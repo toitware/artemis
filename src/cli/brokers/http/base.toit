@@ -164,11 +164,13 @@ class BrokerCliHttp implements BrokerCli:
   pod_registry_tag_set -> none
       --pod_description_id/int
       --pod_id/uuid.Uuid
-      --tag/string:
+      --tag/string
+      --force/bool=false:
     send_request_ "pod_registry_tag_set" {
       "pod_description_id": pod_description_id,
       "pod_id": "$pod_id",
       "tag": tag,
+      "force": force,
     }
 
   /** See $BrokerCli.pod_registry_tag_remove. */
