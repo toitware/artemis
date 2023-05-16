@@ -197,5 +197,5 @@ print_pods_ pods/Map --ui/Ui:
       description_line += " - $description.description"
     ui.info description_line
     rows := pod_entries.map: | entry/PodRegistryEntry |
-      ["$entry.id", "$entry.revision", entry.tags.join ", ", "$entry.created_at"]
+      ["$entry.id", "$entry.revision", entry.tags.join ",", "$entry.created_at"]
     ui.info_table --header=["ID", "Revision", "Tags", "Created At"] rows
