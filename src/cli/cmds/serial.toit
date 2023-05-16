@@ -33,9 +33,10 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
 
   flash_cmd := cli.Command "flash"
       --long_help="""
-        Flashes a device with the Artemis firmware.
+        Flashes a device with the firmware.
 
-        Uses the current fleet's specification file.
+        The pod to flash on the device is found through the '$DEFAULT_GROUP' group
+        or the specified '--group' in the current fleet.
 
         Unless '--no-default' is used, automatically makes this device the
         new default device.
@@ -44,6 +45,9 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
         cli.Flag "default"
             --default=true
             --short_help="Make this device the default device.",
+        cli.Option "group"
+            --default=DEFAULT_GROUP
+            --short_help="Add this device to a group.",
         cli.Flag "simulate"
             --hidden
             --default=false,
@@ -69,8 +73,6 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
 
         Does not require Internet access.
 
-        The 'chip' argument is used to select the chip to target.
-
         The 'port' argument is used to select the serial port to use.
         """
       --options=flash_options + [
@@ -83,9 +85,6 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
             --short_name="i"
             --short_help="The identity file to use."
             --required,
-        cli.OptionEnum "chip" ["esp32", "esp32s2", "esp32s3", "esp32c3"]
-            --default="esp32"
-            --short_help="The chip to use.",
       ]
       --run=:: flash --station it config cache ui
   flash_station_cmd.add flash_station_flash_cmd
@@ -128,6 +127,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   baud := parsed["baud"]
   simulate := parsed["simulate"]
   should_make_default := parsed["default"]
+  group := parsed["group"]
   partitions := build_partitions_table_ parsed["partition"] --ui=ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
@@ -142,7 +142,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.info "Successfully provisioned device $device_id."
 
       // TODO(florian): Make this configurable.
-      pod_designation := fleet.pod_designation_for_group DEFAULT_GROUP
+      pod_designation := fleet.pod_designation_for_group group
       pod := fleet.download pod_designation
 
       // Make unique for the given device.
@@ -183,7 +183,6 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if not station: throw "INVALID_ARGUMENT"
   identity_path := parsed["identity"]
   pod_path := parsed["pod"]
-  chip := parsed["chip"]
   port := parsed["port"]
   baud := parsed["baud"]
   partitions := build_partitions_table_ parsed["partition"] --ui=ui
@@ -207,4 +206,4 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --port=port
           --baud_rate=baud
           --partitions=partitions
-          --chip=chip
+          --chip=pod.chip
