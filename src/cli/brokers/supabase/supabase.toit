@@ -165,11 +165,13 @@ class BrokerCliSupabase implements BrokerCli:
   pod_registry_tag_set -> none
       --pod_description_id/int
       --pod_id/uuid.Uuid
-      --tag/string:
-    client_.rest.rpc "toit_artemis.insert_pod_tag" {
+      --tag/string
+      --force/bool=false:
+    client_.rest.rpc "toit_artemis.set_pod_tag" {
       "_pod_id": "$pod_id",
       "_pod_description_id": pod_description_id,
       "_tag": tag,
+      "_force": force,
     }
 
   /** See $BrokerCli.pod_registry_tag_remove. */

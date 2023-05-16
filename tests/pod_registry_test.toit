@@ -183,6 +183,25 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
       --pod_id=pod_id2
       --tag="tag_pod2-3"
 
+  broker_cli.pod_registry_tag_set
+      --pod_description_id=description_id
+      --pod_id=pod_id1
+      --tag="test-tag-force"
+
+  // Check for an error when reusing a tag.
+  expect_throws --check_exception=(: it.contains "duplicate" or it.contains "already"):
+    broker_cli.pod_registry_tag_set
+        --pod_description_id=description_id
+        --pod_id=pod_id2
+        --tag="test-tag-force"
+
+  // It works when using the force flag.
+  broker_cli.pod_registry_tag_set
+      --pod_description_id=description_id
+      --pod_id=pod_id2
+      --tag="test-tag-force"
+      --force
+
   pod_id3 := random_uuid
   broker_cli.pod_registry_add
       --pod_description_id=description_id2
@@ -222,27 +241,34 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
       "name": "pod2",
       "tag": "tag_pod4",
     },
+    {
+      "name": "pod1",
+      "tag": "test-tag-force",
+    }
   ]
   // Get the pod ids given names and tags.
   pod_ids := broker_cli.pod_registry_pod_ids
       --fleet_id=fleet_id
       --names_tags=names_tags
-  expect_equals 3 pod_ids.size
+  expect_equals 4 pod_ids.size
   seen := {}
   pod_ids.do:
     name := it["name"]
     tag := it["tag"]
     pod_id := it["pod_id"]
-    seen.add pod_id
+    seen.add tag
     if name == "pod1" and tag == "tag1":
       expect_equals pod_id pod_id
     else if name == "pod1" and tag == "tag_pod2-2":
       expect_equals pod_id2 pod_id
-    else:
-      expect_equals "pod2" name
-      expect_equals "tag_pod4" tag
+    else if name == "pod2" and tag == "tag_pod4":
       expect_equals pod_id4 pod_id
-  expect_equals 3 seen.size
+    else if name == "pod1" and tag == "test-tag-force":
+      // After the forced update the tag should point to pod2.
+      expect_equals pod_id2 pod_id
+    else:
+      throw "Unexpected response"
+  expect_equals 4 seen.size
 
 test_pods --test_broker/TestBroker broker_cli/broker.BrokerCli:
   3.repeat: | iteration |

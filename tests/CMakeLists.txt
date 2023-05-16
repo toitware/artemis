@@ -100,16 +100,18 @@ foreach(file ${TESTS})
     endif()
     foreach (artemis_flag ${TEST_ARTEMIS_FLAGS})
       foreach (broker_flag ${TEST_BROKER_FLAGS})
-        if ("${broker_flag}" STREQUAL ${SUPABASE_ARTEMIS_BROKER_FLAG} AND NOT "${artemis_flag}" STREQUAL ${SUPABASE_ARTEMIS_FLAG})
-          # Skip the artemis broker test if the artemis server is not running.
-          continue()
-        endif()
-
         if ("${artemis_flag}" STREQUAL "--dummy")
           set(artemis_flag "")
         endif()
         if ("${broker_flag}" STREQUAL "--dummy")
           set(broker_flag "")
+        endif()
+
+        if ("${broker_flag}" STREQUAL ${SUPABASE_ARTEMIS_BROKER_FLAG})
+          if (NOT ("${artemis_flag}" STREQUAL ${SUPABASE_ARTEMIS_FLAG} OR "${artemis_flag}" STREQUAL ""))
+            # Skip the artemis broker test if the test uses an artemis server but not the supabase one.
+            continue()
+          endif()
         endif()
 
         if ("${flags}" STREQUAL "")
