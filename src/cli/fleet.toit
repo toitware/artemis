@@ -231,7 +231,8 @@ class Fleet:
       entry := {:}
       if device.name: entry["name"] = device.name
       if device.aliases: entry["aliases"] = device.aliases
-      entry["group"] = device.group
+      group := device.group
+      if group != DEFAULT_GROUP: entry["group"] = group
       encoded_devices["$device.id"] = entry
     write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
@@ -391,9 +392,9 @@ class Fleet:
     return group_pods_.get name
         --if_absent=: ui_.abort "Unknown group $name"
 
-  add_device --device_id/uuid.Uuid --name/string? --aliases/List?:
+  add_device --device_id/uuid.Uuid --name/string? --group/string --aliases/List?:
     if aliases and aliases.is_empty: aliases = null
-    devices_.add (DeviceFleet --id=device_id --name=name --aliases=aliases)
+    devices_.add (DeviceFleet --id=device_id --group=group --name=name --aliases=aliases)
     write_devices_
 
   build_status_ device/DeviceDetailed get_state_events/List? last_event/Event? -> Status_:
