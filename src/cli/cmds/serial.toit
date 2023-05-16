@@ -10,6 +10,7 @@ import ..cache
 import ..config
 import ..fleet
 import ..pod
+import ..pod_registry
 import ..sdk
 import ..ui
 import ..utils
@@ -48,9 +49,16 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "group"
             --default=DEFAULT_GROUP
             --short_help="Add this device to a group.",
+        cli.Option "local"
+            --type="file"
+            --short_help="A local pod file to flash.",
         cli.Flag "simulate"
             --hidden
             --default=false,
+      ]
+      --rest=[
+        cli.Option "remote"
+            --short_help="A remote pod reference; a UUID, name@tag, or name#revision.",
       ]
       --run=:: flash it config cache ui
   cmd.add flash_cmd
@@ -128,7 +136,20 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   simulate := parsed["simulate"]
   should_make_default := parsed["default"]
   group := parsed["group"]
+  local := parsed["local"]
+  remote := parsed["remote"]
   partitions := build_partitions_table_ parsed["partition"] --ui=ui
+
+  designation/PodDesignation? := null
+  if local:
+    if remote:
+      ui.abort "Cannot specify both a local pod file and a remote pod reference."
+  else if remote:
+    // TODO(kasper): Once revision downloads are supported, we
+    // can fold this into the pod resolution step further down.
+    designation = PodDesignation.parse remote --allow_name_only --ui=ui
+    if designation.revision:
+      ui.abort "Revision flashing is not implemented yet."
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
@@ -143,8 +164,14 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       device_id := uuid.parse identity["artemis.device"]["device_id"]
       ui.info "Successfully provisioned device $device_id."
 
-      pod_designation := fleet.pod_designation_for_group group
-      pod := fleet.download pod_designation
+      pod/Pod := ?
+      if local:
+        pod = Pod.from_file local --artemis=artemis --ui=ui
+      else if designation:
+        pod = fleet.download designation
+      else:
+        designation = fleet.pod_designation_for_group group
+        pod = fleet.download designation
 
       // Make unique for the given device.
       config_bytes := artemis.compute_device_specific_data
