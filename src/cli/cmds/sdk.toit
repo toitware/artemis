@@ -42,14 +42,15 @@ list_sdks parsed/cli.Parsed config/Config ui/Ui:
         --sdk_version=sdk_version
         --service_version=service_version
 
-    // No need to give the image to the user.
-    versions.do: | row/Map |
-      row.remove "image"
+    output := versions.map: {
+      "sdk-version": it["sdk_version"],
+      "service-version": it["service_version"],
+    }
 
     ui.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit
           --header={
-            "sdk_version": "SDK Version",
-            "service_version": "Service Version",
+            "sdk-version": "SDK Version",
+            "service-version": "Service Version",
           }
-          versions
+          output
