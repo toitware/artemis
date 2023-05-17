@@ -80,7 +80,7 @@ download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
           store.save (client.storage.download --path="service-snapshots/$image")
         if exception:
           ui.error "Failed to download $row["sdk_version"]-$row["service_version"]."
-          ui.error "Are you logged in with the correct user?"
+          ui.error "Are you logged in as an admin?"
           ui.error exception
           ui.abort
 
