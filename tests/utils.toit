@@ -468,7 +468,7 @@ class FakeDevice extends TestDevice:
 
 class TestDevicePipe extends TestDevice:
   chunks_/List := []  // Of bytearrays.
-  pid_/int? := ?
+  child_process_/any := ?
   signal_ := monitor.Signal
   stdout_task_/Task? := null
   stderr_task_/Task? := null
@@ -500,7 +500,7 @@ class TestDevicePipe extends TestDevice:
         [toit_run] + flags
     stdout := fork_data[1]
     stderr := fork_data[2]
-    pid_ = fork_data[3]
+    child_process_ = fork_data[3]
     super
         --broker=broker
         --hardware_id=hardware_id
@@ -534,10 +534,10 @@ class TestDevicePipe extends TestDevice:
       if stderr_task_:
         stderr_task_.cancel
         stderr_task_ = null
-      if pid_:
+      if child_process_:
         SIGKILL ::= 9
-        pipe.kill_ pid_ SIGKILL
-        pid_ = null
+        pipe.kill_ child_process_ SIGKILL
+        child_process_ = null
 
   build_string_from_output_ --from/int -> string:
     input := chunks_[from..]
