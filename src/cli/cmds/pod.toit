@@ -175,6 +175,7 @@ list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             pods.do: | key/PodRegistryDescription pod_entries/List |
               json_descriptions[key.id] = key.to_json
               json_pods.add_all (pod_entries.map: | entry/PodRegistryEntry | entry.to_json)
+            json_pods
           --stdout=:
             print_pods_ pods --printer=printer
 
