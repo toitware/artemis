@@ -77,7 +77,13 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
       cache_key := "snapshot-downloader/$image"
       snapshot := cache.get cache_key: | store/cli.FileStore |
         ui.info "Downloading $row["sdk_version"]-$row["service_version"]."
-        store.save (client.storage.download --path="service-snapshots/$image")
+        exception := catch:
+          store.save (client.storage.download --path="service-snapshots/$image")
+        if exception:
+          ui.error "Failed to download $row["sdk_version"]-$row["service_version"]."
+          ui.error "Are you logged in as an admin?"
+          ui.error exception
+          ui.abort
 
       uuid := cache_snapshot snapshot --output_directory=output_directory
       ui.info "Wrote service snapshot $uuid."
