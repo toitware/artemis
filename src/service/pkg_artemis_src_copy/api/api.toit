@@ -12,7 +12,7 @@ interface ArtemisService:
       --minor=4
 
   /** The mode used by controllers that want to go online. */
-  static CONTROLLER_MODE_ONLINE  ::= 0
+  static CONTROLLER_MODE_ONLINE ::= 0
 
   /** The mode used by controllers that want to go offline. */
   static CONTROLLER_MODE_OFFLINE ::= 1
