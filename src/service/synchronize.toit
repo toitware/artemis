@@ -318,7 +318,7 @@ class SynchronizeJob extends TaskJob:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
           goal_state = synchronize_step_ resources goal_state
           if goal_state: continue
-          if control_level_online_ == 0 and device_.max_offline: return true
+          if device_.max_offline and control_level_online_ == 0: return true
           now := JobTime.now
           if (check_in_schedule now) <= now: return false
           transition_to_ STATE_CONNECTED_TO_BROKER
