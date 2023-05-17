@@ -8,7 +8,6 @@ import .api as api
 import .implementation.container as implementation
 import .implementation.controller as implementation
 
-DEFAULT_TIMEOUT_RUN_ONLINE_  ::= Duration --m=2
 DEFAULT_TIMEOUT_RUN_OFFLINE_ ::= Duration --m=5
 
 artemis_client_/api.ArtemisClient? ::= (api.ArtemisClient).open
@@ -35,12 +34,10 @@ Runs the $block while forcing Artemis to try go online
 The Artemis service will attempt to stay connected as
   long as the $block is still executing.
 */
-run --online/bool [block] -> none
-    --timeout/Duration?=DEFAULT_TIMEOUT_RUN_ONLINE_:
+run --online/bool [block] -> none:
   if not online: throw "Bad Argument"
-  with_timeout timeout:
-    implementation.Controller.run block
-        --mode=api.ArtemisService.CONTROLLER_MODE_ONLINE
+  implementation.Controller.run block
+      --mode=api.ArtemisService.CONTROLLER_MODE_ONLINE
 
 /**
 Runs the $block while forcing Artemis to stay offline.
@@ -48,7 +45,7 @@ Runs the $block while forcing Artemis to stay offline.
 The Artemis service guarantees to stay disconnected as
   long as the $block is still executing.
 */
-run --offline/bool  [block] -> none
+run --offline/bool [block] -> none
     --timeout/Duration?=DEFAULT_TIMEOUT_RUN_OFFLINE_:
   if not offline: throw "Bad Argument"
   with_timeout timeout:
