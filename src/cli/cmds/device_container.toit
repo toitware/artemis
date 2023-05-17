@@ -132,6 +132,6 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 uninstall_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   container_name := parsed["name"]
 
-  with_device parsed config cache ui: | device_id/uuid.Uuid artemis/Artemis _ |
-    artemis.container_uninstall --device_id=device_id --app_name=container_name
+  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
+    artemis.container_uninstall --device_id=device.id --app_name=container_name
     ui.info "Request sent to broker. Container will be uninstalled when device synchronizes."
