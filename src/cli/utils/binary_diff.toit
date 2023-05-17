@@ -106,7 +106,7 @@ class BitSequence_:
   // Specialized constructor used by the Metadata actions.
   // Emits the 16 bit metadata code, then the size, then the
   // byte array.
-  constructor.metadata code/int --ignorable/bool data=empty_byte_array_:
+  constructor.metadata code/int --ignorable/bool data/ByteArray=empty_byte_array_:
     number_of_bits = 16
     assert: 0 <= code <= 0x7f
     bits = (ignorable ? IGNORABLE_METADATA : NON_IGNORABLE_METADATA) + code
@@ -439,7 +439,7 @@ class InitialState_ extends Action:
   emit_bits optional_pad/int -> List:
     result := []
     if with_header_:
-      magic := [0x70, 0x17, 0xd1, 0xff]  // 0x7017d1ff.
+      magic := #[0x70, 0x17, 0xd1, 0xff]  // 0x7017d1ff.
       result.add
         BitSequence_.metadata 'M' --ignorable=false magic
       if total_new_bytes_ != 0:
