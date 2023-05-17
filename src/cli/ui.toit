@@ -6,8 +6,7 @@ import supabase
 import cli
 
 interface Printer:
-  emit o/any --title/string?=null
-  emit_table --header/List?=null table/List
+  emit o/any --title/string?=null --header/Map?=null
   emit_structured [--json] [--stdout]
 
 abstract class PrinterBase implements Printer:
@@ -18,7 +17,7 @@ abstract class PrinterBase implements Printer:
   abstract print_ str/string
   abstract handle_structured_ o/any
 
-  emit o/any --title/string?=null:
+  emit o/any --title/string?=null --header/Map?=null:
     if needs_structured_:
       handle_structured_ o
       return
@@ -36,6 +35,10 @@ abstract class PrinterBase implements Printer:
     if prefix_:
       print_ prefix_
       prefix_ = null
+
+    if o is List and header:
+      emit_table_ --title=title --header=header (o as List)
+      return
 
     indentation := ""
     if title:
@@ -63,13 +66,9 @@ abstract class PrinterBase implements Printer:
         // TODO(florian): should the entries handle lists as well.
         print_ "$indentation$key: $value"
 
-  emit_table --title/string?=null --header/List?=null rows/List:
+  emit_table_ --title/string?=null --header/Map table/List:
     if needs_structured_:
-      structured := {
-        "rows": rows,
-      }
-      if header: structured["header"] = header
-      handle_structured_ structured
+      handle_structured_ table
       return
 
     if prefix_:
@@ -80,32 +79,34 @@ abstract class PrinterBase implements Printer:
     if title:
       print_ "$title:"
 
-    if rows.is_empty and not header: return
-    column_count := rows.is_empty ? header.size : rows[0].size
-    column_sizes := List column_count: 0
+    column_count := header.size
+    column_sizes := header.map: | _ header_string/string | header_string.size --runes
 
-    if header:
-      header.size.repeat:
-        column_sizes[it] = header[it].size
+    table.do: | row/Map |
+      header.do --keys: | key/string |
+        entry/string := "$row[key]"
+        column_sizes.update key: | old/int | max old (entry.size --runes)
 
-    rows.do: | row |
-      row.size.repeat:
-        entry/string := row[it]
-        column_sizes[it] = max column_sizes[it] (entry.size --runes)
-    bars := column_sizes.map: "─" * it
+    pad := : | o/Map |
+      padded_row := []
+      column_sizes.do: | key size |
+        entry := "$o[key]"
+        // TODO(florian): allow alignment.
+        padded := entry + " " * (size - (entry.size --runes))
+        padded_row.add padded
+      padded_row
+
+    bars := column_sizes.values.map: "─" * it
     print_ "┌─$(bars.join "─┬─")─┐"
-    if header != null:
-      sized_header_entries := List column_count:
-        entry/string := header[it]
-        entry + " " * (column_sizes[it] - entry.size)
-      print_ "│ $(sized_header_entries.join "   ") │"
-      print_ "├─$(bars.join "─┼─")─┤"
 
-    rows.do: | row |
-      sized_row_entries := List column_count:
-        entry/string := row[it]
-        entry + " " * (column_sizes[it] - (entry.size --runes))
-      print_ "│ $(sized_row_entries.join "   ") │"
+    sized_header_entries := []
+    padded_row := pad.call header
+    print_ "│ $(padded_row.join "   ") │"
+    print_ "├─$(bars.join "─┼─")─┤"
+
+    table.do: | row |
+      padded_row = pad.call row
+      print_ "│ $(padded_row.join "   ") │"
     print_ "└─$(bars.join "─┴─")─┘"
 
   emit_structured [--json] [--stdout]:

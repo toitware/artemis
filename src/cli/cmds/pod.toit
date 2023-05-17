@@ -190,5 +190,20 @@ print_pods_ pods/Map --printer/Printer:
       description_line += " - $description.description"
     printer.emit description_line
     rows := pod_entries.map: | entry/PodRegistryEntry |
-      ["$entry.id", "$entry.revision", entry.tags.join ",", "$entry.created_at"]
-    printer.emit_table --header=["ID", "Revision", "Tags", "Created At"] rows
+      {
+        "id": "$entry.id",
+        "revision": entry.revision,
+        "tags": entry.tags,
+        "joined_tags": entry.tags.join ",",
+        "created_at": "$entry.created_at",
+      }
+    printer.emit
+        --header={
+          "id": "ID",
+          "revision": "Revision",
+          // Note that we don't print the actual tag list.
+          // However, a structured output will receive them.
+          "joined_tags": "Tags",
+          "created_at": "Created At",
+        }
+        rows

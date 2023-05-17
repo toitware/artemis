@@ -41,9 +41,15 @@ list_sdks parsed/cli.Parsed config/Config ui/Ui:
     versions/List := server.list_sdk_service_versions
         --sdk_version=sdk_version
         --service_version=service_version
-    // TODO(florian): make a nicer output.
-    table := []
-    versions.do: | row |
-      table.add [row["sdk_version"], row["service_version"]]
+
+    // No need to give the image to the user.
+    versions.do: | row/Map |
+      row.remove "image"
+
     ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit_table --header=["SDK Version", "Service Version"] table
+      printer.emit
+          --header={
+            "sdk_version": "SDK Version",
+            "service_version": "Service Version",
+          }
+          versions
