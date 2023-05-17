@@ -79,32 +79,26 @@ run_test
       }
       broker_cli.notify_created --device_id=device.id --state=state
 
-    network = net.open
+    network := net.open
     try:
-      test_image --test_broker=test_broker broker_cli
-      test_firmware --test_broker=test_broker broker_cli
-      test_goal --test_broker=test_broker broker_cli
-      test_state_devices --test_broker=test_broker broker_cli
+      test_image --test_broker=test_broker broker_cli --network=network
+      test_firmware --test_broker=test_broker broker_cli --network=network
+      test_goal --test_broker=test_broker broker_cli --network=network
+      test_state_devices --test_broker=test_broker broker_cli --network=network
       // Test the events last, as it depends on test_goal to have run.
       // It also does state updates which could interfere with the other tests,
       // like the health test.
-      test_events --test_broker=test_broker broker_cli
+      test_events --test_broker=test_broker broker_cli --network=network
 
     finally:
       network.close
-      network = null
 
-// TODO(kasper): We should probably pipe this through to the
-// individual tests, but to avoid too many conflicts, I'm
-// hacking this through for now.
-network/net.Client? := null
-
-test_goal --test_broker/TestBroker broker_cli/broker.BrokerCli:
+test_goal --test_broker/TestBroker broker_cli/broker.BrokerCli --network/net.Client:
   test_broker.with_service: | broker_service/broker.BrokerService |
-    test_goal broker_cli broker_service
+    test_goal broker_cli broker_service --network=network
 
 
-test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService --network/net.Client:
   3.repeat: | test_iteration |
     if test_iteration == 2:
       // Send a config update while the service is not connected.
@@ -153,11 +147,11 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     finally:
       resources.close
 
-test_image --test_broker/TestBroker broker_cli/broker.BrokerCli:
+test_image --test_broker/TestBroker broker_cli/broker.BrokerCli --network/net.Client:
   test_broker.with_service: | broker_service/broker.BrokerService |
-    test_image broker_cli broker_service
+    test_image broker_cli broker_service --network=network
 
-test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService --network/net.Client:
   2.repeat: | iteration |
     APP_ID ::= uuid.uuid5 "app" "test-app-$iteration"
     content_32 := ?
@@ -190,11 +184,11 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
     finally:
       resources.close
 
-test_firmware --test_broker/TestBroker broker_cli/broker.BrokerCli:
+test_firmware --test_broker/TestBroker broker_cli/broker.BrokerCli --network/net.Client:
   test_broker.with_service: | broker_service/broker.BrokerService |
-    test_firmware broker_cli broker_service
+    test_firmware broker_cli broker_service --network=network
 
-test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService --network/net.Client:
   3.repeat: | iteration |
     FIRMWARE_ID ::= "test-app-$iteration"
     content := ?
@@ -261,11 +255,11 @@ build_state_ device/Device token/string -> Map:
     "firmware": build_encoded_firmware --device=device,
   }
 
-test_state_devices --test_broker/TestBroker broker_cli/broker.BrokerCli:
+test_state_devices --test_broker/TestBroker broker_cli/broker.BrokerCli --network/net.Client:
   test_broker.with_service: | broker_service/broker.BrokerService |
-    test_state_devices broker_cli broker_service
+    test_state_devices broker_cli broker_service --network=network
 
-test_state_devices broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
+test_state_devices broker_cli/broker.BrokerCli broker_service/broker.BrokerService --network/net.Client:
   broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
     {
       "state-test": "1234",
@@ -336,7 +330,7 @@ test_state_devices broker_cli/broker.BrokerCli broker_service/broker.BrokerServi
       expect_equals "goal2" device2.reported_state_goal["token"]
       expect_equals "pending-firmware2" device2.pending_firmware
 
-test_events --test_broker/TestBroker broker_cli/broker.BrokerCli:
+test_events --test_broker/TestBroker broker_cli/broker.BrokerCli --network/net.Client:
   test_broker.with_service: | broker_service1/broker.BrokerService |
     test_broker.with_service: | broker_service2/broker.BrokerService |
       resources1 := null
