@@ -4,6 +4,7 @@
 
 import supabase
 import cli
+import encoding.json
 
 interface Printer:
   emit o/any --title/string?=null --header/Map?=null
@@ -141,9 +142,6 @@ abstract class Ui implements supabase.Ui cli.Ui:
     if not DEBUG_LEVEL >= level >= SILENT_LEVEL:
       error "Invalid level: $level"
 
-  abstract printer_ --kind/int -> Printer
-  abstract abort -> none
-
   do --kind/int=Ui.INFO [generator] -> none:
     if level == DEBUG_LEVEL:
       // Always triggers.
@@ -179,6 +177,33 @@ abstract class Ui implements supabase.Ui cli.Ui:
     do --kind=ERROR: | printer/Printer | printer.emit o
     abort
 
+  printer_ --kind/int -> Printer:
+    prefix/string? := null
+    if kind == Ui.WARNING:
+      prefix = "Warning: "
+    else if kind == Ui.ERROR:
+      prefix = "Error: "
+    return create_printer_ prefix kind
+
+  /**
+  Aborts the program with the given error message.
+
+  # Inheritance
+  It is safe to override this method with a custom implementation. The
+    method should always abort. Either with 'exit 1', or with an exception.
+  */
+  abort -> none:
+    exit 1
+
+  /**
+  Creates a new printer for the given $kind.
+
+  # Inheritance
+  Customization generally happens at this level, by providing different
+    implementations of the $Printer class.
+  */
+  abstract create_printer_ prefix/string? kind/int -> Printer
+
 /**
 Prints the given $str using $print.
 
@@ -205,16 +230,26 @@ class ConsoleUi extends Ui:
   constructor --level/int=Ui.NORMAL_LEVEL:
     super --level=level
 
-  printer_ --kind/int -> Printer:
-    prefix/string? := null
-    if kind == Ui.WARNING:
-      prefix = "Warning: "
-    else if kind == Ui.ERROR:
-      prefix = "Error: "
-    return create_printer_ prefix
-
-  create_printer_ prefix/string? -> Printer:
+  create_printer_ prefix/string? kind/int -> Printer:
     return ConsolePrinter prefix
 
-  abort -> none:
-    exit 1
+class JsonPrinter extends PrinterBase:
+  kind_/int
+
+  constructor prefix/string? .kind_:
+    super prefix
+
+  needs_structured_: return kind_ == Ui.RESULT
+
+  print_ str/string:
+    print_on_stderr_ str
+
+  handle_structured_ structured:
+    global_print_ (json.stringify structured)
+
+class JsonUi extends Ui:
+  constructor --level/int=Ui.QUIET_LEVEL:
+    super --level=level
+
+  create_printer_ prefix/string? kind/int -> Printer:
+    return JsonPrinter prefix kind

@@ -19,15 +19,59 @@ import .cmds.serial
 
 import ..shared.version
 
-// TODO:
-//  - groups of devices
-//  - device reject of configuration
+create_ui_from_args args:
+  verbose_level/string? := null
+  output_format/string? := null
+
+  // We don't keep track of whether an argument was already provided.
+  // The last one wins.
+  // The real parsing later will catch any errors.
+  // The output might still be affected since we use the created Ui class
+  // for the output of parsing.
+  // Also we might parse the flags in the wrong way here. For example,
+  //   `--output "--verbosity-level"` would be parsed differently if we knew
+  // that `--output` is an option that takes an argument. We completely ignore
+  // this here.
+  for i := 0; i < args.size; i++:
+    arg := args[i]
+    if arg == "--": break
+    if arg == "--verbose":
+      verbose_level = "verbose"
+    else if arg == "--verbosity-level" or arg == "--verbose_level":
+      if i + 1 >= args.size:
+        // We will get an error during the real parsing of the args.
+        break
+      verbose_level = args[++i]
+    else if arg.starts_with "--verbosity-level=" or arg.starts_with "--verbose_level=":
+      verbose_level = arg["--verbosity-level=".size..]
+    else if arg == "--output-format" or arg == "--output_format":
+      if i + 1 >= args.size:
+        // We will get an error during the real parsing of the args.
+        break
+      output_format = args[++i]
+    else if arg.starts_with "--output-format=" or arg.starts_with "--output_format=":
+      output_format = arg["--output-format=".size..]
+
+  if verbose_level == null: verbose_level = "info"
+  if output_format == null: output_format = "text"
+
+  level/int := ?
+  if verbose_level == "debug": level = Ui.DEBUG_LEVEL
+  else if verbose_level == "info": level = Ui.NORMAL_LEVEL
+  else if verbose_level == "verbose": level = Ui.VERBOSE_LEVEL
+  else if verbose_level == "quiet": level = Ui.QUIET_LEVEL
+  else if verbose_level == "silent": level = Ui.SILENT_LEVEL
+  else: level = Ui.NORMAL_LEVEL
+
+  if output_format == "json":
+    return JsonUi --level=level
+  else:
+    return ConsoleUi --level=Ui.NORMAL_LEVEL
 
 main args:
   config := read_config
   cache := Cache --app_name="artemis"
-  // TODO(florian): adjust the UI level based on the flags.
-  ui := ConsoleUi --level=Ui.NORMAL_LEVEL
+  ui := create_ui_from_args args
   main args --config=config --cache=cache --ui=ui
 
 main args --config/Config --cache/Cache --ui/Ui:
@@ -54,6 +98,17 @@ main args --config/Config --cache/Cache --ui/Ui:
             --type="directory"
             --short_help="Specify the fleet root."
             --default=".",
+        cli.OptionEnum "output-format"
+            ["text", "json"]
+            --short_help="Specify the format used when printing to the console."
+            --default="text",
+        cli.Flag "verbose"
+            --short_help="Enable verbose output. Shorthand for --verbosity-level=verbose."
+            --default=false,
+        cli.OptionEnum "verbosity-level"
+            ["debug", "info", "verbose", "quiet", "silent"]
+            --short_help="Specify the verbosity level."
+            --default="info",
       ]
 
   // TODO(florian): the ui should be configurable by flags.

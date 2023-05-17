@@ -118,7 +118,7 @@ class TestUi extends ConsoleUi:
     quiet_ = quiet
     super --level=level
 
-  create_printer_ prefix/string? -> TestPrinter:
+  create_printer_ prefix/string? level/int -> TestPrinter:
     return TestPrinter this prefix
 
   abort:
