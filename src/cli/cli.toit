@@ -29,7 +29,7 @@ create_ui_from_args args:
   // The output might still be affected since we use the created Ui class
   // for the output of parsing.
   // Also we might parse the flags in the wrong way here. For example,
-  //   `--output "--verbose-level"` would be parsed differently if we knew
+  //   `--output "--verbosity-level"` would be parsed differently if we knew
   // that `--output` is an option that takes an argument. We completely ignore
   // this here.
   for i := 0; i < args.size; i++:
@@ -37,13 +37,13 @@ create_ui_from_args args:
     if arg == "--": break
     if arg == "--verbose":
       verbose_level = "verbose"
-    else if arg == "--verbose-level" or arg == "--verbose_level":
+    else if arg == "--verbosity-level" or arg == "--verbose_level":
       if i + 1 >= args.size:
         // We will get an error during the real parsing of the args.
         break
       verbose_level = args[++i]
-    else if arg.starts_with "--verbose-level=" or arg.starts_with "--verbose_level=":
-      verbose_level = arg["--verbose-level=".size..]
+    else if arg.starts_with "--verbosity-level=" or arg.starts_with "--verbose_level=":
+      verbose_level = arg["--verbosity-level=".size..]
     else if arg == "--output-format" or arg == "--output_format":
       if i + 1 >= args.size:
         // We will get an error during the real parsing of the args.
@@ -103,9 +103,9 @@ main args --config/Config --cache/Cache --ui/Ui:
             --short_help="Specify the format used when printing to the console."
             --default="text",
         cli.Flag "verbose"
-            --short_help="Enable verbose output. Shorthand for --verbose-level=verbose."
+            --short_help="Enable verbose output. Shorthand for --verbosity-level=verbose."
             --default=false,
-        cli.OptionEnum "verbose-level"
+        cli.OptionEnum "verbosity-level"
             ["debug", "info", "verbose", "quiet", "silent"]
             --short_help="Specify the verbosity level."
             --default="info",
