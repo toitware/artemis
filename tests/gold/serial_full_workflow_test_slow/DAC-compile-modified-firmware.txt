@@ -1,2 +1,2 @@
-# Create the default firmware.
+# Compile the modified specification.
 # [--fleet-root, FLEET-DIR, pod, build, -o, FIRMWARE.POD, FLEET-DIR/FLEET-POD-FILE]

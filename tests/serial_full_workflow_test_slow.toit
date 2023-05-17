@@ -9,6 +9,7 @@ import artemis.cli.server_config as cli_server_config
 import artemis.service
 import artemis.shared.server_config show ServerConfig ServerConfigHttpToit
 import artemis.cli.utils show read_json write_json_to_file
+import encoding.json
 import host.directory
 import host.file
 import host.os
@@ -151,21 +152,28 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
   test_cli.run_gold "CAA-fleet-init"
       "Initialize a fleet."
       [
-        "fleet", "init",
         "--fleet-root", fleet_dir,
+        "fleet", "init",
       ]
+  fleet_file := read_json "$fleet_dir/fleet.json"
+  fleet_id := fleet_file["id"]
+  test_cli.replacements[fleet_id] = "-={|       UUID-FOR-FLEET       |}=-"
 
   test_cli.run_gold "CAK-no-devices-yet"
       "List devices in the fleet."
       [
-        "fleet", "status",
         "--fleet-root", fleet_dir,
+        "fleet", "status",
       ]
 
-  default_spec := read_json "$fleet_dir/specification.json"
+  spec_path := "$fleet_dir/my-pod.json"
+  test_cli.replacements["my-pod.json"] = "FLEET-POD-FILE"
+
+  default_spec := read_json spec_path
   // Only replace the artemis version. Keep the rest as is.
   default_spec["artemis-version"] = service_version
-  write_json_to_file --pretty "$fleet_dir/specification.json" default_spec
+  write_json_to_file --pretty spec_path default_spec
+
 
   print "Creating default firmware."
   // Create a firmware.
@@ -175,26 +183,95 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
   test_cli.run_gold "DAA-default-firmware"
       "Create the default firmware."
       [
-        "pod", "build",
         "--fleet-root", fleet_dir,
+        "pod", "build",
         "-o", pod_file,
-        "$fleet_dir/specification.json",
+        spec_path,
       ]
   expect (file.is_file pod_file)
 
+  add_replacements_for_pod := : | pod_json/Map |
+    id := pod_json["id"]
+    revision := pod_json["revision"]
+    tags := pod_json["tags"]
+    created_at := pod_json["created_at"]
+    test_cli.replacements[id] = "-={|      UUID-FOR-MY-POD#$revision     |}=-"
+    test_cli.replacements[created_at] = "CREATED-AT-FOR-MY-POD#$revision"
+    tags.do:
+      if it != "latest":
+        test_cli.replacements[it] = "TAG-FOR-MY-POD#$revision"
+    id
+
+  add_replacements_for_last_pod := :
+    available_pods := json.parse (test_cli.run --json [
+      "--fleet-root", fleet_dir,
+      "pod", "list",
+    ])
+    add_replacements_for_pod.call available_pods[0]
+
+
+  // Upload the firmware.
+  test_cli.run_gold "DAB-upload-firmware"
+      "Upload the firmware."
+      --before_gold=:
+        add_replacements_for_last_pod.call
+        it
+      [
+        "--fleet-root", fleet_dir,
+        "pod", "upload",
+        pod_file,
+      ]
+
   // Make our own specification.
-  our_spec := read_json "$fleet_dir/specification.json"
+  our_spec := read_json spec_path
   our_spec["max-offline"] = "10s"
   our_spec["artemis-version"] = service_version
   our_spec["connections"][0]["ssid"] = wifi_ssid
   our_spec["connections"][0]["password"] = wifi_password
   our_spec["containers"].remove "solar"
-  write_json_to_file --pretty "$fleet_dir/specification.json" our_spec
+  write_json_to_file --pretty spec_path our_spec
+
+  // Compile the specification.
+  test_cli.run_gold "DAC-compile-modified-firmware"
+      "Compile the modified specification."
+      [
+        "--fleet-root", fleet_dir,
+        "pod", "build",
+        "-o", pod_file,
+        spec_path,
+      ]
+
+  // Upload the specification.
+  test_cli.run_gold "DAD-upload-modified-pod"
+      "Upload the modified pod."
+      --before_gold=:
+        add_replacements_for_last_pod.call
+        it
+      [
+        "--fleet-root", fleet_dir,
+        "pod", "upload", pod_file,
+      ]
+
+  available_pods := json.parse (test_cli.run --json [
+    "--fleet-root", fleet_dir,
+    "pod", "list",
+  ])
+  flash_pod_id := available_pods[0]["id"]
+
+  // List the available firmwares.
+  test_cli.run_gold "DAE-list-firmwares"
+      --ignore_spacing
+      "List the available firmwares."
+      [
+        "--fleet-root", fleet_dir,
+        "pod", "list"
+      ]
 
   device_id/string? := null
   // Flash it.
-  test_cli.run_gold "DAB-flash"
+  test_cli.run_gold "DAF-flash"
       "Flash the firmware to the device."
+      --ignore_spacing
       --before_gold=: | output/string |
         provisioned_index := output.index_of "Successfully provisioned device"
         expect provisioned_index >= 0
@@ -211,7 +288,6 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "--port", serial_port,
       ]
 
-  print "Successfully flashed."
   devices := read_json "$fleet_dir/devices.json"
   device_entry := devices[device_id]
   device_name := device_entry["name"]
@@ -244,21 +320,16 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "--fleet-root", fleet_dir,
       ]
 
-  updated_spec := read_json "$fleet_dir/specification.json"
+  updated_spec := read_json spec_path
   updated_spec["max-offline"] = "11s"
-  write_json_to_file --pretty "$fleet_dir/specification.json" updated_spec
+  write_json_to_file --pretty spec_path updated_spec
 
-  initial_firmware/string? := null
   test_cli.run_gold "DDA-device-show"
       "Show the device before update."
       --ignore_spacing
       --before_gold=: | output/string |
         lines := output.split "\n"
         lines.do:
-          FIRMWARE_PREFIX ::= "  firmware: "
-          if it.starts_with FIRMWARE_PREFIX:
-            initial_firmware = it[FIRMWARE_PREFIX.size ..]
-            test_cli.replacements[initial_firmware] = "INITIAL_FIRMWARE"
           APP_ID_PREFIX ::= "      id: "
           if it.starts_with APP_ID_PREFIX:
             test_cli.replacements[it[APP_ID_PREFIX.size ..]] = "APP_ID"
@@ -268,6 +339,18 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "-d", device_id,
         "--max-events", "0",
         "--fleet-root", fleet_dir,
+      ]
+
+  // Upload a new version.
+  test_cli.run_gold "DDB-upload-new-firmware"
+      "Upload a new version of the firmware."
+      --before_gold=: | output/string |
+        add_replacements_for_last_pod.call
+        output
+      [
+        "--fleet-root", fleet_dir,
+        "pod", "upload",
+        spec_path,
       ]
 
   test_cli.run_gold "DDK-update-firmware"
@@ -295,37 +378,38 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
             "--max-events", "0",
             "--fleet-root", fleet_dir,
       ]
-      if not status_output.contains initial_firmware:
+      if not status_output.contains flash_pod_id:
         break
       sleep --ms=1_000
 
-  /*
-  // TODO(florian): reenable test.
   test_cli.run_gold "DEA-status"
       "List devices in the fleet after applied update."
       --ignore_spacing
       --before_gold=: | output/string |
         lines := output.split "\n"
-        missed_index/int? := null
+        missed_index/int := -1
         fixed := []
         lines.do: | line/string |
-          missed_index_tmp := line.index_of "Missed"
-          if missed_index_tmp >= 0:
-            missed_index = missed_index_tmp
+          if missed_index < 0:
+            missed_index = line.index_of "Missed"
+            if missed_index < 0:
+              continue.do
 
           // The update might have led to a missed checkin.
           // Remove the check-mark.
+          // We use a string instead of a character, as the size of the cross is more
+          // than one byte.
           CROSS ::= "✗"
-          cross_index := line.index_of CROSS
-          if cross_index == missed_index:
-            line = line[.. cross_index] + " " + line[cross_index + CROSS.size ..]
+          // Replacing the cross by using the index is a bit brittle.
+          // Due to unicode characters before the cross, the index might not be the same.
+          if line.size > missed_index and line[missed_index] == CROSS[0]:
+            line = line[.. missed_index] + " " + line[missed_index + CROSS.size ..]
           fixed.add line
         fixed.join "\n"
       [
-        "fleet", "status",
         "--fleet-root", fleet_dir,
+        "fleet", "status",
       ]
-  */
 
   after_firmware/string? := null
   test_cli.run_gold "DEK-device-show"

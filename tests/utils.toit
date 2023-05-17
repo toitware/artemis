@@ -21,7 +21,7 @@ import artemis.shared.server_config
 import artemis.service
 import artemis.service.brokers.broker show ResourceManager BrokerService
 import artemis.service.device show Device
-import artemis.cli.ui show ConsolePrinter ConsoleUi Ui
+import artemis.cli.ui show ConsolePrinter JsonPrinter Ui Printer
 import artemis.cli.utils show write_blob_to_file read_base64_ubjson
 import ..tools.http_servers.broker as http_servers
 import ..tools.http_servers.artemis_server as http_servers
@@ -110,15 +110,32 @@ class TestPrinter extends ConsolePrinter:
     if not test_ui_.quiet_: super str
     test_ui_.stdout += "$str\n"
 
-class TestUi extends ConsoleUi:
-  stdout/string := ""
-  quiet_/bool
+class TestJsonPrinter extends JsonPrinter:
+  test_ui_/TestUi
 
-  constructor --level/int=Ui.NORMAL_LEVEL --quiet/bool=true:
+  constructor .test_ui_ prefix/string? level/int:
+    super prefix level
+
+  print_ str/string:
+    if not test_ui_.quiet_: super str
+    test_ui_.stderr += "$str\n"
+
+  handle_structured_ data:
+    test_ui_.stdout += json.stringify data
+
+class TestUi extends Ui:
+  stdout/string := ""
+  stderr/string := ""
+  quiet_/bool
+  json_/bool
+
+  constructor --level/int=Ui.NORMAL_LEVEL --quiet/bool=true --json/bool=false:
     quiet_ = quiet
+    json_ = json
     super --level=level
 
-  create_printer_ prefix/string? level/int -> TestPrinter:
+  create_printer_ prefix/string? level/int -> Printer:
+    if json_: return TestJsonPrinter this prefix level
     return TestPrinter this prefix
 
   abort:
@@ -149,8 +166,8 @@ class TestCli:
       device.close
       artemis.backdoor.remove_device device.hardware_id
 
-  run args/List --expect_exit_1/bool=false --quiet/bool=true -> string:
-    ui := TestUi --quiet=quiet
+  run args/List --expect_exit_1/bool=false --quiet/bool=true --json/bool=false -> string:
+    ui := TestUi --quiet=quiet --json=json
     exception := null
     try:
       exception = catch --unwind=(: not expect_exit_1 or it is not TestExit):

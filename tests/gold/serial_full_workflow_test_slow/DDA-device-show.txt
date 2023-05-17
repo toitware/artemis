@@ -2,11 +2,13 @@
 # [device, show, -d, -={|    UUID-FOR-TEST-DEVICE    |}=-, --max-events, 0, --fleet-root, FLEET-DIR]
 Device ID: -={|    UUID-FOR-TEST-DEVICE    |}=-
 Organization ID: -={| UUID-FOR-TEST-ORGANIZATION |}=- (ORGANIZATION_NAME           )
+Device name: DEVICE_NAME
+Device aliases: 
 
 Firmware state as reported by the device:
   sdk-version: SDK-VERSION
   max-offline: 10
-  firmware: INITIAL_FIRMWARE
+  pod: -={|      UUID-FOR-MY-POD#2     |}=- - my-pod#2 TAG-FOR-MY-POD#2,latest
   connections: [
     * password: ***
       ssid: WIFI-SSID
