@@ -124,7 +124,9 @@ class SynchronizeJob extends TaskJob:
   pending_steps_/Deque ::= Deque
 
   // The synchronization job can be controlled from the outside
-  // and supports requesting
+  // and it supports requesting to go online or offline. Since
+  // multiple clients can request both at the same time, we keep
+  // track of the level, e.g. the outstanding number of requests.
   control_level_online_/int := 0
   control_level_offline_/int := 0
 
@@ -152,9 +154,10 @@ class SynchronizeJob extends TaskJob:
         // If we're forced to go online, we let the scheduler
         // know that we may be able to run the synchronization job.
         if control_level_online_++ == 0: scheduler_.on_job_updated
-        // TODO(kasper): We should really wait until we're online
-        // here. How do we do that? Should this throw if we can't
-        // go online? Probably.
+        // TODO(kasper): We should really wait until we have had the
+        // chance to consider going online. There is a risk that we
+        // get so little time that we don't even try and that seems
+        // hard to reason about.
       else:
         // If we're forced to go offline, we stop the synchronization
         // job right away. This is somewhat abrupt, but if users
@@ -193,6 +196,11 @@ class SynchronizeJob extends TaskJob:
     return schedule
 
   schedule_tune last/JobTime -> JobTime:
+    // If we got abruptly stopped by a request to go offline, we
+    // treat it as if we didn't get a chance to run in the first
+    // place. This makes us eager to re-try once we're allowed
+    // to go online again.
+    if control_level_offline_ > 0: return last
     // Allow the synchronization job to start early, thus pulling
     // the effective minimum offline period down towards zero. As
     // long as the jitter duration is larger than OFFLINE_MINIMUM
@@ -373,7 +381,8 @@ class SynchronizeJob extends TaskJob:
       tags/Map? := null
       if state == STATE_SYNCHRONIZED:
         max_offline := device_.max_offline
-        if max_offline: tags = {"max-offline": max_offline}
+        if max_offline and control_level_online_ == 0:
+          tags = {"max-offline": max_offline}
       logger_.info STATE_SUCCESS[state] --tags=tags
 
     // If we've successfully connected to the broker, we consider
