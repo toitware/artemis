@@ -130,8 +130,9 @@ class PodRegistryEntry:
 
   to_json -> Map:
     return {
-      "id": id,
+      "id": "$id",
       "revision": revision,
+      "created_at": "$created_at",
       "pod_description_id": pod_description_id,
       "tags": tags,
     }

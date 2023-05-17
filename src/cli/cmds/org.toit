@@ -190,7 +190,7 @@ print_org org_id/uuid.Uuid server/ArtemisServerCli ui/Ui -> none:
   ui.result {
     "ID": "$org.id",
     "Name": org.name,
-    "Created": org.created_at,
+    "Created": "$org.created_at",
   }
 
 default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:

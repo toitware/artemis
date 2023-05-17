@@ -559,7 +559,7 @@ class Fleet:
       rows.add {
         "device-id": "$fleet_device.id",
         "device-name": fleet_device.name or "",
-        "pod-id": pod_id,
+        "pod-id": "$pod_id",
         "pod-name": pod_name,
         "pod-revision": pod_revision,
         "pod-tags": pod_tags,
