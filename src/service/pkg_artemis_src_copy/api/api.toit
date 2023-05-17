@@ -9,7 +9,13 @@ interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=0
-      --minor=3
+      --minor=4
+
+  /** The mode used by controllers that want to go online. */
+  static CONTROLLER_MODE_ONLINE  ::= 0
+
+  /** The mode used by controllers that want to go offline. */
+  static CONTROLLER_MODE_OFFLINE ::= 1
 
   static CHANNEL_POSITION_BITS_ ::= 30
   static CHANNEL_POSITION_HALF_ ::= (1 << (CHANNEL_POSITION_BITS_ - 1))
@@ -35,6 +41,9 @@ interface ArtemisService:
   container_current_restart --wakeup_us/int? -> none
   static CONTAINER_CURRENT_RESTART_INDEX /int ::= 1
 
+  controller_open --mode/int -> int
+  static CONTROLLER_OPEN_INDEX /int ::= 6
+
   channel_open --topic/string --receive/bool -> int?
   static CHANNEL_OPEN_INDEX /int ::= 2
 
@@ -59,6 +68,9 @@ class ArtemisClient extends ServiceClient
 
   container_current_restart --wakeup_us/int? -> none:
     invoke_ ArtemisService.CONTAINER_CURRENT_RESTART_INDEX wakeup_us
+
+  controller_open --mode/int -> int:
+    return invoke_ ArtemisService.CONTROLLER_OPEN_INDEX mode
 
   channel_open --topic/string --receive/bool -> int?:
     return invoke_ ArtemisService.CHANNEL_OPEN_INDEX [topic, receive]

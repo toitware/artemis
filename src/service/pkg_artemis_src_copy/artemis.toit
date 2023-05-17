@@ -6,6 +6,7 @@ import system.services show ServiceResourceProxy
 
 import .api as api
 import .implementation.container as implementation
+import .implementation.controller as implementation
 
 artemis_client_/api.ArtemisClient? ::= (api.ArtemisClient).open
     --if_absent=: null
@@ -23,6 +24,22 @@ version -> string:
   client := artemis_client_
   if not client: throw "Artemis unavailable"
   return client.version
+
+/**
+...
+*/
+run --online/bool [block] -> none:
+  if not online: throw "Bad Argument"
+  implementation.Controller.run block
+      --mode=api.ArtemisService.CONTROLLER_MODE_ONLINE
+
+/**
+...
+*/
+run --offline/bool [block] -> none:
+  if not offline: throw "Bad Argument"
+  implementation.Controller.run block
+      --mode=api.ArtemisService.CONTROLLER_MODE_OFFLINE
 
 /**
 A container is a schedulable unit of execution that runs
