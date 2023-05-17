@@ -43,8 +43,8 @@ run_artemis device/Device server_config/ServerConfig -> Duration
   broker := BrokerService logger server_config
 
   // Set up the basic jobs.
-  synchronize/SynchronizeJob := SynchronizeJob logger device containers broker
-  jobs := [synchronize]
+  synchronizer/SynchronizeJob := SynchronizeJob logger device containers broker
+  jobs := [synchronizer]
   if start_ntp: jobs.add (NtpJob logger (Duration --m=10))
   scheduler.add_jobs jobs
 
@@ -57,7 +57,7 @@ run_artemis device/Device server_config/ServerConfig -> Duration
   // the Artemis API so user code can interact with us
   // at runtime and not just through the broker.
   wakeup/JobTime? := null
-  provider := ArtemisServiceProvider containers
+  provider := ArtemisServiceProvider containers synchronizer
   try:
     provider.install
     wakeup = scheduler.run
@@ -76,8 +76,9 @@ run_artemis device/Device server_config/ServerConfig -> Duration
 class ArtemisServiceProvider extends ChannelServiceProvider
     implements api.ArtemisService:
   containers_/ContainerManager
+  synchronizer_/SynchronizeJob
 
-  constructor .containers_:
+  constructor .containers_ .synchronizer_:
     super "toit.io/artemis"
         --major=ARTEMIS_VERSION_MAJOR
         --minor=ARTEMIS_VERSION_MINOR
@@ -88,6 +89,8 @@ class ArtemisServiceProvider extends ChannelServiceProvider
       return version
     if index == api.ArtemisService.CONTAINER_CURRENT_RESTART_INDEX:
       return container_current_restart --gid=gid --wakeup_us=arguments
+    if index == api.ArtemisService.CONTROLLER_OPEN_INDEX:
+      return controller_open --client=client --mode=arguments
     return super index arguments --gid=gid --client=client
 
   version -> string:
@@ -97,5 +100,29 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     job := containers_.get --gid=gid
     job.restart --wakeup_us=wakeup_us
 
+  controller_open --client/int --mode/int -> ControllerResource:
+    online := false
+    if mode == api.ArtemisService.CONTROLLER_MODE_ONLINE:
+      online = true
+    else if mode != api.ArtemisService.CONTROLLER_MODE_OFFLINE:
+      throw "ILLEGAL_ARGUMENT"
+    return ControllerResource this client
+        --synchronizer=synchronizer_
+        --online=online
+
   container_current_restart --wakeup_us/int? -> none:
     unreachable  // Here to satisfy the checker.
+
+  controller_open --mode/int -> int:
+    unreachable  // Here to satisfy the checker.
+
+class ControllerResource extends services.ServiceResource:
+  synchronizer/SynchronizeJob
+  online/bool
+
+  constructor provider/ArtemisServiceProvider client/int --.synchronizer --.online:
+    super provider client
+    synchronizer.control --online=online
+
+  on_closed -> none:
+    synchronizer.control --online=online --close

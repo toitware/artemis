@@ -6,6 +6,9 @@ import system.services show ServiceResourceProxy
 
 import .api as api
 import .implementation.container as implementation
+import .implementation.controller as implementation
+
+DEFAULT_TIMEOUT_RUN_OFFLINE_ ::= Duration --m=5
 
 artemis_client_/api.ArtemisClient? ::= (api.ArtemisClient).open
     --if_absent=: null
@@ -23,6 +26,31 @@ version -> string:
   client := artemis_client_
   if not client: throw "Artemis unavailable"
   return client.version
+
+/**
+Runs the $block while forcing Artemis to try go online
+  even if it is not scheduled to do so yet.
+
+The Artemis service will attempt to stay connected as
+  long as the $block is still executing.
+*/
+run --online/bool [block] -> none:
+  if not online: throw "Bad Argument"
+  implementation.Controller.run block
+      --mode=api.ArtemisService.CONTROLLER_MODE_ONLINE
+
+/**
+Runs the $block while forcing Artemis to stay offline.
+
+The Artemis service guarantees to stay disconnected as
+  long as the $block is still executing.
+*/
+run --offline/bool [block] -> none
+    --timeout/Duration?=DEFAULT_TIMEOUT_RUN_OFFLINE_:
+  if not offline: throw "Bad Argument"
+  with_timeout timeout:
+    implementation.Controller.run block
+        --mode=api.ArtemisService.CONTROLLER_MODE_OFFLINE
 
 /**
 A container is a schedulable unit of execution that runs
