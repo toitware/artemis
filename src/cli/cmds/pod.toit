@@ -167,27 +167,28 @@ list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     // we want to have a second way of listing: one where we only list the ones that
     // have tags. One, where we list all of them.
     // we probably also want to list only entries for a specific name.
-    ui.info_structured
-        --json=:
-          json_descriptions := {:}
-          json_pods := []
-          pods.do: | key/PodRegistryDescription pod_entries/List |
-            json_descriptions[key.id] = key.to_json
-            json_pods.add_all (pod_entries.map: | entry/PodRegistryEntry | entry.to_json)
-        --stdout=:
-          print_pods_ pods --ui=ui
+    ui.do --kind=Ui.RESULT: | printer/Printer |
+      printer.emit_structured
+          --json=:
+            json_descriptions := {:}
+            json_pods := []
+            pods.do: | key/PodRegistryDescription pod_entries/List |
+              json_descriptions[key.id] = key.to_json
+              json_pods.add_all (pod_entries.map: | entry/PodRegistryEntry | entry.to_json)
+          --stdout=:
+            print_pods_ pods --printer=printer
 
-print_pods_ pods/Map --ui/Ui:
+print_pods_ pods/Map --printer/Printer:
   is_first := true
   pods.do: | description/PodRegistryDescription pod_entries/List |
     if is_first:
       is_first = false
     else:
-      ui.info ""
+      printer.emit ""
     description_line := "$description.name"
     if description.description:
       description_line += " - $description.description"
-    ui.info description_line
+    printer.emit description_line
     rows := pod_entries.map: | entry/PodRegistryEntry |
       ["$entry.id", "$entry.revision", entry.tags.join ",", "$entry.created_at"]
-    ui.info_table --header=["ID", "Revision", "Tags", "Created At"] rows
+    printer.emit_table --header=["ID", "Revision", "Tags", "Created At"] rows

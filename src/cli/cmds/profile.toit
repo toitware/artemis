@@ -44,7 +44,7 @@ show_profile parsed/cli.Parsed config/Config ui/Ui:
   with_profile_server parsed config ui: | server/ArtemisServerCli |
     profile := server.get_profile
     // We recreate the map, so we don't show unnecessary entries.
-    ui.info_map {
+    ui.result {
       "id": profile["id"],
       "name": profile["name"],
       "email": profile["email"],

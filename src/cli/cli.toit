@@ -26,7 +26,8 @@ import ..shared.version
 main args:
   config := read_config
   cache := Cache --app_name="artemis"
-  ui := ConsoleUi
+  // TODO(florian): adjust the UI level based on the flags.
+  ui := ConsoleUi --level=Ui.NORMAL_LEVEL
   main args --config=config --cache=cache --ui=ui
 
 main args --config/Config --cache/Cache --ui/Ui:
@@ -36,7 +37,7 @@ main args --config/Config --cache/Cache --ui/Ui:
   // command. The `--version` here is just for convenience, since many
   // tools have it too.
   if args.size == 1 and args[0] == "--version":
-    ui.info ARTEMIS_VERSION
+    ui.result ARTEMIS_VERSION
     return
 
   root_cmd := cli.Command "root"
@@ -46,7 +47,7 @@ main args --config/Config --cache/Cache --ui/Ui:
       --subcommands=[
         cli.Command "version"
             --long_help="Show the version of the Artemis tool."
-            --run=:: ui.info ARTEMIS_VERSION,
+            --run=:: ui.result ARTEMIS_VERSION,
       ]
       --options=[
         cli.Option "fleet-root"
