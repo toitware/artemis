@@ -130,9 +130,14 @@ class ConnectionWifi extends Connection:
     return "wifi-$index"
 
   open -> net.Client:
+    ssid/string? := description_["ssid"]
+    // If the ssid is not provided, we use the configurable
+    // setting stored on the device, so the WiFi credentials
+    // can be set through some kind of provisioning step.
+    if not ssid: return wifi.open --name=name null
     return wifi.open
         --name=name
-        --ssid=description_["ssid"]
+        --ssid=ssid
         --password=description_["password"]
 
 class ConnectionCellular extends Connection:

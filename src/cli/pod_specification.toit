@@ -306,12 +306,18 @@ interface ConnectionInfo:
   to_json -> Map
 
 class WifiConnectionInfo implements ConnectionInfo:
-  ssid/string
-  password/string
+  ssid/string?
+  password/string?
 
   constructor.from_json data/Map:
-    ssid = get_string_ data "ssid" --holder="wifi connection"
-    password = get_string_ data "password" --holder="wifi connection"
+    config := get_optional_string_ data "config" --holder="wifi connection"
+    if config:
+      if config != "provisioned": format_error_ "Unknown wifi config: $config"
+      ssid = null
+      password = null
+    else:
+      ssid = get_string_ data "ssid" --holder="wifi connection"
+      password = get_string_ data "password" --holder="wifi connection"
 
   type -> string:
     return "wifi"
