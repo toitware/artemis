@@ -1,5 +1,5 @@
 # List devices in the fleet.
-# [fleet, status, --fleet-root, FLEET-DIR]
+# [--fleet-root, FLEET-DIR, fleet, status]
 ┌───────────┬──────┬─────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
 │ Device ID   Name   Pod   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
 ├───────────┼──────┼─────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤

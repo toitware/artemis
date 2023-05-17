@@ -1,0 +1,7 @@
+# Upload the modified pod.
+# [--fleet-root, FLEET-DIR, pod, upload, FIRMWARE.POD]
+Successfully uploaded my-pod#2 to fleet -={|       UUID-FOR-FLEET       |}=-.
+  id: -={|      UUID-FOR-MY-POD#2     |}=-
+  references:
+    - my-pod@TAG-FOR-MY-POD#2
+    - my-pod@latest

@@ -1,0 +1,7 @@
+# Upload the firmware.
+# [--fleet-root, FLEET-DIR, pod, upload, FIRMWARE.POD]
+Successfully uploaded my-pod#1 to fleet -={|       UUID-FOR-FLEET       |}=-.
+  id: -={|      UUID-FOR-MY-POD#1     |}=-
+  references:
+    - my-pod@TAG-FOR-MY-POD#1
+    - my-pod@latest
