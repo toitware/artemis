@@ -85,8 +85,7 @@ class Artemis:
       broker_ = BrokerCli broker_config_ config_
     if authenticated:
       broker_.ensure_authenticated: | error_message |
-        ui_.error "$error_message (broker)."
-        ui_.abort
+        ui_.abort "$error_message (broker)."
     return broker_
 
   /**
@@ -100,8 +99,7 @@ class Artemis:
       artemis_server_ = ArtemisServerCli network_ artemis_config_ config_
     if authenticated:
       artemis_server_.ensure_authenticated: | error_message |
-        ui_.error "$error_message (artemis)."
-        ui_.abort
+        ui_.abort "$error_message (artemis)."
     return artemis_server_
 
   /**
@@ -114,8 +112,7 @@ class Artemis:
         --sdk_version=sdk
         --service_version=service
     if versions.is_empty:
-      ui_.error "Unsupported Artemis/SDK versions."
-      ui_.abort
+      ui_.abort "Unsupported Artemis/SDK versions."
 
   /**
   Provisions a device.
@@ -231,12 +228,10 @@ class Artemis:
       if connection.type == "wifi" or connection.type == "cellular":
         connections.add connection.to_json
       else:
-        ui_.error "Unsupported connection type: $connection.type"
-        ui_.abort
+        ui_.abort "Unsupported connection type: $connection.type"
 
     if not (connections.any: it["type"] == "wifi"):
-      ui_.error "No WiFi connections configured."
-      ui_.abort
+      ui_.abort "No WiFi connections configured."
 
     device_config["connections"] = connections
 
@@ -447,7 +442,7 @@ class Artemis:
       upgrade_from := []
       if known_encoded_firmwares.is_empty:
         if base_firmwares.is_empty:
-          ui_.error "No old firmware found for device '$device_id'."
+          ui_.warning "No old firmware found for device '$device_id'."
         else:
           upgrade_from = base_firmwares
       else:
@@ -456,8 +451,7 @@ class Artemis:
           old_device_map := old_firmware.device_specific "artemis.device"
           old_device_id := uuid.parse old_device_map["device_id"]
           if device_id != old_device_id:
-            ui_.error "The device id of the firmware image ($old_device_id) does not match the given device id ($device_id)."
-            ui_.abort
+            ui_.abort "The device id of the firmware image ($old_device_id) does not match the given device id ($device_id)."
           upgrade_from.add old_firmware.content
 
       compute_updated_goal
@@ -571,8 +565,7 @@ class Artemis:
       server := connected_artemis_server --no-authenticated
       entry := server.list_sdk_service_versions --sdk_version=sdk --service_version=service
       if entry.is_empty:
-        ui_.error "Unsupported Artemis/SDK versions."
-        ui_.abort
+        ui_.abort "Unsupported Artemis/SDK versions."
       image_name := entry.first["image"]
       service_image_bytes := server.download_service_image image_name
       ar_reader := ar.ArReader.from_bytes service_image_bytes
@@ -598,8 +591,7 @@ class Artemis:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       current_state := device.reported_state_current or device.reported_state_firmware
       if not current_state:
-        ui_.error "Unknown device state."
-        ui_.abort
+        ui_.abort "Unknown device state."
       firmware := Firmware.encoded current_state["firmware"]
       sdk_version := firmware.sdk_version
       sdk := get_sdk sdk_version --cache=cache_

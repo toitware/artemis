@@ -561,8 +561,10 @@ class Fleet:
         fleet_device.aliases ? fleet_device.aliases.join ", " : "",
       ]
 
-    ui_.info_table rows
-        --header=["Device ID", "Name", "Pod", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
+    // TODO(florian): we shouldn't have any `ui_.result` outside of `cmd` files.
+    ui_.do --kind=Ui.RESULT: | printer/Printer |
+      printer.emit_table rows
+          --header=["Device ID", "Name", "Pod", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
 
   resolve_alias alias/string -> DeviceFleet:
     if not aliases_.contains alias:

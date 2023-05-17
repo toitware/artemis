@@ -5,77 +5,81 @@
 import supabase
 import cli
 
-/**
-A class for handling input/output from the user.
+interface Printer:
+  emit o/any --title/string?=null
+  emit_table --header/List?=null table/List
+  emit_structured [--json] [--stdout]
 
-The Ui class is used to display text to the user and to get input from the user.
-*/
-interface Ui implements supabase.Ui cli.Ui:
-  /** Reports an error. */
-  error str/string
+abstract class PrinterBase implements Printer:
+  prefix_/string? := ?
+  constructor .prefix_:
 
-  /** Reports a warning. */
-  warning str/string
+  abstract needs_structured_ -> bool
+  abstract print_ str/string
+  abstract handle_structured_ o/any
 
-  /** Reports information. */
-  info str/string
+  emit o/any --title/string?=null:
+    if needs_structured_:
+      handle_structured_ o
+      return
 
-  /** Reports information as a list. */
-  info_list list/List --title/string?=null
+    if o is string:
+      message := o as string
+      if title:
+        message = "$title: $message"
+      if prefix_:
+        message = "$prefix_$message"
+        prefix_ = null
+      print_ message
+      return
 
-  /** Reports information as a table. */
-  info_table rows/List --header/List?=null
+    if prefix_:
+      print_ prefix_
+      prefix_ = null
 
-  /** Reports information in a structured way. */
-  info_map map/Map
-
-  /**
-  Reports the information of the given object.
-  Calls the correct block depending on which mode the UI is in.
-
-  If the UI should output JSON, then the $json block is called.
-  Otherwise, the $stdout block is called with the Ui object as argument.
-  */
-  info_structured [--json] [--stdout]
-
-  print str/string
-
-  abort str/string
-
-  abort
-
-/**
-Prints the given $str using $print.
-
-This function is necessary, as $ConsoleUi has its own 'print' method,
-  which shadows the global one.
-*/
-global_print_ str/string:
-  print str
-
-class ConsoleUi implements Ui:
-  error str/string:
-    print_ "Error: $str"
-
-  warning str/string:
-    print_ "Warning: $str"
-
-  print str/string:
-    print_ str
-
-  info str/string:
-    print_ str
-
-  info_list list/List --title/string?=null:
     indentation := ""
     if title:
       print_ "$title:"
       indentation = "  "
 
+    if o is List:
+      emit_list_ (o as List) --indentation=indentation
+    else if o is Map:
+      emit_map_ (o as Map) --indentation=indentation
+    else:
+      throw "Invalid type"
+
+  emit_list_ list/List --indentation/string:
     list.do:
+      // TODO(florian): should the entries be recursively pretty-printed?
       print_ "$indentation$it"
 
-  info_table rows/List --header/List?=null:
+  emit_map_ map/Map --indentation/string:
+    map.do: | key value |
+      if value is Map:
+        print_ "$indentation$key:"
+        emit_map_ value --indentation="$indentation  "
+      else:
+        // TODO(florian): should the entries handle lists as well.
+        print_ "$indentation$key: $value"
+
+  emit_table --title/string?=null --header/List?=null rows/List:
+    if needs_structured_:
+      structured := {
+        "rows": rows,
+      }
+      if header: structured["header"] = header
+      handle_structured_ structured
+      return
+
+    if prefix_:
+      print_ prefix_
+      prefix_ = null
+
+    // TODO(florian): make this look nicer.
+    if title:
+      print_ "$title:"
+
     if rows.is_empty and not header: return
     column_count := rows.is_empty ? header.size : rows[0].size
     column_sizes := List column_count: 0
@@ -104,23 +108,112 @@ class ConsoleUi implements Ui:
       print_ "│ $(sized_row_entries.join "   ") │"
     print_ "└─$(bars.join "─┴─")─┘"
 
-  info_map map/Map --indentation/string="":
-    map.do: | key value |
-      if value is Map:
-        print_ "$indentation$key:"
-        info_map value --indentation="$indentation  "
-      else:
-        print_ "$indentation$key: $value"
+  emit_structured [--json] [--stdout]:
+    if needs_structured_:
+      handle_structured_ json.call
+      return
 
-  info_structured [--json] [--stdout]:
     stdout.call this
+
+/**
+A class for handling input/output from the user.
+
+The Ui class is used to display text to the user and to get input from the user.
+*/
+abstract class Ui implements supabase.Ui cli.Ui:
+  static DEBUG ::= 0
+  static VERBOSE ::= 1
+  static INFO ::= 2
+  static WARNING ::= 3
+  static INTERACTIVE ::= 4
+  static ERROR ::= 5
+  static RESULT ::= 6
+
+  static DEBUG_LEVEL ::= -1
+  static VERBOSE_LEVEL ::= -2
+  static NORMAL_LEVEL ::= -3
+  static QUIET_LEVEL ::= -4
+  static SILENT_LEVEL ::= -5
+
+  level/int
+  constructor --.level/int:
+    if not DEBUG_LEVEL >= level >= SILENT_LEVEL:
+      error "Invalid level: $level"
+
+  abstract printer_ --kind/int -> Printer
+  abstract abort -> none
+
+  do --kind/int=Ui.INFO [generator] -> none:
+    if level == DEBUG_LEVEL:
+      // Always triggers.
+    else if level == VERBOSE_LEVEL:
+      if kind < VERBOSE: return
+    else if level == NORMAL_LEVEL:
+      if kind < INFO: return
+    else if level == QUIET_LEVEL:
+      if kind < INTERACTIVE: return
+    else if level == SILENT_LEVEL:
+      if kind < RESULT: return
+    else:
+      error "Invalid level: $level"
+    generator.call (printer_ --kind=kind)
+
+  /** Reports an error. */
+  error o/any:
+    do --kind=ERROR: | printer/Printer | printer.emit o
+
+  /** Reports a warning. */
+  warning o/any:
+    do --kind=WARNING: | printer/Printer | printer.emit o
+
+  info o/any:
+    do --kind=INFO: | printer/Printer | printer.emit o
+
+  print o/any: info o
+
+  result o/any:
+    do --kind=RESULT: | printer/Printer | printer.emit o
+
+  abort o/any:
+    do --kind=ERROR: | printer/Printer | printer.emit o
+    abort
+
+/**
+Prints the given $str using $print.
+
+This function is necessary, as $ConsolePrinter has its own 'print' method,
+  which shadows the global one.
+*/
+global_print_ str/string:
+  print str
+
+class ConsolePrinter extends PrinterBase:
+  constructor prefix/string?:
+    super prefix
+
+  needs_structured_: return false
 
   print_ str/string:
     global_print_ str
 
-  abort str/string:
-    error str
-    abort
+  handle_structured_ structured:
+    unreachable
+
+class ConsoleUi extends Ui:
+
+  constructor --level/int=Ui.NORMAL_LEVEL:
+    super --level=level
+
+  printer_ --kind/int -> Printer:
+    prefix/string? := null
+    if kind == Ui.WARNING:
+      prefix = "Warning: "
+    else if kind == Ui.ERROR:
+      prefix = "Error: "
+    return create_printer_ prefix
+
+  create_printer_ prefix/string? -> Printer:
+    return ConsolePrinter prefix
 
   abort -> none:
     exit 1

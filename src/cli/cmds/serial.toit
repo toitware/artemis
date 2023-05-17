@@ -222,6 +222,7 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
       // Flash.
       sdk := get_sdk pod.sdk_version --cache=cache
+      // TODO(florian): don't print anything if ui is quiet/silent.
       sdk.flash
           --envelope_path=pod.envelope_path
           --config_path=config_path

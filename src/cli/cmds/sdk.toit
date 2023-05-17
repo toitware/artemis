@@ -45,4 +45,5 @@ list_sdks parsed/cli.Parsed config/Config ui/Ui:
     table := []
     versions.do: | row |
       table.add [row["sdk_version"], row["service_version"]]
-    ui.info_table --header=["SDK Version", "Service Version"] table
+    ui.do --kind=Ui.RESULT: | printer/Printer |
+      printer.emit_table --header=["SDK Version", "Service Version"] table

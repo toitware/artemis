@@ -172,7 +172,7 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if not device_id:
         ui.abort "No default device set."
 
-      ui.info "$device_id"
+      ui.result "$device_id"
       return
     else:
       device_id = fleet.resolve_alias device
@@ -211,7 +211,8 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
                         --limit=max_events
 
       events = events_map.get fleet_device.id
-    ui.info_structured
+    ui.do: | printer/Printer |
+      printer.emit_structured
         --json=: device_to_json_ fleet_device broker_device organization events
         --stdout=:
           print_device_
@@ -276,16 +277,16 @@ print_device_
     broker_device/DeviceDetailed
     organization/OrganizationDetailed
     events/List?
-    ui/Ui:
-  ui.print "Device ID: $broker_device.id"
-  ui.print "Organization ID: $broker_device.organization_id ($organization.name)"
-  ui.print "Device name: $(fleet_device.name or "")"
+    printer/Printer:
+  printer.emit "Device ID: $broker_device.id"
+  printer.emit "Organization ID: $broker_device.organization_id ($organization.name)"
+  printer.emit "Device name: $(fleet_device.name or "")"
   aliases := fleet_device.aliases or []
-  ui.print "Device aliases: $(aliases.join ", ")"
+  printer.emit "Device aliases: $(aliases.join ", ")"
 
   if broker_device.reported_state_firmware:
-    ui.print ""
-    ui.print "Firmware state as reported by the device:"
+    printer.emit ""
+    printer.emit "Firmware state as reported by the device:"
     state := broker_device.reported_state_firmware
     if state["firmware"]:
       state = state.copy
@@ -293,41 +294,41 @@ print_device_
       pod_description = firmware_to_pod_description_ --fleet=fleet state["firmware"]
       state["pod"] = pod_description
       state.remove "firmware"
-    print_map_ state ui --indentation=2
+    print_map_ state printer --indentation=2
         --preferred_keys=["sdk-version", "max-offline", "pod", "connections", "apps"]
 
   if broker_device.pending_firmware:
-    ui.print ""
-    ui.print "Pod installed but not running (pending a reboot):"
-    ui.print "   $(firmware_to_pod_description_ --fleet=fleet broker_device.pending_firmware)"
+    printer.emit ""
+    printer.emit "Pod installed but not running (pending a reboot):"
+    printer.emit "   $(firmware_to_pod_description_ --fleet=fleet broker_device.pending_firmware)"
 
   if broker_device.reported_state_current:
     modification := Modification.compute
         --from=broker_device.reported_state_firmware
         --to=broker_device.reported_state_current
     if modification:
-      ui.print ""
-      ui.print "Current state modifications as reported by the device:"
-      print_modification_ modification --to=broker_device.reported_state_current ui --fleet=fleet
+      printer.emit ""
+      printer.emit "Current state modifications as reported by the device:"
+      print_modification_ modification --to=broker_device.reported_state_current printer --fleet=fleet
 
   if broker_device.reported_state_goal:
     diff_to := broker_device.reported_state_current or broker_device.reported_state_firmware
     modification := Modification.compute
         --from=diff_to
         --to=broker_device.reported_state_goal
-    ui.print ""
-    ui.print "Goal state modifications compared to the current state as reported by the device:"
-    print_modification_ modification --to=broker_device.reported_state_goal ui --fleet=fleet
+    printer.emit ""
+    printer.emit "Goal state modifications compared to the current state as reported by the device:"
+    print_modification_ modification --to=broker_device.reported_state_goal printer --fleet=fleet
 
   if broker_device.goal:
     if not broker_device.reported_state_firmware:
       // Hasn't checked in yet.
-      ui.print ""
-      ui.print "Goal state:"
+      printer.emit ""
+      printer.emit "Goal state:"
       prettified := broker_device.goal.map: | key value |
         if key == "firmware": prettify_firmware value
         else: value
-      print_map_ prettified ui --indentation=2
+      print_map_ prettified printer --indentation=2
     else:
       diff_to/Map := ?
       diff_to_string/string := ?
@@ -346,15 +347,15 @@ print_device_
           --from=diff_to
           --to=broker_device.goal
       if modification == null:
-        ui.print ""
-        ui.print "Goal is the same as the $diff_to_string."
+        printer.emit ""
+        printer.emit "Goal is the same as the $diff_to_string."
       else:
-        ui.print ""
-        ui.print "Goal modifications compared to the $diff_to_string:"
-        print_modification_ modification --to=broker_device.goal ui --fleet=fleet
+        printer.emit ""
+        printer.emit "Goal modifications compared to the $diff_to_string:"
+        print_modification_ modification --to=broker_device.goal printer --fleet=fleet
 
   if events:
-    ui.print ""
+    printer.emit ""
     now := Time.now.local
     are_all_today := events.every: | event/Event |
       event_time := event.timestamp.local
@@ -374,9 +375,9 @@ print_device_
       str
 
     event_strings := events.map: event_to_string.call it
-    ui.info_list --title="Events" event_strings
+    printer.emit --title="Events" event_strings
 
-print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="" --preferred_keys/List?=null:
+print_map_ map/Map printer/Printer --indentation/int=0 --prefix/string="" --preferred_keys/List?=null:
   first_indentation_str := " " * indentation + prefix
   next_indentation_str := " " * first_indentation_str.size
   nested_indentation := first_indentation_str.size + 2
@@ -391,14 +392,14 @@ print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="" --preferred_keys
       indentation_str := is_first ? first_indentation_str : next_indentation_str
       is_first = false
       if value is Map:
-        ui.print "$indentation_str$key:"
-        print_map_ value ui --indentation=nested_indentation
+        printer.emit "$indentation_str$key:"
+        print_map_ value printer --indentation=nested_indentation
       else if value is List:
-        ui.print "$indentation_str$key: ["
-        print_list_ value ui --indentation=nested_indentation
-        ui.print "$indentation_str]"
+        printer.emit "$indentation_str$key: ["
+        print_list_ value printer --indentation=nested_indentation
+        printer.emit "$indentation_str]"
       else:
-        ui.print "$indentation_str$key: $value"
+        printer.emit "$indentation_str$key: $value"
 
   if preferred_keys:
     preferred_keys.do: | key |
@@ -409,29 +410,29 @@ print_map_ map/Map ui/Ui --indentation/int=0 --prefix/string="" --preferred_keys
   keys.do: | key |
     print_key_value.call key map[key]
 
-print_list_ list/List ui/Ui --indentation/int=0:
+print_list_ list/List printer/Printer --indentation/int=0:
   indentation_str := " " * indentation
   nested_indentation := indentation + 2
   list.do: | value |
     if value is Map:
-      print_map_ value ui --indentation=indentation  --prefix="* "
+      print_map_ value printer --indentation=indentation  --prefix="* "
     else if value is List:
-      ui.print "$(indentation_str)* ["
-      print_list_ value ui --indentation=nested_indentation
-      ui.print "$(indentation_str)]"
+      printer.emit "$(indentation_str)* ["
+      print_list_ value printer --indentation=nested_indentation
+      printer.emit "$(indentation_str)]"
     else:
-      ui.print "$indentation_str* $value"
+      printer.emit "$indentation_str* $value"
 
-print_modification_ modification/Modification --to/Map --fleet/Fleet ui/Ui:
+print_modification_ modification/Modification --to/Map --fleet/Fleet printer/Printer:
   modification.on_value "firmware"
-      --added=: ui.print   "  +pod: $(firmware_to_pod_description_ it --fleet=fleet)"
-      --removed=: ui.print "  -pod"
-      --updated=: | _ to | ui.print "  pod -> $(firmware_to_pod_description_ to --fleet=fleet)"
+      --added=: printer.emit   "  +pod: $(firmware_to_pod_description_ it --fleet=fleet)"
+      --removed=: printer.emit "  -pod"
+      --updated=: | _ to | printer.emit "  pod -> $(firmware_to_pod_description_ to --fleet=fleet)"
 
   modification.on_value "max-offline"
-      --added=: ui.print   "  +max-offline: $it"
-      --removed=: ui.print "  -max-offline"
-      --updated=: | _ to | ui.print "  max-offline -> $to"
+      --added=: printer.emit   "  +max-offline: $it"
+      --removed=: printer.emit "  -max-offline"
+      --updated=: | _ to | printer.emit "  max-offline -> $to"
 
   has_app_changes := false
   modification.on_value "apps"
@@ -440,14 +441,14 @@ print_modification_ modification/Modification --to/Map --fleet/Fleet ui/Ui:
       --updated=: has_app_changes = true
 
   if has_app_changes:
-    ui.print "  apps:"
+    printer.emit "  apps:"
     modification.on_map "apps"
         --added=: | name description |
-          ui.print "    +$name ($description)"
+          printer.emit "    +$name ($description)"
         --removed=: | name _ |
-          ui.print "    -$name"
+          printer.emit "    -$name"
         --updated=: | name from to |
-          print_app_update_ name from to ui
+          print_app_update_ name from to printer
 
   already_handled := { "firmware", "max-offline", "apps" }
   modification.on_map
@@ -455,33 +456,33 @@ print_modification_ modification/Modification --to/Map --fleet/Fleet ui/Ui:
         if already_handled.contains name: continue.on_map
         if is_sensitive_ name and new_value is string:
           new_value = "***"
-        ui.print "  +$name: $new_value"
+        printer.emit "  +$name: $new_value"
       --removed=: | name _ |
         if already_handled.contains name: continue.on_map
-        ui.print "  -$name"
+        printer.emit "  -$name"
       --updated=: | name _ new_value |
         if already_handled.contains name: continue.on_map
         if is_sensitive_ name and new_value is string:
           new_value = "***"
         new_value = filter_sensitive_ new_value
-        ui.print "  $name -> $new_value"
+        printer.emit "  $name -> $new_value"
       --modified=: | name _ |
         if already_handled.contains name: continue.on_map
         new_value := to[name]
         if is_sensitive_ name and new_value is string:
           new_value = "***"
-        ui.print "  $name changed to $new_value"
+        printer.emit "  $name changed to $new_value"
 
-print_app_update_ name/string from/Map to/Map ui/Ui:
-  ui.print "    $name:"
+print_app_update_ name/string from/Map to/Map printer/Printer:
+  printer.emit "    $name:"
   modification := Modification.compute --from=from --to=to
   modification.on_map
       --added=: | key value |
-        ui.print "      +$key: $value"
+        printer.emit "      +$key: $value"
       --removed=: | key _ |
-        ui.print "      -$key"
+        printer.emit "      -$key"
       --updated=: | key from to |
-        ui.print "      $key -> $to"
+        printer.emit "      $key -> $to"
 
 prettify_firmware firmware/string -> string:
   if firmware.size <= 80: return firmware
