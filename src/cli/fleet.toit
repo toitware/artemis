@@ -524,16 +524,22 @@ class Fleet:
       if not include_healthy and status.is_healthy: continue
       if not include_never_seen and status.never_seen: continue
 
-      pod_name := ""
+      pod_name/string? := null
+      pod_revision/int? := null
+      pod_tags/List? := null
+      pod_description := ""
       if pod_id:
         entry/PodRegistryEntry? := pod_entry_map.get pod_id
         if not entry:
-          pod_name = "$pod_id"
+          pod_description = "$pod_id"
         else:
           description/PodRegistryDescription := description_map.get entry.pod_description_id
-          pod_name = "$description.name#$entry.revision"
+          pod_name = description.name
+          pod_revision = entry.revision
+          pod_tags = entry.tags
+          pod_description = "$description.name#$entry.revision"
           if not entry.tags.is_empty:
-            pod_name += " $(entry.tags.join ",")"
+            pod_description += " $(entry.tags.join ",")"
 
       cross := "✗"
       // TODO(florian): when the UI wants structured output we shouldn't change the last
@@ -550,21 +556,41 @@ class Fleet:
         missed_checkins_string = "?"
       else if status.missed_checkins > 0:
         missed_checkins_string = cross
-      rows.add [
-        "$fleet_device.id",
-        fleet_device.name or "",
-        pod_name,
-        status.is_fully_updated ? "" : cross,
-        status.is_modified ? cross : "",
-        missed_checkins_string,
-        human_last_seen,
-        fleet_device.aliases ? fleet_device.aliases.join ", " : "",
-      ]
+      rows.add {
+        "device-id": "$fleet_device.id",
+        "device-name": fleet_device.name or "",
+        "pod-id": pod_id,
+        "pod-name": pod_name,
+        "pod-revision": pod_revision,
+        "pod-tags": pod_tags,
+        "pod-description": pod_description,
+        "outdated": not status.is_fully_updated,
+        "outdated-human": status.is_fully_updated ? "" : cross,
+        "modified": status.is_modified,
+        "modified-human": status.is_modified ? cross : "",
+        "missed-checkins": status.missed_checkins,
+        "missed-checkins-human": missed_checkins_string,
+        "last-seen-human": human_last_seen,
+        "last-seen": status.last_seen ? "$status.last_seen" : null,
+        "never-seen": status.never_seen,
+        "aliases": fleet_device.aliases ? fleet_device.aliases.join ", " : "",
+        // TODO(florian): add more useful information.
+      }
 
     // TODO(florian): we shouldn't have any `ui_.result` outside of `cmd` files.
     ui_.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit_table rows
-          --header=["Device ID", "Name", "Pod", "Outdated", "Modified", "Missed Checkins", "Last Seen", "Aliases"]
+      printer.emit
+          rows
+          --header={
+            "device-id": "Device ID",
+            "device-name": "Name",
+            "pod-description": "Pod",
+            "outdated-human": "Outdated",
+            "modified-human": "Modified",
+            "missed-checkins-human": "Missed Checkins",
+            "last-seen-human": "Last Seen",
+            "aliases": "Aliases",
+          }
 
   resolve_alias alias/string -> DeviceFleet:
     if not aliases_.contains alias:

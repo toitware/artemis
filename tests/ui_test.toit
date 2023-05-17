@@ -40,10 +40,12 @@ main:
   ui.reset
 
   ui.do: | printer/Printer |
-    printer.emit_table --header=["x", "y"] [
-      ["a", "b"],
-      ["c", "d"],
-    ]
+    printer.emit
+        --header={"x": "x", "y": "y"}
+        [
+          { "x": "a", "y": "b" },
+          { "x": "c", "y": "d" },
+        ]
   expect_equals """
   ┌───┬───┐
   │ x   y │
@@ -55,10 +57,12 @@ main:
   ui.reset
 
   ui.do: | printer/Printer |
-    printer.emit_table --header=["long", "even longer"] [
-      ["a", "short"],
-      ["longer", "d"],
-    ]
+    printer.emit
+        --header={ "left": "long", "right": "even longer" }
+        [
+          { "left": "a", "right": "short" },
+          { "left": "longer", "right": "d" },
+        ]
   expect_equals """
   ┌────────┬─────────────┐
   │ long     even longer │
@@ -70,27 +74,15 @@ main:
   ui.reset
 
   ui.do: | printer/Printer |
-    printer.emit_table --header=["no", "rows"] []
+    printer.emit
+        --header={"left": "no", "right": "rows"}
+        []
   expect_equals """
   ┌────┬──────┐
   │ no   rows │
   ├────┼──────┤
   └────┴──────┘
   """ ui.stdout
-  ui.reset
-
-  ui.do: | printer/Printer |
-    printer.emit_table [["no", "header"]]
-  expect_equals """
-  ┌────┬────────┐
-  │ no   header │
-  └────┴────────┘
-  """ ui.stdout
-  ui.reset
-
-  ui.do: | printer/Printer |
-    printer.emit_table []
-  expect_equals "" ui.stdout
   ui.reset
 
   ui.info {

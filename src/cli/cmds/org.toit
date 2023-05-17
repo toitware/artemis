@@ -165,8 +165,12 @@ list_orgs parsed/cli.Parsed config/Config ui/Ui -> none:
   with_org_server parsed config ui: | server/ArtemisServerCli |
     orgs := server.get_organizations
     ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit_table --header=["ID", "Name"]
-        orgs.map: [ "$it.id", it.name ]
+      printer.emit
+          --header={"id": "ID", "name": "Name"}
+          orgs.map: | org/Organization | {
+            "id": "$org.id",
+            "name": org.name,
+          }
 
 create_org parsed/cli.Parsed config/Config ui/Ui -> none:
   should_make_default := parsed["default"]
@@ -231,18 +235,20 @@ member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
     members := server.get_organization_members org_id
     if parsed["id-only"]:
       ui.do --kind=Ui.RESULT: | printer/Printer |
-        printer.emit_table --header=["ID"]
-            members.map: [ "$it["id"]" ]
+        printer.emit
+            --header={"id": "ID"}
+            members
       return
     profiles := members.map: server.get_profile --user_id=it["id"]
     ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit_table --header=["ID", "Role", "Name", "Email"]
-        List members.size:
-          id := members[it]["id"]
-          role := members[it]["role"]
-          name := profiles[it]["name"]
-          email := profiles[it]["email"]
-          [ "$id", role, name, email ]
+      printer.emit
+          --header={"id": "ID", "role": "Role", "name": "Name", "email": "Email"}
+          List members.size: {
+            "id": "$members[it]["id"]",
+            "role": members[it]["role"],
+            "name": profiles[it]["name"],
+            "email": profiles[it]["email"],
+          }
 
 member_add parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   user_id := parsed["user-id"]

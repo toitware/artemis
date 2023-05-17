@@ -69,8 +69,9 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
     service_images := client.rest.select "sdk_service_versions" --filters=filters
     ui.info "Downloading snapshots for:"
     ui.do --kind=Ui.INFO: | printer/Printer |
-      printer.emit_table --header=[ "SDK", "Service" ]
-          service_images.map: | row | [ row["sdk_version"], row["service_version"] ]
+      printer.emit
+          --header={"sdk_version": "SDK", "service_version": "Service"}
+          service_images
 
     service_images.do: | row |
       image := row["image"]
