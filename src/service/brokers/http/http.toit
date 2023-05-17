@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
+import net
 import reader show Reader
 import uuid
 
@@ -8,7 +9,21 @@ import .connection
 import ..broker
 import ...device
 
-class ResourceManagerHttp implements ResourceManager:
+class BrokerServiceHttp implements BrokerService:
+  logger_/log.Logger
+  host_/string
+  port_/int
+
+  constructor .logger_ host/string port/int:
+    host_ = host
+    port_ = port
+
+  connect --network/net.Client --device/Device -> BrokerConnection:
+    connection := HttpConnection_ network host_ port_
+    return BrokerConnectionHttp logger_ device connection
+
+
+class BrokerConnectionHttp implements BrokerConnection:
   device_/Device
   connection_/HttpConnection_
   logger_/log.Logger

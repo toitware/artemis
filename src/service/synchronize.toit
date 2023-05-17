@@ -311,12 +311,12 @@ class SynchronizeJob extends TaskJob:
   */
   connect_broker_ network/net.Client -> bool:
     // TODO(kasper): Add timeout for connect.
-    resources := broker_.connect --network=network --device=device_
+    broker_connection := broker_.connect --network=network --device=device_
     try:
       goal_state/Map? := null
       while true:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
-          goal_state = synchronize_step_ resources goal_state
+          goal_state = synchronize_step_ broker_connection goal_state
           if goal_state: continue
           if device_.max_offline and control_level_online_ == 0: return true
           now := JobTime.now
@@ -324,11 +324,11 @@ class SynchronizeJob extends TaskJob:
           transition_to_ STATE_CONNECTED_TO_BROKER
       finally:
         // TODO(kasper): Add timeout for close.
-        resources.close
+        broker_connection.close
 
-  synchronize_step_ resources/ResourceManager goal_state/Map? -> Map?:
+  synchronize_step_ broker_connection/BrokerConnection goal_state/Map? -> Map?:
     // If our state has changed, we communicate it to the cloud.
-    report_state_if_changed resources --goal_state=goal_state
+    report_state_if_changed broker_connection --goal_state=goal_state
 
     if goal_state:
       // If we already have a goal state, it means that we're going
@@ -340,21 +340,21 @@ class SynchronizeJob extends TaskJob:
       // TODO(kasper): Change the interface so we don't have to
       // catch exceptions to figure out if we got a new goal state.
       catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-        goal_state = resources.fetch_goal --no-wait
+        goal_state = broker_connection.fetch_goal --no-wait
         goal_state_updated = true
         transition_to_connected_
       if goal_state_updated:
-        process_goal_ goal_state resources
+        process_goal_ goal_state broker_connection
       else:
         // We always have a pending step here, because the goal state
         // is non-null for the step and that only happens when we have
         // pending steps.
         pending/Lambda := pending_steps_.remove_first
-        pending.call resources
+        pending.call broker_connection
     else:
-      goal_state = resources.fetch_goal --wait
+      goal_state = broker_connection.fetch_goal --wait
       transition_to_connected_
-      process_goal_ goal_state resources
+      process_goal_ goal_state broker_connection
 
     // We only handle pending steps when we're done handling the other
     // updates. This means that we prioritize firmware updates and
@@ -364,7 +364,7 @@ class SynchronizeJob extends TaskJob:
     // We have successfully finished processing the new goal state
     // and any pending steps. Inform the broker.
     transition_to_ STATE_CONNECTED_TO_BROKER
-    report_state_if_changed resources
+    report_state_if_changed broker_connection
     transition_to_ STATE_SYNCHRONIZED
     return null
 
@@ -440,7 +440,7 @@ class SynchronizeJob extends TaskJob:
   /**
   Process new goal.
   */
-  process_goal_ new_goal_state/Map? resources/ResourceManager -> none:
+  process_goal_ new_goal_state/Map? broker_connection/BrokerConnection -> none:
     assert: state_ >= STATE_CONNECTED_TO_BROKER
     pending_steps_.clear
 
@@ -465,8 +465,8 @@ class SynchronizeJob extends TaskJob:
     if firmware_from != firmware_to:
       transition_to_ STATE_PROCESSING_FIRMWARE
       logger_.info "firmware update" --tags={"from": firmware_from, "to": firmware_to}
-      report_state_if_changed resources --goal_state=new_goal_state
-      handle_firmware_update_ resources firmware_to
+      report_state_if_changed broker_connection --goal_state=new_goal_state
+      handle_firmware_update_ broker_connection firmware_to
       // Handling the firmware update either completes and restarts
       // or throws an exception. We shouldn't get here.
       unreachable
@@ -486,7 +486,7 @@ class SynchronizeJob extends TaskJob:
 
     transition_to_ STATE_PROCESSING_GOAL
     logger_.info "updating" --tags={"changes": Modification.stringify modification}
-    report_state_if_changed resources --goal_state=new_goal_state
+    report_state_if_changed broker_connection --goal_state=new_goal_state
 
     modification.on_map "apps"
         --added=: | name/string description |
@@ -548,10 +548,10 @@ class SynchronizeJob extends TaskJob:
       containers_.install job
       return
 
-    pending_steps_.add:: | resources/ResourceManager |
+    pending_steps_.add:: | broker_connection/BrokerConnection |
       assert: state_ >= STATE_CONNECTED_TO_BROKER
       transition_to_ STATE_PROCESSING_CONTAINER_IMAGE
-      resources.fetch_image id: | reader/Reader |
+      broker_connection.fetch_image id: | reader/Reader |
         job := containers_.create
             --name=name
             --id=id
@@ -581,7 +581,7 @@ class SynchronizeJob extends TaskJob:
     device_.state_set_max_offline max_offline
     status_limit_us_ = compute_status_limit_us_ max_offline
 
-  handle_firmware_update_ resources/ResourceManager new/string -> none:
+  handle_firmware_update_ broker_connection/BrokerConnection new/string -> none:
     if firmware_is_validation_pending: throw "firmware update: cannot update unvalidated"
     runlevel := scheduler_.runlevel
     updated := false
@@ -591,11 +591,11 @@ class SynchronizeJob extends TaskJob:
       // using safe mode for firmware updates, but if we were to
       // change this, we shouldn't increase the runlevel here.
       scheduler_.transition --runlevel=Job.RUNLEVEL_SAFE
-      firmware_update logger_ resources --device=device_ --new=new
+      firmware_update logger_ broker_connection --device=device_ --new=new
       updated = true
       transition_to_ STATE_CONNECTED_TO_BROKER
       device_.state_firmware_update new
-      report_state_if_changed resources
+      report_state_if_changed broker_connection
     finally:
       if updated: firmware.upgrade
       scheduler_.transition --runlevel=runlevel
@@ -607,7 +607,7 @@ class SynchronizeJob extends TaskJob:
   The reported state includes the firmware state, the current state,
     and the goal state.
   */
-  report_state_if_changed resources/ResourceManager --goal_state/Map?=null -> none:
+  report_state_if_changed broker_connection/BrokerConnection --goal_state/Map?=null -> none:
     state := {
       "firmware-state": device_.firmware_state,
     }
@@ -623,7 +623,7 @@ class SynchronizeJob extends TaskJob:
     checksum := sha.get
     if checksum == device_.report_state_checksum: return
 
-    resources.report_state state
+    broker_connection.report_state state
     transition_to_connected_
     device_.report_state_checksum = checksum
     logger_.info "synchronized state to broker"
