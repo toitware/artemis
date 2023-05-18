@@ -12,7 +12,7 @@ RETURNS INTERVAL
 IMMUTABLE
 LANGUAGE SQL
 AS $$
-    SELECT INTERVAL '10 days';
+    SELECT INTERVAL '30 days';
 $$;
 
 -- Delete events that are older than
