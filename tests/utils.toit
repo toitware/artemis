@@ -19,7 +19,7 @@ import artemis.cli.cache as artemis_cache
 import artemis.cli.utils show read_json write_json_to_file
 import artemis.shared.server_config
 import artemis.service
-import artemis.service.brokers.broker show ResourceManager BrokerService
+import artemis.service.brokers.broker show BrokerConnection BrokerService
 import artemis.service.device show Device
 import artemis.cli.ui show ConsolePrinter JsonPrinter Ui Printer
 import artemis.cli.utils show write_blob_to_file read_base64_ubjson
@@ -352,7 +352,7 @@ abstract class TestDevice:
   constructor --.broker --.hardware_id --.alias_id --.organization_id:
 
   /**
-  Closes the test device and releases all resources.
+  Closes the test device and releases all broker connections.
   */
   abstract close -> none
 
@@ -426,13 +426,13 @@ class FakeDevice extends TestDevice:
   wait_until_connected --timeout=(Duration --ms=5_000) -> none:
     return
 
-  with_resources_ [block]:
+  with_broker_connection_ [block]:
     broker.with_service: | service/BrokerService |
-      resources := service.connect --device=device_ --network=network_
+      broker_connection := service.connect --device=device_ --network=network_
       try:
-        block.call resources
+        block.call broker_connection
       finally:
-        resources.close
+        broker_connection.close
 
   /**
   Reports the state to the broker.
@@ -450,16 +450,16 @@ class FakeDevice extends TestDevice:
     if goal_state:
       state["goal-state"] = goal_state
 
-    with_resources_: | resources/ResourceManager |
-      resources.report_state state
+    with_broker_connection_: | broker_connection/BrokerConnection |
+      broker_connection.report_state state
 
   /**
   Synchronizes with the broker.
   Use $flash to simulate flashing the goal.
   */
   synchronize:
-    with_resources_: | resources/ResourceManager |
-      goal_state = resources.fetch_goal --no-wait
+    with_broker_connection_: | broker_connection/BrokerConnection |
+      goal_state = broker_connection.fetch_goal --no-wait
 
   /**
   Simulates flashing the goal state.

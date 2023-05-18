@@ -1,13 +1,26 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import log
+import net
 import reader show Reader
+import supabase
 import uuid
 
 import ..broker
 import ...device
-import supabase
+import ....shared.server_config
 
-class ResourceManagerSupabase implements ResourceManager:
+class BrokerServiceSupabase implements BrokerService:
+  logger_/log.Logger
+  broker_/ServerConfigSupabase
+  constructor .logger_ .broker_:
+
+  connect --network/net.Client --device/Device -> BrokerConnection:
+    client := supabase.Client network --server_config=broker_
+        --certificate_provider=: throw "UNSUPPORTED"
+    return BrokerConnectionSupabase device client broker_.poll_interval
+
+class BrokerConnectionSupabase implements BrokerConnection:
   device_/Device
   client_/supabase.Client
 

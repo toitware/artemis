@@ -114,11 +114,11 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         device.goal["test-entry"] = "succeeded while offline"
         device.goal
 
-    resources := broker_service.connect --network=network --device=DEVICE1
+    broker_connection := broker_service.connect --network=network --device=DEVICE1
     try:
       event_goal/Map? := null
       exception := catch:
-        event_goal = resources.fetch_goal --wait=(test_iteration > 0)
+        event_goal = broker_connection.fetch_goal --wait=(test_iteration > 0)
 
       if test_iteration == 0:
         // None of the brokers have sent a goal-state update yet.
@@ -139,7 +139,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old["test-entry"] = "succeeded 1"
         old
 
-      event_goal = resources.fetch_goal --wait
+      event_goal = broker_connection.fetch_goal --wait
       expect_equals "succeeded 1" event_goal["test-entry"]
 
       broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
@@ -148,10 +148,10 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         old["test-entry"] = "succeeded 2"
         old
 
-      event_goal = resources.fetch_goal --wait
+      event_goal = broker_connection.fetch_goal --wait
       expect_equals "succeeded 2" event_goal["test-entry"]
     finally:
-      resources.close
+      broker_connection.close
 
 test_image --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service/broker.BrokerService |
@@ -178,9 +178,9 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --app_id=APP_ID
         --word_size=64
 
-    resources := broker_service.connect --network=network --device=DEVICE1
+    broker_connection := broker_service.connect --network=network --device=DEVICE1
     try:
-      resources.fetch_image APP_ID:
+      broker_connection.fetch_image APP_ID:
         | reader/Reader |
           // TODO(florian): this only tests the download of the current platform. That is, on
           // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
@@ -188,7 +188,7 @@ test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
           data := utils.read_all reader
           expect_bytes_equal (BITS_PER_WORD == 32 ? content_32 : content_64) data
     finally:
-      resources.close
+      broker_connection.close
 
 test_firmware --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service/broker.BrokerService |
@@ -220,11 +220,11 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
         --organization_id=TEST_ORGANIZATION_UUID
     expect_bytes_equal content downloaded_bytes
 
-    resources := broker_service.connect --network=network --device=DEVICE1
+    broker_connection := broker_service.connect --network=network --device=DEVICE1
     try:
       data := #[]
       offsets := []
-      resources.fetch_firmware FIRMWARE_ID:
+      broker_connection.fetch_firmware FIRMWARE_ID:
         | reader/Reader offset |
           expect_equals data.size offset
           while chunk := reader.read: data += chunk
@@ -236,7 +236,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
       if offsets.size > 1:
         offset_index := offsets.size / 2
         current_offset := offsets[offset_index]
-        resources.fetch_firmware FIRMWARE_ID --offset=current_offset:
+        broker_connection.fetch_firmware FIRMWARE_ID --offset=current_offset:
           | reader/Reader offset |
             expect_equals current_offset offset
             partial_data := utils.read_all reader
@@ -253,7 +253,7 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService:
             // Return the new offset.
             current_offset
     finally:
-      resources.close
+      broker_connection.close
 
 build_state_ device/Device token/string -> Map:
   return {
@@ -276,12 +276,12 @@ test_state_devices broker_cli/broker.BrokerCli broker_service/broker.BrokerServi
       "state-test": "5678",
     }
 
-  resources := broker_service.connect --network=network --device=DEVICE1
+  broker_connection := broker_service.connect --network=network --device=DEVICE1
   try:
     goal_state := build_state_ DEVICE1 "goal"
     current_state := build_state_ DEVICE1 "current"
     firmware_state := build_state_ DEVICE1 "firmware"
-    resources.report_state {
+    broker_connection.report_state {
       "goal-state": goal_state,
       "current-state":  current_state,
       "firmware-state": firmware_state,
@@ -289,14 +289,14 @@ test_state_devices broker_cli/broker.BrokerCli broker_service/broker.BrokerServi
       "firmware": build_encoded_firmware --device=DEVICE1
     }
   finally:
-    resources.close
+    broker_connection.close
 
-  resources = broker_service.connect --network=network --device=DEVICE2
+  broker_connection = broker_service.connect --network=network --device=DEVICE2
   try:
     goal_state := build_state_ DEVICE2 "goal2"
     current_state := build_state_ DEVICE2 "current2"
     firmware_state := build_state_ DEVICE2 "firmware2"
-    resources.report_state {
+    broker_connection.report_state {
       "goal-state": goal_state,
       "current-state":  current_state,
       "firmware-state": firmware_state,
@@ -304,7 +304,7 @@ test_state_devices broker_cli/broker.BrokerCli broker_service/broker.BrokerServi
       "firmware2": build_encoded_firmware --device=DEVICE2
     }
   finally:
-    resources.close
+    broker_connection.close
 
   2.repeat:
     device1/DeviceDetailed := ?
@@ -339,29 +339,29 @@ test_state_devices broker_cli/broker.BrokerCli broker_service/broker.BrokerServi
 test_events --test_broker/TestBroker broker_cli/broker.BrokerCli:
   test_broker.with_service: | broker_service1/broker.BrokerService |
     test_broker.with_service: | broker_service2/broker.BrokerService |
-      resources1 := null
-      resources2 := null
+      broker_connection1 := null
+      broker_connection2 := null
       try:
-        resources1 = broker_service1.connect --network=network --device=DEVICE1
-        resources2 = broker_service2.connect --network=network --device=DEVICE2
+        broker_connection1 = broker_service1.connect --network=network --device=DEVICE1
+        broker_connection2 = broker_service2.connect --network=network --device=DEVICE2
         test_events
             test_broker
             broker_cli
             broker_service1
             broker_service2
-            resources1
-            resources2
+            broker_connection1
+            broker_connection2
       finally:
-        if resources2: resources2.close
-        if resources1: resources1.close
+        if broker_connection2: broker_connection2.close
+        if broker_connection1: broker_connection1.close
 
 test_events
     test_broker/TestBroker
     broker_cli/broker.BrokerCli
     broker_service1/broker.BrokerService
     broker_service2/broker.BrokerService
-    resources1/broker.ResourceManager
-    resources2/broker.ResourceManager:
+    broker_connection1/broker.BrokerConnection
+    broker_connection2/broker.BrokerConnection:
 
   // Relies on the fact that the goal-test was run earlier.
   // It's not super easy to generate 'get-goal' events, so we rely
@@ -386,7 +386,7 @@ test_events
   expect_not (events.contains DEVICE2.id)
 
   total_events1 := 0
-  resources1.report_event --type="test-event" "test-data"
+  broker_connection1.report_event --type="test-event" "test-data"
   total_events1++
 
   2.repeat:
@@ -409,9 +409,9 @@ test_events
     expect_not (events.contains DEVICE1.id)
 
   10.repeat:
-    resources1.report_event --type="test-event2" "test-data-$it"
+    broker_connection1.report_event --type="test-event2" "test-data-$it"
     total_events1++
-    resources2.report_event --type="test-event2" "test-data-$it"
+    broker_connection2.report_event --type="test-event2" "test-data-$it"
 
   events = broker_cli.get_events
       --device_ids=[DEVICE1.id, DEVICE2.id]
@@ -452,7 +452,7 @@ test_events
 
   // 5 more events for device2.
   5.repeat:
-    resources2.report_event --type="test-event2" "test-data-$(it + 10)"
+    broker_connection2.report_event --type="test-event2" "test-data-$(it + 10)"
 
   // Limit to 20 per device.
   // Device 1 should have 10 events, device 2 should have 15 events.
@@ -490,9 +490,9 @@ test_events
 
   // Add 5 more events for both.
   5.repeat:
-    resources1.report_event --type="test-event2" "test-data-$(it + 20)"
+    broker_connection1.report_event --type="test-event2" "test-data-$(it + 20)"
     total_events1++
-    resources2.report_event --type="test-event2" "test-data-$(it + 20)"
+    broker_connection2.report_event --type="test-event2" "test-data-$(it + 20)"
 
   // Limit to events since 'checkpoint'.
   events = broker_cli.get_events
@@ -555,12 +555,12 @@ test_events
 
   // Add 5 events for different types.
   5.repeat:
-    resources1.report_event --type="test-event3" "test-data-$(it + 30)"
+    broker_connection1.report_event --type="test-event3" "test-data-$(it + 30)"
     total_events1++
-    resources1.report_event --type="test-event4" "test-data-$(it + 40)"
+    broker_connection1.report_event --type="test-event4" "test-data-$(it + 40)"
     total_events1++
-    resources2.report_event --type="test-event3" "test-data-$(it + 30)"
-    resources2.report_event --type="test-event4" "test-data-$(it + 40)"
+    broker_connection2.report_event --type="test-event3" "test-data-$(it + 30)"
+    broker_connection2.report_event --type="test-event4" "test-data-$(it + 40)"
 
   // Get events for type 3 and 4.
   events = broker_cli.get_events
@@ -620,7 +620,7 @@ test_events
   expect_equals "test-data-44" events[DEVICE1.id][0].data
 
   // Updating the state of a device automatically inserts an event.
-  resources1.report_state { "entry": "test-state-1" }
+  broker_connection1.report_state { "entry": "test-state-1" }
   total_events1++
 
   // Get all events for device 1 again.

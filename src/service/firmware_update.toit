@@ -15,7 +15,7 @@ import ..shared.utils.patch
 Updates the firmware for the $device to match the encoded firmware
   specified by the $new string.
 */
-firmware_update logger/log.Logger resources/ResourceManager -> none
+firmware_update logger/log.Logger broker_connection/BrokerConnection -> none
     --device/Device
     --new/string:
   old_firmware := Firmware.encoded device.firmware
@@ -34,7 +34,7 @@ firmware_update logger/log.Logger resources/ResourceManager -> none
           --old=old_firmware
       try:
         while index < new_firmware.parts.size:
-          patcher.write_part resources index read_offset
+          patcher.write_part broker_connection index read_offset
           read_offset = 0
           index++
         patcher.write_checksum
@@ -94,7 +94,7 @@ class FirmwarePatcher_ implements PatchObserver:
     writer_ = firmware.FirmwareWriter write_offset new_.size
     return checkpoint ? checkpoint.read_offset : 0
 
-  write_part resources/ResourceManager index/int read_offset/int -> none:
+  write_part broker_connection/BrokerConnection index/int read_offset/int -> none:
     next_checkpoint_ = null
     next_checkpoint_part_index_ = index
     try:
@@ -105,7 +105,7 @@ class FirmwarePatcher_ implements PatchObserver:
         write_device_specific_ part new_.device_specific_encoded
       else:
         // TODO(kasper): Find the old part based on name/type, not index.
-        write_patched_ resources read_offset --new=part --old=old_.parts[index]
+        write_patched_ broker_connection read_offset --new=part --old=old_.parts[index]
     finally:
       next_checkpoint_part_index_ = null
 
@@ -121,7 +121,7 @@ class FirmwarePatcher_ implements PatchObserver:
     on_write device_specific
     pad_ padded_size - (device_specific.size + 4)
 
-  write_patched_ resources/ResourceManager read_offset/int --new/Map --old/Map -> none:
+  write_patched_ broker_connection/BrokerConnection read_offset/int --new/Map --old/Map -> none:
     new_hash/ByteArray := new["hash"]
     old_hash/ByteArray := old["hash"]
 
@@ -157,7 +157,7 @@ class FirmwarePatcher_ implements PatchObserver:
       // passed to 'fetch_firmware'.
       started_applying := false
       exception := catch --unwind=(: started_applying):
-        resources.fetch_firmware resource_url --offset=read_offset:
+        broker_connection.fetch_firmware resource_url --offset=read_offset:
           | reader/Reader offset/int |
             started_applying = true
             apply_ reader offset old_mapping

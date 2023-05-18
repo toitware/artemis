@@ -6,8 +6,8 @@ import net
 import reader show Reader  // For toitdoc.
 import uuid
 
-import .supabase.synchronize show BrokerServiceSupabase
-import .http.synchronize show BrokerServiceHttp
+import .supabase show BrokerServiceSupabase
+import .http show BrokerServiceHttp
 
 import ..device
 import ...shared.server_config
@@ -17,7 +17,7 @@ The resource manager is used to exchange data with the broker.
 
 TODO(kasper): Rename to BrokerConnection.
 */
-interface ResourceManager:
+interface BrokerConnection:
   /**
   Fetches the goal from the broker.
 
@@ -84,10 +84,10 @@ interface BrokerService:
   /**
   Connects to the broker.
 
-  Returns a $ResourceManager, which can be used to interact with
+  Returns a $BrokerConnection, which can be used to interact with
     the broker and exchange data with it.
 
-  The returned $ResourceManager should be closed through a call
-    to $ResourceManager.close when it is no longer needed.
+  The returned $BrokerConnection should be closed through a call
+    to $BrokerConnection.close when it is no longer needed.
   */
-  connect --network/net.Client --device/Device -> ResourceManager
+  connect --network/net.Client --device/Device -> BrokerConnection
