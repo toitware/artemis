@@ -7,8 +7,7 @@ import ..api as api
 
 class ContainerCurrent implements artemis.Container:
   client_/api.ArtemisClient
-  constructor:
-    client := artemis.artemis_client_
+  constructor client/api.ArtemisClient?:
     if not client: throw "Artemis unavailable"
     client_ = client
 

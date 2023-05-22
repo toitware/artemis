@@ -57,7 +57,7 @@ run_artemis device/Device server_config/ServerConfig -> Duration
   // the Artemis API so user code can interact with us
   // at runtime and not just through the broker.
   wakeup/JobTime? := null
-  provider := ArtemisServiceProvider containers synchronizer
+  provider := ArtemisServiceProvider device containers synchronizer
   try:
     provider.install
     wakeup = scheduler.run
@@ -75,10 +75,11 @@ run_artemis device/Device server_config/ServerConfig -> Duration
 
 class ArtemisServiceProvider extends ChannelServiceProvider
     implements api.ArtemisService:
+  device_/Device
   containers_/ContainerManager
   synchronizer_/SynchronizeJob
 
-  constructor .containers_ .synchronizer_:
+  constructor .device_ .containers_ .synchronizer_:
     super "toit.io/artemis"
         --major=ARTEMIS_VERSION_MAJOR
         --minor=ARTEMIS_VERSION_MINOR
@@ -91,10 +92,15 @@ class ArtemisServiceProvider extends ChannelServiceProvider
       return container_current_restart --gid=gid --wakeup_us=arguments
     if index == api.ArtemisService.CONTROLLER_OPEN_INDEX:
       return controller_open --client=client --mode=arguments
+    if index == api.ArtemisService.DEVICE_ID_INDEX:
+      return device_id
     return super index arguments --gid=gid --client=client
 
   version -> string:
     return ARTEMIS_VERSION
+
+  device_id -> ByteArray:
+    return device_.id.to_byte_array
 
   container_current_restart --gid/int --wakeup_us/int? -> none:
     job := containers_.get --gid=gid

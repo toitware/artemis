@@ -9,7 +9,7 @@ interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=0
-      --minor=4
+      --minor=5
 
   /** The mode used by controllers that want to go online. */
   static CONTROLLER_MODE_ONLINE ::= 0
@@ -38,6 +38,9 @@ interface ArtemisService:
   version -> string
   static VERSION_INDEX /int ::= 0
 
+  device_id -> ByteArray
+  static DEVICE_ID_INDEX /int ::= 7
+
   container_current_restart --wakeup_us/int? -> none
   static CONTAINER_CURRENT_RESTART_INDEX /int ::= 1
 
@@ -65,6 +68,9 @@ class ArtemisClient extends ServiceClient
 
   version -> string:
     return invoke_ ArtemisService.VERSION_INDEX null
+
+  device_id -> ByteArray:
+    return invoke_ ArtemisService.DEVICE_ID_INDEX null
 
   container_current_restart --wakeup_us/int? -> none:
     invoke_ ArtemisService.CONTAINER_CURRENT_RESTART_INDEX wakeup_us
