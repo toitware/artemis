@@ -3,10 +3,12 @@
 // found in the LICENSE file.
 
 import system.services show ServiceResourceProxy
+import uuid
 
 import .api as api
 import .implementation.container as implementation
 import .implementation.controller as implementation
+import .implementation.device as implementation
 
 DEFAULT_TIMEOUT_RUN_OFFLINE_ ::= Duration --m=5
 
@@ -36,7 +38,7 @@ The Artemis service will attempt to stay connected as
 */
 run --online/bool [block] -> none:
   if not online: throw "Bad Argument"
-  implementation.Controller.run block
+  implementation.Controller.run artemis_client_ block
       --mode=api.ArtemisService.CONTROLLER_MODE_ONLINE
 
 /**
@@ -49,8 +51,26 @@ run --offline/bool [block] -> none
     --timeout/Duration?=DEFAULT_TIMEOUT_RUN_OFFLINE_:
   if not offline: throw "Bad Argument"
   with_timeout timeout:
-    implementation.Controller.run block
+    implementation.Controller.run artemis_client_ block
         --mode=api.ArtemisService.CONTROLLER_MODE_OFFLINE
+
+/**
+The $device is a local representation of the present physical
+  or logical device running the Artemis service.
+*/
+device/Device ::= implementation.Device artemis_client_
+
+/**
+A physical or logical device running the Artemis service.
+*/
+interface Device:
+  /**
+  Returns the unique Artemis $id of the device.
+
+  The $id is guaranteed to be unique among all devices that
+    belong to a specific organization.
+  */
+  id -> uuid.Uuid
 
 /**
 A container is a schedulable unit of execution that runs
@@ -70,7 +90,7 @@ interface Container:
   /**
   Returns the currently executing container.
   */
-  static current ::= implementation.ContainerCurrent
+  static current ::= implementation.ContainerCurrent artemis_client_
 
   /**
   Restarts this container.

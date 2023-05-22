@@ -670,6 +670,7 @@ class Artemis:
   diff_and_upload_ patch/FirmwarePatch --organization_id/uuid.Uuid -> none:
     trivial_id := id_ --to=patch.to_
     cache_key := "$connected_broker.id/$organization_id/patches/$trivial_id"
+
     // Unless it is already cached, always create/upload the trivial one.
     cache_.get cache_key: | store/cache.FileStore |
       trivial := build_trivial_patch patch.bits_

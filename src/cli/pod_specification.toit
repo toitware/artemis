@@ -252,7 +252,7 @@ class PodSpecification:
       check_is_map_ containers_entry --entry_type="Container" it
 
     containers = containers_entry.map: | name container_description |
-          Container.from_json name container_description
+      Container.from_json name container_description
 
     connections_entry := get_list_ data "connections"
     connections_entry.do:
