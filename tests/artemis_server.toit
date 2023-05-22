@@ -142,6 +142,9 @@ with_http_artemis_server [block]:
   server.create_user --name=DEMO_EXAMPLE_COM_NAME
       --email=DEMO_EXAMPLE_COM_EMAIL
       --id="$DEMO_EXAMPLE_COM_UUID"
+  server.create_user --name=ADMIN_NAME
+      --email=ADMIN_EMAIL
+      --id="$ADMIN_UUID"
 
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
 

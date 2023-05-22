@@ -66,7 +66,7 @@ NON_EXISTENT_UUID ::= uuid.uuid5 "non" "existent"
 UPDATE_GOLD_ENV ::= "UPDATE_GOLD"
 
 TEST_SDK_VERSION/string := configured_version.SDK_VERSION
-TEST_ARTEMIS_VERSION ::= configured_version.ARTEMIS_VERSION
+TEST_ARTEMIS_VERSION ::= "$(configured_version.ARTEMIS_VERSION)-TEST"
 
 with_tmp_directory [block]:
   tmp_dir := directory.mkdtemp "/tmp/artemis-test-"
@@ -354,17 +354,25 @@ class TestCli:
   ensure_available_artemis_service
       --sdk_version=TEST_SDK_VERSION
       --artemis_version=TEST_ARTEMIS_VERSION:
-    ui := TestUi
-    uploader.main
-        --config=config
-        --cache=cache
-        --ui=ui
-        [
-          "service",
-          "--sdk-version", sdk_version,
-          "--service-version", artemis_version,
-          "--local"
-        ]
+    with_tmp_directory: | admin_tmp_dir |
+      admin_config := cli.Config "$admin_tmp_dir/config" (deep_copy_ config.data)
+      ui := TestUi
+      cli.main --config=admin_config --cache=cache --ui=ui [
+            "auth", "login",
+            "--email", ADMIN_EMAIL,
+            "--password", ADMIN_PASSWORD,
+          ]
+      uploader.main
+          --config=admin_config
+          --cache=cache
+          --ui=ui
+          [
+            "service",
+            "--sdk-version", sdk_version,
+            "--service-version", artemis_version,
+            "--force",
+            "--local"
+          ]
 
 abstract class TestDevice:
   hardware_id/uuid.Uuid
