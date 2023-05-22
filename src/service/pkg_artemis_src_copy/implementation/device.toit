@@ -2,18 +2,15 @@
 // Use of this source code is governed by an MIT-style license that can be
 // found in the LICENSE file.
 
+import uuid
+
 import ..artemis as artemis
 import ..api as api
 
-class ContainerCurrent implements artemis.Container:
+class Device implements artemis.Device:
   client_/api.ArtemisClient
+  id/uuid.Uuid
   constructor client/api.ArtemisClient?:
     if not client: throw "Artemis unavailable"
     client_ = client
-
-  restart --delay/Duration?=null -> none:
-    wakeup_us := delay and Time.monotonic_us + delay.in_us
-    client_.container_current_restart --wakeup_us=wakeup_us
-    // The container is restarted, so we don't not
-    // return here.
-    unreachable
+    id = uuid.Uuid client.device_id
