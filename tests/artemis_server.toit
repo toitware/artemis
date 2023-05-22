@@ -136,13 +136,16 @@ with_http_artemis_server [block]:
       --name=TEST_ORGANIZATION_NAME
       --admin_id="$TEST_EXAMPLE_COM_UUID"
 
-  server.create_user --name=TEST_EXAMPLE_COM_NAME
+  server.create_user
+      --name=TEST_EXAMPLE_COM_NAME
       --email=TEST_EXAMPLE_COM_EMAIL
       --id="$TEST_EXAMPLE_COM_UUID"
-  server.create_user --name=DEMO_EXAMPLE_COM_NAME
+  server.create_user
+      --name=DEMO_EXAMPLE_COM_NAME
       --email=DEMO_EXAMPLE_COM_EMAIL
       --id="$DEMO_EXAMPLE_COM_UUID"
-  server.create_user --name=ADMIN_NAME
+  server.create_user
+      --name=ADMIN_NAME
       --email=ADMIN_EMAIL
       --id="$ADMIN_UUID"
 
