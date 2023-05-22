@@ -178,6 +178,8 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
       sdk := get_sdk pod.sdk_version --cache=cache
       if not simulate:
+        ui.do --kind=Ui.VERBOSE: | printer/Printer|
+          printer.emit "Flashing the device with pod $pod.id."
         // Flash.
         sdk.flash
             --envelope_path=pod.envelope_path
@@ -187,6 +189,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --partitions=partitions
             --chip=pod.chip
         if should_make_default: make_default_ device_id config ui
+        ui.info "Successfully flashed device $fleet_device.name ($device_id) with pod '$pod.name' ($pod.id)."
       else:
         ui.info "Simulating flash."
         ui.info "Using the local Artemis service and not the one specified in the specification."
