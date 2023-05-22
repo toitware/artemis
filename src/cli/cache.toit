@@ -1,5 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import crypto.sha256
+import encoding.base64
 import fs
 import fs.xdg
 import host.os
@@ -175,12 +177,19 @@ class Cache:
     return escaped_path
 
   key_path_ key/string -> string:
+    if platform == PLATFORM_WINDOWS and key.size > 100:
+      // On Windows we shorten the path so it doesn't run into the 260 character limit.
+      sha := sha256.Sha256
+      sha.add key
+      key = "$(base64.encode --url_mode sha.get)"
+
     return "$(path)/$(escape_path_ key)"
 
   with_tmp_directory_ key/string?=null [block]:
     ensure_cache_directory_
     prefix := ?
-    if key:
+    if key and platform != PLATFORM_WINDOWS:
+      // On Windows don't try to create long prefixes as paths are limited to 260 characters.
       escaped_key := escape_path_ key
       escaped_key = escaped_key.replace --all "/" "_"
       prefix = "$(path)/$(escaped_key)-"
