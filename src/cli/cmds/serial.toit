@@ -154,7 +154,8 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       identity := read_base64_ubjson identity_path
       // TODO(florian): Abstract away the identity format.
       device_id := uuid.parse identity["artemis.device"]["device_id"]
-      ui.info "Successfully provisioned device $device_id."
+      fleet_device := fleet.device device_id
+      ui.info "Successfully provisioned device $fleet_device.name ($device_id)."
 
       pod/Pod := ?
       if local:
