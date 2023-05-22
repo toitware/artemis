@@ -1,0 +1,3 @@
+# The default device is set
+# [--fleet-root, <FLEET_ROOT>, device, default]
+-={| UUID-FOR-FAKE-DEVICE 00000 |}=-

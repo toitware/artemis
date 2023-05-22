@@ -175,7 +175,8 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.result "$device_id"
       return
     else:
-      device_id = fleet.resolve_alias device
+      resolved := fleet.resolve_alias device
+      device_id = resolved.id
 
     // TODO(florian): make sure the device exists on the broker.
     make_default_ device_id config ui
