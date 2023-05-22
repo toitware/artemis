@@ -630,14 +630,26 @@ class Artemis:
       new_goal["apps"] = apps
       new_goal
 
-  container_uninstall --device_id/uuid.Uuid --app_name/string:
+  container_uninstall --device_id/uuid.Uuid --app_name/string --force/bool:
     update_goal --device_id=device_id: | device/DeviceDetailed |
       if not device.goal and not device.reported_state_firmware:
         throw "No known firmware information for device."
       new_goal := device.goal or device.reported_state_firmware
-      ui_.info "Uninstalling container '$app_name'."
+      connections/List := new_goal.get "connections" --if_absent=: []
+      is_required := false
+      connections.do:
+        required := it.get "requires" --if_absent=: []
+        if required.contains app_name:
+          is_required = true
+      if is_required and not force:
+        ui_.abort "Container '$app_name' is required by a connection."
       apps := new_goal.get "apps"
-      if apps: apps.remove app_name
+      if apps:
+        if not apps.contains app_name and not force:
+          ui_.abort "Container '$app_name' is not installed."
+        else:
+          ui_.info "Uninstalling container '$app_name'."
+          apps.remove app_name
       new_goal
 
   config_set_max_offline --device_id/uuid.Uuid --max_offline_seconds/int:

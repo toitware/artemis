@@ -187,7 +187,7 @@ class FirmwareContent:
       if part is FirmwarePartConfig: continue.repeat
       // TODO(kasper): This should not just be based on index.
       old/FirmwarePartPatch? := null
-      if from: old = from.parts[index]
+      if from and index < from.parts.size: old = from.parts[index]
       if old and old.hash == part.hash:
         continue.repeat
       else if old:

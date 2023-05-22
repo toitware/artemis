@@ -18,6 +18,7 @@ import artemis.cli.config as cli
 import artemis.cli.cache as artemis_cache
 import artemis.cli.utils show read_json write_json_to_file
 import artemis.shared.server_config
+import artemis.shared.version as configured_version
 import artemis.service
 import artemis.service.brokers.broker show BrokerConnection BrokerService
 import artemis.service.device show Device
@@ -25,6 +26,7 @@ import artemis.cli.ui show ConsolePrinter JsonPrinter Ui Printer
 import artemis.cli.utils show write_blob_to_file read_base64_ubjson
 import ..tools.http_servers.broker as http_servers
 import ..tools.http_servers.artemis_server as http_servers
+import ..tools.service_image_uploader.uploader as uploader
 import monitor
 import .artemis_server
 import .broker
@@ -62,6 +64,9 @@ TEST_POD_UUID ::= uuid.parse "0e29c450-f802-49cc-b695-c5add71fdac3"
 NON_EXISTENT_UUID ::= uuid.uuid5 "non" "existent"
 
 UPDATE_GOLD_ENV ::= "UPDATE_GOLD"
+
+TEST_SDK_VERSION/string := configured_version.SDK_VERSION
+TEST_ARTEMIS_VERSION ::= configured_version.ARTEMIS_VERSION
 
 with_tmp_directory [block]:
   tmp_dir := directory.mkdtemp "/tmp/artemis-test-"
@@ -343,6 +348,24 @@ class TestCli:
 
     return device_description
 
+  /**
+  Ensures that there exists
+  */
+  ensure_available_artemis_service
+      --sdk_version=TEST_SDK_VERSION
+      --artemis_version=TEST_ARTEMIS_VERSION:
+    ui := TestUi
+    uploader.main
+        --config=config
+        --cache=cache
+        --ui=ui
+        [
+          "service",
+          "--sdk-version", sdk_version,
+          "--service-version", artemis_version,
+          "--local"
+        ]
+
 abstract class TestDevice:
   hardware_id/uuid.Uuid
   alias_id/uuid.Uuid
@@ -481,6 +504,8 @@ class FakeDevice extends TestDevice:
         --hardware_id=hardware_id
         --organization_id=organization_id
         --firmware_state=pending_state_
+    if pending_state_ == goal_state:
+      goal_state = null
     pending_state_ = null
 
 class TestDevicePipe extends TestDevice:
@@ -685,6 +710,7 @@ with_test_cli
     if sdk_version == "" or sdk_path == null or envelope_path == null:
       print "Missing SDK version, SDK path or envelope path."
       exit 1
+    TEST_SDK_VERSION = sdk_version
 
     // Prefill the cache with the Dev SDK from the Makefile.
     sdk_key := "$artemis_cache.SDK_PATH/$sdk_version"
@@ -712,6 +738,11 @@ with_test_cli
         --gold_name=gold_name
         --sdk_version=sdk_version
         --tmp_dir=tmp_dir
+
+    test_cli.replacements[tmp_dir] = "TMP_DIR"
+    test_cli.replacements[TEST_SDK_VERSION] = "TEST_SDK_VERSION"
+    test_cli.replacements[TEST_ARTEMIS_VERSION] = "TEST_ARTEMIS_VERSION"
+
     try:
       test_cli.run ["config", "broker", "--artemis", "default", artemis_config.name]
       test_cli.run ["config", "broker", "default", broker_config.name]
@@ -726,7 +757,7 @@ build_encoded_firmware -> string
     --organization_id/uuid.Uuid=TEST_ORGANIZATION_UUID
     --hardware_id/uuid.Uuid=device_id
     --firmware_token/ByteArray=#[random 256, random 256, random 256, random 256]
-    --sdk_version/string="v2.0.0-alpha.52"
+    --sdk_version/string=TEST_SDK_VERSION
     --pod_id/uuid.Uuid=TEST_POD_UUID:
   device_specific := ubjson.encode {
     "artemis.device": {
@@ -835,3 +866,10 @@ expect_throws [--check_exception] [block]:
 
 expect_throws --contains/string [block]:
   expect_throws --check_exception=(: it.contains contains) block
+
+deep_copy_ o/any -> any:
+  if o is Map:
+    return o.map: | _ value | deep_copy_ value
+  if o is List:
+    return o.map: deep_copy_ it
+  return o

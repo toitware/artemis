@@ -50,6 +50,12 @@ create_container_command config/Config cache/Cache ui/Ui -> cli.Command:
 
   uninstall_cmd := cli.Command "uninstall"
       --long_help="Uninstall a container from a device."
+      --options=[
+          cli.Flag "force"
+            --short_name="f"
+            --short_help="Force uninstallation of a container that is required for a connection."
+            --default=false,
+      ]
       --rest=[
         cli.OptionString "name"
             --short_help="Name of the container to uninstall.",
@@ -131,7 +137,8 @@ install_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 uninstall_container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   container_name := parsed["name"]
+  force := parsed["force"]
 
   with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
-    artemis.container_uninstall --device_id=device.id --app_name=container_name
+    artemis.container_uninstall --device_id=device.id --app_name=container_name --force=force
     ui.info "Request sent to broker. Container will be uninstalled when device synchronizes."

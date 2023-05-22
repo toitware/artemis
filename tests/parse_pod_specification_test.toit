@@ -9,6 +9,8 @@ import artemis.cli.pod_specification
     INITIAL_POD_SPECIFICATION
     EXAMPLE_POD_SPECIFICATION
 
+import .utils
+
 main:
   test_examples
   test_errors
@@ -61,13 +63,6 @@ VALID_SPECIFICATION ::= {
 
 new_valid -> Map:
   return deep_copy_ VALID_SPECIFICATION
-
-deep_copy_ o/any -> any:
-  if o is Map:
-    return o.map: | _ value | deep_copy_ value
-  if o is List:
-    return o.map: deep_copy_ it
-  return o
 
 test_errors:
   no_version := new_valid
