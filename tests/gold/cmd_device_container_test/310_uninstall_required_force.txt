@@ -1,0 +1,4 @@
+# Can uninstall required container with force
+# [--fleet-root, <FLEET_ROOT>, device, container, uninstall, hello, --force]
+Uninstalling container 'hello'.
+Request sent to broker. Container will be uninstalled when device synchronizes.

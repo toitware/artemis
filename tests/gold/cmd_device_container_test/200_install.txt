@@ -1,0 +1,4 @@
+# Install a container
+# [--fleet-root, <FLEET_ROOT>, device, container, install, hello, TMP_DIR/hello.toit]
+Installing container 'hello'.
+Request sent to broker. Container will be installed when device synchronizes.
