@@ -158,10 +158,11 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.info "Successfully provisioned device $fleet_device.name ($device_id)."
 
       pod/Pod := ?
+      reference/PodReference := ?
       if local:
         pod = Pod.from_file local --artemis=artemis --ui=ui
+        reference = PodReference --id=pod.id
       else:
-        reference/PodReference := ?
         if remote:
           reference = PodReference.parse remote --allow_name_only --ui=ui
         else:
@@ -189,7 +190,12 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --partitions=partitions
             --chip=pod.chip
         if should_make_default: make_default_ device_id config ui
-        ui.info "Successfully flashed device $fleet_device.name ($device_id) with pod '$pod.name' ($pod.id)."
+        info := "Successfully flashed device $fleet_device.name ($device_id"
+        if group: info += " in group '$group'"
+        info += ") with pod '$reference'"
+        if reference.id: info += "."
+        else: info += " ($pod.id)."
+        ui.info info
       else:
         ui.info "Simulating flash."
         ui.info "Using the local Artemis service and not the one specified in the specification."
@@ -234,3 +240,7 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --baud_rate=baud
           --partitions=partitions
           --chip=pod.chip
+      identity := read_base64_ubjson identity_path
+      // TODO(florian): Abstract away the identity format.
+      device_id := uuid.parse identity["artemis.device"]["device_id"]
+      ui.info "Successfully flashed device $device_id with pod '$pod.name' ($pod.id)."
