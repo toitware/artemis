@@ -278,8 +278,15 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         space_index := provisioned_index
         3.repeat: space_index = output.index_of " " (space_index + 1)
         expect space_index >= 0
-        dot_index := output.index_of "." (space_index + 1)
-        device_id = output[space_index + 1 .. dot_index]
+        name_start_index := space_index + 1
+        space_index = output.index_of " " (space_index + 1)
+        name_end_index := space_index
+        expect_equals '(' output[name_end_index + 1]
+        device_start_index := name_end_index + 2
+        device_end_index := output.index_of ")" device_start_index
+        device_name := output[name_start_index..name_end_index]
+        device_id = output[device_start_index..device_end_index]
+        test_cli.replacements[device_name] = "DEVICE_NAME"
         test_cli.replacements[device_id] = "-={|    UUID-FOR-TEST-DEVICE    |}=-"
         output
       [
@@ -287,12 +294,6 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "--fleet-root", fleet_dir,
         "--port", serial_port,
       ]
-
-  devices := read_json "$fleet_dir/devices.json"
-  device_entry := devices[device_id]
-  device_name := device_entry["name"]
-  replacement := "DEVICE_NAME"
-  test_cli.replacements[device_name] = replacement
 
   with_timeout --ms=15_000:
     while true:
@@ -303,7 +304,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
       ]
       if output.contains device_id:
         break
-      sleep --ms=500
+      sleep --ms=100
 
   // Give the system time to recognize the check-in.
   sleep --ms=200
