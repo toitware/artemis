@@ -46,7 +46,7 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
 
         If no ID is given, shows the default organization.
         """
-      --options=[
+      --rest=[
         // TODO(florian): would be nice to accept a name here as well.
         OptionUuid "organization-id"
             --short_help="ID of the organization."
