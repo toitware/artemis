@@ -1,0 +1,7 @@
+# List the initial groups
+# [--fleet-root, <FLEET_ROOT>, fleet, group, list]
+┌─────────┬───────────────┐
+│ Group     Pod           │
+├─────────┼───────────────┤
+│ default   my-pod@latest │
+└─────────┴───────────────┘
