@@ -180,7 +180,10 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       sdk := get_sdk pod.sdk_version --cache=cache
       if not simulate:
         ui.do --kind=Ui.VERBOSE: | printer/Printer|
-          printer.emit "Flashing the device with pod $pod.id."
+          debug_line := "Flashing the device with pod $reference"
+          if reference.id: debug_line += "."
+          else: debug_line += " ($pod.id)."
+          printer.emit debug_line
         // Flash.
         sdk.flash
             --envelope_path=pod.envelope_path
