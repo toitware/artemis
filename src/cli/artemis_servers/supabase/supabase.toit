@@ -82,6 +82,14 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     inserted := client_.rest.insert "organizations" { "name": name }
     return Organization.from_map inserted
 
+  update_organization organization_id/uuid.Uuid --name/string -> none:
+    update := {
+      "name": name,
+    }
+    client_.rest.update "organizations" update --filters=[
+      "id=eq.$organization_id"
+    ]
+
   get_organization_members organization_id/uuid.Uuid -> List:
     members := client_.rest.select "roles" --filters=[
       "organization_id=eq.$organization_id"

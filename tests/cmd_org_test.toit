@@ -91,6 +91,19 @@ run_test test_cli/TestCli:
       "Show the newly created org"
       ["org", "show", "--organization-id", id]
 
+  test_cli.run_gold "210-org-rename"
+      "Update the name of the org"
+      ["org", "update", id, "--name", "Testy2"]
+
+  test_cli.run_gold "220-org-show-renamed"
+      "Show the renamed org"
+      ["org", "show", "--organization-id", id]
+
+  expect_equals "Testy2" (test_cli.run --json ["org", "show", "--organization-id", id])["name"]
+
+  // Rename it back.
+  test_cli.run ["org", "update", id, "--name", "Testy"]
+
   // Test 'org use' and 'org default'.
 
   // The last created org is the default (since we didn't use --no-default).

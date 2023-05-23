@@ -75,6 +75,19 @@ create_org_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: default_org it config cache ui
   org_cmd.add default_cmd
 
+  update_cmd := cli.Command "update"
+      --short_help="Update an organization."
+      --options=[
+        cli.OptionString "name"
+            --short_help="Name of the organization."
+      ]
+      --rest=[
+        OptionUuid "organization-id"
+            --short_help="ID of the organization."
+      ]
+      --run=:: update_org it config ui
+  org_cmd.add update_cmd
+
   member_cmd := cli.Command "members"
       --short_help="Manage organization members."
       --options=[
@@ -236,6 +249,15 @@ make_default_ org/Organization config/Config ui/Ui -> none:
     config[CONFIG_ORGANIZATION_DEFAULT_KEY] = "$org.id"
     config.write
     ui.info "Default organization set to $org.id - $org.name."
+
+update_org parsed/cli.Parsed config/Config ui/Ui -> none:
+  name := parsed["name"]
+  if not name: ui.abort "No name provided."
+  if name == "": ui.abort "Name cannot be empty."
+
+  with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid |
+    server.update_organization org_id --name=name
+    ui.info "Updated organization $org_id."
 
 member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid |
