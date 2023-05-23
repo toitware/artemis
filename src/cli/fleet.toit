@@ -24,23 +24,25 @@ class DeviceFleet:
   id/uuid.Uuid
   name/string?
   group/string
-  aliases/List?
+  aliases/List
 
   constructor
       --.id
       --.group
       --.name=(random_name --uuid=id)
-      --.aliases=null:
-
-  constructor.from_json encoded_id/string encoded/Map:
-    id = uuid.parse encoded_id
-    name = encoded.get "name"
-    aliases = encoded.get "aliases"
-    group = (encoded.get "group") or DEFAULT_GROUP
+      --.aliases=[]:
 
   short_string -> string:
     if name: return "$id ($name)"
     return "$id"
+
+  compare_to other/DeviceFleet -> int:
+    bytes1 := id.to_byte_array
+    bytes2 := other.id.to_byte_array
+    for i := 0; i < bytes1.size; i++:
+      if bytes1[i] < bytes2[i]: return -1
+      if bytes1[i] > bytes2[i]: return 1
+    return 0
 
 class PodFleet:
   id/uuid.Uuid
@@ -65,6 +67,115 @@ class Status_:
   is_healthy -> bool:
     return is_fully_updated and missed_checkins == 0
 
+class FleetFile:
+  path/string
+  id/uuid.Uuid
+  organization_id/uuid.Uuid
+  group_pods/Map
+
+  constructor --.path --.id --.organization_id --.group_pods:
+
+  static parse path/string --ui/Ui -> FleetFile:
+    fleet_content := read_json path
+    if fleet_content is not Map:
+      ui.abort "Fleet file $path has invalid format."
+    if not fleet_content.contains "id":
+      ui.abort "Fleet file $path does not contain an ID."
+    if not fleet_content.contains "organization":
+      ui.abort "Fleet file $path does not contain an organization ID."
+
+    group_entry := fleet_content.get "groups"
+    if not group_entry:
+      ui.abort "Fleet file $path does not contain a 'groups' entry."
+    if group_entry is not Map:
+      ui.abort "Fleet file $path has invalid format for 'groups'."
+    group_pods := (group_entry as Map).map: | group_name/string entry |
+      if entry is not Map:
+        ui.abort "Fleet file $path has invalid format for group '$group_name'."
+      if not entry.contains "pod":
+        ui.abort "Fleet file $path does not contain a 'pod' entry for group '$group_name'."
+      if entry["pod"] is not string:
+        ui.abort "Fleet file $path has invalid format for 'pod' in group '$group_name'."
+      PodReference.parse entry["pod"] --ui=ui
+    if not group_pods.contains DEFAULT_GROUP:
+      ui.abort "Fleet file $path does not contain an entry for group '$DEFAULT_GROUP'."
+
+    return FleetFile
+        --path=path
+        --id=uuid.parse fleet_content["id"]
+        --organization_id=uuid.parse fleet_content["organization"]
+        --group_pods=group_pods
+
+  write -> none:
+    groups := {:}
+    sorted_keys := group_pods.keys.sort
+
+    // Write the default group at the top.
+    groups[DEFAULT_GROUP] = {
+      "pod": group_pods[DEFAULT_GROUP].to_string
+    }
+    sorted_keys.do: | group_name |
+      if group_name == DEFAULT_GROUP: continue.do
+      groups[group_name] = {
+        "pod": group_pods[group_name].to_string
+      }
+    write_json_to_file --pretty path {
+      "id": "$id",
+      "organization": "$organization_id",
+      "groups": groups,
+    }
+
+class DevicesFile:
+  path/string
+  devices/List
+
+  constructor .path .devices:
+
+  static parse path/string --ui/Ui -> DevicesFile:
+    encoded_devices := null
+    exception := catch: encoded_devices = read_json path
+    if exception:
+      ui.error "Fleet file $path is not a valid JSON."
+      ui.error exception.message
+      ui.abort
+    if encoded_devices is not Map:
+      ui.abort "Fleet file $path has invalid format."
+
+    devices := []
+    encoded_devices.do: | device_id encoded_device |
+      if encoded_device is not Map:
+        ui.abort "Fleet file $path has invalid format for device ID $device_id."
+      exception = catch:
+        device := DeviceFleet
+            --id=uuid.parse device_id
+            --name=encoded_device.get "name"
+            --aliases=encoded_device.get "aliases"
+            --group=(encoded_device.get "group") or DEFAULT_GROUP
+        devices.add device
+      if exception:
+        ui.error "Fleet file $path has invalid format for device ID $device_id."
+        ui.error exception.message
+        ui.abort
+
+    return DevicesFile path devices
+
+  check_groups fleet_file/FleetFile --ui/Ui:
+    devices.do: | device/DeviceFleet |
+      if not fleet_file.group_pods.contains device.group:
+        ui.abort "Device $device.short_string is in group '$device.group' which doesn't exist."
+
+  write -> none:
+    sorted_devices := devices.sort: | a/DeviceFleet b/DeviceFleet | a.compare_to b
+    encoded_devices := {:}
+    sorted_devices.do: | device/DeviceFleet |
+      entry := {:}
+      if device.name: entry["name"] = device.name
+      if not device.aliases.is_empty: entry["aliases"] = device.aliases
+      group := device.group
+      if group != DEFAULT_GROUP: entry["group"] = group
+      encoded_devices["$device.id"] = entry
+    write_json_to_file --pretty path encoded_devices
+
 class Fleet:
   static DEVICES_FILE_ ::= "devices.json"
   static FLEET_FILE_ ::= "fleet.json"
@@ -86,36 +197,15 @@ class Fleet:
   constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache:
     ui_ = ui
     cache_ = cache
-    if not file.is_file "$fleet_root_/$FLEET_FILE_":
-      ui_.error "Fleet root $fleet_root_ does not contain a $FLEET_FILE_ file."
-      ui_.error "Use 'init' to initialize a fleet root."
-      ui_.abort
-    fleet_content := read_json "$fleet_root_/$FLEET_FILE_"
-    if fleet_content is not Map:
-      ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format."
-    organization_id = uuid.parse fleet_content["organization"]
-    if not fleet_content.contains "id":
-      ui.error "Fleet file $fleet_root_/$FLEET_FILE_ does not contain an ID."
-      ui.error "Please add an entry with a random UUID to it."
-      ui.error "You can use the following line:"
-      ui.error "  \"id\": \"$random_uuid\","
-      ui.abort
-    id = uuid.parse fleet_content["id"]
-    devices_ = load_devices_ fleet_root_ --ui=ui
+    fleet_file := load_fleet_file fleet_root_ --ui=ui_
+    devices_file := load_devices_file fleet_root_ --ui=ui_
+    devices_file.check_groups fleet_file --ui=ui_
+
+    id = fleet_file.id
+    organization_id = fleet_file.organization_id
+    group_pods_ = fleet_file.group_pods
+    devices_ = devices_file.devices
     aliases_ = build_alias_map_ devices_ ui
-    group_entry := fleet_content.get "groups"
-    if not group_entry:
-      ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ does not contain a 'groups' entry."
-    if group_entry is not Map:
-      ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format for 'groups'."
-    group_pods_ = (group_entry as Map).map: | group_name/string entry |
-      if entry is not Map:
-        ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format for group '$group_name'."
-      if not entry.contains "pod":
-        ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ does not contain a 'pod' entry for group '$group_name'."
-      if entry["pod"] is not string:
-        ui_.abort "Fleet file $fleet_root_/$FLEET_FILE_ has invalid format for 'pod' in group '$group_name'."
-      PodReference.parse entry["pod"] --ui=ui
 
     // TODO(florian): should we always do this check?
     org := artemis_.connected_artemis_server.get_organization organization_id
@@ -153,7 +243,18 @@ class Fleet:
 
     ui.info "Fleet root $fleet_root initialized."
 
-  static load_devices_ fleet_root/string --ui/Ui -> List:
+  static load_fleet_file fleet_root/string --ui/Ui -> FleetFile:
+    if not file.is_directory fleet_root:
+      ui.abort "Fleet root $fleet_root is not a directory."
+    fleet_path := "$fleet_root/$FLEET_FILE_"
+    if not file.is_file fleet_path:
+      ui.error "Fleet root $fleet_root does not contain a $FLEET_FILE_ file."
+      ui.error "Use 'init' to initialize a fleet root."
+      ui.abort
+
+    return FleetFile.parse fleet_path --ui=ui
+
+  static load_devices_file fleet_root/string --ui/Ui -> DevicesFile:
     if not file.is_directory fleet_root:
       ui.abort "Fleet root $fleet_root is not a directory."
     devices_path := "$fleet_root/$DEVICES_FILE_"
@@ -162,27 +263,11 @@ class Fleet:
       ui.error "Use 'init' to initialize a fleet root."
       ui.abort
 
-    encoded_devices := null
-    exception := catch: encoded_devices = read_json devices_path
-    if exception:
-      ui.error "Fleet file $devices_path is not a valid JSON."
-      ui.error exception.message
-      ui.abort
-    if encoded_devices is not Map:
-      ui.abort "Fleet file $devices_path has invalid format."
+    return DevicesFile.parse devices_path --ui=ui
 
-    devices := []
-    encoded_devices.do: | device_id encoded_device |
-      if encoded_device is not Map:
-        ui.abort "Fleet file $devices_path has invalid format for device ID $device_id."
-      exception = catch:
-        device := DeviceFleet.from_json device_id encoded_device
-        devices.add device
-      if exception:
-        ui.error "Fleet file $devices_path has invalid format for device ID $device_id."
-        ui.error exception.message
-        ui.abort
-    return devices
+  write_devices_ -> none:
+    file := DevicesFile "$fleet_root_/$DEVICES_FILE_" devices_
+    file.write
 
   /**
   Builds an alias map.
@@ -215,26 +300,14 @@ class Fleet:
       add_alias.call "$device.id"
       if device.name:
         add_alias.call device.name
-      if device.aliases:
-        device.aliases.do: | alias/string |
-          add_alias.call alias
+      device.aliases.do: | alias/string |
+        add_alias.call alias
     if ambiguous_ids.size > 0:
       ui.warning "The following names, device-ids or aliases are ambiguous:"
       ambiguous_ids.do: | id index_list/List |
         uuid_list := index_list.map: devices[it].id
         ui.warning "  $id maps to $(uuid_list.join ", ")"
     return result
-
-  write_devices_ -> none:
-    encoded_devices := {:}
-    devices_.do: | device/DeviceFleet |
-      entry := {:}
-      if device.name: entry["name"] = device.name
-      if device.aliases: entry["aliases"] = device.aliases
-      group := device.group
-      if group != DEFAULT_GROUP: entry["group"] = group
-      encoded_devices["$device.id"] = entry
-    write_json_to_file --pretty "$fleet_root_/$DEVICES_FILE_" encoded_devices
 
   /**
   Returns a list of created files.
@@ -573,7 +646,7 @@ class Fleet:
         "last-seen-human": human_last_seen,
         "last-seen": status.last_seen ? "$status.last_seen" : null,
         "never-seen": status.never_seen,
-        "aliases": fleet_device.aliases ? fleet_device.aliases.join ", " : "",
+        "aliases": fleet_device.aliases.is_empty ? "" : fleet_device.aliases.join ", ",
         // TODO(florian): add more useful information.
       }
 
