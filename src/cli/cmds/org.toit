@@ -187,11 +187,18 @@ print_org org_id/uuid.Uuid server/ArtemisServerCli ui/Ui -> none:
   org := server.get_organization org_id
   if not org:
     ui.abort "Organization $org_id not found."
-  ui.result {
-    "ID": "$org.id",
-    "Name": org.name,
-    "Created": "$org.created_at",
-  }
+  ui.do --kind=Ui.RESULT: | printer/Printer |
+    printer.emit_structured
+        --json=: {
+          "id": "$org.id",
+          "name": org.name,
+          "created": "$org.created_at",
+        }
+        --stdout=: | p/Printer | p.emit {
+          "Id": "$org.id",
+          "Name": org.name,
+          "Created": "$org.created_at",
+        }
 
 default_org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   if parsed["clear"]:
@@ -235,9 +242,7 @@ member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
     members := server.get_organization_members org_id
     if parsed["id-only"]:
       ui.do --kind=Ui.RESULT: | printer/Printer |
-        printer.emit
-            --header={"id": "ID"}
-            members
+        printer.emit (members.map: "$it["id"]")
       return
     profiles := members.map: server.get_profile --user_id=it["id"]
     ui.do --kind=Ui.RESULT: | printer/Printer |
@@ -255,6 +260,9 @@ member_add parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   role := parsed["role"]
 
   with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid|
+    existing_members := server.get_organization_members org_id
+    if (existing_members.any: it["id"] == user_id):
+      ui.abort "User $user_id is already a member of organization $org_id."
     server.organization_member_add
         --organization_id=org_id
         --user_id=user_id
