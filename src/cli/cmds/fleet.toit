@@ -209,13 +209,23 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   group_cmd.add group_create_cmd
 
   group_update_cmd := cli.Command "update"
-      --short_help="Update a group in the fleet."
+      --long_help="""
+        Update one or several groups in the fleet.
+
+        Updates the pod reference and/or name of the given groups. However,
+        when using the '--name' flag only one group can be given.
+
+        The new pod can be specified by a qualified pod-reference or by providing
+        a new tag for the existing pod.
+        """
       --options=[
         cli.Option "pod"
             --type="pod-reference"
             --short_help="The pod reference to use for the group.",
         cli.Option "name"
             --short_help="The new name of the group.",
+        cli.Option "tag"
+            --short_help="The tag to update the existing pod to.",
         cli.Flag "force"
             --short_help="Update the group even if the pod doesn't exist."
             --short_name="f",
@@ -223,7 +233,18 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --rest=[
         cli.Option "group"
             --short_help="The name of the group to update."
-            --required,
+            --required
+            --multi,
+      ]
+      --examples=[
+        cli.Example "Update groups 'g1' and 'g2' to use pods with tag 'v1.2'."
+            --arguments="--tag=v1.2 g1 g2",
+        cli.Example "Rename group 'g1' to 'g2'."
+            --arguments="--name=g2 g1",
+        cli.Example "Update group 'g1' to use pod 'my-pod#11'."
+            --arguments="--pod=my-pod#11 g1",
+        cli.Example "Update group 'g2' to use pod 'my-pod@latest'."
+            --arguments="--pod=my-pod@latest g2",
       ]
       --run=:: group_update it config cache ui
   group_cmd.add group_update_cmd
@@ -365,42 +386,59 @@ group_create parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 group_update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   pod := parsed["pod"]
+  tag := parsed["tag"]
   name := parsed["name"]
-  group := parsed["group"]
+  groups := parsed["group"]
   force := parsed["force"]
 
-  if not name and not pod:
-    ui.abort "No new name or pod reference given."
+  if not name and not pod and not tag:
+    ui.abort "No new name, tag, or pod reference given."
 
-  pod_reference/PodReference? := null
-  if pod:
-    pod_reference = PodReference.parse pod --on_error=:
-      ui.abort "Invalid pod reference: $pod"
-    if not force:
-      with_fleet parsed config cache ui: | fleet/Fleet |
+  if name and groups.size > 1:
+    ui.abort "Cannot rename more than one group."
+
+  if name and groups[0] == "default" and name:
+    ui.abort "Cannot rename the default group."
+
+  if pod and tag:
+    ui.abort "Cannot set both pod and tag."
+
+  fleet_file := Fleet.load_fleet_file fleet_root --ui=ui
+
+  executed_actions/List := []
+
+  with_fleet parsed config cache ui: | fleet/Fleet |
+    pod_reference/PodReference? := null
+    if pod:
+      pod_reference = PodReference.parse pod --on_error=:
+        ui.abort "Invalid pod reference: $pod"
+
+    groups.do: | group/string |
+      if not fleet_file.group_pods.contains group:
+        ui.abort "Group '$group' does not exist."
+
+      if name and fleet_file.group_pods.contains name:
+        ui.abort "Group '$name' already exists."
+
+      if tag:
+        old_pod_reference/PodReference := fleet_file.group_pods[group]
+        pod_reference = old_pod_reference.with --tag=tag
+
+      if not force:
         if not fleet.pod_exists pod_reference:
           ui.abort "Pod $pod_reference does not exist."
 
-  if group == "default" and name:
-    ui.abort "Cannot rename the default group."
+      if pod_reference:
+        fleet_file.group_pods[group] = pod_reference
+        executed_actions.add "Updated group '$group' to pod '$pod_reference'."
 
-  fleet_file := Fleet.load_fleet_file fleet_root --ui=ui
-  if not fleet_file.group_pods.contains group:
-    ui.abort "Group '$group' does not exist."
-
-  if name and fleet_file.group_pods.contains name:
-    ui.abort "Group '$name' already exists."
-
-  if pod and not name:
-    fleet_file.group_pods[group] = pod_reference
+      if name:
+        old_reference := fleet_file.group_pods[group]
+        fleet_file.group_pods.remove group
+        fleet_file.group_pods[name] = old_reference
+        executed_actions.add "Renamed group '$group' to '$name'."
     fleet_file.write
-    ui.info "Updated group '$group'."
-  else:
-    new_pod/PodReference := pod ? pod_reference : fleet_file.group_pods[group]
-    fleet_file.group_pods.remove group
-    fleet_file.group_pods[name] = new_pod
-    fleet_file.write
-    ui.info "Updated group '$name' (previously '$group')."
+    executed_actions.do: ui.info it
 
 group_remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
