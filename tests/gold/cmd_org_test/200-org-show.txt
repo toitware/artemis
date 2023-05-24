@@ -1,5 +1,5 @@
 # Show the newly created org
-# [org, show, --organization-id, -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=-]
+# [org, show, -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=-]
 Id: -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=-
 Name: Testy
 Created: CREATED-AT
