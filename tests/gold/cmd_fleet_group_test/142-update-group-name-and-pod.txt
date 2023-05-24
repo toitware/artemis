@@ -1,0 +1,3 @@
+# Update a group name and pod
+# [--fleet-root, <FLEET_ROOT>, fleet, group, update, test-group-3, --name, test-group-4, --pod, unknown@pod3, --force]
+Updated group 'test-group-4' (previously 'test-group-3').

@@ -1,0 +1,3 @@
+# Remove a group with devices
+# [--fleet-root, <FLEET_ROOT>, fleet, group, remove, test-group-2]
+Error: Group 'test-group-2' is in use.

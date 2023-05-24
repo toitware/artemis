@@ -86,6 +86,9 @@ class PodReference:
     return PodReference --name=name --tag=tag
 
   stringify -> string:
+    return to_string
+
+  to_string -> string:
     if id: return id.to_string
     if revision: return "$name#$revision"
     return "$name@$tag"

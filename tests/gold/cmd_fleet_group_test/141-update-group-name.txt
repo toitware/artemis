@@ -1,0 +1,3 @@
+# Update a group name
+# [--fleet-root, <FLEET_ROOT>, fleet, group, update, test-group, --name, test-group-3, --force]
+Updated group 'test-group-3' (previously 'test-group').

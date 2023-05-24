@@ -1,0 +1,3 @@
+# Update a group name to an existing group
+# [--fleet-root, <FLEET_ROOT>, fleet, group, update, test-group-2, --name, test-group-4, --force]
+Error: Group 'test-group-4' already exists.

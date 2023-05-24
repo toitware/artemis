@@ -36,6 +36,13 @@ class DeviceFleet:
     if name: return "$id ($name)"
     return "$id"
 
+  with --group/string -> DeviceFleet:
+    return DeviceFleet
+        --id=id
+        --group=group
+        --name=name
+        --aliases=aliases
+
   compare_to other/DeviceFleet -> int:
     bytes1 := id.to_byte_array
     bytes2 := other.id.to_byte_array
@@ -716,3 +723,11 @@ class Fleet:
 
   get_pod_id --name/string --tag/string? --revision/int? -> uuid.Uuid:
     return get_pod_id (PodReference --name=name --tag=tag --revision=revision)
+
+  pod_exists reference/PodReference -> bool:
+    broker := artemis_.connected_broker
+    pod_id := get_pod_id reference
+    pod_entry := broker.pod_registry_pods
+        --fleet_id=this.id
+        --pod_ids=[pod_id]
+    return not pod_entry.is_empty
