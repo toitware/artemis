@@ -76,7 +76,12 @@ class FleetFile:
   constructor --.path --.id --.organization_id --.group_pods:
 
   static parse path/string --ui/Ui -> FleetFile:
-    fleet_content := read_json path
+    fleet_content := null
+    exception := catch: fleet_content = read_json path
+    if exception:
+      ui.error "Fleet file $path is not a valid JSON."
+      ui.error exception.message
+      ui.abort
     if fleet_content is not Map:
       ui.abort "Fleet file $path has invalid format."
     if not fleet_content.contains "id":
