@@ -22,8 +22,8 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
         time. It can be used to create identity files and update multiple
         devices at the same time.
 
-        The 'fleet update' command can be used intuitively to update multiple
-        devices.
+        The 'fleet roll-out' command can be used intuitively to send update
+        requests to multiple devices.
 
         The remaining commands are designed to be used in a workflow, where
         multiple devices are flashed with the same pod. Frequently, flash stations
@@ -92,8 +92,25 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
   cmd.add create_identities_cmd
 
   update_cmd := cli.Command "update"
+      --short_help="Deprecated alias for 'roll-out'."
+      --options=[
+        cli.Option "diff-base"
+            --type="pod-file"
+            --short_help="The base pod to use for diff-based updates."
+            --multi,
+      ]
+      --run=::
+        ui.warning "The 'fleet update' command is deprecated. Use 'fleet roll-out' instead."
+        roll_out it config cache ui
+  cmd.add update_cmd
+
+  roll_out_cmd := cli.Command "roll-out"
+      --aliases=[
+        "rollout",
+        "deploy"
+      ]
       --long_help="""
-        Update the firmware of all devices in the fleet.
+        Roll out the fleet configuration to all devices in the fleet.
 
         If a device has no known state, patches for all base firmwares are
         created. If a device has reported its state, then only patches
@@ -118,8 +135,8 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="The base pod to use for diff-based updates."
             --multi,
       ]
-      --run=:: update it config cache ui
-  cmd.add update_cmd
+      --run=:: roll_out it config cache ui
+  cmd.add roll_out_cmd
 
   status_cmd := cli.Command "status"
       --long_help="""
@@ -290,11 +307,11 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --output_directory=output_directory
     ui.info "Created $created_files.size identity file(s)."
 
-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+roll_out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   diff_bases := parsed["diff-base"]
 
   with_fleet parsed config cache ui: | fleet/Fleet |
-    fleet.update --diff_bases=diff_bases
+    fleet.roll_out --diff_bases=diff_bases
 
 status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   include_healthy := parsed["include-healthy"]

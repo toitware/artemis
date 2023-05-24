@@ -365,7 +365,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
             test_cli.replacements[it[UPLOADING_PREFIX.size ..]] = "PATCH-HASH-SIZE"
         output
       [
-        "fleet", "update",
+        "fleet", "roll-out",
         "--fleet-root", fleet_dir,
       ]
 
