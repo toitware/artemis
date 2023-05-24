@@ -1,0 +1,6 @@
+# Show the given device
+# [--fleet-root, <FLEET_ROOT>, device, show, -={| UUID-FOR-FAKE-DEVICE 00000 |}=-]
+Device ID: -={| UUID-FOR-FAKE-DEVICE 00000 |}=-
+Organization ID: 4b6d9e35-cae9-44c0-8da0-6b0e485987e2 (Test Organization)
+Device name: name-0
+Device aliases: 
