@@ -109,8 +109,6 @@ class FleetFile:
       if entry["pod"] is not string:
         ui.abort "Fleet file $path has invalid format for 'pod' in group '$group_name'."
       PodReference.parse entry["pod"] --ui=ui
-    if not group_pods.contains DEFAULT_GROUP:
-      ui.abort "Fleet file $path does not contain an entry for group '$DEFAULT_GROUP'."
 
     return FleetFile
         --path=path
@@ -123,9 +121,10 @@ class FleetFile:
     sorted_keys := group_pods.keys.sort
 
     // Write the default group at the top.
-    groups[DEFAULT_GROUP] = {
-      "pod": group_pods[DEFAULT_GROUP].to_string
-    }
+    if group_pods.contains DEFAULT_GROUP:
+      groups[DEFAULT_GROUP] = {
+        "pod": group_pods[DEFAULT_GROUP].to_string
+      }
     sorted_keys.do: | group_name |
       if group_name == DEFAULT_GROUP: continue.do
       groups[group_name] = {
@@ -481,7 +480,6 @@ class Fleet:
     return result
 
   pod_reference_for_group name/string -> PodReference:
-    if name == "": name = DEFAULT_GROUP
     return group_pods_.get name
         --if_absent=: ui_.abort "Unknown group $name"
 

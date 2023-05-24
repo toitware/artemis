@@ -381,9 +381,6 @@ group_update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         if not fleet.pod_exists pod_reference:
           ui.abort "Pod $pod_reference does not exist."
 
-  if group == "default" and name:
-    ui.abort "Cannot rename the default group."
-
   fleet_file := Fleet.load_fleet_file fleet_root --ui=ui
   if not fleet_file.group_pods.contains group:
     ui.abort "Group '$group' does not exist."
@@ -405,9 +402,6 @@ group_update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 group_remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   group := parsed["group"]
-
-  if group == "default":
-    ui.abort "Cannot remove the default group."
 
   fleet_file := Fleet.load_fleet_file fleet_root --ui=ui
   if not fleet_file.group_pods.contains group:
