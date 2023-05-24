@@ -87,6 +87,11 @@ interface ArtemisServerCli implements Authenticatable:
   create_organization name/string -> Organization
 
   /**
+  Updates the given organization.
+  */
+  update_organization organization_id/uuid.Uuid --name/string -> none
+
+  /**
   Gets a list of members.
 
   Each entry is a map consisting of the "id" and "role".
