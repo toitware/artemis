@@ -41,7 +41,7 @@ class EventEntry:
 
 class OrganizationEntry:
   id/string
-  name/string
+  name/string := ?
   created_at/Time
   members/Map := {:}
 
@@ -108,6 +108,8 @@ class HttpArtemisServer extends HttpServer:
       return get_organization_details data user_id
     if command == "create-organization":
       return create_organization data user_id
+    if command == "update-organization":
+      return update_organization data
     if command == "get-organization-members":
       return get_organization_members data
     if command == "organization-member-add":
@@ -191,6 +193,12 @@ class HttpArtemisServer extends HttpServer:
     organization.members[admin_id] = "admin"
     organizations[id] = organization
     return organization
+
+  update_organization data:
+    organization := organizations.get data["id"]
+    if not organization: throw "Organization not found"
+    organization.name = data["update"]["name"]
+    return null
 
   get_organization_members data/Map -> List:
     organization_id := data["id"]

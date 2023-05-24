@@ -101,6 +101,15 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     }
     return Organization.from_map organization
 
+  update_organization organization_id/uuid.Uuid --name/string -> none:
+    update := {
+      "name": name,
+    }
+    send_request_ "update-organization" {
+      "id": "$organization_id",
+      "update": update,
+    }
+
   get_organization_members id/uuid.Uuid -> List:
     response := send_request_ "get-organization-members" {
       "id": "$id",

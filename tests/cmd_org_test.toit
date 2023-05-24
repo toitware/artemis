@@ -78,7 +78,7 @@ run_test test_cli/TestCli:
       --before_gold=trim_old_ids
       [ "org", "list" ]
 
-  org_info := test_cli.run --json ["org", "show", "--organization-id", id]
+  org_info := test_cli.run --json ["org", "show", id]
   expect_equals "Testy" org_info["name"]
   expect_equals id org_info["id"]
   created_at := org_info["created"]
@@ -89,7 +89,20 @@ run_test test_cli/TestCli:
 
   test_cli.run_gold "200-org-show"
       "Show the newly created org"
-      ["org", "show", "--organization-id", id]
+      ["org", "show", id]
+
+  test_cli.run_gold "210-org-rename"
+      "Update the name of the org"
+      ["org", "update", id, "--name", "Testy2"]
+
+  test_cli.run_gold "220-org-show-renamed"
+      "Show the renamed org"
+      ["org", "show", id]
+
+  expect_equals "Testy2" (test_cli.run --json ["org", "show", id])["name"]
+
+  // Rename it back.
+  test_cli.run ["org", "update", id, "--name", "Testy"]
 
   // Test 'org use' and 'org default'.
 
@@ -150,7 +163,7 @@ run_test test_cli/TestCli:
 
   expect_equals id2 (test_cli.run --json ["org", "default", "--id-only"])
 
-  org_info2 := test_cli.run --json ["org", "show", "--organization-id", id2]
+  org_info2 := test_cli.run --json ["org", "show", id2]
   expect_equals "Testy2" org_info2["name"]
   expect_equals id2 org_info2["id"]
   created_at2 := org_info2["created"]
