@@ -2,6 +2,7 @@
 
 import encoding.base64
 import encoding.json
+import encoding.json as json_encoding
 import encoding.ubjson
 import expect show *
 import log
@@ -171,7 +172,10 @@ class TestCli:
       device.close
       artemis.backdoor.remove_device device.hardware_id
 
-  run args/List --expect_exit_1/bool=false --quiet/bool=true --json/bool=false -> string:
+  run args/List --expect_exit_1/bool=false --quiet/bool=true -> string:
+    return run args --expect_exit_1=expect_exit_1 --quiet=quiet --no-json
+
+  run args/List --expect_exit_1/bool=false --quiet/bool=true --json/bool -> any:
     ui := TestUi --quiet=quiet --json=json
     exception := null
     try:
@@ -183,8 +187,8 @@ class TestCli:
 
     if expect_exit_1 and not exception:
       throw "Expected exit 1, but got exit 0"
-    result := ui.stdout
-    return result
+    if json: return json_encoding.parse ui.stdout
+    return ui.stdout
 
   /**
   Variant of $(run_gold test_name description args [--before_gold]).
@@ -881,3 +885,17 @@ deep_copy_ o/any -> any:
   if o is List:
     return o.map: deep_copy_ it
   return o
+
+/**
+Takes a string 'str' and returns a string that can be used as a replacement
+  for an ID. That is, it has the same length as a UUID, and is visibly a UUID.
+*/
+pad_replacement_id str/string -> string:
+  prefix := "-={|"
+  suffix := "|}=-"
+  total_chars := prefix.size + suffix.size + str.size
+  padding := 36 - total_chars
+  if padding < 0: throw "Replacement string too long: $str"
+  left_padding := padding / 2
+  right_padding := padding - left_padding
+  return "$prefix$("~" * left_padding)$str$("~" * right_padding)$suffix"

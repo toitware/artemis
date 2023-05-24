@@ -41,4 +41,4 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
         "--fleet-root", fleet_dir,
         "device", "default"
       ]
-  expect_equals "$device.alias_id" (json.parse json_output)
+  expect_equals "$device.alias_id" json_output

@@ -203,10 +203,10 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
     id
 
   add_replacements_for_last_pod := :
-    available_pods := json.parse (test_cli.run --json [
+    available_pods := test_cli.run --json [
       "--fleet-root", fleet_dir,
       "pod", "list",
-    ])
+    ]
     add_replacements_for_pod.call available_pods[0]
 
 
@@ -252,10 +252,10 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "pod", "upload", pod_file,
       ]
 
-  available_pods := json.parse (test_cli.run --json [
+  available_pods := test_cli.run --json [
     "--fleet-root", fleet_dir,
     "pod", "list",
-  ])
+  ]
   flash_pod_id := available_pods[0]["id"]
 
   // List the available firmwares.

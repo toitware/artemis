@@ -34,97 +34,113 @@ run_test test_cli/TestCli:
     "--password", TEST_EXAMPLE_COM_PASSWORD,
   ]
 
-  output := test_cli.run [ "org", "list" ]
-  /*
-  We might have orgs from earlier runs.
-  The output should look something like:
-  ┌──────────────────────────────────────┬───────────────────┐
-  │ ID                                     Name              │
-  ├──────────────────────────────────────┼───────────────────┤
-  │ 4b6d9e35-cae9-44c0-8da0-6b0e485987e2   Test Organization │
-  │ 6b2e1a1d-3a98-401e-93ac-0b062560e9ac   Testy             │
-  │ 5f8ce858-f5d0-400b-a00f-97b4e4a78692   Testy             │
-  └──────────────────────────────────────┴───────────────────┘
-  */
-  expect (output.contains TEST_ORGANIZATION_NAME)
-  expect (output.contains "$TEST_ORGANIZATION_UUID")
-  original_lines := output.split "\n"
+  // We might have orgs from earlier runs.
+  // We also always have the Test Organization.
+  old_entries := test_cli.run --json ["org", "list"]
+  old_ids := {}
+  old_entries.do: | entry/Map |
+    old_ids.add entry["id"]
 
-  create_output := test_cli.run [ "org", "create", "Testy" ]
-  // Should be something like
-  //   "Created organization 6b2e1a1d-3a98-401e-93ac-0b062560e9ac - Testy"
-  expect (create_output.starts_with "Created organization")
-  expect (create_output.contains "Testy")
-  id := (create_output.split " ")[2]
-  expect (id.size == 36)
+  expect (old_entries.any: | entry/Map |
+    entry["name"] == TEST_ORGANIZATION_NAME and entry["id"] == "$TEST_ORGANIZATION_UUID")
 
-  after_output := test_cli.run [ "org", "list" ]
-  after_lines := after_output.split "\n"
-  expect (after_lines.size == original_lines.size + 1)
-  // Given that the original output already contained "Test Organization" which
-  // has a longer name than "Testy", we know that the layout hasn't changed.
-  // All lines should be the same, except the new one with our new organization.
-  expect TEST_ORGANIZATION_NAME.size > "Testy".size
-  after_lines.do: | line |
-    if line.contains id:
-      expect (line.contains "Testy")
-    else:
-      expect (original_lines.contains line)
+  trim_old_ids := : | output/string |
+    lines := output.split "\n"
+    lines.filter --in_place: | line/string |
+      not old_ids.any: | old_id/string |
+        line.contains old_id
+    lines.join "\n"
 
-  // Test 'org show'.
-  show_output := test_cli.run [ "org", "show", "--organization-id", "$id" ]
-  expect (show_output.contains "Testy")
-  expect (show_output.contains id)
-  // Find the 'Created' output.
-  created_pos := show_output.index_of "Created: "
-  expect (created_pos >= 0)
-  line_end := show_output.index_of "\n" created_pos
-  expect (line_end >= 0)
-  created := show_output[created_pos + "Created: ".size..line_end]
-  created_time := Time.from_string created
-  // We trim the milliseconds when printing the "Created".
-  // Give the test some slack.
-  expect (created_time >= test_start - (Duration --s=2))
+  test_cli.run_gold "010-list"
+      "Initial list of organizations should be empty"
+      --ignore_spacing
+      // After filtering the 'org list' output should be empty.
+      --before_gold=trim_old_ids
+      [ "org", "list" ]
+
+  id/string? := null
+  test_cli.run_gold "110-create"
+      "Create a new organization 'Testy'"
+      --ignore_spacing
+      --before_gold=: | output/string |
+        entries := test_cli.run --json ["org", "list"]
+        entries.do: | entry/Map |
+          if not old_ids.contains entry["id"]:
+            id = entry["id"]
+            test_cli.replacements[id] = pad_replacement_id "NEW-ORG-ID"
+        trim_old_ids.call output
+      [ "org", "create", "Testy" ]
+  expect_not_null id
+
+  test_cli.run_gold "120-after-create"
+      "After creating 'Testy' the list should contain it"
+      --ignore_spacing
+      --before_gold=trim_old_ids
+      [ "org", "list" ]
+
+  org_info := test_cli.run --json ["org", "show", "--organization-id", id]
+  expect_equals "Testy" org_info["name"]
+  expect_equals id org_info["id"]
+  created_at := org_info["created"]
+  created_time := Time.from_string created_at
+  expect (created_time >= test_start)
   expect (created_time <= Time.now)
+  test_cli.replacements[created_at] = "CREATED-AT"
+
+  test_cli.run_gold "200-org-show"
+      "Show the newly created org"
+      ["org", "show", "--organization-id", id]
 
   // Test 'org use' and 'org default'.
 
   // The last created org is the default (since we didn't use --no-default).
-  default_output := test_cli.run [ "org", "default" ]
-  expect (default_output.contains "Name: Testy")
-  expect (default_output.contains "ID: $id")
+  org_info = test_cli.run --json ["org", "default"]
+  expect_equals "Testy" org_info["name"]
+  expect_equals id org_info["id"]
+  expect_equals id (test_cli.run --json ["org", "default", "--id-only"])
+
+  test_cli.run_gold "310-default-org"
+      "The default org should be the last created one"
+      ["org", "default"]
+  test_cli.run_gold "315-default-org-id-only"
+      "Show the default-org with --id-only"
+      ["org", "default", "--id-only"]
 
   // TODO(florian): this is unfortunate. We would prefer not to have a
   // stack trace. That would require changes to the CLI package.
   expect_throw "Invalid value for option 'organization-id': 'bad_id'. Expected a UUID.":
-    test_cli.run --expect_exit_1 [ "org", "default", "bad_id" ]
+    test_cli.run --expect_exit_1 ["org", "default", "bad_id"]
 
   UNKNOWN_UUID ::= uuid.uuid5 "unknown" "unknown"
-  bad_use_output := test_cli.run --expect_exit_1 [ "org", "default", "$UNKNOWN_UUID"]
+  bad_use_output := test_cli.run --expect_exit_1 ["org", "default", "$UNKNOWN_UUID"]
   expect (bad_use_output.contains "Organization not found")
 
   // The default org is still set to Testy.
-  default_output = test_cli.run [ "org", "default" ]
-  expect (default_output.contains "Name: Testy")
-  expect (default_output.contains "ID: $id")
+  test_cli.run_gold "320-still-default-org"
+      "The default org is still be Testy"
+      ["org", "default"]
 
+  // Creating a new org with --no-default does not change the default.
+  id2/string? := null
+  test_cli.run_gold "330-create-no-default"
+      "Create a new org 'Testy2' with --no-default"
+      --before_gold=: | output/string |
+        entries := test_cli.run --json ["org", "list"]
+        entries.do: | entry/Map |
+          if not old_ids.contains entry["id"] and entry["id"] != id:
+            id2 = entry["id"]
+            test_cli.replacements[id2] = pad_replacement_id "ORG-ID2"
+        trim_old_ids.call output
+      ["org", "create", "Testy2", "--no-default"]
 
-  // Creating a new org with --no-default should not change the default.
-  create_output = test_cli.run [ "org", "create", "Testy2", "--no-default" ]
-  expect (create_output.contains "Created organization")
-  expect (create_output.contains "Testy2")
+  expect_equals id (test_cli.run --json ["org", "default", "--id-only"])
 
-  default_output = test_cli.run [ "org", "default" ]
-  expect (default_output.contains "Name: Testy")
-  expect (default_output.contains "ID: $id")
+  // Set the default org.
+  test_cli.run_gold "340-set-default"
+      "Set the default org to 'Testy2'"
+      ["org", "default", id2]
 
-  use_output := test_cli.run [ "org", "default", id ]
-  expect (use_output.contains "set to")
-  expect (use_output.contains "Testy")
-
-  default_output = test_cli.run [ "org", "default"]
-  expect (default_output.contains "Name: Testy")
-  expect (default_output.contains "ID: $id")
+  expect_equals id2 (test_cli.run --json ["org", "default", "--id-only"])
 
   // Another bad setting doesn't change the default.
   // TODO(florian): this is unfortunate. We would prefer not to have a
@@ -132,87 +148,86 @@ run_test test_cli/TestCli:
   expect_throw "Invalid value for option 'organization-id': 'bad_id'. Expected a UUID.":
     test_cli.run --expect_exit_1 [ "org", "default", "bad_id" ]
 
-  default_output = test_cli.run [ "org", "default"]
-  expect (default_output.contains "Name: Testy")
-  expect (default_output.contains "ID: $id")
+  expect_equals id2 (test_cli.run --json ["org", "default", "--id-only"])
 
-  default_id_only := test_cli.run [ "org", "default", "--id-only" ]
-  expect (default_id_only.trim == id)
+  org_info2 := test_cli.run --json ["org", "show", "--organization-id", id2]
+  expect_equals "Testy2" org_info2["name"]
+  expect_equals id2 org_info2["id"]
+  created_at2 := org_info2["created"]
+  test_cli.replacements[created_at2] = "CREATED-AT2"
 
   // Once a default organization is set, we can use 'org show' without arguments.
-  show_default_output := test_cli.run [ "org", "show" ]
-  expect (show_default_output.contains "Testy")
-  expect (show_default_output.contains id)
+  test_cli.run_gold "350-show-default"
+      "Show the default org"
+      ["org", "show"]
 
   // Test member functions.
   // members {add, list, remove, set-role}
   // roles "admin", "member"
 
-  list_output := test_cli.run [ "org", "members", "list" ]
-  expect (list_output.contains "$TEST_EXAMPLE_COM_UUID")
-  expect (list_output.contains "admin")
-  expect_not (list_output.contains "$DEMO_EXAMPLE_COM_UUID")
+  members := test_cli.run --json [ "org", "members", "list" ]
+  expect_equals 1 members.size
+  expect_equals "admin" members[0]["role"]
+  expect_equals TEST_EXAMPLE_COM_NAME members[0]["name"]
+  expect_equals TEST_EXAMPLE_COM_EMAIL members[0]["email"]
+  expect_equals "$TEST_EXAMPLE_COM_UUID" members[0]["id"]
 
-  test_cli.run [ "org", "members", "add", "$DEMO_EXAMPLE_COM_UUID" ]
-  list_output = test_cli.run [ "org", "members", "list" ]
-  lines := list_output.split "\n"
-  found_test_user := false
-  found_demo_user := false
-  lines.do: | line |
-    if line.contains TEST_EXAMPLE_COM_EMAIL:
-      found_test_user = true
-      expect (line.contains "admin")
-    if line.contains DEMO_EXAMPLE_COM_EMAIL:
-      found_demo_user = true
-      expect (line.contains "member")
-      // By default 'list' also contains the name.
-      expect (line.contains DEMO_EXAMPLE_COM_NAME)
-  expect found_test_user
-  expect found_demo_user
+  test_cli.run_gold "400-org-members-list"
+      "List the members of the org"
+      [ "org", "members", "list" ]
 
-  // Test 'org members list --id-only'.
-  list_output = test_cli.run [ "org", "members", "list", "--id-only" ]
-  lines = list_output.split "\n"
-  found_test_user = false
-  found_demo_user = false
-  lines.do: | line/string |
-    if line.contains "$TEST_EXAMPLE_COM_UUID":
-      found_test_user = true
-      expect_not (line.contains "admin")
-    if line.contains "$DEMO_EXAMPLE_COM_UUID":
-      found_demo_user = true
-      expect_not (line.contains "member")
-      expect_not (line.contains DEMO_EXAMPLE_COM_NAME)
-  expect found_test_user
-  expect found_demo_user
+  test_cli.run_gold "410-org-members-add"
+      "Add a member to the org"
+      [ "org", "members", "add", "$DEMO_EXAMPLE_COM_UUID" ]
+  test_cli.run_gold "420-org-members-after-add"
+      "List the members of the org after adding a member"
+      [ "org", "members", "list" ]
+
+  // Add self again.
+  test_cli.run_gold "425-add-self-again"
+      "Add self again"
+      --expect_exit_1
+      [ "org", "members", "add", "$TEST_EXAMPLE_COM_UUID" ]
+
+  member_ids := test_cli.run --json [ "org", "members", "list", "--id-only" ]
+  expect_equals 2 member_ids.size
+  expect (member_ids.contains "$TEST_EXAMPLE_COM_UUID")
+  expect (member_ids.contains "$DEMO_EXAMPLE_COM_UUID")
+
+  test_cli.run_gold "430-org-members-list-id-only"
+      "List the members of the org with --id-only"
+      [ "org", "members", "list", "--id-only" ]
 
   // Change the demo user's role.
-  test_cli.run [ "org", "members", "set-role", "$DEMO_EXAMPLE_COM_UUID", "admin" ]
-  list_output = test_cli.run [ "org", "members", "list" ]
-  lines = list_output.split "\n"
-  found_test_user = false
-  found_demo_user = false
-  lines.do: | line |
-    if line.contains TEST_EXAMPLE_COM_EMAIL:
-      found_test_user = true
-      expect (line.contains "admin")
-    if line.contains DEMO_EXAMPLE_COM_EMAIL:
-      found_demo_user = true
-      expect (line.contains "admin")
-  expect found_test_user
-  expect found_demo_user
+  test_cli.run_gold "440-org-set-role"
+      "Change the role of a member of the org"
+      [ "org", "members", "set-role", "$DEMO_EXAMPLE_COM_UUID", "admin" ]
+
+  test_cli.run_gold "450-org-members-after-set-role"
+      "List the members of the org after changing a member's role"
+      [ "org", "members", "list" ]
 
   // Remove the demo user.
-  test_cli.run [ "org", "members", "remove", "$DEMO_EXAMPLE_COM_UUID" ]
-  list_output = test_cli.run [ "org", "members", "list" ]
-  expect_not (list_output.contains DEMO_EXAMPLE_COM_EMAIL)
+  test_cli.run_gold "460-remove-member"
+      "Remove a member from the org"
+      [ "org", "members", "remove", "$DEMO_EXAMPLE_COM_UUID" ]
+  ids := test_cli.run --json [ "org", "members", "list", "--id-only" ]
+  expect_equals 1 ids.size
+  expect (ids.contains "$TEST_EXAMPLE_COM_UUID")
 
   // We can't remove ourselves without '--force'.
-  test_cli.run --expect_exit_1 [ "org", "members", "remove", "$TEST_EXAMPLE_COM_UUID" ]
-  list_output = test_cli.run [ "org", "members", "list" ]
-  expect (list_output.contains TEST_EXAMPLE_COM_EMAIL)
+  test_cli.run_gold "470-remove-self"
+      "Try to remove ourselves from the org without --force"
+      --expect_exit_1
+      [ "org", "members", "remove", "$TEST_EXAMPLE_COM_UUID" ]
+
+  expect_equals 1 (test_cli.run --json [ "org", "members", "list", "--id-only" ]).size
 
   // Remove ourselves with '--force'.
-  test_cli.run [ "org", "members", "remove", "--force", "$TEST_EXAMPLE_COM_UUID" ]
-  list_output = test_cli.run [ "org", "members", "list" ]
-  expect_not (list_output.contains TEST_EXAMPLE_COM_EMAIL)
+  test_cli.run_gold "480-remove-self-force"
+      "Remove ourselves from the org with --force"
+      [ "org", "members", "remove", "--force", "$TEST_EXAMPLE_COM_UUID" ]
+
+  test_cli.run_gold "490-org-members-after-remove"
+      "List the members of the org after removing self"
+      [ "org", "members", "list" ]

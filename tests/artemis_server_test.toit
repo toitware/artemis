@@ -177,18 +177,23 @@ test_organizations server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
 
 test_profile server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   profile := server_cli.get_profile
-  // If we have run the test before, we can't know what value the profile
-  // currently has.
+
+  profile = server_cli.get_profile
+  expect_equals "Test User" profile["name"]
+  id := profile["id"]
 
   server_cli.update_profile --name="Test User updated"
   profile = server_cli.get_profile
   expect_equals "Test User updated" profile["name"]
-  id := profile["id"]
 
   profile2 := server_cli.get_profile --user_id=id
   expect_equals profile["id"] profile2["id"]
   expect_equals profile["name"] profile2["name"]
   expect_equals profile["email"] profile2["email"]
+
+  // Change it back.
+  // Other tests might need the profile to be in a certain state.
+  server_cli.update_profile --name="Test User"
 
   profile_non_existent := server_cli.get_profile --user_id=NON_EXISTENT_UUID
   expect_null profile_non_existent
