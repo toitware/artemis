@@ -127,7 +127,7 @@ with_device
   if allow_rest_device:
     device_rest_reference := parsed["device-rest"]
     if device_reference and device_rest_reference:
-      ui.abort "Cannot specify both a device and a device-rest argument."
+      ui.abort "Cannot specify a device both with '-d' and without it: $device_reference, $device_rest_reference."
 
     if device_rest_reference: device_reference = device_rest_reference
 
@@ -170,6 +170,8 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
+  device_reference := parsed["device"]
+  device_rest_reference := parsed["device-rest"]
 
   if parsed["clear"]:
     config.remove CONFIG_DEVICE_DEFAULT_KEY
@@ -177,11 +179,14 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Default device cleared."
     return
 
+  if device_reference and device_rest_reference:
+    ui.abort "Cannot specify a device both with '-d' and without it: $device_reference, $device_rest_reference."
+
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
 
     // We allow to set the default with `-d` or by giving it as rest argument.
-    device := parsed["device"] or parsed["device-rest"]
+    device := device_reference or device_rest_reference
     device_id := ?
     if not device:
       // TODO(florian): make sure the device exists in the fleet.
