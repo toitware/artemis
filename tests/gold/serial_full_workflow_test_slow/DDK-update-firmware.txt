@@ -1,5 +1,5 @@
 # Update the firmware.
-# [fleet, update, --fleet-root, FLEET-DIR]
+# [fleet, roll-out, --fleet-root, TMP_DIR/fleet]
 Computing and uploading patches.
 Uploading patch PATCH-HASH-SIZE
 Successfully updated device -={|    UUID-FOR-TEST-DEVICE    |}=- (DEVICE_NAME).

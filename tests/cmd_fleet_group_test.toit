@@ -129,7 +129,7 @@ run_test test_cli/TestCli fleet_dir/string:
           "--fleet-root", fleet_dir,
           "fleet", "group", "update", "test-group-3",
           "--name", "test-group-4",
-          "--pod", "unknown@pod3",
+          "--pod", "unknown2@tag",
           "--force",
       ]
   groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
@@ -137,7 +137,7 @@ run_test test_cli/TestCli fleet_dir/string:
   expect_equals "default" groups[0]["name"]
   expect_equals "test-group-2" groups[1]["name"]
   expect_equals "test-group-4" groups[2]["name"]
-  expect_equals "unknown@pod3" groups[2]["pod"]
+  expect_equals "unknown2@tag" groups[2]["pod"]
 
   test_cli.run_gold "143-update-default-group-name"
       "Update the default group name"
@@ -180,6 +180,51 @@ run_test test_cli/TestCli fleet_dir/string:
           "--name", "test-group-6",
           "--force",
       ]
+
+  test_cli.run_gold "146-list-groups"
+      "List groups"
+      [
+          "--fleet-root", fleet_dir,
+          "fleet", "group", "list",
+      ]
+
+  test_cli.run_gold "147-update-tags"
+      "Update the tags of all pods"
+      [
+          "--fleet-root", fleet_dir,
+          "fleet", "group", "update", "default", "test-group-2", "test-group-4",
+          "--tag", "new-tag",
+          "--force",
+      ]
+  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  expect_equals 3 groups.size
+  expect_equals "my-pod@new-tag" groups[0]["pod"]
+  expect_equals "unknown@new-tag" groups[1]["pod"]
+  expect_equals "unknown2@new-tag" groups[2]["pod"]
+
+  test_cli.run_gold "148-rename-multi"
+      "Can't rename multiple groups at once"
+      --expect_exit_1
+      [
+          "--fleet-root", fleet_dir,
+          "fleet", "group", "update", "test-group-2", "test-group-4",
+          "--name", "test-group-5",
+          "--force",
+      ]
+
+  test_cli.run_gold "149-update-pod-multi"
+      "Update the pod of multiple groups"
+      [
+          "--fleet-root", fleet_dir,
+          "fleet", "group", "update", "test-group-2", "test-group-4",
+          "--pod", "multi@tag",
+          "--force",
+      ]
+  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  expect_equals 3 groups.size
+  expect_equals "my-pod@new-tag" groups[0]["pod"]
+  expect_equals "multi@tag" groups[1]["pod"]
+  expect_equals "multi@tag" groups[2]["pod"]
 
   // Move all devices from the default group to the test-group-2 group.
   test_cli.run_gold "150-move-devices"

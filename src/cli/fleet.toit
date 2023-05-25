@@ -346,7 +346,7 @@ class Fleet:
       if devices_.size != old_size:
         write_devices_
 
-  update --diff_bases/List:
+  roll_out --diff_bases/List:
     broker := artemis_.connected_broker
     detailed_devices := {:}
     fleet_devices := devices_
