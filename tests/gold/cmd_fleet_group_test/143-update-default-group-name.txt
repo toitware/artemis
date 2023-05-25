@@ -1,3 +1,3 @@
 # Update the default group name
 # [--fleet-root, <FLEET_ROOT>, fleet, group, update, default, --name, test-group-5, --force]
-Error: Cannot rename the default group.
+Renamed group 'default' to 'test-group-5'.

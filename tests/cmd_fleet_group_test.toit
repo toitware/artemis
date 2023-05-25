@@ -6,8 +6,10 @@ import artemis.cli.fleet
 import expect show *
 import .utils
 
+DEVICE_COUNT ::= 3
+
 main args:
-  with_fleet --count=3 --args=args: | test_cli/TestCli _ fleet_dir/string |
+  with_fleet --count=DEVICE_COUNT --args=args: | test_cli/TestCli _ fleet_dir/string |
     run_test test_cli fleet_dir
 
 run_test test_cli/TestCli fleet_dir/string:
@@ -92,15 +94,6 @@ run_test test_cli/TestCli fleet_dir/string:
           "--force",
       ]
 
-  // Can't remove the default group.
-  test_cli.run_gold "131-remove-default-group"
-      "Remove the default group"
-      --expect_exit_1
-      [
-          "--fleet-root", fleet_dir,
-          "fleet", "group", "remove", "default"
-      ]
-
   // Test updating.
   test_cli.run_gold "140-update-group"
       "Update a group"
@@ -148,10 +141,8 @@ run_test test_cli/TestCli fleet_dir/string:
   expect_equals "test-group-4" groups[2]["name"]
   expect_equals "unknown2@tag" groups[2]["pod"]
 
-  // Can't rename the default group.
   test_cli.run_gold "143-update-default-group-name"
       "Update the default group name"
-      --expect_exit_1
       [
           "--fleet-root", fleet_dir,
           "fleet", "group", "update", "default",
@@ -160,7 +151,26 @@ run_test test_cli/TestCli fleet_dir/string:
       ]
   groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
   expect_equals 3 groups.size
-  expect_equals "default" groups[0]["name"]
+  expect_equals "test-group-5" groups[2]["name"]
+
+  // Check that the devices now correctly reference the new group name.
+  devices_file := fleet.Fleet.load_devices_file fleet_dir --ui=TestUi
+  expect_equals DEVICE_COUNT devices_file.devices.size
+  devices_file.devices.do: | device/fleet.DeviceFleet |
+    expect_equals "test-group-5" device.group
+
+  // Rename it back, so that the rest of the tests continue to work.
+  test_cli.run [
+        "--fleet-root", fleet_dir,
+        "fleet", "group", "update", "test-group-5",
+        "--name", "default",
+        "--force",
+      ]
+
+  devices_file = fleet.Fleet.load_devices_file fleet_dir --ui=TestUi
+  expect_equals DEVICE_COUNT devices_file.devices.size
+  devices_file.devices.do: | device/fleet.DeviceFleet |
+    expect_equals "default" device.group
 
   // Can't rename a group to an existing group.
   test_cli.run_gold "144-update-group-name-already-exists"
@@ -284,12 +294,24 @@ run_test test_cli/TestCli fleet_dir/string:
           "fleet", "group", "remove", "test-group-4",
       ]
 
+  // Create a new group and move all devices to it, so we can test removing the default group.
+  test_cli.run ["--fleet-root", fleet_dir, "fleet", "group", "create", "test-group-5", "--force"]
+  test_cli.run ["--fleet-root", fleet_dir, "fleet", "group", "move", "--to", "test-group-5", "--group", "default"]
+
+  test_cli.run_gold "156-remove-default-group"
+      "Remove the default group"
+      [
+          "--fleet-root", fleet_dir,
+          "fleet", "group", "remove", "default"
+      ]
+
   // It's an error to move devices to a group that doesn't exist.
   test_cli.run_gold "170-move-to-non-existing-group"
       "Move devices to a non-existing group"
       --expect_exit_1
       [
           "--fleet-root", fleet_dir,
-          "fleet", "group", "move", "--to", "test-group-5",
-          "--group", "default"
+          "fleet", "group", "move",
+          "--to", "default",
+          "--group", "test-group-5"
       ]
