@@ -1,2 +1,2 @@
 # Compile the modified specification.
-# [--fleet-root, FLEET-DIR, pod, build, -o, FIRMWARE.POD, FLEET-DIR/FLEET-POD-FILE]
+# [--fleet-root, TMP_DIR/fleet, pod, build, -o, TMP_DIR/firmware.pod, TMP_DIR/fleet/FLEET-POD-FILE]

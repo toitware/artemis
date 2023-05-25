@@ -1,0 +1,5 @@
+# Update the tags of all pods
+# [--fleet-root, <FLEET_ROOT>, fleet, group, update, default, test-group-2, test-group-4, --tag, new-tag, --force]
+Updated group 'default' to pod 'my-pod@new-tag'.
+Updated group 'test-group-2' to pod 'unknown@new-tag'.
+Updated group 'test-group-4' to pod 'unknown2@new-tag'.
