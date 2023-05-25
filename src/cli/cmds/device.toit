@@ -89,6 +89,10 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
             --short_help="Maximum number of events to show."
             --default=3,
       ]
+      --rest=[
+        cli.Option "device-rest"
+            --short_help="ID, name or alias of the device.",
+      ]
       --run=:: show it config cache ui
   cmd.add show_cmd
 
@@ -110,9 +114,22 @@ create_device_commands config/Config cache/Cache ui/Ui -> List:
   cmd.add (create_container_command config cache ui)
   return [cmd]
 
-with_device parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
+with_device
+    parsed/cli.Parsed
+    config/Config
+    cache/Cache
+    ui/Ui
+    --allow_rest_device/bool=false
+    [block]:
   device_reference := parsed["device"]
   fleet_root := parsed["fleet-root"]
+
+  if allow_rest_device:
+    device_rest_reference := parsed["device-rest"]
+    if device_reference and device_rest_reference:
+      ui.abort "Cannot specify a device both with '-d' and without it: $device_reference, $device_rest_reference."
+
+    if device_rest_reference: device_reference = device_rest_reference
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
@@ -153,6 +170,8 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
+  device_reference := parsed["device"]
+  device_rest_reference := parsed["device-rest"]
 
   if parsed["clear"]:
     config.remove CONFIG_DEVICE_DEFAULT_KEY
@@ -160,11 +179,14 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Default device cleared."
     return
 
+  if device_reference and device_rest_reference:
+    ui.abort "Cannot specify a device both with '-d' and without it: $device_reference, $device_rest_reference."
+
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
 
     // We allow to set the default with `-d` or by giving it as rest argument.
-    device := parsed["device"] or parsed["device-rest"]
+    device := device_reference or device_rest_reference
     device_id := ?
     if not device:
       // TODO(florian): make sure the device exists in the fleet.
@@ -188,6 +210,7 @@ make_default_ device_id/uuid.Uuid config/Config ui/Ui:
 
 show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_reference := parsed["device"]
+  device_rest_reference := parsed["device-rest"]
   event_types := parsed["event-type"]
   fleet_root := parsed["fleet-root"]
   show_event_values := parsed["show-event-values"]
@@ -196,34 +219,35 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if max_events < 0:
     ui.abort "max-events must be >= 0."
 
-  with_device parsed config cache ui: | fleet_device/DeviceFleet artemis/Artemis fleet/Fleet |
-    broker := artemis.connected_broker
-    artemis_server := artemis.connected_artemis_server
-    devices := broker.get_devices --device_ids=[fleet_device.id]
-    if devices.is_empty:
-      ui.abort "Device $device_reference does not exist on the broker."
-    broker_device := devices[fleet_device.id]
-    organization := artemis_server.get_organization broker_device.organization_id
-    events/List? := null
-    if max_events != 0:
-      events_map := broker.get_events
-                        --device_ids=[fleet_device.id]
-                        --types=event_types.is_empty ? null : event_types
-                        --limit=max_events
+  with_device parsed config cache ui --allow_rest_device:
+    | fleet_device/DeviceFleet artemis/Artemis fleet/Fleet |
+      broker := artemis.connected_broker
+      artemis_server := artemis.connected_artemis_server
+      devices := broker.get_devices --device_ids=[fleet_device.id]
+      if devices.is_empty:
+        ui.abort "Device $device_reference does not exist on the broker."
+      broker_device := devices[fleet_device.id]
+      organization := artemis_server.get_organization broker_device.organization_id
+      events/List? := null
+      if max_events != 0:
+        events_map := broker.get_events
+                          --device_ids=[fleet_device.id]
+                          --types=event_types.is_empty ? null : event_types
+                          --limit=max_events
 
-      events = events_map.get fleet_device.id
-    ui.do: | printer/Printer |
-      printer.emit_structured
-        --json=: device_to_json_ fleet_device broker_device organization events
-        --stdout=:
-          print_device_
-              --show_event_values=show_event_values
-              fleet
-              fleet_device
-              broker_device
-              organization
-              events
-              it
+        events = events_map.get fleet_device.id
+      ui.do: | printer/Printer |
+        printer.emit_structured
+          --json=: device_to_json_ fleet_device broker_device organization events
+          --stdout=:
+            print_device_
+                --show_event_values=show_event_values
+                fleet
+                fleet_device
+                broker_device
+                organization
+                events
+                it
 
 set_max_offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max_offline := parsed["max-offline"]
