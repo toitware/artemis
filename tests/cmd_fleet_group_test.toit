@@ -6,8 +6,10 @@ import artemis.cli.fleet
 import expect show *
 import .utils
 
+DEVICE_COUNT ::= 3
+
 main args:
-  with_fleet --count=3 --args=args: | test_cli/TestCli _ fleet_dir/string |
+  with_fleet --count=DEVICE_COUNT --args=args: | test_cli/TestCli _ fleet_dir/string |
     run_test test_cli fleet_dir
 
 run_test test_cli/TestCli fleet_dir/string:
@@ -151,6 +153,12 @@ run_test test_cli/TestCli fleet_dir/string:
   expect_equals 3 groups.size
   expect_equals "test-group-5" groups[2]["name"]
 
+  // Check that the devices now correctly reference the new group name.
+  devices_file := fleet.Fleet.load_devices_file fleet_dir --ui=TestUi
+  expect_equals DEVICE_COUNT devices_file.devices.size
+  devices_file.devices.do: | device/fleet.DeviceFleet |
+    expect_equals "test-group-5" device.group
+
   // Rename it back, so that the rest of the tests continue to work.
   test_cli.run [
         "--fleet-root", fleet_dir,
@@ -158,6 +166,11 @@ run_test test_cli/TestCli fleet_dir/string:
         "--name", "default",
         "--force",
       ]
+
+  devices_file = fleet.Fleet.load_devices_file fleet_dir --ui=TestUi
+  expect_equals DEVICE_COUNT devices_file.devices.size
+  devices_file.devices.do: | device/fleet.DeviceFleet |
+    expect_equals "default" device.group
 
   // Can't rename a group to an existing group.
   test_cli.run_gold "144-update-group-name-already-exists"

@@ -414,9 +414,6 @@ group_update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if name and groups.size > 1:
     ui.abort "Cannot rename more than one group."
 
-  if name and groups[0] == "default" and name:
-    ui.abort "Cannot rename the default group."
-
   if pod and tag:
     ui.abort "Cannot set both pod and tag."
 
@@ -452,6 +449,13 @@ group_update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         old_reference := fleet_file.group_pods[group]
         fleet_file.group_pods.remove group
         fleet_file.group_pods[name] = old_reference
+        devices_file := Fleet.load_devices_file fleet_root --ui=ui
+        move_devices_
+            --fleet_root=fleet_root
+            --ids_to_move={}
+            --groups_to_move={group}
+            --to=name
+            --ui=ui
         executed_actions.add "Renamed group '$group' to '$name'."
     fleet_file.write
     executed_actions.do: ui.info it
@@ -493,11 +497,27 @@ group_move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ids_to_move.add (fleet.resolve_alias device).id
 
   fleet_file := Fleet.load_fleet_file fleet_root --ui=ui
-  devices_file := Fleet.load_devices_file fleet_root --ui=ui
-
   if not fleet_file.group_pods.contains to:
     ui.abort "Group '$to' does not exist."
 
+  groups_to_move_set := {}
+  groups_to_move_set.add_all groups_to_move
+
+  moved_count := move_devices_
+      --fleet_root=fleet_root
+      --ids_to_move=ids_to_move
+      --groups_to_move=groups_to_move_set
+      --to=to
+      --ui=ui
+  ui.info "Moved $moved_count devices to group '$to'."
+
+move_devices_ -> int
+    --fleet_root/string
+    --ids_to_move/Set
+    --groups_to_move/Set
+    --to/string
+    --ui/Ui:
+  devices_file := Fleet.load_devices_file fleet_root --ui=ui
   new_devices := []
 
   moved_count := 0
@@ -512,4 +532,4 @@ group_move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     new_devices_file := DevicesFile devices_file.path new_devices
     new_devices_file.write
 
-  ui.info "Moved $moved_count devices to group '$to'."
+  return moved_count
