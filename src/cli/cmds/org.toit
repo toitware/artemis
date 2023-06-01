@@ -267,15 +267,23 @@ member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
         printer.emit (members.map: "$it["id"]")
       return
     profiles := members.map: server.get_profile --user_id=it["id"]
+    unsorted_result := List members.size: {
+      "id": "$members[it]["id"]",
+      "role": members[it]["role"],
+      "name": profiles[it]["name"],
+      "email": profiles[it]["email"],
+    }
+    result := unsorted_result.sort: | a/Map b/Map |
+      // "admin" is < "member", so we can use 'compare_to'.
+      a["role"].compare_to b["role"] --if_equal=:
+        a["email"].compare_to b["email"] --if_equal=:
+          a["name"].compare_to b["name"] --if_equal=:
+            a["id"].compare_to b["id"]
+
     ui.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit
           --header={"id": "ID", "role": "Role", "name": "Name", "email": "Email"}
-          List members.size: {
-            "id": "$members[it]["id"]",
-            "role": members[it]["role"],
-            "name": profiles[it]["name"],
-            "email": profiles[it]["email"],
-          }
+          result
 
 member_add parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   user_id := parsed["user-id"]
