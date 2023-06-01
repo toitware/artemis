@@ -290,23 +290,23 @@ class Fleet:
   static build_alias_map_ devices/List ui/Ui -> Map:
     result := {:}
     ambiguous_ids := {:}
-    devices.size.repeat: | i/int |
-      device/DeviceFleet := devices[i]
+    devices.size.repeat: | index/int |
+      device/DeviceFleet := devices[index]
       add_alias := : | id/string |
         if result.contains id:
           old := result[id]
-          if old == i:
+          if old == index:
             // The name, device-id or alias appears twice for the same
             // device. Not best practice, but not ambiguous.
             continue.add_alias
 
           if old == AMBIGUOUS_:
-            ambiguous_ids[id].add id
+            ambiguous_ids[id].add index
           else:
-            ambiguous_ids[id] = [old, id]
+            ambiguous_ids[id] = [old, index]
             result[id] = AMBIGUOUS_
         else:
-          result[id] = i
+          result[id] = index
 
       add_alias.call "$device.id"
       if device.name:
@@ -315,7 +315,7 @@ class Fleet:
         add_alias.call alias
     if ambiguous_ids.size > 0:
       ui.warning "The following names, device-ids or aliases are ambiguous:"
-      ambiguous_ids.do: | id index_list/List |
+      ambiguous_ids.do: | id/string index_list/List |
         uuid_list := index_list.map: devices[it].id
         ui.warning "  $id maps to $(uuid_list.join ", ")"
     return result
