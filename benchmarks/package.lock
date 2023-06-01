@@ -1,4 +1,4 @@
-sdk: ^2.0.0-alpha.69
+sdk: ^2.0.0-alpha.79
 prefixes:
   artemis: ..
   cli: pkg-cli
@@ -35,8 +35,8 @@ packages:
     hash: 76e4dc5328a5c3739e97f65ed196d05058071359
   pkg-http:
     url: github.com/toitlang/pkg-http
-    version: 2.1.0
-    hash: 54cb9c5e06d53da3d5608ea7454b9113de079c15
+    version: 2.2.0
+    hash: c2acc29817b34085aad4b798c6dafdeef77c23ae
   pkg-ntp:
     url: github.com/toitlang/pkg-ntp
     version: 1.0.0
