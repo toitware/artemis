@@ -63,3 +63,9 @@ secret = ""
 # Overrides the default auth provider URL. Used to support self-hosted gitlab, single-tenant Azure,
 # or any other third-party OIDC providers.
 url = ""
+
+# Don't check the bearer token on requests to the 'b' edge function.
+# Our api-key is public anyway, and this saves us from sending it for every request.
+# Without any bearer token the request will now simply use the anon key.
+[functions.b]
+verify_jwt = false

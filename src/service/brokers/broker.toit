@@ -74,10 +74,18 @@ An interface to communicate with the CLI through a broker.
 interface BrokerService:
   constructor logger/log.Logger server_config/ServerConfig:
     if server_config is ServerConfigSupabase:
-      return BrokerServiceSupabase logger (server_config as ServerConfigSupabase)
+//      return BrokerServiceSupabase logger (server_config as ServerConfigSupabase)
+      supabase_config := server_config as ServerConfigSupabase
+      host := supabase_config.host
+      port := null
+      colon_pos := host.index_of ":"
+      if colon_pos >= 0:
+        port = int.parse host[colon_pos + 1..]
+        host = host[..colon_pos]
+      return BrokerServiceHttp logger --host=host --port=port --path="/functions/v1/b"
     else if server_config is ServerConfigHttpToit:
       http_server_config := server_config as ServerConfigHttpToit
-      return BrokerServiceHttp logger http_server_config.host http_server_config.port
+      return BrokerServiceHttp logger --host=http_server_config.host --port=http_server_config.port --path="/"
     else:
       throw "unknown broker $server_config"
 

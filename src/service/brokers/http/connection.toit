@@ -12,8 +12,9 @@ class HttpConnection_:
   client_/http.Client? := ?
   host_/string
   port_/int
+  path_/string
 
-  constructor network/net.Interface .host_ .port_:
+  constructor network/net.Interface .host_ .port_ .path_:
     client_ = http.Client network
 
   is_closed -> bool:
@@ -31,7 +32,7 @@ class HttpConnection_:
 
   send_request command/int data/Map [block] -> none:
     encoded := #[command] + (json.encode data)
-    response := client_.post encoded --host=host_ --port=port_ --path="/"
+    response := client_.post encoded --host=host_ --port=port_ --path=path_
     body := response.body
     status := response.status_code
 

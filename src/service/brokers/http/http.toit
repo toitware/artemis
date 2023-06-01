@@ -14,13 +14,15 @@ class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
   host_/string
   port_/int
+  path_/string
 
-  constructor .logger_ host/string port/int:
+  constructor .logger_ --host/string --port/int --path/string:
     host_ = host
     port_ = port
+    path_ = path
 
   connect --network/net.Client --device/Device -> BrokerConnection:
-    connection := HttpConnection_ network host_ port_
+    connection := HttpConnection_ network host_ port_ path_
     return BrokerConnectionHttp logger_ device connection
 
 
@@ -59,6 +61,7 @@ class BrokerConnectionHttp implements BrokerConnection:
 
   fetch_image id/uuid.Uuid [block] -> none:
     payload :=  {
+      "public": true,
       "path": "/toit-artemis-assets/$device_.organization_id/images/$id.$BITS_PER_WORD",
     }
     connection_.send_request COMMAND_DOWNLOAD_ payload: | reader/Reader |
@@ -66,6 +69,7 @@ class BrokerConnectionHttp implements BrokerConnection:
 
   fetch_firmware id/string --offset/int=0 [block] -> none:
     payload := {
+      "public": true,
       "path": "/toit-artemis-assets/$device_.organization_id/firmware/$id",
       "offset": offset,
     }

@@ -72,16 +72,18 @@ start-http: install-pkgs
 start-supabase-no-config:
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-supabase
 	@ if supabase status --workdir supabase_artemis &> /dev/null; then \
-	  supabase db reset --workdir supabase_artemis; \
-	else \
-	  supabase start --workdir supabase_artemis; \
-	fi
+	    supabase stop --workdir supabase_artemis; \
+	  fi
+	@ supabase start --workdir supabase_artemis;
 	@ rm -rf $$HOME/.cache/artemis/broker-local-supabase
 	@ if supabase status --workdir supabase_broker &> /dev/null ; then \
-	  supabase db reset --workdir supabase_broker; \
-	else \
-	  supabase start --workdir supabase_broker; \
-	fi
+	    supabase stop --workdir supabase_broker; \
+	  fi
+	@ supabase start --workdir supabase_broker;
+	@ # Make sure the schemas are reloaded.
+	@ for container in $$(docker ps | grep postgrest: | awk '{print $$1}'); do \
+	    docker kill -s SIGUSR1 $$container; \
+		done
 
 start-supabase: start-supabase-no-config
 	@ # Add the local Artemis server and makes it the default.

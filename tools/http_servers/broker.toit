@@ -74,9 +74,7 @@ class HttpBroker extends HttpServer:
     if command == COMMAND_NOTIFY_BROKER_CREATED_: return notify_created data
     if command == COMMAND_GET_EVENTS_: return get_events data
     if command == COMMAND_GET_GOAL_: return get_goal data
-    if command == COMMAND_GET_GOAL_NO_EVENT_: return get_goal_no_event data
     if command == COMMAND_REPORT_STATE_: return report_state data
-    if command == COMMAND_GET_STATE_: return get_state data
     if command == COMMAND_REPORT_EVENT_: return report_event data
 
     if command == COMMAND_POD_REGISTRY_DESCRIPTION_UPSERT_:
@@ -115,13 +113,9 @@ class HttpBroker extends HttpServer:
   get_goal data/Map -> Map?:
     device_id := data["_device_id"]
     // Automatically adds an event.
-    result := get_goal_no_event data
+    result := device_goals_.get device_id
     report_event device_id "get-goal" null
     return result
-
-  get_goal_no_event data/Map -> Map?:
-    device_id := data["_device_id"]
-    return device_goals_.get device_id
 
   update_goal data/Map:
     device_id := data["_device_id"]
@@ -151,10 +145,6 @@ class HttpBroker extends HttpServer:
     device_states_[device_id] = data["_state"]
     // Automatically adds an event.
     report_event device_id "update-state" data["_state"]
-
-  get_state data/Map:
-    device_id := data["_device_id"]
-    return get_state --device_id=device_id
 
   get_state --device_id/string -> Map?:
     return device_states_.get device_id
