@@ -18,7 +18,7 @@ dependencies:
     version: ^1.9.0
   http:
     url: github.com/toitlang/pkg-http
-    version: ^2.1.0
+    version: ^2.2.0
   ntp:
     url: github.com/toitlang/pkg-ntp
     version: ^1.0.0
