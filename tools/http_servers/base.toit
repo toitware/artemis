@@ -1,15 +1,13 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import encoding.json
 import http
 import net
 import net.tcp
-import encoding.ubjson
 import monitor
 import artemis.shared.utils
 
-STATUS_IM_A_TEAPOT ::= 418
-
-class PartialResponse:
+class BinaryResponse:
   bytes/ByteArray
   total_size/int
 
@@ -25,6 +23,8 @@ abstract class HttpServer:
   Each lambda in this list is called twice for each command:
   1. Once befor the command is executed, with ("pre", <command>, data).
   2. After the command finished, with ("post", <command>, <result>), or ("error", <command>, <error>).
+
+  Typically, listeners are only used in tests.
   */
   listeners/List := []
 
@@ -35,7 +35,7 @@ abstract class HttpServer:
       socket_.close
       socket_ = null
 
-  abstract run_command command/string data/any user_id/string? -> any
+  abstract run_command command/int encoded/ByteArray user_id/string? -> any
 
   /**
   Starts the server in a blocking way.
@@ -51,37 +51,33 @@ abstract class HttpServer:
     server := http.Server --max_tasks=64
     print "Listening on port $socket.local_address.port"
     server.listen socket:: | request/http.Request writer/http.ResponseWriter |
-      message := ubjson.decode (utils.read_all request.body)
+      bytes := utils.read_all request.body
+      command := bytes[0]
+      encoded := bytes[1..]
+      user_id := request.headers.single "X-User-Id"
 
-      command := message["command"]
-      should_respond_binary := message.get "binary" or false
-      data := message["data"]
-      user_id := message.get "user_id"
+      listeners.do: it.call "pre" command encoded user_id
+      reply_ command encoded user_id writer
 
-      listeners.do: it.call "pre" command data user_id
-      reply_ command writer --binary=should_respond_binary:
-        run_command command data user_id
-
-  reply_ command/string writer/http.ResponseWriter --binary/bool [block]:
+  reply_ command/int encoded/ByteArray user_id/string? writer/http.ResponseWriter:
     response_data := null
-    exception := catch --trace: response_data = block.call
+    exception := catch --trace:
+      response_data = run_command command encoded user_id
     if exception:
       listeners.do: it.call "error" command exception
-      encoded := ubjson.encode exception
-      writer.headers.set "Content-Length" "$encoded.size"
-      writer.write_headers STATUS_IM_A_TEAPOT --message="Error"
-      writer.write encoded
+      encoded_response := json.encode exception
+      writer.headers.set "Content-Length" "$encoded_response.size"
+      writer.write_headers http.STATUS_IM_A_TEAPOT --message="Error"
+      writer.write encoded_response
     else:
       listeners.do: it.call "post" command response_data
-      if response_data is PartialResponse:
-        if not binary: throw "Partial responses must be binary"
-        partial := response_data as PartialResponse
-        writer.headers.add "Content-Range" "$partial.bytes.size/$partial.total_size"
-        response_data = partial.bytes
-      if binary:
-        writer.headers.set "Content-Length" "$response_data.size"
-        writer.write response_data
+      if response_data is BinaryResponse:
+        binary := response_data as BinaryResponse
+        if binary.bytes.size != binary.total_size:
+          writer.headers.add "Content-Range" "$binary.bytes.size/$binary.total_size"
+        writer.headers.set "Content-Length" "$binary.bytes.size"
+        writer.write binary.bytes
       else:
-        encoded := ubjson.encode response_data
-        writer.headers.set "Content-Length" "$encoded.size"
-        writer.write encoded
+        encoded_response := json.encode response_data
+        writer.headers.set "Content-Length" "$encoded_response.size"
+        writer.write encoded_response

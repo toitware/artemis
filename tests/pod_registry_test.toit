@@ -24,10 +24,9 @@ run_test
     test_broker/TestBroker:
 
   test_broker.with_cli: | broker_cli/broker.BrokerCli |
-    if broker_cli is BrokerCliSupabase:
-      // Make sure we are authenticated.
-      broker_cli.ensure_authenticated:
-        broker_cli.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
+    // Make sure we are authenticated.
+    broker_cli.ensure_authenticated:
+      broker_cli.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
 
     test_pod_registry --test_broker=test_broker broker_cli
     test_pods --test_broker=test_broker broker_cli

@@ -1,8 +1,10 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import artemis.shared.constants show *
 import cli
 import uuid
 import encoding.base64
+import encoding.json
 
 import .base
 
@@ -91,42 +93,47 @@ class HttpArtemisServer extends HttpServer:
   constructor port/int:
     super port
 
-  run_command command/string data user_id/string? -> any:
+  run_command command/int encoded/ByteArray user_id/string? -> any:
+    data := json.decode encoded
     print "Request $command for $user_id with $data"
     if user_id and not users.contains user_id:
       throw "User not found: $user_id"
 
-    if command == "check-in": return store_event data
-    if command == "create-device-in-organization":
+    if command == COMMAND_CHECK_IN_:
+      return store_event data
+    if command == COMMAND_CREATE_DEVICE_IN_ORGANIZATION_:
       return create_device_in_organization data
-    if command == "notify-created": return store_event data
-    if command == "sign-up": return sign_up data
-    if command == "sign-in": return sign_in data
-    if command == "get-organizations":
+    if command == COMMAND_NOTIFY_ARTEMIS_CREATED_:
+      return store_event data
+    if command == COMMAND_SIGN_UP_:
+      return sign_up data
+    if command == COMMAND_SIGN_IN_:
+      return sign_in data
+    if command == COMMAND_GET_ORGANIZATIONS_:
       return get_organizations data user_id
-    if command == "get-organization-details":
+    if command == COMMAND_GET_ORGANIZATION_DETAILS_:
       return get_organization_details data user_id
-    if command == "create-organization":
+    if command == COMMAND_CREATE_ORGANIZATION_:
       return create_organization data user_id
-    if command == "update-organization":
+    if command == COMMAND_UPDATE_ORGANIZATION_:
       return update_organization data
-    if command == "get-organization-members":
+    if command == COMMAND_GET_ORGANIZATION_MEMBERS_:
       return get_organization_members data
-    if command == "organization-member-add":
+    if command == COMMAND_ORGANIZATION_MEMBER_ADD_:
       return organization_member_add data user_id
-    if command == "organization-member-remove":
+    if command == COMMAND_ORGANIZATION_MEMBER_REMOVE_:
       return organization_member_remove data
-    if command == "organization-member-set-role":
+    if command == COMMAND_ORGANIZATION_MEMBER_SET_ROLE_:
       return organization_member_set_role data user_id
-    if command == "get-profile":
+    if command == COMMAND_GET_PROFILE_:
       return get_profile data user_id
-    if command == "update-profile":
+    if command == COMMAND_UPDATE_PROFILE_:
       return update_profile data user_id
-    if command == "list-sdk-service-versions":
+    if command == COMMAND_LIST_SDK_SERVICE_VERSIONS_:
       return list_sdk_service_versions data user_id
-    if command == "download-service-image":
+    if command == COMMAND_DOWNLOAD_SERVICE_IMAGE_:
       return download_service_image data
-    if command == "upload-service-image":
+    if command == COMMAND_UPLOAD_SERVICE_IMAGE_:
       return upload_service_image data
 
     else:

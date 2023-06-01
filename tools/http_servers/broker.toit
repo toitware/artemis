@@ -1,6 +1,8 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import artemis.shared.constants show *
 import cli
+import encoding.json
 import monitor
 
 import .base
@@ -64,37 +66,59 @@ class HttpBroker extends HttpServer:
   constructor port/int:
     super port
 
-  run_command command/string data _ -> any:
-    if command == "notify_created": return notify_created data
-    if command == "get_goal": return get_goal data
-    if command == "get_goal_no_event": return get_goal_no_event data
-    if command == "update_goal": return update_goal data
-    if command == "upload": return upload data
-    if command == "download": return download data
-    if command == "report_state": return report_state data
-    if command == "get_state": return get_state data
-    if command == "get_event": return get_event data
-    if command == "report_event": return report_event data
-    if command == "get_events": return get_events data
-    if command == "get_devices": return get_devices data
+  run_command command/int encoded/ByteArray _ -> any:
+    data := ?
+    if command == COMMAND_UPLOAD_:
+      path_end := encoded.index_of '\0'
+      path := encoded[0..path_end].to_string
+      content := encoded[path_end + 1 ..]
+      data = {
+        "path": path,
+        "content": content,
+      }
+    else:
+      data = json.decode encoded
 
-    if command == "pod_registry_description_upsert": return pod_registry_description_upsert data
-    if command == "pod_registry_add": return pod_registry_add data
-    if command == "pod_registry_tag_set": return pod_registry_tag_set data
-    if command == "pod_registry_tag_remove": return pod_registry_tag_remove data
-    if command == "pod_registry_descriptions": return pod_registry_descriptions data
-    if command == "pod_registry_descriptions_by_ids": return pod_registry_descriptions_by_ids data
-    if command == "pod_registry_descriptions_by_names": return pod_registry_descriptions_by_names data
-    if command == "pod_registry_pods": return pod_registry_pods data
-    if command == "pod_registry_pods_by_ids": return pod_registry_pods_by_ids data
-    if command == "pod_registry_pod_ids_by_reference": return pod_registry_pod_ids_by_reference data
+    if command == COMMAND_UPLOAD_: return upload data
+    if command == COMMAND_DOWNLOAD_: return download data
+    if command == COMMAND_UPDATE_GOAL_: return update_goal data
+    if command == COMMAND_GET_DEVICES_: return get_devices data
+    if command == COMMAND_NOTIFY_BROKER_CREATED_: return notify_created data
+    if command == COMMAND_GET_EVENTS_: return get_events data
+    if command == COMMAND_GET_GOAL_: return get_goal data
+    if command == COMMAND_GET_GOAL_NO_EVENT_: return get_goal_no_event data
+    if command == COMMAND_REPORT_STATE_: return report_state data
+    if command == COMMAND_GET_STATE_: return get_state data
+    if command == COMMAND_GET_EVENT_: return get_event data
+    if command == COMMAND_REPORT_EVENT_: return report_event data
+
+    if command == COMMAND_POD_REGISTRY_DESCRIPTION_UPSERT_:
+      return pod_registry_description_upsert data
+    if command == COMMAND_POD_REGISTRY_ADD_:
+      return pod_registry_add data
+    if command == COMMAND_POD_REGISTRY_TAG_SET_:
+      return pod_registry_tag_set data
+    if command == COMMAND_POD_REGISTRY_TAG_REMOVE_:
+      return pod_registry_tag_remove data
+    if command == COMMAND_POD_REGISTRY_DESCRIPTIONS_:
+      return pod_registry_descriptions data
+    if command == COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_IDS_:
+      return pod_registry_descriptions_by_ids data
+    if command == COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_NAMES_:
+      return pod_registry_descriptions_by_names data
+    if command == COMMAND_POD_REGISTRY_PODS_:
+      return pod_registry_pods data
+    if command == COMMAND_POD_REGISTRY_PODS_BY_IDS_:
+      return pod_registry_pods_by_ids data
+    if command == COMMAND_POD_REGISTRY_POD_IDS_BY_REFERENCE_:
+      return pod_registry_pod_ids_by_reference data
 
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
 
   notify_created data/Map:
-    device_id := data["device_id"]
-    state := data["state"]
+    device_id := data["_device_id"]
+    state := data["_state"]
     device_states_[device_id] = state
 
   /** Backdoor for creating a new device. */
@@ -102,14 +126,14 @@ class HttpBroker extends HttpServer:
     device_states_[device_id] = state
 
   get_goal data/Map -> Map?:
-    device_id := data["device_id"]
+    device_id := data["_device_id"]
     // Automatically adds an event.
     result := get_goal_no_event data
     report_event device_id "get-goal" null
     return result
 
   get_goal_no_event data/Map -> Map?:
-    device_id := data["device_id"]
+    device_id := data["_device_id"]
     current_revision := state_revision_.get device_id --init=: 0
     return {
       "state_revision": current_revision,
@@ -117,8 +141,8 @@ class HttpBroker extends HttpServer:
     }
 
   update_goal data/Map:
-    device_id := data["device_id"]
-    device_goals_[device_id] = data["goal"]
+    device_id := data["_device_id"]
+    device_goals_[device_id] = data["_goal"]
     print "Updating goal state for $device_id to $device_goals_[device_id] and notifying."
     notify_device device_id "goal_updated"
 
@@ -137,25 +161,25 @@ class HttpBroker extends HttpServer:
     else:
       part_end = bytes.size
     if offset != 0 or part_end != bytes.size:
-      return PartialResponse bytes[offset..part_end] bytes.size
-    return bytes
+      return BinaryResponse bytes[offset..part_end] bytes.size
+    return BinaryResponse bytes bytes.size
 
   report_state data/Map:
-    device_id := data["device_id"]
-    device_states_[device_id] = data["state"]
+    device_id := data["_device_id"]
+    device_states_[device_id] = data["_state"]
     // Automatically adds an event.
-    report_event device_id "update-state" data["state"]
+    report_event device_id "update-state" data["_state"]
 
   get_state data/Map:
-    device_id := data["device_id"]
+    device_id := data["_device_id"]
     return get_state --device_id=device_id
 
   get_state --device_id/string -> Map?:
     return device_states_.get device_id
 
   get_event data/Map:
-    device_id := data["device_id"]
-    known_revision := data["state_revision"]
+    device_id := data["_device_id"]
+    known_revision := data["_state_revision"]
     current_revision := state_revision_.get device_id --init=: 0
 
     if current_revision != known_revision:
@@ -197,12 +221,13 @@ class HttpBroker extends HttpServer:
     waiting_for_events.remove device_id
 
   report_event data/Map:
-    device_id := data["device_id"]
-    event_type := data["type"]
-    payload := data["data"]
+    device_id := data["_device_id"]
+    event_type := data["_type"]
+    payload := data["_data"]
     report_event device_id event_type payload
 
   report_event device_id/string event_type/string payload/any:
+    print "report-event: $device_id $event_type $payload"
     event_list := events_.get device_id --init=:[]
     event_list.add {
       "event_type": event_type,
@@ -211,20 +236,19 @@ class HttpBroker extends HttpServer:
     }
 
   get_events data/Map:
-    types := data["types"]
-    device_ids := data["device_ids"]
-    limit := data.get "limit"
-    since_ns := data.get "since"
-    since_time := since_ns and Time.epoch --ns=since_ns
+    types := data["_types"]
+    device_ids := data["_device_ids"]
+    limit := data.get "_limit"
+    since := data.get "_since"
+    since_time := since and Time.from_string since
 
     type_set := {}
     if types: type_set.add_all types
 
-    result := {:}
+    result := []
     device_ids.do: | device_id |
       if not device_states_.contains device_id:
         throw "Unknown device: $device_id"
-      device_result := []
       events := events_.get device_id --if_absent=:[]
       count := 0
       // Iterate backwards to get the most recent events first.
@@ -232,24 +256,25 @@ class HttpBroker extends HttpServer:
         event := events[i]
         if types and not type_set.contains event["event_type"]: continue
         if since_time and event["timestamp"] <= since_time: continue
-        device_result.add {
+        result.add {
+          "device_id": device_id,
           "type": event["event_type"],
-          "timestamp_ns": (event["timestamp"] as Time).ns_since_epoch,
+          "ts": "$((event["timestamp"] as Time).utc.to_iso8601_string)",
           "data": event["data"],
         }
         count++
         if limit and count >= limit: break
-      if not device_result.is_empty: result[device_id] = device_result
     return result
 
   get_devices data/Map:
-    device_ids := data["device_ids"]
-    result := {:}
+    device_ids := data["_device_ids"]
+    result := []
     device_ids.do: | device_id |
       state := device_states_.get device_id
       goal := device_goals_.get device_id
       if not goal and not state: continue.do
-      result[device_id] = {
+      result.add {
+        "device_id": device_id,
         "state": state,
         "goal": goal,
       }
@@ -259,10 +284,10 @@ class HttpBroker extends HttpServer:
     events_.clear
 
   pod_registry_description_upsert data/Map:
-    fleet_id := data["fleet_id"]
-    organization_id := data["organization_id"]
-    name := data["name"]
-    description := data.get "description"
+    fleet_id := data["_fleet_id"]
+    organization_id := data["_organization_id"]
+    name := data["_name"]
+    description := data.get "_description"
 
     pod_registry_.do: | id pod_description/PodDescription |
       if pod_description.fleet_id == fleet_id and
@@ -280,8 +305,8 @@ class HttpBroker extends HttpServer:
     return id
 
   pod_registry_add data/Map:
-    pod_description_id := data["pod_description_id"]
-    pod_id := data["pod_id"]
+    pod_description_id := data["_pod_description_id"]
+    pod_id := data["_pod_id"]
     description/PodDescription := pod_registry_[pod_description_id]
     revision := description.revision_counter + 1
     created_at := Time.now.utc.to_iso8601_string
@@ -291,10 +316,10 @@ class HttpBroker extends HttpServer:
     description.pod_created_ats[pod_id] = created_at
 
   pod_registry_tag_set data/Map:
-    pod_description_id := data["pod_description_id"]
-    pod_id := data["pod_id"]
-    tag := data["tag"]
-    force := data["force"]
+    pod_description_id := data["_pod_description_id"]
+    pod_id := data["_pod_id"]
+    tag := data["_tag"]
+    force := data["_force"]
 
     description/PodDescription := pod_registry_[pod_description_id]
     description.pods.do: | _ tags |
@@ -305,8 +330,8 @@ class HttpBroker extends HttpServer:
     description.pods[pod_id].add tag
 
   pod_registry_tag_remove data/Map:
-    pod_description_id := data["pod_description_id"]
-    tag := data["tag"]
+    pod_description_id := data["_pod_description_id"]
+    tag := data["_tag"]
 
     description/PodDescription := pod_registry_[pod_description_id]
     description.pods.do: | _ tags/List |
@@ -315,7 +340,7 @@ class HttpBroker extends HttpServer:
         return
 
   pod_registry_descriptions data/Map:
-    fleet_id := data["fleet_id"]
+    fleet_id := data["_fleet_id"]
 
     result := []
     pod_registry_.do: | _ description/PodDescription |
@@ -328,7 +353,7 @@ class HttpBroker extends HttpServer:
     return result
 
   pod_registry_descriptions_by_ids data/Map:
-    pod_description_ids := data["ids"]
+    pod_description_ids := data["_description_ids"]
 
     result := []
     pod_description_ids.do: | pod_description_id |
@@ -342,9 +367,9 @@ class HttpBroker extends HttpServer:
     return result
 
   pod_registry_descriptions_by_names data/Map:
-    fleet_id := data["fleet_id"]
-    names := data["names"]
-    create_if_absent := data["create_if_absent"]
+    fleet_id := data["_fleet_id"]
+    names := data["_names"]
+    create_if_absent := data["_create_if_absent"]
     names_set := {}
     names_set.add_all names
 
@@ -376,17 +401,17 @@ class HttpBroker extends HttpServer:
     return result
 
   pod_registry_pods data/Map:
-    pod_description_id := data["pod_description_id"]
+    pod_description_id := data["_pod_description_id"]
 
     description/PodDescription := pod_registry_[pod_description_id]
     return pod_registry_pods_by_ids {
-      "fleet_id": description.fleet_id,
-      "pod_ids": description.pods.keys,
+      "_fleet_id": description.fleet_id,
+      "_pod_ids": description.pods.keys,
     }
 
   pod_registry_pods_by_ids data/Map:
-    fleet_id := data["fleet_id"]
-    pod_ids := data["pod_ids"]
+    fleet_id := data["_fleet_id"]
+    pod_ids := data["_pod_ids"]
 
     pod_ids_set := {}
     pod_ids_set.add_all pod_ids
@@ -408,8 +433,8 @@ class HttpBroker extends HttpServer:
     return result
 
   pod_registry_pod_ids_by_reference data/Map:
-    fleet_id := data["fleet_id"]
-    references := data["references"]
+    fleet_id := data["_fleet_id"]
+    references := data["_references"]
 
     names_to_descriptions := {:}
     pod_registry_.do: | _ description/PodDescription |

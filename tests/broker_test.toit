@@ -52,10 +52,9 @@ run_test
   // We are going to reuse the cli for all tests (and only authenticate once).
   // However, we will need multiple services.
   test_broker.with_cli: | broker_cli/broker.BrokerCli |
-    if broker_cli is BrokerCliSupabase:
-      // Make sure we are authenticated.
-      broker_cli.ensure_authenticated:
-        broker_cli.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
+    // Make sure we are authenticated.
+    broker_cli.ensure_authenticated:
+      broker_cli.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
 
     if broker_name == "supabase-local-artemis":
       // Make sure the device is in the database.
@@ -153,7 +152,7 @@ test_image --test_broker/TestBroker broker_cli/broker.BrokerCli --network/net.Cl
 
 test_image broker_cli/broker.BrokerCli broker_service/broker.BrokerService --network/net.Client:
   2.repeat: | iteration |
-    APP_ID ::= uuid.uuid5 "app" "test-app-$iteration"
+    APP_ID ::= uuid.uuid5 "app-$random" "test-app-$iteration-$Time.monotonic_us"
     content_32 := ?
     content_64 := ?
     if iteration == 0:

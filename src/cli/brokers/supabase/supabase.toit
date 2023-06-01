@@ -256,13 +256,13 @@ class BrokerCliSupabase implements BrokerCli:
       --part_id/string
       content/ByteArray:
     client_.storage.upload
-        --path="toit-artemis-pods/$organization_id/part/$part_id"
+        --path="/toit-artemis-pods/$organization_id/part/$part_id"
         --content=content
 
   /** See $BrokerCli.pod_registry_download_pod_part. */
   pod_registry_download_pod_part part_id/string --organization_id/uuid.Uuid -> ByteArray:
     return client_.storage.download
-        --path="toit-artemis-pods/$organization_id/part/$part_id"
+        --path="/toit-artemis-pods/$organization_id/part/$part_id"
 
   /** See $BrokerCli.pod_registry_upload_pod_manifest. */
   pod_registry_upload_pod_manifest -> none
@@ -270,10 +270,10 @@ class BrokerCliSupabase implements BrokerCli:
       --pod_id/uuid.Uuid
       content/ByteArray:
     client_.storage.upload
-        --path="toit-artemis-pods/$organization_id/manifest/$pod_id"
+        --path="/toit-artemis-pods/$organization_id/manifest/$pod_id"
         --content=content
 
   /** See $BrokerCli.pod_registry_download_pod_manifest. */
   pod_registry_download_pod_manifest --organization_id/uuid.Uuid --pod_id/uuid.Uuid -> ByteArray:
     return client_.storage.download
-        --path="toit-artemis-pods/$organization_id/manifest/$pod_id"
+        --path="/toit-artemis-pods/$organization_id/manifest/$pod_id"
