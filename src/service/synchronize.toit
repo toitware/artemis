@@ -22,6 +22,30 @@ import ..shared.json_diff show Modification json_equals
 
 firmware_is_validation_pending/bool := firmware.is_validation_pending
 
+/**
+A class representing the new goal state to achieve.
+Also contains the pending steps to reach the goal state.
+*/
+class Goal:
+  goal_state/Map
+  pending_steps_/Deque? := null
+
+  constructor .goal_state:
+
+  has_pending_steps -> bool:
+    return pending_steps_ != null
+
+  remove_first_pending_step -> Lambda:
+    result := pending_steps_.remove_first
+    if pending_steps_.is_empty:
+      pending_steps_ = null
+    return result
+
+  add_pending_step step/Lambda -> none:
+    if pending_steps_ == null:
+      pending_steps_ = Deque
+    pending_steps_.add step
+
 class SynchronizeJob extends TaskJob:
   /** Not connected to the network yet. */
   static STATE_DISCONNECTED ::= 0
@@ -116,12 +140,6 @@ class SynchronizeJob extends TaskJob:
   containers_/ContainerManager
   broker_/BrokerService
   state_/int := STATE_DISCONNECTED
-
-  // We maintain a list of pending steps that we use to break
-  // complex updates into smaller steps. It would be ideal to
-  // make this more local and perhaps get it returned from
-  // process goal.
-  pending_steps_/Deque ::= Deque
 
   // The synchronization job can be controlled from the outside
   // and it supports requesting to go online or offline. Since
@@ -313,11 +331,13 @@ class SynchronizeJob extends TaskJob:
     // TODO(kasper): Add timeout for connect.
     broker_connection := broker_.connect --network=network --device=device_
     try:
-      goal_state/Map? := null
+      goal/Goal? := null
       while true:
         with_timeout SYNCHRONIZE_STEP_TIMEOUT:
-          goal_state = synchronize_step_ broker_connection goal_state
-          if goal_state: continue
+          goal = synchronize_step_ broker_connection goal
+          if goal:
+            assert: goal.has_pending_steps
+            continue
           if device_.max_offline and control_level_online_ == 0: return true
           now := JobTime.now
           if (check_in_schedule now) <= now: return false
@@ -326,40 +346,66 @@ class SynchronizeJob extends TaskJob:
         // TODO(kasper): Add timeout for close.
         broker_connection.close
 
-  synchronize_step_ broker_connection/BrokerConnection goal_state/Map? -> Map?:
-    // If our state has changed, we communicate it to the cloud.
-    report_state_if_changed broker_connection --goal_state=goal_state
+  /**
+  Synchronizes with the broker.
 
-    if goal_state:
+  If $goal is provided, then we are in the middle of applying a goal. The
+    goal then must have a pending step left to apply.
+  Returns a goal state if we haven't finished
+  */
+  synchronize_step_ broker_connection/BrokerConnection goal/Goal? -> Goal?:
+    // TODO(florian): if we have an error here (like using `--goal_state=goal.goal_state`
+    //    without checking for 'null' first), we end in a tight error loop.
+    //    Is there any way we can protect ourselves better against coding errors
+    //    in this part of the code? A different fall-back function?
+    // [artemis.synchronize] WARN: connection to network lost {error: LOOKUP_FAILED}
+    // [artemis.synchronize] INFO: disconnected
+    // [artemis.synchronize] INFO: connecting to broker failed - retrying
+    // [artemis.synchronize] INFO: connecting
+    // [artemis.synchronize] INFO: connected to network
+    // [artemis.synchronize] WARN: connection to network lost {error: LOOKUP_FAILED}
+    // [artemis.synchronize] INFO: disconnected
+    // [artemis.synchronize] INFO: connecting to broker failed - retrying
+    // [artemis.synchronize] INFO: connecting
+    // [artemis.synchronize] INFO: connected to network
+    // [artemis.synchronize] WARN: connection to network lost {error: LOOKUP_FAILED}
+
+   // If our state has changed, we communicate it to the cloud.
+    report_state_if_changed broker_connection --goal_state=(goal and goal.goal_state)
+
+    if goal:
+      assert: goal.has_pending_steps
+
       // If we already have a goal state, it means that we're going
       // through the steps to get the current state updated to
       // match the goal state. We still allow the broker to give us
       // a new updated goal state in the middle of this, so we check
       // for that here.
-      goal_state_updated := false
-      // TODO(kasper): Change the interface so we don't have to
-      // catch exceptions to figure out if we got a new goal state.
-      catch --unwind=(: it != DEADLINE_EXCEEDED_ERROR):
-        goal_state = broker_connection.fetch_goal --no-wait
-        goal_state_updated = true
+      // If we are not yet allowed to go online don't wait for a goal.
+      goal_state := broker_connection.fetch_goal --no-wait
+      // Since we already have a goal we know that the device
+      // was already updated. If we get a null from 'fetch_goal' it means
+      // that it didn't connect to the broker, as Artemis never deletes a
+      // goal once it has been set. (It only updates it.)
+      if goal_state:
         transition_to_connected_
-      if goal_state_updated:
-        process_goal_ goal_state broker_connection
-      else:
-        // We always have a pending step here, because the goal state
-        // is non-null for the step and that only happens when we have
-        // pending steps.
-        pending/Lambda := pending_steps_.remove_first
-        pending.call broker_connection
+        goal = Goal goal_state
     else:
-      goal_state = broker_connection.fetch_goal --wait
+      // We don't have a goal state.
+      goal_state := broker_connection.fetch_goal --wait
       transition_to_connected_
-      process_goal_ goal_state broker_connection
+      if not goal_state:
+        // No goal state from the broker.
+        // Potentially a device that has been flashed and provisioned but hasn't been
+        // updated through the broker yet.
+        return null
+      goal = Goal goal_state
 
+    process_goal_ goal broker_connection
     // We only handle pending steps when we're done handling the other
     // updates. This means that we prioritize firmware updates and
     // state changes over dealing with any pending steps.
-    if pending_steps_.size > 0: return goal_state
+    if goal.has_pending_steps: return goal
 
     // We have successfully finished processing the new goal state
     // and any pending steps. Inform the broker.
@@ -440,18 +486,17 @@ class SynchronizeJob extends TaskJob:
   /**
   Process new goal.
   */
-  process_goal_ new_goal_state/Map? broker_connection/BrokerConnection -> none:
-    assert: state_ >= STATE_CONNECTED_TO_BROKER
-    pending_steps_.clear
-
-    if not (new_goal_state or device_.is_current_state_modified):
-      // The new goal indicates that we should use the firmware state.
-      // Since there is no current state, we are currently cleanly
-      // running the firmware state.
+  process_goal_ goal/Goal broker_connection/BrokerConnection -> none:
+    if goal.has_pending_steps:
+      pending/Lambda := goal.remove_first_pending_step
+      pending.call broker_connection
       return
 
+    assert: state_ >= STATE_CONNECTED_TO_BROKER
+    assert: not goal.has_pending_steps
+
     current_state := device_.current_state
-    new_goal_state = new_goal_state or device_.firmware_state
+    new_goal_state := goal.goal_state
 
     firmware_to := new_goal_state.get "firmware"
     if not firmware_to:
@@ -500,7 +545,10 @@ class SynchronizeJob extends TaskJob:
               --if_present=:
                 // A container just appeared in the state.
                 id := parse_uuid_ it
-                if id: handle_container_install_ name id description_map
+                if id:
+                  pending_step := handle_container_install_ name id description_map
+                  if pending_step:
+                    goal.add_pending_step pending_step
         --removed=: | name/string |
           // A container disappeared completely from the state. We
           // uninstall it.
@@ -542,13 +590,13 @@ class SynchronizeJob extends TaskJob:
 
     handle_container_update_ name description
 
-  handle_container_install_ name/string id/uuid.Uuid description/Map -> none:
+  handle_container_install_ name/string id/uuid.Uuid description/Map -> Lambda?:
     if job := containers_.create --name=name --id=id --description=description:
       device_.state_container_install_or_update name description
       containers_.install job
-      return
+      return null
 
-    pending_steps_.add:: | broker_connection/BrokerConnection |
+    return :: | broker_connection/BrokerConnection |
       assert: state_ >= STATE_CONNECTED_TO_BROKER
       transition_to_ STATE_PROCESSING_CONTAINER_IMAGE
       broker_connection.fetch_image id: | reader/Reader |

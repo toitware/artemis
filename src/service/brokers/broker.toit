@@ -25,7 +25,7 @@ interface BrokerConnection:
     returns the new goal.
 
   If $wait is false, returns the goal if it is known to have
-    changed. Otherwise, throws $DEADLINE_EXCEEDED_ERROR.
+    changed. Otherwise, returns null.
   */
   fetch_goal --wait/bool -> Map?
 

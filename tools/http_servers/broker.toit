@@ -46,19 +46,6 @@ class HttpBroker extends HttpServer:
   device_goals_/Map := {:}
   events_/Map := {:}  // Map from device-id to list of events.
 
-  // Map from device-id to latch.
-  waiting_for_events/Map := {:}
-  /**
-  The state revisions for each device.
-  Every time the state of a device changes (which is signaled through a
-    $notify_device call), the revision is incremented.
-
-  When a client subscribes to events, it sends its current revision. If the
-    revision is not the same as the one stored here, then the client is
-    informed that it needs to reconcile its state.
-  */
-  state_revision_/Map := {:}
-
   /* Pod description related fields. */
   pod_description_ids_ := 0
   pod_registry_/Map ::= {:}  // Map from pod-description ID to $PodDescription object.
@@ -79,6 +66,7 @@ class HttpBroker extends HttpServer:
     else:
       data = json.decode encoded
 
+
     if command == COMMAND_UPLOAD_: return upload data
     if command == COMMAND_DOWNLOAD_: return download data
     if command == COMMAND_UPDATE_GOAL_: return update_goal data
@@ -89,7 +77,6 @@ class HttpBroker extends HttpServer:
     if command == COMMAND_GET_GOAL_NO_EVENT_: return get_goal_no_event data
     if command == COMMAND_REPORT_STATE_: return report_state data
     if command == COMMAND_GET_STATE_: return get_state data
-    if command == COMMAND_GET_EVENT_: return get_event data
     if command == COMMAND_REPORT_EVENT_: return report_event data
 
     if command == COMMAND_POD_REGISTRY_DESCRIPTION_UPSERT_:
@@ -134,17 +121,12 @@ class HttpBroker extends HttpServer:
 
   get_goal_no_event data/Map -> Map?:
     device_id := data["_device_id"]
-    current_revision := state_revision_.get device_id --init=: 0
-    return {
-      "state_revision": current_revision,
-      "goal": device_goals_.get device_id,
-    }
+    return device_goals_.get device_id
 
   update_goal data/Map:
     device_id := data["_device_id"]
     device_goals_[device_id] = data["_goal"]
-    print "Updating goal state for $device_id to $device_goals_[device_id] and notifying."
-    notify_device device_id "goal_updated"
+    print "Updating goal state for $device_id to $device_goals_[device_id]."
 
   upload data/Map:
     path := data["path"]
@@ -177,48 +159,9 @@ class HttpBroker extends HttpServer:
   get_state --device_id/string -> Map?:
     return device_states_.get device_id
 
-  get_event data/Map:
-    device_id := data["_device_id"]
-    known_revision := data["_state_revision"]
-    current_revision := state_revision_.get device_id --init=: 0
-
-    if current_revision != known_revision:
-      // The client and the server are out of sync. Inform the client
-      // that it needs to reconcile.
-      return {
-        "event_type": "out_of_sync",
-        "state_revision": current_revision,
-      }
-
-    event_type := null
-    latch := monitor.Latch
-    waiting_for_events[device_id] = latch
-    catch: with_timeout (Duration --m=1): event_type = latch.get
-
-    if not event_type:
-      return { "event_type": "timed_out" }
-    if event_type != "goal_updated":
-      throw "Unknown event type: $event_type"
-
-    report_event device_id "get-goal" null
-    return {
-      "event_type": event_type,
-      "state_revision": state_revision_[device_id],
-      "goal": device_goals_.get device_id,
-    }
-
-  notify_device device_id/string event_type/string:
-    latch/monitor.Latch? := waiting_for_events.get device_id
-    state_revision_.update device_id --if_absent=0: it + 1
-    if latch:
-      waiting_for_events.remove device_id
-      latch.set event_type
-
   remove_device device_id/string:
     device_states_.remove device_id
     device_goals_.remove device_id
-    state_revision_.remove device_id
-    waiting_for_events.remove device_id
 
   report_event data/Map:
     device_id := data["_device_id"]
@@ -445,8 +388,8 @@ class HttpBroker extends HttpServer:
     for i := 0; i < references.size; i++:
       reference := references[i]
       name := reference["name"]
-      tag := reference["tag"]
-      revision := reference["revision"]
+      tag := reference.get "tag"
+      revision := reference.get "revision"
       description/PodDescription? := names_to_descriptions.get name
       if description:
         if tag:

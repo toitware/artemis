@@ -37,11 +37,10 @@ class BrokerConnectionSupabase implements BrokerConnection:
       elapsed := Duration --us=(Time.monotonic_us - last)
       interval := poll_interval_
       if elapsed < interval:
-        if not wait: throw DEADLINE_EXCEEDED_ERROR
+        // We are not yet supposed to go online.
+        // If we are allowed to wait, do so. Otherwise return null.
+        if not wait: return null
         sleep interval - elapsed
-    // An null goal means that we should revert to the
-    // firmware state. We must return it instead of
-    // waiting for a non-null one to arrive.
     result := client_.rest.rpc "toit_artemis.get_goal" {
       "_device_id": "$device_.id",
     }
