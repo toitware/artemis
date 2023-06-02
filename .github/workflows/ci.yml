@@ -92,7 +92,7 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         uses: supabase/setup-cli@v1
         with:
-          version: 1.42.4
+          version: 1.64.8
 
       - name: Start Supabase - Toitware
         if: ${{ runner.os == 'Linux' }}
