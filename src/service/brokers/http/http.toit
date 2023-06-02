@@ -9,21 +9,17 @@ import .connection
 import ..broker
 import ...device
 import ....shared.constants show *
+import ....shared.server_config show ServerConfigHttpToit
 
 class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
-  host_/string
-  port_/int
-  path_/string
+  server_config_/ServerConfigHttpToit
 
-  constructor .logger_ --host/string --port/int --path/string:
-    host_ = host
-    port_ = port
-    path_ = path
+  constructor .logger_ .server_config_:
 
   connect --network/net.Client --device/Device -> BrokerConnection:
-    connection := HttpConnection_ network host_ port_ path_
-    return BrokerConnectionHttp logger_ device connection
+    connection := HttpConnection_ network server_config_.host server_config_.port server_config_.path
+    return BrokerConnectionHttp logger_ device connection server_config_.poll_interval
 
 
 class BrokerConnectionHttp implements BrokerConnection:
@@ -31,17 +27,12 @@ class BrokerConnectionHttp implements BrokerConnection:
   connection_/HttpConnection_
   logger_/log.Logger
 
-  poll_interval_/Duration := Duration --ms=10
+  poll_interval_/Duration
   last_poll_us_/int? := null
 
-  // We don't know our state revision.
-  // The server will ask us to reconcile.
-  static STATE_REVISION_UNKNOWN_/int ::= -1
-  state_revision_/int := STATE_REVISION_UNKNOWN_
+  constructor .logger_ .device_ .connection_ .poll_interval_:
 
-  constructor .logger_ .device_ .connection_:
-
-  fetch_goal --wait/bool -> Map?:
+  fetch_goal_state --wait/bool -> Map?:
     // We deliberately delay fetching from the cloud, so we
     // can avoid fetching from the cloud over and over again.
     last := last_poll_us_

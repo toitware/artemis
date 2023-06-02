@@ -66,9 +66,9 @@ class HttpBroker extends HttpServer:
     else:
       data = json.decode encoded
 
-
     if command == COMMAND_UPLOAD_: return upload data
     if command == COMMAND_DOWNLOAD_: return download data
+    if command == COMMAND_DOWNLOAD_PRIVATE_: return download data
     if command == COMMAND_UPDATE_GOAL_: return update_goal data
     if command == COMMAND_GET_DEVICES_: return get_devices data
     if command == COMMAND_NOTIFY_BROKER_CREATED_: return notify_created data

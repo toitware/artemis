@@ -93,6 +93,7 @@ async function handleRequest(req: Request) {
     ? extractUploadData(encoded)
     : JSON.parse(new TextDecoder().decode(encoded));
 
+  console.log("Handling command", command, "with params", params);
   const supabaseClient = createSupabaseClient(req);
   switch (command) {
     case COMMAND_UPLOAD_: {

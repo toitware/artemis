@@ -69,7 +69,7 @@ with_broker --type/string --logger/Logger=(log.default.with_name "testing-$type"
     sub_dir := type == "supabase-local" ? SUPABASE_BROKER : SUPABASE_ARTEMIS
     server_config := get_supabase_config --sub_directory=sub_dir
     service_key := get_supabase_service_key --sub_directory=sub_dir
-    server_config.poll_interval = Duration --ms=1
+    server_config.poll_interval = Duration --ms=500
     backdoor := SupabaseBackdoor server_config service_key
     test_server := TestBroker server_config backdoor
     block.call test_server
@@ -108,6 +108,8 @@ with_http_broker [block]:
   server_config := ServerConfigHttpToit "test-broker"
       --host=host
       --port=port_latch.get
+      --path="/"
+      --poll_interval=Duration --ms=500
 
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
 

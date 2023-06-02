@@ -95,6 +95,7 @@ with_http_broker [block]:
   server_config := server_config.ServerConfigHttpToit "test-broker"
       --host="localhost"
       --port=port_latch.get
+      --path="/"
   try:
     block.call server_config
   finally:
@@ -494,7 +495,7 @@ class FakeDevice extends TestDevice:
   */
   synchronize:
     with_broker_connection_: | broker_connection/BrokerConnection |
-      goal_state = broker_connection.fetch_goal --no-wait
+      goal_state = broker_connection.fetch_goal_state --no-wait
 
   /**
   Simulates flashing the goal state.

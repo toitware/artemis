@@ -67,7 +67,8 @@ class BrokerCliHttp implements BrokerCli:
       if response.status_code != http.STATUS_OK and response.status_code != http.STATUS_IM_A_TEAPOT:
         throw "HTTP error: $response.status_code $response.status_message"
 
-      if command == COMMAND_DOWNLOAD_ and response.status_code != http.STATUS_IM_A_TEAPOT:
+      if (command == COMMAND_DOWNLOAD_ or command == COMMAND_DOWNLOAD_PRIVATE_)
+          and response.status_code != http.STATUS_IM_A_TEAPOT:
         return utils.read_all response.body
 
       decoded := json.decode_stream response.body

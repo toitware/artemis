@@ -26,7 +26,7 @@ interface BrokerConnection:
   If $wait is false, returns the goal if it is known to have
     changed. Otherwise, returns null.
   */
-  fetch_goal --wait/bool -> Map?
+  fetch_goal_state --wait/bool -> Map?
 
   /**
   Downloads the application image with the given $id.
@@ -81,10 +81,15 @@ interface BrokerService:
         port = int.parse host[colon_pos + 1..]
         host = host[..colon_pos]
       // TODO(florian): get the path from the config.
-      return BrokerServiceHttp logger --host=host --port=port --path="/functions/v1/b"
+      http_config := ServerConfigHttpToit
+          server_config.name
+          --host=host
+          --port=port
+          --path="/functions/v1/b"
+          --poll_interval=supabase_config.poll_interval
+      return BrokerServiceHttp logger http_config
     else if server_config is ServerConfigHttpToit:
-      http_server_config := server_config as ServerConfigHttpToit
-      return BrokerServiceHttp logger --host=http_server_config.host --port=http_server_config.port --path="/"
+      return BrokerServiceHttp logger (server_config as ServerConfigHttpToit)
     else:
       throw "unknown broker $server_config"
 

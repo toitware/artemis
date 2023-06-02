@@ -97,6 +97,9 @@ create_server_config_commands config/Config ui/Ui -> List:
                 --short_help="The host of the broker."
                 --short_name="h"
                 --default="localhost",
+            cli.Option "path"
+                --short_help="The path of the broker."
+                --default="/",
           ]
           --rest=[
             cli.OptionString "name"
@@ -168,10 +171,12 @@ add_http parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
   host := parsed["host"]
   port := parsed["port"]
+  path := parsed["path"]
 
   http_config := ServerConfigHttpToit name
       --host=host
       --port=port
+      --path=path
 
   add_server_to_config config http_config
   if parsed["default"]:

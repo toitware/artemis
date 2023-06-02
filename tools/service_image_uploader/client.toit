@@ -16,7 +16,6 @@ import artemis.cli.config
     CONFIG_SERVER_AUTHS_KEY
     ConfigLocalStorage
 import artemis.cli.server_config show *
-import artemis.shared.utils
 import artemis.shared.constants show *
 import uuid
 
@@ -200,7 +199,7 @@ class UploadClientHttp implements UploadClient:
     if response.status_code != 200 and response.status_code != http.STATUS_IM_A_TEAPOT:
       throw "HTTP error: $response.status_code $response.status_message"
 
-    decoded := json.decode (utils.read_all response.body)
+    decoded := json.decode_stream response.body
 
     if response.status_code == http.STATUS_IM_A_TEAPOT:
       throw "Broker error: $decoded"

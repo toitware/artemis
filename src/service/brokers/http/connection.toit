@@ -6,7 +6,6 @@ import http
 import net
 import reader show Reader
 
-import ....shared.utils as utils
 
 class HttpConnection_:
   client_/http.Client? := ?
@@ -27,7 +26,7 @@ class HttpConnection_:
 
   send_request command/int data/Map -> any:
     send_request command data: | reader/Reader |
-      return json.decode (utils.read_all reader)
+      return json.decode_stream reader
     unreachable
 
   send_request command/int data/Map [block] -> none:
@@ -37,7 +36,7 @@ class HttpConnection_:
     status := response.status_code
 
     if status == http.STATUS_IM_A_TEAPOT:
-      decoded := json.decode (utils.read_all body)
+      decoded := json.decode_stream body
       throw "Broker error: $decoded"
 
     try:
