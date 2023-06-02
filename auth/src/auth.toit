@@ -42,7 +42,6 @@ interface AuthProvider:
   */
   is_authenticated -> bool
 
-
 /**
 An interface to store authentication information locally.
 
@@ -118,7 +117,6 @@ abstract class TokenAuthProvider implements AuthProvider:
 
   abstract refresh --network/net.Client?=null token/Token -> Token
   abstract do_authentication_ --network/net.Client?=null [block] -> Token
-
 
 /**
 Opens the default browser with the given URL.

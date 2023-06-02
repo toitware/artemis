@@ -50,7 +50,7 @@ class Token:
 
   has_expired --min_remaining/Duration=Duration.ZERO -> bool:
     if not expires_at: return false
-    return Time.now + min_remaining > expires_at
+    return Time.now + min_remaining >= expires_at
 
   auth_headers -> Map:
     if token_type != "bearer":
