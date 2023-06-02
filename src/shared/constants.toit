@@ -29,16 +29,17 @@ COMMAND_UPLOAD_SERVICE_IMAGE_ ::= 17
 /* Broker commands */
 COMMAND_UPLOAD_ ::= 1
 COMMAND_DOWNLOAD_ ::= 2
-COMMAND_UPDATE_GOAL_ ::= 3
-COMMAND_GET_DEVICES_ ::= 4
+COMMAND_DOWNLOAD_PRIVATE_ ::= 3
+COMMAND_UPDATE_GOAL_ ::= 4
+COMMAND_GET_DEVICES_ ::= 5
 /**
 Command to notify the Artemis server that a broker has been created.
 
 To avoid accidental confusion with $COMMAND_NOTIFY_ARTEMIS_CREATED_, the
   command has the same constants.
 */
-COMMAND_NOTIFY_BROKER_CREATED_ ::= 5
-COMMAND_GET_EVENTS_ ::= 6
+COMMAND_NOTIFY_BROKER_CREATED_ ::= 6
+COMMAND_GET_EVENTS_ ::= 7
 
 COMMAND_GET_GOAL_ ::= 10
 COMMAND_REPORT_STATE_ ::= 11

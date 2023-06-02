@@ -61,7 +61,6 @@ class BrokerConnectionHttp implements BrokerConnection:
 
   fetch_image id/uuid.Uuid [block] -> none:
     payload :=  {
-      "public": true,
       "path": "/toit-artemis-assets/$device_.organization_id/images/$id.$BITS_PER_WORD",
     }
     connection_.send_request COMMAND_DOWNLOAD_ payload: | reader/Reader |
@@ -69,7 +68,6 @@ class BrokerConnectionHttp implements BrokerConnection:
 
   fetch_firmware id/string --offset/int=0 [block] -> none:
     payload := {
-      "public": true,
       "path": "/toit-artemis-assets/$device_.organization_id/firmware/$id",
       "offset": offset,
     }

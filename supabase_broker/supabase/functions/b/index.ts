@@ -7,10 +7,11 @@ const STATUS_IM_A_TEAPOT = 418;
 
 const COMMAND_UPLOAD_ = 1;
 const COMMAND_DOWNLOAD_ = 2;
-const COMMAND_UPDATE_GOAL_ = 3;
-const COMMAND_GET_DEVICES_ = 4;
-const COMMAND_NOTIFY_BROKER_CREATED_ = 5;
-const COMMAND_GET_EVENTS_ = 6;
+const COMMAND_DOWNLOAD_PRIVATE_ = 3;
+const COMMAND_UPDATE_GOAL_ = 4;
+const COMMAND_GET_DEVICES_ = 5;
+const COMMAND_NOTIFY_BROKER_CREATED_ = 6;
+const COMMAND_GET_EVENTS_ = 7;
 
 const COMMAND_GET_GOAL_ = 10;
 const COMMAND_REPORT_STATE_ = 11;
@@ -41,7 +42,6 @@ function createSupabaseClient(req: Request) {
   // Create a Supabase client with the Auth context of the logged in user.
   let authorization = req.headers.get("Authorization");
   if (!authorization) {
-    console.log("Needing to add anon key to request");
     authorization = "Bearer " + Deno.env.get("SUPABASE_ANON_KEY");
   }
   return createClient(
@@ -59,13 +59,13 @@ function createSupabaseClient(req: Request) {
   );
 }
 
-function extractUploadData(buffer: ArrayBuffer) {
-  const view = new DataView(buffer);
-  for (let i = 0; i < buffer.byteLength; i++) {
+function extractUploadData(view: DataView) {
+  view.byteOffset
+  for (let i = 0; i < view.byteLength; i++) {
     if (view.getUint8(i) == 0) {
       return {
-        path: new TextDecoder().decode(buffer.slice(0, i)),
-        data: buffer.slice(i + 1),
+        path: new TextDecoder().decode(new DataView(view.buffer, view.byteOffset, view.byteOffset + i)),
+        data: new DataView(view.buffer, view.byteOffset + i + 1),
       };
     }
   }
@@ -86,11 +86,9 @@ function splitSupabaseStorage(path: string) {
 
 async function handleRequest(req: Request) {
   const buffer = await req.arrayBuffer();
-  const view = new DataView(buffer);
-  const command = view.getUint8(0);
-  const encoded = buffer.slice(1);
+  const command = new DataView(buffer, 0, 1).getUint8(0);
+  const encoded = new DataView(buffer, 1);
 
-  console.log("handling command", command);
   const params = (command == COMMAND_UPLOAD_)
     ? extractUploadData(encoded)
     : JSON.parse(new TextDecoder().decode(encoded));
@@ -104,17 +102,16 @@ async function handleRequest(req: Request) {
         .upload(path, params["data"], { upsert: true });
       return { error };
     }
-    case COMMAND_DOWNLOAD_: {
-      const usePublic = params["public"] === true;
+    case COMMAND_DOWNLOAD_:
+    case COMMAND_DOWNLOAD_PRIVATE_: {
+      const usePublic = command == COMMAND_DOWNLOAD_;
       const offset = params["offset"] ?? 0;
       const { bucket, path } = splitSupabaseStorage(params.path);
-      console.log("downloading", bucket, path, params, usePublic);
       if (usePublic) {
         // Download it from the public URL.
         const headers = (offset != 0) ? [{ Range: `bytes=${offset}-` }] : {};
         const { data: { publicUrl } } = supabaseClient.storage.from(bucket)
           .getPublicUrl(path);
-        console.log("Public download", publicUrl);
         return fetch(publicUrl, { headers });
       }
       if (offset != 0) {
@@ -147,7 +144,6 @@ async function handleRequest(req: Request) {
     case COMMAND_GET_EVENTS_: {
       return supabaseClient.rpc("toit_artemis.get_events", params);
     }
-
     case COMMAND_GET_GOAL_: {
       return supabaseClient.rpc("toit_artemis.get_goal", params);
     }
@@ -165,9 +161,9 @@ async function handleRequest(req: Request) {
       );
       return { error };
     }
-
-    case COMMAND_POD_REGISTRY_DESCRIPTION_UPSERT_:
+    case COMMAND_POD_REGISTRY_DESCRIPTION_UPSERT_: {
       return supabaseClient.rpc("toit_artemis.upsert_pod_description", params);
+    }
     case COMMAND_POD_REGISTRY_ADD_: {
       const { error } = await supabaseClient.rpc(
         "toit_artemis.insert_pod",
@@ -189,8 +185,9 @@ async function handleRequest(req: Request) {
       );
       return { error };
     }
-    case COMMAND_POD_REGISTRY_DESCRIPTIONS_:
+    case COMMAND_POD_REGISTRY_DESCRIPTIONS_: {
       return supabaseClient.rpc("toit_artemis.get_pod_descriptions", params);
+    }
     case COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_IDS_:
       return supabaseClient.rpc(
         "toit_artemis.get_pod_descriptions_by_ids",
@@ -201,12 +198,15 @@ async function handleRequest(req: Request) {
         "toit_artemis.get_pod_descriptions_by_names",
         params,
       );
-    case COMMAND_POD_REGISTRY_PODS_:
+    case COMMAND_POD_REGISTRY_PODS_: {
       return supabaseClient.rpc("toit_artemis.get_pods", params);
-    case COMMAND_POD_REGISTRY_PODS_BY_IDS_:
+    }
+    case COMMAND_POD_REGISTRY_PODS_BY_IDS_: {
       return supabaseClient.rpc("toit_artemis.get_pods_by_ids", params);
-    case COMMAND_POD_REGISTRY_POD_IDS_BY_REFERENCE_:
+    }
+    case COMMAND_POD_REGISTRY_POD_IDS_BY_REFERENCE_: {
       return supabaseClient.rpc("toit_artemis.get_pods_by_reference", params);
+    }
 
     default:
       throw new Error("unknown command " + command);
