@@ -29,7 +29,7 @@ class BrokerConnectionSupabase implements BrokerConnection:
 
   constructor .device_ .client_ .poll_interval_:
 
-  fetch_goal --wait/bool -> Map?:
+  fetch_goal_state --wait/bool -> Map?:
     // We deliberately delay fetching from the cloud, so we
     // can avoid fetching from the cloud over and over again.
     last := last_poll_us_

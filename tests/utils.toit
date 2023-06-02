@@ -494,7 +494,7 @@ class FakeDevice extends TestDevice:
   */
   synchronize:
     with_broker_connection_: | broker_connection/BrokerConnection |
-      goal_state = broker_connection.fetch_goal --no-wait
+      goal_state = broker_connection.fetch_goal_state --no-wait
 
   /**
   Simulates flashing the goal state.

@@ -27,7 +27,7 @@ interface BrokerConnection:
   If $wait is false, returns the goal if it is known to have
     changed. Otherwise, returns null.
   */
-  fetch_goal --wait/bool -> Map?
+  fetch_goal_state --wait/bool -> Map?
 
   /**
   Downloads the application image with the given $id.
@@ -76,8 +76,7 @@ interface BrokerService:
     if server_config is ServerConfigSupabase:
       return BrokerServiceSupabase logger (server_config as ServerConfigSupabase)
     else if server_config is ServerConfigHttpToit:
-      http_server_config := server_config as ServerConfigHttpToit
-      return BrokerServiceHttp logger http_server_config.host http_server_config.port
+      return BrokerServiceHttp logger (server_config as ServerConfigHttpToit)
     else:
       throw "unknown broker $server_config"
 

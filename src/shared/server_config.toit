@@ -129,17 +129,23 @@ A broker configuration for an HTTP-based broker.
 This broker uses the light-weight unsecured protocol we use internally.
 */
 class ServerConfigHttpToit extends ServerConfig:
+  static DEFAULT_POLL_INTERVAL ::= Duration --s=20
+
   host/string
   port/int
+  poll_interval/Duration := ?
 
   constructor.from_json name/string config/Map:
     return ServerConfigHttpToit name
         --host=config["host"]
         --port=config["port"]
+        --poll_interval=Duration --us=config["poll_interval"]
 
   constructor name/string
       --.host/string
-      --.port/int:
+      --.port/int
+      --.poll_interval=DEFAULT_POLL_INTERVAL:
+
     super.from_sub_ name
 
   operator== other:
@@ -153,6 +159,7 @@ class ServerConfigHttpToit extends ServerConfig:
       "type": type,
       "host": host,
       "port": port,
+      "poll_interval": poll_interval.in_us,
     }
 
   fill_certificate_ders [certificate_getter] -> none:

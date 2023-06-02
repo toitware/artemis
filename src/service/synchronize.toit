@@ -351,7 +351,7 @@ class SynchronizeJob extends TaskJob:
 
   If $goal is provided, then we are in the middle of applying a goal. The
     goal then must have a pending step left to apply.
-  Returns a goal state if we haven't finished
+  Returns a goal state if we haven't finished.
   */
   synchronize_step_ broker_connection/BrokerConnection goal/Goal? -> Goal?:
     // TODO(florian): if we have an error here (like using `--goal_state=goal.goal_state`
@@ -382,9 +382,9 @@ class SynchronizeJob extends TaskJob:
       // a new updated goal state in the middle of this, so we check
       // for that here.
       // If we are not yet allowed to go online don't wait for a goal.
-      goal_state := broker_connection.fetch_goal --no-wait
+      goal_state := broker_connection.fetch_goal_state --no-wait
       // Since we already have a goal we know that the device
-      // was already updated. If we get a null from 'fetch_goal' it means
+      // was already updated. If we get a null from 'fetch_goal_state' it means
       // that it didn't connect to the broker, as Artemis never deletes a
       // goal once it has been set. (It only updates it.)
       if goal_state:
@@ -392,7 +392,7 @@ class SynchronizeJob extends TaskJob:
         goal = Goal goal_state
     else:
       // We don't have a goal state.
-      goal_state := broker_connection.fetch_goal --wait
+      goal_state := broker_connection.fetch_goal_state --wait
       transition_to_connected_
       if not goal_state:
         // No goal state from the broker.

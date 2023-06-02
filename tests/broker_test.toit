@@ -111,7 +111,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService --netw
     try:
       event_goal/Map? := null
       exception := catch:
-        event_goal = broker_connection.fetch_goal --wait=(test_iteration > 0)
+        event_goal = broker_connection.fetch_goal_state --wait=(test_iteration > 0)
 
       if test_iteration == 0:
         // None of the brokers have sent a goal-state update yet.
@@ -132,7 +132,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService --netw
         old["test-entry"] = "succeeded 1"
         old
 
-      event_goal = broker_connection.fetch_goal --wait
+      event_goal = broker_connection.fetch_goal_state --wait
       expect_equals "succeeded 1" event_goal["test-entry"]
 
       broker_cli.update_goal --device_id=DEVICE1.id: | device/DeviceDetailed |
@@ -141,7 +141,7 @@ test_goal broker_cli/broker.BrokerCli broker_service/broker.BrokerService --netw
         old["test-entry"] = "succeeded 2"
         old
 
-      event_goal = broker_connection.fetch_goal --wait
+      event_goal = broker_connection.fetch_goal_state --wait
       expect_equals "succeeded 2" event_goal["test-entry"]
     finally:
       broker_connection.close
