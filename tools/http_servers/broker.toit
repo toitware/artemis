@@ -445,8 +445,8 @@ class HttpBroker extends HttpServer:
     for i := 0; i < references.size; i++:
       reference := references[i]
       name := reference["name"]
-      tag := reference["tag"]
-      revision := reference["revision"]
+      tag := reference.get "tag"
+      revision := reference.get "revision"
       description/PodDescription? := names_to_descriptions.get name
       if description:
         if tag:
