@@ -32,7 +32,7 @@ class Device:
   static RAM_CHECK_IN_LAST_ ::= "check-in-last"
   static RAM_SYNCHRONIZED_LAST_ ::= "synchronized-last"
   static RAM_SCHEDULER_JOBS_STATE_ ::= "scheduler-jobs"
-  ram_/storage.Bucket
+  ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
 
   /**
   The ID of the device.
@@ -94,9 +94,7 @@ class Device:
   */
   report_state_checksum_/ByteArray? := null
 
-  constructor --.id --.hardware_id --.organization_id --.firmware_state/Map
-      --ram/storage.Bucket=(storage.Bucket.open --ram "toit.io/artemis"):
-    ram_ = ram
+  constructor --.id --.hardware_id --.organization_id --.firmware_state/Map:
     current_state = firmware_state
     load_
 
@@ -272,24 +270,19 @@ class Device:
   Loads the states from flash.
   */
   load_ -> none:
-    stored_current_state/Map? := null
-    xxx := Duration.of:
-      stored_current_state = flash_load_ FLASH_CURRENT_STATE_
-    print_ "[loading current state took $xxx]"
+    stored_current_state := flash_load_ FLASH_CURRENT_STATE_
     if stored_current_state:
-      elapsed := Duration.of:
-        if stored_current_state["firmware"] == firmware_state["firmware"]:
-          modification/Modification? := Modification.compute --from=firmware_state --to=stored_current_state
-          if modification:
-            log.debug "current state is changed" --tags={"changes": Modification.stringify modification}
-            current_state = stored_current_state
-        else:
-          // At this point we don't clear the current state in the flash yet.
-          // If the firmware is not validated, we might roll back, and then continue using
-          // the old "current" state.
-          if not is_validation_pending:
-            log.error "current state has different firmware than firmware state"
-      print_ "[looking at the stored current state took $elapsed]"
+      if stored_current_state["firmware"] == firmware_state["firmware"]:
+        modification/Modification? := Modification.compute --from=firmware_state --to=stored_current_state
+        if modification:
+          log.debug "current state is changed" --tags={"changes": Modification.stringify modification}
+          current_state = stored_current_state
+      else:
+        // At this point we don't clear the current state in the flash yet.
+        // If the firmware is not validated, we might roll back, and then continue using
+        // the old "current" state.
+        if not is_validation_pending:
+          log.error "current state has different firmware than firmware state"
     report_state_checksum_ = flash_load_ FLASH_REPORT_STATE_CHECKSUM_
 
   /**
