@@ -61,8 +61,7 @@ Sets up the check-in functionality.
 This is the service that contacts the Toitware backend to report that a
   certain device is online and using Artemis.
 */
-check_in_setup --assets/Map --device/Device -> none:
-  server_config := decode_server_config "artemis.broker" assets
+check_in_setup --server_config/ServerConfig? --device/Device -> none:
   if not server_config: return
 
   check_in_server_ = ArtemisServerService server_config

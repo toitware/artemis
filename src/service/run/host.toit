@@ -95,9 +95,10 @@ run_host --pod/Pod --identity_path/string --cache/cli.Cache -> none:
           --hardware_id=artemis_device.hardware_id
           --organization_id=artemis_device.organization_id
           --firmware_state=config
-      check_in_setup --assets=identity --device=device
-      server_config := decode_server_config "broker" identity
-      sleep_duration := run_artemis device server_config
+      artemis_server_config := decode_server_config "artemis.broker" identity
+      check_in_setup --server_config=artemis_server_config --device=device
+      broker_server_config := decode_server_config "broker" identity
+      sleep_duration := run_artemis device broker_server_config
       sleep sleep_duration
       print
 
