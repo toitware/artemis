@@ -154,6 +154,11 @@ jobs:
         run: |
           make TOITRUN="$TOIT_EXEC"
 
+      - name: Force schema reload
+        shell: bash
+        run: |
+            make reload-supabase-schemas
+
       - name: Test
         shell: bash
         run: |
