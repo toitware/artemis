@@ -14,23 +14,42 @@ create_broker_cli_supabase_http server_config/ServerConfigSupabase config/Config
   supabase_client := supabase.Client --server_config=server_config --local_storage=local_storage
       --certificate_provider=: certificate_roots.MAP[it]
   id := "supabase/$server_config.host"
-  return BrokerCliSupabase supabase_client --id=id
+
+  host_port := server_config.host
+
+  host := host_port
+  port := null
+  colon_pos := host_port.index_of ":"
+  if colon_pos >= 0:
+    host = host_port[..colon_pos]
+    port = int.parse host_port[colon_pos + 1..]
+
+  root_name := server_config.root_certificate_name
+  root_names := root_name ? [root_name] : null
+  http_config := ServerConfigHttp
+      server_config.name
+      --host=host
+      --port=port
+      --path="/functions/v1/b"
+      --admin_headers={
+          "apikey": server_config.anon,
+          "X-Artemis-Header": "true",
+        }
+      --device_headers={
+        "X-Artemis-Header": "true",
+      }
+      --root_certificate_names=root_names
+      --root_certificate_ders=null
+      --poll_interval=server_config.poll_interval
+
+  return BrokerCliSupabase --id=id supabase_client http_config
 
 
 class BrokerCliSupabase extends BrokerCliHttp:
   client_/supabase.Client? := null
 
-  constructor --id/string .client_:
-    host_port := client_.host_
-
-    _host := host_port
-    _port := null
-    colon_pos := host_port.index_of ":"
-    if colon_pos >= 0:
-      _host = host_port[..colon_pos]
-      _port = int.parse host_port[colon_pos + 1..]
-
-    super _host _port --id=id
+  constructor --id/string .client_ http_config/ServerConfigHttp:
+    super --id=id http_config
 
   ensure_authenticated [block]:
     client_.ensure_authenticated block
@@ -47,18 +66,10 @@ class BrokerCliSupabase extends BrokerCliHttp:
         --ui=ui
         --open_browser=open_browser
 
-  send_request_ encoded/ByteArray [block]:
-    client := http.Client network_
-    try:
-      anon := client_.anon_
-      headers := http.Headers
-      headers.add "Content-Type" "application/json"
-      bearer/string := client_.session_
-          ? client_.session_.access_token
-          : anon
-      headers.set "Authorization" "Bearer $bearer"
-      headers.add "apikey" anon
-      response := client.post encoded --host=host --port=port --path="/functions/v1/b" --headers=headers
-      block.call response
-    finally:
-      client.close
+  extra_headers -> Map:
+    bearer/string := client_.session_
+        ? client_.session_.access_token
+        : client_.anon_
+    return {
+      "Authorization": "Bearer $bearer",
+    }

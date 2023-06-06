@@ -83,25 +83,6 @@ with_tmp_config [block]:
 
     block.call config
 
-/**
-Starts a local http broker and calls the given $block with a
-  $server_config.ServerConfig as argument.
-*/
-with_http_broker [block]:
-  broker := http_servers.HttpBroker 0
-  port_latch := monitor.Latch
-  broker_task := task:: broker.start port_latch
-
-  server_config := server_config.ServerConfigHttp "test-broker"
-      --host="localhost"
-      --port=port_latch.get
-      --path="/"
-  try:
-    block.call server_config
-  finally:
-    broker.close
-    broker_task.cancel
-
 class TestExit:
 
 // TODO(florian): Maybe it's better to use a simplified version of the

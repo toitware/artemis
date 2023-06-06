@@ -55,6 +55,8 @@ abstract class HttpServer:
       command := bytes[0]
       encoded := bytes[1..]
       user_id := request.headers.single "X-User-Id"
+      if not request.headers.single "X-Artemis-Header":
+        throw "Missing X-Artemis-Header"
 
       listeners.do: it.call "pre" command encoded user_id
       reply_ command encoded user_id writer

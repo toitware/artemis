@@ -100,6 +100,15 @@ create_server_config_commands config/Config ui/Ui -> List:
             cli.Option "path"
                 --short_help="The path of the broker."
                 --default="/",
+            cli.Option "root-certificate"
+                --short_help="The root certificate name of the broker."
+                --multi,
+            cli.Option "device-header"
+                --short_help="The HTTP header the device needs to add to the request. Of the form KEY=VALUE."
+                --multi,
+            cli.Option "admin-header"
+                --short_help="The HTTP header the CLI needs to add to the request. Of the form KEY=VALUE."
+                --multi,
           ]
           --rest=[
             cli.OptionString "name"
@@ -136,14 +145,14 @@ default_server parsed/cli.Parsed config/Config ui/Ui:
   config[config_key] = name
   config.write
 
-get_certificate_ name/string ui/Ui -> string:
+check_certificate_ name/string ui/Ui -> none:
   certificate := certificate_roots.MAP.get name
-  if certificate: return certificate
+  if certificate: return
   ui.error "Unknown certificate."
   ui.do: | printer/Printer |
     printer.emit --title="Available certificates:"
       certificate_roots.MAP.keys
-  throw "Unknown certificate"
+  ui.abort
 
 add_supabase parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
@@ -172,11 +181,39 @@ add_http parsed/cli.Parsed config/Config ui/Ui:
   host := parsed["host"]
   port := parsed["port"]
   path := parsed["path"]
+  root_certificate_names := parsed["root-certificate"]
+  device_headers_list := parsed["device-header"]
+  admin_headers_list := parsed["admin-header"]
+
+  root_certificate_names.do: check_certificate_ it ui
+  if root_certificate_names.is_empty:
+    root_certificate_names = null
+
+  header_list_to_map := : | header_list/List |
+    headers_map := null
+    if not header_list.is_empty:
+      headers_map = {:}
+      header_list.do: | header/string |
+        equal_index := header.index_of "="
+        if equal_index == -1:
+          ui.abort "Invalid header: $header"
+        key := header[..equal_index]
+        value := header[equal_index + 1..]
+        if headers_map.contains key:
+          ui.abort "Duplicate headers not implemented: $key"
+        headers_map[key] = value
+
+  device_headers := header_list_to_map.call device_headers_list
+  admin_headers := header_list_to_map.call admin_headers_list
 
   http_config := ServerConfigHttp name
       --host=host
       --port=port
       --path=path
+      --root_certificate_names=root_certificate_names
+      --root_certificate_ders=null
+      --device_headers=device_headers
+      --admin_headers=admin_headers
 
   add_server_to_config config http_config
   if parsed["default"]:

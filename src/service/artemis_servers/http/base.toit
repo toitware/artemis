@@ -28,10 +28,17 @@ class ArtemisServerServiceHttp implements ArtemisServerService:
     client := http.Client network
     try:
       encoded := #[command] + (json.encode data)
+
+      headers := null
+      if server_config_.device_headers:
+        headers = http.Headers
+        server_config_.device_headers.do: | key value |
+          headers.add key value
       response := client.post encoded
           --host=server_config_.host
           --port=server_config_.port
-          --path="/"
+          --path=server_config_.path
+          --headers=headers
 
       if response.status_code != http.STATUS_OK:
         throw "HTTP error: $response.status_code $response.status_message"

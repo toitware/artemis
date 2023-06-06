@@ -63,5 +63,5 @@ Replaces all certificates with an ID and stores the original bytes in the
 */
 server_config_to_service_json server_config/ServerConfig serialized_certificates/Map -> any:
   server_config.fill_certificate_ders: certificate_roots.MAP[it]
-  return server_config.to_json --der_serializer=:
+  return server_config.to_service_json --der_serializer=:
     serialize_certificate it serialized_certificates

@@ -110,6 +110,14 @@ with_http_broker [block]:
       --port=port_latch.get
       --path="/"
       --poll_interval=Duration --ms=500
+      --root_certificate_names=null
+      --root_certificate_ders=null
+      --admin_headers={
+        "X-Artemis-Header": "true",
+      }
+      --device_headers={
+        "X-Artemis-Header": "true",
+      }
 
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
 
