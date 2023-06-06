@@ -8,6 +8,7 @@ import uuid
 import .connection
 import ..broker
 import ...device
+import ....shared.constants show *
 
 class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
@@ -40,9 +41,9 @@ class BrokerConnectionHttp implements BrokerConnection:
       // If we're not going to wait for a reply using long polling,
       // we force the server to respond with an out-of-sync message.
       state_revision := wait ? state_revision_ : STATE_REVISION_UNKNOWN_
-      response := connection_.send_request "get_event" {
-        "device_id": "$device_.id",
-        "state_revision": state_revision,
+      response := connection_.send_request COMMAND_GET_EVENT_ {
+        "_device_id": "$device_.id",
+        "_state_revision": state_revision,
       }
 
       response_event_type := response["event_type"]
@@ -62,8 +63,8 @@ class BrokerConnectionHttp implements BrokerConnection:
       if is_out_of_sync or is_timed_out:
         // We need to reconcile or produce a new goal, so we
         // ask explicitly for the goal.
-        goal_response := connection_.send_request "get_goal" {
-          "device_id": "$device_.id",
+        goal_response := connection_.send_request COMMAND_GET_GOAL_ {
+          "_device_id": "$device_.id",
         }
         // Even if the goal in the goal-response is null we return it,
         // since a null goal means that the device should revert to
@@ -77,7 +78,7 @@ class BrokerConnectionHttp implements BrokerConnection:
     payload :=  {
       "path": "/toit-artemis-assets/$device_.organization_id/images/$id.$BITS_PER_WORD",
     }
-    connection_.send_binary_request "download" payload: | reader/Reader |
+    connection_.send_request COMMAND_DOWNLOAD_ payload: | reader/Reader |
       block.call reader
 
   fetch_firmware id/string --offset/int=0 [block] -> none:
@@ -85,20 +86,20 @@ class BrokerConnectionHttp implements BrokerConnection:
       "path": "/toit-artemis-assets/$device_.organization_id/firmware/$id",
       "offset": offset,
     }
-    connection_.send_binary_request "download" payload: | reader/Reader |
+    connection_.send_request COMMAND_DOWNLOAD_ payload: | reader/Reader |
       block.call reader offset
 
   report_state state/Map -> none:
-    connection_.send_request "report_state" {
-      "device_id": "$device_.id",
-      "state": state,
+    connection_.send_request COMMAND_REPORT_STATE_ {
+      "_device_id": "$device_.id",
+      "_state": state,
     }
 
   report_event --type/string data/any -> none:
-    connection_.send_request "report_event" {
-      "device_id": "$device_.id",
-      "type": type,
-      "data": data,
+    connection_.send_request COMMAND_REPORT_EVENT_ {
+      "_device_id": "$device_.id",
+      "_type": type,
+      "_data": data,
     }
 
   close -> none:

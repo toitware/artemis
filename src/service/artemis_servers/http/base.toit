@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import encoding.ubjson
+import encoding.json
 import http
 import log
 import net
@@ -9,7 +9,7 @@ import uuid
 import ..artemis_server
 import ....shared.server_config
 import ....shared.utils as utils
-
+import ....shared.constants show *
 
 class ArtemisServerServiceHttp implements ArtemisServerService:
   server_config_/ServerConfigHttpToit
@@ -19,24 +19,23 @@ class ArtemisServerServiceHttp implements ArtemisServerService:
     hardware_id_ = hardware_id
 
   check_in network/net.Interface logger/log.Logger -> none:
-    send_request_ network "check-in" {
+    send_request_ network COMMAND_CHECK_IN_ {
       "hardware_id": "$hardware_id_",
       "data": { "type": "ping" },
     }
 
-  send_request_ network/net.Interface command/string data/Map -> any:
+  send_request_ network/net.Interface command/int data/Map -> any:
     client := http.Client network
+    try:
+      encoded := #[command] + (json.encode data)
+      response := client.post encoded
+          --host=server_config_.host
+          --port=server_config_.port
+          --path="/"
 
-    encoded := ubjson.encode {
-      "command": command,
-      "data": data,
-    }
-    response := client.post encoded
-        --host=server_config_.host
-        --port=server_config_.port
-        --path="/"
+      if response.status_code != http.STATUS_OK:
+        throw "HTTP error: $response.status_code $response.status_message"
 
-    if response.status_code != http.STATUS_OK:
-      throw "HTTP error: $response.status_code $response.status_message"
-
-    return ubjson.decode (utils.read_all response.body)
+      return json.decode_stream response.body
+    finally:
+      client.close

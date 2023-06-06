@@ -77,6 +77,7 @@ with_broker --type/string --logger/Logger=(log.default.with_name "testing-$type"
     with_http_broker block
   else:
     throw "Unknown broker type: $type"
+
 class ToitHttpBackdoor implements BrokerBackdoor:
   server/HttpBroker
 

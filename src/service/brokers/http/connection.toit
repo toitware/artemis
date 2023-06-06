@@ -1,14 +1,11 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import encoding.ubjson
+import encoding.json
 import encoding.base64
 import http
 import net
 import reader show Reader
 
-import ....shared.utils as utils
-
-STATUS_IM_A_TEAPOT ::= 418
 
 class HttpConnection_:
   client_/http.Client? := ?
@@ -26,33 +23,19 @@ class HttpConnection_:
     client_.close
     client_ = null
 
-  send_request command/string data/Map -> any:
-    payload := {
-      "command": command,
-      "data": data,
-    }
-
-    send_request_ payload: | reader/Reader |
-      return ubjson.decode (utils.read_all reader)
+  send_request command/int data/Map -> any:
+    send_request command data: | reader/Reader |
+      return json.decode_stream reader
     unreachable
 
-  send_binary_request command/string data/Map [block] -> none:
-    payload :=  {
-      "command": command,
-      "data": data,
-      "binary": true,
-    }
-    send_request_ payload block
-
-  send_request_ payload/Map [block] -> none:
-    encoded := ubjson.encode payload
+  send_request command/int data/Map [block] -> none:
+    encoded := #[command] + (json.encode data)
     response := client_.post encoded --host=host_ --port=port_ --path="/"
-
     body := response.body
     status := response.status_code
 
-    if status == STATUS_IM_A_TEAPOT:
-      decoded := ubjson.decode (utils.read_all body)
+    if status == http.STATUS_IM_A_TEAPOT:
+      decoded := json.decode_stream body
       throw "Broker error: $decoded"
 
     try:

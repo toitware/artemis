@@ -14,6 +14,7 @@ import artemis.service
 import artemis.service.check_in show check_in_setup
 import artemis.service.device show Device
 import artemis.shared.server_config show ServerConfig
+import artemis.shared.constants show COMMAND_CHECK_IN_
 import ..tools.http_servers.artemis_server
 
 main args:
@@ -41,8 +42,8 @@ run_test --insert_device/bool:
             --organization_id="test-organization"
 
       checkin_latch := monitor.Latch
-      server.listeners.add:: | state/string command/string data/any |
-        if command == "check-in" and state != "pre":
+      server.listeners.add:: | state/string command/int data/any |
+        if command == COMMAND_CHECK_IN_ and state != "pre":
           checkin_latch.set [state, data]
 
       artemis_json := artemis_server.server_config.to_json

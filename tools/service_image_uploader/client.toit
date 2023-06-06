@@ -3,7 +3,7 @@
 import certificate_roots
 import cli
 import encoding.base64
-import encoding.ubjson
+import encoding.json
 import http
 import net
 import supabase
@@ -16,12 +16,10 @@ import artemis.cli.config
     CONFIG_SERVER_AUTHS_KEY
     ConfigLocalStorage
 import artemis.cli.server_config show *
-import artemis.shared.utils
+import artemis.shared.constants show *
 import uuid
 
 import .utils
-
-STATUS_IM_A_TEAPOT ::= 418
 
 interface UploadClient:
   close
@@ -178,7 +176,7 @@ class UploadClientHttp implements UploadClient:
       --organization_id/string?
       --force/bool:
     // We only upload the image.
-    send_request_ "upload-service-image" {
+    send_request_ COMMAND_UPLOAD_SERVICE_IMAGE_ {
       "sdk_version": sdk_version,
       "service_version": service_version,
       "image_id": image_id,
@@ -191,23 +189,19 @@ class UploadClientHttp implements UploadClient:
     throw "UNIMPLEMENTED"
 
   // TODO(florian): share this code with the cli and the service.
-  send_request_ command/string data/Map -> any:
-    payload := {
-      "command": command,
-      "data": data,
-    }
-    encoded := ubjson.encode payload
+  send_request_ command/int data/Map -> any:
+    encoded := #[command] + (json.encode data)
     response := client_.post encoded
         --host=server_config_.host
         --port=server_config_.port
         --path="/"
 
-    if response.status_code != 200 and response.status_code != STATUS_IM_A_TEAPOT:
+    if response.status_code != 200 and response.status_code != http.STATUS_IM_A_TEAPOT:
       throw "HTTP error: $response.status_code $response.status_message"
 
-    decoded := ubjson.decode (utils.read_all response.body)
+    decoded := json.decode_stream response.body
 
-    if response.status_code == STATUS_IM_A_TEAPOT:
+    if response.status_code == http.STATUS_IM_A_TEAPOT:
       throw "Broker error: $decoded"
 
     return decoded
