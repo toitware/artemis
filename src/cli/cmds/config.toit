@@ -173,7 +173,7 @@ add_http parsed/cli.Parsed config/Config ui/Ui:
   port := parsed["port"]
   path := parsed["path"]
 
-  http_config := ServerConfigHttpToit name
+  http_config := ServerConfigHttp name
       --host=host
       --port=port
       --path=path

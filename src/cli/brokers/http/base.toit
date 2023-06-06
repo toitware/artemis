@@ -14,7 +14,7 @@ import ....shared.server_config
 import ....shared.utils as utils
 import ....shared.constants show *
 
-create_broker_cli_http_toit server_config/ServerConfigHttpToit -> BrokerCliHttp:
+create_broker_cli_http_toit server_config/ServerConfigHttp -> BrokerCliHttp:
   id := "toit-http/$server_config.host-$server_config.port"
   return BrokerCliHttp server_config.host server_config.port --id=id
 

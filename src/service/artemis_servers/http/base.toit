@@ -12,7 +12,7 @@ import ....shared.utils as utils
 import ....shared.constants show *
 
 class ArtemisServerServiceHttp implements ArtemisServerService:
-  server_config_/ServerConfigHttpToit
+  server_config_/ServerConfigHttp
   hardware_id_/uuid.Uuid
 
   constructor .server_config_ --hardware_id/uuid.Uuid:

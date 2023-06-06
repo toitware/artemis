@@ -9,11 +9,11 @@ import .connection
 import ..broker
 import ...device
 import ....shared.constants show *
-import ....shared.server_config show ServerConfigHttpToit
+import ....shared.server_config show ServerConfigHttp
 
 class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
-  server_config_/ServerConfigHttpToit
+  server_config_/ServerConfigHttp
 
   constructor .logger_ .server_config_:
 

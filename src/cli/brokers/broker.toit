@@ -26,8 +26,8 @@ interface BrokerCli implements Authenticatable:
   constructor server_config/ServerConfig config/Config:
     if server_config is ServerConfigSupabase:
       return create_broker_cli_supabase_http (server_config as ServerConfigSupabase) config
-    if server_config is ServerConfigHttpToit:
-      return create_broker_cli_http_toit (server_config as ServerConfigHttpToit)
+    if server_config is ServerConfigHttp:
+      return create_broker_cli_http_toit (server_config as ServerConfigHttp)
     throw "Unknown broker config type"
 
   /** Closes this broker. */

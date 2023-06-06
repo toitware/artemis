@@ -21,7 +21,7 @@ abstract class ServerConfig:
       config = ServerConfigSupabase.from_json name json_map
           --der_deserializer=der_deserializer
     else if json_map["type"] == "toit-http":
-      config = ServerConfigHttpToit.from_json name json_map
+      config = ServerConfigHttp.from_json name json_map
     else:
       throw "Unknown broker type: $json_map"
     return config
@@ -128,7 +128,7 @@ A broker configuration for an HTTP-based broker.
 
 This broker uses the light-weight unsecured protocol we use internally.
 */
-class ServerConfigHttpToit extends ServerConfig:
+class ServerConfigHttp extends ServerConfig:
   static DEFAULT_POLL_INTERVAL ::= Duration --s=20
 
   host/string
@@ -137,7 +137,7 @@ class ServerConfigHttpToit extends ServerConfig:
   poll_interval/Duration := ?
 
   constructor.from_json name/string config/Map:
-    return ServerConfigHttpToit name
+    return ServerConfigHttp name
         --host=config["host"]
         --port=config["port"]
         --path=config["path"]
@@ -152,7 +152,7 @@ class ServerConfigHttpToit extends ServerConfig:
     super.from_sub_ name
 
   operator== other:
-    if other is not ServerConfigHttpToit: return false
+    if other is not ServerConfigHttp: return false
     return host == other.host and port == other.port
 
   type -> string: return "toit-http"

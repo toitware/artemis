@@ -20,9 +20,9 @@ interface ArtemisServerService:
       return ArtemisServerServiceSupabase
           (server_config as ServerConfigSupabase)
           --hardware_id=hardware_id
-    if server_config is ServerConfigHttpToit:
+    if server_config is ServerConfigHttp:
       return ArtemisServerServiceHttp
-          (server_config as ServerConfigHttpToit)
+          (server_config as ServerConfigHttp)
           --hardware_id=hardware_id
     throw "UNSUPPORTED ARTEMIS SERVER CONFIG"
 

@@ -7,7 +7,7 @@ import artemis.cli.cache
 import artemis.cli.config
 import artemis.cli.server_config as cli_server_config
 import artemis.service
-import artemis.shared.server_config show ServerConfig ServerConfigHttpToit
+import artemis.shared.server_config show ServerConfig ServerConfigHttp
 import artemis.cli.utils show read_json write_json_to_file
 import encoding.json
 import host.directory
@@ -45,7 +45,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
   test_cli.replacements[wifi_password] = "WIFI-PASSWORD"
   test_cli.replacements[test_cli.sdk_version] = "SDK-VERSION"
 
-  if test_cli.artemis.server_config is ServerConfigHttpToit:
+  if test_cli.artemis.server_config is ServerConfigHttp:
     test_cli.run [
       "auth", "signup",
       "--email", ADMIN_EMAIL,

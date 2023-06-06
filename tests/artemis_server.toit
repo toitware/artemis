@@ -9,7 +9,7 @@ import .supabase_local_server
 import ..tools.http_servers.artemis_server show HttpArtemisServer DeviceEntry EventEntry
 import ..tools.http_servers.artemis_server as http_servers
 import ..tools.lan_ip.lan_ip
-import artemis.shared.server_config show ServerConfig ServerConfigHttpToit ServerConfigSupabase
+import artemis.shared.server_config show ServerConfig ServerConfigHttp ServerConfigSupabase
 import .utils
 
 class TestArtemisServer:
@@ -127,7 +127,7 @@ with_http_artemis_server [block]:
     lan_ip := get_lan_ip
     host = host.replace "localhost" lan_ip
 
-  server_config := ServerConfigHttpToit "test-artemis-server"
+  server_config := ServerConfigHttp "test-artemis-server"
       --host=host
       --port=port_latch.get
       --path="/"
