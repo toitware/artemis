@@ -82,6 +82,12 @@ start-supabase-no-config:
 	else \
 	  supabase start --workdir supabase_broker; \
 	fi
+	@ $(MAKE) reload-supabase-schemas
+
+reload-supabase-schemas:
+	@ for container in $$(docker ps | grep postgrest: | awk '{print $$1}'); do \
+	    docker kill -s SIGUSR1 $$container; \
+		done
 
 start-supabase: start-supabase-no-config
 	@ # Add the local Artemis server and makes it the default.
