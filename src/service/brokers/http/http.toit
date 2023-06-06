@@ -9,19 +9,17 @@ import .connection
 import ..broker
 import ...device
 import ....shared.constants show *
+import ....shared.server_config show ServerConfigHttpToit
 
 class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
-  host_/string
-  port_/int
+  server_config_/ServerConfigHttpToit
 
-  constructor .logger_ host/string port/int:
-    host_ = host
-    port_ = port
+  constructor .logger_ .server_config_:
 
   connect --network/net.Client --device/Device -> BrokerConnection:
-    connection := HttpConnection_ network host_ port_
-    return BrokerConnectionHttp logger_ device connection
+    connection := HttpConnection_ network server_config_.host server_config_.port
+    return BrokerConnectionHttp logger_ device connection server_config_.poll_interval
 
 
 class BrokerConnectionHttp implements BrokerConnection:
@@ -29,50 +27,28 @@ class BrokerConnectionHttp implements BrokerConnection:
   connection_/HttpConnection_
   logger_/log.Logger
 
-  // We don't know our state revision.
-  // The server will ask us to reconcile.
-  static STATE_REVISION_UNKNOWN_/int ::= -1
-  state_revision_/int := STATE_REVISION_UNKNOWN_
+  poll_interval_/Duration
+  last_poll_us_/int? := null
 
-  constructor .logger_ .device_ .connection_:
+  constructor .logger_ .device_ .connection_ .poll_interval_:
 
-  fetch_goal --wait/bool -> Map?:
-    while true:
-      // If we're not going to wait for a reply using long polling,
-      // we force the server to respond with an out-of-sync message.
-      state_revision := wait ? state_revision_ : STATE_REVISION_UNKNOWN_
-      response := connection_.send_request COMMAND_GET_EVENT_ {
+  fetch_goal_state --wait/bool -> Map?:
+    // We deliberately delay fetching from the cloud, so we
+    // can avoid fetching from the cloud over and over again.
+    last := last_poll_us_
+    if last:
+      elapsed := Duration --us=(Time.monotonic_us - last)
+      interval := poll_interval_
+      if elapsed < interval:
+        // We are not yet supposed to go online.
+        // If we are allowed to wait, do so. Otherwise return null.
+        if not wait: return null
+        sleep interval - elapsed
+    result := connection_.send_request COMMAND_GET_GOAL_ {
         "_device_id": "$device_.id",
-        "_state_revision": state_revision,
       }
-
-      response_event_type := response["event_type"]
-      if response_event_type == "goal_updated":
-        state_revision_ = response["state_revision"]
-        return response["goal"]
-
-      is_out_of_sync := response_event_type == "out_of_sync"
-      is_timed_out := response_event_type == "timed_out"
-      if is_out_of_sync and state_revision_ == response["state_revision"]:
-        // We don't have a new goal state, so we're technically
-        // not out-of-sync. This only happens when we're not
-        // waiting for a response.
-        assert: not wait
-        throw DEADLINE_EXCEEDED_ERROR
-
-      if is_out_of_sync or is_timed_out:
-        // We need to reconcile or produce a new goal, so we
-        // ask explicitly for the goal.
-        goal_response := connection_.send_request COMMAND_GET_GOAL_ {
-          "_device_id": "$device_.id",
-        }
-        // Even if the goal in the goal-response is null we return it,
-        // since a null goal means that the device should revert to
-        // the firmware state.
-        state_revision_ = goal_response["state_revision"]
-        return goal_response["goal"]
-
-      logger_.warn "unknown event received" --tags={"response": response}
+    last_poll_us_ = Time.monotonic_us
+    return result
 
   fetch_image id/uuid.Uuid [block] -> none:
     payload :=  {

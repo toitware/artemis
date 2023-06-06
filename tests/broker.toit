@@ -108,6 +108,7 @@ with_http_broker [block]:
   server_config := ServerConfigHttpToit "test-broker"
       --host=host
       --port=port_latch.get
+      --poll_interval=Duration --ms=1
 
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
 
