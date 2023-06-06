@@ -263,8 +263,10 @@ member_list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
   with_org_server_id parsed config ui: | server/ArtemisServerCli org_id/uuid.Uuid |
     members := server.get_organization_members org_id
     if parsed["id-only"]:
+      member_ids := members.map: "$it["id"]"
+      member_ids.sort --in_place
       ui.do --kind=Ui.RESULT: | printer/Printer |
-        printer.emit (members.map: "$it["id"]")
+        printer.emit member_ids
       return
     profiles := members.map: server.get_profile --user_id=it["id"]
     unsorted_result := List members.size: {
