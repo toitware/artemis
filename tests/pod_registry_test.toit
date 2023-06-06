@@ -9,7 +9,6 @@ import net
 import artemis.cli.brokers.broker
 import artemis.cli.pod_registry show *
 import artemis.service.brokers.broker
-import artemis.cli.brokers.supabase show BrokerCliSupabase
 
 import .broker
 import .utils

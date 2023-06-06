@@ -95,6 +95,7 @@ with_http_broker [block]:
   server_config := server_config.ServerConfigHttpToit "test-broker"
       --host="localhost"
       --port=port_latch.get
+      --path="/"
   try:
     block.call server_config
   finally:

@@ -13,7 +13,6 @@ import artemis.service.device show Device
 import artemis.cli.event show Event
 import artemis.service.brokers.broker
 import artemis.cli.brokers.http.base as http_broker
-import artemis.cli.brokers.supabase show BrokerCliSupabase
 import supabase
 import supabase.auth as supabase
 import artemis.shared.utils

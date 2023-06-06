@@ -130,6 +130,7 @@ with_http_artemis_server [block]:
   server_config := ServerConfigHttpToit "test-artemis-server"
       --host=host
       --port=port_latch.get
+      --path="/"
 
   server.create_organization
       --id="$TEST_ORGANIZATION_UUID"

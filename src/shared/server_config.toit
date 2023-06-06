@@ -133,17 +133,20 @@ class ServerConfigHttpToit extends ServerConfig:
 
   host/string
   port/int
+  path/string
   poll_interval/Duration := ?
 
   constructor.from_json name/string config/Map:
     return ServerConfigHttpToit name
         --host=config["host"]
         --port=config["port"]
+        --path=config["path"]
         --poll_interval=Duration --us=config["poll_interval"]
 
   constructor name/string
-      --.host/string
-      --.port/int
+      --.host
+      --.port
+      --.path
       --.poll_interval=DEFAULT_POLL_INTERVAL:
 
     super.from_sub_ name
@@ -159,6 +162,7 @@ class ServerConfigHttpToit extends ServerConfig:
       "type": type,
       "host": host,
       "port": port,
+      "path": path,
       "poll_interval": poll_interval.in_us,
     }
 
