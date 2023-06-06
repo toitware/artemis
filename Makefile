@@ -66,7 +66,7 @@ start-http: install-pkgs
 		--artemis-port 4999 \
 		--broker-port 4998
 
-.PHONY: start-supabase stop-supabase start-supabase-no-config
+.PHONY: start-supabase stop-supabase start-supabase-no-config reload-supabase-schemas
 # Starts the Supabase servers but doesn't add them to the config.
 # This is useful so that the tests succeed.
 start-supabase-no-config:
