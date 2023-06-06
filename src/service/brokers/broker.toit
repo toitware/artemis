@@ -81,15 +81,15 @@ interface BrokerService:
         port = int.parse host[colon_pos + 1..]
         host = host[..colon_pos]
       // TODO(florian): get the path from the config.
-      http_config := ServerConfigHttpToit
+      http_config := ServerConfigHttp
           server_config.name
           --host=host
           --port=port
           --path="/functions/v1/b"
           --poll_interval=supabase_config.poll_interval
       return BrokerServiceHttp logger http_config
-    else if server_config is ServerConfigHttpToit:
-      return BrokerServiceHttp logger (server_config as ServerConfigHttpToit)
+    else if server_config is ServerConfigHttp:
+      return BrokerServiceHttp logger (server_config as ServerConfigHttp)
     else:
       throw "unknown broker $server_config"
 

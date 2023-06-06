@@ -6,7 +6,7 @@ import certificate_roots
 import crypto.sha256
 import encoding.base64
 
-export ServerConfig ServerConfigSupabase ServerConfigHttpToit
+export ServerConfig ServerConfigSupabase ServerConfigHttp
 
 DEFAULT_ARTEMIS_SERVER_CONFIG ::= ServerConfigSupabase
     "Artemis"

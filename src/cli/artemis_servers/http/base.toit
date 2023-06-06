@@ -21,11 +21,11 @@ import ....shared.constants show *
 
 class ArtemisServerCliHttpToit implements ArtemisServerCli:
   client_/http.Client? := ?
-  server_config_/ServerConfigHttpToit
+  server_config_/ServerConfigHttp
   current_user_id_/uuid.Uuid? := null
   config_/Config
 
-  constructor network/net.Interface .server_config_/ServerConfigHttpToit .config_/Config:
+  constructor network/net.Interface .server_config_/ServerConfigHttp .config_/Config:
     client_ = http.Client network
 
   is_closed -> bool:

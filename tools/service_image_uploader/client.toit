@@ -39,8 +39,8 @@ with_upload_client parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
   server_config := get_artemis_config parsed config
   if server_config is ServerConfigSupabase:
     with_upload_client_supabase parsed config ui block
-  else if server_config is ServerConfigHttpToit:
-    with_upload_client_http (server_config as ServerConfigHttpToit) ui block
+  else if server_config is ServerConfigHttp:
+    with_upload_client_http (server_config as ServerConfigHttp) ui block
   else:
     throw "Unsupported server type"
 
@@ -156,7 +156,7 @@ with_upload_client_supabase parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]
 
 class UploadClientHttp implements UploadClient:
   client_/http.Client
-  server_config_/ServerConfigHttpToit
+  server_config_/ServerConfigHttp
   ui_/ui.Ui
   network_/net.Interface
 
@@ -206,7 +206,7 @@ class UploadClientHttp implements UploadClient:
 
     return decoded
 
-with_upload_client_http server_config/ServerConfigHttpToit ui/ui.Ui [block]:
+with_upload_client_http server_config/ServerConfigHttp ui/ui.Ui [block]:
   upload_client := UploadClientHttp server_config --ui=ui
   try:
     block.call upload_client

@@ -92,7 +92,7 @@ with_http_broker [block]:
   port_latch := monitor.Latch
   broker_task := task:: broker.start port_latch
 
-  server_config := server_config.ServerConfigHttpToit "test-broker"
+  server_config := server_config.ServerConfigHttp "test-broker"
       --host="localhost"
       --port=port_latch.get
       --path="/"

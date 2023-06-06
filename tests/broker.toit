@@ -19,7 +19,7 @@ import ..tools.lan_ip.lan_ip
 import artemis.shared.server_config
   show
     ServerConfig
-    ServerConfigHttpToit
+    ServerConfigHttp
     ServerConfigSupabase
 import .utils
 
@@ -105,7 +105,7 @@ with_http_broker [block]:
     lan_ip := get_lan_ip
     host = host.replace "localhost" lan_ip
 
-  server_config := ServerConfigHttpToit "test-broker"
+  server_config := ServerConfigHttp "test-broker"
       --host=host
       --port=port_latch.get
       --path="/"

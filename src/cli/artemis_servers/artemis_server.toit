@@ -20,8 +20,8 @@ interface ArtemisServerCli implements Authenticatable:
   constructor network/net.Interface server_config/ServerConfig config/Config:
     if server_config is ServerConfigSupabase:
       return ArtemisServerCliSupabase network (server_config as ServerConfigSupabase) config
-    if server_config is ServerConfigHttpToit:
-      return ArtemisServerCliHttpToit network (server_config as ServerConfigHttpToit) config
+    if server_config is ServerConfigHttp:
+      return ArtemisServerCliHttpToit network (server_config as ServerConfigHttp) config
     throw "UNSUPPORTED ARTEMIS SERVER CONFIG"
 
   is_closed -> bool
