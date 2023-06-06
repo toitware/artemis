@@ -387,7 +387,7 @@ run_shared_pod_description_test
     }
     expect_equals 1 pods.size
     expect_equals "$pod_id1" pods[0]["id"]
-    expect_equals ["tag1", "tag2"] pods[0]["tags"]
+    expect_equals ["tag1", "tag2"] pods[0]["tags"].sort
 
     // Only one pod per description is allowed to have the same tag.
     expect_throws --contains="duplicate key value violates unique constraint":
