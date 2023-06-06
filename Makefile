@@ -66,7 +66,7 @@ start-http: install-pkgs
 		--artemis-port 4999 \
 		--broker-port 4998
 
-.PHONY: start-supabase stop-supabase start-supabase-no-config
+.PHONY: start-supabase stop-supabase start-supabase-no-config reload-supabase-schemas
 # Starts the Supabase servers but doesn't add them to the config.
 # This is useful so that the tests succeed.
 start-supabase-no-config:
@@ -82,6 +82,12 @@ start-supabase-no-config:
 	else \
 	  supabase start --workdir supabase_broker; \
 	fi
+	@ $(MAKE) reload-supabase-schemas
+
+reload-supabase-schemas:
+	@ for container in $$(docker ps | grep postgrest: | awk '{print $$1}'); do \
+	    docker kill -s SIGUSR1 $$container; \
+		done
 
 start-supabase: start-supabase-no-config
 	@ # Add the local Artemis server and makes it the default.
