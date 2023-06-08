@@ -2,6 +2,7 @@
 
 import cli
 import net
+import semver
 
 import ..config
 import ..cache
@@ -43,8 +44,11 @@ list_sdks parsed/cli.Parsed config/Config ui/Ui:
         --service_version=service_version
 
     versions.sort --in_place: | a/Map b/Map |
-      a["sdk_version"].compare_to b["sdk_version"] --if_equal=:
-        a["service_version"].compare_to b["service_version"]
+      semver.compare a["sdk_version"] b["sdk_version"] --if_equal=:
+        semver.compare a["service_version"] b["service_version"] --if_equal=:
+          // As a last effort compare the strings directly.
+          // This also includes the build metadata, which is ignored for semver comparisons.
+          "$a["sdk_version"]-$a["service_version"]".compare_to "$b["sdk_version"]-$b["service_version"]"
 
     output := versions.map: {
       "sdk-version": it["sdk_version"],

@@ -1,0 +1,5 @@
+prefixes:
+  semver: ..
+packages:
+  ..:
+    path: ..
