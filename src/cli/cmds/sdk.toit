@@ -42,6 +42,10 @@ list_sdks parsed/cli.Parsed config/Config ui/Ui:
         --sdk_version=sdk_version
         --service_version=service_version
 
+    versions.sort --in_place: | a/Map b/Map |
+      a["sdk_version"].compare_to b["sdk_version"] --if_equal=:
+        a["service_version"].compare_to b["service_version"]
+
     output := versions.map: {
       "sdk-version": it["sdk_version"],
       "service-version": it["service_version"],
