@@ -81,12 +81,17 @@ interface BrokerService:
         port = int.parse host[colon_pos + 1..]
         host = host[..colon_pos]
       // TODO(florian): get the path from the config.
+      der := supabase_config.root_certificate_der
       http_config := ServerConfigHttp
           server_config.name
           --host=host
           --port=port
           --path="/functions/v1/b"
           --poll_interval=supabase_config.poll_interval
+          --root_certificate_names=null
+          --root_certificate_ders=der ? [der] : null
+          --admin_headers=null
+          --device_headers=null
       return BrokerServiceHttp logger http_config
     else if server_config is ServerConfigHttp:
       return BrokerServiceHttp logger (server_config as ServerConfigHttp)

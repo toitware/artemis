@@ -1,8 +1,10 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import certificate_roots
 import encoding.json
 import http
 import net
+import net.x509
 import uuid
 
 import ..broker
@@ -16,15 +18,14 @@ import ....shared.constants show *
 
 create_broker_cli_http_toit server_config/ServerConfigHttp -> BrokerCliHttp:
   id := "toit-http/$server_config.host-$server_config.port"
-  return BrokerCliHttp server_config.host server_config.port --id=id
+  return BrokerCliHttp server_config --id=id
 
 class BrokerCliHttp implements BrokerCli:
   network_/net.Interface? := ?
   id/string
-  host/string
-  port/int
+  server_config_/ServerConfigHttp
 
-  constructor .host .port --.id:
+  constructor .server_config_ --.id:
     network_ = net.open
     add_finalizer this:: close
 
@@ -78,12 +79,40 @@ class BrokerCliHttp implements BrokerCli:
     unreachable
 
   send_request_ encoded/ByteArray [block]:
-    client := http.Client network_
+    client := ?
+    root_names := server_config_.root_certificate_names
+    if root_names:
+      root_certificates := root_names.map:
+        der := certificate_roots.MAP[it]
+        x509.Certificate.parse der
+      client = http.Client.tls network_
+          --root_certificates=root_certificates
+    else:
+      client = http.Client network_
     try:
-      response := client.post encoded --host=host --port=port --path="/"
+      headers := null
+      if server_config_.admin_headers:
+        headers = http.Headers
+        server_config_.admin_headers.do: | key value |
+          headers.add key value
+
+      extra := extra_headers
+      if extra:
+        if not headers: headers = http.Headers
+        extra.do: | key value |
+          headers.add key value
+
+      response := client.post encoded
+          --host=server_config_.host
+          --port=server_config_.port
+          --path=server_config_.path
+          --headers=headers
       block.call response
     finally:
       client.close
+
+  extra_headers -> Map?:
+    return null
 
   update_goal --device_id/uuid.Uuid [block] -> none:
     detailed_devices := get_devices --device_ids=[device_id]

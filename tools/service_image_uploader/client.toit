@@ -191,10 +191,18 @@ class UploadClientHttp implements UploadClient:
   // TODO(florian): share this code with the cli and the service.
   send_request_ command/int data/Map -> any:
     encoded := #[command] + (json.encode data)
+
+    headers := null
+    if server_config_.admin_headers:
+      headers = http.Headers
+      server_config_.admin_headers.do: | key value |
+        headers.add key value
+
     response := client_.post encoded
         --host=server_config_.host
         --port=server_config_.port
-        --path="/"
+        --path=server_config_.path
+        --headers=headers
 
     if response.status_code != 200 and response.status_code != http.STATUS_IM_A_TEAPOT:
       throw "HTTP error: $response.status_code $response.status_message"

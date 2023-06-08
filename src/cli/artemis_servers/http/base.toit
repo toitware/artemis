@@ -169,6 +169,10 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     if current_user_id_ != null:
       headers.add "X-User-Id" "$current_user_id_"
 
+    if server_config_.admin_headers:
+      server_config_.admin_headers.do: | key value |
+        headers.add key value
+
     response := client_.post encoded
         --host=server_config_.host
         --port=server_config_.port

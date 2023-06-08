@@ -47,6 +47,13 @@ abstract class ServerConfig:
   */
   abstract to_json [--der_serializer] -> Map
 
+  /**
+  Serializes this configuration to a JSON map that can be used on the device.
+
+  See $to_json for a description of the $der_serializer block.
+  */
+  abstract to_service_json [--der_serializer] -> Map
+
 class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
   static DEFAULT_POLL_INTERVAL ::= Duration --s=20
 
@@ -123,6 +130,9 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
       result["root_certificate_der_id"] = der_serializer.call root_certificate_der
     return result
 
+  to_service_json [--der_serializer] -> Map:
+    return to_json --der_serializer=der_serializer
+
 /**
 A broker configuration for an HTTP-based broker.
 
@@ -132,21 +142,35 @@ class ServerConfigHttp extends ServerConfig:
   static DEFAULT_POLL_INTERVAL ::= Duration --s=20
 
   host/string
-  port/int
+  port/int?
   path/string
+  root_certificate_names/List?
+  root_certificate_ders/List? := ?
+  device_headers/Map?
+  admin_headers/Map?
   poll_interval/Duration := ?
 
   constructor.from_json name/string config/Map:
+    if config.get "root_certificate_ders":
+      throw "json config for http broker must not contain root_certificate_ders"
     return ServerConfigHttp name
         --host=config["host"]
-        --port=config["port"]
+        --port=config.get "port"
         --path=config["path"]
+        --root_certificate_names=config.get "root_certificate_names"
+        --root_certificate_ders=null
+        --device_headers=config.get "device_headers"
+        --admin_headers=config.get "admin_headers"
         --poll_interval=Duration --us=config["poll_interval"]
 
   constructor name/string
       --.host
       --.port
       --.path
+      --.root_certificate_names
+      --.root_certificate_ders
+      --.device_headers
+      --.admin_headers
       --.poll_interval=DEFAULT_POLL_INTERVAL:
 
     super.from_sub_ name
@@ -157,13 +181,30 @@ class ServerConfigHttp extends ServerConfig:
 
   type -> string: return "toit-http"
 
+  fill_certificate_ders [certificate_getter] -> none:
+    if root_certificate_names and not root_certificate_ders:
+      root_certificate_ders = root_certificate_names.map: certificate_getter.call it
+
   to_json [--der_serializer] -> Map:
-    return {
+    result := {
       "type": type,
       "host": host,
-      "port": port,
       "path": path,
       "poll_interval": poll_interval.in_us,
     }
+    if port:
+      result["port"] = port
+    if root_certificate_names:
+      result["root_certificate_names"] = root_certificate_names
+    if root_certificate_ders:
+      result["root_certificate_ders"] = root_certificate_ders.map: der_serializer.call it
+    if device_headers:
+      result["device_headers"] = device_headers
+    if admin_headers:
+      result["admin_headers"] = admin_headers
+    return result
 
-  fill_certificate_ders [certificate_getter] -> none:
+  to_service_json [--der_serializer] -> Map:
+    result := to_json --der_serializer=der_serializer
+    result.remove "admin_headers"
+    return result

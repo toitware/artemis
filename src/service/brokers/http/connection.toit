@@ -4,17 +4,23 @@ import encoding.json
 import encoding.base64
 import http
 import net
+import net.x509
 import reader show Reader
+import ....shared.server_config show ServerConfigHttp
 
 
 class HttpConnection_:
   client_/http.Client? := ?
-  host_/string
-  port_/int
-  path_/string
+  config_/ServerConfigHttp
 
-  constructor network/net.Interface .host_ .port_ .path_:
-    client_ = http.Client network
+  constructor network/net.Interface .config_:
+    if config_.root_certificate_ders:
+      root_certificates := config_.root_certificate_ders.map:
+        x509.Certificate.parse it
+
+      client_ = http.Client.tls network --root_certificates=root_certificates
+    else:
+      client_ = http.Client network
 
   is_closed -> bool:
     return client_ == null
@@ -31,7 +37,17 @@ class HttpConnection_:
 
   send_request command/int data/Map [block] -> none:
     encoded := #[command] + (json.encode data)
-    response := client_.post encoded --host=host_ --port=port_ --path=path_
+    request_headers/http.Headers? := null
+    if config_.device_headers:
+      request_headers = http.Headers
+      config_.device_headers.do: | key value |
+        request_headers.add key value
+
+    response := client_.post encoded
+        --host=config_.host
+        --port=config_.port
+        --path=config_.path
+        --headers=request_headers
     body := response.body
     status := response.status_code
 

@@ -8,6 +8,7 @@ import expect show *
 import monitor
 
 import .artemis_server
+import .broker show with_http_broker TestBroker
 import .utils
 
 import artemis.service
@@ -32,7 +33,8 @@ run_test --insert_device/bool:
       --firmware_state={
         "firmware": build_encoded_firmware --device_id=device_id,
       }
-  with_http_broker: | broker_config/ServerConfig |
+  with_http_broker: | test_broker/TestBroker |
+    broker_config := test_broker.server_config
     with_http_artemis_server: | artemis_server/TestArtemisServer |
       backdoor := artemis_server.backdoor as ToitHttpBackdoor
       server := backdoor.server

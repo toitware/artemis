@@ -53,6 +53,8 @@ start-http: install-pkgs
 		--host=`$(TOITRUN) tools/lan_ip/lan_ip.toit` \
 		--port 4999 \
 		--path / \
+		--admin-header "X-Artemis-Header=true" \
+		--device-header "X-Artemis-Header=true" \
 		artemis-local-http
 	@ $(TOITRUN) src/cli/cli.toit config broker default --artemis artemis-local-http
 	@ # Adds the local broker and makes it the default.
@@ -60,6 +62,8 @@ start-http: install-pkgs
 		--host=`$(TOITRUN) tools/lan_ip/lan_ip.toit` \
 		--port 4998 \
 		--path / \
+		--admin-header "X-Artemis-Header=true" \
+		--device-header "X-Artemis-Header=true" \
 		broker-local-http
 	@ $(TOITRUN) src/cli/cli.toit config broker default broker-local-http
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-http

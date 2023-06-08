@@ -18,7 +18,7 @@ class BrokerServiceHttp implements BrokerService:
   constructor .logger_ .server_config_:
 
   connect --network/net.Client --device/Device -> BrokerConnection:
-    connection := HttpConnection_ network server_config_.host server_config_.port server_config_.path
+    connection := HttpConnection_ network server_config_
     return BrokerConnectionHttp logger_ device connection server_config_.poll_interval
 
 

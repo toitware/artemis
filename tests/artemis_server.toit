@@ -131,6 +131,15 @@ with_http_artemis_server [block]:
       --host=host
       --port=port_latch.get
       --path="/"
+      --root_certificate_names=null
+      --root_certificate_ders=null
+      --poll_interval=Duration --ms=500
+      --admin_headers={
+        "X-Artemis-Header": "true",
+      }
+      --device_headers={
+        "X-Artemis-Header": "true",
+      }
 
   server.create_organization
       --id="$TEST_ORGANIZATION_UUID"
