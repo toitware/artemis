@@ -18,7 +18,7 @@ class HttpConnection_:
       root_certificates := config_.root_certificate_ders.map:
         x509.Certificate.parse it
 
-      client_ = http.Client.tls network --root_certificates=config_.root_certificate_ders
+      client_ = http.Client.tls network --root_certificates=root_certificates
     else:
       client_ = http.Client network
 

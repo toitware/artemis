@@ -31,13 +31,8 @@ create_broker_cli_supabase_http server_config/ServerConfigSupabase config/Config
       --host=host
       --port=port
       --path="/functions/v1/b"
-      --admin_headers={
-          "apikey": server_config.anon,
-          "X-Artemis-Header": "true",
-        }
-      --device_headers={
-        "X-Artemis-Header": "true",
-      }
+      --admin_headers=null
+      --device_headers=null
       --root_certificate_names=root_names
       --root_certificate_ders=null
       --poll_interval=server_config.poll_interval
