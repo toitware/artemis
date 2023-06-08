@@ -155,6 +155,7 @@ jobs:
           make TOITRUN="$TOIT_EXEC"
 
       - name: Force schema reload
+        if: runner.os == 'Linux'
         shell: bash
         run: |
             make reload-supabase-schemas
