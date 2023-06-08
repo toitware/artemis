@@ -3,7 +3,7 @@
 // in the LICENSE file.
 
 /**
-A semantic version library.
+A semantic versioning library.
 */
 
 split_semver_ semver/string:
