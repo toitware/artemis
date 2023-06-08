@@ -22,6 +22,8 @@ dependencies:
   ntp:
     url: github.com/toitlang/pkg-ntp
     version: ^1.0.0
+  semver:
+    path: semver
   snapshot:
     path: tools/snapshot
   supabase:
