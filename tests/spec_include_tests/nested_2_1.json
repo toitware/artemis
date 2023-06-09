@@ -1,0 +1,9 @@
+{
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "ssid",
+      "password": "password"
+    }
+  ]
+}

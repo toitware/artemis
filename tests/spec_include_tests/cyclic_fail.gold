@@ -1,0 +1,2 @@
+Circular include: cyclic_test.json
+  included from cyclic_test.json

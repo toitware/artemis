@@ -15,6 +15,7 @@ import ..pod_specification
 import ..pod_registry
 import ..ui
 import ..utils.names
+import ..utils show json_encode_pretty
 
 create_pod_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "pod"
@@ -109,6 +110,25 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       ]
       --run=:: list it config cache ui
   cmd.add list_cmd
+
+  print_merged_cmd := cli.Command "print-merged"
+      --long_help="""
+        Print the given pod specification after merging in its includes.
+
+        When a pod includes other pod specifications, the included specifications
+        are merged into the pod specification. This command prints the merged
+        specification.
+
+        This command is useful for debugging pod specifications.
+        """
+      --rest=[
+        cli.Option "specification"
+            --type="file"
+            --short_help="The specification of the pod."
+            --required,
+      ]
+      --run=:: print_merged it config cache ui
+  cmd.add print_merged_cmd
 
   return [cmd]
 
@@ -208,3 +228,17 @@ print_pods_ pods/Map --printer/Printer:
           "created_at": "Created At",
         }
         rows
+
+print_merged parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  specification_path := parsed["specification"]
+
+  exception := catch --unwind=(: it is not PodSpecificationException):
+    json := PodSpecification.parse_json_hierarchy specification_path
+    ui.do --kind=Ui.RESULT: | printer/Printer |
+      printer.emit_structured
+          --json=: printer.emit json
+          --stdout=:
+            str := (json_encode_pretty json).to_string
+            printer.emit str
+  if exception:
+    ui.abort (exception as PodSpecificationException).message
