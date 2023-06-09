@@ -32,4 +32,9 @@ run_negative_test test/string fail/string:
   expect_not_null exception
   expect exception is PodSpecificationException
   expected_message := (file.read_content fail).to_string
-  expect_equals expected_message.trim (exception as PodSpecificationException).message.trim
+  expected_message = expected_message.replace --all "\r\n" "\n"
+  expected_message = expected_message.trim
+  actual_message := (exception as PodSpecificationException).message
+  actual_message = actual_message.replace --all "\r\n" "\n"
+  actual_message = actual_message.trim
+  expect_equals expected_message actual_message
