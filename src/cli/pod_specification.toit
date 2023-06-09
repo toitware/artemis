@@ -450,7 +450,7 @@ interface Container:
   }
 
   static from_json name/string data/Map -> Container:
-    if (data.get "entrypoint" != null) and (data.get "snapshot") != null:
+    if (data.get "entrypoint") != null and (data.get "snapshot") != null:
       format_error_ "Container $name has both entrypoint and snapshot."
 
     if (data.get "entrypoint") != null:
