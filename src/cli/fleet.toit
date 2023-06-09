@@ -660,6 +660,13 @@ class Fleet:
         // TODO(florian): add more useful information.
       }
 
+    rows.sort --in_place: | a/Map b/Map |
+      a_pod_name := a["pod-name"] or ""
+      b_pod_name := b["pod-name"] or ""
+      a_pod_name.compare_to b_pod_name --if_equal=:
+        a["device-name"].compare_to b["device-name"] --if_equal=:
+          a["device-id"].compare_to b["device-id"]
+
     // TODO(florian): we shouldn't have any `ui_.result` outside of `cmd` files.
     ui_.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit
