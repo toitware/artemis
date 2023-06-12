@@ -45,8 +45,8 @@ class BrokerConnectionHttp implements BrokerConnection:
         if not wait: return null
         sleep interval - elapsed
     result := connection_.send_request COMMAND_GET_GOAL_ {
-        "_device_id": "$device_.id",
-      }
+      "_device_id": "$device_.id",
+    }
     last_poll_us_ = Time.monotonic_us
     return result
 
