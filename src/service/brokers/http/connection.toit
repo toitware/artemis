@@ -66,7 +66,7 @@ class HttpSecurityStore_ extends http.SecurityStore:
   // We store the cached session data in RTC memory. This means that
   // it survives deep sleeps, but that any loss of power or firmware
   // update will clear it.
-  static bucket/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis/tls"
+  static bucket ::= storage.Bucket.open --ram "toit.io/artemis/tls"
 
   store_session_data host/string port/int data/ByteArray -> none:
     bucket[key_ host port] = data
