@@ -1,9 +1,6 @@
 # Content of extended spec after flattening
 # [pod, print, --flat, TMP_DIR/extended.json]
 {
-  "extends": [
-    "minimal.json"
-  ],
   "max-offline": "1h",
   "version": 1,
   "name": "test-pod-print",
