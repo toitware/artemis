@@ -197,4 +197,4 @@ foreach(file ${TESTS})
   endforeach()
 endforeach()
 
-add_subdirectory("spec_include_tests")
+add_subdirectory("spec_extends_tests")

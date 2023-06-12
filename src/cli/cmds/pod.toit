@@ -15,7 +15,7 @@ import ..pod_specification
 import ..pod_registry
 import ..ui
 import ..utils.names
-import ..utils show json_encode_pretty
+import ..utils show json_encode_pretty read_json
 
 create_pod_commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "pod"
@@ -111,24 +111,27 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: list it config cache ui
   cmd.add list_cmd
 
-  print_merged_cmd := cli.Command "print-merged"
+  print_cmd := cli.Command "print"
       --long_help="""
-        Print the given pod specification after merging in its includes.
+        Print the given pod specification.
 
-        When a pod includes other pod specifications, the included specifications
-        are merged into the pod specification. This command prints the merged
-        specification.
+        If the '--flat' option is given, the pod specification is printed
+        after merging all extended specifications into a single specification.
 
         This command is useful for debugging pod specifications.
         """
+      --options=[
+        cli.Flag "flat"
+            --short_help="Print the merged pod specification.",
+      ]
       --rest=[
         cli.Option "specification"
             --type="file"
             --short_help="The specification of the pod."
             --required,
       ]
-      --run=:: print_merged it config cache ui
-  cmd.add print_merged_cmd
+      --run=:: print it config cache ui
+  cmd.add print_cmd
 
   return [cmd]
 
@@ -229,11 +232,18 @@ print_pods_ pods/Map --printer/Printer:
         }
         rows
 
-print_merged parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+print parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  flat := parsed["flat"]
   specification_path := parsed["specification"]
 
   exception := catch --unwind=(: it is not PodSpecificationException):
+    // We always parse the specification, even if we don't need the flat version.
+    // This way we report errors in extended specifications.
     json := PodSpecification.parse_json_hierarchy specification_path
+    if not flat:
+      // If we only want the non-flattened version read the json by hand.
+      json = read_json specification_path
+
     ui.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit_structured
           --json=: printer.emit json

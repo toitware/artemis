@@ -95,14 +95,16 @@ check_has_key_ map/Map --holder/string="pod specification" key/string:
   if (map.get key) == null:
     format_error_ "Missing $key in $holder."
 
+has_key_ map/Map key/string -> bool:
+  return (map.get key) != null
+
 check_is_map_ map/Map key/string --entry_type/string="Entry":
   get_map_ map key --entry_type=entry_type
 
 get_int_ map/Map key/string -> int
     --holder/string="pod specification"
     --entry_type/string="Entry":
-  if (map.get key) == null:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not int:
     format_error_ "$entry_type $key in $holder is not an int: $value"
@@ -111,8 +113,7 @@ get_int_ map/Map key/string -> int
 get_string_ map/Map key/string -> string
     --holder/string="pod specification"
     --entry_type/string="Entry":
-  if (map.get key) == null:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not string:
     format_error_ "$entry_type $key in $holder is not a string: $value"
@@ -121,13 +122,13 @@ get_string_ map/Map key/string -> string
 get_optional_string_ map/Map key/string -> string?
     --holder/string="pod specification"
     --entry_type/string="Entry":
-  if (map.get key) == null: return null
+  if not has_key_ map key: return null
   return get_string_ map key --holder=holder --entry_type=entry_type
 
 get_optional_list_ map/Map key/string --type/string [--check] -> List?
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if (map.get key) == null: return null
+  if not has_key_ map key: return null
   value := map[key]
   if value is not List:
     format_error_ "$entry_type $key in $holder is not a list: $value"
@@ -139,8 +140,7 @@ get_optional_list_ map/Map key/string --type/string [--check] -> List?
 get_map_ map/Map key/string -> Map
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if (map.get key) == null:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not Map:
     format_error_ "$entry_type $key in $holder is not a map: $value"
@@ -149,14 +149,13 @@ get_map_ map/Map key/string -> Map
 get_optional_map_ map/Map key/string -> Map?
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if (map.get key) == null: return null
+  if not has_key_ map key: return null
   return get_map_ map key --entry_type=entry_type --holder=holder
 
 get_list_ map/Map key/string -> List
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if (map.get key) == null:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not List:
     format_error_ "$entry_type $key in $holder is not a list: $value"
@@ -168,8 +167,7 @@ get_duration_ map/Map key/string -> Duration
   // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
   // Returns 0 if the string is empty.
 
-  if (map.get key) == null:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
 
   entry := map[key]
   if entry is not string:
@@ -185,20 +183,19 @@ get_duration_ map/Map key/string -> Duration
 get_optional_duration_ map/Map key/string -> Duration?
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if (map.get key) == null: return null
+  if not has_key_ map key: return null
   return get_duration_ map key --entry_type=entry_type --holder=holder
 
 get_optional_bool_ map/Map key/string -> bool?
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if (map.get key) == null: return null
+  if not has_key_ map key: return null
   return get_bool_ map key --entry_type=entry_type --holder=holder
 
 get_bool_ map/Map key/string -> bool
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if (map.get key) == null:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not bool:
     format_error_ "$entry_type $key in $holder is not a boolean: $value"
@@ -279,18 +276,18 @@ class PodSpecification:
 
     chip = get_optional_string_ data "chip"
 
-    if (data.get "apps") != null and (data.get "containers") != null:
+    if has_key_ data "apps" and has_key_ data "containers":
       format_error_ "Both 'apps' and 'containers' are present in pod specification."
 
     if (get_int_ data "version") != 1:
       format_error_ "Unsupported pod specification version $data["version"]"
 
-    if (data.get "apps") != null and (data.get "containers") == null:
+    if has_key_ data "apps" and not has_key_ data "containers":
       check_is_map_ data "apps"
       data = data.copy
       data["containers"] = data["apps"]
       data.remove "apps"
-    else if (data.get "containers") != null:
+    else if has_key_ data "containers":
       check_is_map_ data "containers"
 
     containers_entry := data.get "containers"
@@ -318,44 +315,44 @@ class PodSpecification:
     json := parse_json_hierarchy path
     return PodSpecification.from_json --path=path json
 
-  static parse_json_hierarchy path/string --include_chain/List=[] -> Map:
+  static parse_json_hierarchy path/string --extends_chain/List=[] -> Map:
     path = fs.canonicalize path
 
     fail := : | error_message/string |
-      include_chain.do --reversed: | include_path/string |
-        error_message += "\n  included from $include_path"
+      extends_chain.do --reversed: | include_path/string |
+        error_message += "\n  - Extended by $include_path."
       format_error_ error_message
 
     json := null
     exception := catch:
       json = read_json path
     if exception:
-      fail.call "Failed to read pod specification from $path: $exception"
+      fail.call "Failed to read pod specification from $path: $exception."
 
     if json is not Map:
-      fail.call "Pod specification at $path does not contain a Map."
+      fail.call "Pod specification at $path does not contain a map."
 
-    includes := json.get "include"
+    extends_entries := json.get "extends"
 
-    if includes and includes is not List:
-      fail.call "Include entry in pod specification at $path is not a list."
+    if extends_entries and extends_entries is not List:
+      fail.call "Extends entry in pod specification at $path is not a list."
 
-    if includes:
-      include_chain.add path
+    if extends_entries:
+      extends_chain.add path
 
-      included_specs := includes.map: | included_path/string |
-        included_path = fs.join (fs.dirname path) included_path
-        if include_chain.contains included_path:
-          fail.call "Circular include: $included_path"
-        parse_json_hierarchy included_path --include_chain=include_chain
+      base_specs := extends_entries.map: | extends_path/string |
+        extends_path = fs.join (fs.dirname path) extends_path
+        if extends_chain.contains extends_path:
+          fail.call "Circular extends: $extends_path."
+        parse_json_hierarchy extends_path --extends_chain=extends_chain
 
-      include_chain.resize (include_chain.size - 1)
+      extends_chain.resize (extends_chain.size - 1)
 
-      included_specs.do: | included_spec/Map |
-        merge_json_into_ json included_spec
+      base_specs.do: | base_spec/Map |
+        merge_json_into_ json base_spec
 
-      json.remove "include"
-    if include_chain.is_empty:
+      json.remove "extends"
+    if extends_chain.is_empty:
       remove_null_values_ json
     return json
 
@@ -450,12 +447,12 @@ interface Container:
   }
 
   static from_json name/string data/Map -> Container:
-    if (data.get "entrypoint") != null and (data.get "snapshot") != null:
+    if has_key_ data "entrypoint" and has_key_ data "snapshot":
       format_error_ "Container $name has both entrypoint and snapshot."
 
-    if (data.get "entrypoint") != null:
+    if has_key_ data "entrypoint":
       return ContainerPath.from_json name data
-    if (data.get "snapshot") != null:
+    if has_key_ data "snapshot":
       return ContainerSnapshot.from_json name data
 
     format_error_ "Unsupported container $name: $data"
@@ -668,7 +665,7 @@ abstract class Trigger:
     known_triggers.do: | key/string value/Lambda |
       is_map_trigger := map_triggers.contains key
       if is_map_trigger:
-        if data is Map and (data.get key) != null:
+        if data is Map and has_key_ data key:
           seen_types.add key
           trigger = value
       else if data is string and data == key:

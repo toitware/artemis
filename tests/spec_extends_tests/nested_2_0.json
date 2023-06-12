@@ -1,5 +1,5 @@
 {
-  "include": [
+  "extends": [
     "nested_2_1.json",
     "nested_2_2.json",
     "nested_2_3.json"

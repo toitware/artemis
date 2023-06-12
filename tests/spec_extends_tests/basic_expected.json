@@ -26,7 +26,9 @@
     "app4": {
       "entrypoint": "entrypoint.toit",
       "triggers": [
-        { "interval": "5s" },
+        {
+          "interval": "5s"
+        },
         "boot",
         "install"
       ]

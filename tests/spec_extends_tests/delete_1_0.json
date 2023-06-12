@@ -1,5 +1,5 @@
 {
-  "include": [
+  "extends": [
     "delete_1_1.json",
     "delete_1_2.json"
   ],

@@ -1,5 +1,5 @@
 {
-  "name":"nested",
+  "name": "nested",
   "version": 1,
   "sdk-version": "1.0.0",
   "artemis-version": "3.0.0",
@@ -16,7 +16,7 @@
       }
     },
     {
-      "type":"cellular",
+      "type": "cellular",
       "config": {
         "key2": "from 2_3"
       }
