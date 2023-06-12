@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "name": "test-pod",
+  "sdk-version": "1.0.0",
+  "artemis-version": "1.0.0",
+  "max-offline": "1h",
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "ssid",
+      "password": "password"
+    }
+  ],
+  "containers": {
+    "app1": {
+      "entrypoint": "entrypoint.toit"
+    },
+    "app2": {
+      "entrypoint": "entrypoint.toit",
+      "git": "foo",
+      "branch": "bar"
+    },
+    "app3": {
+      "snapshot": "foo.snapshot"
+    },
+    "app4": {
+      "entrypoint": "entrypoint.toit",
+      "triggers": [
+        {
+          "interval": "5s"
+        },
+        "boot",
+        "install"
+      ]
+    }
+  }
+}

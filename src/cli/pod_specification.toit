@@ -90,8 +90,13 @@ validation_error_ message/string:
   throw (PodSpecificationException message)
 
 check_has_key_ map/Map --holder/string="pod specification" key/string:
-  if not map.contains key:
+  // We use `map.get` so that specifications can "delete" entries they have
+  // included by overriding them with 'null'.
+  if (map.get key) == null:
     format_error_ "Missing $key in $holder."
+
+has_key_ map/Map key/string -> bool:
+  return (map.get key) != null
 
 check_is_map_ map/Map key/string --entry_type/string="Entry":
   get_map_ map key --entry_type=entry_type
@@ -99,8 +104,7 @@ check_is_map_ map/Map key/string --entry_type/string="Entry":
 get_int_ map/Map key/string -> int
     --holder/string="pod specification"
     --entry_type/string="Entry":
-  if not map.contains key:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not int:
     format_error_ "$entry_type $key in $holder is not an int: $value"
@@ -109,8 +113,7 @@ get_int_ map/Map key/string -> int
 get_string_ map/Map key/string -> string
     --holder/string="pod specification"
     --entry_type/string="Entry":
-  if not map.contains key:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not string:
     format_error_ "$entry_type $key in $holder is not a string: $value"
@@ -119,13 +122,13 @@ get_string_ map/Map key/string -> string
 get_optional_string_ map/Map key/string -> string?
     --holder/string="pod specification"
     --entry_type/string="Entry":
-  if not map.contains key: return null
+  if not has_key_ map key: return null
   return get_string_ map key --holder=holder --entry_type=entry_type
 
 get_optional_list_ map/Map key/string --type/string [--check] -> List?
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if not map.contains key: return null
+  if not has_key_ map key: return null
   value := map[key]
   if value is not List:
     format_error_ "$entry_type $key in $holder is not a list: $value"
@@ -137,8 +140,7 @@ get_optional_list_ map/Map key/string --type/string [--check] -> List?
 get_map_ map/Map key/string -> Map
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if not map.contains key:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not Map:
     format_error_ "$entry_type $key in $holder is not a map: $value"
@@ -147,14 +149,13 @@ get_map_ map/Map key/string -> Map
 get_optional_map_ map/Map key/string -> Map?
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if not map.contains key: return null
+  if not has_key_ map key: return null
   return get_map_ map key --entry_type=entry_type --holder=holder
 
 get_list_ map/Map key/string -> List
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if not map.contains key:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not List:
     format_error_ "$entry_type $key in $holder is not a list: $value"
@@ -166,8 +167,7 @@ get_duration_ map/Map key/string -> Duration
   // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
   // Returns 0 if the string is empty.
 
-  if not map.contains key:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
 
   entry := map[key]
   if entry is not string:
@@ -183,24 +183,69 @@ get_duration_ map/Map key/string -> Duration
 get_optional_duration_ map/Map key/string -> Duration?
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if not map.contains key: return null
+  if not has_key_ map key: return null
   return get_duration_ map key --entry_type=entry_type --holder=holder
 
 get_optional_bool_ map/Map key/string -> bool?
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if not map.contains key: return null
+  if not has_key_ map key: return null
   return get_bool_ map key --entry_type=entry_type --holder=holder
 
 get_bool_ map/Map key/string -> bool
     --entry_type/string="Entry"
     --holder/string="pod specification":
-  if not map.contains key:
-    format_error_ "Missing $key in $holder."
+  check_has_key_ map --holder=holder key
   value := map[key]
   if value is not bool:
     format_error_ "$entry_type $key in $holder is not a boolean: $value"
   return value
+
+/**
+Merges the json object $other into $target.
+
+The parameters $other and $target must both be maps.
+
+- if a key is present in both:
+  - if both values are maps then the values are merged recursively,
+  - if both values are lists then the lists are concatenated,
+  - otherwise the value from $target is used,
+- if a key is present only in $other, the value is copied as-is, unless it's
+  null in which case it's ignored.
+*/
+merge_json_into_ target/Map other/Map -> none:
+  other.do: | key value |
+    if target.contains key:
+      target_value := target[key]
+      if target_value is Map and value is Map:
+        merge_json_into_ target_value value
+      else if target_value is List and value is List:
+        target[key] = target_value + value
+      else:
+        // Do nothing: keep the value from target.
+    else if value != null:
+      target[key] = value
+
+/**
+Removes all entries for which the value is null.
+*/
+remove_null_values_ o/any -> none:
+  null_keys := []
+  if o is Map:
+    map := o as Map
+    map.do: | key value |
+      if value == null:
+        null_keys.add key
+      else:
+        remove_null_values_ value
+
+    null_keys.do: | key |
+      map.remove key
+
+  if o is List:
+    list := o as List
+    list.filter --in_place: it != null
+    list.do: remove_null_values_ it
 
 /**
 A specification of a pod.
@@ -231,18 +276,18 @@ class PodSpecification:
 
     chip = get_optional_string_ data "chip"
 
-    if data.contains "apps" and data.contains "containers":
+    if has_key_ data "apps" and has_key_ data "containers":
       format_error_ "Both 'apps' and 'containers' are present in pod specification."
 
     if (get_int_ data "version") != 1:
       format_error_ "Unsupported pod specification version $data["version"]"
 
-    if data.contains "apps" and not data.contains "containers":
+    if has_key_ data "apps" and not has_key_ data "containers":
       check_is_map_ data "apps"
       data = data.copy
       data["containers"] = data["apps"]
       data.remove "apps"
-    else if data.contains "containers":
+    else if has_key_ data "containers":
       check_is_map_ data "containers"
 
     containers_entry := data.get "containers"
@@ -267,11 +312,49 @@ class PodSpecification:
     validate_
 
   static parse path/string -> PodSpecification:
-    json := null
-    exception := catch: json = read_json path
-    if exception:
-      format_error_ "Failed to parse pod specification as JSON: $exception"
+    json := parse_json_hierarchy path
     return PodSpecification.from_json --path=path json
+
+  static parse_json_hierarchy path/string --extends_chain/List=[] -> Map:
+    path = fs.canonicalize path
+
+    fail := : | error_message/string |
+      extends_chain.do --reversed: | include_path/string |
+        error_message += "\n  - Extended by $include_path."
+      format_error_ error_message
+
+    json := null
+    exception := catch:
+      json = read_json path
+    if exception:
+      fail.call "Failed to read pod specification from $path: $exception."
+
+    if json is not Map:
+      fail.call "Pod specification at $path does not contain a map."
+
+    extends_entries := json.get "extends"
+
+    if extends_entries and extends_entries is not List:
+      fail.call "Extends entry in pod specification at $path is not a list."
+
+    if extends_entries:
+      extends_chain.add path
+
+      base_specs := extends_entries.map: | extends_path/string |
+        extends_path = fs.join (fs.dirname path) extends_path
+        if extends_chain.contains extends_path:
+          fail.call "Circular extends: $extends_path."
+        parse_json_hierarchy extends_path --extends_chain=extends_chain
+
+      extends_chain.resize (extends_chain.size - 1)
+
+      base_specs.do: | base_spec/Map |
+        merge_json_into_ json base_spec
+
+      json.remove "extends"
+    if extends_chain.is_empty:
+      remove_null_values_ json
+    return json
 
   /**
   Returns the path to which all other paths of this specification are
@@ -287,7 +370,7 @@ class PodSpecification:
     connections.do: | connection/ConnectionInfo |
       if connection.requires:
         connection.requires.do: | required_container_name/string |
-          if not containers.contains required_container_name:
+          if (containers.get required_container_name) == null:
             validation_error_ "Cellular connection requires container $required_container_name, but it is not installed."
 
 interface ConnectionInfo:
@@ -364,12 +447,12 @@ interface Container:
   }
 
   static from_json name/string data/Map -> Container:
-    if data.contains "entrypoint" and data.contains "snapshot":
+    if has_key_ data "entrypoint" and has_key_ data "snapshot":
       format_error_ "Container $name has both entrypoint and snapshot."
 
-    if data.contains "entrypoint":
+    if has_key_ data "entrypoint":
       return ContainerPath.from_json name data
-    if data.contains "snapshot":
+    if has_key_ data "snapshot":
       return ContainerSnapshot.from_json name data
 
     format_error_ "Unsupported container $name: $data"
@@ -582,7 +665,7 @@ abstract class Trigger:
     known_triggers.do: | key/string value/Lambda |
       is_map_trigger := map_triggers.contains key
       if is_map_trigger:
-        if data is Map and data.contains key:
+        if data is Map and has_key_ data key:
           seen_types.add key
           trigger = value
       else if data is string and data == key:

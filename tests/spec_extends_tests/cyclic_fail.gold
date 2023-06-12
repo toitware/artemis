@@ -1,0 +1,2 @@
+Circular extends: cyclic_test.json.
+  - Extended by cyclic_test.json.

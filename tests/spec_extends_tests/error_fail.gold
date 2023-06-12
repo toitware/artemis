@@ -1,0 +1,4 @@
+Failed to read pod specification from error_3.json: INVALID_JSON_CHARACTER.
+  - Extended by error_2.json.
+  - Extended by error_1.json.
+  - Extended by error_test.json.

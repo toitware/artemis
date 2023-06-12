@@ -1,0 +1,10 @@
+{
+  "connections": [
+    {
+      "type": "cellular",
+      "config": {
+        "key2": "from 2_3"
+      }
+    }
+  ]
+}

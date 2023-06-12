@@ -1,0 +1,5 @@
+{
+  "extends": [
+    "cyclic_nested_2.json"
+  ]
+}

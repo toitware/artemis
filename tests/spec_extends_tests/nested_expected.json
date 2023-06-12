@@ -1,0 +1,25 @@
+{
+  "name": "nested",
+  "version": 1,
+  "sdk-version": "1.0.0",
+  "artemis-version": "3.0.0",
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "ssid",
+      "password": "password"
+    },
+    {
+      "type": "cellular",
+      "config": {
+        "key1": "from 2_2"
+      }
+    },
+    {
+      "type": "cellular",
+      "config": {
+        "key2": "from 2_3"
+      }
+    }
+  ]
+}

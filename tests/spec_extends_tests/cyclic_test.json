@@ -1,0 +1,5 @@
+{
+  "extends": [
+    "cyclic_test.json"
+  ]
+}

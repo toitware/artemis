@@ -196,3 +196,5 @@ foreach(file ${TESTS})
     endif()
   endforeach()
 endforeach()
+
+add_subdirectory("spec_extends_tests")
