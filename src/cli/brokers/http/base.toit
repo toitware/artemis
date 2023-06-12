@@ -205,6 +205,13 @@ class BrokerCliHttp implements BrokerCli:
       "_description": description,
     }
 
+  /** See $BrokerCli.pod_registry_descriptions_delete. */
+  pod_registry_descriptions_delete --fleet_id/uuid.Uuid --description_ids/List -> none:
+    send_request_ COMMAND_POD_REGISTRY_DELETE_DESCRIPTIONS_ {
+      "_fleet_id": "$fleet_id",
+      "_description_ids": description_ids,
+    }
+
   /** See $BrokerCli.pod_registry_add. */
   pod_registry_add -> none
       --pod_description_id/int
@@ -212,6 +219,13 @@ class BrokerCliHttp implements BrokerCli:
     send_request_ COMMAND_POD_REGISTRY_ADD_ {
       "_pod_description_id": pod_description_id,
       "_pod_id": "$pod_id",
+    }
+
+  /** See $BrokerCli.pod_registry_delete. */
+  pod_registry_delete --fleet_id/uuid.Uuid --pod_ids/List -> none:
+    send_request_ COMMAND_POD_REGISTRY_DELETE_ {
+      "_fleet_id": "$fleet_id",
+      "_pod_ids": pod_ids.map: "$it",
     }
 
   /** See $BrokerCli.pod_registry_tag_set. */

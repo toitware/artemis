@@ -1,0 +1,3 @@
+# Can't delete non-existing description many
+# [--fleet-root, <FLEET_ROOT>, pod, delete, --all, pod1, pod3]
+Error: Unknown pods pod1, pod3.

@@ -253,6 +253,56 @@ test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
       expect_equals expected_id pod_ids[reference]
   expect_equals count pod_ids.size
 
+  // Test deletion.
+  broker_cli.pod_registry_delete --pod_ids=[pod_id1, pod_id3] --fleet_id=fleet_id
+  pods = broker_cli.pod_registry_pods --pod_description_id=description_id
+  expect_equals 1 pods.size
+  pod2 = pods[0]
+  expect_equals pod_id2 pod2.id
+  pods = broker_cli.pod_registry_pods --pod_description_id=description_id2
+  expect_equals 1 pods.size
+  pod4 := pods[0]
+  expect_equals pod_id4 pod4.id
+
+  description_id3 := broker_cli.pod_registry_description_upsert
+      --fleet_id=fleet_id
+      --organization_id=TEST_ORGANIZATION_UUID
+      --name="pod3"
+      --description=null
+
+  description_id4 := broker_cli.pod_registry_description_upsert
+      --fleet_id=fleet_id
+      --organization_id=TEST_ORGANIZATION_UUID
+      --name="pod4"
+      --description=null
+
+  descriptions = broker_cli.pod_registry_descriptions --fleet_id=fleet_id
+  expect_equals 4 descriptions.size
+  seen := {}
+  descriptions.do: | description/PodRegistryDescription |
+    expect_not (seen.contains description.id)
+    seen.add description.id
+  expect (seen.contains description_id)
+  expect (seen.contains description_id2)
+  expect (seen.contains description_id3)
+  expect (seen.contains description_id4)
+
+  broker_cli.pod_registry_descriptions_delete --fleet_id=fleet_id
+      --description_ids=[
+        description_id,
+        description_id3,
+        description_id4,
+      ]
+  descriptions = broker_cli.pod_registry_descriptions --fleet_id=fleet_id
+  expect_equals 1 descriptions.size
+  description = descriptions[0]
+  expect_equals description_id2 description.id
+
+  // The pods inside the deleted descriptions were also deleted.
+  pods = broker_cli.pod_registry_pods --fleet_id=fleet_id --pod_ids=[pod_id2]
+  expect_equals 0 pods.size
+
+
 test_pods --test_broker/TestBroker broker_cli/broker.BrokerCli:
   3.repeat: | iteration |
     pod_id := random_uuid

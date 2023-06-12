@@ -139,11 +139,21 @@ interface BrokerCli implements Authenticatable:
       --description/string?
 
   /**
+  Deletes the pod descriptions with the given ids.
+  */
+  pod_registry_descriptions_delete --fleet_id/uuid.Uuid --description_ids/List -> none
+
+  /**
   Adds a pod.
   */
   pod_registry_add -> none
       --pod_description_id/int
       --pod_id/uuid.Uuid
+
+  /**
+  Deletes the pods with the given ids.
+  */
+  pod_registry_delete --fleet_id/uuid.Uuid --pod_ids/List -> none
 
   /**
   Adds a tag.

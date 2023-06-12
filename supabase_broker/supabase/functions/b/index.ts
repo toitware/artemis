@@ -27,6 +27,8 @@ const COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_NAMES_ = 106;
 const COMMAND_POD_REGISTRY_PODS_ = 107;
 const COMMAND_POD_REGISTRY_PODS_BY_IDS_ = 108;
 const COMMAND_POD_REGISTRY_POD_IDS_BY_REFERENCE_ = 109;
+const COMMAND_POD_REGISTRY_DELETE_DESCRIPTIONS_ = 110;
+const COMMAND_POD_REGISTRY_DELETE_ = 111;
 
 class BinaryResponse {
   bytes: Blob;
@@ -207,6 +209,20 @@ async function handleRequest(req: Request) {
     }
     case COMMAND_POD_REGISTRY_POD_IDS_BY_REFERENCE_: {
       return supabaseClient.rpc("toit_artemis.get_pods_by_reference", params);
+    }
+    case COMMAND_POD_REGISTRY_DELETE_DESCRIPTIONS_: {
+      const { error } = await supabaseClient.rpc(
+        "toit_artemis.delete_pod_descriptions",
+        params,
+      );
+      return { error };
+    }
+    case COMMAND_POD_REGISTRY_DELETE_: {
+      const { error } = await supabaseClient.rpc(
+        "toit_artemis.delete_pods",
+        params,
+      );
+      return { error };
     }
 
     default:

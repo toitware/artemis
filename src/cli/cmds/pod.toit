@@ -76,7 +76,7 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       --long_help="""
         Download a pod from the broker.
 
-        The pod to download is specified through a remote pod reference like
+        The pod to download is specified through a pod reference like
         name@tag or name#revision.
 
         If only the pod name is provided, the pod with the 'latest' tag is
@@ -90,8 +90,8 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --rest=[
-        cli.Option "remote"
-            --short_help="A remote pod reference; a UUID, name@tag, or name#revision."
+        cli.Option "reference"
+            --short_help="A pod reference: a UUID, name@tag, or name#revision."
             --required,
       ]
       --run=:: download it config cache ui
@@ -133,6 +133,29 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: print it config cache ui
   cmd.add print_cmd
 
+  delete_cmd := cli.Command "delete"
+      --long_help="""
+        Delete the given pod(s) from the broker.
+
+        The pod to delete is specified through a pod reference like
+        name@tag or name#revision.
+
+        If the '--all' flag is provided, the arguments should be names
+        (without revision or tag) and all pods with that name are deleted.
+        """
+      --options=[
+        cli.Flag "all"
+            --short_help="Delete all pods with the given name.",
+      ]
+      --rest=[
+        cli.Option "name-or-reference"
+            --short_help="A pod name or reference (a UUID, name@tag, or name#revision)."
+            --multi
+            --required,
+      ]
+      --run=:: delete it config cache ui
+  cmd.add delete_cmd
+
   return [cmd]
 
 create_pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -167,16 +190,16 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
-  remote := parsed["remote"]
+  reference_string := parsed["reference"]
   output := parsed["output"]
 
-  reference := PodReference.parse remote --allow_name_only --ui=ui
+  reference := PodReference.parse reference_string --allow_name_only --ui=ui
 
   with_artemis parsed config cache ui: | artemis/Artemis |
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     pod := fleet.download reference
     pod.write output --ui=ui
-    ui.info "Downloaded pod '$remote' to '$output'."
+    ui.info "Downloaded pod '$reference_string' to '$output'."
 
 list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
@@ -252,3 +275,17 @@ print parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             printer.emit str
   if exception:
     ui.abort (exception as PodSpecificationException).message
+
+delete parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  fleet_root := parsed["fleet-root"]
+  reference_strings := parsed["name-or-reference"]
+  all := parsed["all"]
+
+  with_artemis parsed config cache ui: | artemis/Artemis |
+    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+    if all:
+      fleet.delete --description_names=reference_strings
+    else:
+      refs := reference_strings.map: | string | PodReference.parse string --ui=ui
+      fleet.delete --pod_references=refs
+  ui.info "Deleted pods '$(reference_strings.join ", ")'."
