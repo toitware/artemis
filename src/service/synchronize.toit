@@ -398,6 +398,7 @@ class SynchronizeJob extends TaskJob:
         // No goal state from the broker.
         // Potentially a device that has been flashed and provisioned but hasn't been
         // updated through the broker yet.
+        transition_to_ STATE_SYNCHRONIZED
         return null
       goal = Goal goal_state
 
