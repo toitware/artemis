@@ -215,33 +215,24 @@ test_firmware broker_cli/broker.BrokerCli broker_service/broker.BrokerService --
     broker_connection := broker_service.connect --network=network --device=DEVICE1
     try:
       data := #[]
-      offsets := []
       broker_connection.fetch_firmware FIRMWARE_ID:
         | reader/Reader offset |
           expect_equals data.size offset
           while chunk := reader.read: data += chunk
-          offsets.add offset
           data.size  // Continue at data.size.
 
       expect_equals content data
 
-      if offsets.size > 1:
-        offset_index := offsets.size / 2
-        current_offset := offsets[offset_index]
+      if content.size > 100:
+        // Test that we can fetch the firmware starting at an offset.
+        current_offset := 3 * content.size / 4
         broker_connection.fetch_firmware FIRMWARE_ID --offset=current_offset:
           | reader/Reader offset |
             expect_equals current_offset offset
             partial_data := utils.read_all reader
             expect_bytes_equal content[current_offset..current_offset + partial_data.size] partial_data
 
-            // If we can, advance by 3 chunks.
-            if offset_index + 3 < offsets.size:
-              offset_index += 3
-              current_offset = offsets[offset_index]
-            else:
-              // Otherwise advance chunk by chunk.
-              // Once we reached the end, we won't be called again.
-              current_offset += partial_data.size
+            current_offset += partial_data.size
             // Return the new offset.
             current_offset
     finally:

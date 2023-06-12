@@ -36,7 +36,7 @@ class HttpConnection_:
       return json.decode_stream reader
     unreachable
 
-  send_request command/int data/Map [block] -> none:
+  send_request command/int data/Map --expected_status/int?=null [block] -> none:
     encoded := #[command] + (json.encode data)
     request_headers/http.Headers? := null
     if config_.device_headers:
@@ -57,7 +57,10 @@ class HttpConnection_:
       throw "Broker error: $decoded"
 
     try:
-      if status != 200: throw "Not found ($status)"
+      if expected_status and expected_status != status:
+        throw "Unexpected status: $status"
+      if status == http.STATUS_NOT_FOUND: throw "Not found"
+      if not 200 <= status < 300: throw "Unexpected status: $status"
       block.call body
     finally:
       catch: response.drain

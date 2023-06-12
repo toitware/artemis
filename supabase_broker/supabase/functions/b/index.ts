@@ -110,10 +110,29 @@ async function handleRequest(req: Request) {
       const { bucket, path } = splitSupabaseStorage(params.path);
       if (usePublic) {
         // Download it from the public URL.
-        const headers = (offset != 0) ? [{ Range: `bytes=${offset}-` }] : {};
+        const headers = (offset != 0) ? [ ["Range", `bytes=${offset}-` ] ] : [];
         const { data: { publicUrl } } = supabaseClient.storage.from(bucket)
           .getPublicUrl(path);
-        return fetch(publicUrl, { headers });
+        if (offset == 0) return await fetch(publicUrl, { headers });
+
+        const response = await fetch(publicUrl, { headers });
+        if (response.status != 200) {
+          return response;
+        }
+        // Range not supported, download the whole file ourselves, and
+        // change it to a 206 response.
+        const content = await response.arrayBuffer();
+        if (content.byteLength < offset) {
+          throw new Error("offset too large");
+        }
+        // Return the requested slice.
+        return {
+          data: new BinaryResponse(
+            new Blob([content.slice(offset)]),
+            content.byteLength,
+          ),
+          error: null,
+        };
       }
       if (offset != 0) {
         throw new Error("offset not supported for private downloads");
@@ -232,7 +251,6 @@ serve(async (req: Request) => {
         "Content-Type": "application/octet-stream",
         "Content-Length": data.bytes.size.toString(),
         ...(isPartial && {
-          "Accept-Ranges": "bytes",
           "Content-Range": `bytes 0-${data.bytes.size - 1}/${data.totalSize}`,
         }),
       };
@@ -251,6 +269,7 @@ serve(async (req: Request) => {
       status: 200,
     });
   } catch (error) {
+    console.error(error);
     return new Response(JSON.stringify(error.message), {
       headers: { "Content-Type": "application/json" },
       status: STATUS_IM_A_TEAPOT,
