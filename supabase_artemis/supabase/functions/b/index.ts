@@ -31,10 +31,10 @@ const COMMAND_POD_REGISTRY_DELETE_DESCRIPTIONS_ = 110;
 const COMMAND_POD_REGISTRY_DELETE_ = 111;
 
 class BinaryResponse {
-  bytes: Blob;
+  bytes: ArrayBufferView;
   totalSize: number;
 
-  constructor(bytes: Blob, totalSize: number) {
+  constructor(bytes: ArrayBufferView, totalSize: number) {
     this.bytes = bytes;
     this.totalSize = totalSize;
   }
@@ -112,10 +112,29 @@ async function handleRequest(req: Request) {
       const { bucket, path } = splitSupabaseStorage(params.path);
       if (usePublic) {
         // Download it from the public URL.
-        const headers = (offset != 0) ? [{ Range: `bytes=${offset}-` }] : {};
+        const headers = (offset != 0) ? [ ["Range", `bytes=${offset}-` ] ] : [];
         const { data: { publicUrl } } = supabaseClient.storage.from(bucket)
           .getPublicUrl(path);
-        return fetch(publicUrl, { headers });
+        if (offset == 0) return await fetch(publicUrl, { headers });
+
+        const response = await fetch(publicUrl, { headers });
+        if (response.status != 200) {
+          return response;
+        }
+        // Range not supported, download the whole file ourselves, and
+        // change it to a 206 response.
+        const content = await response.arrayBuffer();
+        if (content.byteLength < offset) {
+          throw new Error("offset too large");
+        }
+        // Return the requested slice.
+        return {
+          data: new BinaryResponse(
+            new DataView(content, offset),
+            content.byteLength,
+          ),
+          error: null,
+        };
       }
       if (offset != 0) {
         throw new Error("offset not supported for private downloads");
@@ -125,7 +144,8 @@ async function handleRequest(req: Request) {
       if (error) {
         throw new Error(error.message);
       }
-      return { data: new BinaryResponse(data, data.size), error: null };
+      const bytes = await data.arrayBuffer();
+      return { data: new BinaryResponse(new DataView(bytes), data.size), error: null };
     }
     case COMMAND_UPDATE_GOAL_: {
       const { error } = await supabaseClient.rpc(
@@ -243,13 +263,12 @@ serve(async (req: Request) => {
       throw new Error(error.message);
     }
     if (data instanceof BinaryResponse) {
-      const isPartial = data.bytes.size != data.totalSize;
+      const isPartial = data.bytes.byteLength != data.totalSize;
       const headers = {
         "Content-Type": "application/octet-stream",
-        "Content-Length": data.bytes.size.toString(),
+        "Content-Length": data.bytes.byteLength.toString(),
         ...(isPartial && {
-          "Accept-Ranges": "bytes",
-          "Content-Range": `bytes 0-${data.bytes.size - 1}/${data.totalSize}`,
+          "Content-Range": `bytes 0-${data.bytes.byteLength - 1}/${data.totalSize}`,
         }),
       };
       return new Response(data.bytes, {
@@ -267,6 +286,7 @@ serve(async (req: Request) => {
       status: 200,
     });
   } catch (error) {
+    console.error(error);
     return new Response(JSON.stringify(error.message), {
       headers: { "Content-Type": "application/json" },
       status: STATUS_IM_A_TEAPOT,

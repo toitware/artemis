@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import http
 import log
 import net
 import reader show Reader
@@ -62,7 +63,9 @@ class BrokerConnectionHttp implements BrokerConnection:
       "path": "/toit-artemis-assets/$device_.organization_id/firmware/$id",
       "offset": offset,
     }
-    connection_.send_request COMMAND_DOWNLOAD_ payload: | reader/Reader |
+    expected_status := offset == 0 ? null : http.STATUS_PARTIAL_CONTENT
+    connection_.send_request COMMAND_DOWNLOAD_ payload --expected_status=expected_status:
+      | reader/Reader |
       block.call reader offset
 
   report_state state/Map -> none:

@@ -75,9 +75,12 @@ abstract class HttpServer:
       listeners.do: it.call "post" command response_data
       if response_data is BinaryResponse:
         binary := response_data as BinaryResponse
+        status := http.STATUS_OK
         if binary.bytes.size != binary.total_size:
           writer.headers.add "Content-Range" "$binary.bytes.size/$binary.total_size"
+          status = http.STATUS_PARTIAL_CONTENT
         writer.headers.set "Content-Length" "$binary.bytes.size"
+        writer.write_headers status
         writer.write binary.bytes
       else:
         encoded_response := json.encode response_data
