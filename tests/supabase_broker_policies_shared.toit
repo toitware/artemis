@@ -470,3 +470,45 @@ run_shared_pod_description_test
       ],
     }
     expect response.is_empty
+
+    // Other can't delete a pod.
+    other_client.rest.rpc "toit_artemis.delete_pods" {
+      "_fleet_id": "$fleet_id",
+      "_pod_ids": ["$pod_id1"],
+    }
+    pods = client1.rest.rpc "toit_artemis.get_pods_by_ids" {
+      "_fleet_id": "$fleet_id",
+      "_pod_ids": ["$pod_id1"],
+    }
+    expect_not pods.is_empty
+
+    // Client1 can delete a pod.
+    client1.rest.rpc "toit_artemis.delete_pods" {
+      "_fleet_id": "$fleet_id",
+      "_pod_ids": ["$pod_id1"],
+    }
+    pods = client1.rest.rpc "toit_artemis.get_pods_by_ids" {
+      "_fleet_id": "$fleet_id",
+      "_pod_ids": ["$pod_id1"],
+    }
+    expect pods.is_empty
+
+    // Other can't delete a description.
+    other_client.rest.rpc "toit_artemis.delete_pod_descriptions" {
+      "_fleet_id": "$fleet_id",
+      "_description_ids": ["$description_id"],
+    }
+    descriptions = client1.rest.rpc "toit_artemis.get_pod_descriptions_by_ids" {
+      "_description_ids": [description_id],
+    }
+    expect_not descriptions.is_empty
+
+    // Client1 can delete a description.
+    client1.rest.rpc "toit_artemis.delete_pod_descriptions" {
+      "_fleet_id": "$fleet_id",
+      "_description_ids": ["$description_id"],
+    }
+    descriptions = client1.rest.rpc "toit_artemis.get_pod_descriptions_by_ids" {
+      "_description_ids": [description_id],
+    }
+    expect descriptions.is_empty

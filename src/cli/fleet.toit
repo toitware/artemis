@@ -479,6 +479,44 @@ class Fleet:
       result[description] = pods
     return result
 
+  delete --description_names/List:
+    broker := artemis_.connected_broker
+    descriptions := broker.pod_registry_descriptions
+        --fleet_id=this.id
+        --organization_id=this.organization_id
+        --names=description_names
+        --no-create_if_absent
+    unknown_pod_descriptions := []
+    description_names.do: | name/string |
+      was_found := descriptions.any: | description/PodRegistryDescription |
+        description.name == name
+      if not was_found: unknown_pod_descriptions.add name
+    if not unknown_pod_descriptions.is_empty:
+      if unknown_pod_descriptions.size == 1:
+        ui_.abort "Unknown pod $(unknown_pod_descriptions[0])."
+      else:
+        ui_.abort "Unknown pods $(unknown_pod_descriptions.join ", ")."
+    broker.pod_registry_descriptions_delete
+        --fleet_id=this.id
+        --description_ids=descriptions.map: it.id
+
+  delete --pod_references/List:
+    broker := artemis_.connected_broker
+    pod_ids := broker.pod_registry_pod_ids --fleet_id=this.id --references=pod_references
+    unknown_pods := []
+    pod_references.do: | reference/PodReference |
+      if not pod_ids.contains reference:
+        unknown_pods.add reference
+    if not unknown_pods.is_empty:
+      if unknown_pods.size == 1:
+        ui_.abort "Unknown pod $(unknown_pods[0].to_string)."
+      else:
+        ui_.abort "Unknown pods $((unknown_pods.map: it.to_string).join ", ")."
+
+    broker.pod_registry_delete
+        --fleet_id=this.id
+        --pod_ids=pod_ids.values
+
   pod_reference_for_group name/string -> PodReference:
     return group_pods_.get name
         --if_absent=: ui_.abort "Unknown group $name"

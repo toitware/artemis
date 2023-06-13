@@ -97,6 +97,10 @@ class HttpBroker extends HttpServer:
       return pod_registry_pods_by_ids data
     if command == COMMAND_POD_REGISTRY_POD_IDS_BY_REFERENCE_:
       return pod_registry_pod_ids_by_reference data
+    if command == COMMAND_POD_REGISTRY_DELETE_DESCRIPTIONS_:
+      return pod_registry_delete_descriptions data
+    if command == COMMAND_POD_REGISTRY_DELETE_:
+      return pod_registry_delete data
 
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
@@ -237,6 +241,12 @@ class HttpBroker extends HttpServer:
     pod_registry_[id] = pod_description
     return id
 
+  pod_registry_delete_descriptions data/Map:
+    fleet_id := data["_fleet_id"]
+    description_ids := data["_description_ids"]
+    description_ids.do: | description_id |
+      pod_registry_.remove description_id
+
   pod_registry_add data/Map:
     pod_description_id := data["_pod_description_id"]
     pod_id := data["_pod_id"]
@@ -247,6 +257,18 @@ class HttpBroker extends HttpServer:
     description.pods[pod_id] = []
     description.pod_revisions[pod_id] = revision
     description.pod_created_ats[pod_id] = created_at
+
+  pod_registry_delete data/Map:
+    fleet_id := data["_fleet_id"]
+    pod_ids := data["_pod_ids"]
+
+    pod_registry_.do: | id description/PodDescription |
+      if description.fleet_id == fleet_id:
+        description.pods.do: | pod_id |
+          pod_ids.do: | pod_id |
+            description.pods.remove pod_id
+            description.pod_revisions.remove pod_id
+            description.pod_created_ats.remove pod_id
 
   pod_registry_tag_set data/Map:
     pod_description_id := data["_pod_description_id"]
