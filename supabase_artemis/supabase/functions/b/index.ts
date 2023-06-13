@@ -29,10 +29,10 @@ const COMMAND_POD_REGISTRY_PODS_BY_IDS_ = 108;
 const COMMAND_POD_REGISTRY_POD_IDS_BY_REFERENCE_ = 109;
 
 class BinaryResponse {
-  bytes: Blob;
+  bytes: ArrayBufferView;
   totalSize: number;
 
-  constructor(bytes: Blob, totalSize: number) {
+  constructor(bytes: ArrayBufferView, totalSize: number) {
     this.bytes = bytes;
     this.totalSize = totalSize;
   }
@@ -128,7 +128,7 @@ async function handleRequest(req: Request) {
         // Return the requested slice.
         return {
           data: new BinaryResponse(
-            new Blob([content.slice(offset)]),
+            new DataView(content, offset),
             content.byteLength,
           ),
           error: null,
@@ -142,7 +142,8 @@ async function handleRequest(req: Request) {
       if (error) {
         throw new Error(error.message);
       }
-      return { data: new BinaryResponse(data, data.size), error: null };
+      const bytes = await data.arrayBuffer();
+      return { data: new BinaryResponse(new DataView(bytes), data.size), error: null };
     }
     case COMMAND_UPDATE_GOAL_: {
       const { error } = await supabaseClient.rpc(
@@ -246,12 +247,12 @@ serve(async (req: Request) => {
       throw new Error(error.message);
     }
     if (data instanceof BinaryResponse) {
-      const isPartial = data.bytes.size != data.totalSize;
+      const isPartial = data.bytes.byteLength != data.totalSize;
       const headers = {
         "Content-Type": "application/octet-stream",
-        "Content-Length": data.bytes.size.toString(),
+        "Content-Length": data.bytes.byteLength.toString(),
         ...(isPartial && {
-          "Content-Range": `bytes 0-${data.bytes.size - 1}/${data.totalSize}`,
+          "Content-Range": `bytes 0-${data.bytes.byteLength - 1}/${data.totalSize}`,
         }),
       };
       return new Response(data.bytes, {
