@@ -1,5 +1,7 @@
 // Copyright (C) 2023 Toitware ApS.
 
+// ARTEMIS_TEST_FLAGS: BROKER
+
 import artemis.cli.utils show write_blob_to_file
 import expect show *
 import .utils

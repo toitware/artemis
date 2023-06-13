@@ -726,6 +726,7 @@ with_test_cli
       toit_file := program_name
       last_separator := max (toit_file.index_of --last "/") (toit_file.index_of --last "\\")
       gold_name = program_name[last_separator + 1 ..].trim --right ".toit"
+      gold_name = gold_name.trim --right "_slow"
 
     test_cli := TestCli config cache artemis_server broker
         --toit_run=toit_run
