@@ -152,6 +152,7 @@ class ContainerJob extends Job:
   trigger_install_/bool := false
   trigger_interval_/Duration? := null
   trigger_gpio_levels_/Map? := null
+  trigger_gpio_touch_/Set? := null
 
   // The $ContainerManager is responsible for scheduling
   // newly installed containers, so it manipulates this
@@ -266,6 +267,7 @@ class ContainerJob extends Job:
     trigger_install_ = false
     trigger_interval_ = null
     trigger_gpio_levels_ = null
+    trigger_gpio_touch_ = null
 
     // Update triggers unless we're a critical container.
     if is_critical: return
@@ -280,9 +282,18 @@ class ContainerJob extends Job:
         if name.starts_with "gpio-low:":
           if not trigger_gpio_levels_: trigger_gpio_levels_ = {:}
           trigger_gpio_levels_[value] = 0
+        if name.starts_with "gpio-touch:":
+          if not trigger_gpio_touch_: trigger_gpio_touch_ = {}
+          trigger_gpio_touch_.add value
+
+  has_gpio_pin_triggers -> bool:
+    return trigger_gpio_levels_ != null
 
   has_pin_triggers -> bool:
-    return trigger_gpio_levels_ != null
+    return has_gpio_pin_triggers or trigger_gpio_touch_ != null
 
   has_pin_trigger pin/int --level/int -> bool:
     return (trigger_gpio_levels_.get pin) == level
+
+  has_touch_trigger pin/int -> bool:
+    return trigger_gpio_touch_.contains pin
