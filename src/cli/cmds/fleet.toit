@@ -348,6 +348,9 @@ add_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   group := parsed["group"]
 
   with_fleet parsed config cache ui: | fleet/Fleet |
+    if not fleet.has_group group:
+      ui.abort "Group '$group' not found."
+
     with_artemis parsed config cache ui: | artemis/Artemis |
       broker := artemis.connected_broker
       devices := broker.get_devices --device_ids=[device_id]
