@@ -418,21 +418,34 @@ class Fleet:
         --pod_description_id=description_id
         --pod_id=pod.id
 
-    tags.do:
-      force := it == "latest"
-      broker.pod_registry_tag_set
-          --pod_description_id=description_id
-          --pod_id=pod.id
-          --tag=it
-          --force=force
+    is_existing_tag_error := : | error |
+      error is string and
+        (error.contains "duplicate key value" or error.contains "already exists")
+
+    had_tag_errors := false
+    tags.do: | tag/string |
+      force := tag == "latest"
+      exception := catch --unwind=(: not is_existing_tag_error.call it):
+        broker.pod_registry_tag_set
+            --pod_description_id=description_id
+            --pod_id=pod.id
+            --tag=tag
+            --force=force
+      if exception:
+        ui_.error "Tag '$tag' already exists for pod $pod.name."
+        had_tag_errors = true
 
     registered_pods := broker.pod_registry_pods --fleet_id=this.id --pod_ids=[pod.id]
     pod_entry/PodRegistryEntry := registered_pods[0]
 
-    ui_.info "Successfully uploaded $pod.name#$pod_entry.revision to fleet $this.id."
+    prefix := had_tag_errors ? "Uploaded" : "Successfully uploaded"
+    ui_.info "$prefix $pod.name#$pod_entry.revision to fleet $this.id."
     ui_.info "  id: $pod_entry.id"
     ui_.info "  references:"
     pod_entry.tags.do: ui_.info "    - $pod.name@$it"
+
+    if had_tag_errors:
+      ui_.abort "Encountered errors while setting tags."
 
   download reference/PodReference -> Pod:
     if reference.name and not (reference.tag or reference.revision):

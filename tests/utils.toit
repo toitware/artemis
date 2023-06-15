@@ -823,6 +823,9 @@ with_fleet --args/List --count/int [block]:
         "--organization-id", "$TEST_ORGANIZATION_UUID",
       ]
 
+      fleet_file := read_json "$fleet_dir/fleet.json"
+      test_cli.replacements[fleet_file["id"]] = pad_replacement_id "FLEET_ID"
+
       identity_dir := "$fleet_dir/identities"
       directory.mkdir --recursive identity_dir
       test_cli.run [
