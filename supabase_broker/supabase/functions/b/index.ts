@@ -51,9 +51,14 @@ function createSupabaseClient(req: Request) {
     Deno.env.get("SUPABASE_URL") ?? "",
     // Supabase API ANON KEY - env var exported by default.
     Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-    // Create client with Auth context of the user that called the function.
-    // This way your row-level-security (RLS) policies are applied.
     {
+      auth: {
+        // Don't try to persist the session. We would get warnings about
+        // no storage option being available.
+        persistSession: false,
+      },
+      // Create client with Auth context of the user that called the function.
+      // This way your row-level-security (RLS) policies are applied.
       global: {
         headers: { Authorization: authorization },
       },
