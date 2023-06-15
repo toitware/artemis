@@ -15,11 +15,11 @@ create_config_commands config/Config cache/Cache ui/Ui -> List:
   config_cmd := cli.Command "config"
       --short_help="Configure Artemis tool."
 
-  show_cmd := cli.Command "show"
-      --short_help="Show the current configuration."
-      --run=:: show_config config ui
-
-  config_cmd.add show_cmd
+  print_cmd := cli.Command "print"
+      --aliases=["show"]
+      --short_help="Prints the current configuration."
+      --run=:: print_config config ui
+  config_cmd.add print_cmd
 
   (create_server_config_commands config ui).do: config_cmd.add it
 
@@ -61,7 +61,6 @@ create_server_config_commands config/Config ui/Ui -> List:
             --default=true
             --short_help="Set the broker as the default broker.",
       ]
-
   config_broker_cmd.add add_cmd
 
   add_cmd.add
@@ -119,8 +118,56 @@ create_server_config_commands config/Config ui/Ui -> List:
 
   return [config_broker_cmd]
 
-show_config config/Config ui/Ui:
-  throw "UNIMPLEMENTED"
+print_config config/Config ui/Ui:
+  default_device := config.get CONFIG_DEVICE_DEFAULT_KEY
+  default_broker := config.get CONFIG_BROKER_DEFAULT_KEY
+  default_org := config.get CONFIG_ORGANIZATION_DEFAULT_KEY
+  servers := config.get CONFIG_SERVERS_KEY
+  auths := config.get CONFIG_SERVER_AUTHS_KEY
+
+  json_output := :
+    result := {
+      "path" : config.path
+    }
+
+    if default_device: result["default-device"] = default_device
+    if default_broker: result["default-broker"] = default_broker
+    if default_org: result["default-org"] = default_org
+    if servers: result["servers"] = servers
+    if auths:
+      // Store the auths with the servers.
+      result_servers := result.get "servers" --init=: {:}
+      auths.do: | server_name auth |
+        server := result_servers.get server_name --init=: {:}
+        if auth is Map:
+          ["access_token", "refresh_token"].do: | token_name |
+            if auth.contains token_name and auth[token_name].size > 35:
+              auth[token_name] = auth[token_name][0..30] + "..."
+        server["auth"] = auth
+    result
+
+  human_output := : | printer/Printer |
+    result := {
+      "Configuration file" : config.path
+    }
+    if default_device: result["Default device"] = default_device
+    if default_broker: result["Default broker"] = default_broker
+    if default_org: result["Default organization"] = default_org
+    if servers:
+      // TODO(florian): make the servers nicer.
+      result["Servers"] = servers
+    if auths:
+      // Store the auths with the servers.
+      result_servers := result.get "Servers" --init=: {:}
+      auths.do: | server_name auth |
+        server := result_servers.get server_name --init=: {:}
+        server["auth"] = auth
+    printer.emit result
+
+  ui.do --kind=Ui.RESULT: | printer/Printer |
+    printer.emit_structured
+        --json=json_output
+        --stdout=human_output
 
 default_server parsed/cli.Parsed config/Config ui/Ui:
   config_key := parsed["artemis"] ? CONFIG_ARTEMIS_DEFAULT_KEY : CONFIG_BROKER_DEFAULT_KEY
