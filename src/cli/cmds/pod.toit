@@ -59,8 +59,13 @@ create_pod_commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Option "tag"
+            --short_name="t"
             --short_help="A tag to attach to the pod."
             --multi,
+        cli.Flag "force"
+            --short_name="f"
+            --short_help="Force tags even if they already exist."
+            --default=false,
       ]
       --rest=[
         cli.Option "pod"
@@ -170,6 +175,7 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
   pod_paths := parsed["pod"]
   tags/List := parsed["tag"]
+  force/bool := parsed["force"]
 
   if tags.is_empty:
     name := random_name
@@ -186,7 +192,7 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     fleet := Fleet fleet_root artemis --ui=ui --cache=cache
     pod_paths.do: | pod_path/string |
       pod := Pod.from_file pod_path --artemis=artemis --ui=ui
-      fleet.upload --pod=pod --tags=tags
+      fleet.upload --pod=pod --tags=tags --force_tags=force
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet_root := parsed["fleet-root"]
