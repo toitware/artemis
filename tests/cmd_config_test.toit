@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS.
 
+import artemis.cli.config show CONFIG_SERVERS_KEY
 import artemis.shared.server_config show ServerConfigHttp
 import expect show *
 import .utils
@@ -67,3 +68,22 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       [
         "config", "show"
       ]
+
+  test_cli.run_gold "DAA-config-broker-default-non-existing"
+      "Try to set the default broker to a non-existing broker"
+      --expect_exit_1
+      [
+        "config", "broker", "default", "non-existing"
+      ]
+
+  servers_in_config := test_cli.config.get CONFIG_SERVERS_KEY
+  test_cli.config.remove CONFIG_SERVERS_KEY
+
+  test_cli.run_gold "DAB-config-broker-default-non-existing-no-servers"
+      "Try to set the default broker to a non-existing broker when there are no servers"
+      --expect_exit_1
+      [
+        "config", "broker", "default", "non-existing"
+      ]
+
+  test_cli.config[CONFIG_SERVERS_KEY] = servers_in_config
