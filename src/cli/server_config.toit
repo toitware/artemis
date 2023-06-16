@@ -34,7 +34,7 @@ get_server_from_config config/Config key/string -> ServerConfig:
 
 has_server_in_config config/Config server_name/string -> bool:
   servers := config.get CONFIG_SERVERS_KEY
-  return servers and servers.contains server_name
+  return (servers != null) and servers.contains server_name
 
 add_server_to_config config/Config server_config/ServerConfig:
   servers := config.get CONFIG_SERVERS_KEY --init=:{:}
