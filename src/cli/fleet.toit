@@ -518,20 +518,10 @@ class Fleet:
 
   delete --pod_references/List:
     broker := artemis_.connected_broker
-    pod_ids := broker.pod_registry_pod_ids --fleet_id=this.id --references=pod_references
-    unknown_pods := []
-    pod_references.do: | reference/PodReference |
-      if not pod_ids.contains reference:
-        unknown_pods.add reference
-    if not unknown_pods.is_empty:
-      if unknown_pods.size == 1:
-        ui_.abort "Unknown pod $(unknown_pods[0].to_string)."
-      else:
-        ui_.abort "Unknown pods $((unknown_pods.map: it.to_string).join ", ")."
-
+    pod_ids := get_pod_ids pod_references
     broker.pod_registry_delete
         --fleet_id=this.id
-        --pod_ids=pod_ids.values
+        --pod_ids=pod_ids
 
   pod_reference_for_group name/string -> PodReference:
     return group_pods_.get name
@@ -768,20 +758,35 @@ class Fleet:
     return PodFleet --id=pod_id --name=null --revision=null --tags=null
 
   get_pod_id reference/PodReference -> uuid.Uuid:
-    if reference.id:
-      return reference.id
-    if not reference.name:
-      throw "Either id or name must be specified."
-    if not reference.tag and not reference.revision:
-      throw "Either tag or revision must be specified."
+    return (get_pod_ids [reference])[0]
+
+  get_pod_ids references/List -> List:
+    references.do: | reference/PodReference |
+      if not reference.id:
+        if not reference.name:
+          throw "Either id or name must be specified: $reference"
+        if not reference.tag and not reference.revision:
+          throw "Either tag or revision must be specified: $reference"
+
+    missing_ids := references.filter: | reference/PodReference |
+      not reference.id
     broker := artemis_.connected_broker
-    pod_ids := broker.pod_registry_pod_ids --fleet_id=this.id --references=[reference]
-    if pod_ids.is_empty:
-      if reference.tag:
-        ui_.abort "No pod with name $reference.name and tag $reference.tag in the fleet."
-      else:
-        ui_.abort "No pod with name $reference.name and revision $reference.revision in the fleet."
-    return pod_ids[reference]
+    print "asking for $missing_ids"
+    pod_ids_response := broker.pod_registry_pod_ids --fleet_id=this.id --references=missing_ids
+
+    has_errors := false
+    result := references.map: | reference/PodReference |
+      if reference.id: continue.map reference.id
+      resolved := pod_ids_response.get reference
+      if not resolved:
+        has_errors = true
+        if reference.tag:
+          ui_.error "No pod with name $reference.name and tag $reference.tag in the fleet."
+        else:
+          ui_.error "No pod with name $reference.name and revision $reference.revision in the fleet."
+      resolved
+    if has_errors: ui_.abort
+    return result
 
   get_pod_id --name/string --tag/string? --revision/int? -> uuid.Uuid:
     return get_pod_id (PodReference --name=name --tag=tag --revision=revision)

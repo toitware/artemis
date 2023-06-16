@@ -297,4 +297,7 @@ delete parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     else:
       refs := reference_strings.map: | string | PodReference.parse string --ui=ui
       fleet.delete --pod_references=refs
-  ui.info "Deleted pods '$(reference_strings.join ", ")'."
+  if reference_strings.size == 1:
+    ui.info "Deleted pod '$(reference_strings.first)'."
+  else:
+    ui.info "Deleted pods '$(reference_strings.join ", ")'."

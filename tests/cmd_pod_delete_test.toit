@@ -63,7 +63,7 @@ run_test test_cli/TestCli fleet_dir/string:
   spec2_ids := tmp[1]
 
   pod3_name := "pod3"
-  tmp = create_pods pod3_name test_cli fleet_dir --count=1
+  tmp = create_pods pod3_name test_cli fleet_dir --count=2
   description3_id := tmp[0]
   spec3_ids := tmp[1]
 
@@ -96,6 +96,20 @@ run_test test_cli/TestCli fleet_dir/string:
   expect_equals 1 pods.size
   expect_equals spec2_ids[0] pods[0]["id"]
 
+  pod3_id2 := spec3_ids[1]
+  test_cli.replacements["$pod3_id2"] = pad_replacement_id "POD3-ID"
+  test_cli.run_gold "CCA-delete-pod-id"
+      "Delete a pod by id"
+      [
+        "--fleet-root", fleet_dir,
+        "pod", "delete", "$pod3_id2"
+      ]
+  pods = test_cli.run --json [
+    "--fleet-root", fleet_dir,
+    "pod", "list", "--name", pod3_name
+  ]
+  expect_equals 1 pods.size
+
   test_cli.run_gold "DAA-delete-pods-by-name"
       "Delete pods by name"
       [
@@ -114,6 +128,15 @@ run_test test_cli/TestCli fleet_dir/string:
       [
         "--fleet-root", fleet_dir,
         "pod", "delete", "$pod1_name#2"
+      ]
+
+  // TODO(florian): would be nice to either give an error message, or
+  // at least to not show "Deleted pods...".
+  test_cli.run_gold "EBb-delete-non-existing-id"
+      "Delete non-existing id doesn't do anything"
+      [
+        "--fleet-root", fleet_dir,
+        "pod", "delete", "$pod3_id2"  // Was deleted earlier.
       ]
 
   test_cli.run_gold --expect_exit_1 "EBD-delete-non-existing-many"
