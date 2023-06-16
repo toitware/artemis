@@ -10,7 +10,7 @@ main args:
 
 run_test test_cli/TestCli fake_devices/List fleet_dir/string:
   json_config := test_cli.run --json [
-    "config", "print"
+    "config", "show"
   ]
   expect_equals "$test_cli.tmp_dir/config" json_config["path"]
   expect_equals "test-broker" json_config["default-broker"]
@@ -37,10 +37,10 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
 
   test_cli.replacements["$artemis_config["auth"]"] = "<ARTEMIS_AUTH>"
 
-  test_cli.run_gold "BAA-config-print"
+  test_cli.run_gold "BAA-config-show"
       "Print the test config"
       [
-        "config", "print"
+        "config", "show"
       ]
 
   fake_device := fake_devices[0] as FakeDevice
@@ -57,13 +57,13 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
 
   json_config = test_cli.run --json [
     "--fleet-root", fleet_dir,
-    "config", "print"
+    "config", "show"
   ]
   expect_equals "$fake_device.alias_id" json_config["default-device"]
   expect_equals "$fake_device.organization_id" json_config["default-org"]
 
-  test_cli.run_gold "BBA-config-print-default-values-set"
+  test_cli.run_gold "BBA-config-show-default-values-set"
       "Print the test config with default values set"
       [
-        "config", "print"
+        "config", "show"
       ]
