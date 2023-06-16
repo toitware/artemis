@@ -326,6 +326,9 @@ class Fleet:
   create_identities count/int -> List
       --group/string
       --output_directory/string:
+    if not has_group group:
+      ui_.abort "Group '$group' not found."
+
     old_size := devices_.size
     try:
       new_identity_files := []
@@ -520,6 +523,9 @@ class Fleet:
   pod_reference_for_group name/string -> PodReference:
     return group_pods_.get name
         --if_absent=: ui_.abort "Unknown group $name"
+
+  has_group group/string -> bool:
+    return group_pods_.contains group
 
   add_device --device_id/uuid.Uuid --name/string? --group/string --aliases/List?:
     if aliases and aliases.is_empty: aliases = null
