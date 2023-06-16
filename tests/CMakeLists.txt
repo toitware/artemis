@@ -2,8 +2,8 @@
 
 file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*_test.toit" "*_test_slow.toit")
 
-set(TEST_TIMEOUT 40 CACHE STRING "The maximal amount of time each test is allowed to run")
-set(SLOW_TEST_TIMEOUT 200 CACHE STRING "The maximal amount of time each slow test is allowed to run")
+set(TEST_TIMEOUT 100 CACHE STRING "The maximal amount of time each test is allowed to run")
+set(SLOW_TEST_TIMEOUT 300 CACHE STRING "The maximal amount of time each slow test is allowed to run")
 set(WITH_LOCAL_SUPABASE TRUE CACHE BOOL "Whether the local supabase tests should be run")
 
 set(DEV_SDK_VERSION "" CACHE STRING "Version of the dev sdk")

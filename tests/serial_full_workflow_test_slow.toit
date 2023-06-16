@@ -8,12 +8,13 @@ import artemis.cli.config
 import artemis.cli.server_config as cli_server_config
 import artemis.service
 import artemis.shared.server_config show ServerConfig ServerConfigHttp
-import artemis.cli.utils show read_json write_json_to_file
+import artemis.cli.utils show read_json write_json_to_file write_blob_to_file
 import encoding.json
 import host.directory
 import host.file
 import host.os
 import host.pipe
+import uuid
 import expect show *
 import .artemis_server show TestArtemisServer
 import .utils
@@ -35,6 +36,8 @@ main args/List:
 
   with_test_cli --args=args: | test_cli/TestCli |
     run_test test_cli serial_port wifi_ssid wifi_password
+
+
 
 run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/string:
   tmp_dir := test_cli.tmp_dir
@@ -295,6 +298,15 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "--port", serial_port,
       ]
 
+  test_device := test_cli.listen_to_serial_device
+      --serial_port=serial_port
+      --alias_id=uuid.parse device_id
+      // We don't know the actual hardware-id.
+      // Cheat by reusing the alias id.
+      --hardware_id=uuid.parse device_id
+
+  test_device.wait_for "INFO: synchronized"
+
   with_timeout --ms=15_000:
     while true:
       // Wait for the device to come online.
@@ -322,6 +334,8 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
       ]
 
   updated_spec := read_json spec_path
+  // Unfortunately we can't go below 10 seconds as the device
+  // prevents that. We could set it, but it wouldn't take effect.
   updated_spec["max-offline"] = "11s"
   write_json_to_file --pretty spec_path updated_spec
 
@@ -429,3 +443,24 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "--max-events", "0",
         "--fleet-root", fleet_dir,
       ]
+
+  hello_world := """
+    main: print "hello world"
+    """
+  hello_world_path := "$fleet_dir/hello-world.toit"
+  write_blob_to_file hello_world_path hello_world
+
+  test_device.clear_output
+
+  test_cli.run_gold "EAA-container-install"
+      "Install a container"
+      [
+        "--fleet-root", fleet_dir,
+        "device", "-d", device_id,
+        "container", "install",
+        "hello",
+        hello_world_path,
+      ]
+
+  with_timeout --ms=25_000:
+    test_device.wait_for "hello world"
