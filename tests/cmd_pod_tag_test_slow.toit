@@ -11,6 +11,17 @@ main args:
     run_test test_cli fleet_dir
 
 run_test test_cli/TestCli fleet_dir/string:
+  pod_name := "test-pod"
+
+  add_pod_replacements := : | output/string |
+    pods := test_cli.run --json [
+      "--fleet-root", fleet_dir,
+      "pod", "list", "--name", pod_name
+    ]
+    pods.do:
+      test_cli.replacements["$it["id"]"] = pad_replacement_id "ID $pod_name#$(it["revision"])"
+    output
+
   test_cli.ensure_available_artemis_service
 
   name := "test-pod"
@@ -36,29 +47,21 @@ run_test test_cli/TestCli fleet_dir/string:
     "--fleet-root", fleet_dir,
     "pod", "upload", spec_path, "--tag", "some-tag"
   ]
-
-  pods := test_cli.run --json [
-    "--fleet-root", fleet_dir,
-    "pod", "list", "--name", name
-  ]
-  expect_equals 1 pods.size
-  pod_id := pods[0]["id"]
-
-  test_cli.replacements["$pod_id"] = pad_replacement_id "POD-ID#1"
+  add_pod_replacements.call ""
 
   test_cli.run_gold "BAA-upload-existing-tag"
       "Upload a pod with existing tag"
       --expect_exit_1
-      --before_gold=: | output/string |
-        pods = test_cli.run --json [
-          "--fleet-root", fleet_dir,
-          "pod", "list", "--name", name
-        ]
-        expect_equals 2 pods.size
-        pods.do:
-          test_cli.replacements["$it["id"]"] = pad_replacement_id "POD-ID#$(it["revision"])"
-        output
+      --before_gold=add_pod_replacements
       [
         "--fleet-root", fleet_dir,
         "pod", "upload", spec_path, "--tag", "some-tag"
+      ]
+
+  test_cli.run_gold "BAC-upload-existing-tag-force"
+      "Upload a pod with existing tag using --force"
+      --before_gold=add_pod_replacements
+      [
+        "--fleet-root", fleet_dir,
+        "pod", "upload", spec_path, "--tag", "some-tag", "--force"
       ]
