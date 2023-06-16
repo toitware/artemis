@@ -1,8 +1,7 @@
 # Upload a pod with existing tag
 # [--fleet-root, <FLEET_ROOT>, pod, upload, <FLEET_ROOT>/test-pod.json, --tag, some-tag]
-Error: Tag 'some-tag' already exists for pod test-pod.
 Uploaded test-pod#2 to fleet -={|~~~~~~~~~~FLEET_ID~~~~~~~~~~|}=-.
   id: -={|~~~~~~~~~~POD-ID#2~~~~~~~~~~|}=-
   references:
     - test-pod@latest
-Error: Encountered errors while setting tags.
+Error: Tag 'some-tag' already exists for pod test-pod.

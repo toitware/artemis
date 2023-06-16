@@ -10,7 +10,6 @@ main args:
   with_fleet --count=0 --args=args: | test_cli/TestCli _ fleet_dir/string |
     run_test test_cli fleet_dir
 
-
 run_test test_cli/TestCli fleet_dir/string:
   test_cli.ensure_available_artemis_service
 
