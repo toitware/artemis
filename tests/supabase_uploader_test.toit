@@ -33,6 +33,8 @@ run_main_test
   available_sdks := test_cli.run [
     "sdk", "list", "--sdk-version", test_cli.sdk_version, "--service-version", service_version
   ]
+  if not available_sdks.contains service_version:
+    print "Available sdks: $available_sdks"
   expect (available_sdks.contains service_version)
 
   // Check that the snapshot was written into the snapshot directory.
