@@ -390,7 +390,7 @@ class Fleet:
 
   Also uploads the trivial patches.
   */
-  upload --pod/Pod --tags/List -> none:
+  upload --pod/Pod --tags/List --force_tags/bool -> none:
     artemis_.upload --pod=pod --organization_id=organization_id
 
     broker := artemis_.connected_broker
@@ -427,7 +427,7 @@ class Fleet:
 
     tag_errors := []
     tags.do: | tag/string |
-      force := tag == "latest"
+      force := force_tags or (tag == "latest")
       exception := catch --unwind=(: not is_existing_tag_error.call it):
         broker.pod_registry_tag_set
             --pod_description_id=description_id
