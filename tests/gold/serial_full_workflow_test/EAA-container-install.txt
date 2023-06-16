@@ -1,0 +1,4 @@
+# Install a container
+# [--fleet-root, TMP_DIR/fleet, device, -d, -={|    UUID-FOR-TEST-DEVICE    |}=-, container, install, hello, TMP_DIR/fleet/hello-world.toit]
+Installing container 'hello'.
+Request sent to broker. Container will be installed when device synchronizes.
