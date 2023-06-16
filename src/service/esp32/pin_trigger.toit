@@ -35,7 +35,7 @@ class PinTriggerManager:
   // The pin mask that triggered a wakeup.
   startup_triggers_/int := 0
   setup_watcher_mutex_ ::= monitor.Mutex
-  touch_mutex_ := monitor.Mutex
+  touch_mutex_ ::= monitor.Mutex
 
   constructor .scheduler_ .logger_:
 
@@ -178,7 +178,7 @@ class PinTriggerManager:
       if job.is_running: continue.do
       if job.is_triggered_: continue.do
       is_triggered := (level and job.has_pin_trigger pin_number --level=level) or
-            (touch and job.has_touch_trigger pin_number)
+                      (touch and job.has_touch_trigger pin_number)
       if is_triggered:
         tags := job.tags.copy
         tags["pin"] = pin_number
