@@ -222,11 +222,14 @@ list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit_structured
           --json=:
-            json_descriptions := {:}
             json_pods := []
             pods.do: | key/PodRegistryDescription pod_entries/List |
-              json_descriptions[key.id] = key.to_json
-              json_pods.add_all (pod_entries.map: | entry/PodRegistryEntry | entry.to_json)
+              name := key.name
+              json_entries := pod_entries.map: | entry/PodRegistryEntry |
+                json_entry := entry.to_json
+                json_entry["name"] = name
+                json_entry
+              json_pods.add_all json_entries
             json_pods
           --stdout=:
             print_pods_ pods --printer=printer

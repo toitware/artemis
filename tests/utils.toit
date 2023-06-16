@@ -272,6 +272,20 @@ class TestCli:
     test_devices_.add result
     return result
 
+  listen_to_serial_device -> TestDevice
+      --alias_id/uuid.Uuid
+      --hardware_id/uuid.Uuid
+      --serial_port/string:
+    result := TestDevicePipe
+        --broker=broker
+        --alias_id=alias_id
+        --hardware_id=hardware_id
+        --organization_id=TEST_ORGANIZATION_UUID
+        --serial_port=serial_port
+        --toit_run=toit_run_
+    test_devices_.add result
+    return result
+
   start_fake_device -> FakeDevice
       --organization_id/uuid.Uuid=TEST_ORGANIZATION_UUID
       --firmware_token/ByteArray?=null:
@@ -504,7 +518,7 @@ class FakeDevice extends TestDevice:
 
 class TestDevicePipe extends TestDevice:
   chunks_/List := []  // Of bytearrays.
-  child_process_/any := ?
+  child_process_/any := null
   signal_ := monitor.Signal
   stdout_task_/Task? := null
   stderr_task_/Task? := null
@@ -519,6 +533,13 @@ class TestDevicePipe extends TestDevice:
 
     broker_config_json := broker.server_config.to_json --der_serializer=: unreachable
     encoded_broker_config := json.stringify broker_config_json
+
+    super
+        --broker=broker
+        --hardware_id=hardware_id
+        --alias_id=alias_id
+        --organization_id=organization_id
+
     flags := [
       "test_device.toit",
       "--hardware-id=$hardware_id",
@@ -527,6 +548,29 @@ class TestDevicePipe extends TestDevice:
       "--encoded-firmware=$encoded_firmware",
       "--broker-config-json=$encoded_broker_config",
     ]
+    fork_ toit_run flags
+
+  constructor
+      --broker/TestBroker
+      --hardware_id/uuid.Uuid
+      --alias_id/uuid.Uuid
+      --organization_id/uuid.Uuid
+      --serial_port/string
+      --toit_run/string:
+    super
+        --broker=broker
+        --hardware_id=hardware_id
+        --alias_id=alias_id
+        --organization_id=organization_id
+
+    flags := [
+      "test_device_serial.toit",
+      "--port", serial_port
+    ]
+    fork_ toit_run flags
+
+
+  fork_ toit_run flags:
     fork_data := pipe.fork
         true                // use_path
         pipe.PIPE_INHERITED // stdin
@@ -537,11 +581,6 @@ class TestDevicePipe extends TestDevice:
     stdout := fork_data[1]
     stderr := fork_data[2]
     child_process_ = fork_data[3]
-    super
-        --broker=broker
-        --hardware_id=hardware_id
-        --alias_id=alias_id
-        --organization_id=organization_id
 
     // We are listening to both stdout and stderr.
     // We expect only one to be really used. Otherwise, looking for
@@ -594,6 +633,8 @@ class TestDevicePipe extends TestDevice:
   wait_for needle/string -> none:
     last_end := 0
     signal_.wait:
+      if chunks_.is_empty: continue.wait false
+
       start_index := chunks_.size - 1
       accumulated_size := chunks_[start_index].size
 
