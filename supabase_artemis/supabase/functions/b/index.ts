@@ -120,7 +120,7 @@ async function handleRequest(req: Request) {
           response = await fetch(publicUrl, { headers });
           // 2023-06-15: we accidentally stored binary data as UTF-8 and thus didn't
           //   get a Content-Length header. This is a workaround for that.
-          // It should be save to simply `return await fetch(publicUrl, { headers });`
+          // It should be safe to simply `return await fetch(publicUrl, { headers });`
           //   at some point in the future.
           if (response.headers.get("Content-Length") != null) {
             // If there is no content-length header we will fall through and
