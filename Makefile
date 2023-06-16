@@ -2,7 +2,7 @@
 
 TOITRUN ?= toit.run
 
-LOCAL_DEV_SDK ?= v2.0.0-alpha.86
+LOCAL_DEV_SDK ?= v2.0.0-alpha.87
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 export ARTEMIS_CONFIG := $(HOME)/.config/artemis-dev/config

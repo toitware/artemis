@@ -2,6 +2,7 @@
 
 import esp32
 import gpio
+import gpio.touch as gpio
 import log
 import monitor
 
@@ -10,9 +11,13 @@ import ..scheduler
 
 class Watcher:
   gpio_pin/gpio.Pin
+  touch_pin/gpio.Touch?
   task/Task
 
   constructor .gpio_pin .task:
+    touch_pin = null
+
+  constructor.touch .gpio_pin .touch_pin .task:
 
 class PinTriggerManager:
   scheduler_/Scheduler
@@ -21,6 +26,8 @@ class PinTriggerManager:
   // watchers[0] watch for level 0.
   // watchers[1] watch for level 1.
   pin_trigger_watchers_/List ::= [{:}, {:}]  // List of Map<int, Watcher>
+  // Watchers for touch events.
+  touch_trigger_watchers_/Map ::= {:}  // Map<int, Watcher>
   // Any job that has pin-triggers is stored here.
   // If a job is already triggered or running, then it doesn't need any watchers,
   // but it's still stored here.
@@ -28,6 +35,7 @@ class PinTriggerManager:
   // The pin mask that triggered a wakeup.
   startup_triggers_/int := 0
   setup_watcher_mutex_ ::= monitor.Mutex
+  touch_mutex_ ::= monitor.Mutex
 
   constructor .scheduler_ .logger_:
 
@@ -58,14 +66,20 @@ class PinTriggerManager:
   update_ -> none:
     BOTH ::= -1
     needed_watchers := {:}
+    needed_touch_watchers := {}
+
     watched_jobs_.do --values: | job/ContainerJob |
       if job.is_running or job.is_triggered_: continue.do
-      job.trigger_gpio_levels_.do: | pin level/int |
-        // If not present set to the current level.
-        // If present, update to BOTH if we have already seen the other level.
-        needed_watchers.update pin
-            --if_absent=level
-            : it != level ? BOTH : level
+      if job.trigger_gpio_levels_:
+        job.trigger_gpio_levels_.do: | pin level/int |
+          // If not present set to the current level.
+          // If present, update to BOTH if we have already seen the other level.
+          needed_watchers.update pin
+              --if_absent=level
+              : it != level ? BOTH : level
+
+      if job.trigger_gpio_touch_:
+        needed_touch_watchers.add_all job.trigger_gpio_touch_
 
     // Close all watchers we don't need anymore.
     // If we are really unlucky we might close a pin that we
@@ -83,12 +97,25 @@ class PinTriggerManager:
             watcher.gpio_pin.close
         is_needed
 
+    touch_trigger_watchers_.filter --in_place: | pin/int watcher/Watcher |
+      is_needed := needed_touch_watchers.contains pin
+      if not is_needed:
+        watcher.task.cancel
+        watcher.touch_pin.close
+        watcher.gpio_pin.close
+      is_needed
+
     needed_watchers.do: | pin/int level/int |
       if level == BOTH:
         setup_watcher_ pin --level=0
         setup_watcher_ pin --level=1
       else:
         setup_watcher_ pin --level=level
+
+    // If a touch pin is also an external trigger, then the setup_touch_watcher_
+    // will fail.
+    // Not sure if we should do more here.
+    needed_touch_watchers.do: setup_touch_watcher_ it
 
   /**
   Sets up pin triggers for the given $job.
@@ -130,8 +157,11 @@ class PinTriggerManager:
     if not job.has_pin_triggers: return
 
     watched_jobs_[job.name] = job
-    job.trigger_gpio_levels_.do: | pin level/int |
-      setup_watcher_ pin --level=level
+    if job.trigger_gpio_levels_:
+      job.trigger_gpio_levels_.do: | pin level/int |
+        setup_watcher_ pin --level=level
+    if job.trigger_gpio_touch_:
+      job.trigger_gpio_touch_.do: setup_touch_watcher_ it
 
   /**
   Informs the manager that a pin has been triggered.
@@ -140,23 +170,29 @@ class PinTriggerManager:
   Before running the jobs disables the watchers that aren't needed
     anymore so that the jobs can use the pins.
   */
-  notify_pin pin_number/int --level/int:
+  notify_pin pin_number/int --level/int?=null --touch/bool?=null:
     watched_jobs_.values.do: | job/ContainerJob |
       if not job.has_pin_triggers:
         // Should never happen.
         continue.do
       if job.is_running: continue.do
       if job.is_triggered_: continue.do
-      if job.has_pin_trigger pin_number --level=level:
+      is_triggered := (level and job.has_pin_trigger pin_number --level=level) or
+                      (touch and job.has_touch_trigger pin_number)
+      if is_triggered:
         tags := job.tags.copy
         tags["pin"] = pin_number
-        tags["level"] = level
+        if level: tags["level"] = level
+        else: tags["touch"] = touch
         logger_.info "triggered by pin" --tags=tags
         job.is_triggered_ = true
-    // Update the triggers before we wake up the job.
-    // Otherwise the job might not be able to access the pin.
-    update_
-    scheduler_.on_job_updated
+    // We need a critical_do as `update_` might kill the currently running
+    // task.
+    critical_do:
+      // Update the triggers before we wake up the job.
+      // Otherwise the job might not be able to access the pin.
+      update_
+      scheduler_.on_job_updated
 
   /**
   Sets up a watcher for the given $pin_number and $level.
@@ -205,10 +241,49 @@ class PinTriggerManager:
       }
       logger_.error "failed to setup pin trigger" --tags=tags
 
+  setup_touch_watcher_ pin_number/int -> none:
+    setup_watcher_mutex_.do:
+      if touch_trigger_watchers_.contains pin_number: return
+      exception := catch:
+        pin := gpio.Pin pin_number
+        touch := gpio.Touch pin
+        // TODO(florian): we want to get the threshold from a saved calibration.
+        // TODO(florian): we should save the threshold the first time we do the
+        // calibration.
+        calibrate_ touch
+        // TODO(florian): it would be much more efficient if touch events were
+        // triggered by interrupts. However, at the very least, we should have
+        // only one task watching all touch pins.
+        watch_task := task --background::
+          catch --trace:
+            while true:
+              data := touch.read --raw
+              if data < touch.threshold:
+                notify_pin pin_number --touch
+                break
+              sleep --ms=200
+
+        watcher := Watcher.touch pin touch watch_task
+        touch_trigger_watchers_[pin_number] = watcher
+
+      if not exception: return
+      tags := {
+        "pin": pin_number,
+        "exception": exception,
+      }
+      logger_.error "failed to setup touch trigger" --tags=tags
+
+  calibrate_ touch/gpio.Touch -> none:
+    TOUCH_CALIBRATION_SAMPLES ::= 16
+    sum := 0
+    TOUCH_CALIBRATION_SAMPLES.repeat: sum += touch.read --raw
+    touch.threshold = sum * 2 / (3 * TOUCH_CALIBRATION_SAMPLES)
+    logger_.info "calibrated touch" --tags={"pin": touch.pin.num, "threshold": touch.threshold}
+
   trigger_mask_ jobs/List --level/int -> int:
     mask := 0
     jobs.do: | job/ContainerJob |
-      if job.has_pin_triggers:
+      if job.has_gpio_pin_triggers:
         job.trigger_gpio_levels_.do: | pin pin_level/int |
           if level == pin_level:
             mask |= 1 << pin
@@ -239,6 +314,9 @@ class PinTriggerManager:
       logger_.info "setting up external-wakeup trigger all low: $(%b low_mask)"
       esp32.enable_external_wakeup low_mask false
 
+    if (jobs.any: | job/ContainerJob | not job.trigger_gpio_touch_.is_empty):
+      esp32.enable_touchpad_wakeup
+
   handle_external_triggers_ jobs/List -> none:
     cause := esp32.wakeup_cause
     if cause != esp32.WAKEUP_UNDEFINED:
@@ -248,11 +326,12 @@ class PinTriggerManager:
       external_mask := high_mask != 0 ? high_mask : low_mask
 
       triggered_pins := esp32.ext1_wakeup_status external_mask
+      touch_wakeup_pin := esp32.touchpad_wakeup_status  // -1 if not triggered by touch.
 
       job_was_triggered := false
       // If the high_mask isn't 0, then it wins over the low mask.
       jobs.do: | job/ContainerJob |
-        if job.has_pin_triggers:
+        if job.trigger_gpio_levels_:
           job.trigger_gpio_levels_.do: | pin level/int |
             pin_mask := 1 << pin
             if (triggered_pins & pin_mask) != 0:
@@ -270,6 +349,14 @@ class PinTriggerManager:
                 tags["pin"] = pin
                 tags["level"] = level
                 logger_.info "triggered by pin" --tags=tags
+        if job.trigger_gpio_touch_ and touch_wakeup_pin != -1:
+          job.trigger_gpio_touch_.do: | pin |
+            if touch_wakeup_pin == pin:
+              job_was_triggered = true
+              job.is_triggered_ = true
+              tags := job.tags.copy
+              tags["pin"] = pin
+              logger_.info "triggered by touch" --tags=tags
 
       if job_was_triggered:
         scheduler_.on_job_updated

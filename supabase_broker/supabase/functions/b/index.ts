@@ -51,9 +51,14 @@ function createSupabaseClient(req: Request) {
     Deno.env.get("SUPABASE_URL") ?? "",
     // Supabase API ANON KEY - env var exported by default.
     Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-    // Create client with Auth context of the user that called the function.
-    // This way your row-level-security (RLS) policies are applied.
     {
+      auth: {
+        // Don't try to persist the session. We would get warnings about
+        // no storage option being available.
+        persistSession: false,
+      },
+      // Create client with Auth context of the user that called the function.
+      // This way your row-level-security (RLS) policies are applied.
       global: {
         headers: { Authorization: authorization },
       },
@@ -102,7 +107,7 @@ async function handleRequest(req: Request) {
       const { bucket, path } = splitSupabaseStorage(params.path);
       const { error } = await supabaseClient.storage
         .from(bucket)
-        .upload(path, params["data"], { upsert: true });
+        .upload(path, params["data"], { upsert: true, contentType: "application/octet-stream" });
       return { error };
     }
     case COMMAND_DOWNLOAD_:
@@ -115,14 +120,26 @@ async function handleRequest(req: Request) {
         const headers = (offset != 0) ? [ ["Range", `bytes=${offset}-` ] ] : [];
         const { data: { publicUrl } } = supabaseClient.storage.from(bucket)
           .getPublicUrl(path);
-        if (offset == 0) return await fetch(publicUrl, { headers });
-
-        const response = await fetch(publicUrl, { headers });
+        let response: Response;
+        if (offset == 0) {
+          response = await fetch(publicUrl, { headers });
+          // 2023-06-15: we accidentally stored binary data as UTF-8 and thus didn't
+          //   get a Content-Length header. This is a workaround for that.
+          // It should be safe to simply `return await fetch(publicUrl, { headers });`
+          //   at some point in the future.
+          if (response.headers.get("Content-Length") != null) {
+            // If there is no content-length header we will fall through and
+            //   return a BinaryResponse with the full content.
+            return response;
+          }
+        } else {
+          response = await fetch(publicUrl, { headers });
+        }
         if (response.status != 200) {
           return response;
         }
-        // Range not supported, download the whole file ourselves, and
-        // change it to a 206 response.
+        // Range not supported. Download the whole file ourselves, and
+        // let the `BinaryResponse` handling deal with partial responses.
         const content = await response.arrayBuffer();
         if (content.byteLength < offset) {
           throw new Error("offset too large");

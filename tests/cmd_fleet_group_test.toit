@@ -315,3 +315,35 @@ run_test test_cli/TestCli fleet_dir/string:
           "--to", "default",
           "--group", "test-group-5"
       ]
+
+  test_cli.run_gold "180-no-add-device"
+      "Can't add a device to a group that doesn't exist"
+      --expect_exit_1
+      [
+          "--fleet-root", fleet_dir,
+          "fleet", "add-device", "--group", "does-not-exist", "$TEST_DEVICE_UUID",
+      ]
+
+  test_cli.run_gold "181-no-add-device-default"
+      "Can't add a device to default group that doesn't exist"
+      --expect_exit_1
+      [
+          "--fleet-root", fleet_dir,
+          "fleet", "add-device", "$TEST_DEVICE_UUID",
+      ]
+
+  test_cli.run_gold "182-no-create-identity"
+      "Can't create an identity for a group that doesn't exist"
+      --expect_exit_1
+      [
+          "--fleet-root", fleet_dir,
+          "fleet", "create-identities", "--group", "does-not-exist", "1",
+      ]
+
+  test_cli.run_gold "183-no-create-identity-default"
+      "Can't create an identity for default group that doesn't exist"
+      --expect_exit_1
+      [
+          "--fleet-root", fleet_dir,
+          "fleet", "create-identities", "1",
+      ]
