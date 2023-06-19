@@ -114,17 +114,29 @@ class SynchronizeJob extends TaskJob:
   // resetting memory and (some) peripheral state.
   static STATUS_NON_GREEN_MAX_UPTIME ::= Duration --m=10
 
+  // We are careful and try to avoid spending too much
+  // time waiting for network operations. These can be
+  // quite slow in particular for cellular networks, so
+  // these settings may have to be tweaked.
+  static TIMEOUT_NETWORK_OPEN       ::= Duration --m=2
+  static TIMEOUT_NETWORK_QUARANTINE ::= Duration --s=10
+  static TIMEOUT_NETWORK_CLOSE      ::= Duration --s=20
+
+  // We try to connect to networks in a loop, so to avoid
+  // spending too much time trying to connect we have a
+  // timeout that governs the total time spent in the loop.
+  static TIMEOUT_CONNECT_TO_BROKER ::= Duration --m=1
+
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes
   // more time than that we run the risk of waiting for
   // reading from a network connection that is never going
   // to produce more bits.
-  static SYNCHRONIZE_STEP_TIMEOUT ::= Duration --m=3
+  static TIMEOUT_SYNCHRONIZE_STEP ::= Duration --m=3
 
-  // We try to connect to networks in a loop, so to avoid
-  // spending too much time trying to connect we have a
-  // timeout that governs the total time spent in the loop.
-  static CONNECT_TO_BROKER_TIMEOUT ::= Duration --m=1
+  // We require the check-in to be reasonably fast. We don't
+  // want to waste too much time waiting for it.
+  static TIMEOUT_CHECK_IN ::= Duration --s=20
 
   // We use a minimum offline setting to avoid scheduling the
   // synchronization job too often.
@@ -265,7 +277,7 @@ class SynchronizeJob extends TaskJob:
 
     try:
       start := Time.monotonic_us
-      limit := start + CONNECT_TO_BROKER_TIMEOUT.in_us
+      limit := start + TIMEOUT_CONNECT_TO_BROKER.in_us
       while not connect_network_ and Time.monotonic_us < limit:
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
@@ -287,13 +299,11 @@ class SynchronizeJob extends TaskJob:
     try:
       state_ = STATE_DISCONNECTED
       transition_to_ STATE_CONNECTING
-      // TODO(kasper): Add timeout of net.open.
-      network = net.open
+      with_timeout TIMEOUT_NETWORK_OPEN: network = net.open
       while true:
         transition_to_ STATE_CONNECTED_TO_NETWORK
         done := connect_broker_ network
-        // TODO(kasper): Add timeout for check_in.
-        check_in network logger_ --device=device_
+        with_timeout TIMEOUT_CHECK_IN: check_in network logger_ --device=device_
         if done: return true
     finally: | is_exception exception |
       // We do not expect to be canceled outside of tests, but
@@ -310,9 +320,9 @@ class SynchronizeJob extends TaskJob:
           // If we are planning to retry another network,
           // we quarantine the one we just tried.
           // TODO(kasper): Add timeout for network.quarantine.
-          if not done: network.quarantine
-          // TODO(kasper): Add timeout for network.close.
-          network.close
+          if not done:
+            with_timeout TIMEOUT_NETWORK_QUARANTINE: network.quarantine
+          with_timeout TIMEOUT_NETWORK_CLOSE: network.close
         // If we're canceled, we should make sure to propagate
         // the canceled exception and not just swallow it.
         // Otherwise, the caller can easily run into a loop
@@ -333,7 +343,7 @@ class SynchronizeJob extends TaskJob:
     try:
       goal/Goal? := null
       while true:
-        with_timeout SYNCHRONIZE_STEP_TIMEOUT:
+        with_timeout TIMEOUT_SYNCHRONIZE_STEP:
           goal = synchronize_step_ broker_connection goal
           if goal:
             assert: goal.has_pending_steps
