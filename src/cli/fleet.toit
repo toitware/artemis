@@ -772,7 +772,6 @@ class Fleet:
     missing_ids := references.filter: | reference/PodReference |
       not reference.id
     broker := artemis_.connected_broker
-    print "asking for $missing_ids"
     pod_ids_response := broker.pod_registry_pod_ids --fleet_id=this.id --references=missing_ids
 
     has_errors := false
