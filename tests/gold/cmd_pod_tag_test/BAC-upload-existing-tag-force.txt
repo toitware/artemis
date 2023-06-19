@@ -3,5 +3,5 @@
 Successfully uploaded test-pod#3 to fleet -={|~~~~~~~~~~FLEET_ID~~~~~~~~~~|}=-.
   id: -={|~~~~~~~ID test-pod#3~~~~~~~~|}=-
   references:
-    - test-pod@some-tag
     - test-pod@latest
+    - test-pod@some-tag
