@@ -314,7 +314,9 @@ class PinTriggerManager:
       logger_.info "setting up external-wakeup trigger all low: $(%b low_mask)"
       esp32.enable_external_wakeup low_mask false
 
-    if (jobs.any: | job/ContainerJob | not job.trigger_gpio_touch_.is_empty):
+    has_touch_triggers := jobs.any: | job/ContainerJob | job.has_touch_triggers
+
+    if has_touch_triggers:
       esp32.enable_touchpad_wakeup
 
   handle_external_triggers_ jobs/List -> none:

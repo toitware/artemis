@@ -289,11 +289,14 @@ class ContainerJob extends Job:
   has_gpio_pin_triggers -> bool:
     return trigger_gpio_levels_ != null
 
+  has_touch_triggers -> bool:
+    return trigger_gpio_touch_ != null
+
   has_pin_triggers -> bool:
     return has_gpio_pin_triggers or trigger_gpio_touch_ != null
 
   has_pin_trigger pin/int --level/int -> bool:
-    return (trigger_gpio_levels_.get pin) == level
+    return has_gpio_pin_triggers and (trigger_gpio_levels_.get pin) == level
 
   has_touch_trigger pin/int -> bool:
-    return trigger_gpio_touch_.contains pin
+    return has_touch_triggers and trigger_gpio_touch_.contains pin
