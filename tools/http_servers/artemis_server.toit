@@ -95,7 +95,7 @@ class HttpArtemisServer extends HttpServer:
 
   run_command command/int encoded/ByteArray user_id/string? -> any:
     data := json.decode encoded
-    print "Request $command for $user_id with $data"
+    print "$Time.now: Artemis request $command for $user_id with $data."
     if user_id and not users.contains user_id:
       throw "User not found: $user_id"
 

@@ -2,6 +2,7 @@
 
 import encoding.json
 import http
+import log
 import net
 import net.tcp
 import monitor
@@ -48,7 +49,7 @@ abstract class HttpServer:
     socket := network.tcp_listen (port or 0)
     port = socket.local_address.port
     if port_latch: port_latch.set port
-    server := http.Server --max_tasks=64
+    server := http.Server --max_tasks=64 --logger=(log.default.with_level log.INFO_LEVEL)
     print "Listening on port $socket.local_address.port"
     server.listen socket:: | request/http.Request writer/http.ResponseWriter |
       bytes := utils.read_all request.body
@@ -64,7 +65,8 @@ abstract class HttpServer:
   reply_ command/int encoded/ByteArray user_id/string? writer/http.ResponseWriter:
     response_data := null
     exception := catch --trace:
-      response_data = run_command command encoded user_id
+      with_timeout --ms=3_000:
+        response_data = run_command command encoded user_id
     if exception:
       listeners.do: it.call "error" command exception
       encoded_response := json.encode exception
