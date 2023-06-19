@@ -444,7 +444,8 @@ class Fleet:
     ui_.info "$prefix $pod.name#$pod_entry.revision to fleet $this.id."
     ui_.info "  id: $pod_entry.id"
     ui_.info "  references:"
-    pod_entry.tags.do: ui_.info "    - $pod.name@$it"
+    sorted_uploaded_tags := pod_entry.tags.sort
+    sorted_uploaded_tags.do: ui_.info "    - $pod.name@$it"
 
     if not tag_errors.is_empty:
       tag_errors.do: ui_.error it
