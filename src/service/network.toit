@@ -115,6 +115,8 @@ abstract class Connection:
         connection = ConnectionWifi index description
       else if type == "cellular":
         connection = ConnectionCellular index description
+      else if type == "ethernet":
+        connection = ConnectionEthernet index description
       else if type:
         logger.warn "connection has unknown type" --tags={"connection": description}
       else:
@@ -149,3 +151,13 @@ class ConnectionCellular extends Connection:
 
   open -> net.Client:
     return cellular.open --name=name description_["config"]
+
+class ConnectionEthernet extends Connection:
+  constructor index/int description/Map:
+    super index description
+
+  name -> string:
+    return "ethernet-$index"
+
+  open -> net.Client:
+    throw "UNSUPPORTED"
