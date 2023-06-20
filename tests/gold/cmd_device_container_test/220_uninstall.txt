@@ -1,4 +1,4 @@
 # Uninstall a container
-# [--fleet-root, <FLEET_ROOT>, device, container, uninstall, hello]
+# [device, container, uninstall, hello]
 Uninstalling container 'hello'.
 Request sent to broker. Container will be uninstalled when device synchronizes.

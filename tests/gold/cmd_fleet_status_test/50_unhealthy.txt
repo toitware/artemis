@@ -1,5 +1,5 @@
 # Device1 and Device2 are still unhealthy
-# [fleet, --fleet-root, <FLEET_ROOT>, status, --no-include-healthy]
+# [fleet, status, --no-include-healthy]
 ┌──────────────────────────────────────┬────────┬──────────────────────────────────────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
 │ Device ID                              Name     Pod                                    Outdated   Modified   Missed Checkins   Last Seen   Aliases │
 ├──────────────────────────────────────┼────────┼──────────────────────────────────────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤

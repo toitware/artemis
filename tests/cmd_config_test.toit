@@ -47,17 +47,14 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
   fake_device := fake_devices[0] as FakeDevice
 
   test_cli.run [
-    "--fleet-root", fleet_dir,
     "device", "default", "$fake_device.alias_id",
   ]
 
   test_cli.run [
-    "--fleet-root", fleet_dir,
     "org", "default", "$fake_device.organization_id",
   ]
 
   json_config = test_cli.run --json [
-    "--fleet-root", fleet_dir,
     "config", "show"
   ]
   expect_equals "$fake_device.alias_id" json_config["default-device"]

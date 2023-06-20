@@ -1,5 +1,5 @@
 # All devices have reported their state and are thus online
-# [fleet, --fleet-root, <FLEET_ROOT>, status]
+# [fleet, status]
 ┌──────────────────────────────────────┬────────┬──────────────────────────────────────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
 │ Device ID                              Name     Pod                                    Outdated   Modified   Missed Checkins   Last Seen   Aliases │
 ├──────────────────────────────────────┼────────┼──────────────────────────────────────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤

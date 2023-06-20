@@ -172,7 +172,6 @@ create_pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     pod.write output --ui=ui
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
   pod_paths := parsed["pod"]
   tags/List := parsed["tag"]
   force/bool := parsed["force"]
@@ -188,31 +187,27 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   else:
     tags.add "latest"
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+  with_fleet parsed config cache ui: | fleet/Fleet |
+    artemis := fleet.artemis_
     pod_paths.do: | pod_path/string |
       pod := Pod.from_file pod_path --artemis=artemis --ui=ui
       fleet.upload --pod=pod --tags=tags --force_tags=force
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
   reference_string := parsed["reference"]
   output := parsed["output"]
 
   reference := PodReference.parse reference_string --allow_name_only --ui=ui
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+  with_fleet parsed config cache ui: | fleet/Fleet |
     pod := fleet.download reference
     pod.write output --ui=ui
     ui.info "Downloaded pod '$reference_string' to '$output'."
 
 list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
   names := parsed["name"]
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+  with_fleet parsed config cache ui: | fleet/Fleet |
     pods := fleet.list_pods --names=names
     // TODO(florian):
     // we want to have 'created_at' in the registry entry.
@@ -286,12 +281,10 @@ print parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.abort (exception as PodSpecificationException).message
 
 delete parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
   reference_strings := parsed["name-or-reference"]
   all := parsed["all"]
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+  with_fleet parsed config cache ui: | fleet/Fleet |
     if all:
       fleet.delete --description_names=reference_strings
     else:

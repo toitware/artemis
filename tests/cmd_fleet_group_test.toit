@@ -16,7 +16,6 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "110-list-groups"
       "List the initial groups"
       [
-        "--fleet-root", fleet_dir,
         "fleet", "group", "list"
       ]
 
@@ -24,7 +23,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Add a group without force"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "create", "test-group",
           "--template", "default",
       ]
@@ -32,12 +30,11 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "121-add-group"
       "Add a group"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "create", "test-group",
           "--template", "default",
           "--force",  // Force, since the pod doesn't actually exist.
       ]
-  groups := test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups := test_cli.run --json ["fleet", "group", "list"]
   expect_equals 2 groups.size
   expect_equals "default" groups[0]["name"]
   expect_equals "test-group" groups[1]["name"]
@@ -46,22 +43,20 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "130-remove-group"
       "Remove a group"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "remove", "test-group"
       ]
-  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups = test_cli.run --json ["fleet", "group", "list"]
   expect_equals 1 groups.size
   expect_equals "default" groups[0]["name"]
 
   test_cli.run_gold "122-add-group-with-pod"
       "Add a group with a pod"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "create", "test-group",
           "--pod", "unknown@pod",
           "--force",
       ]
-  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups = test_cli.run --json ["fleet", "group", "list"]
   expect_equals 2 groups.size
   expect_equals "default" groups[0]["name"]
   expect_equals "test-group" groups[1]["name"]
@@ -70,12 +65,11 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "123-add-group-from-group"
       "Add a group from a group"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "create", "test-group-2",
           "--template", "test-group",
           "--force",
       ]
-  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups = test_cli.run --json ["fleet", "group", "list"]
   expect_equals 3 groups.size
   expect_equals "default" groups[0]["name"]
   expect_equals "test-group" groups[1]["name"]
@@ -88,7 +82,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Add a group that already exists"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "create", "test-group",
           "--template", "default",
           "--force",
@@ -98,12 +91,11 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "140-update-group"
       "Update a group"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "update", "test-group",
           "--pod", "unknown@pod2",
           "--force",
       ]
-  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups = test_cli.run --json ["fleet", "group", "list"]
   expect_equals 3 groups.size
   expect_equals "test-group" groups[1]["name"]
   expect_equals "unknown@pod2" groups[1]["pod"]
@@ -112,12 +104,11 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "141-update-group-name"
       "Update a group name"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "update", "test-group",
           "--name", "test-group-3",
           "--force",
       ]
-  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups = test_cli.run --json ["fleet", "group", "list"]
   expect_equals 3 groups.size
   // The groups are sorted by name (with 'default' on top).
   expect_equals "default" groups[0]["name"]
@@ -128,13 +119,12 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "142-update-group-name-and-pod"
       "Update a group name and pod"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "update", "test-group-3",
           "--name", "test-group-4",
           "--pod", "unknown2@tag",
           "--force",
       ]
-  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups = test_cli.run --json ["fleet", "group", "list"]
   expect_equals 3 groups.size
   expect_equals "default" groups[0]["name"]
   expect_equals "test-group-2" groups[1]["name"]
@@ -144,12 +134,11 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "143-update-default-group-name"
       "Update the default group name"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "update", "default",
           "--name", "test-group-5",
           "--force",
       ]
-  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups = test_cli.run --json ["fleet", "group", "list"]
   expect_equals 3 groups.size
   expect_equals "test-group-5" groups[2]["name"]
 
@@ -161,7 +150,6 @@ run_test test_cli/TestCli fleet_dir/string:
 
   // Rename it back, so that the rest of the tests continue to work.
   test_cli.run [
-        "--fleet-root", fleet_dir,
         "fleet", "group", "update", "test-group-5",
         "--name", "default",
         "--force",
@@ -177,7 +165,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Update a group name to an existing group"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "update", "test-group-2",
           "--name", "test-group-4",
           "--force",
@@ -188,7 +175,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Update a group name that doesn't exist"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "update", "test-group-5",
           "--name", "test-group-6",
           "--force",
@@ -197,19 +183,17 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "146-list-groups"
       "List groups"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "list",
       ]
 
   test_cli.run_gold "147-update-tags"
       "Update the tags of all pods"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "update", "default", "test-group-2", "test-group-4",
           "--tag", "new-tag",
           "--force",
       ]
-  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups = test_cli.run --json ["fleet", "group", "list"]
   expect_equals 3 groups.size
   expect_equals "my-pod@new-tag" groups[0]["pod"]
   expect_equals "unknown@new-tag" groups[1]["pod"]
@@ -219,7 +203,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Can't rename multiple groups at once"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "update", "test-group-2", "test-group-4",
           "--name", "test-group-5",
           "--force",
@@ -228,12 +211,11 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "149-update-pod-multi"
       "Update the pod of multiple groups"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "update", "test-group-2", "test-group-4",
           "--pod", "multi@tag",
           "--force",
       ]
-  groups = test_cli.run --json ["--fleet-root", fleet_dir, "fleet", "group", "list"]
+  groups = test_cli.run --json ["fleet", "group", "list"]
   expect_equals 3 groups.size
   expect_equals "my-pod@new-tag" groups[0]["pod"]
   expect_equals "multi@tag" groups[1]["pod"]
@@ -243,7 +225,6 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "150-move-devices"
       "Move all devices from the default group to the test-group-2 group"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "move", "--group", "default", "--to", "test-group-2",
       ]
 
@@ -252,7 +233,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Remove a group with devices"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "remove", "test-group-2",
       ]
 
@@ -263,7 +243,6 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "152-move-devices-individually"
       "Move individual devices to group-4"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "move", "--to", "test-group-4",
           "$((fleet_devices[0] as fleet.DeviceFleet).id)",
           "$((fleet_devices[1] as fleet.DeviceFleet).name)",
@@ -273,7 +252,6 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "153-move-groups"
       "Move multiple groups to the default group"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "move", "--to", "default",
           "--group", "test-group-2",
           "--group", "test-group-4",
@@ -283,25 +261,22 @@ run_test test_cli/TestCli fleet_dir/string:
   test_cli.run_gold "154-remove-group"
       "Remove a group"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "remove", "test-group-2",
       ]
 
   test_cli.run_gold "155-remove-group"
       "Remove a group"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "remove", "test-group-4",
       ]
 
   // Create a new group and move all devices to it, so we can test removing the default group.
-  test_cli.run ["--fleet-root", fleet_dir, "fleet", "group", "create", "test-group-5", "--force"]
-  test_cli.run ["--fleet-root", fleet_dir, "fleet", "group", "move", "--to", "test-group-5", "--group", "default"]
+  test_cli.run ["fleet", "group", "create", "test-group-5", "--force"]
+  test_cli.run ["fleet", "group", "move", "--to", "test-group-5", "--group", "default"]
 
   test_cli.run_gold "156-remove-default-group"
       "Remove the default group"
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "remove", "default"
       ]
 
@@ -310,7 +285,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Move devices to a non-existing group"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "group", "move",
           "--to", "default",
           "--group", "test-group-5"
@@ -320,7 +294,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Can't add a device to a group that doesn't exist"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "add-device", "--group", "does-not-exist", "$TEST_DEVICE_UUID",
       ]
 
@@ -328,7 +301,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Can't add a device to default group that doesn't exist"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "add-device", "$TEST_DEVICE_UUID",
       ]
 
@@ -336,7 +308,6 @@ run_test test_cli/TestCli fleet_dir/string:
       "Can't create an identity for a group that doesn't exist"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "create-identities", "--group", "does-not-exist", "1",
       ]
 
@@ -344,6 +315,5 @@ run_test test_cli/TestCli fleet_dir/string:
       "Can't create an identity for default group that doesn't exist"
       --expect_exit_1
       [
-          "--fleet-root", fleet_dir,
           "fleet", "create-identities", "1",
       ]

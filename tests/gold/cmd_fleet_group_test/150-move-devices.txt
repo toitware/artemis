@@ -1,3 +1,3 @@
 # Move all devices from the default group to the test-group-2 group
-# [--fleet-root, <FLEET_ROOT>, fleet, group, move, --group, default, --to, test-group-2]
+# [fleet, group, move, --group, default, --to, test-group-2]
 Moved 3 devices to group 'test-group-2'.

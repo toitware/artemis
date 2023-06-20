@@ -1,3 +1,3 @@
 # Remove a group
-# [--fleet-root, <FLEET_ROOT>, fleet, group, remove, test-group]
+# [fleet, group, remove, test-group]
 Removed group test-group.

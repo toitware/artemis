@@ -1,5 +1,5 @@
 # All three ids are shown as never seen
-# [fleet, --fleet-root, <FLEET_ROOT>, status, --include-never-seen]
+# [fleet, status, --include-never-seen]
 ┌──────────────────────────────────────┬────────┬─────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
 │ Device ID                              Name     Pod   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
 ├──────────────────────────────────────┼────────┼─────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤

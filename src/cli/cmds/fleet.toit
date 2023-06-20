@@ -296,15 +296,8 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
 
   return [cmd]
 
-with_fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
-  fleet_root := parsed["fleet-root"]
-
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-    block.call fleet
-
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
+  fleet_root_flag := parsed["fleet-root"]
   organization_id := parsed["organization-id"]
 
   if not organization_id:
@@ -314,6 +307,7 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
     organization_id = default_organization_id
 
+  fleet_root := compute_fleet_root parsed config ui
   with_artemis parsed config cache ui: | artemis/Artemis |
     Fleet.init fleet_root artemis --organization_id=organization_id --ui=ui
 
@@ -365,7 +359,7 @@ add_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.info "Added device $device_id to fleet."
 
 group_list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
+  fleet_root := compute_fleet_root parsed config ui
   fleet_file := Fleet.load_fleet_file fleet_root --ui=ui
   ui.do --kind=Ui.RESULT: | printer/Printer |
     structured := []
@@ -404,7 +398,6 @@ group_create parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Created group $name."
 
 group_update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
   pod := parsed["pod"]
   tag := parsed["tag"]
   name := parsed["name"]
@@ -420,11 +413,12 @@ group_update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if pod and tag:
     ui.abort "Cannot set both pod and tag."
 
-  fleet_file := Fleet.load_fleet_file fleet_root --ui=ui
-
   executed_actions/List := []
 
   with_fleet parsed config cache ui: | fleet/Fleet |
+    fleet_root := fleet.fleet_root_
+    fleet_file := Fleet.load_fleet_file fleet_root --ui=ui
+
     pod_reference/PodReference? := null
     if pod:
       pod_reference = PodReference.parse pod --on_error=:
@@ -464,8 +458,9 @@ group_update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     executed_actions.do: ui.info it
 
 group_remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
   group := parsed["group"]
+
+  fleet_root := compute_fleet_root parsed config ui
 
   fleet_file := Fleet.load_fleet_file fleet_root --ui=ui
   if not fleet_file.group_pods.contains group:
@@ -486,10 +481,11 @@ group_remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   ui.info "Removed group $group."
 
 group_move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
   to := parsed["to"]
   groups_to_move := parsed["group"]
   devices_to_move := parsed["device"]
+
+  fleet_root := compute_fleet_root parsed config ui
 
   if groups_to_move.is_empty and devices_to_move.is_empty:
     ui.abort "No devices or groups given."

@@ -7,6 +7,7 @@ import uuid
 
 import .artemis
 import .cache
+import .config
 import .device
 import .event
 import .firmware
@@ -205,7 +206,7 @@ class Fleet:
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
-  constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache:
+  constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache --config/Config:
     ui_ = ui
     cache_ = cache
     fleet_file := load_fleet_file fleet_root_ --ui=ui_

@@ -18,13 +18,11 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
   test_cli.run_gold "110-device-show"
       "Show the given device"
       [
-        "--fleet-root", fleet_dir,
         "device", "show", "-d", "$fake_device1.alias_id",
       ]
 
   test_cli.run_gold "111-device-show"
       "Show the given device"
       [
-        "--fleet-root", fleet_dir,
         "device", "show", "$fake_device1.alias_id",
       ]

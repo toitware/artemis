@@ -15,7 +15,6 @@ run_test test_cli/TestCli fleet_dir/string:
 
   add_pod_replacements := : | output/string |
     pods := test_cli.run --json [
-      "--fleet-root", fleet_dir,
       "pod", "list", "--name", pod_name
     ]
     pods.do:
@@ -44,7 +43,6 @@ run_test test_cli/TestCli fleet_dir/string:
   write_blob_to_file spec_path spec
 
   test_cli.run [
-    "--fleet-root", fleet_dir,
     "pod", "upload", spec_path, "--tag", "some-tag"
   ]
   add_pod_replacements.call ""
@@ -54,7 +52,6 @@ run_test test_cli/TestCli fleet_dir/string:
       --expect_exit_1
       --before_gold=add_pod_replacements
       [
-        "--fleet-root", fleet_dir,
         "pod", "upload", spec_path, "--tag", "some-tag"
       ]
 
@@ -62,6 +59,5 @@ run_test test_cli/TestCli fleet_dir/string:
       "Upload a pod with existing tag using --force"
       --before_gold=add_pod_replacements
       [
-        "--fleet-root", fleet_dir,
         "pod", "upload", spec_path, "--tag", "some-tag", "--force"
       ]
