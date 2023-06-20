@@ -10,6 +10,19 @@ main args:
     run_test test_cli
 
 run_test test_cli/TestCli:
+  test_cli.run [
+    "auth", "login",
+    "--email", TEST_EXAMPLE_COM_EMAIL,
+    "--password", TEST_EXAMPLE_COM_PASSWORD,
+  ]
+
+  test_cli.run [
+    "auth", "login",
+    "--broker",
+    "--email", TEST_EXAMPLE_COM_EMAIL,
+    "--password", TEST_EXAMPLE_COM_PASSWORD,
+  ]
+
   with_tmp_directory: | fleet_tmp_dir |
     test_cli.run [
       "fleet",
