@@ -34,7 +34,8 @@ SPECIFICATION_FORMAT_HELP ::= """
 
 
   A connection object consists of the following entries:
-  'type': The type of the connection. Must be 'wifi' or 'cellular'.
+  'type': The type of the connection. Must be 'wifi', 'cellular', or
+    'ethernet'.
 
   For 'wifi' connections:
   'ssid': The SSID of the network to connect to.

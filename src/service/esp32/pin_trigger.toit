@@ -322,7 +322,7 @@ class PinTriggerManager:
   handle_external_triggers_ jobs/List -> none:
     cause := esp32.wakeup_cause
     if cause != esp32.WAKEUP_UNDEFINED:
-      // Wakeup from deepsleep.
+      // Wakeup from deep sleep.
       high_mask := trigger_mask_ jobs --level=1
       low_mask := trigger_mask_ jobs --level=0
       external_mask := high_mask != 0 ? high_mask : low_mask

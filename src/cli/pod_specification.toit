@@ -256,7 +256,7 @@ This class contains the information needed to install/flash and
 Relevant data includes (but is not limited to):
 - the SDK version (which currently gives the firmware binary),
 - max offline,
-- connection information (Wi-Fi, cellular, ...),
+- connection information (Wi-Fi, cellular, ethernet, ...),
 - installed containers.
 */
 class PodSpecification:
@@ -371,17 +371,20 @@ class PodSpecification:
       if connection.requires:
         connection.requires.do: | required_container_name/string |
           if (containers.get required_container_name) == null:
-            validation_error_ "Cellular connection requires container $required_container_name, but it is not installed."
+            validation_error_ "Connection requires container $required_container_name, but it is not installed."
 
 interface ConnectionInfo:
   static from_json data/Map -> ConnectionInfo:
     check_has_key_ data --holder="connection" "type"
 
-    if data["type"] == "wifi":
+    type := data["type"]
+    if type == "wifi":
       return WifiConnectionInfo.from_json data
-    if data["type"] == "cellular":
+    if type == "cellular":
       return CellularConnectionInfo.from_json data
-    format_error_ "Unknown connection type: $data["type"]"
+    if type == "ethernet":
+      return EthernetConnectionInfo.from_json data
+    format_error_ "Unknown connection type: $type"
     unreachable
 
   type -> string
@@ -429,6 +432,25 @@ class CellularConnectionInfo implements ConnectionInfo:
     result := {
       "type": type,
       "config": config,
+    }
+    if requires: result["requires"] = requires
+    return result
+
+class EthernetConnectionInfo implements ConnectionInfo:
+  requires/List?
+
+  constructor.from_json data/Map:
+    requires = get_optional_list_ data "requires"
+        --holder="ethernet connection"
+        --type="string"
+        --check=: it is string
+
+  type -> string:
+    return "ethernet"
+
+  to_json -> Map:
+    result := {
+      "type": type,
     }
     if requires: result["requires"] = requires
     return result
