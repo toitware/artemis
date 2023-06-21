@@ -2,16 +2,6 @@
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
-import artemis.cli
-import artemis.cli.cache
-import artemis.cli.config
-import artemis.cli.server_config as cli_server_config
-import artemis.service
-import artemis.shared.server_config show ServerConfig
-import encoding.json
-import host.directory
-import host.file
-import expect show *
 import .utils
 
 main args:
@@ -23,7 +13,6 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       "All three ids are shown as never seen"
       [
         "fleet",
-        "--fleet-root", fleet_dir,
         "status",
         "--include-never-seen"
       ]
@@ -32,7 +21,6 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       "No id is visible"
       [
         "fleet",
-        "--fleet-root", fleet_dir,
         "status",
       ]
 
@@ -41,7 +29,6 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       "Device0 is online with 'now'"
       [
         "fleet",
-        "--fleet-root", fleet_dir,
         "status",
       ]
 
@@ -50,7 +37,6 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       "All devices have reported their state and are thus online"
       [
         "fleet",
-        "--fleet-root", fleet_dir,
         "status",
       ]
 
@@ -59,7 +45,6 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       "Device0 fetched its goal and thus checked in"
       [
         "fleet",
-        "--fleet-root", fleet_dir,
         "status",
       ]
 
@@ -67,7 +52,6 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       "Device1 and Device2 are still unhealthy"
       [
         "fleet",
-        "--fleet-root", fleet_dir,
         "status",
         "--no-include-healthy",
       ]

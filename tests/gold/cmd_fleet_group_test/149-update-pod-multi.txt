@@ -1,4 +1,4 @@
 # Update the pod of multiple groups
-# [--fleet-root, <FLEET_ROOT>, fleet, group, update, test-group-2, test-group-4, --pod, multi@tag, --force]
+# [fleet, group, update, test-group-2, test-group-4, --pod, multi@tag, --force]
 Updated group 'test-group-2' to pod 'multi@tag'.
 Updated group 'test-group-4' to pod 'multi@tag'.

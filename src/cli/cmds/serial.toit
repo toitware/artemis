@@ -130,7 +130,6 @@ build_partitions_table_ partition_list/List --ui/Ui -> List:
   return result
 
 flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet_root"]
   port := parsed["port"]
   baud := parsed["baud"]
   simulate := parsed["simulate"]
@@ -143,8 +142,8 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if local and remote:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+  with_fleet parsed config cache ui: | fleet/Fleet |
+    artemis := fleet.artemis_
 
     with_tmp_directory: | tmp_dir/string |
       identity_files := fleet.create_identities 1

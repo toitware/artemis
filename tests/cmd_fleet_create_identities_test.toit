@@ -2,12 +2,6 @@
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
-import artemis.cli
-import artemis.cli.cache
-import artemis.cli.config
-import artemis.cli.server_config as cli_server_config
-import artemis.service
-import artemis.shared.server_config show ServerConfig
 import encoding.json
 import host.directory
 import host.file
@@ -15,41 +9,32 @@ import expect show *
 import .utils
 
 main args:
-  with_test_cli --args=args: | test_cli/TestCli |
-    run_test test_cli
+  with_fleet --count=0 --args=args: | test_cli/TestCli _ fleet_dir/string |
+    run_test test_cli fleet_dir
 
-run_test test_cli/TestCli:
-  with_tmp_directory: | fleet_tmp_dir |
-    with_tmp_directory: | tmp_dir |
-      test_cli.run [
-        "auth", "login",
-        "--email", TEST_EXAMPLE_COM_EMAIL,
-        "--password", TEST_EXAMPLE_COM_PASSWORD,
-      ]
+run_test test_cli/TestCli fleet_dir/string:
+  with_tmp_directory: | tmp_dir |
+    test_cli.run [
+      "auth", "login",
+      "--email", TEST_EXAMPLE_COM_EMAIL,
+      "--password", TEST_EXAMPLE_COM_PASSWORD,
+    ]
 
-      test_cli.run [
-        "auth", "login",
-        "--broker",
-        "--email", TEST_EXAMPLE_COM_EMAIL,
-        "--password", TEST_EXAMPLE_COM_PASSWORD,
-      ]
+    test_cli.run [
+      "auth", "login",
+      "--broker",
+      "--email", TEST_EXAMPLE_COM_EMAIL,
+      "--password", TEST_EXAMPLE_COM_PASSWORD,
+    ]
 
-      test_cli.run [
-        "fleet",
-        "--fleet-root", fleet_tmp_dir,
-        "init",
-        "--organization-id", "$TEST_ORGANIZATION_UUID",
-      ]
-
-      count := 3
-      test_cli.run [
-        "fleet",
-        "--fleet-root", fleet_tmp_dir,
-        "create-identities",
-        "--output-directory", tmp_dir,
-        "$count",
-      ]
-      check_and_remove_identity_files fleet_tmp_dir tmp_dir count
+    count := 3
+    test_cli.run [
+      "fleet",
+      "create-identities",
+      "--output-directory", tmp_dir,
+      "$count",
+    ]
+    check_and_remove_identity_files fleet_dir tmp_dir count
 
 check_and_remove_identity_files fleet_dir tmp_dir count:
   devices := json.decode (file.read_content "$fleet_dir/devices.json")

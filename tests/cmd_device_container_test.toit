@@ -22,21 +22,18 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       """
 
   test_cli.run [
-    "--fleet-root", fleet_dir,
     "device", "default", "$device.alias_id"
   ]
 
   test_cli.run_gold "200_install"
       "Install a container"
       [
-        "--fleet-root", fleet_dir,
         "device", "container", "install", "hello", hello_path
       ]
 
   test_cli.run_gold "220_uninstall"
       "Uninstall a container"
       [
-        "--fleet-root", fleet_dir,
         "device", "container", "uninstall", "hello"
       ]
 
@@ -44,7 +41,6 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       --expect_exit_1
       "Uninstall a non-existing container"
       [
-        "--fleet-root", fleet_dir,
         "device", "container", "uninstall", "hello"
       ]
 
@@ -52,7 +48,6 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
   test_cli.run_gold "240_uninstall_non_existing_force"
       "Uninstall a non-existing container with force"
       [
-        "--fleet-root", fleet_dir,
         "device", "container", "uninstall", "hello", "--force"
       ]
 
@@ -88,12 +83,10 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
   write_json_to_file spec_file pod_spec
 
   test_cli.run [
-    "--fleet-root", fleet_dir,
     "pod", "create", spec_file, "-o", pod_file
   ]
 
   test_cli.run [
-    "--fleet-root", fleet_dir,
     "device", "update", "--local", pod_file
   ]
 
@@ -107,7 +100,6 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       "Can't uninstall required container without force"
       --expect_exit_1
       [
-        "--fleet-root", fleet_dir,
         "device", "container", "uninstall", "hello"
       ]
 
@@ -115,6 +107,5 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
   test_cli.run_gold "310_uninstall_required_force"
       "Can uninstall required container with force"
       [
-        "--fleet-root", fleet_dir,
         "device", "container", "uninstall", "hello", "--force"
       ]

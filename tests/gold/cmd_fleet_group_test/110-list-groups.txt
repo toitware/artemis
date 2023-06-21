@@ -1,5 +1,5 @@
 # List the initial groups
-# [--fleet-root, <FLEET_ROOT>, fleet, group, list]
+# [fleet, group, list]
 ┌─────────┬───────────────┐
 │ Group     Pod           │
 ├─────────┼───────────────┤

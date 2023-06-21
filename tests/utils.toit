@@ -843,6 +843,8 @@ random_uuid -> uuid.Uuid:
 with_fleet --args/List --count/int [block]:
   with_test_cli --args=args: | test_cli/TestCli |
     with_tmp_directory: | fleet_dir |
+      os.env["ARTEMIS_FLEET_ROOT"] = fleet_dir
+
       test_cli.replacements[fleet_dir] = "<FLEET_ROOT>"
       test_cli.run [
         "auth", "login",
@@ -859,7 +861,6 @@ with_fleet --args/List --count/int [block]:
 
       test_cli.run [
         "fleet",
-        "--fleet-root", fleet_dir,
         "init",
         "--organization-id", "$TEST_ORGANIZATION_UUID",
       ]
@@ -871,7 +872,6 @@ with_fleet --args/List --count/int [block]:
       directory.mkdir --recursive identity_dir
       test_cli.run [
         "fleet",
-        "--fleet-root", fleet_dir,
         "create-identities",
         "--output-directory", identity_dir,
         "$count",

@@ -122,7 +122,6 @@ with_device
     --allow_rest_device/bool=false
     [block]:
   device_reference := parsed["device"]
-  fleet_root := parsed["fleet-root"]
 
   if allow_rest_device:
     device_rest_reference := parsed["device-rest"]
@@ -131,8 +130,7 @@ with_device
 
     if device_rest_reference: device_reference = device_rest_reference
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
+  with_fleet parsed config cache ui: | fleet/Fleet |
     device/DeviceFleet := ?
     if not device_reference:
       device_id := default_device_from_config config
@@ -142,11 +140,10 @@ with_device
     else:
       device = fleet.resolve_alias device_reference
 
-    block.call device artemis fleet
+    block.call device fleet.artemis_ fleet
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device := parsed["device"]
-  fleet_root := parsed["fleet-root"]
   local := parsed["local"]
   remote := parsed["remote"]
 
@@ -159,17 +156,15 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   else:
     ui.abort "No pod specified."
 
-  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
+  with_device parsed config cache ui: | device/DeviceFleet artemis/Artemis fleet/Fleet |
     pod/Pod := ?
     if reference:
-      fleet := Fleet fleet_root artemis --ui=ui --cache=cache
       pod = fleet.download reference
     else:
       pod = Pod.from_file local --artemis=artemis --ui=ui
     artemis.update --device_id=device.id --pod=pod
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet_root := parsed["fleet-root"]
   device_reference := parsed["device"]
   device_rest_reference := parsed["device-rest"]
 
@@ -182,9 +177,7 @@ default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if device_reference and device_rest_reference:
     ui.abort "Cannot specify a device both with '-d' and without it: $device_reference, $device_rest_reference."
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet_root artemis --ui=ui --cache=cache
-
+  with_fleet parsed config cache ui: | fleet/Fleet |
     // We allow to set the default with `-d` or by giving it as rest argument.
     device := device_reference or device_rest_reference
     device_id := ?
@@ -212,7 +205,6 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device_reference := parsed["device"]
   device_rest_reference := parsed["device-rest"]
   event_types := parsed["event-type"]
-  fleet_root := parsed["fleet-root"]
   show_event_values := parsed["show-event-values"]
   max_events := parsed["max-events"]
 

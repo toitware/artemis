@@ -18,27 +18,23 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       "No default device is set. -> Error."
       --expect_exit_1
       [
-        "--fleet-root", fleet_dir,
         "device", "default"
       ]
 
   test_cli.run_gold "20-set-default"
       "Set the default device"
       [
-        "--fleet-root", fleet_dir,
         "device", "default", "$device.alias_id"
       ]
 
   test_cli.run_gold "30-default-is-set"
       "The default device is set"
       [
-        "--fleet-root", fleet_dir,
         "device", "default"
       ]
 
   json_output := test_cli.run --json
       [
-        "--fleet-root", fleet_dir,
         "device", "default"
       ]
   expect_equals "$device.alias_id" json_output

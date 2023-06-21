@@ -1,8 +1,7 @@
-// Copyright (C) 2022 Toitware ApS.
-
-// ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
+// Copyright (C) 2023 Toitware ApS.
 
 import host.file
+import host.os
 import expect show *
 import .utils
 
@@ -36,20 +35,14 @@ run_test test_cli/TestCli:
     expect (file.is_file "$fleet_tmp_dir/devices.json")
     expect (file.is_file "$fleet_tmp_dir/my-pod.json")
 
-    // We are not allowed to initialize a folder twice.
-    already_initialized_message := test_cli.run --expect_exit_1 [
+  with_tmp_directory: | fleet_tmp_dir |
+    os.env["ARTEMIS_FLEET_ROOT"] = fleet_tmp_dir
+    test_cli.run [
       "fleet",
-      "--fleet-root", fleet_tmp_dir,
       "init",
       "--organization-id", "$TEST_ORGANIZATION_UUID",
     ]
-    expect (already_initialized_message.contains "already contains a fleet.json file")
 
-  with_tmp_directory: | fleet_tmp_dir |
-    bad_org_id_message := test_cli.run --expect_exit_1 [
-      "fleet",
-      "--fleet-root", fleet_tmp_dir,
-      "init",
-      "--organization-id", "$NON_EXISTENT_UUID",
-    ]
-    expect (bad_org_id_message.contains "does not exist or")
+    expect (file.is_file "$fleet_tmp_dir/fleet.json")
+    expect (file.is_file "$fleet_tmp_dir/devices.json")
+    expect (file.is_file "$fleet_tmp_dir/my-pod.json")

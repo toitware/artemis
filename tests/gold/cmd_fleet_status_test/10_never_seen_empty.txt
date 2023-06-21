@@ -1,5 +1,5 @@
 # No id is visible
-# [fleet, --fleet-root, <FLEET_ROOT>, status]
+# [fleet, status]
 ┌───────────┬──────┬─────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
 │ Device ID   Name   Pod   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
 ├───────────┼──────┼─────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤
