@@ -248,6 +248,7 @@ add_http parsed/cli.Parsed config/Config ui/Ui:
         if headers_map.contains key:
           ui.abort "Duplicate headers not implemented: $key"
         headers_map[key] = value
+    headers_map
 
   device_headers := header_list_to_map.call device_headers_list
   admin_headers := header_list_to_map.call admin_headers_list
