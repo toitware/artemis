@@ -112,7 +112,7 @@ class Artemis:
         --sdk_version=sdk
         --service_version=service
     if versions.is_empty:
-      ui_.abort "Unsupported Artemis/SDK versions."
+      ui_.abort "Unsupported Artemis/SDK versions ($service/$sdk)."
 
   /**
   Provisions a device.
@@ -200,17 +200,30 @@ class Artemis:
   customize_envelope
       --specification/PodSpecification
       --output_path/string:
-    sdk_version := specification.sdk_version
     service_version := specification.artemis_version
+    sdk_version := specification.sdk_version
+    envelope_path := specification.envelope_path
+
+    if not sdk_version:
+
+    if not sdk_version:
+      envelope_path = "$specification.relative_to/$envelope_path"
+      // Extract the sdk version from the envelope.
+      envelope := file.read_content envelope_path
+      sdk_version = Sdk.get_sdk_version_from --envelope=envelope
+
     check_is_supported_version_ --sdk=sdk_version --service=service_version
 
     sdk := get_sdk sdk_version --cache=cache_
-    cached_envelope_path := get_envelope
-        sdk_version
-        --chip=specification.chip
-        --cache=cache_
 
-    copy_file --source=cached_envelope_path --target=output_path
+    if not envelope_path:
+      check_is_supported_version_ --sdk=sdk_version --service=service_version
+      envelope_path = get_envelope
+          sdk_version
+          --chip=specification.chip
+          --cache=cache_
+
+    copy_file --source=envelope_path --target=output_path
 
     device_config := {
       "sdk-version": sdk_version,

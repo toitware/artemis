@@ -261,7 +261,8 @@ Relevant data includes (but is not limited to):
 */
 class PodSpecification:
   name/string
-  sdk_version/string
+  sdk_version/string?
+  envelope_path/string?
   artemis_version/string
   max_offline_seconds/int
   connections/List  // Of $ConnectionInfo.
@@ -271,8 +272,14 @@ class PodSpecification:
 
   constructor.from_json --.path/string data/Map:
     name = get_string_ data "name"
-    sdk_version = get_string_ data "sdk-version"
     artemis_version = get_string_ data "artemis-version"
+    sdk_version = get_optional_string_ data "sdk-version"
+    envelope_path = get_optional_string_ data "envelope"
+
+    if sdk_version and envelope_path:
+      format_error_ "Both 'sdk-version' and 'envelope' are present in pod specification."
+    if not sdk_version and not envelope_path:
+      format_error_ "Neither 'sdk-version' nor 'envelope' are present in pod specification."
 
     chip = get_optional_string_ data "chip"
 

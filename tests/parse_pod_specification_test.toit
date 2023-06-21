@@ -13,6 +13,7 @@ import .utils
 
 main:
   test_examples
+  test_custom_envelope
   test_errors
 
 test_examples:
@@ -64,6 +65,12 @@ VALID_SPECIFICATION ::= {
 new_valid -> Map:
   return deep_copy_ VALID_SPECIFICATION
 
+test_custom_envelope:
+  custom_envelope := new_valid
+  custom_envelope["envelope"] = "envelope-path"
+  custom_envelope.remove "sdk-version"
+  PodSpecification.from_json custom_envelope --path="ignored"
+
 test_errors:
   no_version := new_valid
   no_version.remove "version"
@@ -80,8 +87,14 @@ test_errors:
   no_sdk_version := new_valid
   no_sdk_version.remove "sdk-version"
   expect_format_error
-      "Missing sdk-version in pod specification."
+      "Neither 'sdk-version' nor 'envelope' are present in pod specification."
       no_sdk_version
+
+  version_and_envelope := new_valid
+  version_and_envelope["envelope"] = "envelope-path"
+  expect_format_error
+      "Both 'sdk-version' and 'envelope' are present in pod specification."
+      version_and_envelope
 
   no_artemis_version := new_valid
   no_artemis_version.remove "artemis-version"
