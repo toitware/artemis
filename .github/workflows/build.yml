@@ -4,6 +4,22 @@ name: Build
 
 on:
   workflow_dispatch:
+    inputs:
+      upload_service_snapshot:
+        description: Upload the service snapshot image to Artemis
+        type: boolean
+        required: true
+        default: false
+      sign_macos:
+        description: Sign the macos binary
+        type: boolean
+        required: true
+        default: false
+      sign_windows:
+        description: Sign the windows binary
+        type: boolean
+        required: true
+        default: false
   release:
     types: [published]
 
@@ -14,11 +30,7 @@ env:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
@@ -26,12 +38,12 @@ jobs:
       - name: Setup Toit
         shell: bash
         run: |
-          if [[ "$RUNNER_OS" = "Windows" ]]; then
-            BIN_EXTENSION=".exe"
+          SUPPORTED_ARRAY=($SUPPORTED_SDK_VERSIONS)
+          if [[ "$(make dev-sdk-version)" != "${SUPPORTED_ARRAY[-1]}" ]]; then
+            echo "Test SDK version is not last supported SDK version"
+            exit 1
           fi
-          echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
-
-          export TOIT_VERSION="v2.0.0-alpha.87"
+          export TOIT_VERSION=${SUPPORTED_ARRAY[-1]}
 
           export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
@@ -41,13 +53,9 @@ jobs:
           echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
           echo "TPKG_EXEC=$TOIT_SDK_DIR/bin/toit.pkg$BIN_EXTENSION" >> $GITHUB_ENV
 
-          SYSTEM=$(echo $RUNNER_OS | tr '[:upper:]' '[:lower:]')
-          echo "SYSTEM=$SYSTEM" >> $GITHUB_ENV
-
-          TOIT_SDK_FILE=toit-$SYSTEM.tar.gz
           TOIT_SDK_BASE_URL=https://github.com/toitlang/toit/releases
 
-          echo "TOIT_SDK_URL=$TOIT_SDK_BASE_URL/download/$TOIT_VERSION/$TOIT_SDK_FILE" >> $GITHUB_ENV
+          echo "TOIT_SDK_URL=$TOIT_SDK_BASE_URL/download/$TOIT_VERSION/toit-linux.tar.gz" >> $GITHUB_ENV
 
       - uses: suisei-cn/actions-download-file@v1.3.0
         name: Download Toit
@@ -61,22 +69,10 @@ jobs:
           cd "$DOWNLOAD_DIR"
           tar x -f *.tar.gz
 
-      # Fetch the dependencies. Different for each platform.
-      - name: Install dependencies - Linux
-        if: runner.os == 'Linux'
+      - name: Install dependencies
         run: |
           sudo apt-get update -q
           sudo apt-get install -q ninja-build
-          ninja --version
-      - name: Install dependencies - macOS
-        if: runner.os == 'macOS'
-        run: |
-          brew install ninja
-          ninja --version
-      - name: Install dependencies - Windows
-        if: runner.os == 'Windows'
-        run: |
-          choco install ninja
           ninja --version
 
       - name: Run cmake
@@ -87,8 +83,36 @@ jobs:
 
       - name: Build the CLI
         shell: bash
+        # Note that we don't deploy the executable from this buildstep as it isn't stripped.
         run: |
           make
+
+      - name: Build release binaries
+        shell: bash
+        run: |
+          mkdir -p out/linux
+          $TOITC_EXEC --strip -o out/linux/artemis build/snapshots/artemis.snapshot
+
+          for SYSTEM in windows macos aarch64; do
+            if [[ $SYSTEM == "windows" ]]; then
+              BIN_EXTENSION=".exe"
+            else
+              BIN_EXTENSION=""
+            fi
+            if [[ $SYSTEM == "aarch64" ]]; then
+              OS="linux"
+              ARCH="arm64"
+            elif [[ $SYSTEM == "macos" ]]; then
+              OS="darwin"
+              ARCH="amd64"
+            else
+              OS=$SYSTEM
+              ARCH="amd64"
+            fi
+            mkdir -p out/$SYSTEM
+            $TOITC_EXEC --strip --arch $ARCH --os $OS \
+              -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot
+          done
 
       - name: Rename snapshot
         shell: bash
@@ -98,6 +122,7 @@ jobs:
           mv build/snapshots/artemis.snapshot build/snapshots/artemis-$UUID.snapshot
 
       - name: Sign in to Artemis
+        if: github.event_name == 'release' || inputs.upload_service_snapshot
         shell: bash
         env:
           ARTEMIS_EMAIL: leon@toit.io
@@ -106,19 +131,20 @@ jobs:
           # We log in with the Artemis executable.
           # It will set the authentication in the config file which is also
           # used by the uploader.
-          build/bin/artemis$BIN_EXTENSION auth login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
+          build/bin/artemis auth login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
 
       - name: Upload snapshot to Artemis
+        if: github.event_name == 'release' || inputs.upload_service_snapshot
         shell: bash
         run: |
           # No need to cache the snapshots in a local snapshot directory.
           mkdir -p tmp_snapshots
-          build/bin/uploader$BIN_EXTENSION cli-snapshot \
+          build/bin/uploader cli-snapshot \
             --snapshot-directory tmp_snapshots \
             build/snapshots/*.snapshot
 
       - name: Build and upload service images
-        if: runner.os == 'Linux' && github.event_name == 'release'
+        if: github.event_name == 'release'
         shell: bash
         run: |
           # No need to cache the snapshots in a local snapshot directory.
@@ -136,15 +162,21 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: artemis-${{ env.SYSTEM }}
+          name: artemis
           path: |
             build/bin/*
             build/snapshots/artemis-${{ env.ARTEMIS_UUID }}.snapshot
 
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artemis-release-binaries
+          path: out/*
+
   sign_artemis_windows:
     runs-on: windows-signing
     needs: [build]
-    if: github.event_name == 'release'
+    if: inputs.sign_windows
     steps:
       - name: Clean workspace
         run: |
@@ -152,11 +184,11 @@ jobs:
 
       - uses: actions/download-artifact@v3
         with:
-          name: artemis-windows
-          path: build
+          name: artemis-release-binaries
+          path: out
 
       - name: Sign artemis
-        working-directory: ./build/bin
+        working-directory: ./out/windows
         run: |
           signtool sign /debug /n "Toitware ApS" /t http://timestamp.digicert.com/ $PWD/artemis.exe
 
@@ -164,19 +196,19 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: artemis-signed-windows
-          path: build
+          path: ./out/windows
 
   sign_artemis_macos:
     runs-on: macos-latest
     needs: [build]
-    if: github.event_name == 'release'
+    if: inputs.sign_macos
     steps:
       - uses: actions/checkout@v3
 
       - uses: actions/download-artifact@v3
         with:
-          name: artemis-macos
-          path: build
+          name: artemis-release-binaries
+          path: out
 
       - name: Install dependencies
         run: |
@@ -186,7 +218,7 @@ jobs:
 
       - name: Setup binary rights
         run: |
-          chmod +x build/bin/artemis
+          chmod +x out/macos/artemis
 
       - name: Sign and notarize
         uses: toitlang/action-macos-sign-notarize@v1.0.0
@@ -196,7 +228,7 @@ jobs:
           username: ${{ secrets.AC_USERNAME }}
           password: ${{ secrets.AC_PASSWORD }}
           apple-team-id: 33DS2ZRDST
-          app-path: build/bin/artemis
+          app-path: out/macos/artemis
 
       - name: Create a DMG
         run: |
@@ -206,44 +238,43 @@ jobs:
           mkdir empty
           create-dmg \
               --volname "artemis" \
-              --add-file artemis build/bin/artemis 0 0 \
-              build/artemis.dmg \
+              --add-file artemis out/macos/artemis 0 0 \
+              out/macos/artemis.dmg \
               empty
 
       - name: Create a ZIP
         run: |
-          zip -j build/artemis.zip build/bin/artemis
+          zip -j out/macos/artemis.zip out/macos/artemis
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: artemis-signed-macos
-          path: build
+          path: ./out
 
   do_release:
     runs-on: ubuntu-latest
     needs: [sign_artemis_windows, sign_artemis_macos]
-    if: github.event_name == 'release'
     steps:
       - uses: actions/checkout@v3
 
       - name: Download Linux artifacts
         uses: actions/download-artifact@v3
         with:
-          name: artemis-linux
-          path: build-linux
+          name: artemis-release-binaries
+          path: out
 
       - name: Download signed Windows artifacts
         uses: actions/download-artifact@v3
         with:
           name: artemis-signed-windows
-          path: build-windows
+          path: out
 
       - name: Download signed macOS artifacts
         uses: actions/download-artifact@v3
         with:
           name: artemis-signed-macos
-          path: build-macos
+          path: out
 
       - name: Debug list
         shell: bash
@@ -256,39 +287,25 @@ jobs:
           mkdir release-assets
 
           mkdir artemis-linux
-          mv build-linux/bin/artemis artemis-linux
+          mv out/linux/artemis artemis-linux
           chmod +x artemis-linux/artemis
           tar -czf release-assets/artemis-linux.tar.gz artemis-linux
 
           mkdir artemis-windows
-          zip release-assets/artemis-windows.zip build-windows/bin/artemis.exe
+          zip -j release-assets/artemis-windows.zip out/windows/artemis.exe
 
           mkdir artemis-macos
-          mv build-macos/artemis.dmg release-assets/artemis.dmg
-          mv build-macos/artemis.zip release-assets/artemis-macos.zip
+          mv out/macos/artemis.dmg release-assets/artemis.dmg
+          mv out/macos/artemis.zip release-assets/artemis-macos.zip
 
-      # Prepare the admin tools.
-      # They are not publicly released, and are just uploaded to make
-      # administration easier, without needing to build the tools locally.
-      - name: Prepare admin tools
-        shell: bash
-        run: |
-          mkdir admin-tools-linux
-          (cd build-linux/bin; for f in *; do cp $f ../../admin-tools-linux/$f; done)
-          # The Linux artemis executable was already moved away.
-          tar -czf admin-tools-linux.tar.gz admin-tools-linux
-
-          mkdir admin-tools-windows
-          (cd build-windows/bin; for f in *; do cp $f ../../admin-tools-windows/$f; done)
-          rm -f admin-tools-windows/artemis.exe
-          tar -czf admin-tools-windows.tar.gz admin-tools-windows
-
-          mkdir admin-tools-macos
-          (cd build-macos/bin; for f in *; do cp $f ../../admin-tools-macos/$f; done)
-          rm -f admin-tools-macos/artemis
-          tar -czf admin-tools-macos.tar.gz admin-tools-macos
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-assets
+          path: release-assets
 
       - name: Upload release artifacts as assets
+        if: github.event_name == 'release'
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -297,16 +314,8 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
 
-      - name: Upload admin artifacts as assets
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file_glob: true
-          file: admin-tools-*.tar.gz
-          tag: ${{ github.ref }}
-          overwrite: true
-
       - name: Create public release
+        if: github.event_name == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.LEON_ARTEMIS_RELEASE_PAT }}
         run: |

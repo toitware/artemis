@@ -298,7 +298,15 @@ Chooses the download URL based on the current platform.
 sdk_url version/string -> string:
   platform_str/string := ?
   if platform == PLATFORM_LINUX:
-    platform_str = "linux"
+    // TODO(florian): There should be a way to get the architecture from the core
+    //   library.
+    arch := (pipe.backticks [ "uname", "-m" ]).trim
+    if arch == "x86_64":
+      platform_str = "linux"
+    else if arch == "aarch64":
+      platform_str = "aarch64"
+    else:
+      throw "Unsupported architecture: $arch"
   else if platform == PLATFORM_MACOS:
     platform_str = "macos"
   else if platform == PLATFORM_WINDOWS:

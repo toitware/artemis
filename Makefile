@@ -2,6 +2,9 @@
 
 TOITRUN ?= toit.run
 
+SHELL=bash
+.SHELLFLAGS += -e
+
 LOCAL_DEV_SDK ?= v2.0.0-alpha.87
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 

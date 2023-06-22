@@ -13,6 +13,13 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
+        arch: [ amd64 ]
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+            run_supabase_tests: true
+          - os: ubuntu-latest
+            arch: arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -32,7 +39,7 @@ jobs:
           fi
           echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
 
-          export TOIT_VERSION="v2.0.0-alpha.87"
+          export TOIT_VERSION=$(make dev-sdk-version)
 
           export NATIVE_DOWNLOAD_DIR="${{ github.workspace }}/downloads"
           echo "NATIVE_DOWNLOAD_DIR=$NATIVE_DOWNLOAD_DIR" >> $GITHUB_ENV
@@ -89,13 +96,13 @@ jobs:
           cmake --version
 
       - name: Install Supabase
-        if: ${{ runner.os == 'Linux' }}
+        if: matrix.run_supabase_tests
         uses: supabase/setup-cli@v1
         with:
           version: 1.64.8
 
       - name: Start Supabase - Toitware
-        if: ${{ runner.os == 'Linux' }}
+        if: matrix.run_supabase_tests
         shell: bash
         working-directory: ${{ github.workspace }}/supabase_artemis
         run: |
@@ -122,7 +129,7 @@ jobs:
           echo "SUPABASE_TOITWARE_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
       - name: Start Supabase - Broker
-        if: ${{ runner.os == 'Linux' }}
+        if: matrix.run_supabase_tests
         shell: bash
         working-directory: ${{ github.workspace }}/supabase_broker
         run: |
@@ -144,10 +151,16 @@ jobs:
           cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
 
       - name: Disable Supabase tests - Windows and macOS
-        if: runner.os != 'Linux'
+        if: runner.os != 'Linux' || matrix.arch != 'amd64'
         shell: bash
         run: |
           make disable-supabase-tests
+
+      - name: Configure arm64
+        if: matrix.arch == 'arm64'
+        shell: bash
+        run: |
+          cmake -B build -DARTEMIS_ARCH=arm64 -DARTEMIS_OS=linux
 
       - name: Build binaries
         shell: bash
@@ -155,15 +168,50 @@ jobs:
           make TOITRUN="$TOIT_EXEC"
 
       - name: Force schema reload
-        if: runner.os == 'Linux'
+        if: matrix.run_supabase_tests
         shell: bash
         run: |
             make reload-supabase-schemas
 
       - name: Test
+        if: matrix.arch != 'arm64'
         shell: bash
         run: |
           make TOITRUN="$TOIT_EXEC" test
+
+      - name: Start http-servers - arm64
+        if: matrix.arch == 'arm64'
+        shell: bash
+        run: |
+          make TOITRUN="$TOIT_EXEC" start-http &
+          echo "HTTP_PID=$!" >> $GITHUB_ENV
+          sleep 10
+          make TOITRUN="$TOIT_EXEC" setup-local-dev
+          mkdir -p $HOME/.config/artemis
+          cp $HOME/.config/artemis-dev/config config
+
+      - name: Test executables 64-bit
+        if: matrix.arch == 'arm64'
+        uses: pguyot/arm-runner-action@v2
+        with:
+          cpu: cortex-a7
+          base_image: "raspios_lite_arm64:2022-01-28"
+          image_additional_mb: 300
+          commands: |
+              uname -m
+              export HOME=$(pwd)
+              export ARTEMIS_CONFIG=$HOME/config
+              build/bin/artemis --version
+              mkdir fleet
+              export ARTEMIS_FLEET_ROOT=$PWD/fleet
+              build/bin/artemis fleet init
+              build/bin/artemis pod build -o test.pod fleet/my-pod.json
+
+      - name: Kill http-servers
+        if: matrix.arch == 'arm64'
+        shell: bash
+        run: |
+          kill $HTTP_PID
 
       - name: Upload service for Testing org
         if: runner.os == 'Linux' && github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -193,12 +241,14 @@ jobs:
               --local
 
       - name: Upload binary artifacts
+        if: matrix.arch != 'arm64'
         uses: actions/upload-artifact@v3
         with:
           name: binaries-${{ runner.os }}
           path: build/bin
 
       - name: Upload snapshot artifacts
+        if: matrix.arch != 'arm64'
         uses: actions/upload-artifact@v3
         with:
           name: snapshots-${{ runner.os }}
