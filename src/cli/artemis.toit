@@ -205,8 +205,6 @@ class Artemis:
     envelope_path := specification.envelope_path
 
     if not sdk_version:
-
-    if not sdk_version:
       envelope_path = "$specification.relative_to/$envelope_path"
       // Extract the sdk version from the envelope.
       envelope := file.read_content envelope_path

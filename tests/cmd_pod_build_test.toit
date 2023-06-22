@@ -47,7 +47,7 @@ run_test test_cli/TestCli fleet_dir/string:
     {
       "version": 1,
       "name": "test-pod2",
-      "envelope": "custom.envelope",
+      "firmware-envelope": "custom.envelope",
       "artemis-version": "$TEST_ARTEMIS_VERSION",
       "connections": [
         {

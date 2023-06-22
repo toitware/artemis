@@ -274,12 +274,12 @@ class PodSpecification:
     name = get_string_ data "name"
     artemis_version = get_string_ data "artemis-version"
     sdk_version = get_optional_string_ data "sdk-version"
-    envelope_path = get_optional_string_ data "envelope"
+    envelope_path = get_optional_string_ data "firmware-envelope"
 
     if sdk_version and envelope_path:
-      format_error_ "Both 'sdk-version' and 'envelope' are present in pod specification."
+      format_error_ "Both 'sdk-version' and 'firmware-envelope' are present in pod specification."
     if not sdk_version and not envelope_path:
-      format_error_ "Neither 'sdk-version' nor 'envelope' are present in pod specification."
+      format_error_ "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
 
     chip = get_optional_string_ data "chip"
 
