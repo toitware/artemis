@@ -11,12 +11,12 @@ on:
         required: true
         default: false
       sign_macos:
-        description: Sign the macos binary
+        description: Sign the macOS binary
         type: boolean
         required: true
         default: false
       sign_windows:
-        description: Sign the windows binary
+        description: Sign the Windows binary
         type: boolean
         required: true
         default: false
