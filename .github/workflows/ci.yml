@@ -214,7 +214,11 @@ jobs:
           kill $HTTP_PID
 
       - name: Upload service for Testing org
-        if: runner.os == 'Linux' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: |
+          runner.os == 'Linux' &&
+          matrix.arch == 'amd64' &&
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
         shell: bash
         env:
           ARTEMIS_EMAIL: leon@toit.io
