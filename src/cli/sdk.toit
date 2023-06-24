@@ -193,6 +193,7 @@ class Sdk:
       "$sdk_path/tools/firmware",
       "container", "list",
       "-e", envelope_path,
+      "--output-format", "json",
     ])
 
   /**
