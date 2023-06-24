@@ -6,7 +6,6 @@ import net.cellular
 import net.ethernet
 import net.wifi
 
-
 import system.services show ServiceProvider
 import system.api.network show NetworkService NetworkServiceClient
 import system.base.network show ProxyingNetworkServiceProvider
