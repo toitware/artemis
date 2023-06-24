@@ -2,8 +2,9 @@
 
 import log
 import net
-import net.wifi
 import net.cellular
+import net.ethernet
+import net.wifi
 
 import system.services show ServiceProvider
 import system.api.network show NetworkService NetworkServiceClient
@@ -160,4 +161,4 @@ class ConnectionEthernet extends Connection:
     return "ethernet-$index"
 
   open -> net.Client:
-    throw "UNSUPPORTED"
+    return ethernet.open --name=name
