@@ -175,7 +175,7 @@ jobs:
   sign_artemis_windows:
     runs-on: windows-signing
     needs: [build]
-    if: inputs.sign_windows
+    if: github.event_name == 'release' || inputs.sign_windows
     steps:
       - name: Clean workspace
         run: |
@@ -200,7 +200,7 @@ jobs:
   sign_artemis_macos:
     runs-on: macos-latest
     needs: [build]
-    if: inputs.sign_macos
+    if: github.event_name == 'release' || inputs.sign_macos
     steps:
       - uses: actions/checkout@v3
 
