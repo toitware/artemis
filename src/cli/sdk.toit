@@ -11,6 +11,7 @@ import host.os
 import http
 import log
 import net
+import semver
 import writer show Writer
 
 import .cache show SDK_PATH
@@ -189,12 +190,17 @@ class Sdk:
   - "id": the ID of the application.
   */
   firmware_list_containers --envelope_path/string -> Map:
+    // Newer versions of the SDK require explictly asking
+    // for the JSON output.
+    output_format := []
+    if (semver.compare version "v2.0.0-alpha.88") >= 0:
+      output_format = ["--output-format", "json"]
+
     return json.parse (pipe.backticks [
       "$sdk_path/tools/firmware",
       "container", "list",
       "-e", envelope_path,
-      "--output-format", "json",
-    ])
+    ] + output_format)
 
   /**
   Extracts the container with the given $name from the $envelope_path and
