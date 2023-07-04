@@ -231,6 +231,13 @@ class Sdk:
       --port/string
       --baud_rate/string?
       --partitions/List?:
+    // TODO(kasper): We'd like to get the chip variant from the firmware
+    // envelope, but for now we just treat the prefix leading up to
+    // the first dash as the variant. This works well with the current
+    // naming convention.
+    dash_index := chip.index_of "-"
+    if dash_index > 0: chip = chip[..dash_index]
+
     arguments := [
       "flash",
       "-e", envelope_path,
