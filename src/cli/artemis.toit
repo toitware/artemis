@@ -257,14 +257,16 @@ class Artemis:
             --cache=cache_
             --ui=ui_
 
-        // Build the assets if any.
+        // Build the assets from the defines (if any).
         assets_path/string? := null
-        if container.assets:
+        if container.defines:
           assets_path = "$tmp_dir/$(name).assets"
-          assets := container.assets.map: | _ value |
-            { "format": "tison",
-              "json": value
+          assets := {
+            "artemis.defines": {
+              "format": "tison",
+              "json": container.defines
             }
+          }
           sdk.assets_create --output_path=assets_path assets
 
         sdk.firmware_add_container name

@@ -58,6 +58,13 @@ VALID_SPECIFICATION ::= {
         "boot",
         "install",
       ]
+    },
+    "app5": {
+      "entrypoint": "entrypoint.toit",
+      "defines": {
+        "foo": 17,
+        "bar": "42"
+      }
     }
   }
 }

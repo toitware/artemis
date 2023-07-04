@@ -499,7 +499,7 @@ interface Container:
   is_critical -> bool?
   runlevel -> int?
   triggers -> List? // Of type $Trigger.
-  assets -> Map?
+  defines -> Map?
 
   static check_arguments_entry arguments:
     if arguments == null: return
@@ -515,7 +515,7 @@ abstract class ContainerBase implements Container:
   is_background/bool?
   is_critical/bool?
   runlevel/int?
-  assets/Map?
+  defines/Map?
 
   constructor.from_json name/string data/Map:
     holder := "container $name"
@@ -560,7 +560,7 @@ abstract class ContainerBase implements Container:
     else:
       triggers = null
 
-    assets = get_optional_map_ data "assets"
+    defines = get_optional_map_ data "defines"
 
   abstract type -> string
   abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
