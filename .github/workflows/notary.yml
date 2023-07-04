@@ -1,0 +1,18 @@
+# Copyright (C) 2023 Toitware ApS. All rights reserved.
+
+name: Notary history
+
+on:
+  workflow_dispatch:
+
+jobs:
+  notary:
+    runs-on: macos-latest
+    steps:
+      - name: History
+        shell: bash
+        run: |
+          xcrun notarytool history \
+              --apple-id "${{ secrets.AC_USERNAME }}" \
+              --password "${{ secrets.AC_PASSWORD }}" \
+              --team-id "33DS2ZRDST"
