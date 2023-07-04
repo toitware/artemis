@@ -234,16 +234,10 @@ class Artemis:
     max_offline_seconds := specification.max_offline_seconds
     if max_offline_seconds > 0: device_config["max-offline"] = max_offline_seconds
 
-    connections := []
-    specification.connections.do: | connection/ConnectionInfo |
-      if connection.type == "wifi" or connection.type == "cellular":
-        connections.add connection.to_json
-      else:
-        ui_.abort "Unsupported connection type: $connection.type"
-
-    if not (connections.any: it["type"] == "wifi"):
-      ui_.abort "No WiFi connections configured."
-
+    if specification.connections.is_empty:
+      ui_.abort "No network connections configured."
+    connections := specification.connections.map: | connection/ConnectionInfo |
+      connection.to_json
     device_config["connections"] = connections
 
     // Create the assets for the Artemis service.
