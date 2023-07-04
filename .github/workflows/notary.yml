@@ -1,21 +1,14 @@
 # Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-name: Notary History
+name: Notary history
 
 on:
   workflow_dispatch:
 
 jobs:
-  sign_artemis_macos:
+  notary:
     runs-on: macos-latest
     steps:
-      - name: Import signing keychain
-        uses: apple-actions/import-codesign-certs@v2
-        with:
-          keychain: signing_temp
-          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE }}
-          p12-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-
       - name: History
         shell: bash
         run: |
