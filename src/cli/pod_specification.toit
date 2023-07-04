@@ -499,6 +499,7 @@ interface Container:
   is_critical -> bool?
   runlevel -> int?
   triggers -> List? // Of type $Trigger.
+  defines -> Map?
 
   static check_arguments_entry arguments:
     if arguments == null: return
@@ -514,6 +515,7 @@ abstract class ContainerBase implements Container:
   is_background/bool?
   is_critical/bool?
   runlevel/int?
+  defines/Map?
 
   constructor.from_json name/string data/Map:
     holder := "container $name"
@@ -523,12 +525,14 @@ abstract class ContainerBase implements Container:
         --check=: it is string
     is_background = get_optional_bool_ data "background"
     is_critical = get_optional_bool_ data "critical"
+
     runlevel_string := get_optional_string_ data "run-level"
     if runlevel_string:
       runlevel = Container.STRING_TO_RUNLEVEL_.get runlevel_string
           --if_absent=: format_error_ "Unknown run-level '$runlevel_string' in container $name"
     else:
       runlevel = null
+
     triggers_list := get_optional_list_ data "triggers"
         --holder=holder
         --type="map or string"
@@ -555,6 +559,8 @@ abstract class ContainerBase implements Container:
         seen_types.add trigger_type
     else:
       triggers = null
+
+    defines = get_optional_map_ data "defines"
 
   abstract type -> string
   abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui

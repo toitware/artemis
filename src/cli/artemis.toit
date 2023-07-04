@@ -257,9 +257,21 @@ class Artemis:
             --cache=cache_
             --ui=ui_
 
-        // TODO(florian): add support for assets.
+        // Build the assets from the defines (if any).
+        assets_path/string? := null
+        if container.defines:
+          assets_path = "$tmp_dir/$(name).assets"
+          assets := {
+            "artemis.defines": {
+              "format": "tison",
+              "json": container.defines
+            }
+          }
+          sdk.assets_create --output_path=assets_path assets
+
         sdk.firmware_add_container name
             --envelope=output_path
+            --assets=assets_path
             --program_path=snapshot_path
             --trigger="none"
 
@@ -268,6 +280,8 @@ class Artemis:
         sha := sha256.Sha256
         snapshot_uuid_string := extract_id_from_snapshot snapshot_path
         sha.add (uuid.parse snapshot_uuid_string).to_byte_array
+        if assets_path:
+          sha.add (file.read_content assets_path)
         id := uuid.Uuid sha.get[..uuid.SIZE]
 
         triggers := container.triggers
@@ -318,7 +332,8 @@ class Artemis:
           --sdk=sdk_version
           --service=service_version
 
-      sdk.firmware_add_container "artemis" --envelope=output_path
+      sdk.firmware_add_container "artemis"
+          --envelope=output_path
           --assets=artemis_assets_path
           --program_path=artemis_service_image_path
           --trigger="boot"
