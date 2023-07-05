@@ -586,7 +586,9 @@ class ContainerPath extends ContainerBase:
       path := entrypoint
       if fs.is_relative path:
         path = "$relative_to/$path"
-      sdk.compile_to_snapshot path --out=output_path
+      sdk.compile_to_snapshot path
+          --optimization_level=2
+          --out=output_path
       return
 
     git := Git --ui=ui
@@ -648,7 +650,9 @@ class ContainerPath extends ContainerBase:
 
       // TODO(florian): move into the clone_dir and compile from there.
       // Otherwise we have unnecessary absolute paths in the snapshot.
-      sdk.compile_to_snapshot entrypoint_path --out=output_path
+      sdk.compile_to_snapshot entrypoint_path
+          --optimization_level=2
+          --out=output_path
 
   type -> string:
     return "path"

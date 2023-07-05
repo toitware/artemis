@@ -30,11 +30,11 @@ class Sdk:
   is_source_build -> bool:
     return sdk_path.ends_with "build/host"
 
-  compile_to_snapshot path/string --out/string -> none:
-    run_toit_compile [
-      "-w", "$out",
-      path,
-    ]
+  compile_to_snapshot path/string --out/string -> none
+      --optimization_level/int?=null:
+    arguments := ["-w", "$out"]
+    if optimization_level: arguments.add "-O$optimization_level"
+    run_toit_compile arguments + [path]
 
   compile_snapshot_to_image -> none
       --word_size/int
