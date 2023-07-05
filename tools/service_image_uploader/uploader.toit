@@ -171,7 +171,9 @@ build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
     ui.info "Creating snapshot."
 
     snapshot_path := "$tmp_dir/service.snapshot"
-    sdk.compile_to_snapshot service_source_path --out=snapshot_path
+    sdk.compile_to_snapshot service_source_path
+        --optimization_level=2
+        --out=snapshot_path
 
     create_image_archive snapshot_path --sdk=sdk --out=ar_file
 
