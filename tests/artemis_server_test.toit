@@ -26,7 +26,7 @@ main args:
     server_type = "supabase"
   else:
     throw "Unknown server server type: $args[0]"
-  with_artemis_server --type=server_type: | artemis_server/TestArtemisServer |
+  with_artemis_server --args=args --type=server_type: | artemis_server/TestArtemisServer |
     run_test artemis_server --authenticate=: | server/ArtemisServerCli |
       server.sign_in
             --email=TEST_EXAMPLE_COM_EMAIL

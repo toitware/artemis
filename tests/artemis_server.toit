@@ -54,8 +54,13 @@ interface ArtemisServerBackdoor:
   */
   remove_device device_id/uuid.Uuid -> none
 
-with_artemis_server --type/string [block]:
+with_artemis_server
+    --type/string
+    --args/List
+    [block]:
   if type == "supabase":
+    // Make sure we are running with the correct resource lock.
+    check_resource_lock "artemis_server" --args=args
     server_config := get_supabase_config --sub_directory=SUPABASE_ARTEMIS
     service_key := get_supabase_service_key --sub_directory=SUPABASE_ARTEMIS
     backdoor := SupabaseBackdoor server_config service_key

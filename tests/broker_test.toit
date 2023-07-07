@@ -41,10 +41,11 @@ DEVICE2 ::= Device
 
 main args:
   broker_type := broker_type_from_args args
-  with_broker --type=broker_type: | test_broker/TestBroker |
-    run_test broker_type test_broker
+  with_broker --args=args --type=broker_type: | test_broker/TestBroker |
+    run_test broker_type test_broker --args=args
 
 run_test
+    --args/List
     broker_name/string
     test_broker/TestBroker:
 
@@ -57,7 +58,7 @@ run_test
 
     if broker_name == "supabase-local-artemis":
       // Make sure the device is in the database.
-      with_artemis_server --type="supabase": | server/TestArtemisServer |
+      with_artemis_server --args=args --type="supabase": | server/TestArtemisServer |
         backdoor := server.backdoor as SupabaseBackdoor
         backdoor.with_backdoor_client_: | client/supabase.Client |
           [DEVICE1, DEVICE2].do: | device/Device |
