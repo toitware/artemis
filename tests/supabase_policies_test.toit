@@ -7,8 +7,8 @@ import expect show *
 import supabase
 import .artemis_server
 
-main:
-  with_artemis_server --type="supabase": | artemis_server/TestArtemisServer |
+main args:
+  with_artemis_server --args=args --type="supabase": | artemis_server/TestArtemisServer |
     server_config := artemis_server.server_config as ServerConfigSupabase
     client_anon := supabase.Client --server_config=server_config --certificate_provider=:unreachable
     client1 := supabase.Client --server_config=server_config --certificate_provider=:unreachable

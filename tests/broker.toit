@@ -64,8 +64,19 @@ interface BrokerBackdoor:
   */
   clear_events -> none
 
-with_broker --type/string --logger/Logger=(log.default.with_name "testing-$type") [block]:
+with_broker
+    --type/string
+    --args/List
+    --logger/Logger=(log.default.with_name "testing-$type")
+    [block]:
   if type == "supabase-local" or type == "supabase-local-artemis":
+    // Make sure we are running with the correct resource lock.
+    if type == "supabase-local-artemis":
+      check_resource_lock "artemis_broker" --args=args
+    else if type == "supabase-local":
+      check_resource_lock "broker" --args=args
+    else:
+      unreachable
     sub_dir := type == "supabase-local" ? SUPABASE_BROKER : SUPABASE_ARTEMIS
     server_config := get_supabase_config --sub_directory=sub_dir
     service_key := get_supabase_service_key --sub_directory=sub_dir

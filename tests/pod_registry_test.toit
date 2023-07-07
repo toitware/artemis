@@ -15,7 +15,7 @@ import .utils
 
 main args:
   broker_type := broker_type_from_args args
-  with_broker --type=broker_type: | test_broker/TestBroker |
+  with_broker --args=args --type=broker_type: | test_broker/TestBroker |
     run_test broker_type test_broker
 
 run_test

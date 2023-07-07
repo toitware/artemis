@@ -31,7 +31,7 @@ set(TEST_PREFIX "")
 include(fail.cmake OPTIONAL)
 
 set (SUPABASE_ARTEMIS_TESTS
-    "/tests/supabase_uploader_test_slow.toit"
+    "/tests/supabase_uploader_test.toit"
     "/tests/supabase_policies_test.toit"
     )
 
@@ -166,10 +166,13 @@ foreach(file ${TESTS})
       list(APPEND RESOURCE_LOCKS "artemis_server")
     endif()
     if (SUPABASE_BROKER_FLAG IN_LIST flag)
-      list(APPEND RESOURCE_LOCKS "artemis_broker")
+      list(APPEND RESOURCE_LOCKS "broker")
     endif()
     if (SUPABASE_ARTEMIS_BROKER_FLAG IN_LIST flag)
-      list(APPEND RESOURCE_LOCKS "broker")
+      list(APPEND RESOURCE_LOCKS "artemis_broker")
+      # Some broker tests need to modify the Artemis server to ensure that
+      # devices exist. Make sure that the server is locked as well.
+      list(APPEND RESOURCE_LOCKS "artemis_server")
     endif()
 
     if (${IS_SERIAL_TEST})
@@ -191,6 +194,7 @@ foreach(file ${TESTS})
           "--sdk-version=${DEV_SDK_VERSION}"
           "--sdk-path=${DEV_SDK_PATH}"
           "--envelope-path=${DEV_ENVELOPE_PATH}"
+          "--resource-locks=${RESOURCE_LOCKS}"
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       CONFIGURATIONS ${TEST_CONFIGURATIONS}
     )

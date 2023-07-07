@@ -677,7 +677,7 @@ with_test_cli
     --logger/log.Logger=log.default
     --gold_name/string?=null
     [block]:
-  with_artemis_server --type=artemis_type: | artemis_server |
+  with_artemis_server --args=args --type=artemis_type: | artemis_server |
     with_test_cli
         --artemis_server=artemis_server
         broker_type
@@ -693,7 +693,7 @@ with_test_cli
     --args/List
     --gold_name/string?
     [block]:
-  with_broker --type=broker_type --logger=logger: | broker/TestBroker |
+  with_broker --args=args --type=broker_type --logger=logger: | broker/TestBroker |
     with_test_cli
         --artemis_server=artemis_server
         --broker=broker
@@ -926,3 +926,11 @@ pad_replacement_id str/string -> string:
   left_padding := padding / 2
   right_padding := padding - left_padding
   return "$prefix$("~" * left_padding)$str$("~" * right_padding)$suffix"
+
+check_resource_lock --args/List lock_type/string:
+  args.do:
+    if it.starts_with "--resource-locks=":
+      resource_locks := it["--resource-locks=".size..].split ";"
+      expect (resource_locks.contains lock_type)
+      return
+  throw "Expected --resource-locks=$lock_type"

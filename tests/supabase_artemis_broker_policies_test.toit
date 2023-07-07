@@ -10,8 +10,8 @@ import .broker
 import .supabase_broker_policies_shared
 import .utils
 
-main:
-  with_broker --type="supabase-local-artemis" --logger=log.default: | broker/TestBroker |
+main args:
+  with_broker --args=args --type="supabase-local-artemis" --logger=log.default: | broker/TestBroker |
     server_config := broker.server_config as ServerConfigSupabase
     client_anon := supabase.Client --server_config=server_config --certificate_provider=:unreachable
     client1 := supabase.Client --server_config=server_config --certificate_provider=:unreachable
