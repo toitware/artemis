@@ -35,6 +35,14 @@ set (SUPABASE_ARTEMIS_TESTS
     "/tests/supabase_policies_test.toit"
     )
 
+set (SUPABASE_ARTEMIS_BROKER_TESTS
+    "/tests/supabase_artemis_broker_policies_test.toit"
+    )
+
+set (SUPABASE_BROKER_TESTS
+    "/tests/supabase_broker_policies_test.toit"
+    )
+
 set (SUPABASE_ARTEMIS_FLAG "--supabase-server")
 set (SUPABASE_ARTEMIS_BROKER_FLAG "--supabase-local-artemis-broker")
 set (SUPABASE_BROKER_FLAG "--supabase-local-broker")
@@ -147,6 +155,12 @@ foreach(file ${TESTS})
     set(RESOURCE_LOCKS)
     if (${test_name} IN_LIST SUPABASE_ARTEMIS_TESTS)
       list(APPEND RESOURCE_LOCKS "artemis_server")
+    endif()
+    if (${test_name} IN_LIST SUPABASE_ARTEMIS_BROKER_TESTS)
+      list(APPEND RESOURCE_LOCKS "artemis_broker")
+    endif()
+    if (${test_name} IN_LIST SUPABASE_BROKER_TESTS)
+      list(APPEND RESOURCE_LOCKS "broker")
     endif()
     if (SUPABASE_ARTEMIS_FLAG IN_LIST flag)
       list(APPEND RESOURCE_LOCKS "artemis_server")
