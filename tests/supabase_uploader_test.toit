@@ -101,8 +101,14 @@ run_test test_cli/TestCli:
               "--snapshot-directory", tmp_dir,
             ]
 
+      // Debug information to analyze flaky tests.
+      supabase_backdoor := test_cli.artemis.backdoor as SupabaseBackdoor
+      supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
+        service_images := client.rest.select "service_images"
+        print "Service images before 2nd attempt: $service_images"
+
       // Without force we can't upload the same version again.
-      expect_exit_1:
+      exception := catch:
         uploader.main
             --config=test_cli.config
             --cache=test_cli.cache
@@ -113,6 +119,12 @@ run_test test_cli/TestCli:
               "--service-version", service_version,
               "--snapshot-directory", tmp_dir,
             ]
+      if exception is not TestExit:
+        // Debug information to analyze flaky tests.
+        supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
+          service_images := client.rest.select "service_images"
+          print "Service images after 2nd attempt: $service_images"
+        expect false
 
       // We keep the service version for the download test.
       run_main_test test_cli tmp_dir service_version --keep_service:
