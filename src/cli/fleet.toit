@@ -154,9 +154,23 @@ class DevicesFile:
       ui.abort "Fleet file $path has invalid format."
 
     devices := []
+
     encoded_devices.do: | device_id encoded_device |
+      fail := : | message/string? |
+        ui.error "Fleet file $path has invalid format for device ID $device_id."
+        if message:
+          ui.error message
+        ui.abort
+
       if encoded_device is not Map:
-        ui.abort "Fleet file $path has invalid format for device ID $device_id."
+        fail.call null
+
+      id := uuid.parse device_id --on_error=: fail.call "Invalid device ID."
+      aliases := encoded_device.get "aliases"
+      if aliases:
+        if aliases is not List or (aliases.any: it is not string or it == ""):
+         fail.call "'aliases' entry must be a list of non-empty strings."
+
       exception = catch:
         device := DeviceFleet
             --id=uuid.parse device_id
@@ -165,9 +179,7 @@ class DevicesFile:
             --group=(encoded_device.get "group") or DEFAULT_GROUP
         devices.add device
       if exception:
-        ui.error "Fleet file $path has invalid format for device ID $device_id."
-        ui.error exception.message
-        ui.abort
+        fail.call "$exception"
 
     return DevicesFile path devices
 
