@@ -91,6 +91,44 @@ create_fleet_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: create_identities it config cache ui
   cmd.add create_identities_cmd
 
+  create_identity_cmd := cli.Command "create-identity"
+      --long_help="""
+        Create a single identity file.
+
+        An identity file describe a device, containing their ID and organization.
+        For each written identity file, a device is provisioned in the Toit
+        cloud.
+
+        Use 'flash-station flash' to flash a device with an identity file and a
+        specification or firmware image.
+
+        If no ID is given, a new random ID is generated.
+
+        This command requires the broker to be configured.
+        This command requires Internet access.
+        """
+      --options=[
+        cli.Option "output-directory"
+            --type="directory"
+            --short_help="Directory to write the identity file to."
+            --default=".",
+        cli.Option "group"
+            --default=DEFAULT_GROUP
+            --short_help="Add the devices to a group.",
+        cli.Option "name"
+            --short_help="The name of the device.",
+        cli.Option "alias"
+            --short_help="The alias of the device."
+            --multi
+            --split_commas,
+      ]
+      --rest=[
+        OptionUuid "id"
+            --short_help="The ID of the device.",
+      ]
+      --run=:: create_identity it config cache ui
+  cmd.add create_identity_cmd
+
   update_cmd := cli.Command "update"
       --short_help="Deprecated alias for 'roll-out'."
       --options=[
@@ -316,11 +354,37 @@ create_identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   count := parsed["count"]
   group := parsed["group"]
 
+  if count < 0:
+    ui.abort "Count can't be negative."
+
+  written_count := 0
+  try:
+    with_fleet parsed config cache ui: | fleet/Fleet |
+      count.repeat:
+        fleet.create_identity
+            --group=group
+            --output_directory=output_directory
+        written_count++
+  finally:
+    if count == written_count or written_count > 0:
+      ui.info "Created $written_count identity file(s)."
+
+create_identity parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  output_directory := parsed["output-directory"]
+  group := parsed["group"]
+  name := parsed["name"]
+  aliases := parsed["alias"]
+  id := parsed["id"]
+
   with_fleet parsed config cache ui: | fleet/Fleet |
-    created_files := fleet.create_identities count
+    path := fleet.create_identity
+        --id=id
+        --name=name
+        --aliases=aliases
         --group=group
         --output_directory=output_directory
-    ui.info "Created $created_files.size identity file(s)."
+    ui.info "Created identity file $path."
+
 
 roll_out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   diff_bases := parsed["diff-base"]

@@ -153,6 +153,11 @@ class HttpArtemisServer extends HttpServer:
 
     hardware_id := "$(uuid.uuid5 "" "hardware_id - $Time.monotonic_us")"
     alias_id := alias or "$(uuid.uuid5 "" "alias_id - $Time.monotonic_us")"
+
+    devices.do: | key entry/DeviceEntry |
+      if entry.alias == alias_id:
+        throw "Alias already exists"
+
     devices[hardware_id] = DeviceEntry hardware_id
         --alias=alias_id
         --organization_id=organization_id

@@ -154,14 +154,14 @@ class TestCli:
       device.close
       artemis.backdoor.remove_device device.hardware_id
 
-  run args/List --expect_exit_1/bool=false --quiet/bool=true -> string:
-    return run args --expect_exit_1=expect_exit_1 --quiet=quiet --no-json
+  run args/List --expect_exit_1/bool=false --allow_exception/bool=false --quiet/bool=true -> string:
+    return run args --expect_exit_1=expect_exit_1 --allow_exception=allow_exception --quiet=quiet --no-json
 
-  run args/List --expect_exit_1/bool=false --quiet/bool=true --json/bool -> any:
+  run args/List --expect_exit_1/bool=false --allow_exception/bool=false --quiet/bool=true --json/bool -> any:
     ui := TestUi --quiet=quiet --json=json
     exception := null
     try:
-      exception = catch --unwind=(: not expect_exit_1 or it is not TestExit):
+      exception = catch --unwind=(: not expect_exit_1 or (not allow_exception and it is not TestExit)):
         cli.main args --config=config --cache=cache --ui=ui
     finally: | is_exception _ |
       if is_exception:
