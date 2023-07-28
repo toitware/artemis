@@ -16,8 +16,8 @@ import supabase.filter show equals
 
 main args:
   // Start a TestCli, since that will set up everything the way we want.
-  with_test_cli --args=args --artemis_type="supabase":
-    run_test it
+  with_fleet --args=args --artemis_type="supabase": | test_cli/TestCli _ _ |
+    run_test test_cli
 
 // Just a commit that exists on main.
 // It's safe to update the commit to a newer version.
