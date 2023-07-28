@@ -5,6 +5,7 @@ import artemis.cli.server_config as cli_server_config
 import artemis.shared.server_config show ServerConfigSupabase
 import expect show *
 import supabase
+import supabase.filter show equals greater_than_or_equal
 import .artemis_server
 
 main args:
@@ -84,14 +85,14 @@ main args:
 
     // Users can change their profile.
     client1.rest.update "profiles" --filters=[
-      "id=eq.$user_id1",
+      equals "id" "$user_id1",
     ] {
       "name": "$name1 + changed",
     }
 
     // Check the new name.
     users1 = client1.rest.select "profiles" --filters=[
-      "id=eq.$user_id1",
+      equals "id" "$user_id1",
     ]
     expect_equals 1 users1.size
     expect_equals "$name1 + changed" users1[0]["name"]
@@ -99,26 +100,26 @@ main args:
     // We don't give any way to change the email with the profile-with-email view.
     expect_throws --contains="cannot update":
       client1.rest.update "profiles_with_email" --filters=[
-        "id=eq.$user_id1",
+        equals "id" "$user_id1",
       ] {
         "email": "doesnt@work",
       }
     // The update didn't succeed.
     users1 = client1.rest.select "profiles_with_email" --filters=[
-      "id=eq.$user_id1",
+      equals "id" "$user_id1",
     ]
     expect_equals 1 users1.size
     expect_equals email1 users1[0]["email"]
 
     // We can't change the profile of a different user through the profile-with-email view.
     client1.rest.update "profiles_with_email" --filters=[
-      "id=eq.$user_id2",
+      equals "id" "$user_id2",
     ] {
       "name": "$name2 + won't change",
     }
     // The name is still the same.
     users2 = client2.rest.select "profiles_with_email" --filters=[
-      "id=eq.$user_id2",
+      equals "id" "$user_id2",
     ]
     expect_equals 1 users2.size
     expect_equals name2 users2[0]["name"]
@@ -128,12 +129,12 @@ main args:
     // update here will succeed (the filter will find no matching
     // row, and thus not try to change anything).
     client2.rest.update "profiles" --filters=[
-      "id=eq.$user_id1",
+      equals "id" "$user_id1",
     ] {
       "name": "$name1 + NOPE",
     }
     users1 = client1.rest.select "profiles" --filters=[
-      "id=eq.$user_id1",
+      equals "id" "$user_id1",
     ]
     expect_equals 1 users1.size
     expect_equals "$name1 + changed" users1[0]["name"]
@@ -141,7 +142,7 @@ main args:
     // The same is true for the profiles_with_email view, which
     // is based on the profiles table.
     client2.rest.update "profiles_with_email" --filters=[
-      "id=eq.$user_id1",
+      equals "id" "$user_id1",
     ] {
       "name": "$name1 + NOPE",
     }
@@ -180,7 +181,7 @@ main args:
 
     // Check the new name.
     organizations := client1.rest.select "organizations" --filters=[
-      "id=eq.$organization_id",
+      equals "id" "$organization_id",
     ]
     expect_equals 1 organizations.size
     expect_equals "New name" organizations[0]["name"]
@@ -259,23 +260,23 @@ main args:
 
     // Neither can update the profile of the other.
     client2.rest.update "profiles" --filters=[
-      "id=eq.$user_id1",
+      equals "id" "$user_id1",
     ] {
       "name": "$name1 + NOPE",
     }
     users1 = client1.rest.select "profiles" --filters=[
-      "id=eq.$user_id1",
+      equals "id" "$user_id1",
     ]
     expect users1[0]["name"] != "$name1 + NOPE"
 
     // Both can see the new devices.
     devices1 := client1.rest.select "devices" --filters=[
-      "organization_id=eq.$organization_id",
+      equals "organization_id" "$organization_id",
     ]
     expect_equals 2 devices1.size
 
     devices2 := client2.rest.select "devices" --filters=[
-      "organization_id=eq.$organization_id",
+      equals "organization_id" "$organization_id",
     ]
     expect_equals 2 devices2.size
 
@@ -302,8 +303,8 @@ main args:
 
     // Make client2 an admin.
     client1.rest.update "roles" --filters=[
-      "organization_id=eq.$organization_id",
-      "user_id=eq.$user_id2",
+      equals "organization_id" "$organization_id",
+      equals "user_id" "$user_id2",
     ] {
       "role": "admin",
     }
@@ -343,7 +344,7 @@ main args:
 
     // Client3 can now see the new device.
     devices3 = client3.rest.select "devices" --filters=[
-      "id=eq.$device3["id"]",
+      equals "id" "$device3["id"]",
     ]
     expect_equals 1 devices3.size
 
@@ -395,13 +396,13 @@ main args:
     }
 
     organizations3 = client3.rest.select "organizations" --filters=[
-      "id=eq.$organization3_id",
+      equals "id" "$organization3_id",
     ]
     expect_equals "New name client3" organizations3[0]["name"]
 
     // Members can see the events of their devices.
     device1_events := client1.rest.select "events" --filters=[
-      "device_id=eq.$device1["id"]",
+      equals "device_id" "$device1["id"]",
     ]
     expect_equals 0 device1_events.size
 
@@ -415,19 +416,19 @@ main args:
 
     // Now we have one event.
     device1_events = client1.rest.select "events" --filters=[
-      "device_id=eq.$device1["id"]",
+      equals "device_id" "$device1["id"]",
     ]
     expect_equals 1 device1_events.size
 
     // Anon can't see the events.
     device1_events = client_anon.rest.select "events" --filters=[
-      "device_id=eq.$device1["id"]",
+      equals "device_id" "$device1["id"]",
     ]
     expect_equals 0 device1_events.size
 
     // Client4 can't see the events of device1.
     device1_events = client4.rest.select "events" --filters=[
-      "device_id=eq.$device1["id"]",
+      equals "device_id" "$device1["id"]",
     ]
     expect_equals 0 device1_events.size
 
@@ -468,8 +469,8 @@ main args:
     // Client 3 can remove itself from the org, even though it
     // is not an admin.
     client3.rest.delete "roles" --filters=[
-      "organization_id=eq.$organization_id",
-      "user_id=eq.$user_id3",
+      equals "organization_id" "$organization_id",
+      equals "user_id" "$user_id3",
     ]
 
     /****************************************************************
@@ -494,7 +495,7 @@ main args:
 
     // Clear the sdk table for simplicity.
     // Delete requires a where clause, so we use a filter that is always true.
-    client_admin.rest.delete "sdks" --filters=["id=gte.0"]
+    client_admin.rest.delete "sdks" --filters=[greater_than_or_equal "id" 0]
     sdks := client_admin.rest.select "sdks"
     expect_equals 0 sdks.size
 
@@ -533,7 +534,7 @@ main args:
 
     // Clear the sdk table for simplicity.
     // Delete requires a where clause, so we use a filter that is always true.
-    client_admin.rest.delete "artemis_services" --filters=["id=gte.0"]
+    client_admin.rest.delete "artemis_services" --filters=[greater_than_or_equal "id" 0]
     artemis_services := client_admin.rest.select "artemis_services"
     expect_equals 0 artemis_services.size
 
@@ -572,7 +573,7 @@ main args:
 
     // Clear the table for simplicity.
     // Delete requires a where clause, so we use a filter that is always true.
-    client_admin.rest.delete "service_images" --filters=["id=gte.0"]
+    client_admin.rest.delete "service_images" --filters=[greater_than_or_equal "id" 0]
     images := client_admin.rest.select "service_images"
     expect_equals 0 images.size
 

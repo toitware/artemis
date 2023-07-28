@@ -5,6 +5,7 @@ import http
 import net
 import encoding.json
 import supabase
+import supabase.filter show equals
 import uuid
 
 import ..artemis_server
@@ -73,7 +74,7 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
 
   get_organization id/uuid.Uuid -> OrganizationDetailed?:
     organizations := client_.rest.select "organizations" --filters=[
-      "id=eq.$id"
+      equals "id" "$id"
     ]
     if organizations.is_empty: return null
     return OrganizationDetailed.from_map organizations[0]
@@ -87,12 +88,12 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
       "name": name,
     }
     client_.rest.update "organizations" update --filters=[
-      "id=eq.$organization_id"
+      equals "id" "$organization_id"
     ]
 
   get_organization_members organization_id/uuid.Uuid -> List:
     members := client_.rest.select "roles" --filters=[
-      "organization_id=eq.$organization_id"
+      equals "organization_id" "$organization_id"
     ]
     return members.map: {
       "id": uuid.parse it["user_id"],
@@ -108,14 +109,14 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
 
   organization_member_remove --organization_id/uuid.Uuid --user_id/uuid.Uuid:
     client_.rest.delete "roles" --filters=[
-      "organization_id=eq.$organization_id",
-      "user_id=eq.$user_id",
+      equals "organization_id" "$organization_id",
+      equals "user_id" "$user_id",
     ]
 
   organization_member_set_role --organization_id/uuid.Uuid --user_id/uuid.Uuid --role/string:
     client_.rest.update "roles" --filters=[
-      "organization_id=eq.$organization_id",
-      "user_id=eq.$user_id",
+      equals "organization_id" "$organization_id",
+      equals "user_id" "$user_id",
     ] { "role": role }
 
   get_profile --user_id/uuid.Uuid?=null -> Map?:
@@ -124,7 +125,7 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
       current_user := client_.auth.get_current_user
       user_id = uuid.parse current_user["id"]
     response := client_.rest.select "profiles_with_email" --filters=[
-      "id=eq.$user_id"
+      equals "id" "$user_id",
     ]
     if response.is_empty: return null
     result := response[0]
@@ -136,13 +137,13 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     current_user := client_.auth.get_current_user
     user_id := uuid.parse current_user["id"]
     client_.rest.update "profiles"  { "name": name } --filters=[
-      "id=eq.$user_id"
+      equals "id" "$user_id",
     ]
 
   list_sdk_service_versions --sdk_version/string?=null --service_version/string?=null -> List:
     filters := []
-    if sdk_version: filters.add "sdk_version=eq.$sdk_version"
-    if service_version: filters.add "service_version=eq.$service_version"
+    if sdk_version: filters.add (equals "sdk_version" sdk_version)
+    if service_version: filters.add (equals "service_version" service_version)
     return client_.rest.select "sdk_service_versions" --filters=filters
 
   download_service_image image/string -> ByteArray:

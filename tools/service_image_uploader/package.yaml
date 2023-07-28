@@ -6,7 +6,7 @@ dependencies:
     path: ../..
   certificate_roots:
     url: github.com/toitware/toit-cert-roots
-    version: ^1.4.0
+    version: ^1.5.0
   cli:
     url: github.com/toitlang/pkg-cli
     version: ^1.2.0
@@ -15,9 +15,9 @@ dependencies:
     version: ^1.9.0
   http:
     url: github.com/toitlang/pkg-http
-    version: ^2.3.0
+    version: ^2.3.3
   snapshot:
     path: ../snapshot
   supabase:
     url: github.com/toitware/toit-supabase
-    version: ^0.1.0
+    version: ^0.2.0

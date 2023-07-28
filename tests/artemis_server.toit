@@ -3,6 +3,7 @@
 import monitor
 import net
 import supabase
+import supabase.filter show equals greater_than_or_equal
 import uuid
 
 import .supabase_local_server
@@ -181,7 +182,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 
   fetch_device_information --hardware_id/uuid.Uuid -> List:
     entry := query_ "devices" [
-      "id=eq.$hardware_id",
+      equals "id" "$hardware_id",
     ]
     return [
       uuid.parse entry[0]["id"],
@@ -193,7 +194,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
     // For simplicity just run through all entries.
     // In the test-setup we should not have that many.
     entries := query_ "events" [
-      "device_id=eq.$hardware_id",
+      equals "device_id" "$hardware_id",
     ]
     if not entries: return false
     entries.do:
@@ -206,9 +207,10 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
     with_backdoor_client_: | client/supabase.Client |
       // Clear the sdks, service-versions and images table.
       // Deletes require a where clause, so we use a filter that matches all IDs.
-      client.rest.delete "sdks" --filters=["id=gte.0"]
-      client.rest.delete "artemis_services" --filters=["id=gte.0"]
-      client.rest.delete "service_images" --filters=["id=gte.0"]
+      filter := greater_than_or_equal "id" 0
+      client.rest.delete "sdks" --filters=[filter]
+      client.rest.delete "artemis_services" --filters=[filter]
+      client.rest.delete "service_images" --filters=[filter]
 
       sdk_versions := {:}
       service_versions := {:}
@@ -253,7 +255,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 
   remove_device device_id/uuid.Uuid -> none:
     with_backdoor_client_: | client/supabase.Client |
-      client.rest.delete "devices" --filters=["id=eq.$device_id"]
+      client.rest.delete "devices" --filters=[equals "id" "$device_id"]
 
   query_ table/string filters/List=[] -> List?:
     with_backdoor_client_: | client/supabase.Client |

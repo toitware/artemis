@@ -12,6 +12,7 @@ import ..tools.service_image_uploader.downloader as downloader
 import artemis.shared.version show ARTEMIS_VERSION
 import artemis.cli.git show Git
 import supabase
+import supabase.filter show equals
 
 main args:
   // Start a TestCli, since that will set up everything the way we want.
@@ -61,7 +62,7 @@ delete_service_version test_cli/TestCli service_version/string:
   supabase_backdoor := test_cli.artemis.backdoor as SupabaseBackdoor
   supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
     client.rest.delete "artemis_services" --filters=[
-      "version=eq.$service_version",
+      equals "version" "$service_version",
     ]
 
 run_test test_cli/TestCli:
