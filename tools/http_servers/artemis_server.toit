@@ -318,6 +318,7 @@ class HttpArtemisServer extends HttpServer:
   list_sdk_service_versions data/Map user_id/string? -> List:
     sdk_version := data.get "sdk_version"
     service_version := data.get "service_version"
+    organization_id := data.get "organization_id"
 
     // Only return matching versions.
     return sdk_service_versions.filter: | entry/Map |
@@ -325,7 +326,11 @@ class HttpArtemisServer extends HttpServer:
         continue.filter false
       if service_version and entry["service_version"] != service_version:
         continue.filter false
-      if entry.get "organization_id":
+      entry_org := entry.get "organization_id"
+      if entry_org:
+        // Only return the versions for the given organization.
+        if entry_org != organization_id: continue.filter false
+        // But also check that the user is a member of the organization.
         if not user_id: continue.filter false
         organization := organizations.get entry["organization_id"]
         if not organization: continue.filter false

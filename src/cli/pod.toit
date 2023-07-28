@@ -51,13 +51,24 @@ class Pod:
       --envelope_path/string?=null:
     tmp_dir_ = tmp_directory
 
-  constructor.from_specification --path/string --artemis/Artemis --ui/Ui:
+  constructor.from_specification
+      --organization_id/uuid.Uuid
+      --path/string
+      --artemis/Artemis
+      --ui/Ui:
     specification := parse_pod_specification_file path --ui=ui
-    return Pod.from_specification --specification=specification --artemis=artemis
+    return Pod.from_specification
+        --organization_id=organization_id
+        --specification=specification
+        --artemis=artemis
 
-  constructor.from_specification --specification/PodSpecification --artemis/Artemis:
+  constructor.from_specification
+      --organization_id/uuid.Uuid
+      --specification/PodSpecification
+      --artemis/Artemis:
     envelope_path := generate_envelope_path_ --tmp_directory=artemis.tmp_directory
     artemis.customize_envelope
+        --organization_id=organization_id
         --output_path=envelope_path
         --specification=specification
     envelope := file.read_content envelope_path
@@ -125,7 +136,7 @@ class Pod:
           --tmp_directory=tmp_directory
     unreachable
 
-  constructor.from_file path/string --artemis/Artemis --ui/Ui:
+  constructor.from_file path/string --organization_id/uuid.Uuid --artemis/Artemis --ui/Ui:
     is_compiled_pod := false
     catch --unwind=(: it != "Invalid Ar File"):
       stream := file.Stream.for_read path
@@ -138,7 +149,11 @@ class Pod:
     if is_compiled_pod:
       return Pod.parse path --tmp_directory=artemis.tmp_directory --ui=ui
     else:
-      return Pod.from_specification --path=path --artemis=artemis --ui=ui
+      return Pod.from_specification
+          --organization_id=organization_id
+          --path=path
+          --artemis=artemis
+          --ui=ui
 
   static envelope_count_/int := 0
   static generate_envelope_path_ --tmp_directory/string -> string:

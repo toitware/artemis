@@ -239,7 +239,7 @@ test_sdk server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   ]
   backdoor.install_service_images test_images
 
-  images := server_cli.list_sdk_service_versions
+  images := server_cli.list_sdk_service_versions --organization_id=TEST_ORGANIZATION_UUID
   expect_equals test_images.size images.size
 
   test_images.do: | test_image |
@@ -254,31 +254,40 @@ test_sdk server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
     expect_equals test_image["content"] downloaded_content
 
   // Test that the filters on list_sdk_service_versions work.
-  images = server_cli.list_sdk_service_versions --sdk_version=SDK_V1
+  images = server_cli.list_sdk_service_versions
+      --organization_id=TEST_ORGANIZATION_UUID
+      --sdk_version=SDK_V1
   expect_equals 1 images.size
   expect_equals SDK_V1 images[0]["sdk_version"]
   expect_equals SERVICE_V1 images[0]["service_version"]
 
-  images = server_cli.list_sdk_service_versions --sdk_version=SDK_V2
+  images = server_cli.list_sdk_service_versions
+      --organization_id=TEST_ORGANIZATION_UUID
+      --sdk_version=SDK_V2
   expect_equals 2 images.size
   images.do: | image |
     expect_equals SDK_V2 image["sdk_version"]
     expect (image["service_version"] == SERVICE_V1 or
         image["service_version"] == SERVICE_V2)
 
-  images = server_cli.list_sdk_service_versions --service_version=SERVICE_V1
+  images = server_cli.list_sdk_service_versions
+      --organization_id=TEST_ORGANIZATION_UUID
+      --service_version=SERVICE_V1
   expect_equals 2 images.size
   images.do: | image |
     expect_equals SERVICE_V1 image["service_version"]
     expect (image["sdk_version"] == SDK_V1 or
         image["sdk_version"] == SDK_V2)
 
-  images = server_cli.list_sdk_service_versions --service_version=SERVICE_V2
+  images = server_cli.list_sdk_service_versions
+      --organization_id=TEST_ORGANIZATION_UUID
+      --service_version=SERVICE_V2
   expect_equals 1 images.size
   expect_equals SERVICE_V2 images[0]["service_version"]
   expect_equals SDK_V2 images[0]["sdk_version"]
 
   images = server_cli.list_sdk_service_versions
+      --organization_id=TEST_ORGANIZATION_UUID
       --sdk_version=SDK_V2
       --service_version=SERVICE_V1
   expect_equals 1 images.size
