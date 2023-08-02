@@ -1,0 +1,16 @@
+{
+  "name": "name",
+  "broker": {},
+  "connection": {
+    "connections": [
+      {
+        "wifi": {
+          "ssid": "jaguar",
+          "password": "toittoit"
+        }
+      }
+    ]
+  },
+  "runtime": {},
+  "model_settings": {}
+}

@@ -183,6 +183,20 @@ class Sdk:
     unreachable
 
   /**
+  Extracts the firmware from the given $envelope_path, suitable for an OTA.
+  */
+  firmware_extract_ota --output_path/string --envelope_path/string --device_specific_path/string?=null -> none:
+    args := [
+      "extract",
+      "-e", envelope_path,
+      "--format", "binary",
+      "--output", output_path,
+    ]
+    if device_specific_path: args += [ "--config", device_specific_path ]
+
+    run_firmware_tool args
+
+  /**
   Lists the containers inside the given $envelope_path.
   Returns a map from container name to container description.
   Each container description has the following fields:

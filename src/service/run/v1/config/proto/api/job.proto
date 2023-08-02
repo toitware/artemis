@@ -1,0 +1,53 @@
+// Copyright (C) 2020 Toitware ApS. All rights reserved.
+
+syntax = "proto3";
+
+package api;
+
+import "api/pubsub.proto";
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/toitware/device_api.git/api";
+
+message Job {
+  bytes job_id = 1;
+  bytes compilation_id = 2;
+  Triggers triggers = 3;
+  repeated Subscription pubsub_subscriptions = 4;
+  Resources resources = 5;
+  string compilation_sdk = 6;
+}
+
+message Triggers {
+  bool on_install = 1;
+  bool on_boot = 2;
+  google.protobuf.Duration interval = 3;
+  repeated CronSchedule cron_schedules = 4;
+  bool movement_shaken = 5;
+  repeated Topic pubsub_topics = 6;
+  GPIOTrigger gpio = 7;
+}
+
+message CronSchedule {
+  int64 second = 1;
+  int64 minute = 2;
+  int64 hour = 3;
+  int64 day_of_month = 4;
+  int64 month = 5;
+  int64 day_of_week = 6;
+}
+
+message Resources { int64 memory = 1; }
+
+message GPIOTrigger {
+  message Pin {
+    enum Level {
+      HIGH = 0;
+      LOW = 1;
+    }
+    Level level = 1;
+    uint32 num = 2;
+  }
+
+  repeated Pin pins = 1;
+}

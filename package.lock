@@ -8,6 +8,7 @@ prefixes:
   host: pkg-host
   http: pkg-http
   ntp: pkg-ntp
+  protobuf: toit-protobuf
   semver: semver
   snapshot: snapshot
   supabase: toit-supabase
@@ -53,6 +54,10 @@ packages:
     url: github.com/toitware/toit-cert-roots
     version: 1.4.0
     hash: bf41ee60ebba65ba01bc9ba1aa6d697e4cc4a8c7
+  toit-protobuf:
+    url: github.com/toitware/toit-protobuf
+    version: 1.1.1
+    hash: 4a67d1e3bf164c411c312a3d7528f24dd7da0583
   toit-supabase:
     url: github.com/toitware/toit-supabase
     version: 0.1.0
