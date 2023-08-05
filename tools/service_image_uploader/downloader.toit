@@ -11,6 +11,7 @@ import artemis.cli.ui show *
 import host.file
 import snapshot show cache_snapshot
 import supabase
+import supabase.filter show equals
 
 import .utils
 
@@ -64,8 +65,8 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
 
     // Get a list of snapshots to download.
     filters := []
-    if sdk_version: filters.add "sdk_version=eq.$sdk_version"
-    if service_version: filters.add "service_version=eq.$service_version"
+    if sdk_version: filters.add (equals "sdk_version" "$sdk_version")
+    if service_version: filters.add (equals "service_version" "$service_version")
     service_images := client.rest.select "sdk_service_versions" --filters=filters
     ui.info "Downloading snapshots for:"
     ui.do --kind=Ui.INFO: | printer/Printer |

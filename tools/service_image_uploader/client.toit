@@ -7,6 +7,7 @@ import encoding.json
 import http
 import net
 import supabase
+import supabase.filter show equals
 
 import artemis.cli.config as cli
 import artemis.cli.ui as ui
@@ -66,7 +67,7 @@ class UploadClientSupabase implements UploadClient:
 
     // TODO(florian): share constants with the CLI.
     sdk_ids := client_.rest.select "sdks" --filters=[
-      "version=eq.$sdk_version",
+      equals "version" sdk_version,
     ]
     sdk_id := ?
     if not sdk_ids.is_empty:
@@ -78,7 +79,7 @@ class UploadClientSupabase implements UploadClient:
       sdk_id = inserted["id"]
 
     service_ids := client_.rest.select "artemis_services" --filters=[
-      "version=eq.$service_version",
+      equals "version" service_version,
     ]
     service_id := ?
     if not service_ids.is_empty:
@@ -91,8 +92,8 @@ class UploadClientSupabase implements UploadClient:
 
     if not force:
       existing_images := client_.rest.select "service_images" --filters=[
-        "sdk_id=eq.$sdk_id",
-        "service_id=eq.$service_id",
+        equals "sdk_id" sdk_id,
+        equals "service_id" service_id,
       ]
       if not existing_images.is_empty:
         suffix := ""
@@ -113,8 +114,8 @@ class UploadClientSupabase implements UploadClient:
     // knowledge) it should be possible, but just checking for
     // the entry is significantly easier.
     rows := client_.rest.select "service_images" --filters=[
-      "sdk_id=eq.$sdk_id",
-      "service_id=eq.$service_id",
+      equals "sdk_id" sdk_id,
+      equals "service_id" service_id,
     ]
     if rows.is_empty:
       client_.rest.insert "service_images" {
@@ -125,8 +126,8 @@ class UploadClientSupabase implements UploadClient:
       }
     else:
       client_.rest.update "service_images" --filters=[
-        "sdk_id=eq.$sdk_id",
-        "service_id=eq.$service_id",
+        equals "sdk_id" sdk_id,
+        equals "service_id" service_id,
       ] {
         "image": image_id,
         "organization_id": organization_id,
