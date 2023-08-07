@@ -322,33 +322,36 @@ class Fleet:
     return result
 
   /**
-  Returns a list of created files.
+  Creates a new identity file.
+
+  Returns the path to the identity file.
   */
-  create_identities count/int -> List
+  create_identity -> string
+      --id/uuid.Uuid=random_uuid
+      --name/string?=null
+      --aliases/List?=null
       --group/string
       --output_directory/string:
     if not has_group group:
       ui_.abort "Group '$group' not found."
 
     old_size := devices_.size
-    try:
-      new_identity_files := []
-      count.repeat: | i/int |
-        device_id := random_uuid
+    new_file := "$output_directory/$(id).identity"
 
-        output := "$output_directory/$(device_id).identity"
+    artemis_.provision
+        --device_id=id
+        --out_path=new_file
+        --organization_id=organization_id
 
-        artemis_.provision
-            --device_id=device_id
-            --out_path=output
-            --organization_id=organization_id
+    device := DeviceFleet
+        --id=id
+        --group=group
+        --aliases=aliases
+        --name=name
+    devices_.add device
+    write_devices_
 
-        devices_.add (DeviceFleet --id=device_id --group=group)
-        new_identity_files.add output
-      return new_identity_files
-    finally:
-      if devices_.size != old_size:
-        write_devices_
+    return new_file
 
   roll_out --diff_bases/List:
     broker := artemis_.connected_broker
