@@ -37,7 +37,7 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     super "artemis/network" --major=0 --minor=1
     provides NetworkService.SELECTOR
         --handler=this
-        --priority=ServiceProvider.PRIORITY_PREFERRED
+        --priority=ServiceProvider.PRIORITY_PREFERRED_STRONGLY
         --tags=[TAG_ARTEMIS_NETWORK]
 
   proxy_mask -> int:
