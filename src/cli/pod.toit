@@ -126,6 +126,9 @@ class Pod:
     unreachable
 
   constructor.from_file path/string --artemis/Artemis --ui/Ui:
+    if not file.is_file path:
+      ui.abort "The file '$path' does not exist or is not a regular file."
+
     is_compiled_pod := false
     catch --unwind=(: it != "Invalid Ar File"):
       stream := file.Stream.for_read path
