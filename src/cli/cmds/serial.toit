@@ -167,10 +167,9 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     artemis := fleet.artemis_
 
     with_tmp_directory: | tmp_dir/string |
-      identity_files := fleet.create_identities 1
+      identity_path := fleet.create_identity
           --group=group
           --output_directory=tmp_dir
-      identity_path := identity_files[0]
       identity := read_base64_ubjson identity_path
       // TODO(florian): Abstract away the identity format.
       device_id := uuid.parse identity["artemis.device"]["device_id"]
@@ -242,10 +241,9 @@ write_ota parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     artemis := fleet.artemis_
 
     with_tmp_directory: | tmp_dir/string |
-      identity_files := fleet.create_identities 1
+      identity_path := fleet.create_identity
           --group=DEFAULT_GROUP
           --output_directory=tmp_dir
-      identity_path := identity_files[0]
       identity := read_base64_ubjson identity_path
       // TODO(florian): Abstract away the identity format.
       device_id := uuid.parse identity["artemis.device"]["device_id"]

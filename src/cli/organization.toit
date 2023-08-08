@@ -34,5 +34,5 @@ class OrganizationDetailed extends Organization:
     super --id=id --name=name
 
   constructor.from_map map/Map:
-    created_at = Time.from_string map["created_at"]
+    created_at = Time.parse map["created_at"]
     super.from_map map

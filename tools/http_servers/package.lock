@@ -16,7 +16,7 @@ packages:
       http: pkg-http
       ntp: pkg-ntp
       protobuf: toit-protobuf
-      semver: semver
+      semver: toit-semver
       snapshot: snapshot
       supabase: toit-supabase
   fs:
@@ -37,14 +37,12 @@ packages:
     hash: 76e4dc5328a5c3739e97f65ed196d05058071359
   pkg-http:
     url: github.com/toitlang/pkg-http
-    version: 2.3.0
-    hash: 05ce2065a75813138d2c4ca1bab03e7a6f0541a2
+    version: 2.3.3
+    hash: 1e9de1eade90e9dbe0bab62a11c7bcc9914664d0
   pkg-ntp:
     url: github.com/toitlang/pkg-ntp
     version: 1.0.0
     hash: 1c3cc4a4819f459393f00efc576f66f838665719
-  semver:
-    path: ../../semver
   snapshot:
     path: ../snapshot
     prefixes:
@@ -58,16 +56,20 @@ packages:
     hash: 6e9a5abce9499a47bfd97277dae6ab71f1c65849
   toit-cert-roots:
     url: github.com/toitware/toit-cert-roots
-    version: 1.4.0
-    hash: bf41ee60ebba65ba01bc9ba1aa6d697e4cc4a8c7
+    version: 1.5.0
+    hash: 27a9f9ff3d337b6128e98e220126e3cc275bcd73
   toit-protobuf:
     url: github.com/toitware/toit-protobuf
     version: 1.1.1
     hash: 4a67d1e3bf164c411c312a3d7528f24dd7da0583
+  toit-semver:
+    url: github.com/toitware/toit-semver
+    version: 1.0.0
+    hash: b416c5a542287a8cdbb86398fdb452eaad4f55f8
   toit-supabase:
     url: github.com/toitware/toit-supabase
-    version: 0.1.0
-    hash: 460be4b6dd3af6fadecd4d0b2029afdb672035d5
+    version: 0.2.0
+    hash: 06f434e8e35705063965320639c0d8299a95c995
     prefixes:
       host: pkg-host
       http: pkg-http

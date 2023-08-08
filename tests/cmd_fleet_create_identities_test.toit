@@ -6,6 +6,7 @@ import encoding.json
 import host.directory
 import host.file
 import expect show *
+import uuid show Uuid
 import .utils
 
 main args:
@@ -35,6 +36,44 @@ run_test test_cli/TestCli fleet_dir/string:
       "$count",
     ]
     check_and_remove_identity_files fleet_dir tmp_dir count
+
+    id := random_uuid
+    alias1 := "$random_uuid"
+    alias2 := "$random_uuid"
+    aliases := [alias1, alias2]
+    test_cli.run [
+      "fleet",
+      "create-identity",
+      "--output-directory", tmp_dir,
+      "--name", "test-name",
+      "--alias", (aliases.join ","),
+      "$id",
+    ]
+    check_and_remove_identity_files fleet_dir tmp_dir
+        --id=id
+        --name="test-name"
+        --aliases=aliases
+
+    test_cli.run --expect_exit_1 --allow_exception [
+      "fleet",
+      "create-identity",
+      "--output-directory", tmp_dir,
+      "$id",
+    ]
+
+check_and_remove_identity_files fleet_dir tmp_dir
+    --id/Uuid?=null
+    --name/string?=null
+    --aliases/List?=null:
+  devices/Map := json.decode (file.read_content "$fleet_dir/devices.json")
+  expect_equals 1 devices.size
+  device := devices.values.first
+  if id: expect_equals "$id" devices.keys.first
+  if name: expect_equals name device["name"]
+  if aliases: expect_equals aliases device["aliases"]
+
+  expect (file.is_file "$tmp_dir/$(id).identity")
+  check_and_remove_identity_files fleet_dir tmp_dir 1
 
 check_and_remove_identity_files fleet_dir tmp_dir count:
   devices := json.decode (file.read_content "$fleet_dir/devices.json")

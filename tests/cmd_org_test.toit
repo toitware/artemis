@@ -74,7 +74,7 @@ run_test test_cli/TestCli:
   expect_equals "Testy" org_info["name"]
   expect_equals id org_info["id"]
   created_at := org_info["created"]
-  created_time := Time.from_string created_at
+  created_time := Time.parse created_at
   expect (created_time >= test_start)
   expect (created_time <= Time.now)
   test_cli.replacements[created_at] = "CREATED-AT"
