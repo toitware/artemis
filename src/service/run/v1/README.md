@@ -10,7 +10,7 @@ the device.
 
 ## Config migration
 
-Any artemis image build with this branch will automatically receive the
+Any Artemis image build with this branch will automatically receive the
 hardware ID and the WiFi connections from the original configuration.
 
 Typically, cellular connections are uniform across a fleet, and we

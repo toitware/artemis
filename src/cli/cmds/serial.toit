@@ -65,7 +65,7 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
 
   write_ota_cmd := cli.Command "write-ota"
       --long_help="""
-        Extracts a binary image that can be used as OTA for this device.
+        Extracts a binary image that can be used for manual OTAs.
         """
       --options=[
         cli.Option "local"
