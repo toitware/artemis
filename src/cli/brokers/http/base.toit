@@ -185,7 +185,7 @@ class BrokerCliHttp implements BrokerCli:
       event_type := row["type"]
       data := row["data"]
       timestamp := row["ts"]
-      time := Time.from_string timestamp
+      time := Time.parse timestamp
       if device_id != current_id:
         current_id = device_id
         current_list = result.get device_id --init=:[]
