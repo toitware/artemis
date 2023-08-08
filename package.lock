@@ -8,7 +8,7 @@ prefixes:
   host: pkg-host
   http: pkg-http
   ntp: pkg-ntp
-  semver: semver
+  semver: toit-semver
   snapshot: snapshot
   supabase: toit-supabase
 packages:
@@ -36,8 +36,6 @@ packages:
     url: github.com/toitlang/pkg-ntp
     version: 1.0.0
     hash: 1c3cc4a4819f459393f00efc576f66f838665719
-  semver:
-    path: semver
   snapshot:
     path: tools/snapshot
     prefixes:
@@ -53,6 +51,10 @@ packages:
     url: github.com/toitware/toit-cert-roots
     version: 1.5.0
     hash: 27a9f9ff3d337b6128e98e220126e3cc275bcd73
+  toit-semver:
+    url: github.com/toitware/toit-semver
+    version: 1.0.0
+    hash: b416c5a542287a8cdbb86398fdb452eaad4f55f8
   toit-supabase:
     url: github.com/toitware/toit-supabase
     version: 0.2.0
