@@ -77,7 +77,13 @@ test_custom_envelope:
   custom_envelope["firmware-envelope"] = "envelope-path"
   custom_envelope.remove "sdk-version"
   pod := PodSpecification.from_json custom_envelope --path="ignored"
-  expect_equals "envelope-path" pod.envelope_path
+  expect_equals "envelope-path" pod.envelope
+
+  version_and_envelope := new_valid
+  version_and_envelope["firmware-envelope"] = "envelope-path"
+  pod = PodSpecification.from_json version_and_envelope --path="ignored"
+  expect_equals "envelope-path" pod.envelope
+  expect_equals "1.0.0" pod.sdk_version
 
 test_errors:
   no_version := new_valid
@@ -97,12 +103,6 @@ test_errors:
   expect_format_error
       "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
       no_sdk_version
-
-  version_and_envelope := new_valid
-  version_and_envelope["firmware-envelope"] = "envelope-path"
-  expect_format_error
-      "Both 'sdk-version' and 'firmware-envelope' are present in pod specification."
-      version_and_envelope
 
   no_artemis_version := new_valid
   no_artemis_version.remove "artemis-version"

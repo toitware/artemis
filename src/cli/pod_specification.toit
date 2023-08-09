@@ -18,62 +18,64 @@ import .ui
 import ..shared.version show SDK_VERSION ARTEMIS_VERSION
 
 INITIAL_POD_NAME ::= "my-pod"
-INITIAL_POD_SPECIFICATION ::= {
-  "version": 1,
-  "name": "$INITIAL_POD_NAME",
-  "sdk-version": SDK_VERSION,
-  "artemis-version": ARTEMIS_VERSION,
-  "max-offline": "0s",
-  "connections": [
-    {
-      "type": "wifi",
-      "ssid": "YOUR WIFI SSID",
-      "password": "YOUR WIFI PASSWORD",
-    }
-  ],
-  "containers": {:},
-}
+INITIAL_POD_SPECIFICATION -> Map:
+  return {
+    "version": 1,
+    "name": "$INITIAL_POD_NAME",
+    "sdk-version": SDK_VERSION,
+    "artemis-version": ARTEMIS_VERSION,
+    "max-offline": "0s",
+    "connections": [
+      {
+        "type": "wifi",
+        "ssid": "YOUR WIFI SSID",
+        "password": "YOUR WIFI PASSWORD",
+      }
+    ],
+    "containers": {:},
+  }
 
-EXAMPLE_POD_SPECIFICATION ::= {
-  "version": 1,
-  "name": "example-pod",
-  "sdk-version": SDK_VERSION,
-  "artemis-version": ARTEMIS_VERSION,
-  "max-offline": "30s",
-  "connections": [
-    {
-      "type": "wifi",
-      "ssid": "YOUR WIFI SSID",
-      "password": "YOUR WIFI PASSWORD",
-    }
-  ],
-  "containers": {
-    "hello": {
-      "entrypoint": "hello.toit",
-      "triggers": [
-        "boot",
-        {
-          "interval": "1m",
-        },
-      ],
+EXAMPLE_POD_SPECIFICATION -> Map:
+  return {
+    "version": 1,
+    "name": "example-pod",
+    "sdk-version": SDK_VERSION,
+    "artemis-version": ARTEMIS_VERSION,
+    "max-offline": "30s",
+    "connections": [
+      {
+        "type": "wifi",
+        "ssid": "YOUR WIFI SSID",
+        "password": "YOUR WIFI PASSWORD",
+      }
+    ],
+    "containers": {
+      "hello": {
+        "entrypoint": "hello.toit",
+        "triggers": [
+          "boot",
+          {
+            "interval": "1m",
+          },
+        ],
+      },
+      "solar": {
+        "entrypoint": "examples/solar_example.toit",
+        "git": "https://github.com/toitware/toit-solar-position.git",
+        "branch": "v0.0.3",
+        "triggers": [
+          {
+            "gpio": [
+              {
+                "pin": 33,
+                "level": "high",
+              },
+            ],
+          },
+        ],
+      },
     },
-    "solar": {
-      "entrypoint": "examples/solar_example.toit",
-      "git": "https://github.com/toitware/toit-solar-position.git",
-      "branch": "v0.0.3",
-      "triggers": [
-        {
-          "gpio": [
-            {
-              "pin": 33,
-              "level": "high",
-            },
-          ],
-        },
-      ],
-    },
-  },
-}
+  }
 
 class PodSpecificationException:
   message/string
@@ -262,7 +264,7 @@ Relevant data includes (but is not limited to):
 class PodSpecification:
   name/string
   sdk_version/string?
-  envelope_path/string?
+  envelope/string?
   artemis_version/string
   max_offline_seconds/int
   connections/List  // Of $ConnectionInfo.
@@ -274,11 +276,9 @@ class PodSpecification:
     name = get_string_ data "name"
     artemis_version = get_string_ data "artemis-version"
     sdk_version = get_optional_string_ data "sdk-version"
-    envelope_path = get_optional_string_ data "firmware-envelope"
+    envelope = get_optional_string_ data "firmware-envelope"
 
-    if sdk_version and envelope_path:
-      format_error_ "Both 'sdk-version' and 'firmware-envelope' are present in pod specification."
-    if not sdk_version and not envelope_path:
+    if not sdk_version and not envelope:
       format_error_ "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
 
     chip = get_optional_string_ data "chip"

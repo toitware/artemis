@@ -98,13 +98,21 @@ write_file path/string [block] [--on_error] -> none:
     stream.close
 
 download_url url/string --out_path/string -> none:
+  log.info "Downloading $url."
+
   network := net.open
-  client := http.Client.tls network
-      --root_certificates=certificate_roots.ALL
+  client := ?
+  if url.starts_with "https://":
+    client = http.Client.tls network
+        --root_certificates=certificate_roots.ALL
+    url = url.trim --left "https://"
+  else:
+    client = http.Client network
+    url = url.trim --left "http://"
+
   parts := url.split --at_first "/"
   host := parts.first
   path := parts.last
-  log.info "Downloading $url."
   response := client.get host path
   if response.status_code != http.STATUS_OK:
     log.error "Failed to download $url: $response.status_code $response.status_message."

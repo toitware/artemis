@@ -9,6 +9,7 @@ import artemis.cli.config as cli
 import artemis.cli.cache as cli
 import artemis.cli.sdk show *
 import artemis.cli.firmware show *
+import artemis.cli.pod_specification show PodSpecification INITIAL_POD_SPECIFICATION
 import artemis.cli.ui as ui
 import host.file
 import snapshot show cache_snapshot
@@ -52,11 +53,17 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
 
   cmd.run args
 
+pod_specification_for_ --sdk_version/string:
+  json := INITIAL_POD_SPECIFICATION
+  json["sdk-version"] = sdk_version
+  return PodSpecification.from_json json --path="ignored"
+
 download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   sdk_version := parsed["version"]
 
   get_sdk --cache=cache sdk_version
-  get_envelope --cache=cache sdk_version
+  pod_specification := pod_specification_for_ --sdk_version=sdk_version
+  get_envelope --specification=pod_specification --cache=cache
 
 print_path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   // Make sure we don't print anything while downloading.
@@ -66,8 +73,9 @@ print_path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
   path/string := ?
   if envelope:
-    path = get_envelope --cache=cache sdk_version
+    pod_specification := pod_specification_for_ --sdk_version=sdk_version
+    path = get_envelope --cache=cache --specification=pod_specification
   else:
     path = (get_sdk --cache=cache sdk_version).sdk_path
 
-  ui.info path
+  ui.result path
