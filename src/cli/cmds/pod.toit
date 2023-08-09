@@ -167,8 +167,13 @@ create_pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   specification_path := parsed["specification"]
   output := parsed["output"]
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    pod := Pod.from_specification --path=specification_path --ui=ui --artemis=artemis
+  with_fleet parsed config cache ui: | fleet/Fleet |
+    artemis := fleet.artemis_
+    pod := Pod.from_specification
+        --organization_id=fleet.organization_id
+        --path=specification_path
+        --ui=ui
+        --artemis=artemis
     pod.write output --ui=ui
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -190,7 +195,10 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with_fleet parsed config cache ui: | fleet/Fleet |
     artemis := fleet.artemis_
     pod_paths.do: | pod_path/string |
-      pod := Pod.from_file pod_path --artemis=artemis --ui=ui
+      pod := Pod.from_file pod_path
+          --organization_id=fleet.organization_id
+          --artemis=artemis
+          --ui=ui
       fleet.upload --pod=pod --tags=tags --force_tags=force
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:

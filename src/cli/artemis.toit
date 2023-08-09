@@ -106,9 +106,10 @@ class Artemis:
   Checks whether the given $sdk version and $service version is supported by
     the Artemis server.
   */
-  check_is_supported_version_ --sdk/string?=null --service/string?=null:
+  check_is_supported_version_ --organization_id/uuid.Uuid --sdk/string?=null --service/string?=null:
     server := connected_artemis_server
     versions := server.list_sdk_service_versions
+        --organization_id=organization_id
         --sdk_version=sdk
         --service_version=service
     if versions.is_empty:
@@ -198,6 +199,7 @@ class Artemis:
   The image is ready to be flashed together with the identity file.
   */
   customize_envelope
+      --organization_id/uuid.Uuid
       --specification/PodSpecification
       --output_path/string:
     service_version := specification.artemis_version
@@ -210,12 +212,18 @@ class Artemis:
       envelope := file.read_content envelope_path
       sdk_version = Sdk.get_sdk_version_from --envelope=envelope
 
-    check_is_supported_version_ --sdk=sdk_version --service=service_version
+    check_is_supported_version_
+        --organization_id=organization_id
+        --sdk=sdk_version
+        --service=service_version
 
     sdk := get_sdk sdk_version --cache=cache_
 
     if not envelope_path:
-      check_is_supported_version_ --sdk=sdk_version --service=service_version
+      check_is_supported_version_
+          --organization_id=organization_id
+          --sdk=sdk_version
+          --service=service_version
       envelope_path = get_envelope
           sdk_version
           --chip=specification.chip
@@ -328,6 +336,7 @@ class Artemis:
 
       // Get the prebuilt Artemis service.
       artemis_service_image_path := get_service_image_path_
+          --organization_id=organization_id
           --word_size=32  // TODO(florian): we should get the bits from the envelope.
           --sdk=sdk_version
           --service=service_version
@@ -429,10 +438,12 @@ class Artemis:
     is empty, the device must upgrade using trivial patches.
   */
   update
+      --organization_id/uuid.Uuid
       --device_id/uuid.Uuid
       --specification/PodSpecification
       --base_firmwares/List=[]:
     pod := Pod.from_specification
+        --organization_id=organization_id
         --specification=specification
         --artemis=this
     update
@@ -441,7 +452,7 @@ class Artemis:
         --base_firmwares=base_firmwares
 
   /**
-  Variant of $(update --device_id --specification).
+  Variant of $(update --organization_id --device_id --specification).
 
   Takes the new firmware from the given $pod.
   */
@@ -575,7 +586,11 @@ class Artemis:
 
   Returns a path to the cached image.
   */
-  get_service_image_path_ --sdk/string --service/string --word_size/int -> string:
+  get_service_image_path_ -> string
+      --organization_id/uuid.Uuid
+      --sdk/string
+      --service/string
+      --word_size/int:
     if word_size != 32 and word_size != 64: throw "INVALID_ARGUMENT"
     service_key := service_image_cache_key
         --service_version=service
@@ -583,7 +598,10 @@ class Artemis:
         --artemis_config=artemis_config_
     return cache_.get_file_path service_key: | store/cache.FileStore |
       server := connected_artemis_server --no-authenticated
-      entry := server.list_sdk_service_versions --sdk_version=sdk --service_version=service
+      entry := server.list_sdk_service_versions
+          --organization_id=organization_id
+          --sdk_version=sdk
+          --service_version=service
       if entry.is_empty:
         ui_.abort "Unsupported Artemis/SDK versions."
       image_name := entry.first["image"]
