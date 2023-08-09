@@ -30,13 +30,14 @@ run_main_test
     --keep_service/bool=false
     [block]:
   block.call
+  supabase_backdoor := (test_cli.artemis.backdoor) as SupabaseBackdoor
   // Check that the service is available.
-  available_sdks := test_cli.run [
-    "sdk", "list", "--sdk-version", test_cli.sdk_version, "--service-version", service_version
-  ]
-  if not available_sdks.contains service_version:
-    print "Available sdks: $available_sdks"
-  expect (available_sdks.contains service_version)
+  supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
+    available_sdks := client.rest.select "sdk_service_versions" --filters=[
+      equals "sdk_version" test_cli.sdk_version,
+      equals "service_version" service_version,
+    ]
+    expect_not available_sdks.is_empty
 
   // Check that the snapshot was written into the snapshot directory.
   files_iterator := directory.DirectoryStream tmp_dir

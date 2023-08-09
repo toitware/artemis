@@ -151,8 +151,12 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       "name": name,
     }
 
-  list_sdk_service_versions --sdk_version/string?=null --service_version/string?=null -> List:
+  list_sdk_service_versions -> List
+      --organization_id/uuid.Uuid
+      --sdk_version/string?=null
+      --service_version/string?=null:
     return send_request_ COMMAND_LIST_SDK_SERVICE_VERSIONS_ {
+      "organization_id": "$organization_id",
       "sdk_version": sdk_version,
       "service_version": service_version,
     }

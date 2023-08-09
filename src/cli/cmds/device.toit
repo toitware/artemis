@@ -161,7 +161,10 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     if reference:
       pod = fleet.download reference
     else:
-      pod = Pod.from_file local --artemis=artemis --ui=ui
+      pod = Pod.from_file local
+          --organization_id=fleet.organization_id
+          --artemis=artemis
+          --ui=ui
     artemis.update --device_id=device.id --pod=pod
 
 default_device parsed/cli.Parsed config/Config cache/Cache ui/Ui:

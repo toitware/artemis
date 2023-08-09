@@ -6,9 +6,11 @@ import semver
 
 import ..config
 import ..cache
+import ..fleet
 import ..server_config
 import ..ui
 import ..artemis_servers.artemis_server show with_server ArtemisServerCli
+import .utils_
 
 create_sdk_commands config/Config cache/Cache ui/Ui -> List:
   sdk_cmd := cli.Command "sdk"
@@ -23,23 +25,19 @@ create_sdk_commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "sdk-version" --short_help="The SDK version to list.",
         cli.Option "service-version" --short_help="The service version to list.",
       ]
-      --run=:: list_sdks it config ui
+      --run=:: list_sdks it config cache ui
   sdk_cmd.add list_cmd
 
   return [sdk_cmd]
 
-with_sdk_server parsed/cli.Parsed config/Config [block]:
-  server_config := get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
-  with_server server_config config block
-
-list_sdks parsed/cli.Parsed config/Config ui/Ui:
+list_sdks parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   sdk_version := parsed["sdk-version"]
   service_version := parsed["service-version"]
 
-  with_sdk_server parsed config: | server/ArtemisServerCli |
-    server.ensure_authenticated: | error_message |
-      ui.abort "$error_message (artemis)."
-    versions/List := server.list_sdk_service_versions
+  with_fleet parsed config cache ui: | fleet/Fleet |
+    artemis := fleet.artemis_
+    versions/List := artemis.connected_artemis_server.list_sdk_service_versions
+        --organization_id=fleet.organization_id
         --sdk_version=sdk_version
         --service_version=service_version
 
