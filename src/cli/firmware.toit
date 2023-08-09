@@ -292,26 +292,23 @@ cache_snapshots_ --envelope_path/string --cache/cli.Cache:
   cache_snapshots --envelope_path=envelope_path --cache=cache
 
 /**
-Builds the URL for the firmware envelope for the given $sdk_version,
-  $chip and $envelope.
+Builds the URL for the firmware envelope for the given $sdk_version and $envelope.
 
 If no envelope is given, builds a URL for the envelopes from Toit's
   Github repository.
 */
-build_envelope_url --sdk_version/string? --chip/string --envelope/string? -> string:
-  if not envelope:
+build_envelope_url --sdk_version/string? --envelope/string -> string:
+  if not envelope or (not envelope.contains "/" and not envelope.contains "\\"):
     if not sdk_version:
       throw "No sdk_version given"
-    return "https://github.com/toitlang/toit/releases/download/$sdk_version/firmware-$(chip).gz"
-  else if not envelope.contains "/":
-    // If the envelope does not contain any '/' we assume it's a variant
-    // of one of the default envelopes.
-    return "https://github.com/toitlang/toit/releases/download/$sdk_version/firmware-$(chip)-$(envelope).gz"
+    return "https://github.com/toitlang/toit/releases/download/$sdk_version/firmware-$(envelope).gz"
 
   if sdk_version:
     envelope = envelope.replace --all "\$(sdk-version)" sdk_version
-  envelope = envelope.replace --all "\$(chip)" chip
-  return envelope
+
+  URL_PREFIXES ::= ["http://", "https://", "file://"]
+  URL_PREFIXES.do: if envelope.starts_with it: return envelope
+  return "file://$envelope"
 
 reported_local_envelope_use_/bool := false
 /**
@@ -326,8 +323,8 @@ get_envelope -> string
     --specification/PodSpecification
     --cache/cli.Cache
     --cache_snapshots/bool=true:
-  chip := specification.chip or "esp32"
   if is_dev_setup:
+    chip := specification.chip or specification.envelope
     local_sdk := os.env.get "DEV_TOIT_REPO_PATH"
     if local_sdk:
       if not reported_local_envelope_use_:
@@ -336,15 +333,18 @@ get_envelope -> string
       return "$local_sdk/build/$chip/firmware.envelope"
 
   sdk_version := specification.sdk_version
-  envelope := specification.envelope
+  envelope := specification.envelope or "esp32"
 
-  url := build_envelope_url --sdk_version=sdk_version --chip=chip --envelope=envelope
+  url := build_envelope_url --sdk_version=sdk_version --envelope=envelope
+
+  FILE_URL_PREFIX ::= "file://"
+  if url.starts_with FILE_URL_PREFIX:
+    return url.trim --left FILE_URL_PREFIX
 
   HTTP_URL_PREFIX ::= "http://"
   HTTPS_URL_PREFIX ::= "https://"
   if not url.starts_with HTTP_URL_PREFIX and not url.starts_with HTTPS_URL_PREFIX:
-    // Assumed to be a local path.
-    return "$specification.relative_to/$url"
+    throw "Invalid envelope URL: $url"
 
   envelope_key := "$ENVELOPE_PATH/$url/firmware.envelope"
   return cache.get_file_path envelope_key: | store/cli.FileStore |

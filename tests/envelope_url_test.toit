@@ -13,16 +13,28 @@ main:
 test_build_url:
   version := "v2.0.0-alpha.90"
   expect_equals "$DOWNLOAD_URL/$version/firmware-esp32.gz"
-      build_envelope_url --sdk_version=version --chip="esp32" --envelope=null
+      build_envelope_url --sdk_version=version --envelope="esp32"
 
   expect_equals "$DOWNLOAD_URL/$version/firmware-esp32-eth-clk-out17.gz"
-      build_envelope_url --sdk_version=version --chip="esp32" --envelope="eth-clk-out17"
+      build_envelope_url --sdk_version=version --envelope="esp32-eth-clk-out17"
 
   expect_equals "$DOWNLOAD_URL/$version/firmware-esp32-foobar.gz"
-      build_envelope_url --sdk_version=version --chip="esp32" --envelope="foobar"
+      build_envelope_url --sdk_version=version --envelope="esp32-foobar"
 
-  expect_equals "foo/bar"
-      build_envelope_url --sdk_version=null --chip="esp32" --envelope="foo/bar"
+  expect_equals "file://foo/bar"
+      build_envelope_url --sdk_version=null --envelope="foo/bar"
+
+  expect_equals "file://foo/bar"
+      build_envelope_url --sdk_version=null --envelope="file://foo/bar"
+
+  expect_equals "file:///foo/bar"
+      build_envelope_url --sdk_version=null --envelope="file:///foo/bar"
+
+  expect_equals "file://c:\\foo\\bar"
+      build_envelope_url --sdk_version=null --envelope="file://c:\\foo\\bar"
+
+  expect_equals "file://c:\\foo\\bar"
+      build_envelope_url --sdk_version=null --envelope="c:\\foo\\bar"
 
   expect_equals "https://foo/123/bar-xx"
-      build_envelope_url --sdk_version="123" --chip="bar" --envelope="https://foo/\$(sdk-version)/\$(chip)-xx"
+      build_envelope_url --sdk_version="123" --envelope="https://foo/\$(sdk-version)/bar-xx"

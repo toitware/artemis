@@ -225,8 +225,7 @@ class Artemis:
         ui_.abort "The envelope uses SDK version '$envelope_sdk_version', but '$sdk_version' was requested."
     else:
       sdk_version = envelope_sdk_version
-
-    check_sdk_service_version.call
+      check_sdk_service_version.call
 
     sdk := get_sdk sdk_version --cache=cache_
 
