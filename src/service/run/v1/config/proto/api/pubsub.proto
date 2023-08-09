@@ -1,0 +1,51 @@
+// Copyright (C) 2020 Toitware ApS. All rights reserved.
+
+syntax = "proto3";
+
+package api;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/toitware/device_api.git/api";
+
+enum TopicType {
+  TOPIC_TYPE_UNKOWN = 0;
+  TOPIC_TYPE_CLOUD = 1;
+  TOPIC_TYPE_DEVICE = 2;
+  TOPIC_TYPE_DEVICE_MEMORY = 3;
+}
+
+message Topic {
+  TopicType type = 1;
+  string name = 2;
+}
+
+message Subscription {
+  message Parameters {
+    bool only_latest = 1;
+  }
+
+  Topic topic = 1;
+  bytes id = 2;
+  Parameters parameters = 3;
+}
+
+message Publisher {
+  message Device {
+    bytes hardware_id = 1;
+    bytes job_id = 2;
+  }
+
+  oneof publisher {
+    Device device = 1;
+    string external = 2;
+  }
+}
+
+message Message {
+  uint64 id = 1;
+  api.Topic topic = 2;
+  google.protobuf.Timestamp created = 3;
+  bytes data = 4;
+  Publisher publisher = 5;
+}

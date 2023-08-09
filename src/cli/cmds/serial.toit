@@ -63,6 +63,27 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
       --run=:: flash it config cache ui
   cmd.add flash_cmd
 
+  write_ota_cmd := cli.Command "write-ota"
+      --long_help="""
+        Extracts a binary image that can be used for manual OTAs.
+        """
+      --options=[
+        cli.Option "local"
+            --type="file"
+            --short_help="A local pod file to update to.",
+        cli.Option "output"
+            --short_name="o"
+            --type="file"
+            --short_help="The output file to write to.",
+      ]
+      --rest=[
+        cli.Option "remote"
+            --short_help="A remote pod reference; a UUID, name@tag, or name#revision.",
+      ]
+      --run=:: write_ota it config cache ui
+  cmd.add write_ota_cmd
+
+
   flash_station_cmd := cli.Command "flash-station"
       --long_help="""
         Commands for a flash station.
@@ -209,6 +230,63 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --pod=pod
             --identity_path=identity_path
             --cache=cache
+
+write_ota parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  output := parsed["output"]
+
+  local := parsed["local"]
+  remote := parsed["remote"]
+
+  if local and remote:
+    ui.abort "Cannot specify both a local pod file and a remote pod reference."
+
+  with_fleet parsed config cache ui: | fleet/Fleet |
+    artemis := fleet.artemis_
+
+    with_tmp_directory: | tmp_dir/string |
+      identity_path := fleet.create_identity
+          --group=DEFAULT_GROUP
+          --output_directory=tmp_dir
+      identity := read_base64_ubjson identity_path
+      // TODO(florian): Abstract away the identity format.
+      device_id := uuid.parse identity["artemis.device"]["device_id"]
+      fleet_device := fleet.device device_id
+      ui.info "Successfully provisioned device $fleet_device.name ($device_id)."
+
+      pod/Pod := ?
+      reference/PodReference := ?
+      if local:
+        pod = Pod.from_file local
+            --organization_id=fleet.organization_id
+            --artemis=artemis
+            --ui=ui
+        reference = PodReference --id=pod.id
+      else:
+        if remote:
+          reference = PodReference.parse remote --allow_name_only --ui=ui
+        else:
+          reference = fleet.pod_reference_for_group DEFAULT_GROUP
+        pod = fleet.download reference
+
+      // Make unique for the given device.
+      config_bytes := artemis.compute_device_specific_data
+          --pod=pod
+          --identity_path=identity_path
+
+      config_path := "$tmp_dir/$(device_id).config"
+      write_blob_to_file config_path config_bytes
+
+      sdk := get_sdk pod.sdk_version --cache=cache
+      ui.do --kind=Ui.VERBOSE: | printer/Printer|
+        debug_line := "Flashing the device with pod $reference"
+        if reference.id: debug_line += "."
+        else: debug_line += " ($pod.id)."
+        printer.emit debug_line
+      // Flash
+      sdk.firmware_extract_ota
+          --envelope_path=pod.envelope_path
+          --device_specific_path=config_path
+          --output_path=output
 
 make_default_ device_id/uuid.Uuid config/Config ui/Ui:
   config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"

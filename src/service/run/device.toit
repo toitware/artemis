@@ -16,6 +16,8 @@ import ..network show NetworkManager
 import ..service show run_artemis
 import ..utils show decode_server_config
 
+import .v1 as v1
+
 ESP32_WAKEUP_CAUSES ::= {
   esp32.WAKEUP_EXT1     : "gpio",
   esp32.WAKEUP_TIMER    : "timer",
@@ -36,13 +38,15 @@ main arguments:
   config := ubjson.decode (artemis_assets["device-config"])
   config["firmware"] = encoded_firmware_description
 
+  // Prepend the old connections.
+  config["connections"] = v1.read_connections + config["connections"]
+
   artemis_device_map := device_specific "artemis.device"
   device := Device
-      --id=uuid.parse artemis_device_map["device_id"]
+      --id=uuid.parse v1.read_device_id
       --hardware_id=uuid.parse artemis_device_map["hardware_id"]
       --organization_id=uuid.parse artemis_device_map["organization_id"]
       --firmware_state=config
-  check_in_setup --assets=artemis_assets --device=device
 
   network_manager := NetworkManager log.default device
   network_manager.install

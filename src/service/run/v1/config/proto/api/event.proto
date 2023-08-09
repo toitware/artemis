@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package api;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "api/pubsub.proto";
+
+option go_package = "github.com/toitware/device_api.git/api";
+
+message Events {
+  bytes job_id = 1;
+  repeated Event events = 2;
+}
+
+message Event {
+  // created is written by the device.
+  google.protobuf.Timestamp created = 1;
+
+  oneof event {
+    MetricsEvent metrics = 2;
+    LogEvent log = 3;
+    PubSubEvent pubsub = 4;
+    SystemEvent system = 5;
+  }
+}
+
+message MetricsEvent {
+  message Name {
+    oneof value {
+      string str = 1;
+    }
+  }
+
+  repeated Name names = 1;
+  repeated Metric metrics = 2;
+}
+
+message Metric {
+  repeated uint32 names_index = 1;
+  map<uint32, uint32> tags = 2;
+  MetricLevel level = 3;
+
+  message Histogram {
+    map<uint32, double> values = 1;
+  }
+
+  oneof value {
+    double gauge = 4;
+    int64 counter = 5;
+    Histogram hisogram = 6;
+  }
+}
+
+message LogEvent {
+  message LogValue {
+    oneof value {
+      string str = 1;
+    }
+  }
+
+  string message = 1;
+  LogLevel level = 2;
+  repeated LogValue names = 3;
+  map<string, LogValue> tags = 4;
+}
+
+message SystemEvent {
+  enum QueueType {
+    UNKNOWN = 0;
+    METRICS = 1;
+    LOG = 2;
+    PUBSUB = 3;
+  }
+
+  message QueueOverflow {
+    QueueType event_type = 1;
+    int64 event_size = 2;
+  }
+
+  message Signal {}
+
+  message ProcessStop {
+    uint32 exit_code = 1;
+  }
+
+  message StackTrace {
+    bytes stack_trace = 1;
+  }
+
+  message Boot {
+    // Bit-masks of each state.
+    enum State {
+      UNKNOWN = 0;
+      NORMAL = 1;
+      FACTORY = 2;
+      SAFE_MODE = 4;
+    }
+
+    uint32 reset_reason = 1;
+    uint32 state = 2;
+    uint32 boot_failures = 3;
+    uint32 out_of_memmory_count = 4;
+  }
+
+  message WiFi {
+    string ssid = 1;
+  }
+
+  message Cellular { }
+
+  message OS { }
+
+  message Ethernet { }
+
+  message ConnectionInfo {
+    oneof info {
+      WiFi wifi = 1;
+      Cellular cellular = 2;
+      OS os = 3;
+      Ethernet ethernet = 4;
+    };
+  }
+
+  message Connected {
+    google.protobuf.Duration time_spent = 1;
+    ConnectionInfo connection_info = 2;
+  }
+
+  message ConnectionFailed {
+    google.protobuf.Duration time_spent = 1;
+    ConnectionInfo connection_info = 2;
+  }
+
+  oneof message {
+    Signal process_start = 1;
+    ProcessStop process_stop = 2;
+    StackTrace stack_trace = 3;
+    Boot boot = 4;
+    Signal shutdown = 5;
+    QueueOverflow overflow = 6;
+    Connected connected = 7;
+    ConnectionFailed connection_failed = 8;
+  };
+}
+
+message PubSubEvent {
+  api.Topic topic = 1;
+  bytes payload = 2;
+}
+
+enum LogLevel {
+  LOG_LEVEL_PRINT = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARN = 3;
+  LOG_LEVEL_ERROR = 4;
+  LOG_LEVEL_FATAL = 5;
+}
+
+enum MetricLevel {
+  METRIC_LEVEL_DEBUG = 0;
+  METRIC_LEVEL_INFO = 5;
+  METRIC_LEVEL_CRITICAL = 10;
+}

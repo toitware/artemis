@@ -1,0 +1,104 @@
+// Copyright (C) 2020 Toitware ApS. All rights reserved.
+
+syntax = "proto3";
+
+package api;
+
+import "api/event.proto";
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/toitware/device_api.git/api";
+
+message Config {
+  string name = 1;
+  ConsoleSettings console = 2;
+  ConnectionSettings connection = 3;
+  RuntimeSettings runtime = 4;
+  DeviceSettings device = 5;
+  ModelSettings model = 6;
+}
+
+message ConsoleSettings {
+  string host = 1;
+  int64 port = 2;
+  string common_name = 3;
+}
+
+message ConnectionSettings {
+  repeated Connection connections = 1;
+  google.protobuf.Duration max_offline = 2;
+  // Must be between 0-100
+  uint32 event_queue_threshold = 3;
+}
+
+message Connection {
+  int64 id = 1;
+  oneof network {
+    WifiSettings wifi = 2;
+    CellularSettings cellular = 3;
+    EthernetSettings ethernet = 4;
+  }
+}
+
+message WifiSettings {
+  string ssid = 1;
+  string password = 2;
+}
+
+message EthernetSettings {
+
+}
+
+message CellularSettings {
+  enum Rat {
+    RAT_UNSPECIFIED = 0;
+    RAT_LTE_M = 1;
+    RAT_NB_IOT = 2;
+    RAT_GSM = 3;
+  }
+  string apn = 1;
+  repeated int64 bands = 2;
+  string operator = 3;
+  string pin = 4;
+  repeated Rat rats = 5;
+}
+
+message RuntimeSettings {
+  LoggingSettings logging = 1;
+  MetricsSettings metrics = 2;
+  string timezone = 3;
+}
+
+message LoggingSettings {
+  api.LogLevel level = 1;
+}
+
+message MetricsSettings {
+  api.MetricLevel level = 1;
+  google.protobuf.Duration event_flush_interval = 2;
+}
+
+message DeviceSettings {
+  BatteryProfile battery_profile = 1;
+}
+
+message BatteryProfile {
+  message AsymmetricalSigmoid5PL {
+    float a = 1;
+    float b = 2;
+    float c = 3;
+    float d = 4;
+    float m = 5;
+  }
+
+  // If the voltage is higher than max_voltage, the device can be assumed to be
+  // plugged in.
+  double max_voltage = 1;
+  oneof curve {
+    AsymmetricalSigmoid5PL asymmetrical_sigmoid = 2;
+  }
+}
+
+message ModelSettings {
+  map<string, int32> parameters = 1;
+}

@@ -1,0 +1,263 @@
+// Copyright (C) 2020 Toitware ApS. All rights reserved.
+
+syntax = "proto3";
+
+package api;
+
+import "toit/model/job.proto";
+import "toit/model/device.proto";
+import "api/event.proto";
+import "api/job.proto";
+import "api/config.proto";
+import "api/pubsub.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/descriptor.proto";
+
+option go_package = "github.com/toitware/device_api.git/api";
+
+extend google.protobuf.MethodOptions {
+  RPCID rpc_id = 7017;
+}
+
+enum RPCID {
+  RPCID_Invalid = 0;
+  RPCID_NextAction = 1;
+  RPCID_JobInstalled = 2;
+  RPCID_JobUninstalled = 3;
+  RPCID_Reconcile = 4;
+  RPCID_ReportConfig = 5;
+  RPCID_ReportModules = 6;
+  RPCID_PubSubFetch = 7;
+  RPCID_PubSubAckOffset = 8;
+  RPCID_Events = 9;
+  RPCID_EventStream = 10;
+  RPCID_WatchNotifications = 11;
+}
+
+service RPCService {
+  rpc NextAction(NextActionRequest) returns (NextActionResponse) {
+    option (rpc_id) = RPCID_NextAction;
+  }
+  rpc Reconcile(ReconcileRequest) returns (ReconcileResponse) {
+    option (rpc_id) = RPCID_Reconcile;
+  }
+  rpc ReportConfig(ReportConfigRequest) returns (ReportConfigResponse) {
+    option (rpc_id) = RPCID_ReportConfig;
+  }
+  rpc ReportModules(ReportModulesRequest) returns (ReportModulesResponse) {
+    option (rpc_id) = RPCID_ReportModules;
+  }
+  rpc PubSubFetch(PubSubFetchRequest) returns (stream PubSubFetchResponse) {
+    option (rpc_id) = RPCID_PubSubFetch;
+  }
+  rpc PubSubAckOffset(PubSubAckOffsetRequest)
+      returns (PubSubAckOffsetResponse) {
+    option (rpc_id) = RPCID_PubSubAckOffset;
+  }
+  rpc Events(EventsRequest) returns (EventsResponse) {
+    option (rpc_id) = RPCID_Events;
+  }
+  rpc EventStream(stream EventStreamRequest)
+      returns (stream EventStreamResponse) {
+    option (rpc_id) = RPCID_EventStream;
+  }
+  rpc WatchNotifications(WatchNotificationsRequest)
+      returns (stream WatchNotificationsResponse) {
+    option (rpc_id) = RPCID_WatchNotifications;
+  }
+}
+
+message Action {
+  oneof action {
+    NoopAction noop = 1;
+    InstallJobAction install_job = 2;
+    UninstallJobAction uninstall_job = 3;
+    ReconcileAction reconcile = 4;
+    RebootAction reboot = 5;
+    FirmwareUpdateAction firmware_update = 6;
+    ConfigReportAction config_report = 7;
+    ConfigUpdateAction config_update = 8;
+    NewEpochAction new_epoch = 9;
+    FactoryResetAction factory_reset = 10;
+    RollbackAction rollback = 11;
+    FactoryPromoteAction factory_promote = 12;
+    FirmwarePartialUpdateAction firmware_partial_update = 13;
+    ReportModulesAction report_modules = 14;
+    UpdateModuleAction update_module = 15;
+  }
+}
+
+message NoopAction {}
+
+message InstallJobAction {
+  api.Job job = 1;
+}
+
+message ReconcileAction {}
+
+message UninstallJobAction {
+  bytes job_id = 1;
+}
+
+message RebootAction {}
+
+message FirmwareUpdateAction {
+  bool flush_events = 1;
+}
+
+message FirmwarePartialUpdateAction {
+  bytes resource_id = 1;
+  bool flush_events = 2;
+}
+
+message ConfigReportAction {}
+
+message FactoryResetAction {}
+
+message RollbackAction {}
+
+message FactoryPromoteAction {}
+
+message ConfigUpdateAction {
+  int64 revision = 1;
+  Config config = 2;
+}
+
+message NewEpochAction {
+  bytes epoch = 1;
+}
+
+message ReportModulesAction {}
+
+message UpdateModuleAction {
+  toit.model.DeviceModuleType type = 1;
+  string version = 2;
+}
+
+enum FirmwareMode {
+  Same = 0;
+  Update = 1;
+  Rollback = 2;
+  Factory = 3;
+}
+
+message NextActionRequest {
+  int64 uptime_ms = 2;
+  bytes epoch = 6;
+  int64 state_revision = 5;
+
+  message Boot {
+    int32 reason = 1;
+    string partition = 2;
+    FirmwareMode firmware_mode = 3;
+    bool is_rollback_possible = 4;
+  }
+  Boot boot = 7;
+  toit.model.DeviceConnectionStatus connection = 8;
+}
+
+message NextActionResponse {
+  Action action = 1;
+  google.protobuf.Timestamp now = 2;
+}
+
+message ReconcileRequest {
+  message Job {
+    bytes id = 1;
+  }
+
+  repeated Job jobs = 1;
+  int64 state_revision = 2;
+  string sdk = 3;
+  int64 config_revision = 4;
+  bytes epoch = 5;
+  string model = 6;
+}
+
+message ReconcileResponse {}
+
+message ReportConfigRequest {
+  bytes epoch = 1;
+  Config config = 2;
+}
+
+message ReportConfigResponse {}
+
+message ReportModulesRequest {
+  toit.model.DeviceModules modules = 1;
+}
+
+message ReportModulesResponse {}
+
+message EventsRequest {
+  repeated Events events = 1;
+}
+
+message EventsResponse {}
+
+message EventStreamRequest {
+  repeated Events events = 1;
+}
+
+message EventStreamResponse {}
+
+message PubSubFetchRequest {
+  message Subscription {
+    bytes id = 1;
+    int64 limit = 2;
+  }
+  repeated Subscription subscriptions = 1;
+}
+
+message PubSubFetchResponse {
+  api.Message message = 1;
+  bytes subscription_id = 2;
+}
+
+message PubSubAckOffsetRequest {
+  message Ack {
+    bytes subscription_id = 1;
+    uint64 offset = 2;
+  }
+  repeated Ack acks = 1;
+}
+
+message PubSubAckOffsetResponse {}
+
+message Resource {
+  enum Type {
+    UNKNOWN = 0;
+    COMPILATION = 1;
+    FIRMWARE = 2;
+    PARTIAL_FIRMWARE = 3;
+    FILE = 4;
+  }
+
+  Type type = 1;
+  bytes id = 2;
+}
+
+message WatchNotificationsRequest {
+  google.protobuf.Duration ping_interval = 1;
+}
+
+message Notification {
+  message ActionPending {}
+
+  message PubsubUpdated {
+    repeated bytes subscriptions = 1;
+  }
+
+  message Ping {}
+
+  oneof notification {
+    ActionPending action_pending = 1;
+    PubsubUpdated pubsub_updated = 2;
+    Ping ping = 3;
+  };
+}
+
+message WatchNotificationsResponse {
+  Notification notification = 1;
+}
