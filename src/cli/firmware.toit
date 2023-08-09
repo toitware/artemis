@@ -9,6 +9,7 @@ import host.file
 import host.os
 import snapshot show cache_snapshot
 import uuid
+import fs
 
 import .sdk
 import .cache show ENVELOPE_PATH
@@ -339,7 +340,10 @@ get_envelope -> string
 
   FILE_URL_PREFIX ::= "file://"
   if url.starts_with FILE_URL_PREFIX:
-    return url.trim --left FILE_URL_PREFIX
+    path := url.trim --left FILE_URL_PREFIX
+    if fs.is_relative path:
+      return "$specification.relative_to/$path"
+    return path
 
   HTTP_URL_PREFIX ::= "http://"
   HTTPS_URL_PREFIX ::= "https://"
@@ -349,9 +353,12 @@ get_envelope -> string
   envelope_key := "$ENVELOPE_PATH/$url/firmware.envelope"
   return cache.get_file_path envelope_key: | store/cli.FileStore |
     store.with_tmp_directory: | tmp_dir |
-      out_path := "$tmp_dir/fw.envelope.gz"
+      out_path := "$tmp_dir/fw.envelope"
+      is_gz_file := url.ends_with ".gz"
+      if is_gz_file: out_path += ".gz"
       download_url url --out_path=out_path
-      gunzip out_path
+      if is_gz_file:
+        gunzip out_path
       envelope_path := "$tmp_dir/fw.envelope"
       if cache_snapshots:
         cache_snapshots_ --envelope_path=envelope_path --cache=cache
