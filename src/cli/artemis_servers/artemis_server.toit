@@ -141,7 +141,10 @@ interface ArtemisServerCli implements Authenticatable:
   If provided, the given $sdk_version and $service_version can be
     used to filter the results.
   */
-  list_sdk_service_versions --sdk_version/string?=null --service_version/string?=null -> List
+  list_sdk_service_versions -> List
+      --organization_id/uuid.Uuid
+      --sdk_version/string?=null
+      --service_version/string?=null
 
   /**
   Downloads the given $image.

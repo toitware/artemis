@@ -5,7 +5,7 @@ import http
 import net
 import encoding.json
 import supabase
-import supabase.filter show equals
+import supabase.filter show equals is_null orr
 import uuid
 
 import ..artemis_server
@@ -140,8 +140,16 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
       equals "id" "$user_id",
     ]
 
-  list_sdk_service_versions --sdk_version/string?=null --service_version/string?=null -> List:
-    filters := []
+  list_sdk_service_versions -> List
+      --organization_id/uuid.Uuid
+      --sdk_version/string?=null
+      --service_version/string?=null:
+    filters := [
+      orr [
+        is_null "organization_id",
+        equals "organization_id" "$organization_id",
+      ]
+    ]
     if sdk_version: filters.add (equals "sdk_version" sdk_version)
     if service_version: filters.add (equals "service_version" service_version)
     return client_.rest.select "sdk_service_versions" --filters=filters

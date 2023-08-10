@@ -158,7 +158,10 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       pod/Pod := ?
       reference/PodReference := ?
       if local:
-        pod = Pod.from_file local --artemis=artemis --ui=ui
+        pod = Pod.from_file local
+            --organization_id=fleet.organization_id
+            --artemis=artemis
+            --ui=ui
         reference = PodReference --id=pod.id
       else:
         if remote:
