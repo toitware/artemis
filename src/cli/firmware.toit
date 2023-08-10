@@ -9,12 +9,14 @@ import host.file
 import host.os
 import snapshot show cache_snapshot
 import uuid
+import fs
 
 import .sdk
 import .cache show ENVELOPE_PATH
 import .cache as cli
 import .device
 import .pod
+import .pod_specification
 import .utils
 import ..shared.utils.patch
 
@@ -268,12 +270,6 @@ class FirmwarePartConfig extends FirmwarePart:
     return { "from": from, "to": to, "type": "config" }
 
 /**
-Builds the URL for the firmware envelope for the given $version on GitHub.
-*/
-envelope_url version/string --chip/string -> string:
-  return "github.com/toitlang/toit/releases/download/$version/firmware-$(chip).gz"
-
-/**
 Stores the snapshots inside the envelope in the user's snapshot directory.
 */
 cache_snapshots --envelope_path/string --output_directory/string?=null --cache/cli.Cache:
@@ -296,20 +292,40 @@ cache_snapshots --envelope_path/string --output_directory/string?=null --cache/c
 cache_snapshots_ --envelope_path/string --cache/cli.Cache:
   cache_snapshots --envelope_path=envelope_path --cache=cache
 
+/**
+Builds the URL for the firmware envelope for the given $sdk_version and $envelope.
+
+If no envelope is given, builds a URL for the envelopes from Toit's
+  Github repository.
+*/
+build_envelope_url --sdk_version/string? --envelope/string -> string:
+  if not envelope or (not envelope.contains "/" and not envelope.contains "\\"):
+    if not sdk_version:
+      throw "No sdk_version given"
+    return "https://github.com/toitlang/toit/releases/download/$sdk_version/firmware-$(envelope).gz"
+
+  if sdk_version:
+    envelope = envelope.replace --all "\$(sdk-version)" sdk_version
+
+  URL_PREFIXES ::= ["http://", "https://", "file://"]
+  URL_PREFIXES.do: if envelope.starts_with it: return envelope
+  return "file://$envelope"
+
 reported_local_envelope_use_/bool := false
 /**
-Returns a path to the firmware envelope for the given $version.
+Returns a path to the firmware envelope for the given $specification.
 
 If $cache_snapshots is true, then copies the contained snapshots
   into the cache.
 */
 // TODO(florian): we probably want to create a class for the firmware
 // envelope.
-get_envelope version/string -> string
-    --chip/string="esp32"
+get_envelope -> string
+    --specification/PodSpecification
     --cache/cli.Cache
     --cache_snapshots/bool=true:
   if is_dev_setup:
+    chip := specification.chip or specification.envelope
     local_sdk := os.env.get "DEV_TOIT_REPO_PATH"
     if local_sdk:
       if not reported_local_envelope_use_:
@@ -317,15 +333,33 @@ get_envelope version/string -> string
         reported_local_envelope_use_ = true
       return "$local_sdk/build/$chip/firmware.envelope"
 
-  url := envelope_url version --chip=chip
-  path := "firmware-$(chip).envelope"
-  envelope_key := "$ENVELOPE_PATH/$version/$path"
+  sdk_version := specification.sdk_version
+  envelope := specification.envelope or "esp32"
+
+  url := build_envelope_url --sdk_version=sdk_version --envelope=envelope
+
+  FILE_URL_PREFIX ::= "file://"
+  if url.starts_with FILE_URL_PREFIX:
+    path := url.trim --left FILE_URL_PREFIX
+    if fs.is_relative path:
+      return "$specification.relative_to/$path"
+    return path
+
+  HTTP_URL_PREFIX ::= "http://"
+  HTTPS_URL_PREFIX ::= "https://"
+  if not url.starts_with HTTP_URL_PREFIX and not url.starts_with HTTPS_URL_PREFIX:
+    throw "Invalid envelope URL: $url"
+
+  envelope_key := "$ENVELOPE_PATH/$url/firmware.envelope"
   return cache.get_file_path envelope_key: | store/cli.FileStore |
     store.with_tmp_directory: | tmp_dir |
-      out_path := "$tmp_dir/$(path).gz"
+      out_path := "$tmp_dir/fw.envelope"
+      is_gz_file := url.ends_with ".gz"
+      if is_gz_file: out_path += ".gz"
       download_url url --out_path=out_path
-      gunzip out_path
-      envelope_path := "$tmp_dir/$path"
+      if is_gz_file:
+        gunzip out_path
+      envelope_path := "$tmp_dir/fw.envelope"
       if cache_snapshots:
         cache_snapshots_ --envelope_path=envelope_path --cache=cache
       store.move envelope_path

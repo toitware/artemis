@@ -4,6 +4,7 @@ import ar show ArReader
 import artemis.cli.utils show write_blob_to_file
 import artemis.cli.firmware show get_envelope
 import artemis.cli.pod show Pod
+import artemis.cli.pod_specification show PodSpecification
 import artemis.cli.sdk show Sdk
 import bytes
 import expect show *
@@ -47,7 +48,7 @@ run_test test_cli/TestCli fleet_dir/string:
     {
       "version": 1,
       "name": "test-pod2",
-      "firmware-envelope": "custom.envelope",
+      "firmware-envelope": "file://custom.envelope",
       "artemis-version": "$TEST_ARTEMIS_VERSION",
       "connections": [
         {
@@ -61,9 +62,9 @@ run_test test_cli/TestCli fleet_dir/string:
   spec_path = "$fleet_dir/test-pod2.json"
   write_blob_to_file spec_path spec
 
-  default_envelope_path := get_envelope test_cli.sdk_version --cache=test_cli.cache
-  default_envelope := file.read_content default_envelope_path
   custom_path := "$fleet_dir/custom.envelope"
+
+  default_envelope := get_envelope_for --sdk_version=test_cli.sdk_version --cache=test_cli.cache
   write_blob_to_file custom_path default_envelope
 
   print "custom-path: $custom_path"
@@ -100,3 +101,22 @@ validate_pod pod_path/string --name/string --containers/List --test_cli/TestCli:
       seen.add file.name
     containers.do:
       expect (seen.contains it)
+
+get_envelope_for --sdk_version/string --cache -> ByteArray:
+  default_spec := {
+      "version": 1,
+      "name": "test-pod2",
+      "artemis-version": "$TEST_ARTEMIS_VERSION",
+      "sdk-version": "$sdk_version",
+      "connections": [
+        {
+          "type": "wifi",
+          "ssid": "test",
+          "password": "test"
+        }
+      ]
+    }
+  pod_specification := PodSpecification.from_json default_spec --path="ignored"
+
+  default_envelope_path := get_envelope --specification=pod_specification --cache=cache
+  return file.read_content default_envelope_path

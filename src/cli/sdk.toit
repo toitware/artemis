@@ -328,7 +328,7 @@ sdk_url version/string -> string:
   else:
     throw "Unsupported platform: $platform"
 
-  return "github.com/toitlang/toit/releases/download/$version/toit-$(platform_str).tar.gz"
+  return "https://github.com/toitlang/toit/releases/download/$version/toit-$(platform_str).tar.gz"
 
 reported_local_sdk_use_/bool := false
 

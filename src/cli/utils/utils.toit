@@ -98,23 +98,25 @@ write_file path/string [block] [--on_error] -> none:
     stream.close
 
 download_url url/string --out_path/string -> none:
-  network := net.open
-  client := http.Client.tls network
-      --root_certificates=certificate_roots.ALL
-  parts := url.split --at_first "/"
-  host := parts.first
-  path := parts.last
   log.info "Downloading $url."
-  response := client.get host path
-  if response.status_code != http.STATUS_OK:
-    log.error "Failed to download $url: $response.status_code $response.status_message."
-    exit 1
-  file := file.Stream.for_write out_path
-  writer := writer.Writer file
-  writer.write_from response.body
-  writer.close
-  // TODO(florian): closing should be idempotent.
-  // file.close
+
+  network := net.open
+  try:
+    client := http.Client.tls network
+        --root_certificates=certificate_roots.ALL
+
+    response := client.get --uri=url
+    if response.status_code != http.STATUS_OK:
+      log.error "Failed to download $url: $response.status_code $response.status_message."
+      exit 1
+    file := file.Stream.for_write out_path
+    writer := writer.Writer file
+    writer.write_from response.body
+    writer.close
+    // TODO(florian): closing should be idempotent.
+    // file.close
+  finally:
+    network.close
 
 tool_path_ tool/string -> string:
   if platform != PLATFORM_WINDOWS: return tool

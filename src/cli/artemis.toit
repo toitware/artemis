@@ -204,30 +204,35 @@ class Artemis:
       --output_path/string:
     service_version := specification.artemis_version
     sdk_version := specification.sdk_version
-    envelope_path := specification.envelope_path
 
-    if not sdk_version:
-      envelope_path = "$specification.relative_to/$envelope_path"
-      // Extract the sdk version from the envelope.
-      envelope := file.read_content envelope_path
-      sdk_version = Sdk.get_sdk_version_from --envelope=envelope
+    checked := false
+    // We try to check the sdk and service versions as soon as possible to
+    // avoid downloading expensive assets.
+    check_sdk_service_version := :
+      if not checked and sdk_version:
+        check_is_supported_version_
+            --organization-id=organization-id
+            --sdk=sdk_version
+            --service=service_version
+        checked = true
 
-    check_is_supported_version_
-        --organization_id=organization_id
-        --sdk=sdk_version
-        --service=service_version
+    check_sdk_service_version.call
+
+    envelope_path := get_envelope
+        --specification=specification
+        --cache=cache_
+
+    // Extract the sdk version from the envelope.
+    envelope := file.read_content envelope_path
+    envelope_sdk_version := Sdk.get_sdk_version_from --envelope=envelope
+    if sdk_version:
+      if sdk_version != envelope_sdk_version:
+        ui_.abort "The envelope uses SDK version '$envelope_sdk_version', but '$sdk_version' was requested."
+    else:
+      sdk_version = envelope_sdk_version
+      check_sdk_service_version.call
 
     sdk := get_sdk sdk_version --cache=cache_
-
-    if not envelope_path:
-      check_is_supported_version_
-          --organization_id=organization_id
-          --sdk=sdk_version
-          --service=service_version
-      envelope_path = get_envelope
-          sdk_version
-          --chip=specification.chip
-          --cache=cache_
 
     copy_file --source=envelope_path --target=output_path
 
