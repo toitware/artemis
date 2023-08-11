@@ -667,22 +667,5 @@ class SynchronizeJob extends TaskJob:
     and the goal state.
   */
   report_state_if_changed broker_connection/BrokerConnection --goal_state/Map?=null -> none:
-    state := {
-      "firmware-state": device_.firmware_state,
-    }
-    if device_.pending_firmware:
-      state["pending-firmware"] = device_.pending_firmware
-    if device_.is_current_state_modified:
-      state["current-state"] = device_.current_state
-    if goal_state:
-      state["goal-state"] = goal_state
-
-    sha := sha256.Sha256
-    sha.add (tison.encode state)
-    checksum := sha.get
-    if checksum == device_.report_state_checksum: return
-
-    broker_connection.report_state state
-    transition_to_connected_
-    device_.report_state_checksum = checksum
-    logger_.info "synchronized state to broker"
+    // The migration version never reports the state.
+    return
