@@ -58,9 +58,12 @@ class BrokerConnectionHttp implements BrokerConnection:
     connection_.send_request COMMAND_DOWNLOAD_ payload: | reader/Reader |
       block.call reader
 
-  fetch_firmware id/string --offset/int=0 [block] -> none:
+  fetch_firmware id/string
+      --offset/int=0
+      --organization_id/uuid.Uuid?=device_.organization_id
+      [block] -> none:
     payload := {
-      "path": "/toit-artemis-assets/$device_.organization_id/firmware/$id",
+      "path": "/toit-artemis-assets/$organization_id/firmware/$id",
       "offset": offset,
     }
     expected_status := offset == 0 ? null : http.STATUS_PARTIAL_CONTENT

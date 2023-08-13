@@ -4,9 +4,12 @@ import log
 import system.firmware
 
 import binary show LITTLE_ENDIAN
+import encoding.ubjson
 import reader show Reader
+import uuid
 
 import .brokers.broker
+import .brokers.http
 import .device
 import .firmware
 import ..shared.utils.patch
@@ -149,6 +152,15 @@ class FirmwarePatcher_ implements PatchObserver:
     // start applying the patch version.
     resource_urls.add "$new_id/none"
 
+    // During migration the organization-id of the current device isn't correct.
+    // We must take it from the target firmware.
+    // Normally we are not supposed to extract anything from the target firmware
+    // since the format could have changed.
+    // However, for migration purposes we know the format and we don't really
+    // have any better option.
+    device_specific := ubjson.decode new_.device_specific_encoded
+    new_org := uuid.parse device_specific["artemis.device"]["organization_id"]
+
     resource_urls.do: | resource_url/string |
       // If we get an exception before we start applying the patch,
       // we continue to the next resource URL in the list. Notice
@@ -157,7 +169,10 @@ class FirmwarePatcher_ implements PatchObserver:
       // passed to 'fetch_firmware'.
       started_applying := false
       exception := catch --unwind=(: started_applying):
-        broker_connection.fetch_firmware resource_url --offset=read_offset:
+        http_connection := broker_connection as BrokerConnectionHttp
+        http_connection.fetch_firmware resource_url
+            --organization_id=new_org
+            --offset=read_offset:
           | reader/Reader offset/int |
             started_applying = true
             apply_ reader offset old_mapping
