@@ -38,9 +38,9 @@ artemis serial write-ota -o ota.bin --local migration.pod
 ```
 Note: this will create a new ID that we will ignore.
 
-Create a meaningful tag on the release-v1.99 branch:
+Create a meaningful tag on the Toit v1 `staging-v1.99`` branch:
 ```
-git checkout release-v1.99
+git checkout staging-v1.99
 git tag v1.99.0-customer-foo
 git push origin v1.99.0-customer-foo
 ```
