@@ -2,65 +2,65 @@
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
-import artemis.cli.pod_specification show INITIAL_POD_SPECIFICATION
-import artemis.cli.utils show write_json_to_file write_blob_to_file
+import artemis.cli.pod-specification show INITIAL-POD-SPECIFICATION
+import artemis.cli.utils show write-json-to-file write-blob-to-file
 import .utils
 
 main args:
-  with_fleet --args=args --count=1: | test_cli/TestCli fake_devices/List fleet_dir/string |
-    run_test test_cli fake_devices fleet_dir
+  with-fleet --args=args --count=1: | test-cli/TestCli fake-devices/List fleet-dir/string |
+    run-test test-cli fake-devices fleet-dir
 
-run_test test_cli/TestCli fake_devices/List fleet_dir/string:
-  tmp_dir := test_cli.tmp_dir
+run-test test-cli/TestCli fake-devices/List fleet-dir/string:
+  tmp-dir := test-cli.tmp-dir
 
-  device/FakeDevice := fake_devices[0]
-  device.report_state
+  device/FakeDevice := fake-devices[0]
+  device.report-state
 
-  hello_path := "$tmp_dir/hello.toit"
-  write_blob_to_file hello_path """
+  hello-path := "$tmp-dir/hello.toit"
+  write-blob-to-file hello-path """
       main: print "hello world"
       """
 
-  test_cli.run [
-    "device", "default", "$device.alias_id"
+  test-cli.run [
+    "device", "default", "$device.alias-id"
   ]
 
-  test_cli.run_gold "200_install"
+  test-cli.run-gold "200_install"
       "Install a container"
       [
-        "device", "container", "install", "hello", hello_path
+        "device", "container", "install", "hello", hello-path
       ]
 
-  test_cli.run_gold "220_uninstall"
+  test-cli.run-gold "220_uninstall"
       "Uninstall a container"
       [
         "device", "container", "uninstall", "hello"
       ]
 
-  test_cli.run_gold "230_uninstall_non_existing"
-      --expect_exit_1
+  test-cli.run-gold "230_uninstall_non_existing"
+      --expect-exit-1
       "Uninstall a non-existing container"
       [
         "device", "container", "uninstall", "hello"
       ]
 
   // Force allows uninstalling a container that is not installed.
-  test_cli.run_gold "240_uninstall_non_existing_force"
+  test-cli.run-gold "240_uninstall_non_existing_force"
       "Uninstall a non-existing container with force"
       [
         "device", "container", "uninstall", "hello", "--force"
       ]
 
-  test_cli.ensure_available_artemis_service
-      --sdk_version=TEST_SDK_VERSION
-      --artemis_version=TEST_ARTEMIS_VERSION
+  test-cli.ensure-available-artemis-service
+      --sdk-version=TEST-SDK-VERSION
+      --artemis-version=TEST-ARTEMIS-VERSION
 
-  pod_spec := deep_copy_ INITIAL_POD_SPECIFICATION
+  pod-spec := deep-copy_ INITIAL-POD-SPECIFICATION
 
-  pod_spec["sdk-version"] = TEST_SDK_VERSION
-  pod_spec["artemis-version"] = TEST_ARTEMIS_VERSION
+  pod-spec["sdk-version"] = TEST-SDK-VERSION
+  pod-spec["artemis-version"] = TEST-ARTEMIS-VERSION
 
-  pod_spec["connections"] = [
+  pod-spec["connections"] = [
     {
       "type": "cellular",
       "config": {:},
@@ -72,39 +72,39 @@ run_test test_cli/TestCli fake_devices/List fleet_dir/string:
       "password": "test-password",
     }
   ]
-  pod_spec["containers"] = {
+  pod-spec["containers"] = {
     "hello": {
       "entrypoint": "hello.toit"
     }
   }
 
-  spec_file := "$tmp_dir/test.json"
-  pod_file := "$tmp_dir/test.pod"
-  write_json_to_file spec_file pod_spec
+  spec-file := "$tmp-dir/test.json"
+  pod-file := "$tmp-dir/test.pod"
+  write-json-to-file spec-file pod-spec
 
-  test_cli.run [
-    "pod", "create", spec_file, "-o", pod_file
+  test-cli.run [
+    "pod", "create", spec-file, "-o", pod-file
   ]
 
-  test_cli.run [
-    "device", "update", "--local", pod_file
+  test-cli.run [
+    "device", "update", "--local", pod-file
   ]
 
   device.synchronize
   device.flash
   device.reboot
-  device.report_state
+  device.report-state
 
   // Hello is now a required container.
-  test_cli.run_gold "300_uninstall_required"
+  test-cli.run-gold "300_uninstall_required"
       "Can't uninstall required container without force"
-      --expect_exit_1
+      --expect-exit-1
       [
         "device", "container", "uninstall", "hello"
       ]
 
   // Works with force.
-  test_cli.run_gold "310_uninstall_required_force"
+  test-cli.run-gold "310_uninstall_required_force"
       "Can uninstall required container with force"
       [
         "device", "container", "uninstall", "hello", "--force"

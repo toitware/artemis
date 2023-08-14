@@ -2,16 +2,16 @@
 
 // ARTEMIS_TEST_FLAGS: BROKER
 
-import artemis.cli.utils show write_blob_to_file
+import artemis.cli.utils show write-blob-to-file
 import expect show *
 import .utils
 
 main args:
-  with_fleet --count=0 --args=args: | test_cli/TestCli _ fleet_dir/string |
-    run_test test_cli fleet_dir
+  with-fleet --count=0 --args=args: | test-cli/TestCli _ fleet-dir/string |
+    run-test test-cli fleet-dir
 
-run_test test_cli/TestCli fleet_dir/string:
-  test_cli.ensure_available_artemis_service
+run-test test-cli/TestCli fleet-dir/string:
+  test-cli.ensure-available-artemis-service
 
   name := "test-pod"
 
@@ -19,8 +19,8 @@ run_test test_cli/TestCli fleet_dir/string:
     {
       "version": 1,
       "name": "$name",
-      "sdk-version": "$test_cli.sdk_version",
-      "artemis-version": "$TEST_ARTEMIS_VERSION",
+      "sdk-version": "$test-cli.sdk-version",
+      "artemis-version": "$TEST-ARTEMIS-VERSION",
       "connections": [
         {
           "type": "wifi",
@@ -30,17 +30,17 @@ run_test test_cli/TestCli fleet_dir/string:
       ]
     }
     """
-  spec_path := "$fleet_dir/$(name).json"
-  write_blob_to_file spec_path spec
-  test_cli.run [
-    "pod", "upload", spec_path
+  spec-path := "$fleet-dir/$(name).json"
+  write-blob-to-file spec-path spec
+  test-cli.run [
+    "pod", "upload", spec-path
   ]
 
-  pods := test_cli.run --json [
+  pods := test-cli.run --json [
     "pod", "list", "--name", name
   ]
-  expect_equals 1 pods.size
-  expect_equals name pods[0]["name"]
-  expect_equals 1 pods[0]["revision"]
-  expect_equals 2 pods[0]["tags"].size
+  expect-equals 1 pods.size
+  expect-equals name pods[0]["name"]
+  expect-equals 1 pods[0]["revision"]
+  expect-equals 2 pods[0]["tags"].size
   expect (pods[0]["tags"].contains "latest")

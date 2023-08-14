@@ -2,28 +2,28 @@
 
 import encoding.base64
 import encoding.json
-import encoding.url as url_encoding
+import encoding.url as url-encoding
 import host.file
 import fs
 
 import .cache as cli
-import .cache show GIT_APP_PATH
+import .cache show GIT-APP-PATH
 import .firmware
 import .sdk
-import .server_config
+import .server-config
 import .utils
 import .git
 import .ui
 
-import ..shared.version show SDK_VERSION ARTEMIS_VERSION
+import ..shared.version show SDK-VERSION ARTEMIS-VERSION
 
-INITIAL_POD_NAME ::= "my-pod"
-INITIAL_POD_SPECIFICATION -> Map:
+INITIAL-POD-NAME ::= "my-pod"
+INITIAL-POD-SPECIFICATION -> Map:
   return {
     "version": 1,
-    "name": "$INITIAL_POD_NAME",
-    "sdk-version": SDK_VERSION,
-    "artemis-version": ARTEMIS_VERSION,
+    "name": "$INITIAL-POD-NAME",
+    "sdk-version": SDK-VERSION,
+    "artemis-version": ARTEMIS-VERSION,
     "max-offline": "0s",
     "connections": [
       {
@@ -35,12 +35,12 @@ INITIAL_POD_SPECIFICATION -> Map:
     "containers": {:},
   }
 
-EXAMPLE_POD_SPECIFICATION -> Map:
+EXAMPLE-POD-SPECIFICATION -> Map:
   return {
     "version": 1,
     "name": "example-pod",
-    "sdk-version": SDK_VERSION,
-    "artemis-version": ARTEMIS_VERSION,
+    "sdk-version": SDK-VERSION,
+    "artemis-version": ARTEMIS-VERSION,
     "max-offline": "30s",
     "connections": [
       {
@@ -85,122 +85,122 @@ class PodSpecificationException:
   stringify -> string:
     return message
 
-format_error_ message/string:
+format-error_ message/string:
   throw (PodSpecificationException message)
 
-validation_error_ message/string:
+validation-error_ message/string:
   throw (PodSpecificationException message)
 
-check_has_key_ map/Map --holder/string="pod specification" key/string:
+check-has-key_ map/Map --holder/string="pod specification" key/string:
   // We use `map.get` so that specifications can "delete" entries they have
   // included by overriding them with 'null'.
   if (map.get key) == null:
-    format_error_ "Missing $key in $holder."
+    format-error_ "Missing $key in $holder."
 
-has_key_ map/Map key/string -> bool:
+has-key_ map/Map key/string -> bool:
   return (map.get key) != null
 
-check_is_map_ map/Map key/string --entry_type/string="Entry":
-  get_map_ map key --entry_type=entry_type
+check-is-map_ map/Map key/string --entry-type/string="Entry":
+  get-map_ map key --entry-type=entry-type
 
-get_int_ map/Map key/string -> int
+get-int_ map/Map key/string -> int
     --holder/string="pod specification"
-    --entry_type/string="Entry":
-  check_has_key_ map --holder=holder key
+    --entry-type/string="Entry":
+  check-has-key_ map --holder=holder key
   value := map[key]
   if value is not int:
-    format_error_ "$entry_type $key in $holder is not an int: $value"
+    format-error_ "$entry-type $key in $holder is not an int: $value"
   return value
 
-get_string_ map/Map key/string -> string
+get-string_ map/Map key/string -> string
     --holder/string="pod specification"
-    --entry_type/string="Entry":
-  check_has_key_ map --holder=holder key
+    --entry-type/string="Entry":
+  check-has-key_ map --holder=holder key
   value := map[key]
   if value is not string:
-    format_error_ "$entry_type $key in $holder is not a string: $value"
+    format-error_ "$entry-type $key in $holder is not a string: $value"
   return value
 
-get_optional_string_ map/Map key/string -> string?
+get-optional-string_ map/Map key/string -> string?
     --holder/string="pod specification"
-    --entry_type/string="Entry":
-  if not has_key_ map key: return null
-  return get_string_ map key --holder=holder --entry_type=entry_type
+    --entry-type/string="Entry":
+  if not has-key_ map key: return null
+  return get-string_ map key --holder=holder --entry-type=entry-type
 
-get_optional_list_ map/Map key/string --type/string [--check] -> List?
-    --entry_type/string="Entry"
+get-optional-list_ map/Map key/string --type/string [--check] -> List?
+    --entry-type/string="Entry"
     --holder/string="pod specification":
-  if not has_key_ map key: return null
+  if not has-key_ map key: return null
   value := map[key]
   if value is not List:
-    format_error_ "$entry_type $key in $holder is not a list: $value"
+    format-error_ "$entry-type $key in $holder is not a list: $value"
   value.do:
     if not check.call it:
-      format_error_ "$entry_type $key in $holder is not a list of $(type)s: $value"
+      format-error_ "$entry-type $key in $holder is not a list of $(type)s: $value"
   return value
 
-get_map_ map/Map key/string -> Map
-    --entry_type/string="Entry"
+get-map_ map/Map key/string -> Map
+    --entry-type/string="Entry"
     --holder/string="pod specification":
-  check_has_key_ map --holder=holder key
+  check-has-key_ map --holder=holder key
   value := map[key]
   if value is not Map:
-    format_error_ "$entry_type $key in $holder is not a map: $value"
+    format-error_ "$entry-type $key in $holder is not a map: $value"
   return value
 
-get_optional_map_ map/Map key/string -> Map?
-    --entry_type/string="Entry"
+get-optional-map_ map/Map key/string -> Map?
+    --entry-type/string="Entry"
     --holder/string="pod specification":
-  if not has_key_ map key: return null
-  return get_map_ map key --entry_type=entry_type --holder=holder
+  if not has-key_ map key: return null
+  return get-map_ map key --entry-type=entry-type --holder=holder
 
-get_list_ map/Map key/string -> List
-    --entry_type/string="Entry"
+get-list_ map/Map key/string -> List
+    --entry-type/string="Entry"
     --holder/string="pod specification":
-  check_has_key_ map --holder=holder key
+  check-has-key_ map --holder=holder key
   value := map[key]
   if value is not List:
-    format_error_ "$entry_type $key in $holder is not a list: $value"
+    format-error_ "$entry-type $key in $holder is not a list: $value"
   return value
 
-get_duration_ map/Map key/string -> Duration
-    --entry_type/string="Entry"
+get-duration_ map/Map key/string -> Duration
+    --entry-type/string="Entry"
     --holder/string="pod specification":
   // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
   // Returns 0 if the string is empty.
 
-  check_has_key_ map --holder=holder key
+  check-has-key_ map --holder=holder key
 
   entry := map[key]
   if entry is not string:
-    format_error_ "$entry_type $key in $holder is not a string: $entry"
+    format-error_ "$entry-type $key in $holder is not a string: $entry"
 
-  entry_string := entry as string
-  entry_string = entry_string.trim
-  if entry_string == "": return Duration.ZERO
+  entry-string := entry as string
+  entry-string = entry-string.trim
+  if entry-string == "": return Duration.ZERO
 
-  return parse_duration entry_string --on_error=:
-    format_error_ "$entry_type $key in $holder is not a valid duration: $entry"
+  return parse-duration entry-string --on-error=:
+    format-error_ "$entry-type $key in $holder is not a valid duration: $entry"
 
-get_optional_duration_ map/Map key/string -> Duration?
-    --entry_type/string="Entry"
+get-optional-duration_ map/Map key/string -> Duration?
+    --entry-type/string="Entry"
     --holder/string="pod specification":
-  if not has_key_ map key: return null
-  return get_duration_ map key --entry_type=entry_type --holder=holder
+  if not has-key_ map key: return null
+  return get-duration_ map key --entry-type=entry-type --holder=holder
 
-get_optional_bool_ map/Map key/string -> bool?
-    --entry_type/string="Entry"
+get-optional-bool_ map/Map key/string -> bool?
+    --entry-type/string="Entry"
     --holder/string="pod specification":
-  if not has_key_ map key: return null
-  return get_bool_ map key --entry_type=entry_type --holder=holder
+  if not has-key_ map key: return null
+  return get-bool_ map key --entry-type=entry-type --holder=holder
 
-get_bool_ map/Map key/string -> bool
-    --entry_type/string="Entry"
+get-bool_ map/Map key/string -> bool
+    --entry-type/string="Entry"
     --holder/string="pod specification":
-  check_has_key_ map --holder=holder key
+  check-has-key_ map --holder=holder key
   value := map[key]
   if value is not bool:
-    format_error_ "$entry_type $key in $holder is not a boolean: $value"
+    format-error_ "$entry-type $key in $holder is not a boolean: $value"
   return value
 
 /**
@@ -215,14 +215,14 @@ The parameters $other and $target must both be maps.
 - if a key is present only in $other, the value is copied as-is, unless it's
   null in which case it's ignored.
 */
-merge_json_into_ target/Map other/Map -> none:
+merge-json-into_ target/Map other/Map -> none:
   other.do: | key value |
     if target.contains key:
-      target_value := target[key]
-      if target_value is Map and value is Map:
-        merge_json_into_ target_value value
-      else if target_value is List and value is List:
-        target[key] = target_value + value
+      target-value := target[key]
+      if target-value is Map and value is Map:
+        merge-json-into_ target-value value
+      else if target-value is List and value is List:
+        target[key] = target-value + value
       else:
         // Do nothing: keep the value from target.
     else if value != null:
@@ -231,23 +231,23 @@ merge_json_into_ target/Map other/Map -> none:
 /**
 Removes all entries for which the value is null.
 */
-remove_null_values_ o/any -> none:
-  null_keys := []
+remove-null-values_ o/any -> none:
+  null-keys := []
   if o is Map:
     map := o as Map
     map.do: | key value |
       if value == null:
-        null_keys.add key
+        null-keys.add key
       else:
-        remove_null_values_ value
+        remove-null-values_ value
 
-    null_keys.do: | key |
+    null-keys.do: | key |
       map.remove key
 
   if o is List:
     list := o as List
-    list.filter --in_place: it != null
-    list.do: remove_null_values_ it
+    list.filter --in-place: it != null
+    list.do: remove-null-values_ it
 
 /**
 A specification of a pod.
@@ -263,111 +263,111 @@ Relevant data includes (but is not limited to):
 */
 class PodSpecification:
   name/string
-  sdk_version/string?
+  sdk-version/string?
   envelope/string?
-  artemis_version/string
-  max_offline_seconds/int
+  artemis-version/string
+  max-offline-seconds/int
   connections/List  // Of $ConnectionInfo.
   containers/Map  // Of name -> $Container.
   path/string
   chip/string?
 
-  constructor.from_json --.path/string data/Map:
-    name = get_string_ data "name"
-    artemis_version = get_string_ data "artemis-version"
-    sdk_version = get_optional_string_ data "sdk-version"
-    envelope = get_optional_string_ data "firmware-envelope"
+  constructor.from-json --.path/string data/Map:
+    name = get-string_ data "name"
+    artemis-version = get-string_ data "artemis-version"
+    sdk-version = get-optional-string_ data "sdk-version"
+    envelope = get-optional-string_ data "firmware-envelope"
 
-    if not sdk_version and not envelope:
-      format_error_ "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
+    if not sdk-version and not envelope:
+      format-error_ "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
 
-    chip = get_optional_string_ data "chip"
+    chip = get-optional-string_ data "chip"
 
-    if has_key_ data "apps" and has_key_ data "containers":
-      format_error_ "Both 'apps' and 'containers' are present in pod specification."
+    if has-key_ data "apps" and has-key_ data "containers":
+      format-error_ "Both 'apps' and 'containers' are present in pod specification."
 
-    if (get_int_ data "version") != 1:
-      format_error_ "Unsupported pod specification version $data["version"]"
+    if (get-int_ data "version") != 1:
+      format-error_ "Unsupported pod specification version $data["version"]"
 
-    if has_key_ data "apps" and not has_key_ data "containers":
-      check_is_map_ data "apps"
+    if has-key_ data "apps" and not has-key_ data "containers":
+      check-is-map_ data "apps"
       data = data.copy
       data["containers"] = data["apps"]
       data.remove "apps"
-    else if has_key_ data "containers":
-      check_is_map_ data "containers"
+    else if has-key_ data "containers":
+      check-is-map_ data "containers"
 
-    containers_entry := data.get "containers"
-    if not containers_entry: containers_entry = {:}
+    containers-entry := data.get "containers"
+    if not containers-entry: containers-entry = {:}
 
-    containers_entry.do --keys:
-      check_is_map_ containers_entry --entry_type="Container" it
+    containers-entry.do --keys:
+      check-is-map_ containers-entry --entry-type="Container" it
 
-    containers = containers_entry.map: | name container_description |
-      Container.from_json name container_description
+    containers = containers-entry.map: | name container-description |
+      Container.from-json name container-description
 
-    connections_entry := get_list_ data "connections"
-    connections_entry.do:
+    connections-entry := get-list_ data "connections"
+    connections-entry.do:
       if it is not Map:
-        format_error_ "Connection in pod specification is not a map: $it"
+        format-error_ "Connection in pod specification is not a map: $it"
 
-    connections = data["connections"].map: ConnectionInfo.from_json it
+    connections = data["connections"].map: ConnectionInfo.from-json it
 
-    max_offline := get_optional_duration_ data "max-offline"
-    max_offline_seconds = max_offline ? max_offline.in_s : 0
+    max-offline := get-optional-duration_ data "max-offline"
+    max-offline-seconds = max-offline ? max-offline.in-s : 0
 
     validate_
 
   static parse path/string -> PodSpecification:
-    json := parse_json_hierarchy path
-    return PodSpecification.from_json --path=path json
+    json := parse-json-hierarchy path
+    return PodSpecification.from-json --path=path json
 
-  static parse_json_hierarchy path/string --extends_chain/List=[] -> Map:
+  static parse-json-hierarchy path/string --extends-chain/List=[] -> Map:
     path = fs.canonicalize path
 
-    fail := : | error_message/string |
-      extends_chain.do --reversed: | include_path/string |
-        error_message += "\n  - Extended by $include_path."
-      format_error_ error_message
+    fail := : | error-message/string |
+      extends-chain.do --reversed: | include-path/string |
+        error-message += "\n  - Extended by $include-path."
+      format-error_ error-message
 
     json := null
     exception := catch:
-      json = read_json path
+      json = read-json path
     if exception:
       fail.call "Failed to read pod specification from $path: $exception."
 
     if json is not Map:
       fail.call "Pod specification at $path does not contain a map."
 
-    extends_entries := json.get "extends"
+    extends-entries := json.get "extends"
 
-    if extends_entries and extends_entries is not List:
+    if extends-entries and extends-entries is not List:
       fail.call "Extends entry in pod specification at $path is not a list."
 
-    if extends_entries:
-      extends_chain.add path
+    if extends-entries:
+      extends-chain.add path
 
-      base_specs := extends_entries.map: | extends_path/string |
-        extends_path = fs.join (fs.dirname path) extends_path
-        if extends_chain.contains extends_path:
-          fail.call "Circular extends: $extends_path."
-        parse_json_hierarchy extends_path --extends_chain=extends_chain
+      base-specs := extends-entries.map: | extends-path/string |
+        extends-path = fs.join (fs.dirname path) extends-path
+        if extends-chain.contains extends-path:
+          fail.call "Circular extends: $extends-path."
+        parse-json-hierarchy extends-path --extends-chain=extends-chain
 
-      extends_chain.resize (extends_chain.size - 1)
+      extends-chain.resize (extends-chain.size - 1)
 
-      base_specs.do: | base_spec/Map |
-        merge_json_into_ json base_spec
+      base-specs.do: | base-spec/Map |
+        merge-json-into_ json base-spec
 
       json.remove "extends"
-    if extends_chain.is_empty:
-      remove_null_values_ json
+    if extends-chain.is-empty:
+      remove-null-values_ json
     return json
 
   /**
   Returns the path to which all other paths of this specification are
     relative to.
   */
-  relative_to -> string:
+  relative-to -> string:
     return fs.dirname path
 
   /**
@@ -376,46 +376,46 @@ class PodSpecification:
   validate_ -> none:
     connections.do: | connection/ConnectionInfo |
       if connection.requires:
-        connection.requires.do: | required_container_name/string |
-          if (containers.get required_container_name) == null:
-            validation_error_ "Connection requires container $required_container_name, but it is not installed."
+        connection.requires.do: | required-container-name/string |
+          if (containers.get required-container-name) == null:
+            validation-error_ "Connection requires container $required-container-name, but it is not installed."
 
 interface ConnectionInfo:
-  static from_json data/Map -> ConnectionInfo:
-    check_has_key_ data --holder="connection" "type"
+  static from-json data/Map -> ConnectionInfo:
+    check-has-key_ data --holder="connection" "type"
 
     type := data["type"]
     if type == "wifi":
-      return WifiConnectionInfo.from_json data
+      return WifiConnectionInfo.from-json data
     if type == "cellular":
-      return CellularConnectionInfo.from_json data
+      return CellularConnectionInfo.from-json data
     if type == "ethernet":
-      return EthernetConnectionInfo.from_json data
-    format_error_ "Unknown connection type: $type"
+      return EthernetConnectionInfo.from-json data
+    format-error_ "Unknown connection type: $type"
     unreachable
 
   type -> string
   requires -> List?  // Of container names.
-  to_json -> Map
+  to-json -> Map
 
 class WifiConnectionInfo implements ConnectionInfo:
   ssid/string?
   password/string?
 
-  constructor.from_json data/Map:
-    config := get_optional_string_ data "config" --holder="wifi connection"
+  constructor.from-json data/Map:
+    config := get-optional-string_ data "config" --holder="wifi connection"
     if config:
-      if config != "provisioned": format_error_ "Unknown wifi config: $config"
+      if config != "provisioned": format-error_ "Unknown wifi config: $config"
       ssid = null
       password = null
     else:
-      ssid = get_string_ data "ssid" --holder="wifi connection"
-      password = get_string_ data "password" --holder="wifi connection"
+      ssid = get-string_ data "ssid" --holder="wifi connection"
+      password = get-string_ data "password" --holder="wifi connection"
 
   type -> string:
     return "wifi"
 
-  to_json -> Map:
+  to-json -> Map:
     return {"type": type, "ssid": ssid, "password": password}
 
   requires -> List?:
@@ -425,9 +425,9 @@ class CellularConnectionInfo implements ConnectionInfo:
   config/Map
   requires/List?
 
-  constructor.from_json data/Map:
-    config = get_map_ data "config" --holder="cellular connection"
-    requires = get_optional_list_ data "requires"
+  constructor.from-json data/Map:
+    config = get-map_ data "config" --holder="cellular connection"
+    requires = get-optional-list_ data "requires"
         --holder="cellular connection"
         --type="string"
         --check=: it is string
@@ -435,7 +435,7 @@ class CellularConnectionInfo implements ConnectionInfo:
   type -> string:
     return "cellular"
 
-  to_json -> Map:
+  to-json -> Map:
     result := {
       "type": type,
       "config": config,
@@ -446,8 +446,8 @@ class CellularConnectionInfo implements ConnectionInfo:
 class EthernetConnectionInfo implements ConnectionInfo:
   requires/List?
 
-  constructor.from_json data/Map:
-    requires = get_optional_list_ data "requires"
+  constructor.from-json data/Map:
+    requires = get-optional-list_ data "requires"
         --holder="ethernet connection"
         --type="string"
         --check=: it is string
@@ -455,7 +455,7 @@ class EthernetConnectionInfo implements ConnectionInfo:
   type -> string:
     return "ethernet"
 
-  to_json -> Map:
+  to-json -> Map:
     result := {
       "type": type,
     }
@@ -463,213 +463,213 @@ class EthernetConnectionInfo implements ConnectionInfo:
     return result
 
 interface Container:
-  static RUNLEVEL_STOP     ::= 0
-  static RUNLEVEL_SAFE     ::= 1
-  static RUNLEVEL_CRITICAL ::= 2
-  static RUNLEVEL_NORMAL   ::= 3
+  static RUNLEVEL-STOP     ::= 0
+  static RUNLEVEL-SAFE     ::= 1
+  static RUNLEVEL-CRITICAL ::= 2
+  static RUNLEVEL-NORMAL   ::= 3
 
-  static STRING_TO_RUNLEVEL_ ::= {
-    "stop": RUNLEVEL_STOP,
-    "safe": RUNLEVEL_SAFE,
-    "critical": RUNLEVEL_CRITICAL,
-    "normal": RUNLEVEL_NORMAL,
+  static STRING-TO-RUNLEVEL_ ::= {
+    "stop": RUNLEVEL-STOP,
+    "safe": RUNLEVEL-SAFE,
+    "critical": RUNLEVEL-CRITICAL,
+    "normal": RUNLEVEL-NORMAL,
   }
 
-  static from_json name/string data/Map -> Container:
-    if has_key_ data "entrypoint" and has_key_ data "snapshot":
-      format_error_ "Container $name has both entrypoint and snapshot."
+  static from-json name/string data/Map -> Container:
+    if has-key_ data "entrypoint" and has-key_ data "snapshot":
+      format-error_ "Container $name has both entrypoint and snapshot."
 
-    if has_key_ data "entrypoint":
-      return ContainerPath.from_json name data
-    if has_key_ data "snapshot":
-      return ContainerSnapshot.from_json name data
+    if has-key_ data "entrypoint":
+      return ContainerPath.from-json name data
+    if has-key_ data "snapshot":
+      return ContainerSnapshot.from-json name data
 
-    format_error_ "Unsupported container $name: $data"
+    format-error_ "Unsupported container $name: $data"
     unreachable
 
   /**
-  Builds a snapshot and stores it at the given $output_path.
+  Builds a snapshot and stores it at the given $output-path.
 
-  All paths in the container are relative to $relative_to.
+  All paths in the container are relative to $relative-to.
   */
-  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
+  build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
   type -> string
   arguments -> List?
-  is_background -> bool?
-  is_critical -> bool?
+  is-background -> bool?
+  is-critical -> bool?
   runlevel -> int?
   triggers -> List? // Of type $Trigger.
   defines -> Map?
 
-  static check_arguments_entry arguments:
+  static check-arguments-entry arguments:
     if arguments == null: return
     if arguments is not List:
-      format_error_ "Arguments entry must be a list: $arguments"
+      format-error_ "Arguments entry must be a list: $arguments"
     arguments.do: | argument |
       if argument is not string:
-        format_error_ "Arguments entry must be a list of strings: $arguments"
+        format-error_ "Arguments entry must be a list of strings: $arguments"
 
 abstract class ContainerBase implements Container:
   arguments/List?
   triggers/List?
-  is_background/bool?
-  is_critical/bool?
+  is-background/bool?
+  is-critical/bool?
   runlevel/int?
   defines/Map?
 
-  constructor.from_json name/string data/Map:
+  constructor.from-json name/string data/Map:
     holder := "container $name"
-    arguments = get_optional_list_ data "arguments"
+    arguments = get-optional-list_ data "arguments"
         --holder=holder
         --type="string"
         --check=: it is string
-    is_background = get_optional_bool_ data "background"
-    is_critical = get_optional_bool_ data "critical"
+    is-background = get-optional-bool_ data "background"
+    is-critical = get-optional-bool_ data "critical"
 
-    runlevel_string := get_optional_string_ data "run-level"
-    if runlevel_string:
-      runlevel = Container.STRING_TO_RUNLEVEL_.get runlevel_string
-          --if_absent=: format_error_ "Unknown run-level '$runlevel_string' in container $name"
+    runlevel-string := get-optional-string_ data "run-level"
+    if runlevel-string:
+      runlevel = Container.STRING-TO-RUNLEVEL_.get runlevel-string
+          --if-absent=: format-error_ "Unknown run-level '$runlevel-string' in container $name"
     else:
       runlevel = null
 
-    triggers_list := get_optional_list_ data "triggers"
+    triggers-list := get-optional-list_ data "triggers"
         --holder=holder
         --type="map or string"
         --check=: it is Map or it is string
-    if triggers_list:
-      if is_critical:
-        format_error_ "Critical container $name cannot have triggers"
+    if triggers-list:
+      if is-critical:
+        format-error_ "Critical container $name cannot have triggers"
       triggers = []
-      parsed_triggers := triggers_list.map: Trigger.parse_json name it
-      seen_types := {}
-      parsed_triggers.do: | trigger_entry |
-        trigger_type/string := ?
-        if trigger_entry is List:
+      parsed-triggers := triggers-list.map: Trigger.parse-json name it
+      seen-types := {}
+      parsed-triggers.do: | trigger-entry |
+        trigger-type/string := ?
+        if trigger-entry is List:
           // Gpio triggers.
-          trigger_type = "gpio"
-          triggers.add_all trigger_entry
+          trigger-type = "gpio"
+          triggers.add-all trigger-entry
         else:
-          trigger/Trigger := trigger_entry
-          trigger_type = trigger.type
+          trigger/Trigger := trigger-entry
+          trigger-type = trigger.type
           triggers.add trigger
 
-        if seen_types.contains trigger_type:
-          format_error_ "Duplicate trigger '$trigger_type' in container $name"
-        seen_types.add trigger_type
+        if seen-types.contains trigger-type:
+          format-error_ "Duplicate trigger '$trigger-type' in container $name"
+        seen-types.add trigger-type
     else:
       triggers = null
 
-    defines = get_optional_map_ data "defines"
+    defines = get-optional-map_ data "defines"
 
   abstract type -> string
-  abstract build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
+  abstract build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
 
 class ContainerPath extends ContainerBase:
   entrypoint/string
-  git_url/string?
-  git_ref/string?
+  git-url/string?
+  git-ref/string?
 
-  constructor.from_json name/string data/Map:
+  constructor.from-json name/string data/Map:
     holder := "container $name"
-    git_ref = get_optional_string_ data "branch" --holder=holder
-    git_url = get_optional_string_ data "git" --holder=holder
-    entrypoint = get_string_ data "entrypoint" --holder=holder
-    if git_url and not git_ref:
-      format_error_ "In container $name, git entry requires a branch/tag: $git_url"
-    if git_url and not fs.is_relative entrypoint:
-      format_error_"In container $name, git entry requires a relative path: $entrypoint"
-    super.from_json name data
+    git-ref = get-optional-string_ data "branch" --holder=holder
+    git-url = get-optional-string_ data "git" --holder=holder
+    entrypoint = get-string_ data "entrypoint" --holder=holder
+    if git-url and not git-ref:
+      format-error_ "In container $name, git entry requires a branch/tag: $git-url"
+    if git-url and not fs.is-relative entrypoint:
+      format-error_"In container $name, git entry requires a relative path: $entrypoint"
+    super.from-json name data
 
-  build_snapshot --output_path/string --relative_to/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
-    if not git_url:
+  build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
+    if not git-url:
       path := entrypoint
-      if fs.is_relative path:
-        path = "$relative_to/$path"
-      sdk.compile_to_snapshot path
-          --optimization_level=2
-          --out=output_path
+      if fs.is-relative path:
+        path = "$relative-to/$path"
+      sdk.compile-to-snapshot path
+          --optimization-level=2
+          --out=output-path
       return
 
     git := Git --ui=ui
-    git_key := "$GIT_APP_PATH/$git_url"
-    ui.info "Fetching $git_url."
-    cached_checkout := cache.get_directory_path git_key: | store/cli.DirectoryStore |
-      store.with_tmp_directory: | tmp_dir/string |
-        clone_dir := "$tmp_dir/clone"
-        git.init clone_dir --origin=git_url --quiet
-        git.config --repository_root=clone_dir
+    git-key := "$GIT-APP-PATH/$git-url"
+    ui.info "Fetching $git-url."
+    cached-checkout := cache.get-directory-path git-key: | store/cli.DirectoryStore |
+      store.with-tmp-directory: | tmp-dir/string |
+        clone-dir := "$tmp-dir/clone"
+        git.init clone-dir --origin=git-url --quiet
+        git.config --repository-root=clone-dir
             --key="advice.detachedHead"
             --value="false"
         git.fetch
-            --repository_root=clone_dir
+            --repository-root=clone-dir
             --depth=1
-            --ref=git_ref
+            --ref=git-ref
             --quiet
-        store.move clone_dir
+        store.move clone-dir
     // Make sure we have the ref we need in the cache.
-    git.fetch --force --depth=1 --ref=git_ref --repository_root=cached_checkout
+    git.fetch --force --depth=1 --ref=git-ref --repository-root=cached-checkout
     // In case the remote updated the ref, update the local tag.
     git.tag
         --update
-        --name=git_ref
-        --ref="origin/$git_ref"
-        --repository_root=cached_checkout
+        --name=git-ref
+        --ref="origin/$git-ref"
+        --repository-root=cached-checkout
         --force
 
-    with_tmp_directory: | tmp_dir/string |
+    with-tmp-directory: | tmp-dir/string |
       // Clone the repository to a temporary directory, so we
       // aren't affected by changes to the cache.
-      clone_dir := "$tmp_dir/clone"
-      file_uri := "file://$(url_encoding.encode cached_checkout)"
-      git.init clone_dir --origin=file_uri --quiet
-      git.config --repository_root=clone_dir
+      clone-dir := "$tmp-dir/clone"
+      file-uri := "file://$(url-encoding.encode cached-checkout)"
+      git.init clone-dir --origin=file-uri --quiet
+      git.config --repository-root=clone-dir
           --key="advice.detachedHead"
           --value="false"
       git.fetch
           --checkout
           --depth=1
-          --repository_root=clone_dir
-          --ref=git_ref
+          --repository-root=clone-dir
+          --ref=git-ref
           --quiet
-      ui.info "Compiling $git_url."
-      entrypoint_path := "$clone_dir/$entrypoint"
-      if not file.is_file entrypoint_path:
-        ui.abort "Entry point $entrypoint_path does not exist."
+      ui.info "Compiling $git-url."
+      entrypoint-path := "$clone-dir/$entrypoint"
+      if not file.is-file entrypoint-path:
+        ui.abort "Entry point $entrypoint-path does not exist."
 
-      package_yaml_path := "$clone_dir/package.yaml"
-      if not file.is_file package_yaml_path:
-        if file.is_directory package_yaml_path:
-          ui.abort "package.yaml is a directory in $git_url."
+      package-yaml-path := "$clone-dir/package.yaml"
+      if not file.is-file package-yaml-path:
+        if file.is-directory package-yaml-path:
+          ui.abort "package.yaml is a directory in $git-url."
         // Create an empty package.yaml file, so that we can safely call
         // toit.pkg without worrying that we use some file from a folder
         // above our tmp directory.
-        write_blob_to_file package_yaml_path #[]
+        write-blob-to-file package-yaml-path #[]
 
-      sdk.pkg_install --project_root=clone_dir
+      sdk.pkg-install --project-root=clone-dir
 
       // TODO(florian): move into the clone_dir and compile from there.
       // Otherwise we have unnecessary absolute paths in the snapshot.
-      sdk.compile_to_snapshot entrypoint_path
-          --optimization_level=2
-          --out=output_path
+      sdk.compile-to-snapshot entrypoint-path
+          --optimization-level=2
+          --out=output-path
 
   type -> string:
     return "path"
 
 class ContainerSnapshot extends ContainerBase:
-  snapshot_path/string
+  snapshot-path/string
 
-  constructor.from_json name/string data/Map:
+  constructor.from-json name/string data/Map:
     holder := "container $name"
-    snapshot_path = get_string_ data "snapshot" --holder=holder
-    super.from_json name data
+    snapshot-path = get-string_ data "snapshot" --holder=holder
+    super.from-json name data
 
-  build_snapshot --relative_to/string --output_path/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
-    path := snapshot_path
-    if fs.is_relative snapshot_path:
-      path = "$relative_to/$snapshot_path"
-    copy_file --source=path --target=output_path
+  build-snapshot --relative-to/string --output-path/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
+    path := snapshot-path
+    if fs.is-relative snapshot-path:
+      path = "$relative-to/$snapshot-path"
+    copy-file --source=path --target=output-path
 
   type -> string:
     return "snapshot"
@@ -681,7 +681,7 @@ abstract class Trigger:
   This is the value that is sent in the goal state.
   Triggers that don't have any value should use 1.
   */
-  abstract json_value -> any
+  abstract json-value -> any
 
   constructor:
 
@@ -690,30 +690,30 @@ abstract class Trigger:
 
   May either return a single $Trigger or a list of triggers.
   */
-  static parse_json container_name/string data/any -> any:
-    known_triggers := {
+  static parse-json container-name/string data/any -> any:
+    known-triggers := {
       "boot": :: BootTrigger,
       "install": :: InstallTrigger,
-      "interval": :: IntervalTrigger.from_json container_name it,
-      "gpio": :: GpioTrigger.parse_json container_name it,
+      "interval": :: IntervalTrigger.from-json container-name it,
+      "gpio": :: GpioTrigger.parse-json container-name it,
     }
-    map_triggers := { "interval", "gpio" }
+    map-triggers := { "interval", "gpio" }
 
-    seen_types := {}
+    seen-types := {}
     trigger/Lambda? := null
-    known_triggers.do: | key/string value/Lambda |
-      is_map_trigger := map_triggers.contains key
-      if is_map_trigger:
-        if data is Map and has_key_ data key:
-          seen_types.add key
+    known-triggers.do: | key/string value/Lambda |
+      is-map-trigger := map-triggers.contains key
+      if is-map-trigger:
+        if data is Map and has-key_ data key:
+          seen-types.add key
           trigger = value
       else if data is string and data == key:
-        seen_types.add key
+        seen-types.add key
         trigger = value
-    if seen_types.size == 0:
-      format_error_ "Unknown trigger in container $container_name: $data"
-    if seen_types.size != 1:
-      format_error_ "Container $container_name has ambiguous trigger: $data"
+    if seen-types.size == 0:
+      format-error_ "Unknown trigger in container $container-name: $data"
+    if seen-types.size != 1:
+      format-error_ "Container $container-name has ambiguous trigger: $data"
 
     return trigger.call data
 
@@ -722,21 +722,21 @@ class IntervalTrigger extends Trigger:
 
   constructor .interval:
 
-  constructor.from_json container_name/string data/Map:
-    holder := "trigger in container $container_name"
-    interval = get_duration_ data "interval" --holder=holder
+  constructor.from-json container-name/string data/Map:
+    holder := "trigger in container $container-name"
+    interval = get-duration_ data "interval" --holder=holder
 
   type -> string:
     return "interval"
 
-  json_value -> int:
-    return interval.in_s
+  json-value -> int:
+    return interval.in-s
 
 class BootTrigger extends Trigger:
   type -> string:
     return "boot"
 
-  json_value -> int:
+  json-value -> int:
     return 1
 
 class InstallTrigger extends Trigger:
@@ -746,13 +746,13 @@ class InstallTrigger extends Trigger:
   nonce_/string
 
   constructor:
-    id := random_uuid --namespace="install nonce"
-    nonce_ = base64.encode id.to_byte_array
+    id := random-uuid --namespace="install nonce"
+    nonce_ = base64.encode id.to-byte-array
 
   type -> string:
     return "install"
 
-  json_value -> string:
+  json-value -> string:
     return nonce_
 
 abstract class GpioTrigger extends Trigger:
@@ -760,67 +760,67 @@ abstract class GpioTrigger extends Trigger:
 
   constructor .pin:
 
-  static parse_json container_name/string data/Map -> List:
-    holder := "container $container_name"
-    gpio_trigger_list := get_list_ data "gpio" --holder=holder
+  static parse-json container-name/string data/Map -> List:
+    holder := "container $container-name"
+    gpio-trigger-list := get-list_ data "gpio" --holder=holder
     // Check that all entries are maps.
-    gpio_trigger_list.do: | entry |
+    gpio-trigger-list.do: | entry |
       if entry is not Map:
-        format_error_ "Entry in gpio trigger list of $holder is not a map"
+        format-error_ "Entry in gpio trigger list of $holder is not a map"
 
-    pin_triggers := gpio_trigger_list.map: | entry/Map |
-      pin_holder := "gpio trigger in container $container_name"
-      pin := get_int_ entry "pin" --holder=pin_holder
-      pin_holder = "gpio trigger for pin $pin in container $container_name"
-      on_touch := get_optional_bool_ entry "touch" --holder=pin_holder
-      level_string := get_optional_string_ entry "level" --holder=pin_holder
-      on_high := ?
-      if on_touch:
-        if level_string != null:
-          format_error_ "Both level $level_string and touch are set in $holder"
+    pin-triggers := gpio-trigger-list.map: | entry/Map |
+      pin-holder := "gpio trigger in container $container-name"
+      pin := get-int_ entry "pin" --holder=pin-holder
+      pin-holder = "gpio trigger for pin $pin in container $container-name"
+      on-touch := get-optional-bool_ entry "touch" --holder=pin-holder
+      level-string := get-optional-string_ entry "level" --holder=pin-holder
+      on-high := ?
+      if on-touch:
+        if level-string != null:
+          format-error_ "Both level $level-string and touch are set in $holder"
           unreachable
-        on_high = null
+        on-high = null
       else:
-        if level_string == "high" or level_string == null:
-          on_high = true
-        else if level_string == "low":
-          on_high = false
+        if level-string == "high" or level-string == null:
+          on-high = true
+        else if level-string == "low":
+          on-high = false
         else:
-          format_error_ "Invalid level in $holder: $level_string"
+          format-error_ "Invalid level in $holder: $level-string"
           unreachable
 
-      if on_high: GpioTriggerHigh pin
-      else if on_touch: GpioTriggerTouch pin
+      if on-high: GpioTriggerHigh pin
+      else if on-touch: GpioTriggerTouch pin
       else: GpioTriggerLow pin
 
-    seen_pins := {}
-    pin_triggers.do: | trigger/GpioTrigger |
-      if seen_pins.contains trigger.pin:
-        format_error_ "Duplicate pin in gpio trigger of $holder"
-      seen_pins.add trigger.pin
+    seen-pins := {}
+    pin-triggers.do: | trigger/GpioTrigger |
+      if seen-pins.contains trigger.pin:
+        format-error_ "Duplicate pin in gpio trigger of $holder"
+      seen-pins.add trigger.pin
 
-    return pin_triggers
+    return pin-triggers
 
   type -> string:
-    return "$pin_trigger_kind:$pin"
+    return "$pin-trigger-kind:$pin"
 
-  json_value -> int:
+  json-value -> int:
     // Use the pin as value, so that the service doesn't need to decode it.
     return pin
 
-  abstract pin_trigger_kind -> string
+  abstract pin-trigger-kind -> string
 
 class GpioTriggerHigh extends GpioTrigger:
   constructor pin/int: super pin
 
-  pin_trigger_kind -> string: return "gpio-high"
+  pin-trigger-kind -> string: return "gpio-high"
 
 class GpioTriggerLow extends GpioTrigger:
   constructor pin/int: super pin
 
-  pin_trigger_kind -> string: return "gpio-low"
+  pin-trigger-kind -> string: return "gpio-low"
 
 class GpioTriggerTouch extends GpioTrigger:
   constructor pin/int: super pin
 
-  pin_trigger_kind -> string: return "gpio-touch"
+  pin-trigger-kind -> string: return "gpio-touch"

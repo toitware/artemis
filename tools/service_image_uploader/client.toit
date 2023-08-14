@@ -1,6 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import certificate_roots
+import certificate-roots
 import cli
 import encoding.base64
 import encoding.json
@@ -13,10 +13,10 @@ import artemis.cli.config as cli
 import artemis.cli.ui as ui
 import artemis.cli.config
   show
-    CONFIG_ARTEMIS_DEFAULT_KEY
-    CONFIG_SERVER_AUTHS_KEY
+    CONFIG-ARTEMIS-DEFAULT-KEY
+    CONFIG-SERVER-AUTHS-KEY
     ConfigLocalStorage
-import artemis.cli.server_config show *
+import artemis.cli.server-config show *
 import artemis.shared.constants show *
 import uuid
 
@@ -25,23 +25,23 @@ import .utils
 interface UploadClient:
   close
   upload
-      --sdk_version/string --service_version/string
-      --image_id/string --image_content/ByteArray
+      --sdk-version/string --service-version/string
+      --image-id/string --image-content/ByteArray
       --snapshot/ByteArray
-      --organization_id/string?
+      --organization-id/string?
       --force/bool
 
-  upload --snapshot_uuid/string cli_snapshot/ByteArray
+  upload --snapshot-uuid/string cli-snapshot/ByteArray
 
-get_artemis_config parsed/cli.Parsed config/cli.Config -> ServerConfig:
-  return get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
+get-artemis-config parsed/cli.Parsed config/cli.Config -> ServerConfig:
+  return get-server-from-config config CONFIG-ARTEMIS-DEFAULT-KEY
 
-with_upload_client parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
-  server_config := get_artemis_config parsed config
-  if server_config is ServerConfigSupabase:
-    with_upload_client_supabase parsed config ui block
-  else if server_config is ServerConfigHttp:
-    with_upload_client_http (server_config as ServerConfigHttp) ui block
+with-upload-client parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
+  server-config := get-artemis-config parsed config
+  if server-config is ServerConfigSupabase:
+    with-upload-client-supabase parsed config ui block
+  else if server-config is ServerConfigHttp:
+    with-upload-client-http (server-config as ServerConfigHttp) ui block
   else:
     throw "Unsupported server type"
 
@@ -56,56 +56,56 @@ class UploadClientSupabase implements UploadClient:
     client_.close
 
   upload
-      --sdk_version/string --service_version/string
-      --image_id/string --image_content/ByteArray
+      --sdk-version/string --service-version/string
+      --image-id/string --image-content/ByteArray
       --snapshot/ByteArray
-      --organization_id/string?
+      --organization-id/string?
       --force/bool:
-    client_.ensure_authenticated: it.sign_in --provider="github" --ui=ui_
+    client_.ensure-authenticated: it.sign-in --provider="github" --ui=ui_
 
     ui_.info "Uploading image archive."
 
     // TODO(florian): share constants with the CLI.
-    sdk_ids := client_.rest.select "sdks" --filters=[
-      equals "version" sdk_version,
+    sdk-ids := client_.rest.select "sdks" --filters=[
+      equals "version" sdk-version,
     ]
-    sdk_id := ?
-    if not sdk_ids.is_empty:
-      sdk_id = sdk_ids[0]["id"]
+    sdk-id := ?
+    if not sdk-ids.is-empty:
+      sdk-id = sdk-ids[0]["id"]
     else:
       inserted := client_.rest.insert "sdks" {
-        "version": sdk_version,
+        "version": sdk-version,
       }
-      sdk_id = inserted["id"]
+      sdk-id = inserted["id"]
 
-    service_ids := client_.rest.select "artemis_services" --filters=[
-      equals "version" service_version,
+    service-ids := client_.rest.select "artemis_services" --filters=[
+      equals "version" service-version,
     ]
-    service_id := ?
-    if not service_ids.is_empty:
-      service_id = service_ids[0]["id"]
+    service-id := ?
+    if not service-ids.is-empty:
+      service-id = service-ids[0]["id"]
     else:
       inserted := client_.rest.insert "artemis_services" {
-        "version": service_version,
+        "version": service-version,
       }
-      service_id = inserted["id"]
+      service-id = inserted["id"]
 
     if not force:
-      existing_images := client_.rest.select "service_images" --filters=[
-        equals "sdk_id" sdk_id,
-        equals "service_id" service_id,
+      existing-images := client_.rest.select "service_images" --filters=[
+        equals "sdk_id" sdk-id,
+        equals "service_id" service-id,
       ]
-      if not existing_images.is_empty:
+      if not existing-images.is-empty:
         suffix := ""
-        if existing_images[0].get "organization_id":
-          suffix = " in organization $organization_id"
+        if existing-images[0].get "organization_id":
+          suffix = " in organization $organization-id"
         ui_.error "Image already exists$suffix."
         ui_.error "Use --force to overwrite."
         ui_.abort
 
     client_.storage.upload
-        --path="service-images/$image_id"
-        --content=image_content
+        --path="service-images/$image-id"
+        --content=image-content
 
     // In theory we should be able to use 'upsert' here, but
     // there are unique constraints on the columns that we
@@ -114,54 +114,54 @@ class UploadClientSupabase implements UploadClient:
     // knowledge) it should be possible, but just checking for
     // the entry is significantly easier.
     rows := client_.rest.select "service_images" --filters=[
-      equals "sdk_id" sdk_id,
-      equals "service_id" service_id,
+      equals "sdk_id" sdk-id,
+      equals "service_id" service-id,
     ]
-    if rows.is_empty:
+    if rows.is-empty:
       client_.rest.insert "service_images" {
-        "sdk_id": sdk_id,
-        "service_id": service_id,
-        "image": image_id,
-        "organization_id": organization_id,
+        "sdk_id": sdk-id,
+        "service_id": service-id,
+        "image": image-id,
+        "organization_id": organization-id,
       }
     else:
       client_.rest.update "service_images" --filters=[
-        equals "sdk_id" sdk_id,
-        equals "service_id" service_id,
+        equals "sdk_id" sdk-id,
+        equals "service_id" service-id,
       ] {
-        "image": image_id,
-        "organization_id": organization_id,
+        "image": image-id,
+        "organization_id": organization-id,
       }
 
-    ui_.info "Successfully uploaded $service_version into service-images/$image_id."
+    ui_.info "Successfully uploaded $service-version into service-images/$image-id."
 
     ui_.info "Uploading snapshot."
     client_.storage.upload
-      --path="service-snapshots/$image_id"
+      --path="service-snapshots/$image-id"
       --content=snapshot
     ui_.info "Successfully uploaded the snapshot."
 
-  upload --snapshot_uuid/string cli_snapshot/ByteArray:
-    client_.ensure_authenticated: it.sign_in --provider="github" --ui=ui_
+  upload --snapshot-uuid/string cli-snapshot/ByteArray:
+    client_.ensure-authenticated: it.sign-in --provider="github" --ui=ui_
     client_.storage.upload
-      --path="cli-snapshots/$snapshot_uuid"
-      --content=cli_snapshot
+      --path="cli-snapshots/$snapshot-uuid"
+      --content=cli-snapshot
 
-with_upload_client_supabase parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
-  with_supabase_client parsed config: | client/supabase.Client |
-    upload_client := UploadClientSupabase client --ui=ui
+with-upload-client-supabase parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
+  with-supabase-client parsed config: | client/supabase.Client |
+    upload-client := UploadClientSupabase client --ui=ui
     try:
-      block.call upload_client
+      block.call upload-client
     finally:
-      upload_client.close
+      upload-client.close
 
 class UploadClientHttp implements UploadClient:
   client_/http.Client
-  server_config_/ServerConfigHttp
+  server-config_/ServerConfigHttp
   ui_/ui.Ui
   network_/net.Interface
 
-  constructor .server_config_ --ui/ui.Ui:
+  constructor .server-config_ --ui/ui.Ui:
     ui_ = ui
     network_ = net.open
     client_ = http.Client network_
@@ -171,53 +171,53 @@ class UploadClientHttp implements UploadClient:
     network_.close
 
   upload
-      --sdk_version/string --service_version/string
-      --image_id/string --image_content/ByteArray
+      --sdk-version/string --service-version/string
+      --image-id/string --image-content/ByteArray
       --snapshot/ByteArray
-      --organization_id/string?
+      --organization-id/string?
       --force/bool:
     // We only upload the image.
-    send_request_ COMMAND_UPLOAD_SERVICE_IMAGE_ {
-      "sdk_version": sdk_version,
-      "service_version": service_version,
-      "image_id": image_id,
-      "image_content": base64.encode image_content,
-      "organization_id": organization_id,
+    send-request_ COMMAND-UPLOAD-SERVICE-IMAGE_ {
+      "sdk_version": sdk-version,
+      "service_version": service-version,
+      "image_id": image-id,
+      "image_content": base64.encode image-content,
+      "organization_id": organization-id,
       "force": force,
     }
 
-  upload --snapshot_uuid/string cli_snapshot/ByteArray:
+  upload --snapshot-uuid/string cli-snapshot/ByteArray:
     throw "UNIMPLEMENTED"
 
   // TODO(florian): share this code with the cli and the service.
-  send_request_ command/int data/Map -> any:
+  send-request_ command/int data/Map -> any:
     encoded := #[command] + (json.encode data)
 
     headers := null
-    if server_config_.admin_headers:
+    if server-config_.admin-headers:
       headers = http.Headers
-      server_config_.admin_headers.do: | key value |
+      server-config_.admin-headers.do: | key value |
         headers.add key value
 
     response := client_.post encoded
-        --host=server_config_.host
-        --port=server_config_.port
-        --path=server_config_.path
+        --host=server-config_.host
+        --port=server-config_.port
+        --path=server-config_.path
         --headers=headers
 
-    if response.status_code != 200 and response.status_code != http.STATUS_IM_A_TEAPOT:
-      throw "HTTP error: $response.status_code $response.status_message"
+    if response.status-code != 200 and response.status-code != http.STATUS-IM-A-TEAPOT:
+      throw "HTTP error: $response.status-code $response.status-message"
 
-    decoded := json.decode_stream response.body
+    decoded := json.decode-stream response.body
 
-    if response.status_code == http.STATUS_IM_A_TEAPOT:
+    if response.status-code == http.STATUS-IM-A-TEAPOT:
       throw "Broker error: $decoded"
 
     return decoded
 
-with_upload_client_http server_config/ServerConfigHttp ui/ui.Ui [block]:
-  upload_client := UploadClientHttp server_config --ui=ui
+with-upload-client-http server-config/ServerConfigHttp ui/ui.Ui [block]:
+  upload-client := UploadClientHttp server-config --ui=ui
   try:
-    block.call upload_client
+    block.call upload-client
   finally:
-    upload_client.close
+    upload-client.close

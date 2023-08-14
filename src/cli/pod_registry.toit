@@ -20,43 +20,43 @@ class PodReference:
     if revision and tag:
       throw "Cannot specify both revision and tag."
 
-  hash_code -> int:
+  hash-code -> int:
     result := 0
-    if id: result = id.hash_code
-    if name: result = result * 31 + name.hash_code
-    if revision: result = result * 31 + revision.hash_code
-    if tag: result = result * 31 + tag.hash_code
+    if id: result = id.hash-code
+    if name: result = result * 31 + name.hash-code
+    if revision: result = result * 31 + revision.hash-code
+    if tag: result = result * 31 + tag.hash-code
     return result
 
   operator== other -> bool:
     if other is not PodReference: return false
     return id == other.id and name == other.name and revision == other.revision and tag == other.tag
 
-  static parse str/string --allow_name_only/bool=false --ui/Ui -> PodReference:
-    return parse str --allow_name_only=allow_name_only
-        --on_error=(: ui.abort it)
+  static parse str/string --allow-name-only/bool=false --ui/Ui -> PodReference:
+    return parse str --allow-name-only=allow-name-only
+        --on-error=(: ui.abort it)
 
-  static parse str/string --allow_name_only/bool=false [--on_error] -> PodReference:
+  static parse str/string --allow-name-only/bool=false [--on-error] -> PodReference:
     name/string? := null
     revision/int? := null
     tag/string? := null
-    hash_index := str.index_of "#"
-    at_index := str.index_of "@"
-    if hash_index >= 0 and at_index >= 0:
-      on_error.call "Cannot specify both revision and tag: '$str'."
+    hash-index := str.index-of "#"
+    at-index := str.index-of "@"
+    if hash-index >= 0 and at-index >= 0:
+      on-error.call "Cannot specify both revision and tag: '$str'."
 
-    if hash_index >= 0:
+    if hash-index >= 0:
       if revision:
-        on_error.call "Cannot specify the revision as option and in the name."
-      revision_string := str[hash_index + 1..]
-      revision = int.parse revision_string
-          --on_error=(: on_error.call "Invalid revision: '$revision_string'.")
-      name = str[..hash_index]
+        on-error.call "Cannot specify the revision as option and in the name."
+      revision-string := str[hash-index + 1..]
+      revision = int.parse revision-string
+          --on-error=(: on-error.call "Invalid revision: '$revision-string'.")
+      name = str[..hash-index]
       return PodReference --name=name --revision=revision
 
-    if at_index >= 0:
-      tag = str[at_index + 1..]
-      name = str[..at_index]
+    if at-index >= 0:
+      tag = str[at-index + 1..]
+      name = str[..at-index]
       return PodReference --name=name --tag=tag
 
     if str.size == 36 and
@@ -69,14 +69,14 @@ class PodReference:
       exception := catch:
         id = uuid.parse str
       if exception:
-        if allow_name_only:
+        if allow-name-only:
           name = str
           return PodReference --name=name
-        on_error.call "Invalid pod uuid: '$str'."
+        on-error.call "Invalid pod uuid: '$str'."
       return PodReference --id=id
 
-    if not allow_name_only:
-      on_error.call "Invalid pod reference: '$str'."
+    if not allow-name-only:
+      on-error.call "Invalid pod reference: '$str'."
 
     return PodReference --name=str
 
@@ -86,10 +86,10 @@ class PodReference:
     return PodReference --name=name --tag=tag
 
   stringify -> string:
-    return to_string
+    return to-string
 
-  to_string -> string:
-    if id: return id.to_string
+  to-string -> string:
+    if id: return id.to-string
     if revision: return "$name#$revision"
     return "$name@$tag"
 
@@ -98,19 +98,19 @@ class PodRegistryDescription:
   name/string
   description/string?
 
-  constructor.from_map map/Map:
+  constructor.from-map map/Map:
     id = map["id"]
     name = map["name"]
     description = map.get "description"
 
-  hash_code -> int:
+  hash-code -> int:
     return (id * 11) & 0x7FFF_FFFF
 
   operator== other -> bool:
     if other is not PodRegistryDescription: return false
     return id == other.id and name == other.name and description == other.description
 
-  to_json -> Map:
+  to-json -> Map:
     return {
       "id": id,
       "name": name,
@@ -120,22 +120,22 @@ class PodRegistryDescription:
 class PodRegistryEntry:
   id/uuid.Uuid
   revision/int
-  created_at/Time
-  pod_description_id/int
+  created-at/Time
+  pod-description-id/int
   tags/List
 
-  constructor.from_map map/Map:
+  constructor.from-map map/Map:
     id = uuid.parse map["id"]
     revision = map["revision"]
-    created_at = Time.parse map["created_at"]
-    pod_description_id = map["pod_description_id"]
+    created-at = Time.parse map["created_at"]
+    pod-description-id = map["pod_description_id"]
     tags = map["tags"]
 
-  to_json -> Map:
+  to-json -> Map:
     return {
       "id": "$id",
       "revision": revision,
-      "created_at": "$created_at",
-      "pod_description_id": pod_description_id,
+      "created_at": "$created-at",
+      "pod_description_id": pod-description-id,
       "tags": tags,
     }

@@ -9,7 +9,7 @@ import artemis.cli.cache as cli
 import artemis.cli.sdk show *
 import artemis.cli.ui show *
 import host.file
-import snapshot show cache_snapshot
+import snapshot show cache-snapshot
 import supabase
 import supabase.filter show equals
 
@@ -18,17 +18,17 @@ import .utils
 main args:
   // Use the same config as the CLI.
   // This way we get the same server configurations and oauth tokens.
-  config := cli.read_config
+  config := cli.read-config
   // Use the same cache as the CLI.
   // This way we can reuse the SDKs.
-  cache := cli.Cache --app_name="artemis"
+  cache := cli.Cache --app-name="artemis"
   ui := ConsoleUi
 
   main --config=config --cache=cache --ui=ui args
 
 main --config/cli.Config --cache/cli.Cache --ui/Ui args:
   cmd := cli.Command "downloader"
-      --long_help="""
+      --long-help="""
         Downloads snapshots from the Artemis server and stores them in the Jaguar cache.
 
         The snapshots can be filtered by SDK version and service version for service
@@ -38,13 +38,13 @@ main --config/cli.Config --cache/cli.Cache --ui/Ui args:
         """
       --options=[
         cli.OptionString "sdk-version"
-            --short_help="The version of the SDK to use.",
+            --short-help="The version of the SDK to use.",
         cli.OptionString "service-version"
-            --short_help="The version of the service to use.",
+            --short-help="The version of the service to use.",
         cli.OptionString "output-directory"
-            --short_help="The directory to store the downloaded snapshots in.",
+            --short-help="The directory to store the downloaded snapshots in.",
         cli.OptionString "server"
-            --short_help="The server to download from.",
+            --short-help="The server to download from.",
       ]
       --examples=[
         cli.Example "Download all snapshots:" --arguments="",
@@ -56,28 +56,28 @@ main --config/cli.Config --cache/cli.Cache --ui/Ui args:
   cmd.run args
 
 download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
-  sdk_version := parsed["sdk-version"]
-  service_version := parsed["service-version"]
-  output_directory := parsed["output-directory"]
+  sdk-version := parsed["sdk-version"]
+  service-version := parsed["service-version"]
+  output-directory := parsed["output-directory"]
 
-  with_supabase_client parsed config: | client/supabase.Client |
-    client.ensure_authenticated: it.sign_in --provider="github" --ui=ui
+  with-supabase-client parsed config: | client/supabase.Client |
+    client.ensure-authenticated: it.sign-in --provider="github" --ui=ui
 
     // Get a list of snapshots to download.
     filters := []
-    if sdk_version: filters.add (equals "sdk_version" "$sdk_version")
-    if service_version: filters.add (equals "service_version" "$service_version")
-    service_images := client.rest.select "sdk_service_versions" --filters=filters
+    if sdk-version: filters.add (equals "sdk_version" "$sdk-version")
+    if service-version: filters.add (equals "service_version" "$service-version")
+    service-images := client.rest.select "sdk_service_versions" --filters=filters
     ui.info "Downloading snapshots for:"
     ui.do --kind=Ui.INFO: | printer/Printer |
       printer.emit
           --header={"sdk_version": "SDK", "service_version": "Service"}
-          service_images
+          service-images
 
-    service_images.do: | row |
+    service-images.do: | row |
       image := row["image"]
-      cache_key := "snapshot-downloader/$image"
-      snapshot := cache.get cache_key: | store/cli.FileStore |
+      cache-key := "snapshot-downloader/$image"
+      snapshot := cache.get cache-key: | store/cli.FileStore |
         ui.info "Downloading $row["sdk_version"]-$row["service_version"]."
         exception := catch:
           store.save (client.storage.download --path="service-snapshots/$image")
@@ -87,18 +87,18 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
           ui.error exception
           ui.abort
 
-      uuid := cache_snapshot snapshot --output_directory=output_directory
+      uuid := cache-snapshot snapshot --output-directory=output-directory
       ui.info "Wrote service snapshot $uuid."
 
-    if not sdk_version and not service_version:
+    if not sdk-version and not service-version:
       // Download all CLI snapshots.
-      available_snapshots := client.storage.list "cli-snapshots"
-      available_snapshots.do: | file_description/Map |
-        name := file_description["name"]
-        cache_key := "snapshot-downloader/$name"
-        snapshot := cache.get cache_key: | store/cli.FileStore |
+      available-snapshots := client.storage.list "cli-snapshots"
+      available-snapshots.do: | file-description/Map |
+        name := file-description["name"]
+        cache-key := "snapshot-downloader/$name"
+        snapshot := cache.get cache-key: | store/cli.FileStore |
           ui.info "Downloading $name."
           store.save (client.storage.download --path="cli-snapshots/$name")
 
-        uuid := cache_snapshot snapshot --output_directory=output_directory
+        uuid := cache-snapshot snapshot --output-directory=output-directory
         ui.info "Wrote CLI snapshot $uuid."

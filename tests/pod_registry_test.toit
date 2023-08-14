@@ -7,309 +7,309 @@ import expect show *
 import log
 import net
 import artemis.cli.brokers.broker
-import artemis.cli.pod_registry show *
+import artemis.cli.pod-registry show *
 import artemis.service.brokers.broker
 
 import .broker
 import .utils
 
 main args:
-  broker_type := broker_type_from_args args
-  with_broker --args=args --type=broker_type: | test_broker/TestBroker |
-    run_test broker_type test_broker
+  broker-type := broker-type-from-args args
+  with-broker --args=args --type=broker-type: | test-broker/TestBroker |
+    run-test broker-type test-broker
 
-run_test
-    broker_name/string
-    test_broker/TestBroker:
+run-test
+    broker-name/string
+    test-broker/TestBroker:
 
-  test_broker.with_cli: | broker_cli/broker.BrokerCli |
+  test-broker.with-cli: | broker-cli/broker.BrokerCli |
     // Make sure we are authenticated.
-    broker_cli.ensure_authenticated:
-      broker_cli.sign_in --email=TEST_EXAMPLE_COM_EMAIL --password=TEST_EXAMPLE_COM_PASSWORD
+    broker-cli.ensure-authenticated:
+      broker-cli.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
 
-    test_pod_registry --test_broker=test_broker broker_cli
-    test_pods --test_broker=test_broker broker_cli
+    test-pod-registry --test-broker=test-broker broker-cli
+    test-pods --test-broker=test-broker broker-cli
 
-test_pod_registry --test_broker/TestBroker broker_cli/broker.BrokerCli:
-  fleet_id := random_uuid
+test-pod-registry --test-broker/TestBroker broker-cli/broker.BrokerCli:
+  fleet-id := random-uuid
 
   // Get the list of descriptions. Should be emtpy.
-  descriptions := broker_cli.pod_registry_descriptions --fleet_id=fleet_id
-  expect descriptions.is_empty
+  descriptions := broker-cli.pod-registry-descriptions --fleet-id=fleet-id
+  expect descriptions.is-empty
 
   // Create a description.
-  description_id := broker_cli.pod_registry_description_upsert
-      --fleet_id=fleet_id
-      --organization_id=TEST_ORGANIZATION_UUID
+  description-id := broker-cli.pod-registry-description-upsert
+      --fleet-id=fleet-id
+      --organization-id=TEST-ORGANIZATION-UUID
       --name="pod1"
       --description=null
-  descriptions = broker_cli.pod_registry_descriptions --fleet_id=fleet_id
-  expect_equals 1 descriptions.size
+  descriptions = broker-cli.pod-registry-descriptions --fleet-id=fleet-id
+  expect-equals 1 descriptions.size
   description/PodRegistryDescription := descriptions[0]
-  expect_equals "pod1" description.name
-  expect_null description.description
+  expect-equals "pod1" description.name
+  expect-null description.description
 
   // Create the same description again.
-  description_id_received := broker_cli.pod_registry_description_upsert
-      --fleet_id=fleet_id
-      --organization_id=TEST_ORGANIZATION_UUID
+  description-id-received := broker-cli.pod-registry-description-upsert
+      --fleet-id=fleet-id
+      --organization-id=TEST-ORGANIZATION-UUID
       --name="pod1"
       --description=null
-  expect_equals description_id description_id_received
+  expect-equals description-id description-id-received
 
   // Create another description.
-  description_id2 := broker_cli.pod_registry_description_upsert
-      --fleet_id=fleet_id
-      --organization_id=TEST_ORGANIZATION_UUID
+  description-id2 := broker-cli.pod-registry-description-upsert
+      --fleet-id=fleet-id
+      --organization-id=TEST-ORGANIZATION-UUID
       --name="pod2"
       --description="description2"
-  descriptions = broker_cli.pod_registry_descriptions --fleet_id=fleet_id
+  descriptions = broker-cli.pod-registry-descriptions --fleet-id=fleet-id
   names := descriptions.map:
     if it.name == "pod2":
-      expect_equals "description2" it.description
+      expect-equals "description2" it.description
     it.name
-  names.sort --in_place
-  expect_equals ["pod1", "pod2"] names
+  names.sort --in-place
+  expect-equals ["pod1", "pod2"] names
 
   // Get the descriptions by id.
-  descriptions = broker_cli.pod_registry_descriptions --ids=[description_id]
-  expect_equals 1 descriptions.size
+  descriptions = broker-cli.pod-registry-descriptions --ids=[description-id]
+  expect-equals 1 descriptions.size
   description = descriptions[0]
-  expect_equals "pod1" description.name
+  expect-equals "pod1" description.name
 
-  descriptions = broker_cli.pod_registry_descriptions --ids=[description_id, description_id2]
+  descriptions = broker-cli.pod-registry-descriptions --ids=[description-id, description-id2]
   names = descriptions.map: it.name
-  names.sort --in_place
-  expect_equals ["pod1", "pod2"] names
+  names.sort --in-place
+  expect-equals ["pod1", "pod2"] names
 
   // Get the descriptions by name.
-  descriptions = broker_cli.pod_registry_descriptions
-      --fleet_id=fleet_id
-      --organization_id=TEST_ORGANIZATION_UUID
+  descriptions = broker-cli.pod-registry-descriptions
+      --fleet-id=fleet-id
+      --organization-id=TEST-ORGANIZATION-UUID
       --names=["pod1"]
-      --no-create_if_absent
-  expect_equals 1 descriptions.size
+      --no-create-if-absent
+  expect-equals 1 descriptions.size
   description = descriptions[0]
-  expect_equals "pod1" description.name
+  expect-equals "pod1" description.name
 
   // Do the same but create the missing description.
-  descriptions = broker_cli.pod_registry_descriptions
-      --fleet_id=fleet_id
-      --organization_id=TEST_ORGANIZATION_UUID
+  descriptions = broker-cli.pod-registry-descriptions
+      --fleet-id=fleet-id
+      --organization-id=TEST-ORGANIZATION-UUID
       --names=["pod1", "pod3"]
-      --create_if_absent
+      --create-if-absent
   names = descriptions.map: it.name
-  names.sort --in_place
-  expect_equals ["pod1", "pod3"] names
+  names.sort --in-place
+  expect-equals ["pod1", "pod3"] names
 
   // Add a pod.
-  pod1_creation_start := Time.now
-  pod_id1 := random_uuid
-  broker_cli.pod_registry_add
-      --pod_description_id=description_id
-      --pod_id=pod_id1
+  pod1-creation-start := Time.now
+  pod-id1 := random-uuid
+  broker-cli.pod-registry-add
+      --pod-description-id=description-id
+      --pod-id=pod-id1
 
-  pods := broker_cli.pod_registry_pods --pod_description_id=description_id
-  expect_equals 1 pods.size
+  pods := broker-cli.pod-registry-pods --pod-description-id=description-id
+  expect-equals 1 pods.size
   pod/PodRegistryEntry := pods[0]
-  expect_equals pod_id1 pod.id
-  expect_equals description_id pod.pod_description_id
-  expect_equals 1 pod.revision
-  timestamp := pod.created_at
-  expect timestamp >= pod1_creation_start
+  expect-equals pod-id1 pod.id
+  expect-equals description-id pod.pod-description-id
+  expect-equals 1 pod.revision
+  timestamp := pod.created-at
+  expect timestamp >= pod1-creation-start
   expect timestamp <= Time.now
 
   // Tag the pod.
-  broker_cli.pod_registry_tag_set
-      --pod_description_id=description_id
-      --pod_id=pod_id1
+  broker-cli.pod-registry-tag-set
+      --pod-description-id=description-id
+      --pod-id=pod-id1
       --tag="tag1"
 
   // Get the pod by id.
-  pods = broker_cli.pod_registry_pods --fleet_id=fleet_id --pod_ids=[pod_id1]
-  expect_equals 1 pods.size
+  pods = broker-cli.pod-registry-pods --fleet-id=fleet-id --pod-ids=[pod-id1]
+  expect-equals 1 pods.size
   pod = pods[0]
-  expect_equals pod_id1 pod.id
-  expect_equals description_id pod.pod_description_id
-  expect_equals 1 pod.revision
-  expect_equals 1 pod.tags.size
-  expect_equals "tag1" pod.tags[0]
+  expect-equals pod-id1 pod.id
+  expect-equals description-id pod.pod-description-id
+  expect-equals 1 pod.revision
+  expect-equals 1 pod.tags.size
+  expect-equals "tag1" pod.tags[0]
 
   // Add another tag to pod1.
-  broker_cli.pod_registry_tag_set
-      --pod_description_id=description_id
-      --pod_id=pod_id1
+  broker-cli.pod-registry-tag-set
+      --pod-description-id=description-id
+      --pod-id=pod-id1
       --tag="tag1-2"
 
   // Get the pod by id and check the tag.
-  pods = broker_cli.pod_registry_pods --fleet_id=fleet_id --pod_ids=[pod_id1]
-  expect_equals 1 pods.size
+  pods = broker-cli.pod-registry-pods --fleet-id=fleet-id --pod-ids=[pod-id1]
+  expect-equals 1 pods.size
   pod = pods[0]
-  expect_equals pod_id1 pod.id
-  expect_equals description_id pod.pod_description_id
-  expect_equals "tag1" pod.tags[0]
-  expect_equals "tag1-2" pod.tags[1]
+  expect-equals pod-id1 pod.id
+  expect-equals description-id pod.pod-description-id
+  expect-equals "tag1" pod.tags[0]
+  expect-equals "tag1-2" pod.tags[1]
 
   // Remove the tag again.
-  broker_cli.pod_registry_tag_remove
-      --pod_description_id=description_id
+  broker-cli.pod-registry-tag-remove
+      --pod-description-id=description-id
       --tag="tag1-2"
 
   // Get the pod by id and check the tag.
-  pods = broker_cli.pod_registry_pods --fleet_id=fleet_id --pod_ids=[pod_id1]
-  expect_equals 1 pods.size
+  pods = broker-cli.pod-registry-pods --fleet-id=fleet-id --pod-ids=[pod-id1]
+  expect-equals 1 pods.size
   pod = pods[0]
-  expect_equals pod_id1 pod.id
-  expect_equals 1 pod.tags.size
-  expect_equals "tag1" pod.tags[0]
+  expect-equals pod-id1 pod.id
+  expect-equals 1 pod.tags.size
+  expect-equals "tag1" pod.tags[0]
 
   // Add a few more pods.
-  pod_id2 := random_uuid
-  broker_cli.pod_registry_add
-      --pod_description_id=description_id
-      --pod_id=pod_id2
-  broker_cli.pod_registry_tag_set
-      --pod_description_id=description_id
-      --pod_id=pod_id2
+  pod-id2 := random-uuid
+  broker-cli.pod-registry-add
+      --pod-description-id=description-id
+      --pod-id=pod-id2
+  broker-cli.pod-registry-tag-set
+      --pod-description-id=description-id
+      --pod-id=pod-id2
       --tag="tag_pod2"
-  broker_cli.pod_registry_tag_set
-      --pod_description_id=description_id
-      --pod_id=pod_id2
+  broker-cli.pod-registry-tag-set
+      --pod-description-id=description-id
+      --pod-id=pod-id2
       --tag="tag_pod2-2"
-  broker_cli.pod_registry_tag_set
-      --pod_description_id=description_id
-      --pod_id=pod_id2
+  broker-cli.pod-registry-tag-set
+      --pod-description-id=description-id
+      --pod-id=pod-id2
       --tag="tag_pod2-3"
 
-  broker_cli.pod_registry_tag_set
-      --pod_description_id=description_id
-      --pod_id=pod_id1
+  broker-cli.pod-registry-tag-set
+      --pod-description-id=description-id
+      --pod-id=pod-id1
       --tag="test-tag-force"
 
   // Check for an error when reusing a tag.
-  expect_throws --check_exception=(: it.contains "duplicate" or it.contains "already"):
-    broker_cli.pod_registry_tag_set
-        --pod_description_id=description_id
-        --pod_id=pod_id2
+  expect-throws --check-exception=(: it.contains "duplicate" or it.contains "already"):
+    broker-cli.pod-registry-tag-set
+        --pod-description-id=description-id
+        --pod-id=pod-id2
         --tag="test-tag-force"
 
   // It works when using the force flag.
-  broker_cli.pod_registry_tag_set
-      --pod_description_id=description_id
-      --pod_id=pod_id2
+  broker-cli.pod-registry-tag-set
+      --pod-description-id=description-id
+      --pod-id=pod-id2
       --tag="test-tag-force"
       --force
 
-  pod_id3 := random_uuid
-  broker_cli.pod_registry_add
-      --pod_description_id=description_id2
-      --pod_id=pod_id3
-  broker_cli.pod_registry_tag_set
-      --pod_description_id=description_id2
-      --pod_id=pod_id3
+  pod-id3 := random-uuid
+  broker-cli.pod-registry-add
+      --pod-description-id=description-id2
+      --pod-id=pod-id3
+  broker-cli.pod-registry-tag-set
+      --pod-description-id=description-id2
+      --pod-id=pod-id3
       --tag="tag_pod3"
 
-  pod_id4 := random_uuid
-  broker_cli.pod_registry_add
-      --pod_description_id=description_id2
-      --pod_id=pod_id4
-  broker_cli.pod_registry_tag_set
-      --pod_description_id=description_id2
-      --pod_id=pod_id4
+  pod-id4 := random-uuid
+  broker-cli.pod-registry-add
+      --pod-description-id=description-id2
+      --pod-id=pod-id4
+  broker-cli.pod-registry-tag-set
+      --pod-description-id=description-id2
+      --pod-id=pod-id4
       --tag="tag_pod4"
 
-  pods = broker_cli.pod_registry_pods --pod_description_id=description_id
-  expect_equals 2 pods.size
+  pods = broker-cli.pod-registry-pods --pod-description-id=description-id
+  expect-equals 2 pods.size
   // Make sure that the more recent pod is first.
   pod2 := pods[0]
   pod1 := pods[1]
-  expect_equals pod_id1 pod1.id
-  expect_equals pod_id2 pod2.id
+  expect-equals pod-id1 pod1.id
+  expect-equals pod-id2 pod2.id
 
-  reference_tests := [
-    [pod_id1, PodReference --name="pod1" --tag="tag1"],
-    [pod_id2, PodReference --name="pod1" --tag="tag_pod2-2"],
-    [pod_id4, PodReference --name="pod2" --tag="tag_pod4"],
-    [pod_id2, PodReference --name="pod1" --tag="test-tag-force"],
-    [pod_id1, PodReference --name="pod1" --revision=1],
-    [pod_id2, PodReference --name="pod1" --revision=2],
-    [pod_id3, PodReference --name="pod2" --revision=1],
-    [pod_id4, PodReference --name="pod2" --revision=2],
+  reference-tests := [
+    [pod-id1, PodReference --name="pod1" --tag="tag1"],
+    [pod-id2, PodReference --name="pod1" --tag="tag_pod2-2"],
+    [pod-id4, PodReference --name="pod2" --tag="tag_pod4"],
+    [pod-id2, PodReference --name="pod1" --tag="test-tag-force"],
+    [pod-id1, PodReference --name="pod1" --revision=1],
+    [pod-id2, PodReference --name="pod1" --revision=2],
+    [pod-id3, PodReference --name="pod2" --revision=1],
+    [pod-id4, PodReference --name="pod2" --revision=2],
     [null, PodReference --name="pod1" --tag="not found"],
     [null, PodReference --name="pod1" --revision=499],
   ]
   // Get the pod ids given names and tags.
-  pod_ids := broker_cli.pod_registry_pod_ids
-      --fleet_id=fleet_id
-      --references=reference_tests.map: it[1]
+  pod-ids := broker-cli.pod-registry-pod-ids
+      --fleet-id=fleet-id
+      --references=reference-tests.map: it[1]
   count := 0
-  reference_tests.do: | row/List |
-    expected_id := row[0]
+  reference-tests.do: | row/List |
+    expected-id := row[0]
     reference/PodReference := row[1]
-    if expected_id == null:
-      expect_not (pod_ids.contains reference)
+    if expected-id == null:
+      expect-not (pod-ids.contains reference)
     else:
       count++
-      expect_equals expected_id pod_ids[reference]
-  expect_equals count pod_ids.size
+      expect-equals expected-id pod-ids[reference]
+  expect-equals count pod-ids.size
 
   // Test deletion.
-  broker_cli.pod_registry_delete --pod_ids=[pod_id1, pod_id3] --fleet_id=fleet_id
-  pods = broker_cli.pod_registry_pods --pod_description_id=description_id
-  expect_equals 1 pods.size
+  broker-cli.pod-registry-delete --pod-ids=[pod-id1, pod-id3] --fleet-id=fleet-id
+  pods = broker-cli.pod-registry-pods --pod-description-id=description-id
+  expect-equals 1 pods.size
   pod2 = pods[0]
-  expect_equals pod_id2 pod2.id
-  pods = broker_cli.pod_registry_pods --pod_description_id=description_id2
-  expect_equals 1 pods.size
+  expect-equals pod-id2 pod2.id
+  pods = broker-cli.pod-registry-pods --pod-description-id=description-id2
+  expect-equals 1 pods.size
   pod4 := pods[0]
-  expect_equals pod_id4 pod4.id
+  expect-equals pod-id4 pod4.id
 
-  description_id3 := broker_cli.pod_registry_description_upsert
-      --fleet_id=fleet_id
-      --organization_id=TEST_ORGANIZATION_UUID
+  description-id3 := broker-cli.pod-registry-description-upsert
+      --fleet-id=fleet-id
+      --organization-id=TEST-ORGANIZATION-UUID
       --name="pod3"
       --description=null
 
-  description_id4 := broker_cli.pod_registry_description_upsert
-      --fleet_id=fleet_id
-      --organization_id=TEST_ORGANIZATION_UUID
+  description-id4 := broker-cli.pod-registry-description-upsert
+      --fleet-id=fleet-id
+      --organization-id=TEST-ORGANIZATION-UUID
       --name="pod4"
       --description=null
 
-  descriptions = broker_cli.pod_registry_descriptions --fleet_id=fleet_id
-  expect_equals 4 descriptions.size
+  descriptions = broker-cli.pod-registry-descriptions --fleet-id=fleet-id
+  expect-equals 4 descriptions.size
   seen := {}
   descriptions.do: | description/PodRegistryDescription |
-    expect_not (seen.contains description.id)
+    expect-not (seen.contains description.id)
     seen.add description.id
-  expect (seen.contains description_id)
-  expect (seen.contains description_id2)
-  expect (seen.contains description_id3)
-  expect (seen.contains description_id4)
+  expect (seen.contains description-id)
+  expect (seen.contains description-id2)
+  expect (seen.contains description-id3)
+  expect (seen.contains description-id4)
 
-  broker_cli.pod_registry_descriptions_delete --fleet_id=fleet_id
-      --description_ids=[
-        description_id,
-        description_id3,
-        description_id4,
+  broker-cli.pod-registry-descriptions-delete --fleet-id=fleet-id
+      --description-ids=[
+        description-id,
+        description-id3,
+        description-id4,
       ]
-  descriptions = broker_cli.pod_registry_descriptions --fleet_id=fleet_id
-  expect_equals 1 descriptions.size
+  descriptions = broker-cli.pod-registry-descriptions --fleet-id=fleet-id
+  expect-equals 1 descriptions.size
   description = descriptions[0]
-  expect_equals description_id2 description.id
+  expect-equals description-id2 description.id
 
   // The pods inside the deleted descriptions were also deleted.
-  pods = broker_cli.pod_registry_pods --fleet_id=fleet_id --pod_ids=[pod_id2]
-  expect_equals 0 pods.size
+  pods = broker-cli.pod-registry-pods --fleet-id=fleet-id --pod-ids=[pod-id2]
+  expect-equals 0 pods.size
 
 
-test_pods --test_broker/TestBroker broker_cli/broker.BrokerCli:
+test-pods --test-broker/TestBroker broker-cli/broker.BrokerCli:
   3.repeat: | iteration |
-    pod_id := random_uuid
-    id1 := "$random_uuid"
-    id2 := "$random_uuid"
+    pod-id := random-uuid
+    id1 := "$random-uuid"
+    id2 := "$random-uuid"
     id3 := "myMXwslBoXkTDQ0olhq1QsiHRWWL4yj1V0IuoK+PYOg="
-    pod_content := {
+    pod-content := {
       id1: "entry1 - $iteration",
       id2: "entry2 - $iteration",
       id3: "sha256 base64 - $iteration",
@@ -320,30 +320,30 @@ test_pods --test_broker/TestBroker broker_cli/broker.BrokerCli:
       "name3": id3,
     }
 
-    pod_content.do: | key/string value/string |
-      broker_cli.pod_registry_upload_pod_part
-          --organization_id=TEST_ORGANIZATION_UUID
-          --part_id=key
-          value.to_byte_array
+    pod-content.do: | key/string value/string |
+      broker-cli.pod-registry-upload-pod-part
+          --organization-id=TEST-ORGANIZATION-UUID
+          --part-id=key
+          value.to-byte-array
 
     // Upload the keys as a manifest.
     manifest := ubjson.encode pod
-    broker_cli.pod_registry_upload_pod_manifest
-        --organization_id=TEST_ORGANIZATION_UUID
-        --pod_id=pod_id
+    broker-cli.pod-registry-upload-pod-manifest
+        --organization-id=TEST-ORGANIZATION-UUID
+        --pod-id=pod-id
         manifest
 
     // Download the manifest.
-    downloaded_manifest := broker_cli.pod_registry_download_pod_manifest
-        --organization_id=TEST_ORGANIZATION_UUID
-        --pod_id=pod_id
-    expect_equals manifest downloaded_manifest
-    decoded := ubjson.decode downloaded_manifest
-    expect_equals pod.keys decoded.keys
-    expect_equals pod.values decoded.values
+    downloaded-manifest := broker-cli.pod-registry-download-pod-manifest
+        --organization-id=TEST-ORGANIZATION-UUID
+        --pod-id=pod-id
+    expect-equals manifest downloaded-manifest
+    decoded := ubjson.decode downloaded-manifest
+    expect-equals pod.keys decoded.keys
+    expect-equals pod.values decoded.values
 
     // Download the parts.
     decoded.do: | _ id/string |
-      downloaded_part := broker_cli.pod_registry_download_pod_part id
-          --organization_id=TEST_ORGANIZATION_UUID
-      expect_equals pod_content[id] downloaded_part.to_string
+      downloaded-part := broker-cli.pod-registry-download-pod-part id
+          --organization-id=TEST-ORGANIZATION-UUID
+      expect-equals pod-content[id] downloaded-part.to-string

@@ -4,10 +4,10 @@ import monitor
 import .scheduler
 
 abstract class Job:
-  static RUNLEVEL_STOP     ::= 0
-  static RUNLEVEL_SAFE     ::= 1
-  static RUNLEVEL_CRITICAL ::= 2
-  static RUNLEVEL_NORMAL   ::= 3
+  static RUNLEVEL-STOP     ::= 0
+  static RUNLEVEL-SAFE     ::= 1
+  static RUNLEVEL-CRITICAL ::= 2
+  static RUNLEVEL-NORMAL   ::= 3
 
   name/string
 
@@ -15,30 +15,30 @@ abstract class Job:
   // put here to avoid having a separate map to associate extra
   // information with jobs.
   scheduler_/Scheduler? := null
-  scheduler_ran_last_/JobTime? := null
-  scheduler_ran_after_boot_/bool := false
+  scheduler-ran-last_/JobTime? := null
+  scheduler-ran-after-boot_/bool := false
 
   // TODO(kasper): Maybe this should be called run-after? The
   // way this interacts with the other triggers isn't super
   // clear, so maybe this should be passed to $schedule like
   // we do with last? You could argue that we should do the
   // same with has_run_after_boot.
-  scheduler_delayed_until_/JobTime? := null
+  scheduler-delayed-until_/JobTime? := null
 
   constructor .name:
 
-  abstract is_running -> bool
-  is_background -> bool: return false
+  abstract is-running -> bool
+  is-background -> bool: return false
 
-  runlevel -> int: return RUNLEVEL_NORMAL
+  runlevel -> int: return RUNLEVEL-NORMAL
   stringify -> string: return name
 
-  has_run_after_boot -> bool:
-    return scheduler_ran_after_boot_
+  has-run-after-boot -> bool:
+    return scheduler-ran-after-boot_
 
   abstract schedule now/JobTime last/JobTime? -> JobTime?
 
-  schedule_tune last/JobTime -> JobTime:
+  schedule-tune last/JobTime -> JobTime:
     return last
 
   abstract start -> none
@@ -48,13 +48,13 @@ abstract class Job:
   // to delay starting the job again until it gets through the period
   // it just started. This helper achieves that by tuning the last
   // ran timestamp and moving it into the current period.
-  static schedule_tune_periodic last/JobTime period/Duration? -> JobTime:
-    if not period or period.is_zero: return last
+  static schedule-tune-periodic last/JobTime period/Duration? -> JobTime:
+    if not period or period.is-zero: return last
     elapsed := last.to JobTime.now
     if elapsed <= period: return last
     // Compute the missed number of periods and use it
     // to update the last run to fit in the last period.
-    missed := elapsed.in_ns / period.in_ns
+    missed := elapsed.in-ns / period.in-ns
     last = last + period * missed
     return last
 
@@ -65,7 +65,7 @@ abstract class TaskJob extends Job:
   constructor name/string:
     super name
 
-  is_running -> bool:
+  is-running -> bool:
     return task_ != null
 
   abstract run -> none
@@ -75,7 +75,7 @@ abstract class TaskJob extends Job:
     task_ = task::
       try:
         catch --trace:
-          scheduler_.on_job_started this
+          scheduler_.on-job-started this
           run
       finally:
         task_ = null
@@ -84,8 +84,8 @@ abstract class TaskJob extends Job:
         // It is possible that this task has been canceled,
         // so to allow monitor operations in this shutdown
         // sequence, we run the rest in a critical section.
-        critical_do:
-          scheduler_.on_job_stopped this
+        critical-do:
+          scheduler_.on-job-stopped this
           if latch: latch.set null
 
   stop -> none:
@@ -106,7 +106,7 @@ abstract class PeriodicJob extends TaskJob:
   constructor name/string .period_:
     super name
 
-  is_background -> bool:
+  is-background -> bool:
     // Periodic jobs do not want to cause device
     // wakeups or block the device from going to
     // sleep. They just run on their schedule when
@@ -117,11 +117,11 @@ abstract class PeriodicJob extends TaskJob:
     if not last: return now
     return last + period_
 
-  schedule_tune last/JobTime -> JobTime:
+  schedule-tune last/JobTime -> JobTime:
     // If running the periodic task took a long time, we tune
     // the schedule and postpone the next run by making it
     // start at the beginning of the next period instead of now.
-    return Job.schedule_tune_periodic last period_
+    return Job.schedule-tune-periodic last period_
 
 // TODO(kasper): Get rid of this again. It was originally
 // implemented to have one place to handle problems arising
@@ -133,7 +133,7 @@ class JobTime implements Comparable:
   constructor .us:
 
   constructor.now:
-    us = time_now_us_
+    us = time-now-us_
 
   operator <= other/JobTime -> bool:
     return us <= other.us
@@ -142,24 +142,24 @@ class JobTime implements Comparable:
     return us < other.us
 
   operator + duration/Duration -> JobTime:
-    return JobTime us + duration.in_us
+    return JobTime us + duration.in-us
 
   operator - duration/Duration -> JobTime:
-    return JobTime us - duration.in_us
+    return JobTime us - duration.in-us
 
   to other/JobTime -> Duration:
     return Duration --us=other.us - us
 
-  to_monotonic_us -> int:
-    return Time.monotonic_us + (us - time_now_us_)
+  to-monotonic-us -> int:
+    return Time.monotonic-us + (us - time-now-us_)
 
-  compare_to other/JobTime -> int:
-    return us.compare_to other.us
+  compare-to other/JobTime -> int:
+    return us.compare-to other.us
 
-  compare_to other/JobTime [--if_equal] -> int:
-    return us.compare_to other.us --if_equal=if_equal
+  compare-to other/JobTime [--if-equal] -> int:
+    return us.compare-to other.us --if-equal=if-equal
 
 // --------------------------------------------------------------------------
 
-time_now_us_ -> int:
-  #primitive.core.get_system_time
+time-now-us_ -> int:
+  #primitive.core.get-system-time

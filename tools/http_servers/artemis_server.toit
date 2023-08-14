@@ -9,51 +9,51 @@ import encoding.json
 import .base
 
 main args:
-  root_cmd := cli.Command "root"
-    --long_help="""An HTTP-based Artemis server.
+  root-cmd := cli.Command "root"
+    --long-help="""An HTTP-based Artemis server.
 
       Can be used instead of the Supabase servers.
       This server keeps data in memory and should thus only be used for testing.
       """
     --options=[
-      cli.OptionInt "port" --short_name="p"
-          --short_help="The port to listen on."
+      cli.OptionInt "port" --short-name="p"
+          --short-help="The port to listen on."
     ]
     --run=:: | parsed/cli.Parsed |
       broker := HttpArtemisServer parsed["port"]
       broker.start
 
-  root_cmd.run args
+  root-cmd.run args
 
 class DeviceEntry:
   id/string
   alias/string
-  organization_id/string
+  organization-id/string
 
-  constructor .id --.alias --.organization_id:
+  constructor .id --.alias --.organization-id:
 
 class EventEntry:
-  device_id/string
+  device-id/string
   data/any
 
-  constructor .device_id --.data:
+  constructor .device-id --.data:
 
   stringify -> string:
-    return "EventEntry($device_id, $data)"
+    return "EventEntry($device-id, $data)"
 
 class OrganizationEntry:
   id/string
   name/string := ?
-  created_at/Time
+  created-at/Time
   members/Map := {:}
 
-  constructor .id --.name --.created_at:
+  constructor .id --.name --.created-at:
 
-  to_json -> Map:
+  to-json -> Map:
     return {
       "id": id,
       "name": name,
-      "created_at": created_at.stringify,
+      "created_at": created-at.stringify,
     }
 
 class User:
@@ -63,7 +63,7 @@ class User:
 
   constructor .id --.email --.name:
 
-  to_json -> Map:
+  to-json -> Map:
     return {
       "id": id,
       "email": email,
@@ -71,7 +71,7 @@ class User:
     }
 
 class HttpArtemisServer extends HttpServer:
-  static DEVICE_NOT_FOUND ::= 0
+  static DEVICE-NOT-FOUND ::= 0
 
   /** Map from ID to $OrganizationEntry. */
   organizations/Map := {:}
@@ -87,294 +87,294 @@ class HttpArtemisServer extends HttpServer:
 
   errors/List := []
 
-  sdk_service_versions := []
-  image_binaries := {:}
+  sdk-service-versions := []
+  image-binaries := {:}
 
   constructor port/int:
     super port
 
-  run_command command/int encoded/ByteArray user_id/string? -> any:
+  run-command command/int encoded/ByteArray user-id/string? -> any:
     data := json.decode encoded
-    print "$Time.now: Artemis request $command for $user_id with $data."
-    if user_id and not users.contains user_id:
-      throw "User not found: $user_id"
+    print "$Time.now: Artemis request $command for $user-id with $data."
+    if user-id and not users.contains user-id:
+      throw "User not found: $user-id"
 
-    if command == COMMAND_CHECK_IN_:
-      return store_event data
-    if command == COMMAND_CREATE_DEVICE_IN_ORGANIZATION_:
-      return create_device_in_organization data
-    if command == COMMAND_NOTIFY_ARTEMIS_CREATED_:
-      return store_event data
-    if command == COMMAND_SIGN_UP_:
-      return sign_up data
-    if command == COMMAND_SIGN_IN_:
-      return sign_in data
-    if command == COMMAND_GET_ORGANIZATIONS_:
-      return get_organizations data user_id
-    if command == COMMAND_GET_ORGANIZATION_DETAILS_:
-      return get_organization_details data user_id
-    if command == COMMAND_CREATE_ORGANIZATION_:
-      return create_organization data user_id
-    if command == COMMAND_UPDATE_ORGANIZATION_:
-      return update_organization data
-    if command == COMMAND_GET_ORGANIZATION_MEMBERS_:
-      return get_organization_members data
-    if command == COMMAND_ORGANIZATION_MEMBER_ADD_:
-      return organization_member_add data user_id
-    if command == COMMAND_ORGANIZATION_MEMBER_REMOVE_:
-      return organization_member_remove data
-    if command == COMMAND_ORGANIZATION_MEMBER_SET_ROLE_:
-      return organization_member_set_role data user_id
-    if command == COMMAND_GET_PROFILE_:
-      return get_profile data user_id
-    if command == COMMAND_UPDATE_PROFILE_:
-      return update_profile data user_id
-    if command == COMMAND_LIST_SDK_SERVICE_VERSIONS_:
-      return list_sdk_service_versions data user_id
-    if command == COMMAND_DOWNLOAD_SERVICE_IMAGE_:
-      return download_service_image data
-    if command == COMMAND_UPLOAD_SERVICE_IMAGE_:
-      return upload_service_image data
+    if command == COMMAND-CHECK-IN_:
+      return store-event data
+    if command == COMMAND-CREATE-DEVICE-IN-ORGANIZATION_:
+      return create-device-in-organization data
+    if command == COMMAND-NOTIFY-ARTEMIS-CREATED_:
+      return store-event data
+    if command == COMMAND-SIGN-UP_:
+      return sign-up data
+    if command == COMMAND-SIGN-IN_:
+      return sign-in data
+    if command == COMMAND-GET-ORGANIZATIONS_:
+      return get-organizations data user-id
+    if command == COMMAND-GET-ORGANIZATION-DETAILS_:
+      return get-organization-details data user-id
+    if command == COMMAND-CREATE-ORGANIZATION_:
+      return create-organization data user-id
+    if command == COMMAND-UPDATE-ORGANIZATION_:
+      return update-organization data
+    if command == COMMAND-GET-ORGANIZATION-MEMBERS_:
+      return get-organization-members data
+    if command == COMMAND-ORGANIZATION-MEMBER-ADD_:
+      return organization-member-add data user-id
+    if command == COMMAND-ORGANIZATION-MEMBER-REMOVE_:
+      return organization-member-remove data
+    if command == COMMAND-ORGANIZATION-MEMBER-SET-ROLE_:
+      return organization-member-set-role data user-id
+    if command == COMMAND-GET-PROFILE_:
+      return get-profile data user-id
+    if command == COMMAND-UPDATE-PROFILE_:
+      return update-profile data user-id
+    if command == COMMAND-LIST-SDK-SERVICE-VERSIONS_:
+      return list-sdk-service-versions data user-id
+    if command == COMMAND-DOWNLOAD-SERVICE-IMAGE_:
+      return download-service-image data
+    if command == COMMAND-UPLOAD-SERVICE-IMAGE_:
+      return upload-service-image data
 
     else:
       throw "BAD COMMAND $command"
 
-  store_event data/Map:
-    device_id := data["hardware_id"]
-    if not devices.contains device_id:
-      errors.add [DEVICE_NOT_FOUND, device_id]
+  store-event data/Map:
+    device-id := data["hardware_id"]
+    if not devices.contains device-id:
+      errors.add [DEVICE-NOT-FOUND, device-id]
       throw "Device not found"
     events.add
-        EventEntry device_id --data=data["data"]
+        EventEntry device-id --data=data["data"]
 
-  create_device_in_organization data/Map:
-    organization_id := data["organization_id"]
+  create-device-in-organization data/Map:
+    organization-id := data["organization_id"]
     alias := data.get "alias"
 
-    hardware_id := "$(uuid.uuid5 "" "hardware_id - $Time.monotonic_us")"
-    alias_id := alias or "$(uuid.uuid5 "" "alias_id - $Time.monotonic_us")"
+    hardware-id := "$(uuid.uuid5 "" "hardware_id - $Time.monotonic-us")"
+    alias-id := alias or "$(uuid.uuid5 "" "alias_id - $Time.monotonic-us")"
 
     devices.do: | key entry/DeviceEntry |
-      if entry.alias == alias_id:
+      if entry.alias == alias-id:
         throw "Alias already exists"
 
-    devices[hardware_id] = DeviceEntry hardware_id
-        --alias=alias_id
-        --organization_id=organization_id
+    devices[hardware-id] = DeviceEntry hardware-id
+        --alias=alias-id
+        --organization-id=organization-id
     return {
-      "id": hardware_id,
-      "alias": alias_id,
-      "organization_id": organization_id,
+      "id": hardware-id,
+      "alias": alias-id,
+      "organization_id": organization-id,
     }
 
-  remove_device hardware_id/string -> none:
-    devices.remove hardware_id
+  remove-device hardware-id/string -> none:
+    devices.remove hardware-id
 
-  create_user --email/string --name/string --id/string?=null -> string:
-    if not id: id = (uuid.uuid5 "" "user_id - $Time.monotonic_us").stringify
+  create-user --email/string --name/string --id/string?=null -> string:
+    if not id: id = (uuid.uuid5 "" "user_id - $Time.monotonic-us").stringify
     user := User id --email=email --name=name
     users[id] = user
     return id
 
-  get_organizations data/Map user_id/string? -> List:
+  get-organizations data/Map user-id/string? -> List:
     result := []
-    if not user_id: return result
+    if not user-id: return result
     organizations.do: | _ entry/OrganizationEntry |
-      if entry.members.contains user_id:
+      if entry.members.contains user-id:
         result.add {"id": entry.id, "name": entry.name}
     return result
 
-  get_organization_details data/Map user_id/string? -> Map?:
-    organization_id := data["id"]
-    organization := organizations.get organization_id
+  get-organization-details data/Map user-id/string? -> Map?:
+    organization-id := data["id"]
+    organization := organizations.get organization-id
     if not organization: return null
-    if not user_id or not organization.members.contains user_id:
+    if not user-id or not organization.members.contains user-id:
       throw "Not a member of this organization"
-    return organization.to_json
+    return organization.to-json
 
-  create_organization data/Map user_id/string? -> Map:
-    if not user_id: throw "Not logged in"
-    id := "$(uuid.uuid5 "" "organization_id - $Time.monotonic_us")"
+  create-organization data/Map user-id/string? -> Map:
+    if not user-id: throw "Not logged in"
+    id := "$(uuid.uuid5 "" "organization_id - $Time.monotonic-us")"
     name := data["name"]
-    organization := create_organization --id=id --name=name --admin_id=user_id
-    return organization.to_json
+    organization := create-organization --id=id --name=name --admin-id=user-id
+    return organization.to-json
 
-  create_organization --id/string --name/string --admin_id/string -> OrganizationEntry:
-    organization := OrganizationEntry id --name=name --created_at=Time.now
+  create-organization --id/string --name/string --admin-id/string -> OrganizationEntry:
+    organization := OrganizationEntry id --name=name --created-at=Time.now
     organizations[id] = organization
-    organization.members[admin_id] = "admin"
+    organization.members[admin-id] = "admin"
     organizations[id] = organization
     return organization
 
-  update_organization data:
+  update-organization data:
     organization := organizations.get data["id"]
     if not organization: throw "Organization not found"
     organization.name = data["update"]["name"]
     return null
 
-  get_organization_members data/Map -> List:
-    organization_id := data["id"]
-    organization := organizations.get organization_id
+  get-organization-members data/Map -> List:
+    organization-id := data["id"]
+    organization := organizations.get organization-id
     if not organization: throw "Organization not found"
     result := []
-    organization.members.do: | user_id role |
+    organization.members.do: | user-id role |
       result.add {
-        "id": user_id,
+        "id": user-id,
         "role": role,
       }
     return result
 
-  organization_member_add data/Map authenticated_user_id/string?:
-    organization_id := data["organization_id"]
-    user_id := data["user_id"]
+  organization-member-add data/Map authenticated-user-id/string?:
+    organization-id := data["organization_id"]
+    user-id := data["user_id"]
     role := data["role"]
-    organization_member_add
-        --organization_id=organization_id
-        --user_id=user_id
-        --authenticated_user_id=authenticated_user_id
+    organization-member-add
+        --organization-id=organization-id
+        --user-id=user-id
+        --authenticated-user-id=authenticated-user-id
         --role=role
     return null
 
-  organization_member_add
-      --authenticated_user_id/string?
-      --organization_id/string
-      --user_id/string
+  organization-member-add
+      --authenticated-user-id/string?
+      --organization-id/string
+      --user-id/string
       --role/string
-      --admin_check/bool=true:
-    if not authenticated_user_id: throw "Not logged in"
-    organization := organizations.get organization_id
+      --admin-check/bool=true:
+    if not authenticated-user-id: throw "Not logged in"
+    organization := organizations.get organization-id
     if not organization: throw "Organization not found"
-    user := users.get user_id
+    user := users.get user-id
     if not user: throw "User not found"
     if role != "member" and role != "admin":
       throw "Invalid role $role"
-    if organization.members.contains user_id:
+    if organization.members.contains user-id:
       throw "User already a member of organization"
-    if admin_check and ((organization.members.get authenticated_user_id) != "admin"):
+    if admin-check and ((organization.members.get authenticated-user-id) != "admin"):
       throw "Not an admin"
-    organization.members[user_id] = role
+    organization.members[user-id] = role
 
-  organization_member_remove data/Map:
-    organization_id := data["organization_id"]
-    user_id := data["user_id"]
+  organization-member-remove data/Map:
+    organization-id := data["organization_id"]
+    user-id := data["user_id"]
 
-    organization_member_remove
-        --organization_id=organization_id
-        --user_id=user_id
+    organization-member-remove
+        --organization-id=organization-id
+        --user-id=user-id
     return null
 
-  organization_member_remove
-      --organization_id/string
-      --user_id/string
-      --admin_check/bool=true:
-    organization := organizations.get organization_id
+  organization-member-remove
+      --organization-id/string
+      --user-id/string
+      --admin-check/bool=true:
+    organization := organizations.get organization-id
     if not organization: throw "Organization not found"
-    user := users.get user_id
+    user := users.get user-id
     if not user: throw "User not found"
-    if not organization.members.contains user_id:
+    if not organization.members.contains user-id:
       throw "User not a member of organization"
-    organization.members.remove user_id
+    organization.members.remove user-id
     return null
 
-  organization_member_set_role data/Map authenticated_user_id/string?:
-    organization_id := data["organization_id"]
-    user_id := data["user_id"]
+  organization-member-set-role data/Map authenticated-user-id/string?:
+    organization-id := data["organization_id"]
+    user-id := data["user_id"]
     role := data["role"]
-    organization_member_set_role
-        --authenticated_user_id=authenticated_user_id
-        --organization_id=organization_id
-        --user_id=user_id
+    organization-member-set-role
+        --authenticated-user-id=authenticated-user-id
+        --organization-id=organization-id
+        --user-id=user-id
         --role=role
 
-  organization_member_set_role
-      --authenticated_user_id/string?
-      --organization_id/string
-      --user_id/string
+  organization-member-set-role
+      --authenticated-user-id/string?
+      --organization-id/string
+      --user-id/string
       --role/string
-      --admin_check/bool=true:
-    organization := organizations.get organization_id
+      --admin-check/bool=true:
+    organization := organizations.get organization-id
     if not organization: throw "Organization not found"
-    user := users.get user_id
+    user := users.get user-id
     if not user: throw "User not found"
     if role != "member" and role != "admin":
       throw "Invalid role $role"
-    if not organization.members.contains user_id:
+    if not organization.members.contains user-id:
       throw "User not a member of organization"
-    if not authenticated_user_id: throw "Not logged in"
-    if admin_check and ((organization.members.get authenticated_user_id) != "admin"):
+    if not authenticated-user-id: throw "Not logged in"
+    if admin-check and ((organization.members.get authenticated-user-id) != "admin"):
       throw "Not an admin"
-    organization.members[user_id] = role
+    organization.members[user-id] = role
 
-  get_profile data/Map authenticated_user_id/string? -> Map?:
+  get-profile data/Map authenticated-user-id/string? -> Map?:
     id/string? := data["id"]
     if not id:
-      if not authenticated_user_id: throw "Not logged in"
-      id = authenticated_user_id
+      if not authenticated-user-id: throw "Not logged in"
+      id = authenticated-user-id
     user := users.get id
-    return user and user.to_json
+    return user and user.to-json
 
-  update_profile data/Map user_id/string?:
-    if not user_id: throw "Not logged in"
-    user := users.get user_id
+  update-profile data/Map user-id/string?:
+    if not user-id: throw "Not logged in"
+    user := users.get user-id
     if not user: throw "User not found"
     if data.contains "name": user.name = data["name"]
     if data.contains "email": user.email = data["email"]
 
-  list_sdk_service_versions data/Map user_id/string? -> List:
-    sdk_version := data.get "sdk_version"
-    service_version := data.get "service_version"
-    organization_id := data.get "organization_id"
+  list-sdk-service-versions data/Map user-id/string? -> List:
+    sdk-version := data.get "sdk_version"
+    service-version := data.get "service_version"
+    organization-id := data.get "organization_id"
 
     // Only return matching versions.
-    return sdk_service_versions.filter: | entry/Map |
-      if sdk_version and entry["sdk_version"] != sdk_version:
+    return sdk-service-versions.filter: | entry/Map |
+      if sdk-version and entry["sdk_version"] != sdk-version:
         continue.filter false
-      if service_version and entry["service_version"] != service_version:
+      if service-version and entry["service_version"] != service-version:
         continue.filter false
-      entry_org := entry.get "organization_id"
-      if entry_org:
+      entry-org := entry.get "organization_id"
+      if entry-org:
         // Only return the versions for the given organization.
-        if entry_org != organization_id: continue.filter false
+        if entry-org != organization-id: continue.filter false
         // But also check that the user is a member of the organization.
-        if not user_id: continue.filter false
+        if not user-id: continue.filter false
         organization := organizations.get entry["organization_id"]
         if not organization: continue.filter false
-        if not organization.members.contains user_id: continue.filter false
+        if not organization.members.contains user-id: continue.filter false
       true
-    return sdk_service_versions
+    return sdk-service-versions
 
-  upload_service_image data/Map:
-    sdk_version := data["sdk_version"]
-    service_version := data["service_version"]
-    image_id := data["image_id"]
-    organization_id := data.get "organization_id"
+  upload-service-image data/Map:
+    sdk-version := data["sdk_version"]
+    service-version := data["service_version"]
+    image-id := data["image_id"]
+    organization-id := data.get "organization_id"
     force := data.get "force"
 
-    image_binaries[image_id] = base64.decode data["image_content"]
+    image-binaries[image-id] = base64.decode data["image_content"]
     // Update any existing entry if there is already one.
-    sdk_service_versions.do: | entry/Map |
-      if entry["sdk_version"] == sdk_version and entry["service_version"] == service_version:
+    sdk-service-versions.do: | entry/Map |
+      if entry["sdk_version"] == sdk-version and entry["service_version"] == service-version:
         if not force:
           throw "Service version already exists"
 
-        entry["image"] = image_id
-        if organization_id:
-          entry["organization_id"] = organization_id
+        entry["image"] = image-id
+        if organization-id:
+          entry["organization_id"] = organization-id
         return
-    new_entry := {
-      "sdk_version": sdk_version,
-      "service_version": service_version,
-      "image": image_id,
+    new-entry := {
+      "sdk_version": sdk-version,
+      "service_version": service-version,
+      "image": image-id,
     }
-    if organization_id:
-      new_entry["organization_id"] = organization_id
-    sdk_service_versions.add new_entry
+    if organization-id:
+      new-entry["organization_id"] = organization-id
+    sdk-service-versions.add new-entry
 
-  download_service_image data/Map -> string:
+  download-service-image data/Map -> string:
     image := data["image"]
-    return base64.encode image_binaries[image]
+    return base64.encode image-binaries[image]
 
-  sign_up data/Map:
+  sign-up data/Map:
     email := data["email"]
     password := data["password"]
     if not email or not password:
@@ -383,9 +383,9 @@ class HttpArtemisServer extends HttpServer:
       if user.email == email:
         // We allow users to sign up multiple times with the same email address.
         return
-    user_id := create_user --email=email --name=email
+    user-id := create-user --email=email --name=email
 
-  sign_in data/Map:
+  sign-in data/Map:
     email := data["email"]
     password := data["password"]
     if not email or not password:

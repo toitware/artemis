@@ -6,64 +6,64 @@ import expect show *
 import .utils
 
 main args:
-  with_fleet --count=0 --args=args: | test_cli/TestCli _ _ |
-    run_test test_cli
+  with-fleet --count=0 --args=args: | test-cli/TestCli _ _ |
+    run-test test-cli
 
-run_test test_cli/TestCli:
-  test_start := Time.now
+run-test test-cli/TestCli:
+  test-start := Time.now
 
-  backdoor := test_cli.artemis.backdoor
-  backdoor.install_service_images []
+  backdoor := test-cli.artemis.backdoor
+  backdoor.install-service-images []
 
-  test_cli.run [
+  test-cli.run [
     "auth", "login",
-    "--email", TEST_EXAMPLE_COM_EMAIL,
-    "--password", TEST_EXAMPLE_COM_PASSWORD,
+    "--email", TEST-EXAMPLE-COM-EMAIL,
+    "--password", TEST-EXAMPLE-COM-PASSWORD,
   ]
 
-  output := test_cli.run [ "sdk", "list" ]
+  output := test-cli.run [ "sdk", "list" ]
   /*
 ┌─────────────┬─────────────────┐
 │ SDK Version   Service Version │
 ├─────────────┼─────────────────┤
 └─────────────┴─────────────────┘
   */
-  expect_not (output.contains "0")
+  expect-not (output.contains "0")
 
-  SDK_V1 ::= "v2.0.0-alpha.46"
-  SDK_V2 ::= "v2.0.0-alpha.47"
-  SERVICE_V1 ::= "v0.0.1"
-  SERVICE_V2 ::= "v0.0.2"
+  SDK-V1 ::= "v2.0.0-alpha.46"
+  SDK-V2 ::= "v2.0.0-alpha.47"
+  SERVICE-V1 ::= "v0.0.1"
+  SERVICE-V2 ::= "v0.0.2"
 
-  IMAGE_V1_V1 ::= "foobar"
-  IMAGE_V2_V1 ::= "toto"
-  IMAGE_V2_V2 ::= "titi"
+  IMAGE-V1-V1 ::= "foobar"
+  IMAGE-V2-V1 ::= "toto"
+  IMAGE-V2-V2 ::= "titi"
 
-  IGNORED_CONTENT ::= "ignored".to_byte_array
+  IGNORED-CONTENT ::= "ignored".to-byte-array
 
-  test_images := [
+  test-images := [
     {
-      "sdk_version": SDK_V1,
-      "service_version": SERVICE_V1,
-      "image": IMAGE_V1_V1,
-      "content": IGNORED_CONTENT,
+      "sdk_version": SDK-V1,
+      "service_version": SERVICE-V1,
+      "image": IMAGE-V1-V1,
+      "content": IGNORED-CONTENT,
     },
     {
-      "sdk_version": SDK_V2,
-      "service_version": SERVICE_V1,
-      "image": IMAGE_V2_V1,
-      "content": IGNORED_CONTENT,
+      "sdk_version": SDK-V2,
+      "service_version": SERVICE-V1,
+      "image": IMAGE-V2-V1,
+      "content": IGNORED-CONTENT,
     },
     {
-      "sdk_version": SDK_V2,
-      "service_version": SERVICE_V2,
-      "image": IMAGE_V2_V2,
-      "content": IGNORED_CONTENT,
+      "sdk_version": SDK-V2,
+      "service_version": SERVICE-V2,
+      "image": IMAGE-V2-V2,
+      "content": IGNORED-CONTENT,
     },
   ]
-  backdoor.install_service_images test_images
+  backdoor.install-service-images test-images
 
-  output = test_cli.run [ "sdk", "list" ]
+  output = test-cli.run [ "sdk", "list" ]
   /*
   ┌─────────────────┬─────────────────┐
   │ SDK Version       Service Version │
@@ -74,22 +74,22 @@ run_test test_cli/TestCli:
   └─────────────────┴─────────────────┘
   */
   lines := output.split "\n"
-  found_v1_v1 := false
-  found_v2_v1 := false
-  found_v2_v2 := false
+  found-v1-v1 := false
+  found-v2-v1 := false
+  found-v2-v2 := false
   lines.do: | line/string |
-    if line.contains SDK_V1 and line.contains SERVICE_V1:
-      found_v1_v1 = true
-    if line.contains SDK_V2 and line.contains SERVICE_V1:
-      found_v2_v1 = true
-    if line.contains SDK_V2 and line.contains SERVICE_V2:
-      found_v2_v2 = true
-  expect found_v1_v1
-  expect found_v2_v1
-  expect found_v2_v2
+    if line.contains SDK-V1 and line.contains SERVICE-V1:
+      found-v1-v1 = true
+    if line.contains SDK-V2 and line.contains SERVICE-V1:
+      found-v2-v1 = true
+    if line.contains SDK-V2 and line.contains SERVICE-V2:
+      found-v2-v2 = true
+  expect found-v1-v1
+  expect found-v2-v1
+  expect found-v2-v2
 
   // Test filtering.
-  output = test_cli.run [ "sdk", "list", "--sdk-version", SDK_V2 ]
+  output = test-cli.run [ "sdk", "list", "--sdk-version", SDK-V2 ]
   /*
   ┌─────────────────┬─────────────────┐
   │ SDK Version       Service Version │
@@ -99,22 +99,22 @@ run_test test_cli/TestCli:
   └─────────────────┴─────────────────┘
   */
   lines = output.split "\n"
-  found_v1_v1 = false
-  found_v2_v1 = false
-  found_v2_v2 = false
+  found-v1-v1 = false
+  found-v2-v1 = false
+  found-v2-v2 = false
   lines.do: | line/string |
-    if line.contains SDK_V1 and line.contains SERVICE_V1:
-      found_v1_v1 = true
-    if line.contains SDK_V2 and line.contains SERVICE_V1:
-      found_v2_v1 = true
-    if line.contains SDK_V2 and line.contains SERVICE_V2:
-      found_v2_v2 = true
-  expect_not found_v1_v1
-  expect found_v2_v1
-  expect found_v2_v2
+    if line.contains SDK-V1 and line.contains SERVICE-V1:
+      found-v1-v1 = true
+    if line.contains SDK-V2 and line.contains SERVICE-V1:
+      found-v2-v1 = true
+    if line.contains SDK-V2 and line.contains SERVICE-V2:
+      found-v2-v2 = true
+  expect-not found-v1-v1
+  expect found-v2-v1
+  expect found-v2-v2
 
   // Same for service version.
-  output = test_cli.run [ "sdk", "list", "--service-version", SERVICE_V1 ]
+  output = test-cli.run [ "sdk", "list", "--service-version", SERVICE-V1 ]
   /*
   ┌─────────────────┬─────────────────┐
   │ SDK Version       Service Version │
@@ -124,22 +124,22 @@ run_test test_cli/TestCli:
   └─────────────────┴─────────────────┘
   */
   lines = output.split "\n"
-  found_v1_v1 = false
-  found_v2_v1 = false
-  found_v2_v2 = false
+  found-v1-v1 = false
+  found-v2-v1 = false
+  found-v2-v2 = false
   lines.do: | line/string |
-    if line.contains SDK_V1 and line.contains SERVICE_V1:
-      found_v1_v1 = true
-    if line.contains SDK_V2 and line.contains SERVICE_V1:
-      found_v2_v1 = true
-    if line.contains SDK_V2 and line.contains SERVICE_V2:
-      found_v2_v2 = true
-  expect found_v1_v1
-  expect found_v2_v1
-  expect_not found_v2_v2
+    if line.contains SDK-V1 and line.contains SERVICE-V1:
+      found-v1-v1 = true
+    if line.contains SDK-V2 and line.contains SERVICE-V1:
+      found-v2-v1 = true
+    if line.contains SDK-V2 and line.contains SERVICE-V2:
+      found-v2-v2 = true
+  expect found-v1-v1
+  expect found-v2-v1
+  expect-not found-v2-v2
 
   // Test sdk and service version.
-  output = test_cli.run [ "sdk", "list", "--sdk-version", SDK_V2, "--service-version", SERVICE_V1 ]
+  output = test-cli.run [ "sdk", "list", "--sdk-version", SDK-V2, "--service-version", SERVICE-V1 ]
   /*
   ┌─────────────────┬─────────────────┐
   │ SDK Version       Service Version │
@@ -148,16 +148,16 @@ run_test test_cli/TestCli:
   └─────────────────┴─────────────────┘
   */
   lines = output.split "\n"
-  found_v1_v1 = false
-  found_v2_v1 = false
-  found_v2_v2 = false
+  found-v1-v1 = false
+  found-v2-v1 = false
+  found-v2-v2 = false
   lines.do: | line/string |
-    if line.contains SDK_V1 and line.contains SERVICE_V1:
-      found_v1_v1 = true
-    if line.contains SDK_V2 and line.contains SERVICE_V1:
-      found_v2_v1 = true
-    if line.contains SDK_V2 and line.contains SERVICE_V2:
-      found_v2_v2 = true
-  expect_not found_v1_v1
-  expect found_v2_v1
-  expect_not found_v2_v2
+    if line.contains SDK-V1 and line.contains SERVICE-V1:
+      found-v1-v1 = true
+    if line.contains SDK-V2 and line.contains SERVICE-V1:
+      found-v2-v1 = true
+    if line.contains SDK-V2 and line.contains SERVICE-V2:
+      found-v2-v2 = true
+  expect-not found-v1-v1
+  expect found-v2-v1
+  expect-not found-v2-v2

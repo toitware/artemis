@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import certificate_roots
+import certificate-roots
 import encoding.json
 import http
 import net
@@ -10,295 +10,295 @@ import uuid
 import ..broker
 import ...device
 import ...event
-import ...pod_registry
+import ...pod-registry
 import ...ui
-import ....shared.server_config
+import ....shared.server-config
 import ....shared.utils as utils
 import ....shared.constants show *
 
-create_broker_cli_http_toit server_config/ServerConfigHttp -> BrokerCliHttp:
-  id := "toit-http/$server_config.host-$server_config.port"
-  return BrokerCliHttp server_config --id=id
+create-broker-cli-http-toit server-config/ServerConfigHttp -> BrokerCliHttp:
+  id := "toit-http/$server-config.host-$server-config.port"
+  return BrokerCliHttp server-config --id=id
 
 class BrokerCliHttp implements BrokerCli:
   network_/net.Interface? := ?
   id/string
-  server_config_/ServerConfigHttp
+  server-config_/ServerConfigHttp
 
-  constructor .server_config_ --.id:
+  constructor .server-config_ --.id:
     network_ = net.open
-    add_finalizer this:: close
+    add-finalizer this:: close
 
   close:
     if not network_: return
-    remove_finalizer this
+    remove-finalizer this
     network_.close
     network_ = null
 
-  is_closed -> bool:
+  is-closed -> bool:
     return network_ == null
 
-  ensure_authenticated [block]:
+  ensure-authenticated [block]:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
-  sign_up --email/string --password/string:
+  sign-up --email/string --password/string:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
-  sign_in --email/string --password/string:
+  sign-in --email/string --password/string:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
-  sign_in --provider/string --ui/Ui --open_browser/bool:
+  sign-in --provider/string --ui/Ui --open-browser/bool:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
-  send_request_ command/int data/any -> any:
-    if is_closed: throw "CLOSED"
+  send-request_ command/int data/any -> any:
+    if is-closed: throw "CLOSED"
     encoded/ByteArray := ?
-    if command == COMMAND_UPLOAD_:
+    if command == COMMAND-UPLOAD_:
       path := data["path"]
       content := data["content"]
-      encoded = #[COMMAND_UPLOAD_] + path.to_byte_array + #[0] + content
+      encoded = #[COMMAND-UPLOAD_] + path.to-byte-array + #[0] + content
     else:
       encoded = #[command] + (json.encode data)
 
-    send_request_ encoded: | response/http.Response |
-      if response.status_code != http.STATUS_OK and response.status_code != http.STATUS_IM_A_TEAPOT:
-        throw "HTTP error: $response.status_code $response.status_message"
+    send-request_ encoded: | response/http.Response |
+      if response.status-code != http.STATUS-OK and response.status-code != http.STATUS-IM-A-TEAPOT:
+        throw "HTTP error: $response.status-code $response.status-message"
 
-      if (command == COMMAND_DOWNLOAD_ or command == COMMAND_DOWNLOAD_PRIVATE_)
-          and response.status_code != http.STATUS_IM_A_TEAPOT:
-        return utils.read_all response.body
+      if (command == COMMAND-DOWNLOAD_ or command == COMMAND-DOWNLOAD-PRIVATE_)
+          and response.status-code != http.STATUS-IM-A-TEAPOT:
+        return utils.read-all response.body
 
-      decoded := json.decode_stream response.body
-      if response.status_code == http.STATUS_IM_A_TEAPOT:
+      decoded := json.decode-stream response.body
+      if response.status-code == http.STATUS-IM-A-TEAPOT:
         throw "Broker error: $decoded"
       return decoded
     unreachable
 
-  send_request_ encoded/ByteArray [block]:
+  send-request_ encoded/ByteArray [block]:
     client := ?
-    root_names := server_config_.root_certificate_names
-    if root_names:
-      root_certificates := root_names.map:
-        der := certificate_roots.MAP[it]
+    root-names := server-config_.root-certificate-names
+    if root-names:
+      root-certificates := root-names.map:
+        der := certificate-roots.MAP[it]
         x509.Certificate.parse der
       client = http.Client.tls network_
-          --root_certificates=root_certificates
+          --root-certificates=root-certificates
     else:
       client = http.Client network_
     try:
       headers := null
-      if server_config_.admin_headers:
+      if server-config_.admin-headers:
         headers = http.Headers
-        server_config_.admin_headers.do: | key value |
+        server-config_.admin-headers.do: | key value |
           headers.add key value
 
-      extra := extra_headers
+      extra := extra-headers
       if extra:
         if not headers: headers = http.Headers
         extra.do: | key value |
           headers.add key value
 
       response := client.post encoded
-          --host=server_config_.host
-          --port=server_config_.port
-          --path=server_config_.path
+          --host=server-config_.host
+          --port=server-config_.port
+          --path=server-config_.path
           --headers=headers
       block.call response
     finally:
       client.close
 
-  extra_headers -> Map?:
+  extra-headers -> Map?:
     return null
 
-  update_goal --device_id/uuid.Uuid [block] -> none:
-    detailed_devices := get_devices --device_ids=[device_id]
-    if detailed_devices.size != 1: throw "Device not found: $device_id"
-    detailed_device := detailed_devices[device_id]
-    new_goal := block.call detailed_device
-    send_request_ COMMAND_UPDATE_GOAL_ {
-      "_device_id": "$device_id",
-      "_goal": new_goal
+  update-goal --device-id/uuid.Uuid [block] -> none:
+    detailed-devices := get-devices --device-ids=[device-id]
+    if detailed-devices.size != 1: throw "Device not found: $device-id"
+    detailed-device := detailed-devices[device-id]
+    new-goal := block.call detailed-device
+    send-request_ COMMAND-UPDATE-GOAL_ {
+      "_device_id": "$device-id",
+      "_goal": new-goal
     }
 
-  get_devices --device_ids/List -> Map:
-    response := send_request_ COMMAND_GET_DEVICES_ {
-      "_device_ids": device_ids.map: "$it"
+  get-devices --device-ids/List -> Map:
+    response := send-request_ COMMAND-GET-DEVICES_ {
+      "_device_ids": device-ids.map: "$it"
     }
     result := {:}
     response.do: | row/Map |
-      device_id := uuid.parse row["device_id"]
+      device-id := uuid.parse row["device_id"]
       goal := row["goal"]
       state := row["state"]
-      result[device_id] = DeviceDetailed --goal=goal --state=state
+      result[device-id] = DeviceDetailed --goal=goal --state=state
     return result
 
-  upload_image -> none
-      --organization_id/uuid.Uuid
-      --app_id/uuid.Uuid
-      --word_size/int
+  upload-image -> none
+      --organization-id/uuid.Uuid
+      --app-id/uuid.Uuid
+      --word-size/int
       content/ByteArray:
-    send_request_ COMMAND_UPLOAD_ {
-      "path": "/toit-artemis-assets/$organization_id/images/$app_id.$word_size",
+    send-request_ COMMAND-UPLOAD_ {
+      "path": "/toit-artemis-assets/$organization-id/images/$app-id.$word-size",
       "content": content,
     }
 
-  upload_firmware --organization_id/uuid.Uuid --firmware_id/string chunks/List -> none:
+  upload-firmware --organization-id/uuid.Uuid --firmware-id/string chunks/List -> none:
     firmware := #[]
     chunks.do: firmware += it
-    send_request_ COMMAND_UPLOAD_ {
-      "path": "/toit-artemis-assets/$organization_id/firmware/$firmware_id",
+    send-request_ COMMAND-UPLOAD_ {
+      "path": "/toit-artemis-assets/$organization-id/firmware/$firmware-id",
       "content": firmware,
     }
 
-  download_firmware --organization_id/uuid.Uuid --id/string -> ByteArray:
-    return send_request_ COMMAND_DOWNLOAD_ {
-      "path": "/toit-artemis-assets/$organization_id/firmware/$id",
+  download-firmware --organization-id/uuid.Uuid --id/string -> ByteArray:
+    return send-request_ COMMAND-DOWNLOAD_ {
+      "path": "/toit-artemis-assets/$organization-id/firmware/$id",
     }
 
-  notify_created --device_id/uuid.Uuid --state/Map -> none:
-    send_request_ COMMAND_NOTIFY_BROKER_CREATED_ {
-      "_device_id": "$device_id",
+  notify-created --device-id/uuid.Uuid --state/Map -> none:
+    send-request_ COMMAND-NOTIFY-BROKER-CREATED_ {
+      "_device_id": "$device-id",
       "_state": state,
     }
 
-  get_events -> Map
+  get-events -> Map
       --types/List?=null
-      --device_ids/List
+      --device-ids/List
       --limit/int=10
       --since/Time?=null:
     payload := {
       "_types": types,
-      "_device_ids": device_ids.map: "$it",
+      "_device_ids": device-ids.map: "$it",
       "_limit": limit,
     }
-    if since: payload["_since"] = since.utc.to_iso8601_string
-    response := send_request_ COMMAND_GET_EVENTS_ payload
+    if since: payload["_since"] = since.utc.to-iso8601-string
+    response := send-request_ COMMAND-GET-EVENTS_ payload
     result := {:}
-    current_list/List? := null
-    current_id/uuid.Uuid? := null
+    current-list/List? := null
+    current-id/uuid.Uuid? := null
     response.do: | row/Map |
-      device_id := uuid.parse row["device_id"]
-      event_type := row["type"]
+      device-id := uuid.parse row["device_id"]
+      event-type := row["type"]
       data := row["data"]
       timestamp := row["ts"]
       time := Time.parse timestamp
-      if device_id != current_id:
-        current_id = device_id
-        current_list = result.get device_id --init=:[]
-      current_list.add (Event event_type time data)
+      if device-id != current-id:
+        current-id = device-id
+        current-list = result.get device-id --init=:[]
+      current-list.add (Event event-type time data)
     return result
 
-  /** See $BrokerCli.pod_registry_description_upsert. */
-  pod_registry_description_upsert -> int
-      --fleet_id/uuid.Uuid
-      --organization_id/uuid.Uuid
+  /** See $BrokerCli.pod-registry-description-upsert. */
+  pod-registry-description-upsert -> int
+      --fleet-id/uuid.Uuid
+      --organization-id/uuid.Uuid
       --name/string
       --description/string?:
-    return send_request_ COMMAND_POD_REGISTRY_DESCRIPTION_UPSERT_ {
-      "_fleet_id": "$fleet_id",
-      "_organization_id": "$organization_id",
+    return send-request_ COMMAND-POD-REGISTRY-DESCRIPTION-UPSERT_ {
+      "_fleet_id": "$fleet-id",
+      "_organization_id": "$organization-id",
       "_name": name,
       "_description": description,
     }
 
-  /** See $BrokerCli.pod_registry_descriptions_delete. */
-  pod_registry_descriptions_delete --fleet_id/uuid.Uuid --description_ids/List -> none:
-    send_request_ COMMAND_POD_REGISTRY_DELETE_DESCRIPTIONS_ {
-      "_fleet_id": "$fleet_id",
-      "_description_ids": description_ids,
+  /** See $BrokerCli.pod-registry-descriptions-delete. */
+  pod-registry-descriptions-delete --fleet-id/uuid.Uuid --description-ids/List -> none:
+    send-request_ COMMAND-POD-REGISTRY-DELETE-DESCRIPTIONS_ {
+      "_fleet_id": "$fleet-id",
+      "_description_ids": description-ids,
     }
 
-  /** See $BrokerCli.pod_registry_add. */
-  pod_registry_add -> none
-      --pod_description_id/int
-      --pod_id/uuid.Uuid:
-    send_request_ COMMAND_POD_REGISTRY_ADD_ {
-      "_pod_description_id": pod_description_id,
-      "_pod_id": "$pod_id",
+  /** See $BrokerCli.pod-registry-add. */
+  pod-registry-add -> none
+      --pod-description-id/int
+      --pod-id/uuid.Uuid:
+    send-request_ COMMAND-POD-REGISTRY-ADD_ {
+      "_pod_description_id": pod-description-id,
+      "_pod_id": "$pod-id",
     }
 
-  /** See $BrokerCli.pod_registry_delete. */
-  pod_registry_delete --fleet_id/uuid.Uuid --pod_ids/List -> none:
-    send_request_ COMMAND_POD_REGISTRY_DELETE_ {
-      "_fleet_id": "$fleet_id",
-      "_pod_ids": pod_ids.map: "$it",
+  /** See $BrokerCli.pod-registry-delete. */
+  pod-registry-delete --fleet-id/uuid.Uuid --pod-ids/List -> none:
+    send-request_ COMMAND-POD-REGISTRY-DELETE_ {
+      "_fleet_id": "$fleet-id",
+      "_pod_ids": pod-ids.map: "$it",
     }
 
-  /** See $BrokerCli.pod_registry_tag_set. */
-  pod_registry_tag_set -> none
-      --pod_description_id/int
-      --pod_id/uuid.Uuid
+  /** See $BrokerCli.pod-registry-tag-set. */
+  pod-registry-tag-set -> none
+      --pod-description-id/int
+      --pod-id/uuid.Uuid
       --tag/string
       --force/bool=false:
-    send_request_ COMMAND_POD_REGISTRY_TAG_SET_ {
-      "_pod_description_id": pod_description_id,
-      "_pod_id": "$pod_id",
+    send-request_ COMMAND-POD-REGISTRY-TAG-SET_ {
+      "_pod_description_id": pod-description-id,
+      "_pod_id": "$pod-id",
       "_tag": tag,
       "_force": force,
     }
 
-  /** See $BrokerCli.pod_registry_tag_remove. */
-  pod_registry_tag_remove -> none
-      --pod_description_id/int
+  /** See $BrokerCli.pod-registry-tag-remove. */
+  pod-registry-tag-remove -> none
+      --pod-description-id/int
       --tag/string:
-    send_request_ COMMAND_POD_REGISTRY_TAG_REMOVE_ {
-      "_pod_description_id": pod_description_id,
+    send-request_ COMMAND-POD-REGISTRY-TAG-REMOVE_ {
+      "_pod_description_id": pod-description-id,
       "_tag": tag,
     }
 
-  /** See $BrokerCli.pod_registry_descriptions. */
-  pod_registry_descriptions --fleet_id/uuid.Uuid -> List:
-    response := send_request_ COMMAND_POD_REGISTRY_DESCRIPTIONS_ {
-      "_fleet_id": "$fleet_id",
+  /** See $BrokerCli.pod-registry-descriptions. */
+  pod-registry-descriptions --fleet-id/uuid.Uuid -> List:
+    response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS_ {
+      "_fleet_id": "$fleet-id",
     }
-    return response.map: PodRegistryDescription.from_map it
+    return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod_registry_descriptions --ids). */
-  pod_registry_descriptions --ids/List -> List:
-    response := send_request_ COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_IDS_ {
+  /** See $(BrokerCli.pod-registry-descriptions --ids). */
+  pod-registry-descriptions --ids/List -> List:
+    response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-IDS_ {
       "_description_ids": ids,
     }
-    return response.map: PodRegistryDescription.from_map it
+    return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod_registry_descriptions --fleet_id --organization_id --names --create_if_absent). */
-  pod_registry_descriptions -> List
-      --fleet_id/uuid.Uuid
-      --organization_id/uuid.Uuid
+  /** See $(BrokerCli.pod-registry-descriptions --fleet-id --organization-id --names --create-if-absent). */
+  pod-registry-descriptions -> List
+      --fleet-id/uuid.Uuid
+      --organization-id/uuid.Uuid
       --names/List
-      --create_if_absent/bool:
-    response := send_request_ COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_NAMES_ {
-      "_fleet_id": "$fleet_id",
-      "_organization_id": "$organization_id",
+      --create-if-absent/bool:
+    response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-NAMES_ {
+      "_fleet_id": "$fleet-id",
+      "_organization_id": "$organization-id",
       "_names": names,
-      "_create_if_absent": create_if_absent,
+      "_create_if_absent": create-if-absent,
     }
-    return response.map: PodRegistryDescription.from_map it
+    return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod_registry_pods --pod_description_id). */
-  pod_registry_pods --pod_description_id/int -> List:
-    response := send_request_ COMMAND_POD_REGISTRY_PODS_ {
-      "_pod_description_id": pod_description_id,
+  /** See $(BrokerCli.pod-registry-pods --pod-description-id). */
+  pod-registry-pods --pod-description-id/int -> List:
+    response := send-request_ COMMAND-POD-REGISTRY-PODS_ {
+      "_pod_description_id": pod-description-id,
       "_limit": 1000,
       "_offset": 0,
     }
-    return response.map: PodRegistryEntry.from_map it
+    return response.map: PodRegistryEntry.from-map it
 
-  /** See $(BrokerCli.pod_registry_pods --fleet_id --pod_ids). */
-  pod_registry_pods --fleet_id/uuid.Uuid --pod_ids/List -> List:
-    response := send_request_ COMMAND_POD_REGISTRY_PODS_BY_IDS_ {
-      "_fleet_id": "$fleet_id",
-      "_pod_ids": (pod_ids.map: "$it"),
+  /** See $(BrokerCli.pod-registry-pods --fleet-id --pod-ids). */
+  pod-registry-pods --fleet-id/uuid.Uuid --pod-ids/List -> List:
+    response := send-request_ COMMAND-POD-REGISTRY-PODS-BY-IDS_ {
+      "_fleet_id": "$fleet-id",
+      "_pod_ids": (pod-ids.map: "$it"),
     }
-    return response.map: PodRegistryEntry.from_map it
+    return response.map: PodRegistryEntry.from-map it
 
-  /** See $BrokerCli.pod_registry_pod_ids. */
-  pod_registry_pod_ids --fleet_id/uuid.Uuid --references/List -> Map:
-    response := send_request_ COMMAND_POD_REGISTRY_POD_IDS_BY_REFERENCE_ {
-      "_fleet_id": "$fleet_id",
+  /** See $BrokerCli.pod-registry-pod-ids. */
+  pod-registry-pod-ids --fleet-id/uuid.Uuid --references/List -> Map:
+    response := send-request_ COMMAND-POD-REGISTRY-POD-IDS-BY-REFERENCE_ {
+      "_fleet_id": "$fleet-id",
       "_references": references.map: | reference/PodReference |
         ref := {
           "name": reference.name,
@@ -309,42 +309,42 @@ class BrokerCliHttp implements BrokerCli:
     }
     result := {:}
     response.do: | it/Map |
-      pod_id := uuid.parse it["pod_id"]
+      pod-id := uuid.parse it["pod_id"]
       reference := PodReference
           --name=it["name"]
           --tag=it.get "tag"
           --revision=it.get "revision"
-      result[reference] = pod_id
+      result[reference] = pod-id
     return result
 
-  /** See $BrokerCli.pod_registry_upload_pod_part. */
-  pod_registry_upload_pod_part -> none
-      --organization_id/uuid.Uuid
-      --part_id/string
+  /** See $BrokerCli.pod-registry-upload-pod-part. */
+  pod-registry-upload-pod-part -> none
+      --organization-id/uuid.Uuid
+      --part-id/string
       content/ByteArray:
-    send_request_ COMMAND_UPLOAD_ {
-      "path": "/toit-artemis-pods/$organization_id/part/$part_id",
+    send-request_ COMMAND-UPLOAD_ {
+      "path": "/toit-artemis-pods/$organization-id/part/$part-id",
       "content": content,
     }
 
-  /** See $BrokerCli.pod_registry_download_pod_part. */
-  pod_registry_download_pod_part part_id/string --organization_id/uuid.Uuid -> ByteArray:
-    return send_request_ COMMAND_DOWNLOAD_PRIVATE_ {
-      "path": "/toit-artemis-pods/$organization_id/part/$part_id",
+  /** See $BrokerCli.pod-registry-download-pod-part. */
+  pod-registry-download-pod-part part-id/string --organization-id/uuid.Uuid -> ByteArray:
+    return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
+      "path": "/toit-artemis-pods/$organization-id/part/$part-id",
     }
 
-  /** See $BrokerCli.pod_registry_upload_pod_manifest. */
-  pod_registry_upload_pod_manifest -> none
-      --organization_id/uuid.Uuid
-      --pod_id/uuid.Uuid
+  /** See $BrokerCli.pod-registry-upload-pod-manifest. */
+  pod-registry-upload-pod-manifest -> none
+      --organization-id/uuid.Uuid
+      --pod-id/uuid.Uuid
       content/ByteArray:
-    send_request_ COMMAND_UPLOAD_ {
-      "path": "/toit-artemis-pods/$organization_id/manifest/$pod_id",
+    send-request_ COMMAND-UPLOAD_ {
+      "path": "/toit-artemis-pods/$organization-id/manifest/$pod-id",
       "content": content,
     }
 
-  /** See $BrokerCli.pod_registry_download_pod_manifest. */
-  pod_registry_download_pod_manifest --organization_id/uuid.Uuid --pod_id/uuid.Uuid -> ByteArray:
-    return send_request_ COMMAND_DOWNLOAD_PRIVATE_ {
-      "path": "/toit-artemis-pods/$organization_id/manifest/$pod_id",
+  /** See $BrokerCli.pod-registry-download-pod-manifest. */
+  pod-registry-download-pod-manifest --organization-id/uuid.Uuid --pod-id/uuid.Uuid -> ByteArray:
+    return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
+      "path": "/toit-artemis-pods/$organization-id/manifest/$pod-id",
     }

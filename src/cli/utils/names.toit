@@ -4,8 +4,8 @@ import uuid
 import crypto.crc
 import .utils
 
-random_name --uuid/uuid.Uuid=random_uuid -> string:
-  bytes := uuid.to_byte_array
+random-name --uuid/uuid.Uuid=random-uuid -> string:
+  bytes := uuid.to-byte-array
   cutoff := bytes.size / 2
   adjective := ADJECTIVES[(crc.crc32 bytes[..cutoff]) % ADJECTIVES.size]
   noun := NOUNS[(crc.crc32 bytes[cutoff..]) % NOUNS.size]

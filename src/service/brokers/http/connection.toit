@@ -7,23 +7,23 @@ import net
 import net.x509
 import reader show Reader
 import system.storage
-import ....shared.server_config show ServerConfigHttp
+import ....shared.server-config show ServerConfigHttp
 
 class HttpConnection_:
   client_/http.Client? := ?
   config_/ServerConfigHttp
 
   constructor network/net.Interface .config_:
-    if config_.root_certificate_ders:
-      root_certificates := config_.root_certificate_ders.map:
+    if config_.root-certificate-ders:
+      root-certificates := config_.root-certificate-ders.map:
         x509.Certificate.parse it
       client_ = http.Client.tls network
-          --root_certificates=root_certificates
-          --security_store=HttpSecurityStore_
+          --root-certificates=root-certificates
+          --security-store=HttpSecurityStore_
     else:
       client_ = http.Client network
 
-  is_closed -> bool:
+  is-closed -> bool:
     return client_ == null
 
   close:
@@ -31,35 +31,35 @@ class HttpConnection_:
     client_.close
     client_ = null
 
-  send_request command/int data/Map -> any:
-    send_request command data: | reader/Reader |
-      return json.decode_stream reader
+  send-request command/int data/Map -> any:
+    send-request command data: | reader/Reader |
+      return json.decode-stream reader
     unreachable
 
-  send_request command/int data/Map --expected_status/int?=null [block] -> none:
+  send-request command/int data/Map --expected-status/int?=null [block] -> none:
     encoded := #[command] + (json.encode data)
-    request_headers/http.Headers? := null
-    if config_.device_headers:
-      request_headers = http.Headers
-      config_.device_headers.do: | key value |
-        request_headers.add key value
+    request-headers/http.Headers? := null
+    if config_.device-headers:
+      request-headers = http.Headers
+      config_.device-headers.do: | key value |
+        request-headers.add key value
 
     response := client_.post encoded
         --host=config_.host
         --port=config_.port
         --path=config_.path
-        --headers=request_headers
+        --headers=request-headers
     body := response.body
-    status := response.status_code
+    status := response.status-code
 
-    if status == http.STATUS_IM_A_TEAPOT:
-      decoded := json.decode_stream body
+    if status == http.STATUS-IM-A-TEAPOT:
+      decoded := json.decode-stream body
       throw "Broker error: $decoded"
 
     try:
-      if expected_status and expected_status != status:
+      if expected-status and expected-status != status:
         throw "Unexpected status: $status"
-      if status == http.STATUS_NOT_FOUND: throw "Not found"
+      if status == http.STATUS-NOT-FOUND: throw "Not found"
       if not 200 <= status < 300: throw "Unexpected status: $status"
       block.call body
     finally:
@@ -71,13 +71,13 @@ class HttpSecurityStore_ extends http.SecurityStore:
   // update will clear it.
   static bucket ::= storage.Bucket.open --ram "toit.io/artemis/tls"
 
-  store_session_data host/string port/int data/ByteArray -> none:
+  store-session-data host/string port/int data/ByteArray -> none:
     bucket[key_ host port] = data
 
-  delete_session_data host/string port/int -> none:
+  delete-session-data host/string port/int -> none:
     bucket.remove (key_ host port)
 
-  retrieve_session_data host/string port/int -> ByteArray?:
+  retrieve-session-data host/string port/int -> ByteArray?:
     return bucket.get (key_ host port)
 
   key_ host/string port/int -> string:

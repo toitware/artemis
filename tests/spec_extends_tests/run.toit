@@ -1,8 +1,8 @@
 // Copyright (C) 2023 Toitware ApS.
 
-import artemis.cli.pod_specification show PodSpecification PodSpecificationException
-import artemis.cli.utils show read_json write_json_to_file write_blob_to_file
-import artemis.shared.json_diff show json_equals
+import artemis.cli.pod-specification show PodSpecification PodSpecificationException
+import artemis.cli.utils show read-json write-json-to-file write-blob-to-file
+import artemis.shared.json-diff show json-equals
 
 import expect show *
 
@@ -10,44 +10,44 @@ import host.file
 import host.os
 
 main args:
-  arg_index := 0
-  test := args[arg_index++]
-  expected := args[arg_index++]
-  fail := args[arg_index++]
+  arg-index := 0
+  test := args[arg-index++]
+  expected := args[arg-index++]
+  fail := args[arg-index++]
 
-  should_update := os.env.contains "UPDATE_GOLD"
+  should-update := os.env.contains "UPDATE_GOLD"
 
-  if file.is_file expected:
-    run_test test expected --should_update=should_update
-  else if file.is_file fail:
-    run_negative_test test fail --should_update=should_update
+  if file.is-file expected:
+    run-test test expected --should-update=should-update
+  else if file.is-file fail:
+    run-negative-test test fail --should-update=should-update
   else:
     throw "Expected-file or fail-file not found"
 
-run_test test/string expected_path/string --should_update/bool:
-  actual_json := PodSpecification.parse_json_hierarchy test
-  if should_update:
-    write_json_to_file --pretty expected_path actual_json
+run-test test/string expected-path/string --should-update/bool:
+  actual-json := PodSpecification.parse-json-hierarchy test
+  if should-update:
+    write-json-to-file --pretty expected-path actual-json
     return
 
-  expected_json := read_json expected_path
-  expect (json_equals expected_json actual_json)
+  expected-json := read-json expected-path
+  expect (json-equals expected-json actual-json)
 
-run_negative_test test/string fail_path/string --should_update/bool:
+run-negative-test test/string fail-path/string --should-update/bool:
   exception := catch:
-    PodSpecification.parse_json_hierarchy test
-  expect_not_null exception
-  actual_message := (exception as PodSpecificationException).message
-  actual_message = actual_message.replace --all "\r\n" "\n"
+    PodSpecification.parse-json-hierarchy test
+  expect-not-null exception
+  actual-message := (exception as PodSpecificationException).message
+  actual-message = actual-message.replace --all "\r\n" "\n"
 
-  if should_update:
-    write_blob_to_file fail_path actual_message
+  if should-update:
+    write-blob-to-file fail-path actual-message
     return
 
-  actual_message = actual_message.trim
+  actual-message = actual-message.trim
 
   expect exception is PodSpecificationException
-  expected_message := (file.read_content fail_path).to_string
-  expected_message = expected_message.replace --all "\r\n" "\n"
-  expected_message = expected_message.trim
-  expect_equals expected_message actual_message
+  expected-message := (file.read-content fail-path).to-string
+  expected-message = expected-message.replace --all "\r\n" "\n"
+  expected-message = expected-message.trim
+  expect-equals expected-message actual-message

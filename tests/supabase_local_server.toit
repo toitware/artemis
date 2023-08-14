@@ -4,50 +4,50 @@ import encoding.json
 import host.pipe
 import host.os
 import host.directory
-import artemis.shared.server_config show ServerConfigSupabase
-import ..tools.lan_ip.lan_ip
+import artemis.shared.server-config show ServerConfigSupabase
+import ..tools.lan-ip.lan-ip
 
-SUPABASE_BROKER  ::= "../supabase_broker"
-SUPABASE_ARTEMIS ::= "../supabase_artemis"
+SUPABASE-BROKER  ::= "../supabase_broker"
+SUPABASE-ARTEMIS ::= "../supabase_artemis"
 
-get_supabase_config --sub_directory/string -> ServerConfigSupabase:
-  anon_key/string? := null
-  api_url/string? := null
+get-supabase-config --sub-directory/string -> ServerConfigSupabase:
+  anon-key/string? := null
+  api-url/string? := null
 
-  out := get_status_ sub_directory
+  out := get-status_ sub-directory
   lines := out.split "\n"
-  lines.map --in_place: it.trim
+  lines.map --in-place: it.trim
   lines.do:
-    if it.starts_with "anon key:":
-      anon_key = it[(it.index_of ":") + 1..].trim
-    else if it.starts_with "API URL:":
-      api_url = it[(it.index_of ":") + 1..].trim
+    if it.starts-with "anon key:":
+      anon-key = it[(it.index-of ":") + 1..].trim
+    else if it.starts-with "API URL:":
+      api-url = it[(it.index-of ":") + 1..].trim
 
-  if not anon_key or not api_url:
+  if not anon-key or not api-url:
     throw "Could not get supabase info"
 
-  host := api_url.trim --left "http://"
-  print_on_stderr_ "HOST: $host ANON_KEY: $anon_key"
-  name := sub_directory.trim --left "../"
+  host := api-url.trim --left "http://"
+  print-on-stderr_ "HOST: $host ANON_KEY: $anon-key"
+  name := sub-directory.trim --left "../"
 
-  if platform != PLATFORM_WINDOWS:
-    lan_ip := get_lan_ip
-    host = host.replace "localhost" lan_ip
+  if platform != PLATFORM-WINDOWS:
+    lan-ip := get-lan-ip
+    host = host.replace "localhost" lan-ip
 
-  return ServerConfigSupabase name --host=host --anon=anon_key
+  return ServerConfigSupabase name --host=host --anon=anon-key
 
-get_supabase_service_key --sub_directory/string -> string:
-  out := get_status_ sub_directory
+get-supabase-service-key --sub-directory/string -> string:
+  out := get-status_ sub-directory
   lines := out.split "\n"
-  lines.map --in_place: it.trim
+  lines.map --in-place: it.trim
   lines.do:
-    if it.starts_with "service_role key:":
-      return it[(it.index_of ":") + 1..].trim
+    if it.starts-with "service_role key:":
+      return it[(it.index-of ":") + 1..].trim
   unreachable
 
-get_status_ sub_directory/string -> string:
-  supabase_exe := os.env.get "SUPABASE_EXE" or "supabase"
-  return pipe.backticks supabase_exe "--workdir" "$sub_directory" "status"
+get-status_ sub-directory/string -> string:
+  supabase-exe := os.env.get "SUPABASE_EXE" or "supabase"
+  return pipe.backticks supabase-exe "--workdir" "$sub-directory" "status"
 
 // Prints the arguments needed for adding the local supabase service to the configuration.
 main args:
@@ -55,7 +55,7 @@ main args:
     print "Usage: supabase_local_server.toit <supabase_directory>"
     exit 1
 
-  sub_directory := args[0]
-  config := get_supabase_config --sub_directory=sub_directory
+  sub-directory := args[0]
+  config := get-supabase-config --sub-directory=sub-directory
 
   print "$config.host $config.anon"

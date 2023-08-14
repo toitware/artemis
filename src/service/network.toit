@@ -15,51 +15,51 @@ import .device
 // The Artemis network manager is implemented as a network. The
 // network it provides is tagged so we can avoid finding it when
 // looking for the default network service.
-TAG_ARTEMIS_NETWORK ::= "artemis"
+TAG-ARTEMIS-NETWORK ::= "artemis"
 
-DEFAULT_NETWORK_SELECTOR ::=
-    NetworkService.SELECTOR.restrict.deny --tag=TAG_ARTEMIS_NETWORK
-default_network_service_/NetworkServiceClient? ::=
-    (NetworkServiceClient DEFAULT_NETWORK_SELECTOR).open --if_absent=: null
+DEFAULT-NETWORK-SELECTOR ::=
+    NetworkService.SELECTOR.restrict.deny --tag=TAG-ARTEMIS-NETWORK
+default-network-service_/NetworkServiceClient? ::=
+    (NetworkServiceClient DEFAULT-NETWORK-SELECTOR).open --if-absent=: null
 
 class NetworkManager extends ProxyingNetworkServiceProvider:
-  static QUARANTINE_NO_DATA    ::= Duration --m=10
-  static QUARANTINE_NO_NETWORK ::= Duration --m=1
+  static QUARANTINE-NO-DATA    ::= Duration --m=10
+  static QUARANTINE-NO-NETWORK ::= Duration --m=1
 
   logger_/log.Logger
   device_/Device
-  proxy_mask_/int? := null
+  proxy-mask_/int? := null
   connections_/Map
 
   constructor logger/log.Logger .device_:
-    logger_ = logger.with_name "network"
+    logger_ = logger.with-name "network"
     connections_ = Connection.map device_ --logger=logger_
     super "artemis/network" --major=0 --minor=1
     provides NetworkService.SELECTOR
         --handler=this
-        --priority=ServiceProvider.PRIORITY_PREFERRED_STRONGLY
-        --tags=[TAG_ARTEMIS_NETWORK]
+        --priority=ServiceProvider.PRIORITY-PREFERRED-STRONGLY
+        --tags=[TAG-ARTEMIS-NETWORK]
 
-  proxy_mask -> int:
-    return proxy_mask_
+  proxy-mask -> int:
+    return proxy-mask_
 
   quarantine name/string -> none:
     connection/Connection? := connections_.get name
-    if connection: connection.quarantine QUARANTINE_NO_DATA
+    if connection: connection.quarantine QUARANTINE-NO-DATA
 
-  open_network -> net.Interface:
-    if connections_.is_empty: return open_system_network_
+  open-network -> net.Interface:
+    if connections_.is-empty: return open-system-network_
     connections_.do --values: | connection/Connection |
-      if connection.is_quarantined: continue.do
-      network/net.Client? := open_network_ connection
+      if connection.is-quarantined: continue.do
+      network/net.Client? := open-network_ connection
       if network:
-        proxy_mask_ = network.proxy_mask
+        proxy-mask_ = network.proxy-mask
         logger_.info "opened" --tags={"connection": network.name}
         return network
-      connection.quarantine QUARANTINE_NO_NETWORK
+      connection.quarantine QUARANTINE-NO-NETWORK
     throw "CONNECT_FAILED: no available networks"
 
-  open_network_ connection/Connection -> net.Client?:
+  open-network_ connection/Connection -> net.Client?:
     network/net.Client? := null
     exception := catch: network = connection.open
     if not network:
@@ -69,45 +69,45 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
       }
     return network
 
-  open_system_network_ -> net.Interface:
+  open-system-network_ -> net.Interface:
     // It isn't entirely clear if we need this fallback where use
     // the default network provided by the system. For now, it feels
     // like it is worth having here if we end up running on a base
     // firmware image that has some embedded network configuration.
-    network := net.open --name="system" --service=default_network_service_
-    proxy_mask_ = network.proxy_mask
+    network := net.open --name="system" --service=default-network-service_
+    proxy-mask_ = network.proxy-mask
     logger_.info "opened" --tags={"connection": network.name}
     return network
 
-  close_network network/net.Interface -> none:
-    proxy_mask_ = null
+  close-network network/net.Interface -> none:
+    proxy-mask_ = null
     network.close
     logger_.info "closed" --tags={"connection": network.name}
 
 abstract class Connection:
   description_/Map
   index/int
-  quarantined_until_/int? := null
+  quarantined-until_/int? := null
   constructor .index .description_:
 
   abstract name -> string
   abstract open -> net.Client
 
-  is_quarantined -> bool:
-    end := quarantined_until_
+  is-quarantined -> bool:
+    end := quarantined-until_
     if not end: return false
-    if Time.monotonic_us < end: return true
-    quarantined_until_ = null
+    if Time.monotonic-us < end: return true
+    quarantined-until_ = null
     return false
 
   quarantine duration/Duration -> none:
-    current := quarantined_until_
-    proposed := Time.monotonic_us + duration.in_us
-    quarantined_until_ = current ? (max current proposed) : proposed
+    current := quarantined-until_
+    proposed := Time.monotonic-us + duration.in-us
+    quarantined-until_ = current ? (max current proposed) : proposed
 
   static map device/Device --logger/log.Logger -> Map:
     result := {:}
-    connections := device.current_state.get "connections" --if_absent=: []
+    connections := device.current-state.get "connections" --if-absent=: []
     connections.size.repeat: | index/int |
       description/Map := connections[index]
       connection/Connection? := null

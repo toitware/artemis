@@ -12,8 +12,8 @@ class ContainerCurrent implements artemis.Container:
     client_ = client
 
   restart --delay/Duration?=null -> none:
-    wakeup_us := delay and Time.monotonic_us + delay.in_us
-    client_.container_current_restart --wakeup_us=wakeup_us
+    wakeup-us := delay and Time.monotonic-us + delay.in-us
+    client_.container-current-restart --wakeup-us=wakeup-us
     // The container is restarted, so we don't not
     // return here.
     unreachable

@@ -7,46 +7,46 @@ import semver
 import ..config
 import ..cache
 import ..fleet
-import ..server_config
+import ..server-config
 import ..ui
-import ..artemis_servers.artemis_server show with_server ArtemisServerCli
+import ..artemis-servers.artemis-server show with-server ArtemisServerCli
 import .utils_
 
-create_sdk_commands config/Config cache/Cache ui/Ui -> List:
-  sdk_cmd := cli.Command "sdk"
-      --short_help="Information about supported SDKs."
+create-sdk-commands config/Config cache/Cache ui/Ui -> List:
+  sdk-cmd := cli.Command "sdk"
+      --short-help="Information about supported SDKs."
       --options=[
-        cli.Option "server" --hidden --short_help="The server to use.",
+        cli.Option "server" --hidden --short-help="The server to use.",
       ]
 
-  list_cmd := cli.Command "list"
-      --short_help="List supported SDKs."
+  list-cmd := cli.Command "list"
+      --short-help="List supported SDKs."
       --options=[
-        cli.Option "sdk-version" --short_help="The SDK version to list.",
-        cli.Option "service-version" --short_help="The service version to list.",
+        cli.Option "sdk-version" --short-help="The SDK version to list.",
+        cli.Option "service-version" --short-help="The service version to list.",
       ]
-      --run=:: list_sdks it config cache ui
-  sdk_cmd.add list_cmd
+      --run=:: list-sdks it config cache ui
+  sdk-cmd.add list-cmd
 
-  return [sdk_cmd]
+  return [sdk-cmd]
 
-list_sdks parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  sdk_version := parsed["sdk-version"]
-  service_version := parsed["service-version"]
+list-sdks parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  sdk-version := parsed["sdk-version"]
+  service-version := parsed["service-version"]
 
-  with_fleet parsed config cache ui: | fleet/Fleet |
+  with-fleet parsed config cache ui: | fleet/Fleet |
     artemis := fleet.artemis_
-    versions/List := artemis.connected_artemis_server.list_sdk_service_versions
-        --organization_id=fleet.organization_id
-        --sdk_version=sdk_version
-        --service_version=service_version
+    versions/List := artemis.connected-artemis-server.list-sdk-service-versions
+        --organization-id=fleet.organization-id
+        --sdk-version=sdk-version
+        --service-version=service-version
 
-    versions.sort --in_place: | a/Map b/Map |
-      semver.compare a["sdk_version"] b["sdk_version"] --if_equal=:
-        semver.compare a["service_version"] b["service_version"] --if_equal=:
+    versions.sort --in-place: | a/Map b/Map |
+      semver.compare a["sdk_version"] b["sdk_version"] --if-equal=:
+        semver.compare a["service_version"] b["service_version"] --if-equal=:
           // As a last effort compare the strings directly.
           // This also includes the build metadata, which is ignored for semver comparisons.
-          "$a["sdk_version"]-$a["service_version"]".compare_to "$b["sdk_version"]-$b["service_version"]"
+          "$a["sdk_version"]-$a["service_version"]".compare-to "$b["sdk_version"]-$b["service_version"]"
 
     output := versions.map: {
       "sdk-version": it["sdk_version"],

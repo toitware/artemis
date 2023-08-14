@@ -10,24 +10,24 @@ import cli
 import uuid
 import .utils_
 
-extract_uuid --path/string -> string:
-  if not file.is_file path:
+extract-uuid --path/string -> string:
+  if not file.is-file path:
     throw "Snapshot file not found: $path"
-  bytes := file.read_content path
-  return extract_uuid bytes
+  bytes := file.read-content path
+  return extract-uuid bytes
 
-extract_uuid snapshot_bytes/ByteArray -> string:
-  ar_reader := ar.ArReader.from_bytes snapshot_bytes
-  ar_file := ar_reader.find "uuid"
-  if not ar_file: throw "No uuid file in snapshot"
-  return (uuid.Uuid (ar_file.content)).stringify
+extract-uuid snapshot-bytes/ByteArray -> string:
+  ar-reader := ar.ArReader.from-bytes snapshot-bytes
+  ar-file := ar-reader.find "uuid"
+  if not ar-file: throw "No uuid file in snapshot"
+  return (uuid.Uuid (ar-file.content)).stringify
 
-cached_snapshot_path_ uuid/string --output_directory/string? -> string:
-  if output_directory:
-    return "$output_directory/$(uuid).snapshot"
+cached-snapshot-path_ uuid/string --output-directory/string? -> string:
+  if output-directory:
+    return "$output-directory/$(uuid).snapshot"
   else:
-    cache_home := xdg.cache_home
-    return "$cache_home/jaguar/snapshots/$(uuid).snapshot"
+    cache-home := xdg.cache-home
+    return "$cache-home/jaguar/snapshots/$(uuid).snapshot"
 
 /**
 Stores the given $snapshot in the user's snapshot directory.
@@ -36,14 +36,14 @@ This way, the monitor can find it and automatically decode stack traces.
 
 Returns the UUID of the snapshot.
 */
-cache_snapshot snapshot/ByteArray --output_directory/string?=null -> string:
-  ar_reader := ar.ArReader.from_bytes snapshot
-  ar_file := ar_reader.find "uuid"
-  if not ar_file: throw "No uuid file in snapshot"
-  uuid := (uuid.Uuid (ar_file.content)).stringify
-  out_path := cached_snapshot_path_ uuid --output_directory=output_directory
-  dir_path := fs.dirname out_path
-  if not file.is_directory dir_path:
-    directory.mkdir --recursive dir_path
-  write_blob_to_file out_path snapshot
+cache-snapshot snapshot/ByteArray --output-directory/string?=null -> string:
+  ar-reader := ar.ArReader.from-bytes snapshot
+  ar-file := ar-reader.find "uuid"
+  if not ar-file: throw "No uuid file in snapshot"
+  uuid := (uuid.Uuid (ar-file.content)).stringify
+  out-path := cached-snapshot-path_ uuid --output-directory=output-directory
+  dir-path := fs.dirname out-path
+  if not file.is-directory dir-path:
+    directory.mkdir --recursive dir-path
+  write-blob-to-file out-path snapshot
   return uuid

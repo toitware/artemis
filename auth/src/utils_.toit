@@ -6,29 +6,29 @@ import encoding.url
 import http
 import net
 
-with_http_client network/net.Client?=null --root_certificates/List [block]:
-  network_needs_close := false
+with-http-client network/net.Client?=null --root-certificates/List [block]:
+  network-needs-close := false
   if not network:
     network = net.open
-    network_needs_close = true
+    network-needs-close = true
 
   client/http.Client? := null
   try:
-    if root_certificates and not root_certificates.is_empty:
-      client = http.Client.tls network --root_certificates=root_certificates
+    if root-certificates and not root-certificates.is-empty:
+      client = http.Client.tls network --root-certificates=root-certificates
     else:
       client = http.Client network
 
     block.call client
   finally:
     if client: client.close
-    if network_needs_close: network.close
+    if network-needs-close: network.close
 
-build_url_encoded_query_parameters parameters/Map -> string:
-  query_parameters := []
+build-url-encoded-query-parameters parameters/Map -> string:
+  query-parameters := []
 
   add := : | key value |
-    query_parameters.add "$(url.encode key)=$(url.encode value)"
+    query-parameters.add "$(url.encode key)=$(url.encode value)"
 
   parameters.do: | key value |
     if value is List:
@@ -36,4 +36,4 @@ build_url_encoded_query_parameters parameters/Map -> string:
         add.call key item
     else:
       add.call key value
-  return query_parameters.join "&"
+  return query-parameters.join "&"

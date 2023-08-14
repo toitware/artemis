@@ -8,7 +8,7 @@ import uuid
 import system.containers
 
 import .jobs
-import .esp32.pin_trigger
+import .esp32.pin-trigger
 import .scheduler
 import ..shared.utils as utils
 
@@ -19,25 +19,25 @@ class ContainerManager:
 
   jobs_ ::= {:}           // Map<string, ContainerJob>
   images_ ::= {}          // Set<uuid.Uuid>
-  images_bundled_ ::= {}  // Set<uuid.Uuid>
-  pin_trigger_manager_/PinTriggerManager ::= ?
+  images-bundled_ ::= {}  // Set<uuid.Uuid>
+  pin-trigger-manager_/PinTriggerManager ::= ?
 
   constructor logger/log.Logger .scheduler_:
-    logger_ = logger.with_name "containers"
-    pin_trigger_manager_ = PinTriggerManager scheduler_ logger_
+    logger_ = logger.with-name "containers"
+    pin-trigger-manager_ = PinTriggerManager scheduler_ logger_
     containers.images.do: | image/containers.ContainerImage |
       images_.add image.id
       // TODO(kasper): It feels like a bit of a hack to determine
       // if an installed container image is bundled based on
       // whether or not it has a name.
-      is_bundled := image.name != null
-      if is_bundled: images_bundled_.add image.id
+      is-bundled := image.name != null
+      if is-bundled: images-bundled_.add image.id
 
   load state/Map -> none:
-    apps := state.get "apps" --if_absent=: return
+    apps := state.get "apps" --if-absent=: return
     apps.do: | name description |
       id/uuid.Uuid? := null
-      catch: id = uuid.parse (description.get ContainerJob.KEY_ID)
+      catch: id = uuid.parse (description.get ContainerJob.KEY-ID)
       if not id: continue.do
       job := create --name=name --id=id --description=description
       // TODO(kasper): We should be able to find all container
@@ -53,14 +53,14 @@ class ContainerManager:
     connections.do: | connection/Map |
       requires/List? := connection.get "requires"
       if requires:
-        requires.do: | required_name/string |
-          job := get --name=required_name
-          if job: job.runlevel_ = Job.RUNLEVEL_SAFE
+        requires.do: | required-name/string |
+          job := get --name=required-name
+          if job: job.runlevel_ = Job.RUNLEVEL-SAFE
 
-    pin_trigger_manager_.start jobs_.values
+    pin-trigger-manager_.start jobs_.values
 
-  setup_deep_sleep_triggers:
-    pin_trigger_manager_.prepare_deep_sleep jobs_.values
+  setup-deep-sleep-triggers:
+    pin-trigger-manager_.prepare-deep-sleep jobs_.values
 
   get --name/string -> ContainerJob?:
     return jobs_.get name
@@ -83,7 +83,7 @@ class ContainerManager:
         while data := reader.read: writer.write data
       else:
         logger_.warn "image download with unknown size" --tags={"id": id}
-        data := utils.read_all reader
+        data := utils.read-all reader
         writer = containers.ContainerImageWriter data.size
         writer.write data
       image := writer.commit
@@ -96,10 +96,10 @@ class ContainerManager:
         --name=name
         --id=id
         --description=description
-        --pin_trigger_manager=pin_trigger_manager_
+        --pin-trigger-manager=pin-trigger-manager_
 
   install job/ContainerJob -> none:
-    job.has_run_after_install_ = false
+    job.has-run-after-install_ = false
     add_ job --message="install"
 
   uninstall job/ContainerJob -> none:
@@ -107,7 +107,7 @@ class ContainerManager:
     id := job.id
     // TODO(kasper): We could consider using reference counting
     // here instead of running through the jobs.
-    preserve := images_bundled_.contains id
+    preserve := images-bundled_.contains id
         or jobs_.any --values: it.id == id
     if preserve: return
     containers.uninstall job.id
@@ -115,69 +115,69 @@ class ContainerManager:
     logger_.info "image uninstalled" --tags={"id": id}
 
   update job/ContainerJob description/Map -> none:
-    scheduler_.remove_job job
+    scheduler_.remove-job job
     job.update description
-    pin_trigger_manager_.update_job job
+    pin-trigger-manager_.update-job job
     // After updating the description of an app, we
     // mark it as being newly installed for the purposes
     // of scheduling. This means that it will start
     // again if it has an install trigger.
-    job.has_run_after_install_ = false
+    job.has-run-after-install_ = false
     logger_.info "update" --tags=job.tags
-    scheduler_.add_job job
+    scheduler_.add-job job
 
   add_ job/ContainerJob --message/string -> none:
     jobs_[job.name] = job
-    scheduler_.add_job job
+    scheduler_.add-job job
     logger_.info message --tags=job.tags
 
   remove_ job/ContainerJob --message/string -> none:
     jobs_.remove job.name
-    scheduler_.remove_job job
+    scheduler_.remove-job job
     logger_.info message --tags=job.tags
 
 class ContainerJob extends Job:
   // The key of the ID in the $description.
-  static KEY_ID ::= "id"
+  static KEY-ID ::= "id"
 
-  pin_trigger_manager_/PinTriggerManager
+  pin-trigger-manager_/PinTriggerManager
 
   id/uuid.Uuid
   description_/Map := ?
   running_/containers.Container? := null
-  runlevel_/int := Job.RUNLEVEL_NORMAL
+  runlevel_/int := Job.RUNLEVEL-NORMAL
 
-  is_background_/bool := false
-  trigger_boot_/bool := false
-  trigger_install_/bool := false
-  trigger_interval_/Duration? := null
-  trigger_gpio_levels_/Map? := null
-  trigger_gpio_touch_/Set? := null
+  is-background_/bool := false
+  trigger-boot_/bool := false
+  trigger-install_/bool := false
+  trigger-interval_/Duration? := null
+  trigger-gpio-levels_/Map? := null
+  trigger-gpio-touch_/Set? := null
 
   // The $ContainerManager is responsible for scheduling
   // newly installed containers, so it manipulates this
   // field directly.
-  has_run_after_install_/bool := true
+  has-run-after-install_/bool := true
 
-  is_triggered_/bool := false
+  is-triggered_/bool := false
 
-  constructor --name/string --.id --description/Map --pin_trigger_manager/PinTriggerManager:
+  constructor --name/string --.id --description/Map --pin-trigger-manager/PinTriggerManager:
     description_ = description
-    pin_trigger_manager_ = pin_trigger_manager
+    pin-trigger-manager_ = pin-trigger-manager
     super name
     update description
 
   stringify -> string:
     return "container:$name"
 
-  is_running -> bool:
+  is-running -> bool:
     return running_ != null
 
-  is_background -> bool:
-    return is_background_
+  is-background -> bool:
+    return is-background_
 
-  is_critical -> bool:
-    return runlevel_ <= Job.RUNLEVEL_CRITICAL
+  is-critical -> bool:
+    return runlevel_ <= Job.RUNLEVEL-CRITICAL
 
   gid -> int?:
     running := running_
@@ -197,52 +197,52 @@ class ContainerJob extends Job:
     // precedence over all other triggers? Also, we
     // should probably think about how we want to access
     // the scheduler state here.
-    if delayed_until := scheduler_delayed_until_:
-      return delayed_until
-    else if is_critical:
+    if delayed-until := scheduler-delayed-until_:
+      return delayed-until
+    else if is-critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
       return now
-    else if trigger_boot_ and not has_run_after_boot:
+    else if trigger-boot_ and not has-run-after-boot:
       return now
-    else if trigger_install_ and not has_run_after_install_:
+    else if trigger-install_ and not has-run-after-install_:
       return now
-    else if trigger_interval_:
-      return last ? last + trigger_interval_ : now
-    else if is_triggered_:
+    else if trigger-interval_:
+      return last ? last + trigger-interval_ : now
+    else if is-triggered_:
       return now
     else:
       // TODO(kasper): Don't run at all. Maybe that isn't
       // a great default when you have no triggers?
       return null
 
-  schedule_tune last/JobTime -> JobTime:
+  schedule-tune last/JobTime -> JobTime:
     // If running the container took a long time, we tune the
     // schedule and postpone the next run by making it start
     // at the beginning of the next period instead of now.
-    return Job.schedule_tune_periodic last trigger_interval_
+    return Job.schedule-tune-periodic last trigger-interval_
 
   start -> none:
     if running_: return
     arguments := description_.get "arguments"
-    has_run_after_install_ = true
+    has-run-after-install_ = true
     running_ = containers.start id arguments
 
-    scheduler_.on_job_started this
-    running_.on_stopped::
+    scheduler_.on-job-started this
+    running_.on-stopped::
       running_ = null
-      is_triggered_ = false
-      pin_trigger_manager_.rearm_job this
-      scheduler_.on_job_stopped this
+      is-triggered_ = false
+      pin-trigger-manager_.rearm-job this
+      scheduler_.on-job-stopped this
 
   stop -> none:
     if not running_: return
     running_.stop  // Waits until the container has stopped.
 
-  restart --wakeup_us/int? -> none:
+  restart --wakeup-us/int? -> none:
     wakeup := JobTime.now
-    if wakeup_us: wakeup += Duration --us=(wakeup_us - Time.monotonic_us)
-    scheduler_.delay_job this --until=wakeup
+    if wakeup-us: wakeup += Duration --us=(wakeup-us - Time.monotonic-us)
+    scheduler_.delay-job this --until=wakeup
     // If restart was called from the container being restarted,
     // we're in the middle of doing an RPC call here. Stopping
     // the container will cause the RPC processing task doing
@@ -251,52 +251,52 @@ class ContainerJob extends Job:
     stop
 
   update description/Map -> none:
-    assert: not is_running
+    assert: not is-running
     description_ = description
-    is_background_ = description.contains "background"
+    is-background_ = description.contains "background"
 
-    runlevel_ = description.get "runlevel" --if_absent=: Job.RUNLEVEL_NORMAL
+    runlevel_ = description.get "runlevel" --if-absent=: Job.RUNLEVEL-NORMAL
 
     // TODO(florian): Remove updates of the runlevel_.
     // Update runlevel.
     if description.contains "critical":
-      runlevel_ = Job.RUNLEVEL_CRITICAL
+      runlevel_ = Job.RUNLEVEL-CRITICAL
 
     // Reset triggers.
-    trigger_boot_ = false
-    trigger_install_ = false
-    trigger_interval_ = null
-    trigger_gpio_levels_ = null
-    trigger_gpio_touch_ = null
+    trigger-boot_ = false
+    trigger-install_ = false
+    trigger-interval_ = null
+    trigger-gpio-levels_ = null
+    trigger-gpio-touch_ = null
 
     // Update triggers unless we're a critical container.
-    if is_critical: return
-    description_.get "triggers" --if_present=: | triggers/Map |
+    if is-critical: return
+    description_.get "triggers" --if-present=: | triggers/Map |
       triggers.do: | name/string value |
-        if name == "boot": trigger_boot_ = true
-        if name == "install": trigger_install_ = true
-        if name == "interval": trigger_interval_ = (Duration --s=value)
-        if name.starts_with "gpio-high:":
-          if not trigger_gpio_levels_: trigger_gpio_levels_ = {:}
-          trigger_gpio_levels_[value] = 1
-        if name.starts_with "gpio-low:":
-          if not trigger_gpio_levels_: trigger_gpio_levels_ = {:}
-          trigger_gpio_levels_[value] = 0
-        if name.starts_with "gpio-touch:":
-          if not trigger_gpio_touch_: trigger_gpio_touch_ = {}
-          trigger_gpio_touch_.add value
+        if name == "boot": trigger-boot_ = true
+        if name == "install": trigger-install_ = true
+        if name == "interval": trigger-interval_ = (Duration --s=value)
+        if name.starts-with "gpio-high:":
+          if not trigger-gpio-levels_: trigger-gpio-levels_ = {:}
+          trigger-gpio-levels_[value] = 1
+        if name.starts-with "gpio-low:":
+          if not trigger-gpio-levels_: trigger-gpio-levels_ = {:}
+          trigger-gpio-levels_[value] = 0
+        if name.starts-with "gpio-touch:":
+          if not trigger-gpio-touch_: trigger-gpio-touch_ = {}
+          trigger-gpio-touch_.add value
 
-  has_gpio_pin_triggers -> bool:
-    return trigger_gpio_levels_ != null
+  has-gpio-pin-triggers -> bool:
+    return trigger-gpio-levels_ != null
 
-  has_touch_triggers -> bool:
-    return trigger_gpio_touch_ != null
+  has-touch-triggers -> bool:
+    return trigger-gpio-touch_ != null
 
-  has_pin_triggers -> bool:
-    return has_gpio_pin_triggers or trigger_gpio_touch_ != null
+  has-pin-triggers -> bool:
+    return has-gpio-pin-triggers or trigger-gpio-touch_ != null
 
-  has_pin_trigger pin/int --level/int -> bool:
-    return has_gpio_pin_triggers and (trigger_gpio_levels_.get pin) == level
+  has-pin-trigger pin/int --level/int -> bool:
+    return has-gpio-pin-triggers and (trigger-gpio-levels_.get pin) == level
 
-  has_touch_trigger pin/int -> bool:
-    return has_touch_triggers and trigger_gpio_touch_.contains pin
+  has-touch-trigger pin/int -> bool:
+    return has-touch-triggers and trigger-gpio-touch_.contains pin

@@ -19,9 +19,9 @@ import .cmds.serial
 
 import ..shared.version
 
-create_ui_from_args args:
-  verbose_level/string? := null
-  output_format/string? := null
+create-ui-from-args args:
+  verbose-level/string? := null
+  output-format/string? := null
 
   // We don't keep track of whether an argument was already provided.
   // The last one wins.
@@ -36,42 +36,42 @@ create_ui_from_args args:
     arg := args[i]
     if arg == "--": break
     if arg == "--verbose":
-      verbose_level = "verbose"
+      verbose-level = "verbose"
     else if arg == "--verbosity-level" or arg == "--verbose_level":
       if i + 1 >= args.size:
         // We will get an error during the real parsing of the args.
         break
-      verbose_level = args[++i]
-    else if arg.starts_with "--verbosity-level=" or arg.starts_with "--verbose_level=":
-      verbose_level = arg["--verbosity-level=".size..]
+      verbose-level = args[++i]
+    else if arg.starts-with "--verbosity-level=" or arg.starts-with "--verbose_level=":
+      verbose-level = arg["--verbosity-level=".size..]
     else if arg == "--output-format" or arg == "--output_format":
       if i + 1 >= args.size:
         // We will get an error during the real parsing of the args.
         break
-      output_format = args[++i]
-    else if arg.starts_with "--output-format=" or arg.starts_with "--output_format=":
-      output_format = arg["--output-format=".size..]
+      output-format = args[++i]
+    else if arg.starts-with "--output-format=" or arg.starts-with "--output_format=":
+      output-format = arg["--output-format=".size..]
 
-  if verbose_level == null: verbose_level = "info"
-  if output_format == null: output_format = "text"
+  if verbose-level == null: verbose-level = "info"
+  if output-format == null: output-format = "text"
 
   level/int := ?
-  if verbose_level == "debug": level = Ui.DEBUG_LEVEL
-  else if verbose_level == "info": level = Ui.NORMAL_LEVEL
-  else if verbose_level == "verbose": level = Ui.VERBOSE_LEVEL
-  else if verbose_level == "quiet": level = Ui.QUIET_LEVEL
-  else if verbose_level == "silent": level = Ui.SILENT_LEVEL
-  else: level = Ui.NORMAL_LEVEL
+  if verbose-level == "debug": level = Ui.DEBUG-LEVEL
+  else if verbose-level == "info": level = Ui.NORMAL-LEVEL
+  else if verbose-level == "verbose": level = Ui.VERBOSE-LEVEL
+  else if verbose-level == "quiet": level = Ui.QUIET-LEVEL
+  else if verbose-level == "silent": level = Ui.SILENT-LEVEL
+  else: level = Ui.NORMAL-LEVEL
 
-  if output_format == "json":
+  if output-format == "json":
     return JsonUi --level=level
   else:
-    return ConsoleUi --level=Ui.NORMAL_LEVEL
+    return ConsoleUi --level=Ui.NORMAL-LEVEL
 
 main args:
-  config := read_config
-  cache := Cache --app_name="artemis"
-  ui := create_ui_from_args args
+  config := read-config
+  cache := Cache --app-name="artemis"
+  ui := create-ui-from-args args
   main args --config=config --cache=cache --ui=ui
 
 main args --config/Config --cache/Cache --ui/Ui:
@@ -81,32 +81,32 @@ main args --config/Config --cache/Cache --ui/Ui:
   // command. The `--version` here is just for convenience, since many
   // tools have it too.
   if args.size == 1 and args[0] == "--version":
-    ui.result ARTEMIS_VERSION
+    ui.result ARTEMIS-VERSION
     return
 
-  root_cmd := cli.Command "root"
-      --long_help="""
+  root-cmd := cli.Command "root"
+      --long-help="""
       A fleet management system for Toit devices.
       """
       --subcommands=[
         cli.Command "version"
-            --long_help="Show the version of the Artemis tool."
-            --run=:: ui.result ARTEMIS_VERSION,
+            --long-help="Show the version of the Artemis tool."
+            --run=:: ui.result ARTEMIS-VERSION,
       ]
       --options=[
         cli.Option "fleet-root"
             --type="directory"
-            --short_help="Specify the fleet root. Can also be set with the ARTEMIS_FLEET_ROOT environment variable.",
+            --short-help="Specify the fleet root. Can also be set with the ARTEMIS_FLEET_ROOT environment variable.",
         cli.OptionEnum "output-format"
             ["text", "json"]
-            --short_help="Specify the format used when printing to the console."
+            --short-help="Specify the format used when printing to the console."
             --default="text",
         cli.Flag "verbose"
-            --short_help="Enable verbose output. Shorthand for --verbosity-level=verbose."
+            --short-help="Enable verbose output. Shorthand for --verbosity-level=verbose."
             --default=false,
         cli.OptionEnum "verbosity-level"
             ["debug", "info", "verbose", "quiet", "silent"]
-            --short_help="Specify the verbosity level."
+            --short-help="Specify the verbosity level."
             --default="info",
       ]
 
@@ -114,15 +114,15 @@ main args --config/Config --cache/Cache --ui/Ui:
   // This might be easier, once the UI is integrated with the cli
   // package, as the package could then pass it to the commands after
   // it has parsed the UI flags.
-  (create_config_commands config cache ui).do: root_cmd.add it
-  (create_auth_commands config cache ui).do: root_cmd.add it
-  (create_org_commands config cache ui).do: root_cmd.add it
-  (create_profile_commands config cache ui).do: root_cmd.add it
-  (create_sdk_commands config cache ui).do: root_cmd.add it
-  (create_device_commands config cache ui).do: root_cmd.add it
-  (create_fleet_commands config cache ui).do: root_cmd.add it
-  (create_pod_commands config cache ui).do: root_cmd.add it
-  (create_serial_commands config cache ui).do: root_cmd.add it
-  (create_doc_commands config cache ui).do: root_cmd.add it
+  (create-config-commands config cache ui).do: root-cmd.add it
+  (create-auth-commands config cache ui).do: root-cmd.add it
+  (create-org-commands config cache ui).do: root-cmd.add it
+  (create-profile-commands config cache ui).do: root-cmd.add it
+  (create-sdk-commands config cache ui).do: root-cmd.add it
+  (create-device-commands config cache ui).do: root-cmd.add it
+  (create-fleet-commands config cache ui).do: root-cmd.add it
+  (create-pod-commands config cache ui).do: root-cmd.add it
+  (create-serial-commands config cache ui).do: root-cmd.add it
+  (create-doc-commands config cache ui).do: root-cmd.add it
 
-  root_cmd.run args
+  root-cmd.run args

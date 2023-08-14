@@ -2,68 +2,68 @@
 
 import http
 import supabase
-import certificate_roots
+import certificate-roots
 
 import ..http.base
 import ...config
 import ...ui
-import ....shared.server_config
+import ....shared.server-config
 
-create_broker_cli_supabase_http server_config/ServerConfigSupabase config/Config -> BrokerCliSupabase:
-  local_storage := ConfigLocalStorage config --auth_key="$(CONFIG_SERVER_AUTHS_KEY).$(server_config.name)"
-  supabase_client := supabase.Client --server_config=server_config --local_storage=local_storage
-      --certificate_provider=: certificate_roots.MAP[it]
-  id := "supabase/$server_config.host"
+create-broker-cli-supabase-http server-config/ServerConfigSupabase config/Config -> BrokerCliSupabase:
+  local-storage := ConfigLocalStorage config --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
+  supabase-client := supabase.Client --server-config=server-config --local-storage=local-storage
+      --certificate-provider=: certificate-roots.MAP[it]
+  id := "supabase/$server-config.host"
 
-  host_port := server_config.host
+  host-port := server-config.host
 
-  host := host_port
+  host := host-port
   port := null
-  colon_pos := host_port.index_of ":"
-  if colon_pos >= 0:
-    host = host_port[..colon_pos]
-    port = int.parse host_port[colon_pos + 1..]
+  colon-pos := host-port.index-of ":"
+  if colon-pos >= 0:
+    host = host-port[..colon-pos]
+    port = int.parse host-port[colon-pos + 1..]
 
-  root_name := server_config.root_certificate_name
-  root_names := root_name ? [root_name] : null
-  http_config := ServerConfigHttp
-      server_config.name
+  root-name := server-config.root-certificate-name
+  root-names := root-name ? [root-name] : null
+  http-config := ServerConfigHttp
+      server-config.name
       --host=host
       --port=port
       --path="/functions/v1/b"
-      --admin_headers=null
-      --device_headers=null
-      --root_certificate_names=root_names
-      --root_certificate_ders=null
-      --poll_interval=server_config.poll_interval
+      --admin-headers=null
+      --device-headers=null
+      --root-certificate-names=root-names
+      --root-certificate-ders=null
+      --poll-interval=server-config.poll-interval
 
-  return BrokerCliSupabase --id=id supabase_client http_config
+  return BrokerCliSupabase --id=id supabase-client http-config
 
 
 class BrokerCliSupabase extends BrokerCliHttp:
   client_/supabase.Client? := null
 
-  constructor --id/string .client_ http_config/ServerConfigHttp:
-    super --id=id http_config
+  constructor --id/string .client_ http-config/ServerConfigHttp:
+    super --id=id http-config
 
-  ensure_authenticated [block]:
-    client_.ensure_authenticated block
+  ensure-authenticated [block]:
+    client_.ensure-authenticated block
 
-  sign_up --email/string --password/string:
-    client_.auth.sign_up --email=email --password=password
+  sign-up --email/string --password/string:
+    client_.auth.sign-up --email=email --password=password
 
-  sign_in --email/string --password/string:
-    client_.auth.sign_in --email=email --password=password
+  sign-in --email/string --password/string:
+    client_.auth.sign-in --email=email --password=password
 
-  sign_in --provider/string --ui/Ui --open_browser/bool:
-    client_.auth.sign_in
+  sign-in --provider/string --ui/Ui --open-browser/bool:
+    client_.auth.sign-in
         --provider=provider
         --ui=ui
-        --open_browser=open_browser
+        --open-browser=open-browser
 
-  extra_headers -> Map:
+  extra-headers -> Map:
     bearer/string := client_.session_
-        ? client_.session_.access_token
+        ? client_.session_.access-token
         : client_.anon_
     return {
       "Authorization": "Bearer $bearer",

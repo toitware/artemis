@@ -7,23 +7,23 @@ import encoding.json
 import supabase
 import uuid
 
-import ..artemis_server
+import ..artemis-server
 
-import ....shared.server_config
+import ....shared.server-config
 
 class ArtemisServerServiceSupabase implements ArtemisServerService:
-  server_config_/ServerConfigSupabase
+  server-config_/ServerConfigSupabase
 
-  hardware_id_/uuid.Uuid
+  hardware-id_/uuid.Uuid
 
-  constructor .server_config_ --hardware_id/uuid.Uuid:
-    hardware_id_ = hardware_id
+  constructor .server-config_ --hardware-id/uuid.Uuid:
+    hardware-id_ = hardware-id
 
-  check_in network/net.Interface logger/log.Logger -> none:
-    client := supabase.Client network --server_config=server_config_
-        --certificate_provider=: throw "UNSUPPORTED"
+  check-in network/net.Interface logger/log.Logger -> none:
+    client := supabase.Client network --server-config=server-config_
+        --certificate-provider=: throw "UNSUPPORTED"
 
-    client.rest.insert "events" --no-return_inserted {
-      "device_id": "$hardware_id_",
+    client.rest.insert "events" --no-return-inserted {
+      "device_id": "$hardware-id_",
       "data": { "type": "ping" }
     }

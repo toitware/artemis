@@ -4,21 +4,21 @@ import ar
 import bytes
 import expect show *
 import host.file
-import snapshot show cache_snapshot
+import snapshot show cache-snapshot
 import uuid
 import .utils
 
 main:
-  random_uuid := uuid.uuid5 "snapshot_test" "random $Time.monotonic_us $random"
+  random-uuid := uuid.uuid5 "snapshot_test" "random $Time.monotonic-us $random"
 
   buffer := bytes.Buffer
   writer := ar.ArWriter buffer
-  writer.add "uuid" random_uuid.to_byte_array
+  writer.add "uuid" random-uuid.to-byte-array
 
-  fake_snapshot := buffer.bytes
+  fake-snapshot := buffer.bytes
 
-  with_tmp_directory: | tmp_dir/string |
-    out_dir := "$tmp_dir/multi/dirs"
-    cache_snapshot --output_directory=out_dir fake_snapshot
+  with-tmp-directory: | tmp-dir/string |
+    out-dir := "$tmp-dir/multi/dirs"
+    cache-snapshot --output-directory=out-dir fake-snapshot
 
-    expect (file.is_file "$out_dir/$(random_uuid.stringify).snapshot")
+    expect (file.is-file "$out-dir/$(random-uuid.stringify).snapshot")

@@ -10,7 +10,7 @@ import ..api as api
 class Controller extends services.ServiceResourceProxy:
   constructor client/api.ArtemisClient? --mode/int:
     if not client: throw "Artemis unavailable"
-    handle := client.controller_open --mode=mode
+    handle := client.controller-open --mode=mode
     super client handle
 
   static run client/api.ArtemisClient? --mode/int [block] -> none:

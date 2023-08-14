@@ -27,12 +27,12 @@ interface AuthProvider:
     a key the user has to enter at the URL. If the second argument is null,
     then the user does not have to enter a key.
   */
-  ensure_authenticated [block] -> none
+  ensure-authenticated [block] -> none
 
   /**
   The authentication headers for the current user.
   */
-  auth_headers -> Map
+  auth-headers -> Map
 
   /**
   Whether the user is authenticated.
@@ -40,7 +40,7 @@ interface AuthProvider:
   Only looks at the local state, not at the server. If the server has
     invalidated the authentication, this will still return true.
   */
-  is_authenticated -> bool
+  is-authenticated -> bool
 
 /**
 An interface to store authentication information locally.
@@ -52,71 +52,71 @@ interface LocalStorage:
   /**
   Whether the storage contains any authorization information.
   */
-  has_auth -> bool
+  has-auth -> bool
 
   /**
   Returns the stored authorization information.
   If none exists, returns null.
   */
-  get_auth -> any?
+  get-auth -> any?
 
   /**
   Sets the authorization information to $value.
 
   The $value must be JSON-encodable.
   */
-  set_auth value/any -> none
+  set-auth value/any -> none
 
   /**
   Removes any authorization information.
   */
-  remove_auth -> none
+  remove-auth -> none
 
 /**
 A simple implementation of $LocalStorage that simply discards all data.
 */
 class NoLocalStorage implements LocalStorage:
-  has_auth -> bool: return false
-  get_auth -> any?: return null
-  set_auth value/any: return
-  remove_auth -> none: return
+  has-auth -> bool: return false
+  get-auth -> any?: return null
+  set-auth value/any: return
+  remove-auth -> none: return
 
 abstract class TokenAuthProvider implements AuthProvider:
-  root_certificates_/List
+  root-certificates_/List
   token_/Token? := null
-  local_storage_/LocalStorage
+  local-storage_/LocalStorage
 
-  constructor --root_certificates/List --local_storage/LocalStorage:
-    local_storage_ = local_storage
-    root_certificates_ = root_certificates
-    if local_storage_.has_auth:
-      token_ = Token.from_json local_storage_.get_auth
+  constructor --root-certificates/List --local-storage/LocalStorage:
+    local-storage_ = local-storage
+    root-certificates_ = root-certificates
+    if local-storage_.has-auth:
+      token_ = Token.from-json local-storage_.get-auth
 
-  is_authenticated -> bool:
-    return token_ != null and not token_.has_expired
+  is-authenticated -> bool:
+    return token_ != null and not token_.has-expired
 
-  /** See $AuthProvider.ensure_authenticated. */
-  ensure_authenticated --network/net.Client?=null [block] -> none:
-    if is_authenticated: return
+  /** See $AuthProvider.ensure-authenticated. */
+  ensure-authenticated --network/net.Client?=null [block] -> none:
+    if is-authenticated: return
     if token_ != null:
       token_ = refresh token_ --network=network
       save_
       return
 
-    token_ = do_authentication_ --network=network block
+    token_ = do-authentication_ --network=network block
     save_
 
-  /** See $AuthProvider.auth_headers. */
-  auth_headers -> Map:
+  /** See $AuthProvider.auth-headers. */
+  auth-headers -> Map:
     if token_ == null: return {:}
-    return token_.auth_headers
+    return token_.auth-headers
 
   save_ -> none:
     if token_ == null: throw "INVALID_STATE"
-    local_storage_.set_auth token_.to_json
+    local-storage_.set-auth token_.to-json
 
   abstract refresh --network/net.Client?=null token/Token -> Token
-  abstract do_authentication_ --network/net.Client?=null [block] -> Token
+  abstract do-authentication_ --network/net.Client?=null [block] -> Token
 
 /**
 Opens the default browser with the given URL.
@@ -124,36 +124,36 @@ Opens the default browser with the given URL.
 Only works on Linux, macOS and Windows.
 If launching the browser fails, no error is reported.
 */
-open_browser url/string -> none:
+open-browser url/string -> none:
   catch:
     command/string? := null
     args/List? := null
-    if platform == PLATFORM_LINUX:
+    if platform == PLATFORM-LINUX:
       command = "xdg-open"
       args = [ url ]
-    else if platform == PLATFORM_MACOS:
+    else if platform == PLATFORM-MACOS:
       command = "open"
       args = [ url ]
-    else if platform == PLATFORM_WINDOWS:
+    else if platform == PLATFORM-WINDOWS:
       command = "cmd"
-      escaped_url := url.replace "&" "^&"
-      args = [ "/c", "start", escaped_url ]
+      escaped-url := url.replace "&" "^&"
+      args = [ "/c", "start", escaped-url ]
     // If we have a supported platform try to open the URL.
     // For all other platforms don't do anything.
     if command != null:
-      fork_data := pipe.fork
+      fork-data := pipe.fork
           true  // Use path.
-          pipe.PIPE_CREATED  // Stdin.
-          pipe.PIPE_CREATED  // Stdout.
-          pipe.PIPE_CREATED  // Stderr.
+          pipe.PIPE-CREATED  // Stdin.
+          pipe.PIPE-CREATED  // Stdout.
+          pipe.PIPE-CREATED  // Stderr.
           command
           [ command ] + args
-      pid := fork_data[3]
+      pid := fork-data[3]
       task --background::
         // The 'open' command should finish in almost no time.
         // If it takes more than 20 seconds, kill it.
-        exception := catch: with_timeout --ms=20_000:
-          pipe.wait_for pid
-        if exception == DEADLINE_EXCEEDED_ERROR:
+        exception := catch: with-timeout --ms=20_000:
+          pipe.wait-for pid
+        if exception == DEADLINE-EXCEEDED-ERROR:
           SIGKILL ::= 9
           catch: pipe.kill_ pid SIGKILL

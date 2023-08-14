@@ -1,11 +1,11 @@
 // Copyright (C) 2023 Toitware ApS.
 
-import artemis.cli.utils show write_blob_to_file
+import artemis.cli.utils show write-blob-to-file
 import expect show *
 import .utils
 
-MINIMAL_SPEC_FILENAME ::= "minimal.json"
-MINIMAL_SPEC ::= """
+MINIMAL-SPEC-FILENAME ::= "minimal.json"
+MINIMAL-SPEC ::= """
 {
   "version": 1,
   "name": "test-pod-print",
@@ -14,41 +14,41 @@ MINIMAL_SPEC ::= """
 }
 """
 
-EXTENDED_SPEC ::= """
+EXTENDED-SPEC ::= """
 {
   "extends": [
-    "$MINIMAL_SPEC_FILENAME"
+    "$MINIMAL-SPEC-FILENAME"
   ],
   "max-offline": "1h"
 }
 """
 
 main args:
-  with_test_cli --args=args: | test_cli/TestCli |
-    run_test test_cli
+  with-test-cli --args=args: | test-cli/TestCli |
+    run-test test-cli
 
-run_test test_cli/TestCli:
-  with_tmp_directory: | dir/string |
-    test_cli.replacements[dir] = "TMP_DIR"
+run-test test-cli/TestCli:
+  with-tmp-directory: | dir/string |
+    test-cli.replacements[dir] = "TMP_DIR"
 
-    minimal_spec_path := "$dir/$MINIMAL_SPEC_FILENAME"
-    write_blob_to_file minimal_spec_path MINIMAL_SPEC
+    minimal-spec-path := "$dir/$MINIMAL-SPEC-FILENAME"
+    write-blob-to-file minimal-spec-path MINIMAL-SPEC
 
-    extended_spec_path := "$dir/extended.json"
-    write_blob_to_file extended_spec_path EXTENDED_SPEC
+    extended-spec-path := "$dir/extended.json"
+    write-blob-to-file extended-spec-path EXTENDED-SPEC
 
-    test_cli.run_gold "AAA-print-spec"
+    test-cli.run-gold "AAA-print-spec"
         "Content of minimal spec"
-        ["pod", "print", minimal_spec_path]
+        ["pod", "print", minimal-spec-path]
 
-    test_cli.run_gold "BAA-print-spec-flat"
+    test-cli.run-gold "BAA-print-spec-flat"
         "Content of minimal spec after flattening"
-        ["pod", "print", "--flat", minimal_spec_path]
+        ["pod", "print", "--flat", minimal-spec-path]
 
-    test_cli.run_gold "CAA-print-spec"
+    test-cli.run-gold "CAA-print-spec"
         "Content of extended spec"
-        ["pod", "print", extended_spec_path]
+        ["pod", "print", extended-spec-path]
 
-    test_cli.run_gold "DAA-print-spec-flat"
+    test-cli.run-gold "DAA-print-spec-flat"
         "Content of extended spec after flattening"
-        ["pod", "print", "--flat", extended_spec_path]
+        ["pod", "print", "--flat", extended-spec-path]

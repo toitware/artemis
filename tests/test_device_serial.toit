@@ -15,8 +15,8 @@ main args:
 
   cmd.run args
 
-run port_path/string:
-  port := uart.HostPort port_path --baud_rate=115200
+run port-path/string:
+  port := uart.HostPort port-path --baud-rate=115200
   writer := Writer pipe.stdout
   while chunk := port.read:
     writer.write chunk

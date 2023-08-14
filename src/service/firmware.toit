@@ -6,41 +6,41 @@ import encoding.ubjson
 class Firmware:
   size/int
   parts/List
-  device_specific_encoded/ByteArray
+  device-specific-encoded/ByteArray
   checksum/ByteArray
 
   constructor.encoded encoded/string:
     decoded := ubjson.decode (base64.decode encoded)
-    device_specific_encoded = decoded["device-specific"]
-    device_specific := ubjson.decode device_specific_encoded
-    parts = ubjson.decode device_specific["parts"]
+    device-specific-encoded = decoded["device-specific"]
+    device-specific := ubjson.decode device-specific-encoded
+    parts = ubjson.decode device-specific["parts"]
     checksum = decoded["checksum"]
     size = parts.last["to"] + checksum.size
 
   static id --hash/ByteArray -> string:
-    return base64.encode hash --url_mode
+    return base64.encode hash --url-mode
 
 class Checkpoint:
   // We keep the checksums for the new and the old firmware
   // around, so we can validate if a stored checkpoint is
   // intended for a specific firmware update.
-  old_checksum/ByteArray
-  new_checksum/ByteArray
+  old-checksum/ByteArray
+  new-checksum/ByteArray
 
   // How far did we get in reading the structured description
   // of the target firmware?
-  read_part_index/int
-  read_offset/int
+  read-part-index/int
+  read-offset/int
 
   // How far did we get in writing the bits of the target
   // firmware out to flash?
-  write_offset/int
-  write_skip/int
+  write-offset/int
+  write-skip/int
 
   constructor
-      --.old_checksum
-      --.new_checksum
-      --.read_part_index
-      --.read_offset
-      --.write_offset
-      --.write_skip:
+      --.old-checksum
+      --.new-checksum
+      --.read-part-index
+      --.read-offset
+      --.write-offset
+      --.write-skip:

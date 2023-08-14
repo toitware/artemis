@@ -5,55 +5,55 @@ import encoding.json
 import expect show *
 
 class TestPrinter extends PrinterBase:
-  test_ui_/TestUi
-  needs_structured_/bool
+  test-ui_/TestUi
+  needs-structured_/bool
 
-  constructor .test_ui_ prefix/string? --needs_structured/bool:
-    needs_structured_ = needs_structured
+  constructor .test-ui_ prefix/string? --needs-structured/bool:
+    needs-structured_ = needs-structured
     super prefix
 
   print_ str/string:
-    test_ui_.stdout += "$str\n"
+    test-ui_.stdout += "$str\n"
 
-  handle_structured_ o:
-    test_ui_.structured.add o
+  handle-structured_ o:
+    test-ui_.structured.add o
 
 class TestUi extends ConsoleUi:
   stdout := ""
   structured := []
 
-  needs_structured/bool
+  needs-structured/bool
 
-  constructor --level/int=Ui.NORMAL_LEVEL --.needs_structured/bool:
+  constructor --level/int=Ui.NORMAL-LEVEL --.needs-structured/bool:
     super --level=level
 
-  create_printer_ prefix/string? _ -> TestPrinter:
-    return TestPrinter this prefix --needs_structured=needs_structured
+  create-printer_ prefix/string? _ -> TestPrinter:
+    return TestPrinter this prefix --needs-structured=needs-structured
 
   reset:
     stdout = ""
     structured = []
 
 class TestJsonPrinter extends JsonPrinter:
-  test_ui_/TestJsonUi
+  test-ui_/TestJsonUi
 
-  constructor .test_ui_ prefix/string? kind/int:
+  constructor .test-ui_ prefix/string? kind/int:
     super prefix kind
 
   print_ str/string:
-    test_ui_.stderr += "$str\n"
+    test-ui_.stderr += "$str\n"
 
-  handle_structured_ structured:
-    test_ui_.stdout += (json.stringify structured)
+  handle-structured_ structured:
+    test-ui_.stdout += (json.stringify structured)
 
 class TestJsonUi extends JsonUi:
   stdout := ""
   stderr := ""
 
-  constructor --level/int=Ui.NORMAL_LEVEL:
+  constructor --level/int=Ui.NORMAL-LEVEL:
     super --level=level
 
-  create_printer_ prefix/string? kind/int -> TestJsonPrinter:
+  create-printer_ prefix/string? kind/int -> TestJsonPrinter:
     return TestJsonPrinter this prefix kind
 
   reset:
@@ -61,24 +61,24 @@ class TestJsonUi extends JsonUi:
     stderr = ""
 
 main:
-  test_console
-  test_structured
-  test_json
+  test-console
+  test-structured
+  test-json
 
-test_console:
-  ui := TestUi --no-needs_structured
+test-console:
+  ui := TestUi --no-needs-structured
 
   ui.info "hello"
-  expect_equals "hello\n" ui.stdout
+  expect-equals "hello\n" ui.stdout
   ui.reset
 
   ui.info ["hello", "world"]
-  expect_equals "hello\nworld\n" ui.stdout
+  expect-equals "hello\nworld\n" ui.stdout
   ui.reset
 
   ui.do: | printer/Printer |
     printer.emit --title="French" ["bonjour", "monde"]
-  expect_equals "French:\n  bonjour\n  monde\n" ui.stdout
+  expect-equals "French:\n  bonjour\n  monde\n" ui.stdout
   ui.reset
 
   ui.do: | printer/Printer |
@@ -88,7 +88,7 @@ test_console:
           { "x": "a", "y": "b" },
           { "x": "c", "y": "d" },
         ]
-  expect_equals """
+  expect-equals """
   ┌───┬───┐
   │ x   y │
   ├───┼───┤
@@ -105,7 +105,7 @@ test_console:
           { "left": "a", "right": "short" },
           { "left": "longer", "right": "d" },
         ]
-  expect_equals """
+  expect-equals """
   ┌────────┬─────────────┐
   │ long     even longer │
   ├────────┼─────────────┤
@@ -119,7 +119,7 @@ test_console:
     printer.emit
         --header={"left": "no", "right": "rows"}
         []
-  expect_equals """
+  expect-equals """
   ┌────┬──────┐
   │ no   rows │
   ├────┼──────┤
@@ -140,7 +140,7 @@ test_console:
             "right": 4,
           },
         ]
-  expect_equals """
+  expect-equals """
   ┌──────┬──────┐
   │ with   ints │
   ├──────┼──────┤
@@ -154,7 +154,7 @@ test_console:
     "a": "b",
     "c": "d",
   }
-  expect_equals """
+  expect-equals """
   a: b
   c: d
   """ ui.stdout
@@ -168,7 +168,7 @@ test_console:
     },
     "f": "g",
   }
-  expect_equals """
+  expect-equals """
   a:
     b: c
     d: e
@@ -177,30 +177,30 @@ test_console:
   ui.reset
 
   ui.print "foo"
-  expect_equals "foo\n" ui.stdout
+  expect-equals "foo\n" ui.stdout
   ui.reset
 
   ui.warning "foo"
-  expect_equals "Warning: foo\n" ui.stdout
+  expect-equals "Warning: foo\n" ui.stdout
   ui.reset
 
   ui.error "foo"
-  expect_equals "Error: foo\n" ui.stdout
+  expect-equals "Error: foo\n" ui.stdout
   ui.reset
 
   ui.print {
     "entry with int": 499,
   }
-  expect_equals """
+  expect-equals """
   entry with int: 499
   """ ui.stdout
   ui.reset
 
-test_structured:
-  ui := TestUi --needs_structured
+test-structured:
+  ui := TestUi --needs-structured
 
   ui.info "hello"
-  expect_equals ["hello"] ui.structured
+  expect-equals ["hello"] ui.structured
   ui.reset
 
   map := {
@@ -208,8 +208,8 @@ test_structured:
     "bar": 2,
   }
   ui.info map
-  expect_equals 1 ui.structured.size
-  expect_identical map ui.structured[0]
+  expect-equals 1 ui.structured.size
+  expect-identical map ui.structured[0]
   ui.reset
 
   list := [
@@ -217,14 +217,14 @@ test_structured:
     "bar",
   ]
   ui.info list
-  expect_equals 1 ui.structured.size
-  expect_identical list ui.structured[0]
+  expect-equals 1 ui.structured.size
+  expect-identical list ui.structured[0]
   ui.reset
 
   ui.do: | printer/Printer |
     printer.emit --title="French" ["bonjour", "monde"]
-  expect_equals 1 ui.structured.size
-  expect_equals ["bonjour", "monde"] ui.structured[0]
+  expect-equals 1 ui.structured.size
+  expect-equals ["bonjour", "monde"] ui.structured[0]
   ui.reset
 
   data := [
@@ -235,34 +235,34 @@ test_structured:
     printer.emit
         --header={"x": "x", "y": "y"}
         data
-  expect_equals 1 ui.structured.size
-  expect_structural_equals data ui.structured[0]
+  expect-equals 1 ui.structured.size
+  expect-structural-equals data ui.structured[0]
   ui.reset
 
-test_json:
+test-json:
   ui := TestJsonUi
 
   // Anything that isn't a result is emitted on stderr as if it was
   // a console Ui.
   ui.info "hello"
-  expect_equals "hello\n" ui.stderr
+  expect-equals "hello\n" ui.stderr
   ui.reset
 
   // Results are emitted on stdout as JSON.
   ui.result "hello"
-  expect_equals "\"hello\"" ui.stdout
+  expect-equals "\"hello\"" ui.stdout
   ui.reset
 
   ui.result {
     "foo": 1,
     "bar": 2,
   }
-  expect_equals "{\"foo\":1,\"bar\":2}" ui.stdout
+  expect-equals "{\"foo\":1,\"bar\":2}" ui.stdout
 
   ui.warning "some warning"
-  expect_equals "Warning: some warning\n" ui.stderr
+  expect-equals "Warning: some warning\n" ui.stderr
   ui.reset
 
   ui.error "some error"
-  expect_equals "Error: some error\n" ui.stderr
+  expect-equals "Error: some error\n" ui.stderr
   ui.reset

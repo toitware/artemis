@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import bytes
-import certificate_roots
+import certificate-roots
 import cli
 import encoding.base64
 import encoding.json
@@ -17,79 +17,79 @@ import host.pipe
 import writer
 import uuid
 import ..ui
-import ..pod_specification
+import ..pod-specification
 
-with_tmp_directory [block]:
+with-tmp-directory [block]:
   tmpdir := directory.mkdtemp "/tmp/artemis-"
   try:
     block.call tmpdir
   finally:
     directory.rmdir --recursive tmpdir
 
-write_blob_to_file path/string value -> none:
-  stream := file.Stream.for_write path
+write-blob-to-file path/string value -> none:
+  stream := file.Stream.for-write path
   try:
     writer := writer.Writer stream
     writer.write value
   finally:
     stream.close
 
-write_json_to_file path/string value/any --pretty/bool=false -> none:
+write-json-to-file path/string value/any --pretty/bool=false -> none:
   if pretty:
-    write_blob_to_file path (json_encode_pretty value)
+    write-blob-to-file path (json-encode-pretty value)
   else:
-    write_blob_to_file path (json.encode value)
+    write-blob-to-file path (json.encode value)
 
-write_ubjson_to_file path/string value/any -> none:
+write-ubjson-to-file path/string value/any -> none:
   encoded := ubjson.encode value
-  write_blob_to_file path encoded
+  write-blob-to-file path encoded
 
-write_base64_ubjson_to_file path/string value/any -> none:
+write-base64-ubjson-to-file path/string value/any -> none:
   encoded := base64.encode (ubjson.encode value)
-  write_blob_to_file path encoded
+  write-blob-to-file path encoded
 
-read_json path/string -> any:
-  stream := file.Stream.for_read path
+read-json path/string -> any:
+  stream := file.Stream.for-read path
   try:
-    return json.decode_stream stream
+    return json.decode-stream stream
   finally:
     stream.close
 
-read_ubjson path/string -> any:
-  data := file.read_content path
+read-ubjson path/string -> any:
+  data := file.read-content path
   return ubjson.decode data
 
-read_tison path/string -> any:
-  data := file.read_content path
+read-tison path/string -> any:
+  data := file.read-content path
   return tison.decode data
 
-read_base64_ubjson path/string -> any:
-  data := file.read_content path
+read-base64-ubjson path/string -> any:
+  data := file.read-content path
   return ubjson.decode (base64.decode data)
 
-read_file path/string --ui/Ui [block] -> any:
-  return read_file path block --on_error=: | exception |
+read-file path/string --ui/Ui [block] -> any:
+  return read-file path block --on-error=: | exception |
     ui.abort "Failed to open '$path' for reading ($exception)."
 
-read_file path/string [block] [--on_error] -> any:
+read-file path/string [block] [--on-error] -> any:
   stream/file.Stream? := null
-  exception := catch: stream = file.Stream.for_read path
+  exception := catch: stream = file.Stream.for-read path
   if not stream:
-    return on_error.call exception
+    return on-error.call exception
   try:
     return block.call stream
   finally:
     stream.close
 
-write_file path/string --ui/Ui [block] -> none:
-  write_file path block --on_error=: | exception |
+write-file path/string --ui/Ui [block] -> none:
+  write-file path block --on-error=: | exception |
     ui.abort "Failed to open '$path' for writing ($exception)."
 
-write_file path/string [block] [--on_error] -> none:
+write-file path/string [block] [--on-error] -> none:
   stream/file.Stream? := null
-  exception := catch: stream = file.Stream.for_write path
+  exception := catch: stream = file.Stream.for-write path
   if not stream:
-    on_error.call exception
+    on-error.call exception
     return
   try:
     writer := writer.Writer stream
@@ -97,40 +97,40 @@ write_file path/string [block] [--on_error] -> none:
   finally:
     stream.close
 
-download_url url/string --out_path/string -> none:
+download-url url/string --out-path/string -> none:
   log.info "Downloading $url."
 
   network := net.open
   try:
     client := http.Client.tls network
-        --root_certificates=certificate_roots.ALL
+        --root-certificates=certificate-roots.ALL
 
     response := client.get --uri=url
-    if response.status_code != http.STATUS_OK:
-      log.error "Failed to download $url: $response.status_code $response.status_message."
+    if response.status-code != http.STATUS-OK:
+      log.error "Failed to download $url: $response.status-code $response.status-message."
       exit 1
-    file := file.Stream.for_write out_path
+    file := file.Stream.for-write out-path
     writer := writer.Writer file
-    writer.write_from response.body
+    writer.write-from response.body
     writer.close
     // TODO(florian): closing should be idempotent.
     // file.close
   finally:
     network.close
 
-tool_path_ tool/string -> string:
-  if platform != PLATFORM_WINDOWS: return tool
+tool-path_ tool/string -> string:
+  if platform != PLATFORM-WINDOWS: return tool
   // On Windows, we use the <tool>.exe that comes with Git for Windows.
 
   // TODO(florian): depending on environment variables is brittle.
   // We should use `SearchPath` (to find `git.exe` in the PATH), or
   // 'SHGetSpecialFolderPath' (to find the default 'Program Files' folder).
-  program_files_path := os.env.get "ProgramFiles"
-  if not program_files_path:
+  program-files-path := os.env.get "ProgramFiles"
+  if not program-files-path:
     // This is brittle, as Windows localizes the name of the folder.
-    program_files_path = "C:/Program Files"
-  result := "$program_files_path/Git/usr/bin/$(tool).exe"
-  if not file.is_file result:
+    program-files-path = "C:/Program Files"
+  result := "$program-files-path/Git/usr/bin/$(tool).exe"
+  if not file.is-file result:
     throw "Could not find $result. Please install Git for Windows"
   return result
 
@@ -139,26 +139,26 @@ Copies the $source directory into the $target directory.
 
 If the $target directory does not exist, it is created.
 */
-copy_directory --source/string --target/string:
+copy-directory --source/string --target/string:
   directory.mkdir --recursive target
-  with_tmp_directory: | tmp_dir |
+  with-tmp-directory: | tmp-dir |
     // We are using `tar` so we keep the permissions.
-    tar := tool_path_ "tar"
+    tar := tool-path_ "tar"
 
-    tmp_tar := "$tmp_dir/tmp.tar"
-    extra_args := []
-    if platform == PLATFORM_WINDOWS:
+    tmp-tar := "$tmp-dir/tmp.tar"
+    extra-args := []
+    if platform == PLATFORM-WINDOWS:
       // Tar can't handle backslashes as separators.
       source = source.replace --all "\\" "/"
       target = target.replace --all "\\" "/"
-      tmp_tar = tmp_tar.replace --all "\\" "/"
-      extra_args = ["--force-local"]
+      tmp-tar = tmp-tar.replace --all "\\" "/"
+      extra-args = ["--force-local"]
 
     // We are using an intermediate file.
     // Using pipes was too slow on Windows.
     // See https://github.com/toitlang/toit/issues/1568.
-    pipe.backticks [tar, "c", "-f", tmp_tar, "-C", source, "."] + extra_args
-    pipe.backticks [tar, "x", "-f", tmp_tar, "-C", target] + extra_args
+    pipe.backticks [tar, "c", "-f", tmp-tar, "-C", source, "."] + extra-args
+    pipe.backticks [tar, "x", "-f", tmp-tar, "-C", target] + extra-args
 
 /**
 Untars the given $path into the $target directory.
@@ -167,72 +167,72 @@ Do not use this function on compressed tar files. That would work
   on Linux/macOS, but not on Windows.
 */
 untar path/string --target/string:
-  generic_arguments := [
-    tool_path_ "tar",
+  generic-arguments := [
+    tool-path_ "tar",
     "x",  // Extract.
   ]
 
-  if platform == PLATFORM_WINDOWS:
+  if platform == PLATFORM-WINDOWS:
     // The target must use slashes as separators.
     // Otherwise Git's tar can't find the target directory.
     target = target.replace --all "\\" "/"
     // Treat 'c:\' as a local path.
-    generic_arguments.add "--force-local"
+    generic-arguments.add "--force-local"
 
-  pipe.backticks generic_arguments + [
+  pipe.backticks generic-arguments + [
     "-f", path,    // The file at 'path'
     "-C", target,  // Extract to 'target'.
   ]
 
 gunzip path/string:
-  gzip_path := tool_path_ "gzip"
+  gzip-path := tool-path_ "gzip"
   pipe.backticks [
-    gzip_path,
+    gzip-path,
     "-d",
     path,
   ]
 
-copy_file --source/string --target/string:
-  in_stream := file.Stream.for_read source
-  out_stream := file.Stream.for_write target
+copy-file --source/string --target/string:
+  in-stream := file.Stream.for-read source
+  out-stream := file.Stream.for-write target
   try:
-    writer := writer.Writer out_stream
-    writer.write_from in_stream
+    writer := writer.Writer out-stream
+    writer.write-from in-stream
     // TODO(florian): we would like to close the writer here, but then
     // we would get an "already closed" below.
   finally:
-    in_stream.close
-    out_stream.close
+    in-stream.close
+    out-stream.close
 
-random_uuid --namespace/string="Artemis" -> uuid.Uuid:
-  return uuid.uuid5 namespace "$Time.now $Time.monotonic_us $random"
+random-uuid --namespace/string="Artemis" -> uuid.Uuid:
+  return uuid.uuid5 namespace "$Time.now $Time.monotonic-us $random"
 
-json_encode_pretty value/any -> ByteArray:
+json-encode-pretty value/any -> ByteArray:
   buffer := bytes.Buffer
-  json_encode_pretty_ value buffer --indentation=0
+  json-encode-pretty_ value buffer --indentation=0
   buffer.write "\n"
   buffer.close
   return buffer.buffer
 
 // TODO(florian): move this into the core library.
-json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
-  indentation_string/string? := null
+json-encode-pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
+  indentation-string/string? := null
   newline := :
     buffer.write "\n"
-    if not indentation_string: indentation_string = " " * indentation
-    buffer.write indentation_string
+    if not indentation-string: indentation-string = " " * indentation
+    buffer.write indentation-string
 
   if value is List:
     list := value as List
     buffer.write "["
-    if list.is_empty:
+    if list.is-empty:
       buffer.write "]"
       return
     newline.call
     list.size.repeat: | i/int |
       element := list[i]
       buffer.write "  "
-      json_encode_pretty_ element buffer --indentation=indentation + 2
+      json-encode-pretty_ element buffer --indentation=indentation + 2
       if i < list.size - 1: buffer.write ","
       newline.call
     buffer.write "]"
@@ -240,7 +240,7 @@ json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
   if value is Map:
     map := value as Map
     buffer.write "{"
-    if map.is_empty:
+    if map.is-empty:
       buffer.write "}"
       return
     newline.call
@@ -248,12 +248,12 @@ json_encode_pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
     count := 0
     map.do: | key value |
       count++
-      is_last := count == size
+      is-last := count == size
       buffer.write "  "
       buffer.write (json.encode key)
       buffer.write ": "
-      json_encode_pretty_ value buffer --indentation=indentation + 2
-      if not is_last: buffer.write ","
+      json-encode-pretty_ value buffer --indentation=indentation + 2
+      if not is-last: buffer.write ","
       newline.call
     buffer.write "}"
     return
@@ -264,7 +264,7 @@ Parses the given $path into a $PodSpecification.
 
 If there is an error, calls $Ui.abort with an error message.
 */
-parse_pod_specification_file path/string --ui/Ui -> PodSpecification:
+parse-pod-specification-file path/string --ui/Ui -> PodSpecification:
   exception := catch --unwind=(: it is not PodSpecificationException):
     return PodSpecification.parse path
   ui.abort "Cannot parse pod specification: $exception."
@@ -274,58 +274,58 @@ parse_pod_specification_file path/string --ui/Ui -> PodSpecification:
 /**
 Parses a string like "1h 30m 10s" or "1h30m10s" into a Duration.
 */
-parse_duration str/string -> Duration:
-  return parse_duration str --on_error=: throw "Invalid duration string: $it"
+parse-duration str/string -> Duration:
+  return parse-duration str --on-error=: throw "Invalid duration string: $it"
 
-parse_duration str/string [--on_error] -> Duration:
+parse-duration str/string [--on-error] -> Duration:
   UNITS ::= ["h", "m", "s"]
-  splits_with_missing := UNITS.map: str.index_of it
-  splits := splits_with_missing.filter: it != -1
-  if splits.is_empty or not splits.is_sorted:
-    return on_error.call str
+  splits-with-missing := UNITS.map: str.index-of it
+  splits := splits-with-missing.filter: it != -1
+  if splits.is-empty or not splits.is-sorted:
+    return on-error.call str
   if splits.last != str.size - 1:
-    return on_error.call str
+    return on-error.call str
 
-  last_unit := -1
+  last-unit := -1
   values := {:}
   splits.do: | split/int |
     unit := str[split]
-    value_string := str[last_unit + 1..split]
-    value := int.parse value_string.trim --on_error=:
-      return on_error.call str
+    value-string := str[last-unit + 1..split]
+    value := int.parse value-string.trim --on-error=:
+      return on-error.call str
     values[unit] = value
-    last_unit = split
+    last-unit = split
 
   return Duration
-      --h=values.get 'h' --if_absent=: 0
-      --m=values.get 'm' --if_absent=: 0
-      --s=values.get 's' --if_absent=: 0
+      --h=values.get 'h' --if-absent=: 0
+      --m=values.get 'm' --if-absent=: 0
+      --s=values.get 's' --if-absent=: 0
 
 /**
 Converts a time object to a string.
 
-Contrary to the built-in $TimeInfo.to_iso8601_string this
+Contrary to the built-in $TimeInfo.to-iso8601-string this
   function includes nano-seconds.
 */
-timestamp_to_string timestamp/Time -> string:
+timestamp-to-string timestamp/Time -> string:
   utc := timestamp.utc
   return """
     $(utc.year)-$(%02d utc.month)-$(%02d utc.day)-T\
     $(%02d utc.h):$(%02d utc.m):$(%02d utc.s).\
-    $(%09d timestamp.ns_part)Z"""
+    $(%09d timestamp.ns-part)Z"""
 
-timestamp_to_human_readable timestamp/Time --now_cut_off/Duration=(Duration --s=10) -> string:
+timestamp-to-human-readable timestamp/Time --now-cut-off/Duration=(Duration --s=10) -> string:
   now := Time.now
   diff := timestamp.to now
   if diff < (Duration --s=10):
     return "now"
   if diff < (Duration --m=1):
-    return "$diff.in_s seconds ago"
+    return "$diff.in-s seconds ago"
   if diff < (Duration --h=1):
-    return "$diff.in_m minutes ago"
-  local_now := Time.now.local
+    return "$diff.in-m minutes ago"
+  local-now := Time.now.local
   local := timestamp.local
-  if local_now.year == local.year and local_now.month == local.month and local_now.day == local.day:
+  if local-now.year == local.year and local-now.month == local.month and local-now.day == local.day:
     return "$(%02d local.h):$(%02d local.m):$(%02d local.s)"
   return "$local.year-$(%02d local.month)-$(%02d local.day) $(%02d local.h):$(%02d local.m):$(%02d local.s)"
 
@@ -333,36 +333,36 @@ timestamp_to_human_readable timestamp/Time --now_cut_off/Duration=(Duration --s=
 class OptionPatterns extends cli.OptionEnum:
   constructor name/string patterns/List
       --default=null
-      --short_name/string?=null
-      --short_help/string?=null
+      --short-name/string?=null
+      --short-help/string?=null
       --required/bool=false
       --hidden/bool=false
       --multi/bool=false
-      --split_commas/bool=false:
+      --split-commas/bool=false:
     super name patterns
       --default=default
-      --short_name=short_name
-      --short_help=short_help
+      --short-name=short-name
+      --short-help=short-help
       --required=required
       --hidden=hidden
       --multi=multi
-      --split_commas=split_commas
+      --split-commas=split-commas
 
-  parse str/string --for_help_example/bool=false -> any:
+  parse str/string --for-help-example/bool=false -> any:
     if not str.contains ":" and not str.contains "=":
       // Make sure it's a valid one.
-      key := super str --for_help_example=for_help_example
+      key := super str --for-help-example=for-help-example
       return key
 
-    separator_index := str.index_of ":"
-    if separator_index < 0: separator_index = str.index_of "="
-    key := str[..separator_index]
-    key_with_equals := str[..separator_index + 1]
-    if not (values.any: it.starts_with key_with_equals):
+    separator-index := str.index-of ":"
+    if separator-index < 0: separator-index = str.index-of "="
+    key := str[..separator-index]
+    key-with-equals := str[..separator-index + 1]
+    if not (values.any: it.starts-with key-with-equals):
       throw "Invalid value for option '$name': '$str'. Valid values are: $(values.join ", ")."
 
     return {
-      key: str[separator_index + 1..]
+      key: str[separator-index + 1..]
     }
 
 /**
@@ -382,27 +382,27 @@ class OptionUuid extends cli.Option:
   */
   constructor name/string
       --.default=null
-      --short_name/string?=null
-      --short_help/string?=null
+      --short-name/string?=null
+      --short-help/string?=null
       --required/bool=false
       --hidden/bool=false
       --multi/bool=false
-      --split_commas/bool=false:
+      --split-commas/bool=false:
     if multi and default: throw "Multi option can't have default value."
     if required and default: throw "Option can't have default value and be required."
-    super.from_subclass name --short_name=short_name --short_help=short_help \
+    super.from-subclass name --short-name=short-name --short-help=short-help \
         --required=required --hidden=hidden --multi=multi \
-        --split_commas=split_commas
+        --split-commas=split-commas
 
-  is_flag: return false
+  is-flag: return false
 
   type -> string: return "uuid"
 
-  parse str/string --for_help_example/bool=false -> uuid.Uuid:
+  parse str/string --for-help-example/bool=false -> uuid.Uuid:
     catch: return uuid.parse str
     throw "Invalid value for option '$name': '$str'. Expected a UUID."
 
 
 /** Whether we are running in a development setup. */
-is_dev_setup -> bool:
-  return program_name.ends_with ".toit"
+is-dev-setup -> bool:
+  return program-name.ends-with ".toit"

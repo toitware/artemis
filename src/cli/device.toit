@@ -12,7 +12,7 @@ class Device:
 
   This ID is generally *not* shared with the user.
   */
-  hardware_id/uuid.Uuid
+  hardware-id/uuid.Uuid
 
   /**
   The device ID.
@@ -27,9 +27,9 @@ class Device:
 
   The ID in which organization the device is registered in.
   */
-  organization_id/uuid.Uuid
+  organization-id/uuid.Uuid
 
-  constructor --.hardware_id --.id --.organization_id:
+  constructor --.hardware-id --.id --.organization-id:
 
 /**
 A detailed version of the $Device class.
@@ -53,7 +53,7 @@ class DeviceDetailed extends Device:
   May be null if the device has not reported a state yet, or if
     the device already applied all the changes.
   */
-  reported_state_goal/Map?
+  reported-state-goal/Map?
 
   /**
   The current state of the device.
@@ -61,20 +61,20 @@ class DeviceDetailed extends Device:
   May be null if the device has not reported a state yet, or if
     the device's firmware state is equal to the current state.
   */
-  reported_state_current/Map?
+  reported-state-current/Map?
 
   /**
   The device's firmware state.
   May be null if the device has not reported a state yet.
   */
-  reported_state_firmware/Map?
+  reported-state-firmware/Map?
 
   /**
   The firmware that is installed but not yet running.
 
   The device has updated its firmware but has not yet rebooted.
   */
-  pending_firmware/string?
+  pending-firmware/string?
 
   /**
   Constructs a new detailed device from the current goal and the
@@ -83,42 +83,42 @@ class DeviceDetailed extends Device:
   constructor --.goal/Map? --state/Map?:
     assert: goal or state
 
-    reported_state_goal = state and state.get "goal-state"
-    reported_state_current = state and state.get "current-state"
-    reported_state_firmware = state and state.get "firmware-state"
-    pending_firmware = state and state.get "pending-firmware"
+    reported-state-goal = state and state.get "goal-state"
+    reported-state-current = state and state.get "current-state"
+    reported-state-firmware = state and state.get "firmware-state"
+    pending-firmware = state and state.get "pending-firmware"
 
-    initial_state := reported_state_firmware ? null : state
-    local_organization_id := ?
-    local_hardware_id := ?
-    local_id := ?
+    initial-state := reported-state-firmware ? null : state
+    local-organization-id := ?
+    local-hardware-id := ?
+    local-id := ?
 
-    if initial_state:
-      identity := initial_state["identity"]
-      local_organization_id = uuid.parse identity["organization_id"]
-      local_hardware_id = uuid.parse identity["hardware_id"]
-      local_id = uuid.parse identity["device_id"]
+    if initial-state:
+      identity := initial-state["identity"]
+      local-organization-id = uuid.parse identity["organization_id"]
+      local-hardware-id = uuid.parse identity["hardware_id"]
+      local-id = uuid.parse identity["device_id"]
     else:
-      old_firmware := Firmware.encoded reported_state_firmware["firmware"]
-      device := old_firmware.device_specific "artemis.device"
-      local_organization_id = uuid.parse device["organization_id"]
-      local_hardware_id = uuid.parse device["hardware_id"]
-      local_id = uuid.parse device["device_id"]
+      old-firmware := Firmware.encoded reported-state-firmware["firmware"]
+      device := old-firmware.device-specific "artemis.device"
+      local-organization-id = uuid.parse device["organization_id"]
+      local-hardware-id = uuid.parse device["hardware_id"]
+      local-id = uuid.parse device["device_id"]
 
-    super --hardware_id=local_hardware_id --id=local_id --organization_id=local_organization_id
+    super --hardware-id=local-hardware-id --id=local-id --organization-id=local-organization-id
 
-  pod_id_firmware -> uuid.Uuid?:
-    return pod_id_from_state_ reported_state_firmware
+  pod-id-firmware -> uuid.Uuid?:
+    return pod-id-from-state_ reported-state-firmware
 
-  pod_id_current -> uuid.Uuid?:
-    return pod_id_from_state_ reported_state_current
+  pod-id-current -> uuid.Uuid?:
+    return pod-id-from-state_ reported-state-current
 
-  pod_id_goal -> uuid.Uuid?:
-    return pod_id_from_state_ reported_state_goal
+  pod-id-goal -> uuid.Uuid?:
+    return pod-id-from-state_ reported-state-goal
 
-  pod_id_from_state_ state/Map? -> uuid.Uuid?:
+  pod-id-from-state_ state/Map? -> uuid.Uuid?:
     if not state: return null
     if not state.contains "firmware": return null
 
     firmware := Firmware.encoded state["firmware"]
-    return firmware.pod_id
+    return firmware.pod-id

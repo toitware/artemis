@@ -15,16 +15,16 @@ import .token
 import .utils_
 
 class AuthException:
-  status_code/int?
-  status_message/string?
-  error_code/string?
-  error_description/string?
+  status-code/int?
+  status-message/string?
+  error-code/string?
+  error-description/string?
 
   constructor
-      --.status_code=null
-      --.status_message=null
-      --.error_code=null
-      --.error_description=null:
+      --.status-code=null
+      --.status-message=null
+      --.error-code=null
+      --.error-description=null:
 
   /**
   Error descriptions for OAuth 2.0 errors.
@@ -34,7 +34,7 @@ class AuthException:
   Also contains error descriptions for errors that are not part of the
     OAuth 2.0 specification, but are used by this library.
   */
-  static ERROR_DESCRIPTIONS ::= {
+  static ERROR-DESCRIPTIONS ::= {
     "invalid_request": """
       The request is missing a required parameter, includes an invalid \
       parameter value, includes a parameter more than once, or is otherwise \
@@ -65,93 +65,93 @@ class AuthException:
   /**
   Converts a one-word error string to a human-readable error string.
   */
-  static error_to_human error/string -> string:
-    return ERROR_DESCRIPTIONS.get error --if_absent=: error
+  static error-to-human error/string -> string:
+    return ERROR-DESCRIPTIONS.get error --if-absent=: error
 
   stringify -> string:
-    if error_code:
-      return "$error_code: $error_description"
-    if status_code:
-      return "HTTP $status_code $status_message"
+    if error-code:
+      return "$error-code: $error-description"
+    if status-code:
+      return "HTTP $status-code $status-message"
     return "Unknown error"
 
-parse_token_response_ response/http.Response -> Token:
+parse-token-response_ response/http.Response -> Token:
   decoded/Map := {:}
   exception := catch:
-    decoded = json.decode_stream response.body
+    decoded = json.decode-stream response.body
 
   if exception:
     throw (AuthException
-        --error_code="parse_error"
-        --error_description="Failed to parse token response: $exception")
+        --error-code="parse_error"
+        --error-description="Failed to parse token response: $exception")
 
-  if response.status_code != 200:
+  if response.status-code != 200:
     throw (AuthException
-        --status_code=response.status_code
-        --status_message=response.status_message
-        --error_code=decoded.get "error"
-        --error_description=decoded.get "error_description")
+        --status-code=response.status-code
+        --status-message=response.status-message
+        --error-code=decoded.get "error"
+        --error-description=decoded.get "error_description")
 
-  return parse_token_json_ decoded
+  return parse-token-json_ decoded
 
-parse_token_json_ decoded/Map -> Token:
-  access_token := decoded.get "access_token"
-  token_type := decoded.get "token_type"
-  expires_in := decoded.get "expires_in"
-  refresh_token := decoded.get "refresh_token"
+parse-token-json_ decoded/Map -> Token:
+  access-token := decoded.get "access_token"
+  token-type := decoded.get "token_type"
+  expires-in := decoded.get "expires_in"
+  refresh-token := decoded.get "refresh_token"
   scope := decoded.get "scope"
-  returned_scopes := scope and (scope.split " ")
+  returned-scopes := scope and (scope.split " ")
 
-  if not access_token:
+  if not access-token:
     throw (AuthException
-        --error_code="missing_access_token"
-        --error_description="The access token is missing")
+        --error-code="missing_access_token"
+        --error-description="The access token is missing")
 
   return Token
-      --access_token=access_token
-      --token_type=token_type
-      --expires_in_s=expires_in
-      --refresh_token=refresh_token
-      --scopes=returned_scopes
+      --access-token=access-token
+      --token-type=token-type
+      --expires-in-s=expires-in
+      --refresh-token=refresh-token
+      --scopes=returned-scopes
 
 /**
 An OAuth client that uses a token endpoint to authenticate.
 */
 abstract class OAuth extends TokenAuthProvider:
-  token_url_/string
-  client_id_/string
-  client_secret_/string?
+  token-url_/string
+  client-id_/string
+  client-secret_/string?
 
   scopes_/List
 
-  constructor.from_sub_
-      --client_id
-      --client_secret
-      --token_url
+  constructor.from-sub_
+      --client-id
+      --client-secret
+      --token-url
       --scopes
-      --root_certificates/List
-      --local_storage/LocalStorage:
-    client_id_ = client_id
-    client_secret_ = client_secret
-    token_url_ = token_url
+      --root-certificates/List
+      --local-storage/LocalStorage:
+    client-id_ = client-id
+    client-secret_ = client-secret
+    token-url_ = token-url
     scopes_ = scopes
-    super --root_certificates=root_certificates --local_storage=local_storage
+    super --root-certificates=root-certificates --local-storage=local-storage
 
   /**
   Constructs an OAuth provider that uses a code flow redirecting to localhost.
 
-  When doing the authentication ($ensure_authenticated), this instance will
+  When doing the authentication ($ensure-authenticated), this instance will
     start a local http server that listens for a redirect from the OAuth provider.
 
   The $localhost parameter must be "localhost" or "127.0.0.1".
-  The $redirect_path parameter is the path that the authenticated user should be
+  The $redirect-path parameter is the path that the authenticated user should be
     redirected to. Typically, the OAuth provider has a list of valid redirect
-    URLs (including the paths), and the combined URI ($localhost + $redirect_path)
+    URLs (including the paths), and the combined URI ($localhost + $redirect-path)
     must be one of them. Most OAuth providers allow to change the port of a localhost
     redirect URL, but not the host name or the path.
 
-  The $client_id is provided by the OAuth provider and identifies the application.
-  The $client_secret is generated by the OAuth provider. Depending on the OAuth
+  The $client-id is provided by the OAuth provider and identifies the application.
+  The $client-secret is generated by the OAuth provider. Depending on the OAuth
     provider, the secret is confidential or not. For example, GitHub warns
     that the client secret should be kept secret and not even be checked
     in. They recommend to use a device flow if the client
@@ -168,62 +168,62 @@ abstract class OAuth extends TokenAuthProvider:
     [discover document](https://accounts.google.com/.well-known/openid-configuration),
     under 'authorization_endpoint'.
 
-  The $token_url parameter is the URL where the OAuth provider can be
+  The $token-url parameter is the URL where the OAuth provider can be
     queried for an access token. It is provided by the OAuth provider.
     For example, Google publishes the token URL in their
     [discover document](https://accounts.google.com/.well-known/openid-configuration),
     under 'token_endpoint'.
 
-  If the OAuth provider is accessed through "https", then the $root_certificates
+  If the OAuth provider is accessed through "https", then the $root-certificates
     parameter must contain the root certificates needed to access the OAuth
     provider. If the OAuth provider is accessed through "http", then the
-    $root_certificates parameter can be empty.
+    $root-certificates parameter can be empty.
 
   The $scopes list identify the resources that the application wants to
     access. For example, Google has URLs like
     "https://www.googleapis.com/auth/userinfo.email" or "https://www.googleapis.com/auth/drive".
     GitHub has "repo", "repo:status", "user", "read:user", "gist", etc.
 
-  The $query_parameters parameter is a map of additional query parameters that
+  The $query-parameters parameter is a map of additional query parameters that
     are passed to the redirect URL. For example, Google allows to pass a
     "login_hint" parameter to the redirect URL to pre-fill the email address
     of the user.
 
-  The $local_storage parameter is used to store the token, so it can be
+  The $local-storage parameter is used to store the token, so it can be
     reused after the application is restarted.
   */
   constructor.localhost
       --localhost/string="localhost"
-      --redirect_path/string
-      --client_id/string
-      --client_secret/string?
-      --logger/log.Logger=(log.default.with_level log.FATAL_LEVEL)
+      --redirect-path/string
+      --client-id/string
+      --client-secret/string?
+      --logger/log.Logger=(log.default.with-level log.FATAL-LEVEL)
       --endpoint/string
-      --token_url/string
-      --root_certificates/List
+      --token-url/string
+      --root-certificates/List
       --scopes/List
-      --query_parameters/Map={:}
-      --local_storage/LocalStorage:
+      --query-parameters/Map={:}
+      --local-storage/LocalStorage:
     if localhost != "localhost" and localhost != "127.0.0.1":
       throw "localhost must be 'localhost' or '127.0.0.1'"
 
     return LocalhostCodeOAuth_
         --localhost=localhost
-        --redirect_path=redirect_path
+        --redirect-path=redirect-path
         --logger=logger
         --endpoint=endpoint
-        --client_id=client_id
-        --client_secret=client_secret
+        --client-id=client-id
+        --client-secret=client-secret
         --scopes=scopes
-        --token_url=token_url
-        --root_certificates=root_certificates
-        --query_parameters=query_parameters
-        --local_storage=local_storage
+        --token-url=token-url
+        --root-certificates=root-certificates
+        --query-parameters=query-parameters
+        --local-storage=local-storage
 
   /**
   Constructs an OAuth provider that uses a device flow.
 
-  When doing the authentication ($ensure_authenticated), this instance will
+  When doing the authentication ($ensure-authenticated), this instance will
     start a device flow.
 
   The device flow is typically used for embedded devices that don't have
@@ -232,11 +232,11 @@ abstract class OAuth extends TokenAuthProvider:
     the embedded device. The device flow is also known as "device
     authorization grant".
 
-  The $client_id identifies the application. It is generated by the OAuth
+  The $client-id identifies the application. It is generated by the OAuth
     provider, and used to verify that the redirect_uri is registered for
     the client_id.
 
-  The $endpoint_url and $token_url URIs are provided by the OAuth provider.
+  The $endpoint-url and $token-url URIs are provided by the OAuth provider.
     For example, Google publishes the endpoint URL in their
     [discover document](https://accounts.google.com/.well-known/openid-configuration),
     under 'device_authorization_endpoint' and 'token_endpoint'.
@@ -248,132 +248,132 @@ abstract class OAuth extends TokenAuthProvider:
     "repo", "repo:status", "user", "gist", etc.
   */
   constructor.device
-      --client_id/string
-      --endpoint_url/string
-      --token_url/string
-      --root_certificates/List
+      --client-id/string
+      --endpoint-url/string
+      --token-url/string
+      --root-certificates/List
       --scopes/List
-      --local_storage/LocalStorage:
+      --local-storage/LocalStorage:
     return DeviceOAuth_
-        --client_id=client_id
-        --endpoint_url=endpoint_url
-        --token_url=token_url
-        --root_certificates=root_certificates
+        --client-id=client-id
+        --endpoint-url=endpoint-url
+        --token-url=token-url
+        --root-certificates=root-certificates
         --scopes=scopes
-        --local_storage=local_storage
+        --local-storage=local-storage
 
   refresh --network/net.Client?=null token/Token -> Token:
-    if not token.refresh_token:
+    if not token.refresh-token:
       throw "No refresh token available."
-    with_http_client network --root_certificates=root_certificates_: | client/http.Client |
-      response := client.post_json --uri=token_url_ {
-        "client_id": client_id_,
+    with-http-client network --root-certificates=root-certificates_: | client/http.Client |
+      response := client.post-json --uri=token-url_ {
+        "client_id": client-id_,
         // When using the device flow, some providers don't want the client to have
         // a client secret. However, in those cases we tend to not have a refresh
         // token either. So if the client secret is null we shouldn't reach this line.
         // If there is a provider that has a refresh token and no client secret, we
         // just send null here.
-        "client_secret": client_secret_,
-        "refresh_token": token.refresh_token,
+        "client_secret": client-secret_,
+        "refresh_token": token.refresh-token,
         "grant_type": "refresh_token",
       }
-      return parse_token_response_ response
+      return parse-token-response_ response
     unreachable
 
-  abstract do_authentication_ --network/net.Client?=null [block] -> Token
+  abstract do-authentication_ --network/net.Client?=null [block] -> Token
 
 class DeviceOAuth_ extends OAuth:
-  endpoint_url_/string
+  endpoint-url_/string
 
   /** See $OAuth.device. */
   constructor
-      --client_id/string
-      --endpoint_url/string
-      --token_url/string
-      --root_certificates/List
+      --client-id/string
+      --endpoint-url/string
+      --token-url/string
+      --root-certificates/List
       --scopes/List
-      --local_storage/LocalStorage:
-    endpoint_url_ = endpoint_url
-    super.from_sub_
-        --client_id=client_id
-        --client_secret=null
-        --token_url=token_url
+      --local-storage/LocalStorage:
+    endpoint-url_ = endpoint-url
+    super.from-sub_
+        --client-id=client-id
+        --client-secret=null
+        --token-url=token-url
         --scopes=scopes
-        --root_certificates=root_certificates
-        --local_storage=local_storage
+        --root-certificates=root-certificates
+        --local-storage=local-storage
 
-  do_authentication_ --network/net.Client?=null [block] -> Token:
-    with_http_client network --root_certificates=root_certificates_: | client/http.Client |
+  do-authentication_ --network/net.Client?=null [block] -> Token:
+    with-http-client network --root-certificates=root-certificates_: | client/http.Client |
       headers := http.Headers
       headers.add "Accept" "application/json"
-      response := client.post_form --uri=endpoint_url_ --headers=headers {
-        "client_id": client_id_,
+      response := client.post-form --uri=endpoint-url_ --headers=headers {
+        "client_id": client-id_,
         "scope": scopes_.join " ",
       }
       decoded/Map := {:}
       exception := catch:
-        decoded = json.decode_stream response.body
-      if response.status_code != 200 or exception:
+        decoded = json.decode-stream response.body
+      if response.status-code != 200 or exception:
         throw (AuthException
-            --status_code=response.status_code
-            --status_message=response.status_message
-            --error_code=decoded.get "error"
-            --error_description=decoded.get "error_description")
+            --status-code=response.status-code
+            --status-message=response.status-message
+            --error-code=decoded.get "error"
+            --error-description=decoded.get "error_description")
 
-      device_code := decoded["device_code"]
-      user_code := decoded["user_code"]
-      verification_uri := decoded["verification_uri"]
-      expires_in_s :=decoded["expires_in"]
-      interval_s := decoded["interval"]
+      device-code := decoded["device_code"]
+      user-code := decoded["user_code"]
+      verification-uri := decoded["verification_uri"]
+      expires-in-s :=decoded["expires_in"]
+      interval-s := decoded["interval"]
 
-      block.call verification_uri user_code
+      block.call verification-uri user-code
 
-      expires_time := Time.now + (Duration --s=expires_in_s)
-      while Time.now < expires_time:
-        sleep --ms=(1000 * interval_s)
+      expires-time := Time.now + (Duration --s=expires-in-s)
+      while Time.now < expires-time:
+        sleep --ms=(1000 * interval-s)
 
         // Check if the user has authorized the application.
-        response = client.post_json --uri=token_url_ --headers=headers {
-          "client_id": client_id_,
-          "device_code": device_code,
+        response = client.post-json --uri=token-url_ --headers=headers {
+          "client_id": client-id_,
+          "device_code": device-code,
           "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         }
 
         decoded = {:}
         exception = catch:
-          decoded = json.decode_stream response.body
+          decoded = json.decode-stream response.body
 
         if decoded.contains "access_token":
-          return parse_token_json_ decoded
+          return parse-token-json_ decoded
 
-        error_code := decoded.get "error"
+        error-code := decoded.get "error"
 
-        if error_code == "authorization_pending":
+        if error-code == "authorization_pending":
           // Still waiting for the user to authorize the application.
           continue
 
-        if error_code == "slow_down":
+        if error-code == "slow_down":
           // We have to wait longer between intervals.
           if decoded.contains "interval":
-            interval_s = decoded["interval"]
+            interval-s = decoded["interval"]
           else:
-            interval_s += 5
+            interval-s += 5
           continue
 
-        if error_code == "expired_token":
+        if error-code == "expired_token":
           // Shouldn't really happen since we only poll as long as
           // the token is valid.
           break
 
-        if error_code:
+        if error-code:
           throw (AuthException
-              --status_code=response.status_code
-              --status_message=response.status_message
-              --error_code=error_code
-              --error_description=decoded.get "error_description")
+              --status-code=response.status-code
+              --status-message=response.status-message
+              --error-code=error-code
+              --error-description=decoded.get "error_description")
 
       // TODO(florian): is this a good error?
-      throw DEADLINE_EXCEEDED_ERROR
+      throw DEADLINE-EXCEEDED-ERROR
     unreachable
 
 /**
@@ -381,79 +381,79 @@ An OAuth authorization code flow.
 */
 class LocalhostCodeOAuth_ extends OAuth:
   localhost_/string
-  redirect_path_/string
+  redirect-path_/string
   logger_/log.Logger
   endpoint_/string
-  query_parameters_/Map
+  query-parameters_/Map
 
   /**
   See $OAuth.localhost.
   */
   constructor
       --localhost/string="localhost"
-      --redirect_path/string
-      --logger/log.Logger=(log.default.with_level log.FATAL_LEVEL)
+      --redirect-path/string
+      --logger/log.Logger=(log.default.with-level log.FATAL-LEVEL)
       --endpoint/string
-      --client_id/string
-      --client_secret/string
+      --client-id/string
+      --client-secret/string
       --scopes/List
-      --token_url/string
-      --root_certificates/List
-      --query_parameters/Map={:}
-      --local_storage/LocalStorage:
+      --token-url/string
+      --root-certificates/List
+      --query-parameters/Map={:}
+      --local-storage/LocalStorage:
     localhost_ = localhost
-    redirect_path_ = redirect_path
+    redirect-path_ = redirect-path
     logger_ = logger
     endpoint_ = endpoint
-    query_parameters_ = query_parameters
+    query-parameters_ = query-parameters
 
-    super.from_sub_
-        --client_id=client_id
-        --client_secret=client_secret
-        --token_url=token_url
+    super.from-sub_
+        --client-id=client-id
+        --client-secret=client-secret
+        --token-url=token-url
         --scopes=scopes
-        --root_certificates=root_certificates
-        --local_storage=local_storage
+        --root-certificates=root-certificates
+        --local-storage=local-storage
 
-  do_authentication_ --network/net.Client?=null [block] -> Token:
-    network_needs_close := false
+  do-authentication_ --network/net.Client?=null [block] -> Token:
+    network-needs-close := false
     if not network:
       network = net.open
-      network_needs_close = true
+      network-needs-close = true
 
-    server_socket/tcp.ServerSocket? := null
+    server-socket/tcp.ServerSocket? := null
 
     try:
-      server_socket = network.tcp_listen 0
+      server-socket = network.tcp-listen 0
       server := http.Server --logger=logger_
-      port := server_socket.local_address.port
+      port := server-socket.local-address.port
 
-      redirect_url := "http://$localhost_:$port$redirect_path_"
+      redirect-url := "http://$localhost_:$port$redirect-path_"
 
-      code_flow := OAuthCodeFlow
-          --client_id=client_id_
-          --client_secret=client_secret_
-          --token_url=token_url_
-          --root_certificates=root_certificates_
+      code-flow := OAuthCodeFlow
+          --client-id=client-id_
+          --client-secret=client-secret_
+          --token-url=token-url_
+          --root-certificates=root-certificates_
           --endpoint=endpoint_
-          --redirect_url=redirect_url
-          --query_parameters=query_parameters_
+          --redirect-url=redirect-url
+          --query-parameters=query-parameters_
 
-      authenticate_url := code_flow.get_url --scopes=scopes_
-      block.call authenticate_url null
+      authenticate-url := code-flow.get-url --scopes=scopes_
+      block.call authenticate-url null
 
-      session_latch := monitor.Latch
-      server_task := task::
-        server.listen server_socket:: | request/http.Request writer/http.ResponseWriter |
-          if request.path.starts_with redirect_path_ and request.path.contains "?":
+      session-latch := monitor.Latch
+      server-task := task::
+        server.listen server-socket:: | request/http.Request writer/http.ResponseWriter |
+          if request.path.starts-with redirect-path_ and request.path.contains "?":
             // TODO(florian): extract error if there is one:
             // ```
             // http://localhost:41055/auth?error=server_error&error_description=Database+error+saving+new+user
             // ```
-            token := code_flow.get_token request.path --network=network
+            token := code-flow.get-token request.path --network=network
             writer.write "You can close this window now."
-            session_latch.set token
-          else if request.path.starts_with redirect_path_:
+            session-latch.set token
+          else if request.path.starts-with redirect-path_:
             // No query parameters.
             // The information might be in the fragment (hash) data.
             // Send a web-page that changes the fragment to a query string.
@@ -468,7 +468,7 @@ class LocalhostCodeOAuth_ extends OAuth:
                   req.addEventListener("load", function() {
                     document.getElementById("body").innerHTML = "You can close this window now.";
                   });
-                  req.open("GET", "http://localhost:$port/$redirect_path_?" window.location.hash.substring(1));
+                  req.open("GET", "http://localhost:$port/$redirect-path_?" window.location.hash.substring(1));
                   req.send();
                   document.getElementById("body").innerHTML = "Transmitting data to CLI...";
                 </script>
@@ -478,14 +478,14 @@ class LocalhostCodeOAuth_ extends OAuth:
           else:
             writer.write "Invalid request."
 
-      result := session_latch.get
+      result := session-latch.get
       sleep --ms=1  // Give the server time to respond with the success message.
-      server_task.cancel
+      server-task.cancel
       return result
     finally:
-      if server_socket:
-        server_socket.close
-      if network_needs_close:
+      if server-socket:
+        server-socket.close
+      if network-needs-close:
         network.close
 
 /**
@@ -512,7 +512,7 @@ class OAuthCodeFlow:
 
   The ID is provided by the OAuth provider and identifies the application.
   */
-  client_id/string
+  client-id/string
 
   /**
   The client secret.
@@ -525,7 +525,7 @@ class OAuthCodeFlow:
     explicitly states that the client secret is not really a secret
     when the authentication is for an installed application.
   */
-  client_secret/string
+  client-secret/string
 
   /**
   The base URI of the authorization endpoint.
@@ -542,34 +542,34 @@ class OAuthCodeFlow:
 
   The authentication provider requires the redirect URL to be registered
     beforehand. The user of this flow must have a server that listens on
-    this URL. The server must call $get_token with the parameters provided
+    this URL. The server must call $get-token with the parameters provided
     in the redirect.
   */
-  redirect_url/string
+  redirect-url/string
 
   /**
   The URL where the library can obtain the token.
   */
-  token_url/string
+  token-url/string
 
   /**
-  The root certificates needed to access $token_url.
+  The root certificates needed to access $token-url.
   */
-  root_certificates/List
+  root-certificates/List
 
   /**
   Additional query parameters that are passed to the redirect URL.
   */
-  query_parameters/Map
+  query-parameters/Map
 
   constructor
       --.endpoint
-      --.client_id
-      --.client_secret
-      --.token_url
-      --.redirect_url
-      --.root_certificates
-      --.query_parameters={:}:
+      --.client-id
+      --.client-secret
+      --.token-url
+      --.redirect-url
+      --.root-certificates
+      --.query-parameters={:}:
 
   /**
   Returns the URL where the user can log in.
@@ -584,51 +584,51 @@ class OAuthCodeFlow:
     be an unguessable random string, to protect against cross-site request forgery
     attacks. Google suggest additional uses, such as directing the user to the correct
     resource, sending nonces, etc. The $state is always sent verbatim to
-    the $redirect_url. Note that this instance does *not* verify that the returned
-    state matches the provided state. The caller of $get_token must do that.
+    the $redirect-url. Note that this instance does *not* verify that the returned
+    state matches the provided state. The caller of $get-token must do that.
   */
-  get_url --scopes/List state/string?=null -> string:
-    parameters := query_parameters.copy
-    parameters["client_id"] = client_id
-    parameters["redirect_uri"] = redirect_url
+  get-url --scopes/List state/string?=null -> string:
+    parameters := query-parameters.copy
+    parameters["client_id"] = client-id
+    parameters["redirect_uri"] = redirect-url
     parameters["scope"] = scopes.join " "
     parameters["response_type"] = "code"
     if state: parameters["state"] = state
 
-    return "$endpoint?$(build_url_encoded_query_parameters parameters)"
+    return "$endpoint?$(build-url-encoded-query-parameters parameters)"
 
   /**
   Returns an authorization token.
 
-  The $response_url is the URL (including the query parameters) that the server
+  The $response-url is the URL (including the query parameters) that the server
     received in the redirect URL.
 
   The $network is used to obtain the token. If $network is null, then a new
     network is created and closed after the token is obtained.
   */
-  get_token response_url/string --network/net.Client?=null -> Token:
-    parsed := url.QueryString.parse response_url
+  get-token response-url/string --network/net.Client?=null -> Token:
+    parsed := url.QueryString.parse response-url
 
     code := parsed.parameters.get "code"
     if not code:
       exception := AuthException
-          --error_code="missing_code"
-          --error_description="The code is missing"
+          --error-code="missing_code"
+          --error-description="The code is missing"
       throw exception
 
-    with_http_client network --root_certificates=root_certificates: | client/http.Client |
+    with-http-client network --root-certificates=root-certificates: | client/http.Client |
       parameters := {
         "code": code,
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "redirect_uri": redirect_url,
+        "client_id": client-id,
+        "client_secret": client-secret,
+        "redirect_uri": redirect-url,
         "grant_type": "authorization_code",
       }
-      encoded_params := build_url_encoded_query_parameters parameters
+      encoded-params := build-url-encoded-query-parameters parameters
       headers := http.Headers
       headers.add "Accept" "application/json"
-      url_with_code := "$token_url?$encoded_params"
-      response := client.get --uri=url_with_code --headers=headers
-      return parse_token_response_ response
+      url-with-code := "$token-url?$encoded-params"
+      response := client.get --uri=url-with-code --headers=headers
+      return parse-token-response_ response
 
     unreachable

@@ -2,12 +2,12 @@
 
 import log
 import system.storage
-import system.firmware show is_validation_pending
+import system.firmware show is-validation-pending
 import uuid
 
 import .firmware
-import .utils show deep_copy
-import ..shared.json_diff show json_equals Modification
+import .utils show deep-copy
+import ..shared.json-diff show json-equals Modification
 
 /**
 A representation of the device we are running on.
@@ -17,11 +17,11 @@ This class abstracts away the current state and configuration
 */
 class Device:
   /** UUID used to ensure that the flash's data is actually from us. */
-  static FLASH_ENTRY_UUID_ ::= "ccf4efed-6825-44e6-b71d-1aa118d43824"
+  static FLASH-ENTRY-UUID_ ::= "ccf4efed-6825-44e6-b71d-1aa118d43824"
 
-  static FLASH_CURRENT_STATE_ ::= "current-state"
-  static FLASH_CHECKPOINT_ ::= "checkpoint"
-  static FLASH_REPORT_STATE_CHECKSUM_ ::= "report-state-checksum"
+  static FLASH-CURRENT-STATE_ ::= "current-state"
+  static FLASH-CHECKPOINT_ ::= "checkpoint"
+  static FLASH-REPORT-STATE-CHECKSUM_ ::= "report-state-checksum"
   flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
 
   // We store the information that contains timestamps in RAM,
@@ -29,9 +29,9 @@ class Device:
   // loss of power. If we ever want to store these in flash
   // instead, we need to manually invalidate them when a new
   // monotonic clock phase starts.
-  static RAM_CHECK_IN_LAST_ ::= "check-in-last"
-  static RAM_SYNCHRONIZED_LAST_ ::= "synchronized-last"
-  static RAM_SCHEDULER_JOBS_STATE_ ::= "scheduler-jobs"
+  static RAM-CHECK-IN-LAST_ ::= "check-in-last"
+  static RAM-SYNCHRONIZED-LAST_ ::= "synchronized-last"
+  static RAM-SCHEDULER-JOBS-STATE_ ::= "scheduler-jobs"
   ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
 
   /**
@@ -47,55 +47,55 @@ class Device:
 
   This ID was chosen during provisioning and is globally unique.
   */
-  hardware_id/uuid.Uuid
+  hardware-id/uuid.Uuid
 
   /**
   The organization ID of the device.
   */
-  organization_id/uuid.Uuid
+  organization-id/uuid.Uuid
 
   /**
   The configuration as given by the firmware.
 
   This is the configuration the device was booted with.
-  Unless the $current_state has a different "firmware" entry, this will
+  Unless the $current-state has a different "firmware" entry, this will
     also be the configuration the device will use when rebooted again.
   */
-  firmware_state/Map
+  firmware-state/Map
 
   /**
   The current configuration of the device.
 
   This is the configuration the device is currently running with.
   May return null, if the current configuration is the same as the
-    $firmware_state.
+    $firmware-state.
 
   Note that the "firmware" entry in this map must always be equal to
-    the "firmware" entry in the $firmware_state.
+    the "firmware" entry in the $firmware-state.
 
-  If a new firmware has been installed, the $pending_firmware is set
+  If a new firmware has been installed, the $pending-firmware is set
     to that firmware.
   */
-  current_state/Map := ?
+  current-state/Map := ?
 
   // We keep track of whether the current state can be modified.
   // We don't want to modify the firmware state and a state read
   // directly from the flash contains lists and maps that cannot
   // be modified.
-  current_state_is_modifiable_/bool := false
+  current-state-is-modifiable_/bool := false
 
   /**
   The firmware that is installed, but not yet running.
   */
-  pending_firmware/string? := null
+  pending-firmware/string? := null
 
   /**
   The checksum of the last reported state.
   */
-  report_state_checksum_/ByteArray? := null
+  report-state-checksum_/ByteArray? := null
 
-  constructor --.id --.hardware_id --.organization_id --.firmware_state/Map:
-    current_state = firmware_state
+  constructor --.id --.hardware-id --.organization-id --.firmware-state/Map:
+    current-state = firmware-state
     load_
 
   /**
@@ -104,61 +104,61 @@ class Device:
   At this point the device is free to discard older information from the
     previous firmware.
   */
-  firmware_validated -> none:
-    flash_store_ FLASH_CURRENT_STATE_ null
+  firmware-validated -> none:
+    flash-store_ FLASH-CURRENT-STATE_ null
 
   /**
   Whether the current state is modified and thus different from
     the firmware state.
   */
-  is_current_state_modified -> bool:
-    return not identical current_state firmware_state
+  is-current-state-modified -> bool:
+    return not identical current-state firmware-state
 
   /**
   The current max-offline as a Duration.
   */
-  max_offline -> Duration?:
-    max_offline_s/int? := current_state.get "max-offline"
-    if not max_offline_s: return null
-    return Duration --s=max_offline_s
+  max-offline -> Duration?:
+    max-offline-s/int? := current-state.get "max-offline"
+    if not max-offline-s: return null
+    return Duration --s=max-offline-s
 
   /**
   The current firmware.
 
   This is the firmware the device is currently running with.
-  The $current_state might already have a different firmware
+  The $current-state might already have a different firmware
     which would be executed after a reboot.
   */
   firmware -> string:
-    return firmware_state["firmware"]
+    return firmware-state["firmware"]
 
   /**
   Sets the max-offline of the current state.
   */
-  state_set_max_offline new_max_offline/Duration?:
-    state := current_state_modifiable_
-    if new_max_offline and new_max_offline > Duration.ZERO:
-      state["max-offline"] = new_max_offline.in_s
+  state-set-max-offline new-max-offline/Duration?:
+    state := current-state-modifiable_
+    if new-max-offline and new-max-offline > Duration.ZERO:
+      state["max-offline"] = new-max-offline.in-s
     else:
       state.remove "max-offline"
-    simplify_and_store_
+    simplify-and-store_
 
   /**
   Removes the container with the given $name from the current state.
   */
-  state_container_uninstall name/string:
-    state := current_state_modifiable_
+  state-container-uninstall name/string:
+    state := current-state-modifiable_
     state["apps"].remove name
-    simplify_and_store_
+    simplify-and-store_
 
   /**
   Adds or updates the container with the given $name and $description in the current state.
   */
-  state_container_install_or_update name/string description/Map:
-    state := current_state_modifiable_
+  state-container-install-or-update name/string description/Map:
+    state := current-state-modifiable_
     apps := state.get "apps" --init=: {:}
     apps[name] = description
-    simplify_and_store_
+    simplify-and-store_
 
   /**
   Sets the firmware of the current state.
@@ -166,156 +166,156 @@ class Device:
   This only marks the current state as having the new firmware installed.
     A reboot is required to actually use the new firmware.
   */
-  state_firmware_update new/string:
-    pending_firmware = new
+  state-firmware-update new/string:
+    pending-firmware = new
 
   /**
   Get the checksum of the last state report.
   */
-  report_state_checksum -> ByteArray?:
-    return report_state_checksum_
+  report-state-checksum -> ByteArray?:
+    return report-state-checksum_
 
   /**
   Sets the checksum of the last state report.
   */
-  report_state_checksum= value/ByteArray -> none:
-    flash_store_ FLASH_REPORT_STATE_CHECKSUM_ value
-    report_state_checksum_ = value
+  report-state-checksum= value/ByteArray -> none:
+    flash-store_ FLASH-REPORT-STATE-CHECKSUM_ value
+    report-state-checksum_ = value
 
   /**
   Gets the last check-in state (if any).
   */
-  check_in_last -> Map?:
-    return ram_load_ RAM_CHECK_IN_LAST_
+  check-in-last -> Map?:
+    return ram-load_ RAM-CHECK-IN-LAST_
 
   /**
   Stores the last check-in state in memory that is preserved across
     deep sleeping.
   */
-  check_in_last_update value/Map -> none:
-    ram_store_ RAM_CHECK_IN_LAST_ value
+  check-in-last-update value/Map -> none:
+    ram-store_ RAM-CHECK-IN-LAST_ value
 
   /**
   Gets the scheduler jobs state information.
   */
-  scheduler_jobs_state -> Map:
-    stored := ram_load_ RAM_SCHEDULER_JOBS_STATE_
+  scheduler-jobs-state -> Map:
+    stored := ram-load_ RAM-SCHEDULER-JOBS-STATE_
     return stored is Map ? stored : {:}
 
   /**
   Stores the scheduler jobs state information in memory that
     is preserved across deep sleeping.
   */
-  scheduler_jobs_state_update value/Map -> none:
-    ram_store_ RAM_SCHEDULER_JOBS_STATE_ value
+  scheduler-jobs-state-update value/Map -> none:
+    ram-store_ RAM-SCHEDULER-JOBS-STATE_ value
 
   /**
   Get the time of the last successful synchronization.
   */
-  synchronized_last_us -> int?:
-    return ram_load_ RAM_SYNCHRONIZED_LAST_
+  synchronized-last-us -> int?:
+    return ram-load_ RAM-SYNCHRONIZED-LAST_
 
   /**
   Stores the time of the last successful synchronization in
     memory that is preserved across deep sleeping.
   */
-  synchronized_last_us_update value/int -> none:
-    ram_store_ RAM_SYNCHRONIZED_LAST_ value
+  synchronized-last-us-update value/int -> none:
+    ram-store_ RAM-SYNCHRONIZED-LAST_ value
 
   /**
   Gets the last checkpoint (if any) for the firmware update
     from $old to $new.
   */
   checkpoint --old/Firmware --new/Firmware -> Checkpoint?:
-    value := flash_load_ FLASH_CHECKPOINT_
+    value := flash-load_ FLASH-CHECKPOINT_
     if value is List and value.size == 6 and
         old.checksum == value[0] and
         new.checksum == value[1]:
       return Checkpoint
-          --old_checksum=old.checksum
-          --new_checksum=new.checksum
-          --read_part_index=value[2]
-          --read_offset=value[3]
-          --write_offset=value[4]
-          --write_skip=value[5]
+          --old-checksum=old.checksum
+          --new-checksum=new.checksum
+          --read-part-index=value[2]
+          --read-offset=value[3]
+          --write-offset=value[4]
+          --write-skip=value[5]
     // If we find an oddly shaped entry in the flash, we might as
     // well clear it out eagerly.
-    checkpoint_update null
+    checkpoint-update null
     return null
 
   /**
   Updates the checkpoint information stored in flash.
   */
-  checkpoint_update checkpoint/Checkpoint? -> none:
+  checkpoint-update checkpoint/Checkpoint? -> none:
     value := checkpoint and [
-      checkpoint.old_checksum,
-      checkpoint.new_checksum,
-      checkpoint.read_part_index,
-      checkpoint.read_offset,
-      checkpoint.write_offset,
-      checkpoint.write_skip
+      checkpoint.old-checksum,
+      checkpoint.new-checksum,
+      checkpoint.read-part-index,
+      checkpoint.read-offset,
+      checkpoint.write-offset,
+      checkpoint.write-skip
     ]
-    flash_store_ FLASH_CHECKPOINT_ value
+    flash-store_ FLASH-CHECKPOINT_ value
 
   /**
   Get the current state in a modifiable form.
   */
-  current_state_modifiable_ -> Map:
-    if not current_state_is_modifiable_:
-      current_state = deep_copy current_state
-      current_state_is_modifiable_ = true
-    return current_state
+  current-state-modifiable_ -> Map:
+    if not current-state-is-modifiable_:
+      current-state = deep-copy current-state
+      current-state-is-modifiable_ = true
+    return current-state
 
   /**
   Loads the states from flash.
   */
   load_ -> none:
-    stored_current_state := flash_load_ FLASH_CURRENT_STATE_
-    if stored_current_state:
-      if stored_current_state["firmware"] == firmware_state["firmware"]:
-        modification/Modification? := Modification.compute --from=firmware_state --to=stored_current_state
+    stored-current-state := flash-load_ FLASH-CURRENT-STATE_
+    if stored-current-state:
+      if stored-current-state["firmware"] == firmware-state["firmware"]:
+        modification/Modification? := Modification.compute --from=firmware-state --to=stored-current-state
         if modification:
           log.debug "current state is changed" --tags={"changes": Modification.stringify modification}
-          current_state = stored_current_state
+          current-state = stored-current-state
       else:
         // At this point we don't clear the current state in the flash yet.
         // If the firmware is not validated, we might roll back, and then continue using
         // the old "current" state.
-        if not is_validation_pending:
+        if not is-validation-pending:
           log.error "current state has different firmware than firmware state"
-    report_state_checksum_ = flash_load_ FLASH_REPORT_STATE_CHECKSUM_
+    report-state-checksum_ = flash-load_ FLASH-REPORT-STATE-CHECKSUM_
 
   /**
   Stores the states into the flash after simplifying them.
 
   If the current state is the same as the firmware state sets it to null.
   */
-  simplify_and_store_ -> none:
-    if current_state and json_equals current_state firmware_state:
-      current_state = firmware_state
-      current_state_is_modifiable_ = false
+  simplify-and-store_ -> none:
+    if current-state and json-equals current-state firmware-state:
+      current-state = firmware-state
+      current-state-is-modifiable_ = false
 
-    if is_validation_pending:
+    if is-validation-pending:
       log.error "validation still pending in simplify_and_store_"
 
-    flash_store_ FLASH_CURRENT_STATE_ current_state
+    flash-store_ FLASH-CURRENT-STATE_ current-state
 
-  flash_load_ key/string -> any:
+  flash-load_ key/string -> any:
     entry := flash_.get key
     if entry is not Map: return null
-    if (entry.get "uuid") != FLASH_ENTRY_UUID_: return null
+    if (entry.get "uuid") != FLASH-ENTRY-UUID_: return null
     return entry["data"]
 
-  flash_store_ key/string value/any -> none:
+  flash-store_ key/string value/any -> none:
     if value == null:
       flash_.remove key
     else:
-      flash_[key] = { "uuid": FLASH_ENTRY_UUID_, "data": value }
+      flash_[key] = { "uuid": FLASH-ENTRY-UUID_, "data": value }
 
-  ram_load_ key/string -> any:
+  ram-load_ key/string -> any:
     return ram_.get key
 
-  ram_store_ key/string value/any -> none:
+  ram-store_ key/string value/any -> none:
     if value == null:
       ram_.remove key
     else:

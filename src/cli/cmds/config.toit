@@ -1,41 +1,41 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import encoding.base64
-import certificate_roots
+import certificate-roots
 import cli
 import host.file
 
-import ..server_config
+import ..server-config
 import ..cache
 import ..config
 import ..ui
-import ...shared.server_config
+import ...shared.server-config
 
-create_config_commands config/Config cache/Cache ui/Ui -> List:
-  config_cmd := cli.Command "config"
-      --short_help="Configure Artemis tool."
+create-config-commands config/Config cache/Cache ui/Ui -> List:
+  config-cmd := cli.Command "config"
+      --short-help="Configure Artemis tool."
 
-  show_cmd := cli.Command "show"
-      --short_help="Prints the current configuration."
-      --run=:: show_config config ui
-  config_cmd.add show_cmd
+  show-cmd := cli.Command "show"
+      --short-help="Prints the current configuration."
+      --run=:: show-config config ui
+  config-cmd.add show-cmd
 
-  (create_server_config_commands config ui).do: config_cmd.add it
+  (create-server-config-commands config ui).do: config-cmd.add it
 
-  return [config_cmd]
+  return [config-cmd]
 
-create_server_config_commands config/Config ui/Ui -> List:
-  config_broker_cmd := cli.Command "broker"
-      --short_help="Configure the Artemis brokers."
+create-server-config-commands config/Config ui/Ui -> List:
+  config-broker-cmd := cli.Command "broker"
+      --short-help="Configure the Artemis brokers."
       --options=[
         cli.Flag "artemis"
-            --short_help="Manipulate the config of the Artemis server."
+            --short-help="Manipulate the config of the Artemis server."
             --hidden
       ]
 
-  config_broker_cmd.add
+  config-broker-cmd.add
       cli.Command "default"
-          --long_help="""
+          --long-help="""
             Show or set the default broker.
 
             If no broker is specified, the current default broker is shown.
@@ -45,226 +45,226 @@ create_server_config_commands config/Config ui/Ui -> List:
             """
           --options=[
             cli.Flag "clear"
-                --short_help="Clear the default broker.",
+                --short-help="Clear the default broker.",
           ]
           --rest=[
             cli.OptionString "name"
-                --short_help="The name of the broker."
+                --short-help="The name of the broker."
           ]
-          --run=:: default_server it config ui
+          --run=:: default-server it config ui
 
-  add_cmd := cli.Command "add"
-      --short_help="Add a broker."
+  add-cmd := cli.Command "add"
+      --short-help="Add a broker."
       --options=[
         cli.Flag "default"
             --default=true
-            --short_help="Set the broker as the default broker.",
+            --short-help="Set the broker as the default broker.",
       ]
-  config_broker_cmd.add add_cmd
+  config-broker-cmd.add add-cmd
 
-  add_cmd.add
+  add-cmd.add
       cli.Command "supabase"
-          --short_help="Add a Supabase broker."
+          --short-help="Add a Supabase broker."
           --options=[
             cli.OptionString "certificate"
-                --short_help="The certificate to use for the broker.",
+                --short-help="The certificate to use for the broker.",
           ]
           --rest=[
             cli.OptionString "name"
-                --short_help="The name of the broker."
+                --short-help="The name of the broker."
                 --required,
             cli.OptionString "host"
-                --short_help="The host of the broker."
+                --short-help="The host of the broker."
                 --required,
             cli.OptionString "anon"
-                --short_help="The key for anonymous access."
+                --short-help="The key for anonymous access."
                 --required,
           ]
-          --run=:: add_supabase it config ui
+          --run=:: add-supabase it config ui
 
-  add_cmd.add
+  add-cmd.add
       cli.Command "http"
           --hidden
-          --short_help="Add an HTTP broker."
+          --short-help="Add an HTTP broker."
           --options=[
             cli.OptionInt "port"
-                --short_help="The port of the broker."
-                --short_name="p"
+                --short-help="The port of the broker."
+                --short-name="p"
                 --required,
             cli.Option "host"
-                --short_help="The host of the broker."
-                --short_name="h"
+                --short-help="The host of the broker."
+                --short-name="h"
                 --default="localhost",
             cli.Option "path"
-                --short_help="The path of the broker."
+                --short-help="The path of the broker."
                 --default="/",
             cli.Option "root-certificate"
-                --short_help="The root certificate name of the broker."
+                --short-help="The root certificate name of the broker."
                 --multi,
             cli.Option "device-header"
-                --short_help="The HTTP header the device needs to add to the request. Of the form KEY=VALUE."
+                --short-help="The HTTP header the device needs to add to the request. Of the form KEY=VALUE."
                 --multi,
             cli.Option "admin-header"
-                --short_help="The HTTP header the CLI needs to add to the request. Of the form KEY=VALUE."
+                --short-help="The HTTP header the CLI needs to add to the request. Of the form KEY=VALUE."
                 --multi,
           ]
           --rest=[
             cli.OptionString "name"
-                --short_help="The name of the broker."
+                --short-help="The name of the broker."
                 --required,
           ]
-          --run=:: add_http it config ui
+          --run=:: add-http it config ui
 
-  return [config_broker_cmd]
+  return [config-broker-cmd]
 
-show_config config/Config ui/Ui:
-  default_device := config.get CONFIG_DEVICE_DEFAULT_KEY
-  default_broker := config.get CONFIG_BROKER_DEFAULT_KEY
-  default_org := config.get CONFIG_ORGANIZATION_DEFAULT_KEY
-  servers := config.get CONFIG_SERVERS_KEY
-  auths := config.get CONFIG_SERVER_AUTHS_KEY
+show-config config/Config ui/Ui:
+  default-device := config.get CONFIG-DEVICE-DEFAULT-KEY
+  default-broker := config.get CONFIG-BROKER-DEFAULT-KEY
+  default-org := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
+  servers := config.get CONFIG-SERVERS-KEY
+  auths := config.get CONFIG-SERVER-AUTHS-KEY
 
-  json_output := :
+  json-output := :
     result := {
       "path" : config.path
     }
 
-    if default_device: result["default-device"] = default_device
-    if default_broker: result["default-broker"] = default_broker
-    if default_org: result["default-org"] = default_org
+    if default-device: result["default-device"] = default-device
+    if default-broker: result["default-broker"] = default-broker
+    if default-org: result["default-org"] = default-org
     if servers: result["servers"] = servers
     if auths:
       // Store the auths with the servers.
-      result_servers := result.get "servers" --init=: {:}
-      auths.do: | server_name auth |
-        server := result_servers.get server_name --init=: {:}
+      result-servers := result.get "servers" --init=: {:}
+      auths.do: | server-name auth |
+        server := result-servers.get server-name --init=: {:}
         if auth is Map:
-          ["access_token", "refresh_token"].do: | token_name |
-            if auth.contains token_name and auth[token_name].size > 35:
-              auth[token_name] = auth[token_name][0..30] + "..."
+          ["access_token", "refresh_token"].do: | token-name |
+            if auth.contains token-name and auth[token-name].size > 35:
+              auth[token-name] = auth[token-name][0..30] + "..."
         server["auth"] = auth
     result
 
-  human_output := : | printer/Printer |
+  human-output := : | printer/Printer |
     result := {
       "Configuration file" : config.path
     }
-    if default_device: result["Default device"] = default_device
-    if default_broker: result["Default broker"] = default_broker
-    if default_org: result["Default organization"] = default_org
+    if default-device: result["Default device"] = default-device
+    if default-broker: result["Default broker"] = default-broker
+    if default-org: result["Default organization"] = default-org
     if servers:
       // TODO(florian): make the servers nicer.
       result["Servers"] = servers
     if auths:
       // Store the auths with the servers.
-      result_servers := result.get "Servers" --init=: {:}
-      auths.do: | server_name auth |
-        server := result_servers.get server_name --init=: {:}
+      result-servers := result.get "Servers" --init=: {:}
+      auths.do: | server-name auth |
+        server := result-servers.get server-name --init=: {:}
         server["auth"] = auth
     printer.emit result
 
   ui.do --kind=Ui.RESULT: | printer/Printer |
-    printer.emit_structured
-        --json=json_output
-        --stdout=human_output
+    printer.emit-structured
+        --json=json-output
+        --stdout=human-output
 
-default_server parsed/cli.Parsed config/Config ui/Ui:
-  config_key := parsed["artemis"] ? CONFIG_ARTEMIS_DEFAULT_KEY : CONFIG_BROKER_DEFAULT_KEY
+default-server parsed/cli.Parsed config/Config ui/Ui:
+  config-key := parsed["artemis"] ? CONFIG-ARTEMIS-DEFAULT-KEY : CONFIG-BROKER-DEFAULT-KEY
 
   if parsed["clear"]:
-    config.remove config_key
+    config.remove config-key
     config.write
     return
 
   name := parsed["name"]
   if not name:
-    default_server := config.get config_key
-    if default_server:
-      ui.result default_server
+    default-server := config.get config-key
+    if default-server:
+      ui.result default-server
     else:
       ui.abort "No default broker."
     return
 
-  if not has_server_in_config config name:
+  if not has-server-in-config config name:
     ui.abort "Unknown broker $name."
 
-  config[config_key] = name
+  config[config-key] = name
   config.write
 
-check_certificate_ name/string ui/Ui -> none:
-  certificate := certificate_roots.MAP.get name
+check-certificate_ name/string ui/Ui -> none:
+  certificate := certificate-roots.MAP.get name
   if certificate: return
   ui.error "Unknown certificate."
   ui.do: | printer/Printer |
     printer.emit --title="Available certificates:"
-      certificate_roots.MAP.keys
+      certificate-roots.MAP.keys
   ui.abort
 
-add_supabase parsed/cli.Parsed config/Config ui/Ui:
+add-supabase parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
   host := parsed["host"]
   anon := parsed["anon"]
-  certificate_name := parsed["certificate"]
+  certificate-name := parsed["certificate"]
 
-  if host.starts_with "http://" or host.starts_with "https://":
+  if host.starts-with "http://" or host.starts-with "https://":
     host = host.trim --prefix "http://"
     host = host.trim --prefix "https://"
 
-  supabase_config := ServerConfigSupabase name
+  supabase-config := ServerConfigSupabase name
       --host=host
       --anon=anon
-      --root_certificate_name=certificate_name
+      --root-certificate-name=certificate-name
 
-  add_server_to_config config supabase_config
+  add-server-to-config config supabase-config
   if parsed["default"]:
-    config[CONFIG_BROKER_DEFAULT_KEY] = name
+    config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
   ui.info "Added broker $name."
 
-add_http parsed/cli.Parsed config/Config ui/Ui:
+add-http parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
   host := parsed["host"]
   port := parsed["port"]
   path := parsed["path"]
-  root_certificate_names := parsed["root-certificate"]
-  device_headers_list := parsed["device-header"]
-  admin_headers_list := parsed["admin-header"]
+  root-certificate-names := parsed["root-certificate"]
+  device-headers-list := parsed["device-header"]
+  admin-headers-list := parsed["admin-header"]
 
-  root_certificate_names.do: check_certificate_ it ui
-  if root_certificate_names.is_empty:
-    root_certificate_names = null
+  root-certificate-names.do: check-certificate_ it ui
+  if root-certificate-names.is-empty:
+    root-certificate-names = null
 
-  header_list_to_map := : | header_list/List |
-    headers_map := null
-    if not header_list.is_empty:
-      headers_map = {:}
-      header_list.do: | header/string |
-        equal_index := header.index_of "="
-        if equal_index == -1:
+  header-list-to-map := : | header-list/List |
+    headers-map := null
+    if not header-list.is-empty:
+      headers-map = {:}
+      header-list.do: | header/string |
+        equal-index := header.index-of "="
+        if equal-index == -1:
           ui.abort "Invalid header: $header"
-        key := header[..equal_index]
-        value := header[equal_index + 1..]
-        if headers_map.contains key:
+        key := header[..equal-index]
+        value := header[equal-index + 1..]
+        if headers-map.contains key:
           ui.abort "Duplicate headers not implemented: $key"
-        headers_map[key] = value
-    headers_map
+        headers-map[key] = value
+    headers-map
 
-  device_headers := header_list_to_map.call device_headers_list
-  admin_headers := header_list_to_map.call admin_headers_list
+  device-headers := header-list-to-map.call device-headers-list
+  admin-headers := header-list-to-map.call admin-headers-list
 
-  http_config := ServerConfigHttp name
+  http-config := ServerConfigHttp name
       --host=host
       --port=port
       --path=path
-      --root_certificate_names=root_certificate_names
-      --root_certificate_ders=null
-      --device_headers=device_headers
-      --admin_headers=admin_headers
+      --root-certificate-names=root-certificate-names
+      --root-certificate-ders=null
+      --device-headers=device-headers
+      --admin-headers=admin-headers
 
-  add_server_to_config config http_config
+  add-server-to-config config http-config
   if parsed["default"]:
-    config[CONFIG_BROKER_DEFAULT_KEY] = name
+    config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
   ui.info "Added broker $name."

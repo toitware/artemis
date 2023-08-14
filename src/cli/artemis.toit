@@ -14,48 +14,48 @@ import encoding.ubjson
 import encoding.json
 
 import .cache as cache
-import .cache show service_image_cache_key application_image_cache_key
+import .cache show service-image-cache-key application-image-cache-key
 import .config
 import .device
 import .pod
-import .pod_specification
+import .pod-specification
 
 import .utils
-import .utils.patch_build show build_diff_patch build_trivial_patch
+import .utils.patch-build show build-diff-patch build-trivial-patch
 import ..shared.utils.patch show Patcher PatchObserver
 
-import .artemis_servers.artemis_server
+import .artemis-servers.artemis-server
 import .brokers.broker
 import .firmware
 import .program
 import .sdk
 import .ui
-import .server_config
+import .server-config
 
 /**
 Manages devices that have an Artemis service running on them.
 */
 class Artemis:
   broker_/BrokerCli? := null
-  artemis_server_/ArtemisServerCli? := null
+  artemis-server_/ArtemisServerCli? := null
   network_/net.Interface? := null
 
   config_/Config
   cache_/cache.Cache
   ui_/Ui
-  broker_config_/ServerConfig
-  artemis_config_/ServerConfig
-  tmp_directory/string
+  broker-config_/ServerConfig
+  artemis-config_/ServerConfig
+  tmp-directory/string
 
   constructor --config/Config --cache/cache.Cache --ui/Ui
-      --.tmp_directory
-      --broker_config/ServerConfig
-      --artemis_config/ServerConfig:
+      --.tmp-directory
+      --broker-config/ServerConfig
+      --artemis-config/ServerConfig:
     config_ = config
     cache_ = cache
     ui_ = ui
-    broker_config_ = broker_config
-    artemis_config_ = artemis_config
+    broker-config_ = broker-config
+    artemis-config_ = artemis-config
 
   /**
   Closes the manager.
@@ -64,133 +64,133 @@ class Artemis:
   */
   close:
     if broker_: broker_.close
-    if artemis_server_: artemis_server_.close
+    if artemis-server_: artemis-server_.close
     if network_: network_.close
     broker_ = null
-    artemis_server_ = null
+    artemis-server_ = null
     network_ = null
 
   /** Opens the network. */
-  connect_network_:
+  connect-network_:
     if network_: return
     network_ = net.open
 
   /**
-  Returns a connected broker, using the $broker_config_ to connect.
+  Returns a connected broker, using the $broker-config_ to connect.
 
-  If $authenticated is true (the default), calls $BrokerCli.ensure_authenticated.
+  If $authenticated is true (the default), calls $BrokerCli.ensure-authenticated.
   */
-  connected_broker --authenticated/bool=true -> BrokerCli:
+  connected-broker --authenticated/bool=true -> BrokerCli:
     if not broker_:
-      broker_ = BrokerCli broker_config_ config_
+      broker_ = BrokerCli broker-config_ config_
     if authenticated:
-      broker_.ensure_authenticated: | error_message |
-        ui_.abort "$error_message (broker)."
+      broker_.ensure-authenticated: | error-message |
+        ui_.abort "$error-message (broker)."
     return broker_
 
   /**
-  Returns a connected broker, using the $artemis_config_ to connect.
+  Returns a connected broker, using the $artemis-config_ to connect.
 
-  If $authenticated is true (the default), calls $ArtemisServerCli.ensure_authenticated.
+  If $authenticated is true (the default), calls $ArtemisServerCli.ensure-authenticated.
   */
-  connected_artemis_server --authenticated/bool=true -> ArtemisServerCli:
-    if not artemis_server_:
-      connect_network_
-      artemis_server_ = ArtemisServerCli network_ artemis_config_ config_
+  connected-artemis-server --authenticated/bool=true -> ArtemisServerCli:
+    if not artemis-server_:
+      connect-network_
+      artemis-server_ = ArtemisServerCli network_ artemis-config_ config_
     if authenticated:
-      artemis_server_.ensure_authenticated: | error_message |
-        ui_.abort "$error_message (artemis)."
-    return artemis_server_
+      artemis-server_.ensure-authenticated: | error-message |
+        ui_.abort "$error-message (artemis)."
+    return artemis-server_
 
   /**
   Checks whether the given $sdk version and $service version is supported by
     the Artemis server.
   */
-  check_is_supported_version_ --organization_id/uuid.Uuid --sdk/string?=null --service/string?=null:
-    server := connected_artemis_server
-    versions := server.list_sdk_service_versions
-        --organization_id=organization_id
-        --sdk_version=sdk
-        --service_version=service
-    if versions.is_empty:
+  check-is-supported-version_ --organization-id/uuid.Uuid --sdk/string?=null --service/string?=null:
+    server := connected-artemis-server
+    versions := server.list-sdk-service-versions
+        --organization-id=organization-id
+        --sdk-version=sdk
+        --service-version=service
+    if versions.is-empty:
       ui_.abort "Unsupported Artemis/SDK versions ($service/$sdk)."
 
   /**
   Provisions a device.
 
   Contacts the Artemis server and creates a new device entry with the
-    given $device_id (used as "alias" on the server side) in the
-    organization with the given $organization_id.
+    given $device-id (used as "alias" on the server side) in the
+    organization with the given $organization-id.
 
-  Writes the identity file to $out_path.
+  Writes the identity file to $out-path.
   */
-  provision --device_id/uuid.Uuid? --out_path/string --organization_id/uuid.Uuid:
-    server := connected_artemis_server
+  provision --device-id/uuid.Uuid? --out-path/string --organization-id/uuid.Uuid:
+    server := connected-artemis-server
     // Get the broker just after the server, in case it needs to authenticate.
     // We prefer to get an error message before we created a device on the
     // Artemis server.
-    broker := connected_broker
+    broker := connected-broker
 
-    device := server.create_device_in_organization
-        --device_id=device_id
-        --organization_id=organization_id
-    assert: device.id == device_id
-    hardware_id := device.hardware_id
+    device := server.create-device-in-organization
+        --device-id=device-id
+        --organization-id=organization-id
+    assert: device.id == device-id
+    hardware-id := device.hardware-id
 
     // Insert an initial event mostly for testing purposes.
-    server.notify_created --hardware_id=hardware_id
+    server.notify-created --hardware-id=hardware-id
 
     identity := {
-      "device_id": "$device_id",
-      "organization_id": "$organization_id",
-      "hardware_id": "$hardware_id",
+      "device_id": "$device-id",
+      "organization_id": "$organization-id",
+      "hardware_id": "$hardware-id",
     }
     state := {
       "identity": identity,
     }
-    broker.notify_created --device_id=device_id --state=state
+    broker.notify-created --device-id=device-id --state=state
 
-    write_identity_file
-        --out_path=out_path
-        --device_id=device_id
-        --organization_id=organization_id
-        --hardware_id=hardware_id
+    write-identity-file
+        --out-path=out-path
+        --device-id=device-id
+        --organization-id=organization-id
+        --hardware-id=hardware-id
 
   /**
   Writes an identity file.
 
   This file is used to build a device image and needs to be given to
-    $compute_device_specific_data.
+    $compute-device-specific-data.
   */
-  write_identity_file -> none
-      --out_path/string
-      --device_id/uuid.Uuid
-      --organization_id/uuid.Uuid
-      --hardware_id/uuid.Uuid:
+  write-identity-file -> none
+      --out-path/string
+      --device-id/uuid.Uuid
+      --organization-id/uuid.Uuid
+      --hardware-id/uuid.Uuid:
     // A map from id to DER certificates.
-    der_certificates := {:}
+    der-certificates := {:}
 
-    broker_json := server_config_to_service_json broker_config_ der_certificates
-    artemis_json := server_config_to_service_json artemis_config_ der_certificates
+    broker-json := server-config-to-service-json broker-config_ der-certificates
+    artemis-json := server-config-to-service-json artemis-config_ der-certificates
 
     identity ::= {
       "artemis.device": {
-        "device_id"       : "$device_id",
-        "organization_id" : "$organization_id",
-        "hardware_id"     : "$hardware_id",
+        "device_id"       : "$device-id",
+        "organization_id" : "$organization-id",
+        "hardware_id"     : "$hardware-id",
       },
-      "artemis.broker": artemis_json,
-      "broker": broker_json,
+      "artemis.broker": artemis-json,
+      "broker": broker-json,
     }
 
     // Add the necessary certificates to the identity.
-    der_certificates.do: | name/string content/ByteArray |
+    der-certificates.do: | name/string content/ByteArray |
       // The 'server_config_to_service_json' function puts the certificates
       // into their own namespace.
-      assert: name.starts_with "certificate-"
+      assert: name.starts-with "certificate-"
       identity[name] = content
 
-    write_base64_ubjson_to_file out_path identity
+    write-base64-ubjson-to-file out-path identity
 
   /**
   Customizes a generic Toit envelope with the given $specification.
@@ -198,168 +198,168 @@ class Artemis:
 
   The image is ready to be flashed together with the identity file.
   */
-  customize_envelope
-      --organization_id/uuid.Uuid
+  customize-envelope
+      --organization-id/uuid.Uuid
       --specification/PodSpecification
-      --output_path/string:
-    service_version := specification.artemis_version
-    sdk_version := specification.sdk_version
+      --output-path/string:
+    service-version := specification.artemis-version
+    sdk-version := specification.sdk-version
 
     checked := false
     // We try to check the sdk and service versions as soon as possible to
     // avoid downloading expensive assets.
-    check_sdk_service_version := :
-      if not checked and sdk_version:
-        check_is_supported_version_
+    check-sdk-service-version := :
+      if not checked and sdk-version:
+        check-is-supported-version_
             --organization-id=organization-id
-            --sdk=sdk_version
-            --service=service_version
+            --sdk=sdk-version
+            --service=service-version
         checked = true
 
-    check_sdk_service_version.call
+    check-sdk-service-version.call
 
-    envelope_path := get_envelope
+    envelope-path := get-envelope
         --specification=specification
         --cache=cache_
 
     // Extract the sdk version from the envelope.
-    envelope := file.read_content envelope_path
-    envelope_sdk_version := Sdk.get_sdk_version_from --envelope=envelope
-    if sdk_version:
-      if sdk_version != envelope_sdk_version:
-        ui_.abort "The envelope uses SDK version '$envelope_sdk_version', but '$sdk_version' was requested."
+    envelope := file.read-content envelope-path
+    envelope-sdk-version := Sdk.get-sdk-version-from --envelope=envelope
+    if sdk-version:
+      if sdk-version != envelope-sdk-version:
+        ui_.abort "The envelope uses SDK version '$envelope-sdk-version', but '$sdk-version' was requested."
     else:
-      sdk_version = envelope_sdk_version
-      check_sdk_service_version.call
+      sdk-version = envelope-sdk-version
+      check-sdk-service-version.call
 
-    sdk := get_sdk sdk_version --cache=cache_
+    sdk := get-sdk sdk-version --cache=cache_
 
-    copy_file --source=envelope_path --target=output_path
+    copy-file --source=envelope-path --target=output-path
 
-    device_config := {
-      "sdk-version": sdk_version,
+    device-config := {
+      "sdk-version": sdk-version,
     }
 
     // Add the max-offline setting if is non-zero. The device service
     // handles the absence of the max-offline setting differently, so
     // we cannot just add zero seconds to the config. This matches what
     // we do in $config_set_max_offline.
-    max_offline_seconds := specification.max_offline_seconds
-    if max_offline_seconds > 0: device_config["max-offline"] = max_offline_seconds
+    max-offline-seconds := specification.max-offline-seconds
+    if max-offline-seconds > 0: device-config["max-offline"] = max-offline-seconds
 
-    if specification.connections.is_empty:
+    if specification.connections.is-empty:
       ui_.abort "No network connections configured."
     connections := specification.connections.map: | connection/ConnectionInfo |
-      connection.to_json
-    device_config["connections"] = connections
+      connection.to-json
+    device-config["connections"] = connections
 
     // Create the assets for the Artemis service.
     // TODO(florian): share this code with the identity creation code.
-    der_certificates := {:}
-    broker_json := server_config_to_service_json broker_config_ der_certificates
-    artemis_json := server_config_to_service_json artemis_config_ der_certificates
+    der-certificates := {:}
+    broker-json := server-config-to-service-json broker-config_ der-certificates
+    artemis-json := server-config-to-service-json artemis-config_ der-certificates
 
-    with_tmp_directory: | tmp_dir |
+    with-tmp-directory: | tmp-dir |
       // Store the containers in the envelope.
       specification.containers.do: | name/string container/Container |
-        snapshot_path := "$tmp_dir/$(name).snapshot"
-        container.build_snapshot
-            --relative_to=specification.relative_to
+        snapshot-path := "$tmp-dir/$(name).snapshot"
+        container.build-snapshot
+            --relative-to=specification.relative-to
             --sdk=sdk
-            --output_path=snapshot_path
+            --output-path=snapshot-path
             --cache=cache_
             --ui=ui_
 
         // Build the assets from the defines (if any).
-        assets_path/string? := null
+        assets-path/string? := null
         if container.defines:
-          assets_path = "$tmp_dir/$(name).assets"
+          assets-path = "$tmp-dir/$(name).assets"
           assets := {
             "artemis.defines": {
               "format": "tison",
               "json": container.defines
             }
           }
-          sdk.assets_create --output_path=assets_path assets
+          sdk.assets-create --output-path=assets-path assets
 
-        sdk.firmware_add_container name
-            --envelope=output_path
-            --assets=assets_path
-            --program_path=snapshot_path
+        sdk.firmware-add-container name
+            --envelope=output-path
+            --assets=assets-path
+            --program-path=snapshot-path
             --trigger="none"
 
         // TODO(kasper): Avoid computing the image id here. We should
         // be able to get it from the firmware tool.
         sha := sha256.Sha256
-        snapshot_uuid_string := extract_id_from_snapshot snapshot_path
-        sha.add (uuid.parse snapshot_uuid_string).to_byte_array
-        if assets_path:
-          sha.add (file.read_content assets_path)
+        snapshot-uuid-string := extract-id-from-snapshot snapshot-path
+        sha.add (uuid.parse snapshot-uuid-string).to-byte-array
+        if assets-path:
+          sha.add (file.read-content assets-path)
         id := uuid.Uuid sha.get[..uuid.SIZE]
 
         triggers := container.triggers
-        if not container.is_critical and not triggers:
+        if not container.is-critical and not triggers:
           // Non-critical containers default to having a boot trigger.
           triggers = [BootTrigger]
-        apps := device_config.get "apps" --init=:{:}
-        apps[name] = build_container_description_
+        apps := device-config.get "apps" --init=:{:}
+        apps[name] = build-container-description_
             --id=id
             --arguments=container.arguments
-            --background=container.is_background
-            --critical=container.is_critical
+            --background=container.is-background
+            --critical=container.is-critical
             --runlevel=container.runlevel
             --triggers=triggers
         ui_.info "Added container '$name' to envelope."
 
-      artemis_assets := {
+      artemis-assets := {
         // TODO(florian): share the keys of the assets with the Artemis service.
         "broker": {
           "format": "tison",
-          "json": broker_json,
+          "json": broker-json,
         },
         "artemis.broker": {
           "format": "tison",
-          "json": artemis_json,
+          "json": artemis-json,
         },
       }
-      der_certificates.do: | name/string value/ByteArray |
+      der-certificates.do: | name/string value/ByteArray |
         // The 'server_config_to_service_json' function puts the certificates
         // into their own namespace.
-        assert: name.starts_with "certificate-"
-        artemis_assets[name] = {
+        assert: name.starts-with "certificate-"
+        artemis-assets[name] = {
           "format": "binary",
           "blob": value,
         }
 
-      artemis_assets["device-config"] = {
+      artemis-assets["device-config"] = {
         "format": "ubjson",
-        "json": device_config,
+        "json": device-config,
       }
 
-      artemis_assets_path := "$tmp_dir/artemis.assets"
-      sdk.assets_create --output_path=artemis_assets_path artemis_assets
+      artemis-assets-path := "$tmp-dir/artemis.assets"
+      sdk.assets-create --output-path=artemis-assets-path artemis-assets
 
       // Get the prebuilt Artemis service.
-      artemis_service_image_path := get_service_image_path_
-          --organization_id=organization_id
-          --word_size=32  // TODO(florian): we should get the bits from the envelope.
-          --sdk=sdk_version
-          --service=service_version
+      artemis-service-image-path := get-service-image-path_
+          --organization-id=organization-id
+          --word-size=32  // TODO(florian): we should get the bits from the envelope.
+          --sdk=sdk-version
+          --service=service-version
 
-      sdk.firmware_add_container "artemis"
-          --envelope=output_path
-          --assets=artemis_assets_path
-          --program_path=artemis_service_image_path
+      sdk.firmware-add-container "artemis"
+          --envelope=output-path
+          --assets=artemis-assets-path
+          --program-path=artemis-service-image-path
           --trigger="boot"
           --critical
 
     // For convenience save all snapshots in the user's cache.
-    cache_snapshots --envelope_path=output_path --cache=cache_
+    cache-snapshots --envelope-path=output-path --cache=cache_
 
   /**
   Builds a container description as needed for a "container" entry in the device state.
   */
-  build_container_description_ -> Map
+  build-container-description_ -> Map
       --id/uuid.Uuid
       --arguments/List?
       --background/bool?
@@ -369,7 +369,7 @@ class Artemis:
     result := {
       "id": id.stringify,
     }
-    if arguments and not arguments.is_empty:
+    if arguments and not arguments.is-empty:
       result["arguments"] = arguments
     if background:
       result["background"] = 1
@@ -377,126 +377,126 @@ class Artemis:
       result["critical"] = 1
     if runlevel:
       result["runlevel"] = runlevel
-    if triggers and not triggers.is_empty:
-      trigger_map := {:}
+    if triggers and not triggers.is-empty:
+      trigger-map := {:}
       triggers.do: | trigger/Trigger |
-        assert: not trigger_map.contains trigger.type
-        trigger_map[trigger.type] = trigger.json_value
-      result["triggers"] = trigger_map
+        assert: not trigger-map.contains trigger.type
+        trigger-map[trigger.type] = trigger.json-value
+      result["triggers"] = trigger-map
     return result
 
   /**
-  Uploads the given $pod to the server under the given $organization_id.
+  Uploads the given $pod to the server under the given $organization-id.
 
   Uploads the trivial patches and the pod itself.
 
   Once uploaded, the pod can be used for diff-based updates, or simply as direct
     downloads for updates.
   */
-  upload --pod/Pod --organization_id/uuid.Uuid:
-    firmware_content := FirmwareContent.from_envelope pod.envelope_path --cache=cache_
-    firmware_content.trivial_patches.do:
-      upload_patch it --organization_id=organization_id
+  upload --pod/Pod --organization-id/uuid.Uuid:
+    firmware-content := FirmwareContent.from-envelope pod.envelope-path --cache=cache_
+    firmware-content.trivial-patches.do:
+      upload-patch it --organization-id=organization-id
 
   /**
-  Uploads the given $patch to the server under the given $organization_id.
+  Uploads the given $patch to the server under the given $organization-id.
   */
-  upload_patch patch/FirmwarePatch --organization_id/uuid.Uuid:
-    diff_and_upload_ patch --organization_id=organization_id
+  upload-patch patch/FirmwarePatch --organization-id/uuid.Uuid:
+    diff-and-upload_ patch --organization-id=organization-id
 
   /**
   Makes sure the trivial patches for the given $firmware are uploaded for
-    the given $organization_id.
+    the given $organization-id.
 
-  All missing patches are taken from the $trivial_patches map. If a patch
+  All missing patches are taken from the $trivial-patches map. If a patch
     is not found in the map, it is ignored, and assumed to be already uploaded.
   */
-  ensure_patches_are_uploaded -> none
+  ensure-patches-are-uploaded -> none
       firmware/Firmware
-      trivial_patches/Map
-      --organization_id/uuid.Uuid:
+      trivial-patches/Map
+      --organization-id/uuid.Uuid:
     firmware.content.parts.do: | part/FirmwarePart |
       if part is not FirmwarePartPatch: continue.do
-      trivial_patch_id := id_ --to=(part as FirmwarePartPatch).hash
-      trivial_patch := trivial_patches.get trivial_patch_id
-      if trivial_patch:
-        upload_patch trivial_patch --organization_id=organization_id
+      trivial-patch-id := id_ --to=(part as FirmwarePartPatch).hash
+      trivial-patch := trivial-patches.get trivial-patch-id
+      if trivial-patch:
+        upload-patch trivial-patch --organization-id=organization-id
 
   /**
-  Extracts the trivial patches from the given $firmware_content.
+  Extracts the trivial patches from the given $firmware-content.
 
   Returns a mapping from patch-id (as used when diffing to the part) and
     the patch itself.
   */
-  extract_trivial_patches firmware_content/FirmwareContent -> Map:
+  extract-trivial-patches firmware-content/FirmwareContent -> Map:
     result := {:}
-    firmware_content.trivial_patches.do: | patch/FirmwarePatch |
-      patch_id := id_ --to=patch.to_
-      result[patch_id] = patch
+    firmware-content.trivial-patches.do: | patch/FirmwarePatch |
+      patch-id := id_ --to=patch.to_
+      result[patch-id] = patch
     return result
 
   /**
-  Updates the device $device_id with the given $specification.
+  Updates the device $device-id with the given $specification.
 
-  If the device has no known current state, then uses the $base_firmwares
+  If the device has no known current state, then uses the $base-firmwares
     (a list of $FirmwareContent) for diff-based patches. If the list
     is empty, the device must upgrade using trivial patches.
   */
   update
-      --organization_id/uuid.Uuid
-      --device_id/uuid.Uuid
+      --organization-id/uuid.Uuid
+      --device-id/uuid.Uuid
       --specification/PodSpecification
-      --base_firmwares/List=[]:
-    pod := Pod.from_specification
-        --organization_id=organization_id
+      --base-firmwares/List=[]:
+    pod := Pod.from-specification
+        --organization-id=organization-id
         --specification=specification
         --artemis=this
     update
-        --device_id=device_id
+        --device-id=device-id
         --pod=pod
-        --base_firmwares=base_firmwares
+        --base-firmwares=base-firmwares
 
   /**
-  Variant of $(update --organization_id --device_id --specification).
+  Variant of $(update --organization-id --device-id --specification).
 
   Takes the new firmware from the given $pod.
   */
-  update --device_id/uuid.Uuid --pod/Pod --base_firmwares/List=[]:
-    update_goal --device_id=device_id: | device/DeviceDetailed |
-      upload --pod=pod --organization_id=device.organization_id
+  update --device-id/uuid.Uuid --pod/Pod --base-firmwares/List=[]:
+    update-goal --device-id=device-id: | device/DeviceDetailed |
+      upload --pod=pod --organization-id=device.organization-id
 
-      known_encoded_firmwares := {}
+      known-encoded-firmwares := {}
       [
         device.goal,
-        device.reported_state_firmware,
-        device.reported_state_current,
-        device.reported_state_goal,
+        device.reported-state-firmware,
+        device.reported-state-current,
+        device.reported-state-goal,
       ].do: | state/Map? |
         // The device might be running this firmware.
-        if state: known_encoded_firmwares.add state["firmware"]
+        if state: known-encoded-firmwares.add state["firmware"]
 
-      upgrade_from := []
-      if known_encoded_firmwares.is_empty:
-        if base_firmwares.is_empty:
-          ui_.warning "No old firmware found for device '$device_id'."
+      upgrade-from := []
+      if known-encoded-firmwares.is-empty:
+        if base-firmwares.is-empty:
+          ui_.warning "No old firmware found for device '$device-id'."
         else:
-          upgrade_from = base_firmwares
+          upgrade-from = base-firmwares
       else:
-        known_encoded_firmwares.do: | encoded/string |
-          old_firmware := Firmware.encoded encoded
-          old_device_map := old_firmware.device_specific "artemis.device"
-          old_device_id := uuid.parse old_device_map["device_id"]
-          if device_id != old_device_id:
-            ui_.abort "The device id of the firmware image ($old_device_id) does not match the given device id ($device_id)."
-          upgrade_from.add old_firmware.content
+        known-encoded-firmwares.do: | encoded/string |
+          old-firmware := Firmware.encoded encoded
+          old-device-map := old-firmware.device-specific "artemis.device"
+          old-device-id := uuid.parse old-device-map["device_id"]
+          if device-id != old-device-id:
+            ui_.abort "The device id of the firmware image ($old-device-id) does not match the given device id ($device-id)."
+          upgrade-from.add old-firmware.content
 
-      compute_updated_goal
+      compute-updated-goal
           --device=device
-          --upgrade_from=upgrade_from
+          --upgrade-from=upgrade-from
           --pod=pod
 
   /**
-  Computes the goal for the given $device, upgrading from the $upgrade_from
+  Computes the goal for the given $device, upgrading from the $upgrade-from
     firmware content entries to the firmware image given by the $pod.
 
   Uploads the patches to the broker in the same organization as the $device.
@@ -504,24 +504,24 @@ class Artemis:
   The returned goal state will instruct the device to download the firmware image
     and install it.
   */
-  compute_updated_goal --device/Device --upgrade_from/List --pod/Pod -> Map:
+  compute-updated-goal --device/Device --upgrade-from/List --pod/Pod -> Map:
     // Compute the patches and upload them.
     ui_.info "Computing and uploading patches."
-    upgrade_to := Firmware --pod=pod --device=device --cache=cache_
-    upgrade_from.do: | old_firmware_content/FirmwareContent |
-      patches := upgrade_to.content.patches old_firmware_content
-      patches.do: diff_and_upload_ it --organization_id=device.organization_id
+    upgrade-to := Firmware --pod=pod --device=device --cache=cache_
+    upgrade-from.do: | old-firmware-content/FirmwareContent |
+      patches := upgrade-to.content.patches old-firmware-content
+      patches.do: diff-and-upload_ it --organization-id=device.organization-id
 
     // Build the updated goal and return it.
-    sdk := get_sdk pod.sdk_version --cache=cache_
-    goal := (pod.device_config --sdk=sdk).copy
-    goal["firmware"] = upgrade_to.encoded
+    sdk := get-sdk pod.sdk-version --cache=cache_
+    goal := (pod.device-config --sdk=sdk).copy
+    goal["firmware"] = upgrade-to.encoded
     return goal
 
   /**
   Computes the device-specific data of the given envelope.
 
-  Combines the $pod and identity ($identity_path) into a single firmware image
+  Combines the $pod and identity ($identity-path) into a single firmware image
     and computes the configuration which depends on the checksums of the
     individual parts.
 
@@ -529,29 +529,29 @@ class Artemis:
     parts of the firmware image, combined with the configuration that was
     stored in the envelope.
   */
-  compute_device_specific_data --pod/Pod --identity_path/string -> ByteArray:
-    return compute_device_specific_data
+  compute-device-specific-data --pod/Pod --identity-path/string -> ByteArray:
+    return compute-device-specific-data
         --pod=pod
-        --identity_path=identity_path
+        --identity-path=identity-path
         --cache=cache_
         --ui=ui_
 
   /**
-  Variant of $(compute_device_specific_data --pod --identity_path).
+  Variant of $(compute-device-specific-data --pod --identity-path).
   */
-  static compute_device_specific_data -> ByteArray
+  static compute-device-specific-data -> ByteArray
       --pod/Pod
-      --identity_path/string
+      --identity-path/string
       --cache/cache.Cache
       --ui/Ui:
     // Use the SDK from the pod.
-    sdk := get_sdk pod.sdk_version --cache=cache
+    sdk := get-sdk pod.sdk-version --cache=cache
 
     // Extract the device ID from the identity file.
     // TODO(florian): abstract the identity management.
-    identity_raw := file.read_content identity_path
+    identity-raw := file.read-content identity-path
 
-    identity := ubjson.decode (base64.decode identity_raw)
+    identity := ubjson.decode (base64.decode identity-raw)
 
     // Since we already have the identity content, check that the artemis server
     // is the same.
@@ -559,222 +559,222 @@ class Artemis:
     // identity file in the future. Since users are not supposed to be able to
     // change the Artemis server, there wouldn't be much left of the check.
     // TODO(florian): remove this check?
-    with_tmp_directory: | tmp/string |
-      artemis_assets_path := "$tmp/artemis.assets"
-      sdk.run_firmware_tool [
-        "-e", pod.envelope_path,
+    with-tmp-directory: | tmp/string |
+      artemis-assets-path := "$tmp/artemis.assets"
+      sdk.run-firmware-tool [
+        "-e", pod.envelope-path,
         "container", "extract",
-        "-o", artemis_assets_path,
+        "-o", artemis-assets-path,
         "--part", "assets",
         "artemis"
       ]
 
-      if not is_same_broker "broker" identity tmp artemis_assets_path sdk:
+      if not is-same-broker "broker" identity tmp artemis-assets-path sdk:
         ui.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
-      if not is_same_broker "artemis.broker" identity tmp artemis_assets_path sdk:
+      if not is-same-broker "artemis.broker" identity tmp artemis-assets-path sdk:
         ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
 
-    device_map := identity["artemis.device"]
+    device-map := identity["artemis.device"]
     device := Device
-        --hardware_id=uuid.parse device_map["hardware_id"]
-        --id=uuid.parse device_map["device_id"]
-        --organization_id=uuid.parse device_map["organization_id"]
+        --hardware-id=uuid.parse device-map["hardware_id"]
+        --id=uuid.parse device-map["device_id"]
+        --organization-id=uuid.parse device-map["organization_id"]
 
     // We don't really need the full firmware and just the device-specific data,
     // but by cooking the firmware we get the checksums correct.
     firmware := Firmware --pod=pod --device=device --cache=cache
 
-    return firmware.device_specific_data
+    return firmware.device-specific-data
 
   /**
   Gets the Artemis service image for the given $sdk and $service versions.
 
   Returns a path to the cached image.
   */
-  get_service_image_path_ -> string
-      --organization_id/uuid.Uuid
+  get-service-image-path_ -> string
+      --organization-id/uuid.Uuid
       --sdk/string
       --service/string
-      --word_size/int:
-    if word_size != 32 and word_size != 64: throw "INVALID_ARGUMENT"
-    service_key := service_image_cache_key
-        --service_version=service
-        --sdk_version=sdk
-        --artemis_config=artemis_config_
-    return cache_.get_file_path service_key: | store/cache.FileStore |
-      server := connected_artemis_server --no-authenticated
-      entry := server.list_sdk_service_versions
-          --organization_id=organization_id
-          --sdk_version=sdk
-          --service_version=service
-      if entry.is_empty:
+      --word-size/int:
+    if word-size != 32 and word-size != 64: throw "INVALID_ARGUMENT"
+    service-key := service-image-cache-key
+        --service-version=service
+        --sdk-version=sdk
+        --artemis-config=artemis-config_
+    return cache_.get-file-path service-key: | store/cache.FileStore |
+      server := connected-artemis-server --no-authenticated
+      entry := server.list-sdk-service-versions
+          --organization-id=organization-id
+          --sdk-version=sdk
+          --service-version=service
+      if entry.is-empty:
         ui_.abort "Unsupported Artemis/SDK versions."
-      image_name := entry.first["image"]
-      service_image_bytes := server.download_service_image image_name
-      ar_reader := ar.ArReader.from_bytes service_image_bytes
-      ar_file := ar_reader.find "service-$(word_size).img"
-      store.save ar_file.content
+      image-name := entry.first["image"]
+      service-image-bytes := server.download-service-image image-name
+      ar-reader := ar.ArReader.from-bytes service-image-bytes
+      ar-file := ar-reader.find "service-$(word-size).img"
+      store.save ar-file.content
 
   /**
-  Updates the goal state of the device with the given $device_id.
+  Updates the goal state of the device with the given $device-id.
 
-  See $BrokerCli.update_goal.
+  See $BrokerCli.update-goal.
   */
-  update_goal --device_id/uuid.Uuid [block]:
-    connected_broker.update_goal --device_id=device_id block
+  update-goal --device-id/uuid.Uuid [block]:
+    connected-broker.update-goal --device-id=device-id block
 
-  container_install -> none
-      --device_id/uuid.Uuid
-      --app_name/string
-      --application_path/string
+  container-install -> none
+      --device-id/uuid.Uuid
+      --app-name/string
+      --application-path/string
       --arguments/List?
       --background/bool
       --critical/bool
       --triggers/List?:
-    update_goal --device_id=device_id: | device/DeviceDetailed |
-      current_state := device.reported_state_current or device.reported_state_firmware
-      if not current_state:
+    update-goal --device-id=device-id: | device/DeviceDetailed |
+      current-state := device.reported-state-current or device.reported-state-firmware
+      if not current-state:
         ui_.abort "Unknown device state."
-      firmware := Firmware.encoded current_state["firmware"]
-      sdk_version := firmware.sdk_version
-      sdk := get_sdk sdk_version --cache=cache_
-      program := CompiledProgram.application application_path --sdk=sdk
+      firmware := Firmware.encoded current-state["firmware"]
+      sdk-version := firmware.sdk-version
+      sdk := get-sdk sdk-version --cache=cache_
+      program := CompiledProgram.application application-path --sdk=sdk
       id := program.id
 
-      cache_id := application_image_cache_key id --broker_config=broker_config_
-      cache_.get_directory_path cache_id: | store/cache.DirectoryStore |
-        store.with_tmp_directory: | tmp_dir |
+      cache-id := application-image-cache-key id --broker-config=broker-config_
+      cache_.get-directory-path cache-id: | store/cache.DirectoryStore |
+        store.with-tmp-directory: | tmp-dir |
           // TODO(florian): do we want to rely on the cache, or should we
           // do a check to see if the files are really uploaded?
-          connected_broker.upload_image program.image32
-              --app_id=id
-              --organization_id=device.organization_id
-              --word_size=32
-          file.write_content program.image32 --path="$tmp_dir/image32.bin"
-          connected_broker.upload_image program.image64
-              --organization_id=device.organization_id
-              --app_id=id
-              --word_size=64
-          file.write_content program.image64 --path="$tmp_dir/image64.bin"
-          store.move tmp_dir
+          connected-broker.upload-image program.image32
+              --app-id=id
+              --organization-id=device.organization-id
+              --word-size=32
+          file.write-content program.image32 --path="$tmp-dir/image32.bin"
+          connected-broker.upload-image program.image64
+              --organization-id=device.organization-id
+              --app-id=id
+              --word-size=64
+          file.write-content program.image64 --path="$tmp-dir/image64.bin"
+          store.move tmp-dir
 
-      if not device.goal and not device.reported_state_firmware:
+      if not device.goal and not device.reported-state-firmware:
         throw "No known firmware information for device."
-      new_goal := device.goal or device.reported_state_firmware
-      ui_.info "Installing container '$app_name'."
-      apps := new_goal.get "apps" --if_absent=: {:}
-      apps[app_name] = build_container_description_
+      new-goal := device.goal or device.reported-state-firmware
+      ui_.info "Installing container '$app-name'."
+      apps := new-goal.get "apps" --if-absent=: {:}
+      apps[app-name] = build-container-description_
           --id=id
           --arguments=arguments
           --background=background
           --critical=critical
           --runlevel=null  // TODO(florian): should we allow to set the runlevel?
           --triggers=triggers
-      new_goal["apps"] = apps
-      new_goal
+      new-goal["apps"] = apps
+      new-goal
 
-  container_uninstall --device_id/uuid.Uuid --app_name/string --force/bool:
-    update_goal --device_id=device_id: | device/DeviceDetailed |
-      if not device.goal and not device.reported_state_firmware:
+  container-uninstall --device-id/uuid.Uuid --app-name/string --force/bool:
+    update-goal --device-id=device-id: | device/DeviceDetailed |
+      if not device.goal and not device.reported-state-firmware:
         throw "No known firmware information for device."
-      new_goal := device.goal or device.reported_state_firmware
-      connections/List := new_goal.get "connections" --if_absent=: []
-      is_required := false
+      new-goal := device.goal or device.reported-state-firmware
+      connections/List := new-goal.get "connections" --if-absent=: []
+      is-required := false
       connections.do:
-        required := it.get "requires" --if_absent=: []
-        if required.contains app_name:
-          is_required = true
-      if is_required and not force:
-        ui_.abort "Container '$app_name' is required by a connection."
-      apps := new_goal.get "apps"
+        required := it.get "requires" --if-absent=: []
+        if required.contains app-name:
+          is-required = true
+      if is-required and not force:
+        ui_.abort "Container '$app-name' is required by a connection."
+      apps := new-goal.get "apps"
       if apps:
-        if not apps.contains app_name and not force:
-          ui_.abort "Container '$app_name' is not installed."
+        if not apps.contains app-name and not force:
+          ui_.abort "Container '$app-name' is not installed."
         else:
-          ui_.info "Uninstalling container '$app_name'."
-          apps.remove app_name
-      new_goal
+          ui_.info "Uninstalling container '$app-name'."
+          apps.remove app-name
+      new-goal
 
-  config_set_max_offline --device_id/uuid.Uuid --max_offline_seconds/int:
-    update_goal --device_id=device_id: | device/DeviceDetailed |
-      if not device.goal and not device.reported_state_firmware:
+  config-set-max-offline --device-id/uuid.Uuid --max-offline-seconds/int:
+    update-goal --device-id=device-id: | device/DeviceDetailed |
+      if not device.goal and not device.reported-state-firmware:
         throw "No known firmware information for device."
-      new_goal := device.goal or device.reported_state_firmware
-      ui_.info "Setting max-offline to $(Duration --s=max_offline_seconds)."
-      if max_offline_seconds > 0:
-        new_goal["max-offline"] = max_offline_seconds
+      new-goal := device.goal or device.reported-state-firmware
+      ui_.info "Setting max-offline to $(Duration --s=max-offline-seconds)."
+      if max-offline-seconds > 0:
+        new-goal["max-offline"] = max-offline-seconds
       else:
-        new_goal.remove "max-offline"
-      new_goal
+        new-goal.remove "max-offline"
+      new-goal
 
   /**
   Computes patches and uploads them to the broker.
   */
-  diff_and_upload_ patch/FirmwarePatch --organization_id/uuid.Uuid -> none:
-    trivial_id := id_ --to=patch.to_
-    cache_key := "$connected_broker.id/$organization_id/patches/$trivial_id"
+  diff-and-upload_ patch/FirmwarePatch --organization-id/uuid.Uuid -> none:
+    trivial-id := id_ --to=patch.to_
+    cache-key := "$connected-broker.id/$organization-id/patches/$trivial-id"
 
     // Unless it is already cached, always create/upload the trivial one.
-    cache_.get cache_key: | store/cache.FileStore |
-      trivial := build_trivial_patch patch.bits_
-      connected_broker.upload_firmware trivial
-          --organization_id=organization_id
-          --firmware_id=trivial_id
-      store.save_via_writer: | writer/writer.Writer |
+    cache_.get cache-key: | store/cache.FileStore |
+      trivial := build-trivial-patch patch.bits_
+      connected-broker.upload-firmware trivial
+          --organization-id=organization-id
+          --firmware-id=trivial-id
+      store.save-via-writer: | writer/writer.Writer |
         trivial.do: writer.write it
 
     if not patch.from_: return
 
     // Attempt to fetch the old trivial patch and use it to construct
     // the old bits so we can compute a diff from them.
-    old_id := id_ --to=patch.from_
-    cache_key = "$connected_broker.id/$organization_id/patches/$old_id"
-    trivial_old := cache_.get cache_key: | store/cache.FileStore |
+    old-id := id_ --to=patch.from_
+    cache-key = "$connected-broker.id/$organization-id/patches/$old-id"
+    trivial-old := cache_.get cache-key: | store/cache.FileStore |
       downloaded := null
-      catch: downloaded = connected_broker.download_firmware
-          --organization_id=organization_id
-          --id=old_id
+      catch: downloaded = connected-broker.download-firmware
+          --organization-id=organization-id
+          --id=old-id
       if not downloaded: return
-      store.with_tmp_directory: | tmp_dir |
-        file.write_content downloaded --path="$tmp_dir/patch"
+      store.with-tmp-directory: | tmp-dir |
+        file.write-content downloaded --path="$tmp-dir/patch"
         // TODO(florian): we don't have the chunk-size when downloading from the broker.
-        store.move "$tmp_dir/patch"
+        store.move "$tmp-dir/patch"
 
-    bitstream := bytes.Reader trivial_old
+    bitstream := bytes.Reader trivial-old
     patcher := Patcher bitstream null
-    patch_writer := PatchWriter
-    if not patcher.patch patch_writer: return
+    patch-writer := PatchWriter
+    if not patcher.patch patch-writer: return
     // Build the old bits and check that we get the correct hash.
-    old := patch_writer.buffer.bytes
-    if old.size < patch_writer.size: old += ByteArray (patch_writer.size - old.size)
+    old := patch-writer.buffer.bytes
+    if old.size < patch-writer.size: old += ByteArray (patch-writer.size - old.size)
     sha := sha256.Sha256
     sha.add old
     if patch.from_ != sha.get: return
 
-    diff_id := id_ --from=patch.from_ --to=patch.to_
-    cache_key = "$connected_broker.id/$organization_id/patches/$diff_id"
-    cache_.get cache_key: | store/cache.FileStore |
+    diff-id := id_ --from=patch.from_ --to=patch.to_
+    cache-key = "$connected-broker.id/$organization-id/patches/$diff-id"
+    cache_.get cache-key: | store/cache.FileStore |
       // Build the diff and verify that we can apply it and get the
       // correct hash out before uploading it.
-      diff := build_diff_patch old patch.bits_
-      if patch.to_ != (compute_applied_hash_ diff old): return
-      diff_size_bytes := diff.reduce --initial=0: | size chunk | size + chunk.size
-      diff_size := diff_size_bytes > 4096
-          ? "$((diff_size_bytes + 1023) / 1024) KB"
-          : "$diff_size_bytes B"
-      ui_.info "Uploading patch $(base64.encode patch.to_ --url_mode) ($diff_size)."
-      connected_broker.upload_firmware diff
-          --organization_id=organization_id
-          --firmware_id=diff_id
-      store.save_via_writer: | writer/writer.Writer |
+      diff := build-diff-patch old patch.bits_
+      if patch.to_ != (compute-applied-hash_ diff old): return
+      diff-size-bytes := diff.reduce --initial=0: | size chunk | size + chunk.size
+      diff-size := diff-size-bytes > 4096
+          ? "$((diff-size-bytes + 1023) / 1024) KB"
+          : "$diff-size-bytes B"
+      ui_.info "Uploading patch $(base64.encode patch.to_ --url-mode) ($diff-size)."
+      connected-broker.upload-firmware diff
+          --organization-id=organization-id
+          --firmware-id=diff-id
+      store.save-via-writer: | writer/writer.Writer |
         diff.do: writer.write it
 
   static id_ --from/ByteArray?=null --to/ByteArray -> string:
-    folder := base64.encode to --url_mode
-    entry := from ? (base64.encode from --url_mode) : "none"
+    folder := base64.encode to --url-mode
+    entry := from ? (base64.encode from --url-mode) : "none"
     return "$folder/$entry"
 
-  static compute_applied_hash_ diff/List old/ByteArray -> ByteArray?:
+  static compute-applied-hash_ diff/List old/ByteArray -> ByteArray?:
     combined := diff.reduce --initial=#[]: | acc chunk | acc + chunk
     bitstream := bytes.Reader combined
     patcher := Patcher bitstream old
@@ -784,15 +784,15 @@ class Artemis:
     sha.add writer.buffer.bytes
     return sha.get
 
-is_same_broker broker/string identity/Map tmp/string assets_path/string sdk/Sdk -> bool:
-  broker_path := "$tmp/broker.json"
-  sdk.run_assets_tool [
-    "-e", assets_path,
+is-same-broker broker/string identity/Map tmp/string assets-path/string sdk/Sdk -> bool:
+  broker-path := "$tmp/broker.json"
+  sdk.run-assets-tool [
+    "-e", assets-path,
     "get", "--format=tison",
-    "-o", broker_path,
+    "-o", broker-path,
     "broker"
   ]
   // TODO(kasper): This is pretty crappy.
-  x := ((json.stringify identity["broker"]) + "\n").to_byte_array
-  y := (file.read_content broker_path)
+  x := ((json.stringify identity["broker"]) + "\n").to-byte-array
+  y := (file.read-content broker-path)
   return x == y

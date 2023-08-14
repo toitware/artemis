@@ -4,7 +4,7 @@ import system.services show ServiceHandler ServiceResource ServiceProvider
 import system.storage
 
 import .flashlog show FlashLog SN
-import .pkg_artemis_src_copy.api as api
+import .pkg-artemis-src-copy.api as api
 
 flashlogs_ ::= {:}
 receivers_ ::= {}
@@ -26,20 +26,20 @@ class ChannelResource extends ServiceResource:
     super provider client
 
   send bytes/ByteArray -> bool:
-    log_.append bytes --if_full=: return false
+    log_.append bytes --if-full=: return false
     return true
 
-  receive_page --peek/int --buffer/ByteArray? -> List:
+  receive-page --peek/int --buffer/ByteArray? -> List:
     if not receive: throw "PERMISSION_DENIED"
-    buffer = buffer or (ByteArray log_.size_per_page_)
-    return log_.read_page buffer --peek=peek
+    buffer = buffer or (ByteArray log_.size-per-page_)
+    return log_.read-page buffer --peek=peek
 
   acknowledge sn/int count/int -> none:
     if not receive: throw "PERMISSION_DENIED"
     if count < 1: throw "Bad Argument"
     log_.acknowledge (SN.previous (SN.next sn --increment=count))
 
-  on_closed -> none:
+  on-closed -> none:
     log := log_
     if not log: return
     log_ = null
@@ -52,30 +52,30 @@ class ChannelServiceProvider extends ServiceProvider
     super name --major=major --minor=minor
 
   handle index/int arguments/any --gid/int --client/int -> any:
-    if index == api.ArtemisService.CHANNEL_OPEN_INDEX:
-      return channel_open client --topic=arguments[0] --receive=arguments[1]
-    if index == api.ArtemisService.CHANNEL_SEND_INDEX:
+    if index == api.ArtemisService.CHANNEL-OPEN-INDEX:
+      return channel-open client --topic=arguments[0] --receive=arguments[1]
+    if index == api.ArtemisService.CHANNEL-SEND-INDEX:
       channel := (resource client arguments[0]) as ChannelResource
       return channel.send arguments[1]
-    if index == api.ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX:
+    if index == api.ArtemisService.CHANNEL-RECEIVE-PAGE-INDEX:
       channel := (resource client arguments[0]) as ChannelResource
-      return channel.receive_page --peek=arguments[1] --buffer=arguments[2]
-    if index == api.ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX:
+      return channel.receive-page --peek=arguments[1] --buffer=arguments[2]
+    if index == api.ArtemisService.CHANNEL-ACKNOWLEDGE-INDEX:
       channel := (resource client arguments[0]) as ChannelResource
       return channel.acknowledge arguments[1] arguments[2]
     unreachable
 
-  channel_open --topic/string --receive/bool -> int?:
+  channel-open --topic/string --receive/bool -> int?:
     unreachable  // Here to satisfy the checker.
 
-  channel_send handle/int bytes/ByteArray -> bool:
+  channel-send handle/int bytes/ByteArray -> bool:
     unreachable  // Here to satisfy the checker.
 
-  channel_receive_page handle/int --peek/int --buffer/ByteArray? -> ByteArray:
+  channel-receive-page handle/int --peek/int --buffer/ByteArray? -> ByteArray:
     unreachable  // Here to satisfy the checker.
 
-  channel_acknowledge handle/int sn/int count/int -> none:
+  channel-acknowledge handle/int sn/int count/int -> none:
     unreachable  // Here to satisfy the checker.
 
-  channel_open client/int --topic/string --receive/bool -> ChannelResource:
+  channel-open client/int --topic/string --receive/bool -> ChannelResource:
     return ChannelResource this client --topic=topic --receive=receive

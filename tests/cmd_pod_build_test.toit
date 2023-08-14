@@ -1,10 +1,10 @@
 // Copyright (C) 2023 Toitware ApS.
 
 import ar show ArReader
-import artemis.cli.utils show write_blob_to_file
-import artemis.cli.firmware show get_envelope
+import artemis.cli.utils show write-blob-to-file
+import artemis.cli.firmware show get-envelope
 import artemis.cli.pod show Pod
-import artemis.cli.pod_specification show PodSpecification
+import artemis.cli.pod-specification show PodSpecification
 import artemis.cli.sdk show Sdk
 import bytes
 import expect show *
@@ -12,18 +12,18 @@ import host.file
 import .utils
 
 main args:
-  with_fleet --count=0 --args=args: | test_cli/TestCli _ fleet_dir/string |
-    run_test test_cli fleet_dir
+  with-fleet --count=0 --args=args: | test-cli/TestCli _ fleet-dir/string |
+    run-test test-cli fleet-dir
 
-run_test test_cli/TestCli fleet_dir/string:
-  test_cli.ensure_available_artemis_service
+run-test test-cli/TestCli fleet-dir/string:
+  test-cli.ensure-available-artemis-service
 
   spec := """
     {
       "version": 1,
       "name": "test-pod",
-      "sdk-version": "$test_cli.sdk_version",
-      "artemis-version": "$TEST_ARTEMIS_VERSION",
+      "sdk-version": "$test-cli.sdk-version",
+      "artemis-version": "$TEST-ARTEMIS-VERSION",
       "connections": [
         {
           "type": "wifi",
@@ -33,15 +33,15 @@ run_test test_cli/TestCli fleet_dir/string:
       ]
     }
     """
-  spec_path := "$fleet_dir/test-pod.json"
-  write_blob_to_file spec_path spec
-  test_cli.run [
-    "pod", "build", spec_path, "-o", "$fleet_dir/test-pod.pod"
+  spec-path := "$fleet-dir/test-pod.json"
+  write-blob-to-file spec-path spec
+  test-cli.run [
+    "pod", "build", spec-path, "-o", "$fleet-dir/test-pod.pod"
   ]
-  validate_pod "$fleet_dir/test-pod.pod"
+  validate-pod "$fleet-dir/test-pod.pod"
       --name="test-pod"
       --containers=["artemis"]
-      --test_cli=test_cli
+      --test-cli=test-cli
 
   // Test custom firmwares.
   spec = """
@@ -49,7 +49,7 @@ run_test test_cli/TestCli fleet_dir/string:
       "version": 1,
       "name": "test-pod2",
       "firmware-envelope": "file://custom.envelope",
-      "artemis-version": "$TEST_ARTEMIS_VERSION",
+      "artemis-version": "$TEST-ARTEMIS-VERSION",
       "connections": [
         {
           "type": "wifi",
@@ -59,41 +59,41 @@ run_test test_cli/TestCli fleet_dir/string:
       ]
     }
     """
-  spec_path = "$fleet_dir/test-pod2.json"
-  write_blob_to_file spec_path spec
+  spec-path = "$fleet-dir/test-pod2.json"
+  write-blob-to-file spec-path spec
 
-  custom_path := "$fleet_dir/custom.envelope"
+  custom-path := "$fleet-dir/custom.envelope"
 
-  default_envelope := get_envelope_for --sdk_version=test_cli.sdk_version --cache=test_cli.cache
-  write_blob_to_file custom_path default_envelope
+  default-envelope := get-envelope-for --sdk-version=test-cli.sdk-version --cache=test-cli.cache
+  write-blob-to-file custom-path default-envelope
 
-  print "custom-path: $custom_path"
-  sdk := Sdk --envelope_path=custom_path --cache=test_cli.cache
-  custom_program := """
+  print "custom-path: $custom-path"
+  sdk := Sdk --envelope-path=custom-path --cache=test-cli.cache
+  custom-program := """
   main: print "custom"
   """
-  custom_toit := "$fleet_dir/custom.toit"
-  custom_snapshot := "$fleet_dir/custom.snapshot"
-  write_blob_to_file custom_toit custom_program
-  sdk.compile_to_snapshot --out=custom_snapshot custom_toit
-  sdk.firmware_add_container "custom"
-      --envelope=custom_path
-      --program_path=custom_snapshot
+  custom-toit := "$fleet-dir/custom.toit"
+  custom-snapshot := "$fleet-dir/custom.snapshot"
+  write-blob-to-file custom-toit custom-program
+  sdk.compile-to-snapshot --out=custom-snapshot custom-toit
+  sdk.firmware-add-container "custom"
+      --envelope=custom-path
+      --program-path=custom-snapshot
       --trigger="none"
 
-  test_cli.run [
-    "pod", "build", spec_path, "-o", "$fleet_dir/test-pod2.pod"
+  test-cli.run [
+    "pod", "build", spec-path, "-o", "$fleet-dir/test-pod2.pod"
   ]
-  validate_pod "$fleet_dir/test-pod2.pod"
+  validate-pod "$fleet-dir/test-pod2.pod"
       --name="test-pod2"
       --containers=["artemis", "custom"]
-      --test_cli=test_cli
+      --test-cli=test-cli
 
-validate_pod pod_path/string --name/string --containers/List --test_cli/TestCli:
-  artemis := test_cli
-  with_tmp_directory: | tmp_dir |
-    pod := Pod.parse pod_path --tmp_directory=tmp_dir --ui=(TestUi --no-quiet)
-    expect_equals name pod.name
+validate-pod pod-path/string --name/string --containers/List --test-cli/TestCli:
+  artemis := test-cli
+  with-tmp-directory: | tmp-dir |
+    pod := Pod.parse pod-path --tmp-directory=tmp-dir --ui=(TestUi --no-quiet)
+    expect-equals name pod.name
     envelope := pod.envelope
     seen := {}
     reader := ArReader (bytes.Reader envelope)
@@ -102,12 +102,12 @@ validate_pod pod_path/string --name/string --containers/List --test_cli/TestCli:
     containers.do:
       expect (seen.contains it)
 
-get_envelope_for --sdk_version/string --cache -> ByteArray:
-  default_spec := {
+get-envelope-for --sdk-version/string --cache -> ByteArray:
+  default-spec := {
       "version": 1,
       "name": "test-pod2",
-      "artemis-version": "$TEST_ARTEMIS_VERSION",
-      "sdk-version": "$sdk_version",
+      "artemis-version": "$TEST-ARTEMIS-VERSION",
+      "sdk-version": "$sdk-version",
       "connections": [
         {
           "type": "wifi",
@@ -116,7 +116,7 @@ get_envelope_for --sdk_version/string --cache -> ByteArray:
         }
       ]
     }
-  pod_specification := PodSpecification.from_json default_spec --path="ignored"
+  pod-specification := PodSpecification.from-json default-spec --path="ignored"
 
-  default_envelope_path := get_envelope --specification=pod_specification --cache=cache
-  return file.read_content default_envelope_path
+  default-envelope-path := get-envelope --specification=pod-specification --cache=cache
+  return file.read-content default-envelope-path

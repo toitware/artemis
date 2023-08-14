@@ -6,81 +6,81 @@ import host.file
 import artemis.cli.ui show ConsoleUi
 
 import .utils
-import .artemis_server
-import ..tools.service_image_uploader.uploader as uploader
-import ..tools.service_image_uploader.downloader as downloader
-import artemis.shared.version show ARTEMIS_VERSION
+import .artemis-server
+import ..tools.service-image-uploader.uploader as uploader
+import ..tools.service-image-uploader.downloader as downloader
+import artemis.shared.version show ARTEMIS-VERSION
 import artemis.cli.git show Git
 import supabase
 import supabase.filter show equals
 
 main args:
   // Start a TestCli, since that will set up everything the way we want.
-  with_test_cli --args=args --artemis_type="supabase":
-    run_test it
+  with-test-cli --args=args --artemis-type="supabase":
+    run-test it
 
 // Just a commit that exists on main.
 // It's safe to update the commit to a newer version.
-TEST_COMMIT ::= "58f2d290269fe497945b3faa921803c8ef56de8d"
+TEST-COMMIT ::= "58f2d290269fe497945b3faa921803c8ef56de8d"
 
-run_main_test
-    test_cli/TestCli
-    tmp_dir/string
-    service_version/string
-    --keep_service/bool=false
+run-main-test
+    test-cli/TestCli
+    tmp-dir/string
+    service-version/string
+    --keep-service/bool=false
     [block]:
   block.call
-  supabase_backdoor := (test_cli.artemis.backdoor) as SupabaseBackdoor
+  supabase-backdoor := (test-cli.artemis.backdoor) as SupabaseBackdoor
   // Check that the service is available.
-  supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
-    available_sdks := client.rest.select "sdk_service_versions" --filters=[
-      equals "sdk_version" test_cli.sdk_version,
-      equals "service_version" service_version,
+  supabase-backdoor.with-backdoor-client_: | client/supabase.Client |
+    available-sdks := client.rest.select "sdk_service_versions" --filters=[
+      equals "sdk_version" test-cli.sdk-version,
+      equals "service_version" service-version,
     ]
-    expect_not available_sdks.is_empty
+    expect-not available-sdks.is-empty
 
   // Check that the snapshot was written into the snapshot directory.
-  files_iterator := directory.DirectoryStream tmp_dir
+  files-iterator := directory.DirectoryStream tmp-dir
   files := []
-  while file_name := files_iterator.next: files.add file_name
-  files_iterator.close
-  expect_equals 1 files.size
+  while file-name := files-iterator.next: files.add file-name
+  files-iterator.close
+  expect-equals 1 files.size
 
   // Delete the files.
-  file.delete "$tmp_dir/$files[0]"
+  file.delete "$tmp-dir/$files[0]"
 
   // Check that the file was deleted.
-  files_iterator = directory.DirectoryStream tmp_dir
+  files-iterator = directory.DirectoryStream tmp-dir
   files = []
-  while file_name := files_iterator.next: files.add file_name
-  files_iterator.close
-  expect_equals 0 files.size
+  while file-name := files-iterator.next: files.add file-name
+  files-iterator.close
+  expect-equals 0 files.size
 
-  if not keep_service:
-    delete_service_version test_cli service_version
+  if not keep-service:
+    delete-service-version test-cli service-version
 
-delete_service_version test_cli/TestCli service_version/string:
-  supabase_backdoor := test_cli.artemis.backdoor as SupabaseBackdoor
-  supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
+delete-service-version test-cli/TestCli service-version/string:
+  supabase-backdoor := test-cli.artemis.backdoor as SupabaseBackdoor
+  supabase-backdoor.with-backdoor-client_: | client/supabase.Client |
     client.rest.delete "artemis_services" --filters=[
-      equals "version" "$service_version",
+      equals "version" "$service-version",
     ]
 
-run_test test_cli/TestCli:
-  sdk_version := test_cli.sdk_version
-  with_tmp_directory: | tmp_dir/string |
+run-test test-cli/TestCli:
+  sdk-version := test-cli.sdk-version
+  with-tmp-directory: | tmp-dir/string |
     ui := TestUi --no-quiet
     git := Git --ui=ui
 
     // Login using the CLI login.
     // The uploader reuses the same credentials.
-    test_cli.run [
+    test-cli.run [
       "auth", "login",
-      "--email", ADMIN_EMAIL,
-      "--password", ADMIN_PASSWORD
+      "--email", ADMIN-EMAIL,
+      "--password", ADMIN-PASSWORD
     ]
 
-    service_version := "v0.0.$(random)-TEST"
+    service-version := "v0.0.$(random)-TEST"
 
     // The test-server could have already been used.
     // We want to avoid duplicates, so we create a new version number.
@@ -88,128 +88,128 @@ run_test test_cli/TestCli:
     // We try to remove it afterwards, but if the program is interrupted
     // we might leave a tag behind. In that case it's safe to delete
     // the tag manually.
-    git.tag --name=service_version --commit=TEST_COMMIT
+    git.tag --name=service-version --commit=TEST-COMMIT
     try:
       // We keep the service for the next test.
-      run_main_test test_cli tmp_dir service_version --keep_service:
+      run-main-test test-cli tmp-dir service-version --keep-service:
         uploader.main
-            --config=test_cli.config
-            --cache=test_cli.cache
+            --config=test-cli.config
+            --cache=test-cli.cache
             --ui=ui
             [
               "service",
-              "--sdk-version", sdk_version,
-              "--service-version", service_version,
-              "--snapshot-directory", tmp_dir,
+              "--sdk-version", sdk-version,
+              "--service-version", service-version,
+              "--snapshot-directory", tmp-dir,
             ]
 
       // Debug information to analyze flaky tests.
-      supabase_backdoor := test_cli.artemis.backdoor as SupabaseBackdoor
-      supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
-        service_images := client.rest.select "service_images"
-        print "Service images before 2nd attempt: $service_images"
+      supabase-backdoor := test-cli.artemis.backdoor as SupabaseBackdoor
+      supabase-backdoor.with-backdoor-client_: | client/supabase.Client |
+        service-images := client.rest.select "service_images"
+        print "Service images before 2nd attempt: $service-images"
 
       // Without force we can't upload the same version again.
       exception := catch:
         uploader.main
-            --config=test_cli.config
-            --cache=test_cli.cache
+            --config=test-cli.config
+            --cache=test-cli.cache
             --ui=ui
             [
               "service",
-              "--sdk-version", sdk_version,
-              "--service-version", service_version,
-              "--snapshot-directory", tmp_dir,
+              "--sdk-version", sdk-version,
+              "--service-version", service-version,
+              "--snapshot-directory", tmp-dir,
             ]
       if exception is not TestExit:
         // Debug information to analyze flaky tests.
-        supabase_backdoor.with_backdoor_client_: | client/supabase.Client |
-          service_images := client.rest.select "service_images"
-          print "Service images after 2nd attempt: $service_images"
+        supabase-backdoor.with-backdoor-client_: | client/supabase.Client |
+          service-images := client.rest.select "service_images"
+          print "Service images after 2nd attempt: $service-images"
         expect false
 
       // We keep the service version for the download test.
-      run_main_test test_cli tmp_dir service_version --keep_service:
+      run-main-test test-cli tmp-dir service-version --keep-service:
         uploader.main
-            --config=test_cli.config
-            --cache=test_cli.cache
+            --config=test-cli.config
+            --cache=test-cli.cache
             --ui=ui
             [
               "service",
-              "--sdk-version", sdk_version,
-              "--service-version", service_version,
-              "--snapshot-directory", tmp_dir,
+              "--sdk-version", sdk-version,
+              "--service-version", service-version,
+              "--snapshot-directory", tmp-dir,
               "--force",
             ]
 
       // Try with a specific commit.
-      commit_version := "$service_version-$(TEST_COMMIT)"
-      run_main_test test_cli tmp_dir commit_version:
+      commit-version := "$service-version-$(TEST-COMMIT)"
+      run-main-test test-cli tmp-dir commit-version:
         uploader.main
-            --config=test_cli.config
-            --cache=test_cli.cache
+            --config=test-cli.config
+            --cache=test-cli.cache
             --ui=ui
             [
               "service",
-              "--sdk-version", sdk_version,
-              "--service-version", service_version,
-              "--commit", TEST_COMMIT,
-              "--snapshot-directory", tmp_dir,
+              "--sdk-version", sdk-version,
+              "--service-version", service-version,
+              "--commit", TEST-COMMIT,
+              "--snapshot-directory", tmp-dir,
             ]
 
       // Try with local.
 
       // With service version.
-      local_version := "$service_version-$Time.now"
-      run_main_test test_cli tmp_dir local_version:
+      local-version := "$service-version-$Time.now"
+      run-main-test test-cli tmp-dir local-version:
         uploader.main
-            --config=test_cli.config
-            --cache=test_cli.cache
+            --config=test-cli.config
+            --cache=test-cli.cache
             --ui=ui
             [
               "service",
-              "--sdk-version", sdk_version,
-              "--service-version", local_version,
+              "--sdk-version", sdk-version,
+              "--service-version", local-version,
               "--local",
-              "--snapshot-directory", tmp_dir,
+              "--snapshot-directory", tmp-dir,
             ]
 
       // Without service version.
-      run_main_test test_cli tmp_dir ARTEMIS_VERSION:
+      run-main-test test-cli tmp-dir ARTEMIS-VERSION:
         uploader.main
-            --config=test_cli.config
-            --cache=test_cli.cache
+            --config=test-cli.config
+            --cache=test-cli.cache
             --ui=ui
             [
               "service",
-              "--sdk-version", sdk_version,
+              "--sdk-version", sdk-version,
               "--local",
-              "--snapshot-directory", tmp_dir,
+              "--snapshot-directory", tmp-dir,
             ]
 
     finally:
-      git.tag --delete --name=service_version
+      git.tag --delete --name=service-version
 
     // Download a service.
     downloader.main
-        --config=test_cli.config
-        --cache=test_cli.cache
+        --config=test-cli.config
+        --cache=test-cli.cache
         --ui=ui
         [
-          "--sdk-version", sdk_version,
-          "--service-version", service_version,
-          "--output-directory", tmp_dir,
+          "--sdk-version", sdk-version,
+          "--service-version", service-version,
+          "--output-directory", tmp-dir,
         ]
 
     // Check that the file was downloaded.
-    files_iterator := directory.DirectoryStream tmp_dir
+    files-iterator := directory.DirectoryStream tmp-dir
     files := []
-    while file_name := files_iterator.next: files.add file_name
-    files_iterator.close
-    expect_equals 1 files.size
+    while file-name := files-iterator.next: files.add file-name
+    files-iterator.close
+    expect-equals 1 files.size
 
-    delete_service_version test_cli service_version
+    delete-service-version test-cli service-version
 
-expect_exit_1 [block]:
+expect-exit-1 [block]:
   exception := catch: block.call
   expect exception is TestExit

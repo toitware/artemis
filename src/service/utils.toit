@@ -1,19 +1,19 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import encoding.tison
-import ..shared.server_config
+import ..shared.server-config
 
-decode_server_config key/string assets/Map -> ServerConfig?:
-  broker_entry := assets.get key --if_present=: tison.decode it
-  if not broker_entry: return null
+decode-server-config key/string assets/Map -> ServerConfig?:
+  broker-entry := assets.get key --if-present=: tison.decode it
+  if not broker-entry: return null
   // We use the key as name for the broker configuration.
-  return ServerConfig.from_json key broker_entry
-      --der_deserializer=: assets.get it
+  return ServerConfig.from-json key broker-entry
+      --der-deserializer=: assets.get it
 
-deep_copy o/any -> any:
+deep-copy o/any -> any:
   if o is Map:
-    return (o as Map).map: | _ value | deep_copy value
+    return (o as Map).map: | _ value | deep-copy value
   else if o is List:
-    return (o as List).map: deep_copy it
+    return (o as List).map: deep-copy it
   else:
     return o

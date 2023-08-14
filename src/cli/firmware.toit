@@ -7,16 +7,16 @@ import encoding.base64
 import encoding.ubjson
 import host.file
 import host.os
-import snapshot show cache_snapshot
+import snapshot show cache-snapshot
 import uuid
 import fs
 
 import .sdk
-import .cache show ENVELOPE_PATH
+import .cache show ENVELOPE-PATH
 import .cache as cli
 import .device
 import .pod
-import .pod_specification
+import .pod-specification
 import .utils
 import ..shared.utils.patch
 
@@ -25,7 +25,7 @@ import ..shared.utils.patch
 A firmware for a specific device.
 
 Contains the generic $content which is shared among devices that use the same firmware version.
-In addition, it contains the $device_specific_data which is unique to the device.
+In addition, it contains the $device-specific-data which is unique to the device.
 */
 class Firmware:
   /**
@@ -37,7 +37,7 @@ class Firmware:
   content/FirmwareContent
   /**
   An encoded description of this firmware.
-  Contains the $device_specific_data, and a checksum of the $content.
+  Contains the $device-specific-data, and a checksum of the $content.
   */
   encoded/string
   /**
@@ -48,29 +48,29 @@ class Firmware:
     field which describes the individual parts of the firmware, and the sdk
     version that was used to create the firmware.
   */
-  device_specific_data/ByteArray
-  /** A decoded version of the $device_specific_data. */
-  device_specific_data_/Map
+  device-specific-data/ByteArray
+  /** A decoded version of the $device-specific-data. */
+  device-specific-data_/Map
 
-  constructor .content .device_specific_data:
+  constructor .content .device-specific-data:
     map := {
-      "device-specific": device_specific_data,
+      "device-specific": device-specific-data,
       "checksum": content.checksum }
     encoded = base64.encode (ubjson.encode map)
-    device_specific_data_ = ubjson.decode device_specific_data
-    if not device_specific_data_.contains "artemis.device":
+    device-specific-data_ = ubjson.decode device-specific-data
+    if not device-specific-data_.contains "artemis.device":
       throw "Invalid device-specific data: Missing artemis.device"
-    if not device_specific_data_.contains "parts":
+    if not device-specific-data_.contains "parts":
       throw "Invalid device-specific data: Missing parts"
-    if not device_specific_data_.contains "sdk-version":
+    if not device-specific-data_.contains "sdk-version":
       throw "Invalid device-specific data: Missing sdk-version"
-    assert: device_specific_data_["parts"] == content.encoded_parts
+    assert: device-specific-data_["parts"] == content.encoded-parts
 
   constructor.encoded .encoded:
     map := ubjson.decode (base64.decode encoded)
-    device_specific_data = map["device-specific"]
-    device_specific_data_ = ubjson.decode device_specific_data
-    content = FirmwareContent.encoded device_specific_data_["parts"] --checksum=map["checksum"]
+    device-specific-data = map["device-specific"]
+    device-specific-data_ = ubjson.decode device-specific-data
+    content = FirmwareContent.encoded device-specific-data_["parts"] --checksum=map["checksum"]
 
   /**
   Embeds device-specific information in $device into a firmware given by
@@ -87,98 +87,98 @@ class Firmware:
     the process is repeated until the encoded parts do not change anymore.
   */
   constructor --device/Device --pod/Pod --cache/cli.Cache:
-    sdk_version := Sdk.get_sdk_version_from --envelope_path=pod.envelope_path
-    unconfigured := FirmwareContent.from_envelope pod.envelope_path --cache=cache
-    encoded_parts := unconfigured.encoded_parts
-    device_map := {
+    sdk-version := Sdk.get-sdk-version-from --envelope-path=pod.envelope-path
+    unconfigured := FirmwareContent.from-envelope pod.envelope-path --cache=cache
+    encoded-parts := unconfigured.encoded-parts
+    device-map := {
       "device_id":       "$device.id",
-      "organization_id": "$device.organization_id",
-      "hardware_id":     "$device.hardware_id",
+      "organization_id": "$device.organization-id",
+      "hardware_id":     "$device.hardware-id",
     }
     while true:
-      device_specific := ubjson.encode {
-        "artemis.device" : device_map,
-        "parts"          : encoded_parts,
+      device-specific := ubjson.encode {
+        "artemis.device" : device-map,
+        "parts"          : encoded-parts,
         // TODO(florian): these don't feel like they are device-specific properties.
-        "sdk-version"    : sdk_version,
-        "pod-id"         : pod.id.to_byte_array,
+        "sdk-version"    : sdk-version,
+        "pod-id"         : pod.id.to-byte-array,
       }
 
-      configured := FirmwareContent.from_envelope pod.envelope_path
-          --device_specific=device_specific
+      configured := FirmwareContent.from-envelope pod.envelope-path
+          --device-specific=device-specific
           --cache=cache
-      if configured.encoded_parts == encoded_parts:
-        return Firmware configured device_specific
-      encoded_parts = configured.encoded_parts
+      if configured.encoded-parts == encoded-parts:
+        return Firmware configured device-specific
+      encoded-parts = configured.encoded-parts
 
-  device_specific key/string -> any:
-    return device_specific_data_.get key
+  device-specific key/string -> any:
+    return device-specific-data_.get key
 
   device -> Device:
-    device_map := device_specific "artemis.device"
+    device-map := device-specific "artemis.device"
     return Device
-        --id=uuid.parse device_map["device_id"]
-        --organization_id=uuid.parse device_map["organization_id"]
-        --hardware_id=uuid.parse device_map["hardware_id"]
+        --id=uuid.parse device-map["device_id"]
+        --organization-id=uuid.parse device-map["organization_id"]
+        --hardware-id=uuid.parse device-map["hardware_id"]
 
   /** The sdk version that was used for this firmware. */
-  sdk_version -> string:
-    return device_specific "sdk-version"
+  sdk-version -> string:
+    return device-specific "sdk-version"
 
-  pod_id -> uuid.Uuid:
+  pod-id -> uuid.Uuid:
     // TODO(kasper): Device configurations prior to Artemis v0.6
     // do not (generally) contain pod ids. To ease migration, we
     // let them have a nil id to indicate that we don't know which
     // pod they are running. It feels safe to remove this workaround
     // in a couple of weeks (early June, 2023).
-    device_pod_id := device_specific "pod-id"
-    if not device_pod_id: return uuid.NIL
-    return uuid.Uuid device_pod_id
+    device-pod-id := device-specific "pod-id"
+    if not device-pod-id: return uuid.NIL
+    return uuid.Uuid device-pod-id
 
 class FirmwareContent:
   bits/ByteArray?
   parts/List
   checksum/ByteArray
-  encoded_parts/ByteArray
+  encoded-parts/ByteArray
 
   constructor --.bits --.parts --.checksum:
-    encoded_parts = ubjson.encode (parts.map: it.encode)
+    encoded-parts = ubjson.encode (parts.map: it.encode)
 
-  constructor.encoded .encoded_parts --.checksum:
+  constructor.encoded .encoded-parts --.checksum:
     bits = null
-    list := ubjson.decode encoded_parts
+    list := ubjson.decode encoded-parts
     parts = list.map: FirmwarePart.encoded it
 
-  constructor.from_envelope envelope_path/string --device_specific/ByteArray?=null --cache/cli.Cache:
-    sdk_version := Sdk.get_sdk_version_from --envelope_path=envelope_path
-    sdk := get_sdk sdk_version --cache=cache
-    firmware_description/Map := {:}
-    if device_specific:
-      with_tmp_directory: | tmp_dir/string |
-        device_specific_path := tmp_dir + "/device_specific"
-        write_blob_to_file device_specific_path device_specific
-        firmware_description = sdk.firmware_extract
-            --envelope_path=envelope_path
-            --device_specific_path=device_specific_path
+  constructor.from-envelope envelope-path/string --device-specific/ByteArray?=null --cache/cli.Cache:
+    sdk-version := Sdk.get-sdk-version-from --envelope-path=envelope-path
+    sdk := get-sdk sdk-version --cache=cache
+    firmware-description/Map := {:}
+    if device-specific:
+      with-tmp-directory: | tmp-dir/string |
+        device-specific-path := tmp-dir + "/device_specific"
+        write-blob-to-file device-specific-path device-specific
+        firmware-description = sdk.firmware-extract
+            --envelope-path=envelope-path
+            --device-specific-path=device-specific-path
     else:
-      firmware_description = sdk.firmware_extract --envelope_path=envelope_path
+      firmware-description = sdk.firmware-extract --envelope-path=envelope-path
 
-    bits := firmware_description["binary"]
+    bits := firmware-description["binary"]
     checksum/ByteArray? := null
 
     parts := []
-    firmware_description["parts"].do: | entry/Map |
+    firmware-description["parts"].do: | entry/Map |
       from := entry["from"]
       to := entry["to"]
-      part_bits := bits[from..to]
+      part-bits := bits[from..to]
       type := entry["type"]
 
       if type == "config":
         parts.add (FirmwarePartConfig --from=from --to=to)
       else if type == "checksum":
-        checksum = part_bits
+        checksum = part-bits
       else:
-        parts.add (FirmwarePartPatch --from=from --to=to --bits=part_bits)
+        parts.add (FirmwarePartPatch --from=from --to=to --bits=part-bits)
 
     return FirmwareContent --bits=bits --parts=parts --checksum=checksum
 
@@ -198,24 +198,24 @@ class FirmwareContent:
         result.add (FirmwarePatch --bits=part.bits --to=part.hash)
     return result
 
-  trivial_patches -> List:
+  trivial-patches -> List:
     result := []
     parts.do: | part/FirmwarePart |
       if part is FirmwarePartConfig: continue.do
-      patch_part := part as FirmwarePartPatch
-      result.add (FirmwarePatch --bits=patch_part.bits --to=patch_part.hash)
+      patch-part := part as FirmwarePartPatch
+      result.add (FirmwarePatch --bits=patch-part.bits --to=patch-part.hash)
     return result
 
 class PatchWriter implements PatchObserver:
   buffer/bytes.Buffer ::= bytes.Buffer
   size/int? := null
-  on_write data from/int=0 to/int=data.size:
+  on-write data from/int=0 to/int=data.size:
     buffer.write data[from..to]
-  on_size size/int -> none:
+  on-size size/int -> none:
     this.size = size
-  on_new_checksum checksum/ByteArray -> none:
+  on-new-checksum checksum/ByteArray -> none:
     // Do nothing.
-  on_checkpoint patch_position/int -> none:
+  on-checkpoint patch-position/int -> none:
     // Do nothing.
 
 class FirmwarePatch:
@@ -272,94 +272,94 @@ class FirmwarePartConfig extends FirmwarePart:
 /**
 Stores the snapshots inside the envelope in the user's snapshot directory.
 */
-cache_snapshots --envelope_path/string --output_directory/string?=null --cache/cli.Cache:
-  sdk_version := Sdk.get_sdk_version_from --envelope_path=envelope_path
-  sdk := get_sdk sdk_version --cache=cache
-  containers := sdk.firmware_list_containers --envelope_path=envelope_path
-  with_tmp_directory: | tmp_dir/string |
+cache-snapshots --envelope-path/string --output-directory/string?=null --cache/cli.Cache:
+  sdk-version := Sdk.get-sdk-version-from --envelope-path=envelope-path
+  sdk := get-sdk sdk-version --cache=cache
+  containers := sdk.firmware-list-containers --envelope-path=envelope-path
+  with-tmp-directory: | tmp-dir/string |
     containers.do: | name/string description/Map |
       if description["kind"] == "snapshot":
         id := description["id"]
-        tmp_snapshot_path := "$tmp_dir/$(id).snapshot"
-        sdk.firmware_extract_container
-            --envelope_path=envelope_path
+        tmp-snapshot-path := "$tmp-dir/$(id).snapshot"
+        sdk.firmware-extract-container
+            --envelope-path=envelope-path
             --name=name
-            --output_path=tmp_snapshot_path
-        snapshot_content := file.read_content tmp_snapshot_path
-        cache_snapshot snapshot_content --output_directory=output_directory
+            --output-path=tmp-snapshot-path
+        snapshot-content := file.read-content tmp-snapshot-path
+        cache-snapshot snapshot-content --output-directory=output-directory
 
 // A forwarding function to work around the shadowing in 'get_envelope'.
-cache_snapshots_ --envelope_path/string --cache/cli.Cache:
-  cache_snapshots --envelope_path=envelope_path --cache=cache
+cache-snapshots_ --envelope-path/string --cache/cli.Cache:
+  cache-snapshots --envelope-path=envelope-path --cache=cache
 
 /**
-Builds the URL for the firmware envelope for the given $sdk_version and $envelope.
+Builds the URL for the firmware envelope for the given $sdk-version and $envelope.
 
 If no envelope is given, builds a URL for the envelopes from Toit's
   Github repository.
 */
-build_envelope_url --sdk_version/string? --envelope/string -> string:
+build-envelope-url --sdk-version/string? --envelope/string -> string:
   if not envelope or (not envelope.contains "/" and not envelope.contains "\\"):
-    if not sdk_version:
+    if not sdk-version:
       throw "No sdk_version given"
-    return "https://github.com/toitlang/toit/releases/download/$sdk_version/firmware-$(envelope).gz"
+    return "https://github.com/toitlang/toit/releases/download/$sdk-version/firmware-$(envelope).gz"
 
-  if sdk_version:
-    envelope = envelope.replace --all "\$(sdk-version)" sdk_version
+  if sdk-version:
+    envelope = envelope.replace --all "\$(sdk-version)" sdk-version
 
-  URL_PREFIXES ::= ["http://", "https://", "file://"]
-  URL_PREFIXES.do: if envelope.starts_with it: return envelope
+  URL-PREFIXES ::= ["http://", "https://", "file://"]
+  URL-PREFIXES.do: if envelope.starts-with it: return envelope
   return "file://$envelope"
 
-reported_local_envelope_use_/bool := false
+reported-local-envelope-use_/bool := false
 /**
 Returns a path to the firmware envelope for the given $specification.
 
-If $cache_snapshots is true, then copies the contained snapshots
+If $cache-snapshots is true, then copies the contained snapshots
   into the cache.
 */
 // TODO(florian): we probably want to create a class for the firmware
 // envelope.
-get_envelope -> string
+get-envelope -> string
     --specification/PodSpecification
     --cache/cli.Cache
-    --cache_snapshots/bool=true:
-  if is_dev_setup:
+    --cache-snapshots/bool=true:
+  if is-dev-setup:
     chip := specification.chip or specification.envelope
-    local_sdk := os.env.get "DEV_TOIT_REPO_PATH"
-    if local_sdk:
-      if not reported_local_envelope_use_:
-        print_on_stderr_ "Using envelope from local SDK"
-        reported_local_envelope_use_ = true
-      return "$local_sdk/build/$chip/firmware.envelope"
+    local-sdk := os.env.get "DEV_TOIT_REPO_PATH"
+    if local-sdk:
+      if not reported-local-envelope-use_:
+        print-on-stderr_ "Using envelope from local SDK"
+        reported-local-envelope-use_ = true
+      return "$local-sdk/build/$chip/firmware.envelope"
 
-  sdk_version := specification.sdk_version
+  sdk-version := specification.sdk-version
   envelope := specification.envelope or "esp32"
 
-  url := build_envelope_url --sdk_version=sdk_version --envelope=envelope
+  url := build-envelope-url --sdk-version=sdk-version --envelope=envelope
 
-  FILE_URL_PREFIX ::= "file://"
-  if url.starts_with FILE_URL_PREFIX:
-    path := url.trim --left FILE_URL_PREFIX
-    if fs.is_relative path:
-      return "$specification.relative_to/$path"
+  FILE-URL-PREFIX ::= "file://"
+  if url.starts-with FILE-URL-PREFIX:
+    path := url.trim --left FILE-URL-PREFIX
+    if fs.is-relative path:
+      return "$specification.relative-to/$path"
     return path
 
-  HTTP_URL_PREFIX ::= "http://"
-  HTTPS_URL_PREFIX ::= "https://"
-  if not url.starts_with HTTP_URL_PREFIX and not url.starts_with HTTPS_URL_PREFIX:
+  HTTP-URL-PREFIX ::= "http://"
+  HTTPS-URL-PREFIX ::= "https://"
+  if not url.starts-with HTTP-URL-PREFIX and not url.starts-with HTTPS-URL-PREFIX:
     throw "Invalid envelope URL: $url"
 
-  envelope_key := "$ENVELOPE_PATH/$url/firmware.envelope"
-  return cache.get_file_path envelope_key: | store/cli.FileStore |
-    store.with_tmp_directory: | tmp_dir |
-      out_path := "$tmp_dir/fw.envelope"
-      is_gz_file := url.ends_with ".gz"
-      if is_gz_file: out_path += ".gz"
-      download_url url --out_path=out_path
-      if is_gz_file:
-        gunzip out_path
-      envelope_path := "$tmp_dir/fw.envelope"
-      if cache_snapshots:
-        cache_snapshots_ --envelope_path=envelope_path --cache=cache
-      store.move envelope_path
+  envelope-key := "$ENVELOPE-PATH/$url/firmware.envelope"
+  return cache.get-file-path envelope-key: | store/cli.FileStore |
+    store.with-tmp-directory: | tmp-dir |
+      out-path := "$tmp-dir/fw.envelope"
+      is-gz-file := url.ends-with ".gz"
+      if is-gz-file: out-path += ".gz"
+      download-url url --out-path=out-path
+      if is-gz-file:
+        gunzip out-path
+      envelope-path := "$tmp-dir/fw.envelope"
+      if cache-snapshots:
+        cache-snapshots_ --envelope-path=envelope-path --cache=cache
+      store.move envelope-path

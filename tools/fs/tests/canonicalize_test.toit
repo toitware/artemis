@@ -3,7 +3,7 @@
 import expect show *
 import fs
 
-CANONICALIZE_LINUX_TESTS ::= [
+CANONICALIZE-LINUX-TESTS ::= [
   ["foo", "foo"],
   [".", "."],
   ["/", "/"],
@@ -15,7 +15,7 @@ CANONICALIZE_LINUX_TESTS ::= [
   ["foo/../bar/gee", "bar/gee"],
 ]
 
-CANONICALIZE_WINDOWS_TESTS ::= [
+CANONICALIZE-WINDOWS-TESTS ::= [
   ["foo", "foo"],
   [".", "."],
   ["/", "/"],
@@ -45,10 +45,10 @@ CANONICALIZE_WINDOWS_TESTS ::= [
 
 main:
   2.repeat:
-    tests := it == 0 ? CANONICALIZE_LINUX_TESTS : CANONICALIZE_WINDOWS_TESTS
-    path_platform := it == 0 ? PLATFORM_LINUX : PLATFORM_WINDOWS
+    tests := it == 0 ? CANONICALIZE-LINUX-TESTS : CANONICALIZE-WINDOWS-TESTS
+    path-platform := it == 0 ? PLATFORM-LINUX : PLATFORM-WINDOWS
     tests.do: | test/List |
       input := test[0]
       expected := test[1]
-      actual := fs.canonicalize input --path_platform=path_platform
-      expect_equals expected actual
+      actual := fs.canonicalize input --path-platform=path-platform
+      expect-equals expected actual

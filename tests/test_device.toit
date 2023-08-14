@@ -3,7 +3,7 @@
 import encoding.json
 
 import cli
-import artemis.shared.server_config
+import artemis.shared.server-config
 import artemis.service.service
 import artemis.service.device as service
 import artemis.cli.utils show OptionUuid
@@ -20,34 +20,34 @@ main args:
     ]
     --run=::
       run
-          --alias_id=it["alias-id"]
-          --hardware_id=it["hardware-id"]
-          --organization_id=it["organization-id"]
-          --encoded_firmware=it["encoded-firmware"]
-          --broker_config_json=it["broker-config-json"]
+          --alias-id=it["alias-id"]
+          --hardware-id=it["hardware-id"]
+          --organization-id=it["organization-id"]
+          --encoded-firmware=it["encoded-firmware"]
+          --broker-config-json=it["broker-config-json"]
 
   cmd.run args
 
 run
-    --alias_id/uuid.Uuid
-    --hardware_id/uuid.Uuid
-    --organization_id/uuid.Uuid
-    --encoded_firmware/string
-    --broker_config_json/string:
-  decoded_broker_config := json.parse broker_config_json
-  broker_config := server_config.ServerConfig.from_json
+    --alias-id/uuid.Uuid
+    --hardware-id/uuid.Uuid
+    --organization-id/uuid.Uuid
+    --encoded-firmware/string
+    --broker-config-json/string:
+  decoded-broker-config := json.parse broker-config-json
+  broker-config := server-config.ServerConfig.from-json
       "device-broker"
-      decoded_broker_config
-      --der_deserializer=: unreachable
+      decoded-broker-config
+      --der-deserializer=: unreachable
 
   device := service.Device
-      --id=alias_id
-      --hardware_id=hardware_id
-      --organization_id=organization_id
-      --firmware_state={
-        "firmware": encoded_firmware,
+      --id=alias-id
+      --hardware-id=hardware-id
+      --organization-id=organization-id
+      --firmware-state={
+        "firmware": encoded-firmware,
       }
   while true:
-    sleep_duration := service.run_artemis device broker_config --no-start_ntp
-    sleep sleep_duration
+    sleep-duration := service.run-artemis device broker-config --no-start-ntp
+    sleep sleep-duration
 
