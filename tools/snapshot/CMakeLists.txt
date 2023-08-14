@@ -2,9 +2,9 @@
 
 toit_project(snapshot_uuid "${CMAKE_CURRENT_LIST_DIR}")
 
-set(SNAPSHOT_UUID_SOURCE "${CMAKE_CURRENT_LIST_DIR}/snapshot_uuid.toit")
+set(SNAPSHOT_UUID_SOURCE "${CMAKE_CURRENT_LIST_DIR}/snapshot-uuid.toit")
 set(SNAPSHOT_UUID_EXE "${CMAKE_BINARY_DIR}/bin/snapshot_uuid${CMAKE_EXECUTABLE_SUFFIX}")
-set(SNAPSHOT_UUID_DEP "${CMAKE_CURRENT_BINARY_DIR}/snapshot_uuid.toit.dep")
+set(SNAPSHOT_UUID_DEP "${CMAKE_CURRENT_BINARY_DIR}/snapshot-uuid.toit.dep")
 
 ADD_TOIT_EXE(
   ${SNAPSHOT_UUID_SOURCE}

@@ -27,14 +27,14 @@ On Windows, a rooted path is a path that is fixed to a specific drive or UNC pat
 # Examples
 On Windows:
 ```
-  is_rooted "C:\\foo\\bar"     // True.
-  is_rooted "C:/foo/bar"       // True.
-  is_rooted "C:foo\\bar"       // True.
-  is_rooted "\\foo\\bar"       // True.
-  is_rooted "/foo/bar"         // True.
-  is_rooted "//share/foo/bar"  // True.
-  is_rooted "foo/bar"          // False.
-  is_rooted "../foo/bar"       // False.
+  is-rooted "C:\\foo\\bar"     // True.
+  is-rooted "C:/foo/bar"       // True.
+  is-rooted "C:foo\\bar"       // True.
+  is-rooted "\\foo\\bar"       // True.
+  is-rooted "/foo/bar"         // True.
+  is-rooted "//share/foo/bar"  // True.
+  is-rooted "foo/bar"          // False.
+  is-rooted "../foo/bar"       // False.
 ```
 */
 is-rooted path/string --path-platform/string=platform -> bool:

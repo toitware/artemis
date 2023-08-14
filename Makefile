@@ -53,7 +53,7 @@ start-http: install-pkgs
 	@ # Use the public IP, so that we can flash devices which then can use
 	@ # the broker.
 	@ $(TOITRUN) src/cli/cli.toit config broker add http \
-		--host=`$(TOITRUN) tools/lan_ip/lan_ip.toit` \
+		--host=`$(TOITRUN) tools/lan_ip/lan-ip.toit` \
 		--port 4999 \
 		--path / \
 		--admin-header "X-Artemis-Header=true" \
@@ -62,7 +62,7 @@ start-http: install-pkgs
 	@ $(TOITRUN) src/cli/cli.toit config broker default --artemis artemis-local-http
 	@ # Adds the local broker and makes it the default.
 	@ $(TOITRUN) src/cli/cli.toit config broker add http \
-		--host=`$(TOITRUN) tools/lan_ip/lan_ip.toit` \
+		--host=`$(TOITRUN) tools/lan_ip/lan-ip.toit` \
 		--port 4998 \
 		--path / \
 		--admin-header "X-Artemis-Header=true" \
@@ -100,7 +100,7 @@ start-supabase: start-supabase-no-config
 	@ # Add the local Artemis server and makes it the default.
 	@ $(TOITRUN) src/cli/cli.toit config broker add supabase \
 		artemis-local-supabase \
-		$$($(TOITRUN) tests/supabase_local_server.toit supabase_artemis)
+		$$($(TOITRUN) tests/supabase-local-server.toit supabase_artemis)
 	@ $(TOITRUN) src/cli/cli.toit config broker default --artemis artemis-local-supabase
 	@ $(TOITRUN) src/cli/cli.toit config broker default artemis-local-supabase
 	@ echo "Run 'make use-customer-supabase-broker' to use the customer broker."
@@ -114,7 +114,7 @@ use-customer-supabase-broker: start-supabase
 	@ # Adds the local broker using a second Supabase instance.
 	@ $(TOITRUN) src/cli/cli.toit config broker add supabase \
 		broker-local-supabase \
-		`$(TOITRUN) tests/supabase_local_server.toit supabase_broker`
+		`$(TOITRUN) tests/supabase-local-server.toit supabase_broker`
 	@ $(TOITRUN) src/cli/cli.toit config broker default broker-local-supabase
 
 .PHONY: setup-local-dev
@@ -147,11 +147,11 @@ upload-service:
 
 .PHONY: download-sdk
 download-sdk: install-pkgs
-	@ $(TOITRUN) tools/service_image_uploader/sdk_downloader.toit download --version $(LOCAL_DEV_SDK)
+	@ $(TOITRUN) tools/service_image_uploader/sdk-downloader.toit download --version $(LOCAL_DEV_SDK)
 	@ cmake \
 		-DDEV_SDK_VERSION=$(LOCAL_DEV_SDK) \
-		-DDEV_SDK_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk_downloader.toit --version $(LOCAL_DEV_SDK) print)" \
-		-DDEV_ENVELOPE_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk_downloader.toit --version $(LOCAL_DEV_SDK) print --envelope)" \
+		-DDEV_SDK_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print)" \
+		-DDEV_ENVELOPE_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope)" \
 		build
 
 # We rebuild the cmake file all the time.
