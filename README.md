@@ -1,57 +1,94 @@
-# Artemis
+# Artemis - v1_migration branch.
 
-Artemis consists of two parts:  A service that runs on the devices, and a CLI
-that allows you to control the devices.
+This branch is for migrating Toit v1 devices to Artemis.
 
-They communicate together using HTTP via a cloud service.  Currently the
-cloud service is AWS's IoT service or a Supabase instance.  On the ESP32, the
-device keeps track of its device id after the initial flashing.
+## How to create new Artemis service images
 
-To configure your Artemis CLI to use our Supabase setup in the cloud, you can
-use the following command:
+Check out this branch (`v1_migration`), then run the following
+command to upload the current checkout to the v1_migration organization:
 
-``` sh
-make add-default-brokers
 ```
-
-If you want to work locally, use one of the following `make` clauses:
-- `start-http`: configures Artemis to use a local HTTP server, and
-  launches the http servers (in the foreground)..
-- `start-supabase`: configures Artemis to use a local Supabase
-  instance. You have to start docker first.
-
-You can use the following `make` clauses to switch the broker (but not the
-Artemis server). They have to be run after the `start-local-*` clauses from above:
-- `use-customer-supabase-broker`: configures Artemis to use a separate customer
-  Supabase broker, and starts it. You have to start docker first.
-
-Note that the `add-local-*` clauses use your LAN IP address, so that
-flashed devices can connect to the local server. This means that you might
-need to re-run the `add-local-*` clauses if your LAN IP address changes.
-
-Before being able to flash a device, you need to log in, and create an
-organization first. Also, you need to upload a valid Artemis service to
-the Artemis server. All of this can be done by running `make setup-local-dev`. This
-uses the `test-admin@toit.io` user for Artemis (creating it if it doesn't
-exist), and the `test@example.com` user for the broker (if the broker is
-not the same server as Artemis). The organization is called "Test Org".
-
-In general a typical local workflow with HTTP servers looks like this:
-
-``` sh
-# Make all binaries and (incidentally) download dependencies.
 make
-# Set up local servers.
-make start-http
-# Login, upload a service image and create an org:
-make setup-local-dev
+build/bin/uploader service --local --sdk-version=v2.0.0-alpha.94 --service-version=v0.9.2-migration2
+```
+Replace the versions as needed.
 
-# Flash a device.
-# Make sure the specification is using the SDK/service versions you uploaded in the previous step.
-toit.run src/cli/cli.toit device flash --port=/dev/ttyUSB0 --specification some_specification.json
+## How to create new v1 firmware images
+
+Put yourself into a fleet with organization 367459ff-7ad2-4b3f-8085-4a5dcc2cd82f (`v1_migration``).
+
+This org has v0.9.2-migrationX entries.
+
+Run `artemis sdk list` to find the latest entry.
+
+Change the pod-spec so it uses that combo and change the connection settings
+so that the devices can connect to the server. WiFi is inherited from v1, but
+cellular connections must be added to the pod spec.
+
+```
+artemis pod build -o migration.pod my-pod.json
 ```
 
-Whenever you change the Artemis service, you need to upload it again. Use
-`make upload-service` for that.
+Use the same pod file to create an ota image:
+```
+artemis serial write-ota -o ota.bin --local migration.pod
+```
+Note: this will create a new ID that we will ignore.
 
-Happy hacking!
+Create a meaningful tag on the release-v1.99 branch:
+```
+git checkout release-v1.99
+git tag v1.99.0-customer-foo
+git push origin v1.99.0-customer-foo
+```
+
+This will automatically trigger a Github action that will upload the
+new image. The `gitversion` script will detect the tag and use it
+as version for this build.
+
+Once the Action has finished get the tar (`sdk/v1.99.0-customer-foo.tar``) from google storage
+https://console.cloud.google.com/storage/browser/toit-binaries/v1.99.0-customer-foo
+(You can also use command-line tools for this, but through the browser is probably easier).
+
+Untar it, and replace model/esp32-4mb/factory.bin with the ota.bin that was created with Artemis.
+Remove the downloaded tar (if it's in the same directory) and create a new tar:
+```
+tar c -f v1.99.0-customer-foo.tar ./*
+```
+
+Upload this file to google storage, overwriting the original one. (google storage should
+ask for confirmation).
+
+Now we need to make the new image available on the Toit console. For this, log into
+the debug pod (replace the pod name with the one from `get pods`).
+
+```
+kubectl get pods
+kubectl exec -it debug-5776c8657f-2brm5 -- bash
+```
+
+Then run the following commands in the pod
+```
+update_sdk.sh v1.99.0-customer-foo
+```
+
+The image is now available on the console.
+
+## How to migrate a device
+
+In the Artemis fleet where the device should live:
+```
+artemis fleet create-identity <HW-ID>
+```
+It's important to use the hardware ID of the device (as reported on the Toit console).
+
+It makes sense to call `artemis fleet roll-out` at this point so that the device
+can download the new image as soon as it goes online.
+
+Then, update the device (in the Toit v1 console) to two v1.7 images. It's
+crucial that the log reports "booting from partition at offset 1b0000".
+This means that the partition table has been successfully changed and can now
+accomodate the larger Artemis images.
+
+Then, update the device to the Artemis image that was built for the device.
+For devices that only need WiFi the latest `v1.99.x-wifi` should be enough.
