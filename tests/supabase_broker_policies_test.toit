@@ -1,27 +1,27 @@
 // Copyright (C) 2022 Toitware ApS.
 
 import artemis.cli.config as cli
-import artemis.cli.server_config as cli_server_config
-import artemis.shared.server_config show ServerConfigSupabase
+import artemis.cli.server-config as cli-server-config
+import artemis.shared.server-config show ServerConfigSupabase
 import expect show *
 import log
 import supabase
 import .broker
-import .supabase_broker_policies_shared
+import .supabase-broker-policies-shared
 
 main args:
-  with_broker --args=args --type="supabase-local" --logger=log.default: | broker/TestBroker |
-    server_config := broker.server_config as ServerConfigSupabase
-    client_anon := supabase.Client --server_config=server_config --certificate_provider=:unreachable
-    client1 := supabase.Client --server_config=server_config --certificate_provider=:unreachable
+  with-broker --args=args --type="supabase-local" --logger=log.default: | broker/TestBroker |
+    server-config := broker.server-config as ServerConfigSupabase
+    client-anon := supabase.Client --server-config=server-config --certificate-provider=:unreachable
+    client1 := supabase.Client --server-config=server-config --certificate-provider=:unreachable
 
     email := "$(random)@toit.io"
     password := "password"
-    client1.auth.sign_up --email=email --password=password
+    client1.auth.sign-up --email=email --password=password
     // On local setups, the sign up does not need to be confirmed.
-    client1.auth.sign_in --email=email --password=password
+    client1.auth.sign-in --email=email --password=password
 
-    run_shared_test --client1=client1 --client_anon=client_anon
-    run_shared_pod_description_test
+    run-shared-test --client1=client1 --client-anon=client-anon
+    run-shared-pod-description-test
         --client1=client1
-        --other_clients=[client_anon]
+        --other-clients=[client-anon]

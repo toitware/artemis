@@ -12,52 +12,52 @@ interface ArtemisService:
       --minor=5
 
   /** The mode used by controllers that want to go online. */
-  static CONTROLLER_MODE_ONLINE ::= 0
+  static CONTROLLER-MODE-ONLINE ::= 0
 
   /** The mode used by controllers that want to go offline. */
-  static CONTROLLER_MODE_OFFLINE ::= 1
+  static CONTROLLER-MODE-OFFLINE ::= 1
 
-  static CHANNEL_POSITION_BITS_ ::= 30
-  static CHANNEL_POSITION_HALF_ ::= (1 << (CHANNEL_POSITION_BITS_ - 1))
+  static CHANNEL-POSITION-BITS_ ::= 30
+  static CHANNEL-POSITION-HALF_ ::= (1 << (CHANNEL-POSITION-BITS_ - 1))
 
   /** The mask used to force channel positions to wrap around. */
-  static CHANNEL_POSITION_MASK ::= (1 << CHANNEL_POSITION_BITS_) - 1
+  static CHANNEL-POSITION-MASK ::= (1 << CHANNEL-POSITION-BITS_) - 1
 
   /**
   Compares two channel positions.
 
-  See $artemis.ChannelPosition.compare_to for a description
+  See $artemis.ChannelPosition.compare-to for a description
     of how the comparison is performed.
   */
-  static channel_position_compare p0/int p1/int -> int:
+  static channel-position-compare p0/int p1/int -> int:
     if p0 == p1: return 0
     return p0 < p1
-      ? (p1 - p0 < CHANNEL_POSITION_HALF_ ? -1 :  1)
-      : (p0 - p1 < CHANNEL_POSITION_HALF_ ?  1 : -1)
+      ? (p1 - p0 < CHANNEL-POSITION-HALF_ ? -1 :  1)
+      : (p0 - p1 < CHANNEL-POSITION-HALF_ ?  1 : -1)
 
   version -> string
-  static VERSION_INDEX /int ::= 0
+  static VERSION-INDEX /int ::= 0
 
-  device_id -> ByteArray
-  static DEVICE_ID_INDEX /int ::= 7
+  device-id -> ByteArray
+  static DEVICE-ID-INDEX /int ::= 7
 
-  container_current_restart --wakeup_us/int? -> none
-  static CONTAINER_CURRENT_RESTART_INDEX /int ::= 1
+  container-current-restart --wakeup-us/int? -> none
+  static CONTAINER-CURRENT-RESTART-INDEX /int ::= 1
 
-  controller_open --mode/int -> int
-  static CONTROLLER_OPEN_INDEX /int ::= 6
+  controller-open --mode/int -> int
+  static CONTROLLER-OPEN-INDEX /int ::= 6
 
-  channel_open --topic/string --receive/bool -> int?
-  static CHANNEL_OPEN_INDEX /int ::= 2
+  channel-open --topic/string --receive/bool -> int?
+  static CHANNEL-OPEN-INDEX /int ::= 2
 
-  channel_send handle/int bytes/ByteArray -> bool
-  static CHANNEL_SEND_INDEX /int ::= 3
+  channel-send handle/int bytes/ByteArray -> bool
+  static CHANNEL-SEND-INDEX /int ::= 3
 
-  channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?
-  static CHANNEL_RECEIVE_PAGE_INDEX /int ::= 4
+  channel-receive-page handle/int --peek/int --buffer/ByteArray? -> List?
+  static CHANNEL-RECEIVE-PAGE-INDEX /int ::= 4
 
-  channel_acknowledge handle/int position/int count/int -> none
-  static CHANNEL_ACKNOWLEDGE_INDEX /int ::= 5
+  channel-acknowledge handle/int position/int count/int -> none
+  static CHANNEL-ACKNOWLEDGE-INDEX /int ::= 5
 
 class ArtemisClient extends ServiceClient
     implements ArtemisService:
@@ -67,25 +67,25 @@ class ArtemisClient extends ServiceClient
     super selector
 
   version -> string:
-    return invoke_ ArtemisService.VERSION_INDEX null
+    return invoke_ ArtemisService.VERSION-INDEX null
 
-  device_id -> ByteArray:
-    return invoke_ ArtemisService.DEVICE_ID_INDEX null
+  device-id -> ByteArray:
+    return invoke_ ArtemisService.DEVICE-ID-INDEX null
 
-  container_current_restart --wakeup_us/int? -> none:
-    invoke_ ArtemisService.CONTAINER_CURRENT_RESTART_INDEX wakeup_us
+  container-current-restart --wakeup-us/int? -> none:
+    invoke_ ArtemisService.CONTAINER-CURRENT-RESTART-INDEX wakeup-us
 
-  controller_open --mode/int -> int:
-    return invoke_ ArtemisService.CONTROLLER_OPEN_INDEX mode
+  controller-open --mode/int -> int:
+    return invoke_ ArtemisService.CONTROLLER-OPEN-INDEX mode
 
-  channel_open --topic/string --receive/bool -> int?:
-    return invoke_ ArtemisService.CHANNEL_OPEN_INDEX [topic, receive]
+  channel-open --topic/string --receive/bool -> int?:
+    return invoke_ ArtemisService.CHANNEL-OPEN-INDEX [topic, receive]
 
-  channel_send handle/int bytes/ByteArray -> bool:
-    return invoke_ ArtemisService.CHANNEL_SEND_INDEX [handle, bytes]
+  channel-send handle/int bytes/ByteArray -> bool:
+    return invoke_ ArtemisService.CHANNEL-SEND-INDEX [handle, bytes]
 
-  channel_receive_page handle/int --peek/int --buffer/ByteArray? -> List?:
-    return invoke_ ArtemisService.CHANNEL_RECEIVE_PAGE_INDEX [handle, peek, buffer]
+  channel-receive-page handle/int --peek/int --buffer/ByteArray? -> List?:
+    return invoke_ ArtemisService.CHANNEL-RECEIVE-PAGE-INDEX [handle, peek, buffer]
 
-  channel_acknowledge handle/int position/int count/int -> none:
-    invoke_ ArtemisService.CHANNEL_ACKNOWLEDGE_INDEX [handle, position, count]
+  channel-acknowledge handle/int position/int count/int -> none:
+    invoke_ ArtemisService.CHANNEL-ACKNOWLEDGE-INDEX [handle, position, count]

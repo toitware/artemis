@@ -18,13 +18,13 @@ import encoding.tison
 import encoding.hex
 import uuid
 
-import ..utils show decode_server_config
-import ..service show run_artemis
-import ..check_in show check_in_setup
+import ..utils show decode-server-config
+import ..service show run-artemis
+import ..check-in show check-in-setup
 import ..device
 import ...cli.artemis show Artemis
 import ...cli.cache as cli
-import ...cli.device as artemis_device
+import ...cli.device as artemis-device
 import ...cli.firmware as fw
 import ...cli.pod
 import ...cli.sdk
@@ -32,8 +32,8 @@ import ...cli.ui show Ui ConsoleUi
 import ...cli.utils
 
 main arguments:
-  cache := cli.Cache --app_name="artemis"
-  root_cmd := cli.Command "root"
+  cache := cli.Cache --app-name="artemis"
+  root-cmd := cli.Command "root"
       --options=[
         cli.OptionString "pod"
             --type="file"
@@ -42,63 +42,63 @@ main arguments:
             --type="file"
             --required,
       ]
-      --run=:: run_host
-          --pod_path=it["pod"]
-          --identity_path=it["identity"]
+      --run=:: run-host
+          --pod-path=it["pod"]
+          --identity-path=it["identity"]
           --cache=cache
-  root_cmd.run arguments
+  root-cmd.run arguments
 
-run_host --pod_path/string --identity_path/string --cache/cli.Cache -> none:
+run-host --pod-path/string --identity-path/string --cache/cli.Cache -> none:
   ui := ConsoleUi
-  with_tmp_directory: | tmp_dir |
-    pod := Pod.parse pod_path --tmp_directory=tmp_dir --ui=ui
-    run_host --pod=pod --identity_path=identity_path --cache=cache
+  with-tmp-directory: | tmp-dir |
+    pod := Pod.parse pod-path --tmp-directory=tmp-dir --ui=ui
+    run-host --pod=pod --identity-path=identity-path --cache=cache
 
-run_host --pod/Pod --identity_path/string --cache/cli.Cache -> none:
-  identity := read_base64_ubjson identity_path
+run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
+  identity := read-base64-ubjson identity-path
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
   identity["broker"] = tison.encode identity["broker"]
-  device_identity := identity["artemis.device"]
+  device-identity := identity["artemis.device"]
 
-  artemis_device := artemis_device.Device
-      --hardware_id=uuid.parse device_identity["hardware_id"]
-      --organization_id=uuid.parse device_identity["organization_id"]
-      --id=uuid.parse device_identity["device_id"]
+  artemis-device := artemis-device.Device
+      --hardware-id=uuid.parse device-identity["hardware_id"]
+      --organization-id=uuid.parse device-identity["organization_id"]
+      --id=uuid.parse device-identity["device_id"]
 
   firmware := fw.Firmware
       --pod=pod
-      --device=artemis_device
+      --device=artemis-device
       --cache=cache
-  encoded_firmware_description := firmware.encoded
+  encoded-firmware-description := firmware.encoded
 
-  sdk_version := pod.sdk_version
-  sdk := get_sdk sdk_version --cache=cache
-  with_tmp_directory: | tmp_dir/string |
-    asset_path := "$tmp_dir/artemis_asset"
-    sdk.firmware_extract_container --assets
+  sdk-version := pod.sdk-version
+  sdk := get-sdk sdk-version --cache=cache
+  with-tmp-directory: | tmp-dir/string |
+    asset-path := "$tmp-dir/artemis_asset"
+    sdk.firmware-extract-container --assets
         --name="artemis"
-        --envelope_path=pod.envelope_path
-        --output_path=asset_path
-    config_asset := sdk.assets_extract
+        --envelope-path=pod.envelope-path
+        --output-path=asset-path
+    config-asset := sdk.assets-extract
         --name="device-config"
-        --assets_path=asset_path
-    config := json.decode config_asset
+        --assets-path=asset-path
+    config := json.decode config-asset
 
-    config["firmware"] = encoded_firmware_description
+    config["firmware"] = encoded-firmware-description
 
     service := FirmwareServiceProvider firmware.content.bits
     service.install
 
     while true:
       device := Device
-          --id=artemis_device.id
-          --hardware_id=artemis_device.hardware_id
-          --organization_id=artemis_device.organization_id
-          --firmware_state=config
-      check_in_setup --assets=identity --device=device
-      server_config := decode_server_config "broker" identity
-      sleep_duration := run_artemis device server_config
-      sleep sleep_duration
+          --id=artemis-device.id
+          --hardware-id=artemis-device.hardware-id
+          --organization-id=artemis-device.organization-id
+          --firmware-state=config
+      check-in-setup --assets=identity --device=device
+      server-config := decode-server-config "broker" identity
+      sleep-duration := run-artemis device server-config
+      sleep sleep-duration
       print
 
 // --------------------------------------------------------------------------
@@ -109,10 +109,10 @@ class FirmwareServiceProvider extends FirmwareServiceProviderBase:
   constructor .content_:
     super "system/firmware/artemis" --major=0 --minor=1
 
-  is_validation_pending -> bool:
+  is-validation-pending -> bool:
     return false
 
-  is_rollback_possible -> bool:
+  is-rollback-possible -> bool:
     return false
 
   validate -> bool:
@@ -124,10 +124,10 @@ class FirmwareServiceProvider extends FirmwareServiceProviderBase:
   upgrade -> none:
     // TODO(kasper): Ignored for now.
 
-  config_ubjson -> ByteArray:
+  config-ubjson -> ByteArray:
     return ByteArray 0
 
-  config_entry key/string -> any:
+  config-entry key/string -> any:
     return null
 
   content:
@@ -140,7 +140,7 @@ class FirmwareServiceProvider extends FirmwareServiceProviderBase:
   uri -> string?:
     return null
 
-  firmware_writer_open client/int from/int to/int -> FirmwareWriter:
+  firmware-writer-open client/int from/int to/int -> FirmwareWriter:
     return FirmwareWriter_ this client from to
 
 class FirmwareWriter_ extends services.ServiceResource implements FirmwareWriter:
@@ -174,6 +174,6 @@ class FirmwareWriter_ extends services.ServiceResource implements FirmwareWriter
     print "Provided checksum = $(hex.encode image[image.size - 32..])"
     view_ = null
 
-  on_closed -> none:
+  on-closed -> none:
     if not view_: return
     view_ = null

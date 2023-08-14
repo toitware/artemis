@@ -5,44 +5,44 @@ import net
 
 import ..config
 import ..cache
-import ..server_config
+import ..server-config
 import ..ui
-import ..artemis_servers.artemis_server show with_server ArtemisServerCli
+import ..artemis-servers.artemis-server show with-server ArtemisServerCli
 
-create_profile_commands config/Config cache/Cache ui/Ui -> List:
-  profile_cmd := cli.Command "profile"
-      --short_help="Manage the user profile."
+create-profile-commands config/Config cache/Cache ui/Ui -> List:
+  profile-cmd := cli.Command "profile"
+      --short-help="Manage the user profile."
       --options=[
-        cli.OptionString "server" --hidden --short_help="The server to use.",
+        cli.OptionString "server" --hidden --short-help="The server to use.",
       ]
 
-  show_cmd := cli.Command "show"
-      --short_help="Show the profile."
-      --run=:: show_profile it config ui
-  profile_cmd.add show_cmd
+  show-cmd := cli.Command "show"
+      --short-help="Show the profile."
+      --run=:: show-profile it config ui
+  profile-cmd.add show-cmd
 
-  update_cmd := cli.Command "update"
-      --short_help="Update the profile."
+  update-cmd := cli.Command "update"
+      --short-help="Update the profile."
       --options=[
         cli.OptionString "name",
         // TODO(florian): support changing the email.
       ]
-      --run=:: update_profile it config ui
-  profile_cmd.add update_cmd
+      --run=:: update-profile it config ui
+  profile-cmd.add update-cmd
 
-  return [profile_cmd]
+  return [profile-cmd]
 
-with_profile_server parsed/cli.Parsed config/Config ui/Ui [block]:
-  server_config := get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
+with-profile-server parsed/cli.Parsed config/Config ui/Ui [block]:
+  server-config := get-server-from-config config CONFIG-ARTEMIS-DEFAULT-KEY
 
-  with_server server_config config: | server/ArtemisServerCli |
-    server.ensure_authenticated: | error_message |
-      ui.abort "$error_message (artemis)."
+  with-server server-config config: | server/ArtemisServerCli |
+    server.ensure-authenticated: | error-message |
+      ui.abort "$error-message (artemis)."
     block.call server
 
-show_profile parsed/cli.Parsed config/Config ui/Ui:
-  with_profile_server parsed config ui: | server/ArtemisServerCli |
-    profile := server.get_profile
+show-profile parsed/cli.Parsed config/Config ui/Ui:
+  with-profile-server parsed config ui: | server/ArtemisServerCli |
+    profile := server.get-profile
     // We recreate the map, so we don't show unnecessary entries.
     ui.result {
       "id": profile["id"],
@@ -50,11 +50,11 @@ show_profile parsed/cli.Parsed config/Config ui/Ui:
       "email": profile["email"],
     }
 
-update_profile parsed/cli.Parsed config/Config ui/Ui:
+update-profile parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
   if not name:
     ui.abort "No name specified."
 
-  with_profile_server parsed config ui: | server/ArtemisServerCli |
-    server.update_profile --name=name
+  with-profile-server parsed config ui: | server/ArtemisServerCli |
+    server.update-profile --name=name
     ui.info "Profile updated."

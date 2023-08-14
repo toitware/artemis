@@ -7,64 +7,64 @@ import encoding.tison
 import expect show *
 import monitor
 
-import .artemis_server
-import .broker show with_http_broker TestBroker
+import .artemis-server
+import .broker show with-http-broker TestBroker
 import .utils
 
 import artemis.service
-import artemis.service.check_in show check_in_setup
+import artemis.service.check-in show check-in-setup
 import artemis.service.device show Device
-import artemis.shared.server_config show ServerConfig
-import artemis.shared.constants show COMMAND_CHECK_IN_
-import ..tools.http_servers.artemis_server
+import artemis.shared.server-config show ServerConfig
+import artemis.shared.constants show COMMAND-CHECK-IN_
+import ..tools.http-servers.artemis-server
 
 main args:
-  if args.is_empty: args=["--insert-device"]
-  run_test --insert_device=(args[0] == "--insert-device")
+  if args.is-empty: args=["--insert-device"]
+  run-test --insert-device=(args[0] == "--insert-device")
 
 // Note that the service has global state (when to check in, ...).
 // Calling `run_test` twice from the same test will thus not work.
-run_test --insert_device/bool:
-  device_id := random_uuid
+run-test --insert-device/bool:
+  device-id := random-uuid
   device := Device
-      --id=device_id
-      --hardware_id=device_id
-      --organization_id=TEST_ORGANIZATION_UUID
-      --firmware_state={
-        "firmware": build_encoded_firmware --device_id=device_id,
+      --id=device-id
+      --hardware-id=device-id
+      --organization-id=TEST-ORGANIZATION-UUID
+      --firmware-state={
+        "firmware": build-encoded-firmware --device-id=device-id,
       }
-  with_http_broker: | test_broker/TestBroker |
-    broker_config := test_broker.server_config
-    with_http_artemis_server: | artemis_server/TestArtemisServer |
-      backdoor := artemis_server.backdoor as ToitHttpBackdoor
+  with-http-broker: | test-broker/TestBroker |
+    broker-config := test-broker.server-config
+    with-http-artemis-server: | artemis-server/TestArtemisServer |
+      backdoor := artemis-server.backdoor as ToitHttpBackdoor
       server := backdoor.server
-      if insert_device:
-        server.devices["$device_id"] = DeviceEntry "$device_id"
+      if insert-device:
+        server.devices["$device-id"] = DeviceEntry "$device-id"
             --alias="test-alias"
-            --organization_id="test-organization"
+            --organization-id="test-organization"
 
-      checkin_latch := monitor.Latch
+      checkin-latch := monitor.Latch
       server.listeners.add:: | state/string command/int data/any |
-        if command == COMMAND_CHECK_IN_ and state != "pre":
-          checkin_latch.set [state, data]
+        if command == COMMAND-CHECK-IN_ and state != "pre":
+          checkin-latch.set [state, data]
 
-      artemis_json := artemis_server.server_config.to_json
-          --der_serializer=: throw "UNIMPLEMENTED"
-      encoded_artemis := tison.encode artemis_json
+      artemis-json := artemis-server.server-config.to-json
+          --der-serializer=: throw "UNIMPLEMENTED"
+      encoded-artemis := tison.encode artemis-json
       assets := {
-        "artemis.broker": encoded_artemis
+        "artemis.broker": encoded-artemis
       }
-      check_in_setup --assets=assets --device=device
+      check-in-setup --assets=assets --device=device
 
-      artemis_task := task::
-        service.run_artemis device broker_config --no-start_ntp
+      artemis-task := task::
+        service.run-artemis device broker-config --no-start-ntp
 
-      checkin_data := checkin_latch.get
-      if not insert_device:
+      checkin-data := checkin-latch.get
+      if not insert-device:
         // The device is not known.
-        expect_equals "error" checkin_data[0]
-        expect_equals "Device not found" checkin_data[1]
+        expect-equals "error" checkin-data[0]
+        expect-equals "Device not found" checkin-data[1]
       else:
-        expect_equals "post" checkin_data[0]
+        expect-equals "post" checkin-data[0]
 
-      artemis_task.cancel
+      artemis-task.cancel

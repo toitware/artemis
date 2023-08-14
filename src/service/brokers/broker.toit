@@ -9,7 +9,7 @@ import uuid
 import .http show BrokerServiceHttp
 
 import ..device
-import ...shared.server_config
+import ...shared.server-config
 
 /**
 The resource manager is used to exchange data with the broker.
@@ -26,14 +26,14 @@ interface BrokerConnection:
   If $wait is false, returns the goal if it is known to have
     changed. Otherwise, returns null.
   */
-  fetch_goal_state --wait/bool -> Map?
+  fetch-goal-state --wait/bool -> Map?
 
   /**
   Downloads the application image with the given $id.
 
   Calls the $block with a $Reader.
   */
-  fetch_image id/uuid.Uuid [block] -> none
+  fetch-image id/uuid.Uuid [block] -> none
 
   /**
   Downloads the firmware with the given $id.
@@ -47,12 +47,12 @@ interface BrokerConnection:
 
   Depending on the implementation, there might be multiple calls to the block.
   */
-  fetch_firmware id/string --offset/int=0 [block] -> none
+  fetch-firmware id/string --offset/int=0 [block] -> none
 
   /**
   Reports the state of the connected device.
   */
-  report_state state/Map -> none
+  report-state state/Map -> none
 
   /**
   Reports an event to the broker.
@@ -60,7 +60,7 @@ interface BrokerConnection:
   The $data must be a JSON-serializable object.
   The $type is a string that describes the type of event.
   */
-  report_event --type/string data/any -> none
+  report-event --type/string data/any -> none
 
   /**
   Closes the connection to the broker.
@@ -71,32 +71,32 @@ interface BrokerConnection:
 An interface to communicate with the CLI through a broker.
 */
 interface BrokerService:
-  constructor logger/log.Logger server_config/ServerConfig:
-    if server_config is ServerConfigSupabase:
-      supabase_config := server_config as ServerConfigSupabase
-      host := supabase_config.host
+  constructor logger/log.Logger server-config/ServerConfig:
+    if server-config is ServerConfigSupabase:
+      supabase-config := server-config as ServerConfigSupabase
+      host := supabase-config.host
       port := null
-      colon_pos := host.index_of ":"
-      if colon_pos >= 0:
-        port = int.parse host[colon_pos + 1..]
-        host = host[..colon_pos]
+      colon-pos := host.index-of ":"
+      if colon-pos >= 0:
+        port = int.parse host[colon-pos + 1..]
+        host = host[..colon-pos]
       // TODO(florian): get the path from the config.
-      der := supabase_config.root_certificate_der
-      http_config := ServerConfigHttp
-          server_config.name
+      der := supabase-config.root-certificate-der
+      http-config := ServerConfigHttp
+          server-config.name
           --host=host
           --port=port
           --path="/functions/v1/b"
-          --poll_interval=supabase_config.poll_interval
-          --root_certificate_names=null
-          --root_certificate_ders=der ? [der] : null
-          --admin_headers=null
-          --device_headers=null
-      return BrokerServiceHttp logger http_config
-    else if server_config is ServerConfigHttp:
-      return BrokerServiceHttp logger (server_config as ServerConfigHttp)
+          --poll-interval=supabase-config.poll-interval
+          --root-certificate-names=null
+          --root-certificate-ders=der ? [der] : null
+          --admin-headers=null
+          --device-headers=null
+      return BrokerServiceHttp logger http-config
+    else if server-config is ServerConfigHttp:
+      return BrokerServiceHttp logger (server-config as ServerConfigHttp)
     else:
-      throw "unknown broker $server_config"
+      throw "unknown broker $server-config"
 
   /**
   Connects to the broker.

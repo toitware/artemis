@@ -12,11 +12,11 @@ import uuid
 import artemis.cli.brokers.broker show BrokerCli
 import artemis.service.brokers.broker show BrokerService
 
-import .supabase_local_server
-import ..tools.http_servers.broker show HttpBroker
-import ..tools.http_servers.broker as http_servers
-import ..tools.lan_ip.lan_ip
-import artemis.shared.server_config
+import .supabase-local-server
+import ..tools.http-servers.broker show HttpBroker
+import ..tools.http-servers.broker as http-servers
+import ..tools.lan-ip.lan-ip
+import artemis.shared.server-config
   show
     ServerConfig
     ServerConfigHttp
@@ -24,68 +24,68 @@ import artemis.shared.server_config
 import .utils
 
 class TestBroker:
-  server_config/ServerConfig
+  server-config/ServerConfig
   backdoor/BrokerBackdoor
 
-  constructor .server_config .backdoor:
+  constructor .server-config .backdoor:
 
-  with_cli [block]:
-    with_tmp_config: | config |
-      broker_cli/BrokerCli? := null
+  with-cli [block]:
+    with-tmp-config: | config |
+      broker-cli/BrokerCli? := null
       try:
-        broker_cli = BrokerCli server_config config
-        block.call broker_cli
+        broker-cli = BrokerCli server-config config
+        block.call broker-cli
       finally:
-        if broker_cli: broker_cli.close
+        if broker-cli: broker-cli.close
 
-  with_service [block]:
-    logger := log.default.with_name "testing-service"
-    broker_service := BrokerService logger server_config
-    block.call broker_service
+  with-service [block]:
+    logger := log.default.with-name "testing-service"
+    broker-service := BrokerService logger server-config
+    block.call broker-service
 
 interface BrokerBackdoor:
   /**
-  Creates a new device with the given $device_id and initial $state.
+  Creates a new device with the given $device-id and initial $state.
   */
-  create_device --device_id/uuid.Uuid --state/Map -> none
+  create-device --device-id/uuid.Uuid --state/Map -> none
 
   /**
-  Removes the device with the given $device_id.
+  Removes the device with the given $device-id.
   */
-  remove_device device_id/uuid.Uuid -> none
+  remove-device device-id/uuid.Uuid -> none
 
   /**
   Returns the reported state of the device.
   */
-  get_state device_id/uuid.Uuid -> Map?
+  get-state device-id/uuid.Uuid -> Map?
 
   /**
   Clears all events.
   */
-  clear_events -> none
+  clear-events -> none
 
-with_broker
+with-broker
     --type/string
     --args/List
-    --logger/Logger=(log.default.with_name "testing-$type")
+    --logger/Logger=(log.default.with-name "testing-$type")
     [block]:
   if type == "supabase-local" or type == "supabase-local-artemis":
     // Make sure we are running with the correct resource lock.
     if type == "supabase-local-artemis":
-      check_resource_lock "artemis_broker" --args=args
+      check-resource-lock "artemis_broker" --args=args
     else if type == "supabase-local":
-      check_resource_lock "broker" --args=args
+      check-resource-lock "broker" --args=args
     else:
       unreachable
-    sub_dir := type == "supabase-local" ? SUPABASE_BROKER : SUPABASE_ARTEMIS
-    server_config := get_supabase_config --sub_directory=sub_dir
-    service_key := get_supabase_service_key --sub_directory=sub_dir
-    server_config.poll_interval = Duration --ms=500
-    backdoor := SupabaseBackdoor server_config service_key
-    test_server := TestBroker server_config backdoor
-    block.call test_server
+    sub-dir := type == "supabase-local" ? SUPABASE-BROKER : SUPABASE-ARTEMIS
+    server-config := get-supabase-config --sub-directory=sub-dir
+    service-key := get-supabase-service-key --sub-directory=sub-dir
+    server-config.poll-interval = Duration --ms=500
+    backdoor := SupabaseBackdoor server-config service-key
+    test-server := TestBroker server-config backdoor
+    block.call test-server
   else if type == "http" or type == "http-toit":
-    with_http_broker block
+    with-http-broker block
   else:
     throw "Unknown broker type: $type"
 
@@ -94,89 +94,89 @@ class ToitHttpBackdoor implements BrokerBackdoor:
 
   constructor .server:
 
-  create_device --device_id/uuid.Uuid --state/Map:
-    server.create_device --device_id="$device_id" --state=state
+  create-device --device-id/uuid.Uuid --state/Map:
+    server.create-device --device-id="$device-id" --state=state
 
-  remove_device device_id/uuid.Uuid -> none:
-    server.remove_device "$device_id"
+  remove-device device-id/uuid.Uuid -> none:
+    server.remove-device "$device-id"
 
-  get_state device_id/uuid.Uuid -> Map?:
-    return server.get_state --device_id="$device_id"
+  get-state device-id/uuid.Uuid -> Map?:
+    return server.get-state --device-id="$device-id"
 
-  clear_events -> none:
-    server.clear_events
+  clear-events -> none:
+    server.clear-events
 
-with_http_broker [block]:
-  server := http_servers.HttpBroker 0
-  port_latch := monitor.Latch
-  server_task := task:: server.start port_latch
+with-http-broker [block]:
+  server := http-servers.HttpBroker 0
+  port-latch := monitor.Latch
+  server-task := task:: server.start port-latch
 
   host := "localhost"
-  if platform != PLATFORM_WINDOWS:
-    lan_ip := get_lan_ip
-    host = host.replace "localhost" lan_ip
+  if platform != PLATFORM-WINDOWS:
+    lan-ip := get-lan-ip
+    host = host.replace "localhost" lan-ip
 
-  server_config := ServerConfigHttp "test-broker"
+  server-config := ServerConfigHttp "test-broker"
       --host=host
-      --port=port_latch.get
+      --port=port-latch.get
       --path="/"
-      --poll_interval=Duration --ms=500
-      --root_certificate_names=null
-      --root_certificate_ders=null
-      --admin_headers={
+      --poll-interval=Duration --ms=500
+      --root-certificate-names=null
+      --root-certificate-ders=null
+      --admin-headers={
         "X-Artemis-Header": "true",
       }
-      --device_headers={
+      --device-headers={
         "X-Artemis-Header": "true",
       }
 
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
 
-  test_server := TestBroker server_config backdoor
+  test-server := TestBroker server-config backdoor
   try:
-    block.call test_server
+    block.call test-server
   finally:
     server.close
-    server_task.cancel
+    server-task.cancel
 
 class SupabaseBackdoor implements BrokerBackdoor:
-  server_config_/ServerConfigSupabase
-  service_key_/string
+  server-config_/ServerConfigSupabase
+  service-key_/string
 
-  constructor .server_config_ .service_key_:
+  constructor .server-config_ .service-key_:
 
-  create_device --device_id/uuid.Uuid --state/Map:
-    with_backdoor_client_: | client/supabase.Client |
+  create-device --device-id/uuid.Uuid --state/Map:
+    with-backdoor-client_: | client/supabase.Client |
       client.rest.rpc "toit_artemis.new_provisioned" {
-        "_device_id": "$device_id",
+        "_device_id": "$device-id",
         "_state": state,
       }
 
-  remove_device device_id/uuid.Uuid -> none:
-    with_backdoor_client_: | client/supabase.Client |
+  remove-device device-id/uuid.Uuid -> none:
+    with-backdoor-client_: | client/supabase.Client |
       client.rest.rpc "toit_artemis.remove_device" {
-        "_device_id": "$device_id",
+        "_device_id": "$device-id",
       }
 
-  get_state device_id/uuid.Uuid -> Map?:
-    with_backdoor_client_: | client/supabase.Client |
+  get-state device-id/uuid.Uuid -> Map?:
+    with-backdoor-client_: | client/supabase.Client |
       return client.rest.rpc "toit_artemis.get_state" {
-        "_device_id": "$device_id",
+        "_device_id": "$device-id",
       }
     unreachable
 
-  clear_events -> none:
-    with_backdoor_client_: | client/supabase.Client |
+  clear-events -> none:
+    with-backdoor-client_: | client/supabase.Client |
       client.rest.rpc "toit_artemis.clear_events" {:}
 
-  with_backdoor_client_ [block]:
+  with-backdoor-client_ [block]:
     network := net.open
-    supabase_client/supabase.Client? := null
+    supabase-client/supabase.Client? := null
     try:
-      supabase_client = supabase.Client
-          --host=server_config_.host
-          --anon=service_key_
-      block.call supabase_client
+      supabase-client = supabase.Client
+          --host=server-config_.host
+          --anon=service-key_
+      block.call supabase-client
     finally:
-      if supabase_client: supabase_client.close
+      if supabase-client: supabase-client.close
       network.close

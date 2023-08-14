@@ -3,18 +3,18 @@
 import cli
 import ..ui
 
-create_doc_commands _ _ ui/Ui -> List:
+create-doc-commands _ _ ui/Ui -> List:
   cmd := cli.Command "doc"
-      --short_help="Documentation."
+      --short-help="Documentation."
 
-  specification_format_cmd := cli.Command "specification-format"
-      --short_help="Show the format of the pod specification file."
-      --run=:: ui.result SPECIFICATION_FORMAT_HELP
-  cmd.add specification_format_cmd
+  specification-format-cmd := cli.Command "specification-format"
+      --short-help="Show the format of the pod specification file."
+      --run=:: ui.result SPECIFICATION-FORMAT-HELP
+  cmd.add specification-format-cmd
 
   return [cmd]
 
-SPECIFICATION_FORMAT_HELP ::= """
+SPECIFICATION-FORMAT-HELP ::= """
   The format of the pod specification file.
 
   The specification file is a JSON file with the following entries:

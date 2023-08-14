@@ -1,55 +1,55 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import binary show LITTLE_ENDIAN
+import binary show LITTLE-ENDIAN
 import crypto.crc
 import system.storage
 
-import .pkg_artemis_src_copy.api as api
+import .pkg-artemis-src-copy.api as api
 
 class FlashLog:
-  static HEADER_MARKER_OFFSET_   ::= 0
-  static HEADER_SN_OFFSET_       ::= 4 + HEADER_MARKER_OFFSET_
-  static HEADER_CHECKSUM_OFFSET_ ::= 4 + HEADER_SN_OFFSET_
-  static HEADER_COUNT_OFFSET_    ::= 4 + HEADER_CHECKSUM_OFFSET_
-  static HEADER_SIZE_            ::= 2 + HEADER_COUNT_OFFSET_
+  static HEADER-MARKER-OFFSET_   ::= 0
+  static HEADER-SN-OFFSET_       ::= 4 + HEADER-MARKER-OFFSET_
+  static HEADER-CHECKSUM-OFFSET_ ::= 4 + HEADER-SN-OFFSET_
+  static HEADER-COUNT-OFFSET_    ::= 4 + HEADER-CHECKSUM-OFFSET_
+  static HEADER-SIZE_            ::= 2 + HEADER-COUNT-OFFSET_
 
   static MARKER_ ::= 0x21_CE_A9_66
 
   region_/storage.Region
   size_/int
-  size_per_page_/int
+  size-per-page_/int
 
   // One page buffer. Re-used whenever possible.
   buffer_/ByteArray? := ?
 
   // Cursors for read and write.
-  read_page_/int := -1
-  write_page_/int := -1
-  write_offset_/int := -1
+  read-page_/int := -1
+  write-page_/int := -1
+  write-offset_/int := -1
 
   // We keep track of the length of the sequence
   // of already validated pages that follow the
   // read page. We look at those pages when we
   // peek ahead, so we want to avoid redoing the
   // validation over and over again.
-  read_page_validated_/int := 0
+  read-page-validated_/int := 0
 
   // TODO(kasper): This should be cleaned up. It might make sense
   // to combine the FlashLog and the ChannelResource more somehow.
   usage_/int := 0
 
   constructor region/storage.Region:
-    if not region.write_can_clear_bits:
+    if not region.write-can-clear-bits:
       throw "Must be able to clear bits"
-    if region.erase_value != 0xff:
+    if region.erase-value != 0xff:
       throw "Must erase to all set bits"
-    if region.size <= region.erase_granularity:
+    if region.size <= region.erase-granularity:
       throw "Must have space for two pages"
     region_ = region
     size_ = region.size
-    size_per_page_ = region.erase_granularity
-    buffer_ = ByteArray size_per_page_
-    with_buffer_: ensure_valid_ it
+    size-per-page_ = region.erase-granularity
+    buffer_ = ByteArray size-per-page_
+    with-buffer_: ensure-valid_ it
 
   acquire -> int:
     return ++usage_
@@ -61,9 +61,9 @@ class FlashLog:
     return usage
 
   append bytes/ByteArray -> none:
-    append bytes --if_full=: throw "OUT_OF_BOUNDS"
+    append bytes --if-full=: throw "OUT_OF_BOUNDS"
 
-  append bytes/ByteArray [--if_full] -> none:
+  append bytes/ByteArray [--if-full] -> none:
     // We compute the size by counting the number of bits we need.
     // The first byte is special since it only encodes 6 bits, so
     // we pull that out of the computation (add 1), so we end up
@@ -71,42 +71,42 @@ class FlashLog:
     // ceiling division by 7, we get (bits - 6 + 7 - 1) / 7 and
     // end up with the nicer looking:
     size := 1 + (bytes.size << 3) / 7
-    if size > size_per_page_ - HEADER_SIZE_: throw "Bad Argument"
+    if size > size-per-page_ - HEADER-SIZE_: throw "Bad Argument"
 
-    with_buffer_ --if_absent=(: ByteArray size): | buffer/ByteArray |
+    with-buffer_ --if-absent=(: ByteArray size): | buffer/ByteArray |
       // Check to see if we have to advance the write page.
-      next := write_page_ + size_per_page_
-      if write_offset_ + size > next:
+      next := write-page_ + size-per-page_
+      if write-offset_ + size > next:
         if next >= size_: next = 0
 
         // It is rather unfortunate that we have to reallocate the
         // buffer here if it isn't big enough. This happens when
         // we need to advance the write page while we're still busy
         // reading another page.
-        if buffer.size < size_per_page_: buffer = ByteArray size_per_page_
+        if buffer.size < size-per-page_: buffer = ByteArray size-per-page_
 
         // Read the whole page, so we can get the sequence
         // number and the count. If the page isn't committed
         // we will need to decode all entries to compute the
         // correct sequence number for the next write page.
-        region_.read --from=write_page_ buffer
-        sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
-        count := LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_
+        region_.read --from=write-page_ buffer
+        sn := LITTLE-ENDIAN.uint32 buffer HEADER-SN-OFFSET_
+        count := LITTLE-ENDIAN.uint16 buffer HEADER-COUNT-OFFSET_
 
         // Commit if necessary and compute the next sequence number.
-        if count == 0xffff: count = commit_if_non_empty_ buffer write_page_
-        next_sn := SN.next sn --increment=count
+        if count == 0xffff: count = commit-if-non-empty_ buffer write-page_
+        next-sn := SN.next sn --increment=count
 
         // Advance the write page.
-        if not advance_write_page_ buffer next_sn:
-          if_full.call
+        if not advance-write-page_ buffer next-sn:
+          if-full.call
           return
-        assert: is_valid_ buffer
+        assert: is-valid_ buffer
 
-      encoded_size := encode_next_ buffer bytes
-      assert: size == encoded_size
-      region_.write --from=write_offset_ buffer[..size]
-      write_offset_ += size
+      encoded-size := encode-next_ buffer bytes
+      assert: size == encoded-size
+      region_.write --from=write-offset_ buffer[..size]
+      write-offset_ += size
 
   /**
   Reads the page $peek pages after the read page
@@ -118,67 +118,67 @@ class FlashLog:
     [2]: page element count          / int
     [3]: page buffer                 / ByteArray
   */
-  read_page buffer/ByteArray --peek/int=0 -> List:
-    if peek < 0 or buffer.size != size_per_page_:
+  read-page buffer/ByteArray --peek/int=0 -> List:
+    if peek < 0 or buffer.size != size-per-page_:
       throw "Bad Argument"
-    prevalidated := read_page_validated_
+    prevalidated := read-page-validated_
     // Run through the pages and skip or validate the ones
     // that come before the page we're interested in.
-    page := read_page_
-    next_sn := null
+    page := read-page_
+    next-sn := null
     peek.repeat: | index/int |
       // If we reach the write page while running through
       // the pages we're not interested in, we're done.
-      if page == write_page_:
-        region_.read --from=page buffer[..HEADER_SIZE_]
-        sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
+      if page == write-page_:
+        region_.read --from=page buffer[..HEADER-SIZE_]
+        sn := LITTLE-ENDIAN.uint32 buffer HEADER-SN-OFFSET_
         return [sn, null, 0, buffer]
       current := page
-      page += size_per_page_
+      page += size-per-page_
       if page >= size_: page = 0
       if index >= prevalidated:
-        is_committed_page_ current buffer: | sn is_acked count |
-          if index == prevalidated or sn == next_sn:
-            next_sn = SN.next sn --increment=count
+        is-committed-page_ current buffer: | sn is-acked count |
+          if index == prevalidated or sn == next-sn:
+            next-sn = SN.next sn --increment=count
             continue.repeat
         // Found uncommitted or wrong page. This shouldn't
         // happen so we reset and tell the user that something
         // was terribly wrong.
-        repair_reset_ buffer SN.new
+        repair-reset_ buffer SN.new
         throw "INVALID_STATE"
-    read_page_validated_ = max peek prevalidated
-    commit_and_read_ buffer page: | sn count |
-      cursor := count == 0 ? null : HEADER_SIZE_
+    read-page-validated_ = max peek prevalidated
+    commit-and-read_ buffer page: | sn count |
+      cursor := count == 0 ? null : HEADER-SIZE_
       return [sn, cursor, count, buffer]
     unreachable
 
   acknowledge sn/int -> none:
-    with_buffer_: | buffer/ByteArray |
-      is_committed_page_ read_page_ buffer: | sn_ is_acked count |
-        next_sn := SN.next sn_ --increment=count
-        last_sn := SN.previous next_sn
-        if sn != last_sn: throw "Bad Argument"
+    with-buffer_: | buffer/ByteArray |
+      is-committed-page_ read-page_ buffer: | sn_ is-acked count |
+        next-sn := SN.next sn_ --increment=count
+        last-sn := SN.previous next-sn
+        if sn != last-sn: throw "Bad Argument"
 
         // Set the count to zero to mark this as acknowledged.
-        if not is_acked:
-          region_.write --from=(read_page_ + HEADER_COUNT_OFFSET_) #[0, 0]
+        if not is-acked:
+          region_.write --from=(read-page_ + HEADER-COUNT-OFFSET_) #[0, 0]
 
-        advance_read_page_ buffer next_sn
-        read_page_validated_ = max 0 (read_page_validated_ - 1)
-        assert: is_valid_ buffer
+        advance-read-page_ buffer next-sn
+        read-page-validated_ = max 0 (read-page-validated_ - 1)
+        assert: is-valid_ buffer
         return
     throw "Cannot acknowledge unread page"
 
   // ------------------------------------------------------------------------
 
-  with_buffer_ [block] -> any:
-    return with_buffer_ block --if_absent=: throw "INVALID_STATE"
+  with-buffer_ [block] -> any:
+    return with-buffer_ block --if-absent=: throw "INVALID_STATE"
 
-  with_buffer_ [block] [--if_absent] -> any:
+  with-buffer_ [block] [--if-absent] -> any:
     original := buffer_
     buffer_ = null
     try:
-      buffer := original or if_absent.call
+      buffer := original or if-absent.call
       return block.call buffer
     finally:
       if original: buffer_ = original
@@ -187,7 +187,7 @@ class FlashLog:
   Calls the $block with the first sequence number in the
     page and the element count.
   */
-  commit_and_read_ buffer/ByteArray page/int [block] -> none:
+  commit-and-read_ buffer/ByteArray page/int [block] -> none:
     // TODO(kasper): Handle reading from ack'ed pages. We
     // have an invariant that makes it impossible to get
     // to this point, but we should handle it gracefully.
@@ -197,79 +197,79 @@ class FlashLog:
     // or do we need to do it outside?
 
     region_.read --from=page buffer
-    sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
-    count := LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_
+    sn := LITTLE-ENDIAN.uint32 buffer HEADER-SN-OFFSET_
+    count := LITTLE-ENDIAN.uint16 buffer HEADER-COUNT-OFFSET_
     if count != 0xffff:
       // Already committed. We're done.
       block.call sn count
       return
 
-    count = commit_if_non_empty_ buffer page
-    if count > 0 and page == write_page_:
+    count = commit-if-non-empty_ buffer page
+    if count > 0 and page == write-page_:
       // If we've committed the current write page,
       // we set the write offset at the end of the
       // page, so the next append will cause us to
       // advance the write page.
-      write_offset_ = write_page_ + size_per_page_
+      write-offset_ = write-page_ + size-per-page_
     block.call sn count
 
-  advance_read_page_ buffer/ByteArray sn/int -> none:
+  advance-read-page_ buffer/ByteArray sn/int -> none:
     // Don't go beyond the write page. We have at
     // least two pages, so advancing the write page
     // will succeed.
-    if read_page_ == write_page_:
-      advance_write_page_ buffer sn
-      read_page_ = write_page_
+    if read-page_ == write-page_:
+      advance-write-page_ buffer sn
+      read-page_ = write-page_
       return
 
-    read_page_ += size_per_page_
-    if read_page_ >= size_: read_page_ = 0
+    read-page_ += size-per-page_
+    if read-page_ >= size_: read-page_ = 0
 
-    is_committed_page_ read_page_ buffer: | snx is_acked count |
-      if is_acked or snx != sn: repair_ buffer
+    is-committed-page_ read-page_ buffer: | snx is-acked count |
+      if is-acked or snx != sn: repair_ buffer
       return
-    is_uncommitted_page_ read_page_ buffer: | snx |
+    is-uncommitted-page_ read-page_ buffer: | snx |
       if snx != sn: repair_ buffer
       return
     repair_ buffer
 
-  advance_write_page_ buffer/ByteArray sn/int -> bool:
-    next := write_page_ + size_per_page_
+  advance-write-page_ buffer/ByteArray sn/int -> bool:
+    next := write-page_ + size-per-page_
     if next >= size_: next = 0
 
     // Don't go into the read page.
-    if next == read_page_: return false
+    if next == read-page_: return false
 
     // Clear the page and start writing into it!
-    region_.erase --from=next --to=next + size_per_page_
-    assert: HEADER_MARKER_OFFSET_ == 0 and HEADER_SN_OFFSET_ == 4
-    LITTLE_ENDIAN.put_uint32 buffer HEADER_MARKER_OFFSET_ MARKER_
-    LITTLE_ENDIAN.put_uint32 buffer HEADER_SN_OFFSET_ sn
-    region_.write --from=(next + HEADER_MARKER_OFFSET_) buffer[.. HEADER_SN_OFFSET_ + 4]
-    write_page_ = next
-    write_offset_ = next + HEADER_SIZE_
+    region_.erase --from=next --to=next + size-per-page_
+    assert: HEADER-MARKER-OFFSET_ == 0 and HEADER-SN-OFFSET_ == 4
+    LITTLE-ENDIAN.put-uint32 buffer HEADER-MARKER-OFFSET_ MARKER_
+    LITTLE-ENDIAN.put-uint32 buffer HEADER-SN-OFFSET_ sn
+    region_.write --from=(next + HEADER-MARKER-OFFSET_) buffer[.. HEADER-SN-OFFSET_ + 4]
+    write-page_ = next
+    write-offset_ = next + HEADER-SIZE_
     return true
 
-  commit_if_non_empty_ buffer/ByteArray page/int -> int:
-    count := decode_count_ buffer
+  commit-if-non-empty_ buffer/ByteArray page/int -> int:
+    count := decode-count_ buffer
     if count == 0: return 0
-    assert: (LITTLE_ENDIAN.uint32 buffer HEADER_CHECKSUM_OFFSET_) == 0xffff_ffff
-    assert: (LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_) == 0xffff
+    assert: (LITTLE-ENDIAN.uint32 buffer HEADER-CHECKSUM-OFFSET_) == 0xffff_ffff
+    assert: (LITTLE-ENDIAN.uint16 buffer HEADER-COUNT-OFFSET_) == 0xffff
     crc32 := crc.Crc32
     crc32.add buffer
     // Write the count and checksum together.
-    assert: HEADER_COUNT_OFFSET_ == HEADER_CHECKSUM_OFFSET_ + 4
-    assert: HEADER_SIZE_ == HEADER_COUNT_OFFSET_ + 2
-    LITTLE_ENDIAN.put_uint32 buffer HEADER_CHECKSUM_OFFSET_ crc32.get_as_int
-    LITTLE_ENDIAN.put_uint16 buffer HEADER_COUNT_OFFSET_ count
+    assert: HEADER-COUNT-OFFSET_ == HEADER-CHECKSUM-OFFSET_ + 4
+    assert: HEADER-SIZE_ == HEADER-COUNT-OFFSET_ + 2
+    LITTLE-ENDIAN.put-uint32 buffer HEADER-CHECKSUM-OFFSET_ crc32.get-as-int
+    LITTLE-ENDIAN.put-uint16 buffer HEADER-COUNT-OFFSET_ count
     region_.write
-        --from=(page + HEADER_CHECKSUM_OFFSET_)
-        buffer[HEADER_CHECKSUM_OFFSET_..HEADER_SIZE_]
+        --from=(page + HEADER-CHECKSUM-OFFSET_)
+        buffer[HEADER-CHECKSUM-OFFSET_..HEADER-SIZE_]
     return count
 
-  decode_count_ buffer/ByteArray -> int:
+  decode-count_ buffer/ByteArray -> int:
     count := 0
-    cursor := HEADER_SIZE_
+    cursor := HEADER-SIZE_
     while true:
       next := buffer[cursor++]
       if next & 0x80 != 0:
@@ -280,8 +280,8 @@ class FlashLog:
       if cursor == buffer.size:
         return count
 
-  encode_next_ buffer/ByteArray bytes/ByteArray -> int:
-    assert: not bytes.is_empty
+  encode-next_ buffer/ByteArray bytes/ByteArray -> int:
+    assert: not bytes.is-empty
     acc := bytes[0]
     buffer[0] = 0x80 | (acc & 0x3f)
     acc >>= 6
@@ -298,33 +298,33 @@ class FlashLog:
     if bits > 0: buffer[size++] = acc
     return size
 
-  ensure_valid_ buffer/ByteArray -> bool:
-    if is_valid_ buffer: return false
+  ensure-valid_ buffer/ByteArray -> bool:
+    if is-valid_ buffer: return false
     repair_ buffer
-    if not is_valid_ buffer:
+    if not is-valid_ buffer:
       // TODO(kasper): Should we delete the whole thing here? It is
       // slow but it is potentially a way out of jail.
       throw "INVALID_STATE"
     return true
 
-  is_valid_ buffer/ByteArray -> bool:
-    if not (0 <= read_page_ < size_ and 0 <= write_page_ < size_): return false
-    if (round_down read_page_ size_per_page_) != read_page_: return false
-    if (round_down write_page_ size_per_page_) != write_page_: return false
+  is-valid_ buffer/ByteArray -> bool:
+    if not (0 <= read-page_ < size_ and 0 <= write-page_ < size_): return false
+    if (round-down read-page_ size-per-page_) != read-page_: return false
+    if (round-down write-page_ size-per-page_) != write-page_: return false
 
     // Handle split RW pages.
-    if read_page_ != write_page_:
-      read_sn := null
+    if read-page_ != write-page_:
+      read-sn := null
 
       while true:
-        is_committed_page_ read_page_ buffer: | sn is_acked count |
+        is-committed-page_ read-page_ buffer: | sn is-acked count |
           // If the read page is already ack'ed, we should have moved
           // the read page forward.
-          if is_acked: return false
-          previous := read_page_ - size_per_page_
+          if is-acked: return false
+          previous := read-page_ - size-per-page_
           if previous < 0: previous += size_
-          is_committed_page_ previous buffer: | snx is_acked count |
-            if not is_acked:
+          is-committed-page_ previous buffer: | snx is-acked count |
+            if not is-acked:
               // If the previous page is earlier in the page list than
               // the read page (common case), we insist that the SN
               // of the previous page should be strictly smaller than
@@ -333,23 +333,23 @@ class FlashLog:
               // actually after the read page due to wrap around, then
               // repairing will not push the read page forward if the
               // SNs are equal, so we allow that.
-              compare := (previous < read_page_) ? 0 : -1
+              compare := (previous < read-page_) ? 0 : -1
               // TODO(kasper): Try to get rid of the write page check.
-              if previous != write_page_ and (api.ArtemisService.channel_position_compare sn snx) <= compare:
+              if previous != write-page_ and (api.ArtemisService.channel-position-compare sn snx) <= compare:
                 return false
               if sn == (SN.next snx --increment=count): return false
-          read_sn = sn
+          read-sn = sn
           break
         return false
 
-      is_committed_page_ write_page_ buffer: | sn is_acked count |
-        if (api.ArtemisService.channel_position_compare read_sn sn) >= 0: return false
-        offset := repair_find_write_offset_ buffer write_page_
+      is-committed-page_ write-page_ buffer: | sn is-acked count |
+        if (api.ArtemisService.channel-position-compare read-sn sn) >= 0: return false
+        offset := repair-find-write-offset_ buffer write-page_
         if not offset: return false
-        next := write_page_ + size_per_page_
-        write_offset_ = next  // Don't allow appending to committed pages.
+        next := write-page_ + size-per-page_
+        write-offset_ = next  // Don't allow appending to committed pages.
         if next >= size_: next = 0
-        is_committed_page_ next buffer: | snx |
+        is-committed-page_ next buffer: | snx |
           // If count is zero, we really shouldn't have committed the
           // next page so something is wrong. Also, if the SN of the
           // next page is higher than that of the write page then
@@ -362,24 +362,24 @@ class FlashLog:
           // around, we insist that the write page has a higher
           // SN. If it hasn't, repairing would move the write page
           // forward to the next page.
-          compare := (next > write_page_) ? -1 : 0
-          if count == 0 or (api.ArtemisService.channel_position_compare sn snx) <= compare:
+          compare := (next > write-page_) ? -1 : 0
+          if count == 0 or (api.ArtemisService.channel-position-compare sn snx) <= compare:
             return false
           return true
-        is_uncommitted_page_ next buffer: | snx |
+        is-uncommitted-page_ next buffer: | snx |
           if snx == (SN.next sn --increment=count): return false
           return true
         return true
 
-      is_uncommitted_page_ write_page_ buffer: | sn |
-        if (api.ArtemisService.channel_position_compare read_sn sn) >= 0:
+      is-uncommitted-page_ write-page_ buffer: | sn |
+        if (api.ArtemisService.channel-position-compare read-sn sn) >= 0:
           return false
-        offset := repair_find_write_offset_ buffer write_page_
+        offset := repair-find-write-offset_ buffer write-page_
         if not offset: return false
-        write_offset_ = offset  // Potentially repaired.
-        previous := write_page_ - size_per_page_
+        write-offset_ = offset  // Potentially repaired.
+        previous := write-page_ - size-per-page_
         if previous < 0: previous += size_
-        is_committed_page_ previous buffer: | snx is_acked count |
+        is-committed-page_ previous buffer: | snx is-acked count |
           if sn != (SN.next snx --increment=count): return false
           return true
         return false
@@ -388,42 +388,42 @@ class FlashLog:
       return false
 
     // Handle joined RW pages.
-    is_committed_page_ read_page_ buffer: | sn is_acked count |
+    is-committed-page_ read-page_ buffer: | sn is-acked count |
       // If the read page is already ack'ed, we should have moved
       // the read page forward.
-      if is_acked: return false
-      offset := repair_find_write_offset_ buffer read_page_
+      if is-acked: return false
+      offset := repair-find-write-offset_ buffer read-page_
       if not offset: return false
-      next := read_page_ + size_per_page_
-      write_offset_ = next  // Don't allow appending to committed pages.
+      next := read-page_ + size-per-page_
+      write-offset_ = next  // Don't allow appending to committed pages.
       assert: count > 0
 
-      previous := read_page_ - size_per_page_
+      previous := read-page_ - size-per-page_
       if previous < 0: previous += size_
-      is_committed_page_ previous buffer: | snx is_acked count |
-        if not is_acked:
-          compare := (previous < read_page_) ? 0 : -1
-          if (api.ArtemisService.channel_position_compare sn snx) <= compare: return false
+      is-committed-page_ previous buffer: | snx is-acked count |
+        if not is-acked:
+          compare := (previous < read-page_) ? 0 : -1
+          if (api.ArtemisService.channel-position-compare sn snx) <= compare: return false
           if sn == (SN.next snx --increment=count): return false
 
       if next >= size_: next = 0
-      is_committed_page_ next buffer: | snx |
-        compare := (next > write_page_) ? -1 : 0
-        if (api.ArtemisService.channel_position_compare sn snx) <= compare: return false
+      is-committed-page_ next buffer: | snx |
+        compare := (next > write-page_) ? -1 : 0
+        if (api.ArtemisService.channel-position-compare sn snx) <= compare: return false
         return true
-      is_uncommitted_page_ next buffer: | snx |
+      is-uncommitted-page_ next buffer: | snx |
         if snx == (SN.next sn --increment=count): return false
         return true
       return true
 
-    is_uncommitted_page_ read_page_ buffer: | sn |
-      offset := repair_find_write_offset_ buffer read_page_
+    is-uncommitted-page_ read-page_ buffer: | sn |
+      offset := repair-find-write-offset_ buffer read-page_
       if not offset: return false
-      write_offset_ = offset  // Potentially repaired.
-      previous := read_page_ - size_per_page_
+      write-offset_ = offset  // Potentially repaired.
+      previous := read-page_ - size-per-page_
       if previous < 0: previous += size_
-      is_committed_page_ previous buffer: | snx is_acked count |
-        if not is_acked: return false
+      is-committed-page_ previous buffer: | snx is-acked count |
+        if not is-acked: return false
         if sn != (SN.next snx --increment=count): return false
         return true
       return false
@@ -431,102 +431,102 @@ class FlashLog:
     return false
 
   repair_ buffer/ByteArray -> none:
-    last_page/int? := null
-    last_sn/int := -1
-    last_is_acked/bool := false
-    last_count/int := -1
+    last-page/int? := null
+    last-sn/int := -1
+    last-is-acked/bool := false
+    last-count/int := -1
 
-    for page := 0; page < size_; page += size_per_page_:
-      is_committed_page_ page buffer: | sn is_acked count |
-        if not last_page or (api.ArtemisService.channel_position_compare sn last_sn) > 0:
-          last_page = page
-          last_sn = sn
-          last_is_acked = is_acked
-          last_count = count
+    for page := 0; page < size_; page += size-per-page_:
+      is-committed-page_ page buffer: | sn is-acked count |
+        if not last-page or (api.ArtemisService.channel-position-compare sn last-sn) > 0:
+          last-page = page
+          last-sn = sn
+          last-is-acked = is-acked
+          last-count = count
 
-    if not last_page:
+    if not last-page:
       // Couldn't find a page. Start from scratch with
       // a brand new sequence number.
-      repair_reset_ buffer SN.new
+      repair-reset_ buffer SN.new
       return
 
-    first_page := last_page
-    first_sn := last_sn
-    if not last_is_acked:
-      page := last_page
+    first-page := last-page
+    first-sn := last-sn
+    if not last-is-acked:
+      page := last-page
       while true:
-        page = page - size_per_page_
+        page = page - size-per-page_
         if page < 0: page += size_
-        is_committed_page_ page buffer: | sn is_acked count |
-          if not is_acked and (SN.next sn --increment=count) == first_sn:
+        is-committed-page_ page buffer: | sn is-acked count |
+          if not is-acked and (SN.next sn --increment=count) == first-sn:
             // We should not be able to get to a point where all pages
             // are non-ack'ed (count > 0) and chained together with correct
             // sequence numbers. It requires that the total number
             // of pages times the maximum count per page exceeds the
             // maximum sequence number.
             assert: count > 0
-            if page == last_page:
+            if page == last-page:
               // This shouldn't happen but we're being careful to avoid
               // running in an infinite loop.
-              repair_reset_ buffer SN.new
+              repair-reset_ buffer SN.new
               return
-            first_sn = sn
-            first_page = page
+            first-sn = sn
+            first-page = page
             continue
         // Found page that isn't a committed prefix to the
         // already discovered committed range.
         break
 
-    read_page_ = first_page
-    write_page_ = last_page
-    read_page_validated_ = 0
+    read-page_ = first-page
+    write-page_ = last-page
+    read-page-validated_ = 0
 
-    next_sn := SN.next last_sn --increment=last_count
-    next := last_page + size_per_page_
+    next-sn := SN.next last-sn --increment=last-count
+    next := last-page + size-per-page_
     if next >= size_: next = 0
 
-    if next != first_page:  // Don't check the first page again.
-      is_uncommitted_page_ next buffer: | sn |
-        if sn == next_sn:
-          offset := repair_find_write_offset_ buffer next
+    if next != first-page:  // Don't check the first page again.
+      is-uncommitted-page_ next buffer: | sn |
+        if sn == next-sn:
+          offset := repair-find-write-offset_ buffer next
           if offset:
-            write_page_ = next
-            write_offset_ = offset
+            write-page_ = next
+            write-offset_ = offset
           else:
             // The uncommitted page after the current write
             // page is invalid. We need to construct a new
             // one to make sure it is valid after repairing.
             // The uncommitted page cannot be the read page
             // so advancing the write page will succeed.
-            advance_write_page_ buffer sn
+            advance-write-page_ buffer sn
 
     // If the write page remains the last committed page, we
     // check to see if that has valid encoded entries.
-    if write_page_ == last_page:
-      write_offset_ = next  // Don't allow appending to committed pages.
-      region_.read --from=write_page_ buffer
-      if not repair_find_write_offset_ buffer write_page_:
+    if write-page_ == last-page:
+      write-offset_ = next  // Don't allow appending to committed pages.
+      region_.read --from=write-page_ buffer
+      if not repair-find-write-offset_ buffer write-page_:
         // Found a committed, but incorrect write page. This
         // is a pretty serious matter, so we reset everything
         // but start from the next sequence number.
-        repair_reset_ buffer next_sn
+        repair-reset_ buffer next-sn
         return
 
     // If the last page is already acknowledged, we need to
     // ensure that we move the read page forward. This may
     // also move the write page forward if the write page
     // happens to be the last committed page.
-    if last_is_acked: advance_read_page_ buffer next_sn
+    if last-is-acked: advance-read-page_ buffer next-sn
 
-  repair_find_write_offset_ buffer/ByteArray page/int -> int?:
+  repair-find-write-offset_ buffer/ByteArray page/int -> int?:
     region_.read --from=page buffer
-    cursor := HEADER_SIZE_
+    cursor := HEADER-SIZE_
     if (buffer[cursor] & 0x80) == 0:
       // Page content must start with MSB set.
       return null
-    while cursor < size_per_page_:
+    while cursor < size-per-page_:
       if buffer[cursor] == 0xff:
-        for i := cursor + 1; i < size_per_page_; i++:
+        for i := cursor + 1; i < size-per-page_; i++:
           if buffer[i] != 0xff:
             // Page must have all trailing bits set.
             return null
@@ -534,77 +534,77 @@ class FlashLog:
       cursor++
     return page + cursor
 
-  repair_reset_ buffer/ByteArray initial_sn/int -> none:
+  repair-reset_ buffer/ByteArray initial-sn/int -> none:
     // Start from scratch by building up a committed and ack'ed
     // page as the last one.
-    read_page_ = size_ - size_per_page_
-    write_page_ = size_ - size_per_page_
-    region_.erase --from=write_page_ --to=write_page_ + size_per_page_
+    read-page_ = size_ - size-per-page_
+    write-page_ = size_ - size-per-page_
+    region_.erase --from=write-page_ --to=write-page_ + size-per-page_
 
     buffer.fill 0xff
-    LITTLE_ENDIAN.put_uint32 buffer HEADER_MARKER_OFFSET_ MARKER_
-    LITTLE_ENDIAN.put_uint32 buffer HEADER_SN_OFFSET_ initial_sn
+    LITTLE-ENDIAN.put-uint32 buffer HEADER-MARKER-OFFSET_ MARKER_
+    LITTLE-ENDIAN.put-uint32 buffer HEADER-SN-OFFSET_ initial-sn
     crc32 := crc.Crc32
     crc32.add buffer
-    LITTLE_ENDIAN.put_uint32 buffer HEADER_CHECKSUM_OFFSET_ crc32.get_as_int
-    LITTLE_ENDIAN.put_uint16 buffer HEADER_COUNT_OFFSET_ 0
-    region_.write --from=write_page_ buffer[..HEADER_SIZE_]
-    write_offset_ = write_page_ + HEADER_SIZE_
-    advance_read_page_ buffer initial_sn
+    LITTLE-ENDIAN.put-uint32 buffer HEADER-CHECKSUM-OFFSET_ crc32.get-as-int
+    LITTLE-ENDIAN.put-uint16 buffer HEADER-COUNT-OFFSET_ 0
+    region_.write --from=write-page_ buffer[..HEADER-SIZE_]
+    write-offset_ = write-page_ + HEADER-SIZE_
+    advance-read-page_ buffer initial-sn
 
-  is_committed_page_ page/int buffer/ByteArray [found] -> none:
+  is-committed-page_ page/int buffer/ByteArray [found] -> none:
     region_.read --from=page buffer
-    marker := LITTLE_ENDIAN.uint32 buffer HEADER_MARKER_OFFSET_
+    marker := LITTLE-ENDIAN.uint32 buffer HEADER-MARKER-OFFSET_
     if marker != MARKER_: return
     // Validate sequence number.
-    sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
-    if not (SN.is_valid sn): return
+    sn := LITTLE-ENDIAN.uint32 buffer HEADER-SN-OFFSET_
+    if not (SN.is-valid sn): return
     // Validate count.
-    expected_count := LITTLE_ENDIAN.uint16 buffer HEADER_COUNT_OFFSET_
-    if not (0 <= expected_count <= size_per_page_ - HEADER_SIZE_): return
-    actual_count := decode_count_ buffer
-    if expected_count > 0 and actual_count != expected_count: return
+    expected-count := LITTLE-ENDIAN.uint16 buffer HEADER-COUNT-OFFSET_
+    if not (0 <= expected-count <= size-per-page_ - HEADER-SIZE_): return
+    actual-count := decode-count_ buffer
+    if expected-count > 0 and actual-count != expected-count: return
     // Validate checksum.
-    expected_checksum := LITTLE_ENDIAN.uint32 buffer HEADER_CHECKSUM_OFFSET_
+    expected-checksum := LITTLE-ENDIAN.uint32 buffer HEADER-CHECKSUM-OFFSET_
     crc32 := crc.Crc32
     // The checksum is based on the page bytes when the count and
     // the checksum has not been filled in, so we reset those
     // before computing the checksum.
-    buffer.fill 0xff --from=HEADER_CHECKSUM_OFFSET_ --to=HEADER_SIZE_
+    buffer.fill 0xff --from=HEADER-CHECKSUM-OFFSET_ --to=HEADER-SIZE_
     crc32.add buffer
-    actual_checksum := crc32.get_as_int
-    if actual_checksum != expected_checksum: return
+    actual-checksum := crc32.get-as-int
+    if actual-checksum != expected-checksum: return
     // Invoke the block: | sn is_ack count |.
-    found.call sn (expected_count == 0) actual_count
+    found.call sn (expected-count == 0) actual-count
 
-  is_uncommitted_page_ page/int buffer/ByteArray [found] -> none:
-    region_.read --from=page buffer[..HEADER_SIZE_]
-    marker := LITTLE_ENDIAN.uint32 buffer HEADER_MARKER_OFFSET_
+  is-uncommitted-page_ page/int buffer/ByteArray [found] -> none:
+    region_.read --from=page buffer[..HEADER-SIZE_]
+    marker := LITTLE-ENDIAN.uint32 buffer HEADER-MARKER-OFFSET_
     if marker != MARKER_: return
-    if (buffer[HEADER_CHECKSUM_OFFSET_..HEADER_SIZE_].any: it != 0xff): return
-    sn := LITTLE_ENDIAN.uint32 buffer HEADER_SN_OFFSET_
+    if (buffer[HEADER-CHECKSUM-OFFSET_..HEADER-SIZE_].any: it != 0xff): return
+    sn := LITTLE-ENDIAN.uint32 buffer HEADER-SN-OFFSET_
     found.call sn
 
 
 class SN:
-  static MASK ::= api.ArtemisService.CHANNEL_POSITION_MASK
+  static MASK ::= api.ArtemisService.CHANNEL-POSITION-MASK
 
-  static is_valid sn/int -> bool:
+  static is-valid sn/int -> bool:
     return sn == (sn & MASK)
 
   static next sn/int --increment/int=1 -> int:
     assert: increment >= 0
     result := (sn + increment) & MASK
-    assert: (api.ArtemisService.channel_position_compare result sn) == (increment == 0 ? 0 : 1)
+    assert: (api.ArtemisService.channel-position-compare result sn) == (increment == 0 ? 0 : 1)
     return result
 
   static previous sn/int -> int:
     result := (sn - 1) & MASK
-    assert: (api.ArtemisService.channel_position_compare result sn) == -1
+    assert: (api.ArtemisService.channel-position-compare result sn) == -1
     return result
 
   static compare sn1/int sn2/int -> int:
-    return api.ArtemisService.channel_position_compare sn1 sn2
+    return api.ArtemisService.channel-position-compare sn1 sn2
 
   static new -> int:
     return random MASK + 1

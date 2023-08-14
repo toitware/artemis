@@ -1,33 +1,33 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import artemis.service.pkg_artemis_src_copy.artemis
+import artemis.service.pkg-artemis-src-copy.artemis
 
 main:
-  bench_open_empty
-  bench_open_full
-  bench_send
-  bench_receive
+  bench-open-empty
+  bench-open-full
+  bench-send
+  bench-receive
 
-bench_open_empty:
+bench-open-empty:
   channel/artemis.Channel := artemis.Channel.open --topic="nisse" --receive
   drain channel
   channel.close
-  bench_open "empty"
+  bench-open "empty"
 
-bench_open_full:
+bench-open-full:
   channel/artemis.Channel := artemis.Channel.open --topic="nisse" --receive
   fill channel 1
   channel.close
-  bench_open "full"
+  bench-open "full"
 
-bench_open marker/string:
+bench-open marker/string:
   channel/artemis.Channel? := null
   elapsed := Duration.of:
     channel = artemis.Channel.open --topic="nisse"
   channel.close
   print "open = $elapsed ($marker)"
 
-bench_send:
+bench-send:
   channel/artemis.Channel := artemis.Channel.open --topic="nisse" --receive
   drain channel
 
@@ -41,7 +41,7 @@ bench_send:
   print "send = $(elapsed / 1000)"
   print "send = $worst (worst)"
 
-bench_receive:
+bench-receive:
   channel/artemis.Channel := artemis.Channel.open --topic="nisse" --receive
   e0 := Duration.of: drain channel
   print "draining = $e0"
@@ -73,7 +73,7 @@ fill channel/artemis.Channel x/int -> int:
   return n
 
 drain channel/artemis.Channel:
-  while not channel.is_empty:
+  while not channel.is-empty:
     channel.receive
     n := channel.buffered
     n.repeat: channel.receive

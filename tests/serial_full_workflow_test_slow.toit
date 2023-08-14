@@ -5,10 +5,10 @@
 import artemis.cli
 import artemis.cli.cache
 import artemis.cli.config
-import artemis.cli.server_config as cli_server_config
+import artemis.cli.server-config as cli-server-config
 import artemis.service
-import artemis.shared.server_config show ServerConfig ServerConfigHttp
-import artemis.cli.utils show read_json write_json_to_file write_blob_to_file
+import artemis.shared.server-config show ServerConfig ServerConfigHttp
+import artemis.cli.utils show read-json write-json-to-file write-blob-to-file
 import encoding.json
 import host.directory
 import host.file
@@ -16,71 +16,71 @@ import host.os
 import host.pipe
 import uuid
 import expect show *
-import .artemis_server show TestArtemisServer
+import .artemis-server show TestArtemisServer
 import .utils
-import ..tools.service_image_uploader.uploader as uploader
+import ..tools.service-image-uploader.uploader as uploader
 
 main args/List:
-  serial_port := os.env.get "ARTEMIS_TEST_SERIAL_PORT"
-  if not serial_port:
+  serial-port := os.env.get "ARTEMIS_TEST_SERIAL_PORT"
+  if not serial-port:
     print "Missing ARTEMIS_TEST_SERIAL_PORT environment variable."
     exit 1
-  wifi_ssid := os.env.get "ARTEMIS_TEST_WIFI_SSID"
-  if not wifi_ssid:
+  wifi-ssid := os.env.get "ARTEMIS_TEST_WIFI_SSID"
+  if not wifi-ssid:
     print "Missing ARTEMIS_TEST_WIFI_SSID environment variable."
     exit 1
-  wifi_password := os.env.get "ARTEMIS_TEST_WIFI_PASSWORD"
-  if not wifi_password:
+  wifi-password := os.env.get "ARTEMIS_TEST_WIFI_PASSWORD"
+  if not wifi-password:
     print "Missing ARTEMIS_TEST_WIFI_PASSWORD environment variable."
     exit 1
 
-  with_test_cli --args=args: | test_cli/TestCli |
-    run_test test_cli serial_port wifi_ssid wifi_password
+  with-test-cli --args=args: | test-cli/TestCli |
+    run-test test-cli serial-port wifi-ssid wifi-password
 
 
 
-run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/string:
-  tmp_dir := test_cli.tmp_dir
+run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/string:
+  tmp-dir := test-cli.tmp-dir
   ui := TestUi --no-quiet
 
-  test_cli.replacements[serial_port] = "SERIAL-PORT"
-  test_cli.replacements[wifi_ssid] = "WIFI-SSID"
-  test_cli.replacements[wifi_password] = "WIFI-PASSWORD"
-  test_cli.replacements[test_cli.sdk_version] = "SDK-VERSION"
+  test-cli.replacements[serial-port] = "SERIAL-PORT"
+  test-cli.replacements[wifi-ssid] = "WIFI-SSID"
+  test-cli.replacements[wifi-password] = "WIFI-PASSWORD"
+  test-cli.replacements[test-cli.sdk-version] = "SDK-VERSION"
 
-  if test_cli.artemis.server_config is ServerConfigHttp:
-    test_cli.run [
+  if test-cli.artemis.server-config is ServerConfigHttp:
+    test-cli.run [
       "auth", "signup",
-      "--email", ADMIN_EMAIL,
-      "--password", ADMIN_PASSWORD
+      "--email", ADMIN-EMAIL,
+      "--password", ADMIN-PASSWORD
     ]
 
-  test_cli.run [
+  test-cli.run [
     "auth", "login",
-    "--email", ADMIN_EMAIL,
-    "--password", ADMIN_PASSWORD
+    "--email", ADMIN-EMAIL,
+    "--password", ADMIN-PASSWORD
   ]
 
-  service_version := "v0.0.$(random)-TEST"
+  service-version := "v0.0.$(random)-TEST"
 
   uploader.main
-      --config=test_cli.config
-      --cache=test_cli.cache
+      --config=test-cli.config
+      --cache=test-cli.cache
       --ui=ui
       [
         "service",
-        "--sdk-version", test_cli.sdk_version,
-        "--service-version", service_version,
-        "--snapshot-directory", "$tmp_dir/snapshots",
+        "--sdk-version", test-cli.sdk-version,
+        "--service-version", service-version,
+        "--snapshot-directory", "$tmp-dir/snapshots",
         "--local",
       ]
 
   email := "test-$(%010d random)@example.com"
   password := "test-$(%010d random)"
-  test_cli.replacements[email] = "USER@EMAIL"
-  test_cli.replacements[password] = "USER-PASSWORD"
+  test-cli.replacements[email] = "USER@EMAIL"
+  test-cli.replacements[password] = "USER-PASSWORD"
 
-  test_cli.run_gold "BAA-signup"
+  test-cli.run-gold "BAA-signup"
       "Sign up for a new account."
       [
         "auth", "signup",
@@ -88,7 +88,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "--password", password,
       ]
 
-  test_cli.run_gold "BAK-login"
+  test-cli.run-gold "BAK-login"
       "Log in to the newly created account."
       [
         "auth", "login",
@@ -96,8 +96,8 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
         "--password", password,
       ]
 
-  if test_cli.artemis.server_config != test_cli.broker.server_config:
-    test_cli.run_gold "BBA-signup-broker"
+  if test-cli.artemis.server-config != test-cli.broker.server-config:
+    test-cli.run-gold "BBA-signup-broker"
         "Sign up for a new account."
         [
           "auth", "signup",
@@ -106,7 +106,7 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
           "--password", password,
         ]
 
-    test_cli.run_gold "BBK-login-broker"
+    test-cli.run-gold "BBK-login-broker"
         "Log in to the newly created account in the broker."
         [
           "auth", "login",
@@ -117,204 +117,204 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
 
   // We might want to change this, but at the moment a new user does not have any
   // organizations.
-  test_cli.run_gold "BCA-organizations"
+  test-cli.run-gold "BCA-organizations"
       "List organizations directly aftern signup."
       [
         "org", "list",
       ]
 
   // Create a new organization.
-  test_org_name := "Test organization $(%010d random)"
-  REPLACEMENT_PREFIX := "ORGANIZATION_NAME"
-  test_cli.replacements[test_org_name] = REPLACEMENT_PREFIX + " " * (test_org_name.size - REPLACEMENT_PREFIX.size)
+  test-org-name := "Test organization $(%010d random)"
+  REPLACEMENT-PREFIX := "ORGANIZATION_NAME"
+  test-cli.replacements[test-org-name] = REPLACEMENT-PREFIX + " " * (test-org-name.size - REPLACEMENT-PREFIX.size)
 
-  org_id/string? := null
-  test_cli.run_gold "BCC-create-org"
+  org-id/string? := null
+  test-cli.run-gold "BCC-create-org"
       "Create an organization."
-      --before_gold=: | output/string |
+      --before-gold=: | output/string |
         // Something like "Created organization cce84fa4-b3cc-5ed8-a7cc-96b2d76bfd37 - foobar"
-        space_index := 0
-        2.repeat: space_index = output.index_of " " (space_index + 1)
-        end_index := output.index_of " " (space_index + 1)
-        org_id = output[space_index + 1 .. end_index]
-        test_cli.replacements[org_id] = "-={| UUID-FOR-TEST-ORGANIZATION |}=-"
+        space-index := 0
+        2.repeat: space-index = output.index-of " " (space-index + 1)
+        end-index := output.index-of " " (space-index + 1)
+        org-id = output[space-index + 1 .. end-index]
+        test-cli.replacements[org-id] = "-={| UUID-FOR-TEST-ORGANIZATION |}=-"
         output
-      ["org", "create", test_org_name]
+      ["org", "create", test-org-name]
 
-  test_cli.run_gold "BCD-organizations-after"
+  test-cli.run-gold "BCD-organizations-after"
       "List organizations after creating a new one."
       [
         "org", "list",
       ]
 
   // Initialize a fleet.
-  fleet_dir := "$tmp_dir/fleet"
-  directory.mkdir --recursive fleet_dir
-  test_cli.replacements[fleet_dir] = "FLEET-DIR"
+  fleet-dir := "$tmp-dir/fleet"
+  directory.mkdir --recursive fleet-dir
+  test-cli.replacements[fleet-dir] = "FLEET-DIR"
 
-  test_cli.run_gold "CAA-fleet-init"
+  test-cli.run-gold "CAA-fleet-init"
       "Initialize a fleet."
       [
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
         "fleet", "init",
       ]
-  fleet_file := read_json "$fleet_dir/fleet.json"
-  fleet_id := fleet_file["id"]
-  test_cli.replacements[fleet_id] = "-={|       UUID-FOR-FLEET       |}=-"
+  fleet-file := read-json "$fleet-dir/fleet.json"
+  fleet-id := fleet-file["id"]
+  test-cli.replacements[fleet-id] = "-={|       UUID-FOR-FLEET       |}=-"
 
-  test_cli.run_gold "CAK-no-devices-yet"
+  test-cli.run-gold "CAK-no-devices-yet"
       "List devices in the fleet."
       [
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
         "fleet", "status",
       ]
 
-  spec_path := "$fleet_dir/my-pod.json"
-  test_cli.replacements["my-pod.json"] = "FLEET-POD-FILE"
+  spec-path := "$fleet-dir/my-pod.json"
+  test-cli.replacements["my-pod.json"] = "FLEET-POD-FILE"
 
-  default_spec := read_json spec_path
+  default-spec := read-json spec-path
   // Only replace the artemis version. Keep the rest as is.
-  default_spec["artemis-version"] = service_version
-  write_json_to_file --pretty spec_path default_spec
+  default-spec["artemis-version"] = service-version
+  write-json-to-file --pretty spec-path default-spec
 
 
   print "Creating default firmware."
   // Create a firmware.
   // Just make sure that the example file works. We are not using that firmware otherwise.
-  pod_file := "$tmp_dir/firmware.pod"
-  test_cli.replacements[pod_file] = "FIRMWARE.POD"
-  test_cli.run_gold "DAA-default-firmware"
+  pod-file := "$tmp-dir/firmware.pod"
+  test-cli.replacements[pod-file] = "FIRMWARE.POD"
+  test-cli.run-gold "DAA-default-firmware"
       "Create the default firmware."
       [
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
         "pod", "build",
-        "-o", pod_file,
-        spec_path,
+        "-o", pod-file,
+        spec-path,
       ]
-  expect (file.is_file pod_file)
+  expect (file.is-file pod-file)
 
-  add_replacements_for_pod := : | pod_json/Map |
-    id := pod_json["id"]
-    revision := pod_json["revision"]
-    tags := pod_json["tags"]
-    created_at := pod_json["created_at"]
-    test_cli.replacements[id] = "-={|      UUID-FOR-MY-POD#$revision     |}=-"
-    test_cli.replacements[created_at] = "CREATED-AT-FOR-MY-POD#$revision"
+  add-replacements-for-pod := : | pod-json/Map |
+    id := pod-json["id"]
+    revision := pod-json["revision"]
+    tags := pod-json["tags"]
+    created-at := pod-json["created_at"]
+    test-cli.replacements[id] = "-={|      UUID-FOR-MY-POD#$revision     |}=-"
+    test-cli.replacements[created-at] = "CREATED-AT-FOR-MY-POD#$revision"
     tags.do:
       if it != "latest":
-        test_cli.replacements[it] = "TAG-FOR-MY-POD#$revision"
+        test-cli.replacements[it] = "TAG-FOR-MY-POD#$revision"
     id
 
-  add_replacements_for_last_pod := :
-    available_pods := test_cli.run --json [
-      "--fleet-root", fleet_dir,
+  add-replacements-for-last-pod := :
+    available-pods := test-cli.run --json [
+      "--fleet-root", fleet-dir,
       "pod", "list",
     ]
-    add_replacements_for_pod.call available_pods[0]
+    add-replacements-for-pod.call available-pods[0]
 
 
   // Upload the firmware.
-  test_cli.run_gold "DAB-upload-firmware"
+  test-cli.run-gold "DAB-upload-firmware"
       "Upload the firmware."
-      --before_gold=:
-        add_replacements_for_last_pod.call
+      --before-gold=:
+        add-replacements-for-last-pod.call
         it
       [
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
         "pod", "upload",
-        pod_file,
+        pod-file,
       ]
 
   // Make our own specification.
-  our_spec := read_json spec_path
-  our_spec["max-offline"] = "10s"
-  our_spec["artemis-version"] = service_version
-  our_spec["connections"][0]["ssid"] = wifi_ssid
-  our_spec["connections"][0]["password"] = wifi_password
-  our_spec["containers"].remove "solar"
-  write_json_to_file --pretty spec_path our_spec
+  our-spec := read-json spec-path
+  our-spec["max-offline"] = "10s"
+  our-spec["artemis-version"] = service-version
+  our-spec["connections"][0]["ssid"] = wifi-ssid
+  our-spec["connections"][0]["password"] = wifi-password
+  our-spec["containers"].remove "solar"
+  write-json-to-file --pretty spec-path our-spec
 
   // Compile the specification.
-  test_cli.run_gold "DAC-compile-modified-firmware"
+  test-cli.run-gold "DAC-compile-modified-firmware"
       "Compile the modified specification."
       [
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
         "pod", "build",
-        "-o", pod_file,
-        spec_path,
+        "-o", pod-file,
+        spec-path,
       ]
 
   // Upload the specification.
-  test_cli.run_gold "DAD-upload-modified-pod"
+  test-cli.run-gold "DAD-upload-modified-pod"
       "Upload the modified pod."
-      --before_gold=:
-        add_replacements_for_last_pod.call
+      --before-gold=:
+        add-replacements-for-last-pod.call
         it
       [
-        "--fleet-root", fleet_dir,
-        "pod", "upload", pod_file,
+        "--fleet-root", fleet-dir,
+        "pod", "upload", pod-file,
       ]
 
-  available_pods := test_cli.run --json [
-    "--fleet-root", fleet_dir,
+  available-pods := test-cli.run --json [
+    "--fleet-root", fleet-dir,
     "pod", "list",
   ]
-  flash_pod_id := available_pods[0]["id"]
+  flash-pod-id := available-pods[0]["id"]
 
   // List the available firmwares.
-  test_cli.run_gold "DAE-list-firmwares"
-      --ignore_spacing
+  test-cli.run-gold "DAE-list-firmwares"
+      --ignore-spacing
       "List the available firmwares."
       [
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
         "pod", "list"
       ]
 
-  device_id/string? := null
+  device-id/string? := null
   // Flash it.
-  test_cli.run_gold "DAF-flash"
+  test-cli.run-gold "DAF-flash"
       "Flash the firmware to the device."
-      --ignore_spacing
-      --before_gold=: | output/string |
-        provisioned_index := output.index_of "Successfully provisioned device"
-        expect provisioned_index >= 0
-        space_index := provisioned_index
-        3.repeat: space_index = output.index_of " " (space_index + 1)
-        expect space_index >= 0
-        name_start_index := space_index + 1
-        space_index = output.index_of " " (space_index + 1)
-        name_end_index := space_index
-        expect_equals '(' output[name_end_index + 1]
-        device_start_index := name_end_index + 2
-        device_end_index := output.index_of ")" device_start_index
-        device_name := output[name_start_index..name_end_index]
-        device_id = output[device_start_index..device_end_index]
-        test_cli.replacements[device_name] = "DEVICE_NAME"
-        test_cli.replacements[device_id] = "-={|    UUID-FOR-TEST-DEVICE    |}=-"
+      --ignore-spacing
+      --before-gold=: | output/string |
+        provisioned-index := output.index-of "Successfully provisioned device"
+        expect provisioned-index >= 0
+        space-index := provisioned-index
+        3.repeat: space-index = output.index-of " " (space-index + 1)
+        expect space-index >= 0
+        name-start-index := space-index + 1
+        space-index = output.index-of " " (space-index + 1)
+        name-end-index := space-index
+        expect-equals '(' output[name-end-index + 1]
+        device-start-index := name-end-index + 2
+        device-end-index := output.index-of ")" device-start-index
+        device-name := output[name-start-index..name-end-index]
+        device-id = output[device-start-index..device-end-index]
+        test-cli.replacements[device-name] = "DEVICE_NAME"
+        test-cli.replacements[device-id] = "-={|    UUID-FOR-TEST-DEVICE    |}=-"
         output
       [
         "serial", "flash",
-        "--fleet-root", fleet_dir,
-        "--port", serial_port,
+        "--fleet-root", fleet-dir,
+        "--port", serial-port,
       ]
 
-  test_device := test_cli.listen_to_serial_device
-      --serial_port=serial_port
-      --alias_id=uuid.parse device_id
+  test-device := test-cli.listen-to-serial-device
+      --serial-port=serial-port
+      --alias-id=uuid.parse device-id
       // We don't know the actual hardware-id.
       // Cheat by reusing the alias id.
-      --hardware_id=uuid.parse device_id
+      --hardware-id=uuid.parse device-id
 
-  test_device.wait_for "INFO: synchronized"
+  test-device.wait-for "INFO: synchronized"
 
-  with_timeout --ms=15_000:
+  with-timeout --ms=15_000:
     while true:
       // Wait for the device to come online.
-      output := test_cli.run [
+      output := test-cli.run [
         "fleet", "status",
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
       ]
-      if output.contains device_id:
+      if output.contains device-id:
         break
       sleep --ms=100
 
@@ -325,89 +325,89 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
   //   with_timeout --ms=5_000:
   //     pipe.run_program "jag" "monitor"
 
-  test_cli.run_gold "DAK-devices-after-flash"
-      --ignore_spacing
+  test-cli.run-gold "DAK-devices-after-flash"
+      --ignore-spacing
       "List devices in the fleet."
       [
         "fleet", "status",
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
       ]
 
-  updated_spec := read_json spec_path
+  updated-spec := read-json spec-path
   // Unfortunately we can't go below 10 seconds as the device
   // prevents that. We could set it, but it wouldn't take effect.
-  updated_spec["max-offline"] = "11s"
-  write_json_to_file --pretty spec_path updated_spec
+  updated-spec["max-offline"] = "11s"
+  write-json-to-file --pretty spec-path updated-spec
 
-  test_cli.run_gold "DDA-device-show"
+  test-cli.run-gold "DDA-device-show"
       "Show the device before update."
-      --ignore_spacing
-      --before_gold=: | output/string |
+      --ignore-spacing
+      --before-gold=: | output/string |
         lines := output.split "\n"
         lines.do:
-          APP_ID_PREFIX ::= "      id: "
-          if it.starts_with APP_ID_PREFIX:
-            test_cli.replacements[it[APP_ID_PREFIX.size ..]] = "APP_ID"
+          APP-ID-PREFIX ::= "      id: "
+          if it.starts-with APP-ID-PREFIX:
+            test-cli.replacements[it[APP-ID-PREFIX.size ..]] = "APP_ID"
         output
       [
         "device", "show",
-        "-d", device_id,
+        "-d", device-id,
         "--max-events", "0",
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
       ]
 
   // Upload a new version.
-  test_cli.run_gold "DDB-upload-new-firmware"
+  test-cli.run-gold "DDB-upload-new-firmware"
       "Upload a new version of the firmware."
-      --before_gold=: | output/string |
-        add_replacements_for_last_pod.call
+      --before-gold=: | output/string |
+        add-replacements-for-last-pod.call
         output
       [
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
         "pod", "upload",
-        spec_path,
+        spec-path,
       ]
 
-  test_cli.run_gold "DDK-update-firmware"
+  test-cli.run-gold "DDK-update-firmware"
       "Update the firmware."
-      --ignore_spacing
-      --before_gold=: | output/string |
+      --ignore-spacing
+      --before-gold=: | output/string |
         lines := output.split "\n"
         lines.do:
-          UPLOADING_PREFIX ::= "Uploading patch "
-          if it.starts_with UPLOADING_PREFIX:
-            test_cli.replacements[it[UPLOADING_PREFIX.size ..]] = "PATCH-HASH-SIZE"
+          UPLOADING-PREFIX ::= "Uploading patch "
+          if it.starts-with UPLOADING-PREFIX:
+            test-cli.replacements[it[UPLOADING-PREFIX.size ..]] = "PATCH-HASH-SIZE"
         output
       [
         "fleet", "roll-out",
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
       ]
 
   print "Waiting for the device to apply the config."
 
-  with_timeout --ms=60_000:
+  with-timeout --ms=60_000:
     while true:
-      status_output := test_cli.run [
+      status-output := test-cli.run [
             "device", "show",
-            "-d", device_id,
+            "-d", device-id,
             "--max-events", "0",
-            "--fleet-root", fleet_dir,
+            "--fleet-root", fleet-dir,
       ]
-      if not status_output.contains flash_pod_id:
+      if not status-output.contains flash-pod-id:
         break
       sleep --ms=1_000
 
-  test_cli.run_gold "DEA-status"
+  test-cli.run-gold "DEA-status"
       "List devices in the fleet after applied update."
-      --ignore_spacing
-      --before_gold=: | output/string |
+      --ignore-spacing
+      --before-gold=: | output/string |
         lines := output.split "\n"
-        missed_index/int := -1
+        missed-index/int := -1
         fixed := []
         lines.do: | line/string |
-          if missed_index < 0:
-            missed_index = line.index_of "Missed"
-            if missed_index < 0:
+          if missed-index < 0:
+            missed-index = line.index-of "Missed"
+            if missed-index < 0:
               continue.do
 
           // The update might have led to a missed checkin.
@@ -417,50 +417,50 @@ run_test test_cli/TestCli serial_port/string wifi_ssid/string wifi_password/stri
           CROSS ::= "✗"
           // Replacing the cross by using the index is a bit brittle.
           // Due to unicode characters before the cross, the index might not be the same.
-          if line.size > missed_index and line[missed_index] == CROSS[0]:
-            line = line[.. missed_index] + " " + line[missed_index + CROSS.size ..]
+          if line.size > missed-index and line[missed-index] == CROSS[0]:
+            line = line[.. missed-index] + " " + line[missed-index + CROSS.size ..]
           fixed.add line
         fixed.join "\n"
       [
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
         "fleet", "status",
       ]
 
-  after_firmware/string? := null
-  test_cli.run_gold "DEK-device-show"
+  after-firmware/string? := null
+  test-cli.run-gold "DEK-device-show"
       "Show the device after update."
-      --before_gold=: | output/string |
+      --before-gold=: | output/string |
         lines := output.split "\n"
         lines.do:
-          FIRMWARE_PREFIX ::= "  firmware: "
-          if it.starts_with FIRMWARE_PREFIX:
-            after_firmware = it[FIRMWARE_PREFIX.size ..]
-            test_cli.replacements[after_firmware] = "AFTER_FIRMWARE"
+          FIRMWARE-PREFIX ::= "  firmware: "
+          if it.starts-with FIRMWARE-PREFIX:
+            after-firmware = it[FIRMWARE-PREFIX.size ..]
+            test-cli.replacements[after-firmware] = "AFTER_FIRMWARE"
         output
       [
         "device", "show",
-        "-d", device_id,
+        "-d", device-id,
         "--max-events", "0",
-        "--fleet-root", fleet_dir,
+        "--fleet-root", fleet-dir,
       ]
 
-  hello_world := """
+  hello-world := """
     main: print "hello world"
     """
-  hello_world_path := "$fleet_dir/hello-world.toit"
-  write_blob_to_file hello_world_path hello_world
+  hello-world-path := "$fleet-dir/hello-world.toit"
+  write-blob-to-file hello-world-path hello-world
 
-  test_device.clear_output
+  test-device.clear-output
 
-  test_cli.run_gold "EAA-container-install"
+  test-cli.run-gold "EAA-container-install"
       "Install a container"
       [
-        "--fleet-root", fleet_dir,
-        "device", "-d", device_id,
+        "--fleet-root", fleet-dir,
+        "device", "-d", device-id,
         "container", "install",
         "hello",
-        hello_world_path,
+        hello-world-path,
       ]
 
-  with_timeout --ms=25_000:
-    test_device.wait_for "hello world"
+  with-timeout --ms=25_000:
+    test-device.wait-for "hello world"

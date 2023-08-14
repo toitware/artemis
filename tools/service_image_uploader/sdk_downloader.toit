@@ -9,10 +9,10 @@ import artemis.cli.config as cli
 import artemis.cli.cache as cli
 import artemis.cli.sdk show *
 import artemis.cli.firmware show *
-import artemis.cli.pod_specification show PodSpecification INITIAL_POD_SPECIFICATION
+import artemis.cli.pod-specification show PodSpecification INITIAL-POD-SPECIFICATION
 import artemis.cli.ui as ui
 import host.file
-import snapshot show cache_snapshot
+import snapshot show cache-snapshot
 import supabase
 
 import .utils
@@ -20,62 +20,62 @@ import .utils
 main args:
   // Use the same config as the CLI.
   // This way we get the same server configurations and oauth tokens.
-  config := cli.read_config
+  config := cli.read-config
   // Use the same cache as the CLI.
   // This way we can reuse the SDKs.
-  cache := cli.Cache --app_name="artemis"
+  cache := cli.Cache --app-name="artemis"
   ui := ui.ConsoleUi
 
   main --config=config --cache=cache --ui=ui args
 
 main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   cmd := cli.Command "sdk downloader"
-      --long_help="Downloads SDKs and envelopes into the cache."
+      --long-help="Downloads SDKs and envelopes into the cache."
       --options=[
         cli.Option "version"
-            --short_help="The version of the SDK to use."
+            --short-help="The version of the SDK to use."
             --required,
       ]
 
-  download_cmd := cli.Command "download"
-      --long_help="Caches SDKs and envelopes."
+  download-cmd := cli.Command "download"
+      --long-help="Caches SDKs and envelopes."
       --run=:: download config cache ui it
-  cmd.add download_cmd
+  cmd.add download-cmd
 
-  print_cmd := cli.Command "print"
-      --long_help="Prints the path to the SDK or envelope."
+  print-cmd := cli.Command "print"
+      --long-help="Prints the path to the SDK or envelope."
       --options=[
         cli.Flag "envelope"
-            --short_help="Prints the path to the envelope.",
+            --short-help="Prints the path to the envelope.",
       ]
-      --run=:: print_path config cache ui it
-  cmd.add print_cmd
+      --run=:: print-path config cache ui it
+  cmd.add print-cmd
 
   cmd.run args
 
-pod_specification_for_ --sdk_version/string:
-  json := INITIAL_POD_SPECIFICATION
-  json["sdk-version"] = sdk_version
-  return PodSpecification.from_json json --path="ignored"
+pod-specification-for_ --sdk-version/string:
+  json := INITIAL-POD-SPECIFICATION
+  json["sdk-version"] = sdk-version
+  return PodSpecification.from-json json --path="ignored"
 
 download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
-  sdk_version := parsed["version"]
+  sdk-version := parsed["version"]
 
-  get_sdk --cache=cache sdk_version
-  pod_specification := pod_specification_for_ --sdk_version=sdk_version
-  get_envelope --specification=pod_specification --cache=cache
+  get-sdk --cache=cache sdk-version
+  pod-specification := pod-specification-for_ --sdk-version=sdk-version
+  get-envelope --specification=pod-specification --cache=cache
 
-print_path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
+print-path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   // Make sure we don't print anything while downloading.
-  log.set_default (log.default.with_level log.FATAL_LEVEL)
-  sdk_version := parsed["version"]
+  log.set-default (log.default.with-level log.FATAL-LEVEL)
+  sdk-version := parsed["version"]
   envelope := parsed["envelope"]
 
   path/string := ?
   if envelope:
-    pod_specification := pod_specification_for_ --sdk_version=sdk_version
-    path = get_envelope --cache=cache --specification=pod_specification
+    pod-specification := pod-specification-for_ --sdk-version=sdk-version
+    path = get-envelope --cache=cache --specification=pod-specification
   else:
-    path = (get_sdk --cache=cache sdk_version).sdk_path
+    path = (get-sdk --cache=cache sdk-version).sdk-path
 
   ui.result path

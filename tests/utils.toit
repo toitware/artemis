@@ -2,7 +2,7 @@
 
 import encoding.base64
 import encoding.json
-import encoding.json as json_encoding
+import encoding.json as json-encoding
 import encoding.ubjson
 import expect show *
 import log
@@ -13,73 +13,73 @@ import host.os
 import net
 import uuid
 import artemis.cli
-import artemis.cli.server_config as cli_server_config
+import artemis.cli.server-config as cli-server-config
 import artemis.cli.cache as cli
 import artemis.cli.config as cli
-import artemis.cli.cache as artemis_cache
-import artemis.cli.utils show read_json write_json_to_file
-import artemis.shared.server_config
-import artemis.shared.version as configured_version
+import artemis.cli.cache as artemis-cache
+import artemis.cli.utils show read-json write-json-to-file
+import artemis.shared.server-config
+import artemis.shared.version as configured-version
 import artemis.service
 import artemis.service.brokers.broker show BrokerConnection BrokerService
 import artemis.service.device show Device
 import artemis.cli.ui show ConsolePrinter JsonPrinter Ui Printer
-import artemis.cli.utils show write_blob_to_file read_base64_ubjson
-import ..tools.http_servers.broker as http_servers
-import ..tools.http_servers.artemis_server as http_servers
-import ..tools.service_image_uploader.uploader as uploader
+import artemis.cli.utils show write-blob-to-file read-base64-ubjson
+import ..tools.http-servers.broker as http-servers
+import ..tools.http-servers.artemis-server as http-servers
+import ..tools.service-image-uploader.uploader as uploader
 import monitor
-import .artemis_server
+import .artemis-server
 import .broker
-import .supabase_local_server
+import .supabase-local-server
 
 export Device
 
-/** test@example.com is an admin of the $TEST_ORGANIZATION_UUID. */
-TEST_EXAMPLE_COM_EMAIL ::= "test@example.com"
-TEST_EXAMPLE_COM_PASSWORD ::= "password"
-TEST_EXAMPLE_COM_UUID ::= uuid.parse "f76629c5-a070-4bbc-9918-64beaea48848"
-TEST_EXAMPLE_COM_NAME ::= "Test User"
+/** test@example.com is an admin of the $TEST-ORGANIZATION-UUID. */
+TEST-EXAMPLE-COM-EMAIL ::= "test@example.com"
+TEST-EXAMPLE-COM-PASSWORD ::= "password"
+TEST-EXAMPLE-COM-UUID ::= uuid.parse "f76629c5-a070-4bbc-9918-64beaea48848"
+TEST-EXAMPLE-COM-NAME ::= "Test User"
 
-/** demo@example.com is a member of the $TEST_ORGANIZATION_UUID. */
-DEMO_EXAMPLE_COM_EMAIL ::= "demo@example.com"
-DEMO_EXAMPLE_COM_PASSWORD ::= "password"
-DEMO_EXAMPLE_COM_UUID ::= uuid.parse "d9064bb5-1501-4ec9-bfee-21ab74d645b8"
-DEMO_EXAMPLE_COM_NAME ::= "Demo User"
+/** demo@example.com is a member of the $TEST-ORGANIZATION-UUID. */
+DEMO-EXAMPLE-COM-EMAIL ::= "demo@example.com"
+DEMO-EXAMPLE-COM-PASSWORD ::= "password"
+DEMO-EXAMPLE-COM-UUID ::= uuid.parse "d9064bb5-1501-4ec9-bfee-21ab74d645b8"
+DEMO-EXAMPLE-COM-NAME ::= "Demo User"
 
-ADMIN_EMAIL ::= "test-admin@toit.io"
-ADMIN_PASSWORD ::= "password"
-ADMIN_UUID ::= uuid.parse "6ac69de5-7b56-4153-a31c-7b4e29bbcbcf"
-ADMIN_NAME ::= "Admin User"
+ADMIN-EMAIL ::= "test-admin@toit.io"
+ADMIN-PASSWORD ::= "password"
+ADMIN-UUID ::= uuid.parse "6ac69de5-7b56-4153-a31c-7b4e29bbcbcf"
+ADMIN-NAME ::= "Admin User"
 
 /** Preseeded "Test Organization". */
-TEST_ORGANIZATION_NAME ::= "Test Organization"
-TEST_ORGANIZATION_UUID ::= uuid.parse "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
+TEST-ORGANIZATION-NAME ::= "Test Organization"
+TEST-ORGANIZATION-UUID ::= uuid.parse "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
 
-/** Preseeded test device in $TEST_ORGANIZATION_UUID. */
-TEST_DEVICE_UUID ::= uuid.parse "eb45c662-356c-4bea-ad8c-ede37688fddf"
-TEST_DEVICE_ALIAS ::= uuid.parse "191149e5-a95b-47b1-80dd-b149f953d272"
+/** Preseeded test device in $TEST-ORGANIZATION-UUID. */
+TEST-DEVICE-UUID ::= uuid.parse "eb45c662-356c-4bea-ad8c-ede37688fddf"
+TEST-DEVICE-ALIAS ::= uuid.parse "191149e5-a95b-47b1-80dd-b149f953d272"
 
-TEST_POD_UUID ::= uuid.parse "0e29c450-f802-49cc-b695-c5add71fdac3"
+TEST-POD-UUID ::= uuid.parse "0e29c450-f802-49cc-b695-c5add71fdac3"
 
-NON_EXISTENT_UUID ::= uuid.uuid5 "non" "existent"
+NON-EXISTENT-UUID ::= uuid.uuid5 "non" "existent"
 
-UPDATE_GOLD_ENV ::= "UPDATE_GOLD"
+UPDATE-GOLD-ENV ::= "UPDATE_GOLD"
 
-TEST_SDK_VERSION/string := configured_version.SDK_VERSION
-TEST_ARTEMIS_VERSION ::= "$(configured_version.ARTEMIS_VERSION)-TEST"
+TEST-SDK-VERSION/string := configured-version.SDK-VERSION
+TEST-ARTEMIS-VERSION ::= "$(configured-version.ARTEMIS-VERSION)-TEST"
 
-with_tmp_directory [block]:
-  tmp_dir := directory.mkdtemp "/tmp/artemis-test-"
+with-tmp-directory [block]:
+  tmp-dir := directory.mkdtemp "/tmp/artemis-test-"
   try:
-    block.call tmp_dir
+    block.call tmp-dir
   finally:
-    directory.rmdir --recursive tmp_dir
+    directory.rmdir --recursive tmp-dir
 
-with_tmp_config [block]:
-  with_tmp_directory: | directory |
-    config_path := "$directory/config"
-    config := cli.read_config_file config_path --init=: it
+with-tmp-config [block]:
+  with-tmp-directory: | directory |
+    config-path := "$directory/config"
+    config := cli.read-config-file config-path --init=: it
 
     block.call config
 
@@ -90,26 +90,26 @@ class TestExit:
 //   default version of the console UI to be simpler anyway.
 
 class TestPrinter extends ConsolePrinter:
-  test_ui_/TestUi
-  constructor .test_ui_ prefix/string?:
+  test-ui_/TestUi
+  constructor .test-ui_ prefix/string?:
     super prefix
 
   print_ str/string:
-    if not test_ui_.quiet_: super str
-    test_ui_.stdout += "$str\n"
+    if not test-ui_.quiet_: super str
+    test-ui_.stdout += "$str\n"
 
 class TestJsonPrinter extends JsonPrinter:
-  test_ui_/TestUi
+  test-ui_/TestUi
 
-  constructor .test_ui_ prefix/string? level/int:
+  constructor .test-ui_ prefix/string? level/int:
     super prefix level
 
   print_ str/string:
-    if not test_ui_.quiet_: super str
-    test_ui_.stderr += "$str\n"
+    if not test-ui_.quiet_: super str
+    test-ui_.stderr += "$str\n"
 
-  handle_structured_ data:
-    test_ui_.stdout += json.stringify data
+  handle-structured_ data:
+    test-ui_.stdout += json.stringify data
 
 class TestUi extends Ui:
   stdout/string := ""
@@ -117,12 +117,12 @@ class TestUi extends Ui:
   quiet_/bool
   json_/bool
 
-  constructor --level/int=Ui.NORMAL_LEVEL --quiet/bool=true --json/bool=false:
+  constructor --level/int=Ui.NORMAL-LEVEL --quiet/bool=true --json/bool=false:
     quiet_ = quiet
     json_ = json
     super --level=level
 
-  create_printer_ prefix/string? level/int -> Printer:
+  create-printer_ prefix/string? level/int -> Printer:
     if json_: return TestJsonPrinter this prefix level
     return TestPrinter this prefix
 
@@ -134,113 +134,113 @@ class TestCli:
   cache/cli.Cache
   artemis/TestArtemisServer
   broker/TestBroker
-  toit_run_/string
-  test_devices_/List ::= []
+  toit-run_/string
+  test-devices_/List ::= []
   /** A map of strings to be replaced in the output of $run. */
   replacements/Map ::= {:}
-  gold_name/string
-  sdk_version/string
-  tmp_dir/string
+  gold-name/string
+  sdk-version/string
+  tmp-dir/string
 
   constructor .config .cache .artemis .broker
-      --toit_run/string
-      --.gold_name
-      --.sdk_version
-      --.tmp_dir:
-    toit_run_ = toit_run
+      --toit-run/string
+      --.gold-name
+      --.sdk-version
+      --.tmp-dir:
+    toit-run_ = toit-run
 
   close:
-    test_devices_.do: | device/TestDevice |
+    test-devices_.do: | device/TestDevice |
       device.close
-      artemis.backdoor.remove_device device.hardware_id
+      artemis.backdoor.remove-device device.hardware-id
 
-  run args/List --expect_exit_1/bool=false --allow_exception/bool=false --quiet/bool=true -> string:
-    return run args --expect_exit_1=expect_exit_1 --allow_exception=allow_exception --quiet=quiet --no-json
+  run args/List --expect-exit-1/bool=false --allow-exception/bool=false --quiet/bool=true -> string:
+    return run args --expect-exit-1=expect-exit-1 --allow-exception=allow-exception --quiet=quiet --no-json
 
-  run args/List --expect_exit_1/bool=false --allow_exception/bool=false --quiet/bool=true --json/bool -> any:
+  run args/List --expect-exit-1/bool=false --allow-exception/bool=false --quiet/bool=true --json/bool -> any:
     ui := TestUi --quiet=quiet --json=json
     exception := null
     try:
-      exception = catch --unwind=(: not expect_exit_1 or (not allow_exception and it is not TestExit)):
+      exception = catch --unwind=(: not expect-exit-1 or (not allow-exception and it is not TestExit)):
         cli.main args --config=config --cache=cache --ui=ui
-    finally: | is_exception _ |
-      if is_exception:
+    finally: | is-exception _ |
+      if is-exception:
         print ui.stdout
 
-    if expect_exit_1 and not exception:
+    if expect-exit-1 and not exception:
       throw "Expected exit 1, but got exit 0"
-    if json: return json_encoding.parse ui.stdout
+    if json: return json-encoding.parse ui.stdout
     return ui.stdout
 
   /**
-  Variant of $(run_gold test_name description args [--before_gold]).
+  Variant of $(run-gold test-name description args [--before-gold]).
   */
-  run_gold
-      test_name/string
+  run-gold
+      test-name/string
       description/string
       args/List
-      --ignore_spacing/bool=false
-      --expect_exit_1/bool=false:
-    run_gold test_name
+      --ignore-spacing/bool=false
+      --expect-exit-1/bool=false:
+    run-gold test-name
         description
         args
-        --expect_exit_1=expect_exit_1
-        --ignore_spacing=ignore_spacing
-        --before_gold=: it
+        --expect-exit-1=expect-exit-1
+        --ignore-spacing=ignore-spacing
+        --before-gold=: it
 
   /**
   Runs the CLI with the given $args.
 
-  The $test_name is used as filename for the gold file.
+  The $test-name is used as filename for the gold file.
   The $description is embedded in the output of the gold file.
 
-  If $expect_exit_1 then the test is negative and must fail.
+  If $expect-exit-1 then the test is negative and must fail.
 
-  If $ignore_spacing is true, then all whitespace is ignored when comparing.
+  If $ignore-spacing is true, then all whitespace is ignored when comparing.
     Also, all table characters (like "┌────┬────────┐") are ignored.
 
-  The $before_gold block is called with the output of the running the command.
+  The $before-gold block is called with the output of the running the command.
     It must return a new output (or the same as the input). It can be used
     to update the $replacements.
   */
-  run_gold
-      test_name/string
+  run-gold
+      test-name/string
       description/string
       args/List
-      --ignore_spacing/bool=false
-      --expect_exit_1/bool=false
-      [--before_gold]:
-    output := run args --expect_exit_1=expect_exit_1
-    output = before_gold.call output
-    output = canonicalize_gold_ output args --description=description
-    gold_path := "gold/$gold_name/$(test_name).txt"
-    if os.env.get UPDATE_GOLD_ENV or not file.is_file gold_path:
-      directory.mkdir --recursive "gold/$gold_name"
-      write_blob_to_file gold_path output
-      print "Updated gold file '$gold_path'."
-    gold_content := (file.read_content gold_path).to_string
+      --ignore-spacing/bool=false
+      --expect-exit-1/bool=false
+      [--before-gold]:
+    output := run args --expect-exit-1=expect-exit-1
+    output = before-gold.call output
+    output = canonicalize-gold_ output args --description=description
+    gold-path := "gold/$gold-name/$(test-name).txt"
+    if os.env.get UPDATE-GOLD-ENV or not file.is-file gold-path:
+      directory.mkdir --recursive "gold/$gold-name"
+      write-blob-to-file gold-path output
+      print "Updated gold file '$gold-path'."
+    gold-content := (file.read-content gold-path).to-string
     // In case we are on Windows or something else introduced \r\n.
-    gold_content = gold_content.replace --all "\r\n" "\n"
+    gold-content = gold-content.replace --all "\r\n" "\n"
 
-    if ignore_spacing:
+    if ignore-spacing:
       [" ", "┌", "─", "┬", "┐", "│", "├",  "┼", "┤", "└", "┴", "┘"].do: | char |
-        gold_content = gold_content.replace --all char ""
+        gold-content = gold-content.replace --all char ""
         output = output.replace --all char ""
-    if gold_content != output:
-      print "Gold file '$gold_path' does not match output."
+    if gold-content != output:
+      print "Gold file '$gold-path' does not match output."
       print "Output:"
       print output
       print "Gold:"
-      print gold_content
-      print "gold_content.size: $gold_content.size"
+      print gold-content
+      print "gold_content.size: $gold-content.size"
       print "output.size: $output.size"
-      for i := 0; i < (min output.size gold_content.size); i++:
-        if output[i] != gold_content[i]:
-          print "First difference at $i $output[i] != $gold_content[i]."
+      for i := 0; i < (min output.size gold-content.size); i++:
+        if output[i] != gold-content[i]:
+          print "First difference at $i $output[i] != $gold-content[i]."
           break
-    expect_equals gold_content output
+    expect-equals gold-content output
 
-  canonicalize_gold_ output/string args --description/string -> string:
+  canonicalize-gold_ output/string args --description/string -> string:
     result := "# $description\n# $args\n$output"
     replacements.do: | key val|
       result = result.replace --all key val
@@ -248,139 +248,139 @@ class TestCli:
     return result
 
   /**
-  Creates and starts new device in the given $organization_id.
+  Creates and starts new device in the given $organization-id.
   Neither the 'check-in', nor the firmware service are set up.
 
-  The $firmware_token is used to build the encoded firmware.
+  The $firmware-token is used to build the encoded firmware.
   By default a random token is used.
   */
-  start_device -> TestDevice
-      --organization_id/uuid.Uuid=TEST_ORGANIZATION_UUID
-      --firmware_token/ByteArray?=null:
-    device_description := create_device_ organization_id firmware_token
-    hardware_id/uuid.Uuid := device_description["id"]
-    alias_id/uuid.Uuid := device_description["alias"]
-    encoded_firmware := device_description["encoded_firmware"]
+  start-device -> TestDevice
+      --organization-id/uuid.Uuid=TEST-ORGANIZATION-UUID
+      --firmware-token/ByteArray?=null:
+    device-description := create-device_ organization-id firmware-token
+    hardware-id/uuid.Uuid := device-description["id"]
+    alias-id/uuid.Uuid := device-description["alias"]
+    encoded-firmware := device-description["encoded_firmware"]
 
     result := TestDevicePipe
         --broker=broker
-        --alias_id=alias_id
-        --hardware_id=hardware_id
-        --organization_id=TEST_ORGANIZATION_UUID
-        --toit_run=toit_run_
-        --encoded_firmware=encoded_firmware
-    test_devices_.add result
+        --alias-id=alias-id
+        --hardware-id=hardware-id
+        --organization-id=TEST-ORGANIZATION-UUID
+        --toit-run=toit-run_
+        --encoded-firmware=encoded-firmware
+    test-devices_.add result
     return result
 
-  listen_to_serial_device -> TestDevice
-      --alias_id/uuid.Uuid
-      --hardware_id/uuid.Uuid
-      --serial_port/string:
+  listen-to-serial-device -> TestDevice
+      --alias-id/uuid.Uuid
+      --hardware-id/uuid.Uuid
+      --serial-port/string:
     result := TestDevicePipe
         --broker=broker
-        --alias_id=alias_id
-        --hardware_id=hardware_id
-        --organization_id=TEST_ORGANIZATION_UUID
-        --serial_port=serial_port
-        --toit_run=toit_run_
-    test_devices_.add result
+        --alias-id=alias-id
+        --hardware-id=hardware-id
+        --organization-id=TEST-ORGANIZATION-UUID
+        --serial-port=serial-port
+        --toit-run=toit-run_
+    test-devices_.add result
     return result
 
-  start_fake_device -> FakeDevice
-      --organization_id/uuid.Uuid=TEST_ORGANIZATION_UUID
-      --firmware_token/ByteArray?=null:
-    device_description := create_device_ organization_id firmware_token
-    hardware_id/uuid.Uuid := device_description["id"]
-    alias_id/uuid.Uuid := device_description["alias"]
-    encoded_firmware := device_description["encoded_firmware"]
+  start-fake-device -> FakeDevice
+      --organization-id/uuid.Uuid=TEST-ORGANIZATION-UUID
+      --firmware-token/ByteArray?=null:
+    device-description := create-device_ organization-id firmware-token
+    hardware-id/uuid.Uuid := device-description["id"]
+    alias-id/uuid.Uuid := device-description["alias"]
+    encoded-firmware := device-description["encoded_firmware"]
 
     result := FakeDevice
         --broker=broker
-        --alias_id=alias_id
-        --hardware_id=hardware_id
-        --organization_id=TEST_ORGANIZATION_UUID
-        --encoded_firmware=encoded_firmware
-    test_devices_.add result
+        --alias-id=alias-id
+        --hardware-id=hardware-id
+        --organization-id=TEST-ORGANIZATION-UUID
+        --encoded-firmware=encoded-firmware
+    test-devices_.add result
     return result
 
-  start_fake_device --identity/Map --firmware_token/ByteArray?=null -> FakeDevice:
-    device_description := identity["artemis.device"]
-    hardware_id/uuid.Uuid := uuid.parse device_description["hardware_id"]
-    alias_id/uuid.Uuid := uuid.parse device_description["device_id"]
-    organization_id/uuid.Uuid := uuid.parse device_description["organization_id"]
+  start-fake-device --identity/Map --firmware-token/ByteArray?=null -> FakeDevice:
+    device-description := identity["artemis.device"]
+    hardware-id/uuid.Uuid := uuid.parse device-description["hardware_id"]
+    alias-id/uuid.Uuid := uuid.parse device-description["device_id"]
+    organization-id/uuid.Uuid := uuid.parse device-description["organization_id"]
 
-    encoded_firmware := build_encoded_firmware
-        --firmware_token=firmware_token
-        --device_id=alias_id
-        --organization_id=TEST_ORGANIZATION_UUID
-        --hardware_id=hardware_id
+    encoded-firmware := build-encoded-firmware
+        --firmware-token=firmware-token
+        --device-id=alias-id
+        --organization-id=TEST-ORGANIZATION-UUID
+        --hardware-id=hardware-id
 
     result := FakeDevice
         --broker=broker
-        --alias_id=alias_id
-        --hardware_id=hardware_id
-        --organization_id=organization_id
-        --encoded_firmware=encoded_firmware
-    test_devices_.add result
+        --alias-id=alias-id
+        --hardware-id=hardware-id
+        --organization-id=organization-id
+        --encoded-firmware=encoded-firmware
+    test-devices_.add result
     return result
 
-  create_device_ organization_id/uuid.Uuid firmware_token/ByteArray?=null -> Map:
-    device_description := artemis.backdoor.create_device --organization_id=organization_id
-    hardware_id/uuid.Uuid := device_description["id"]
-    alias_id/uuid.Uuid := device_description["alias"]
-    initial_state := {
+  create-device_ organization-id/uuid.Uuid firmware-token/ByteArray?=null -> Map:
+    device-description := artemis.backdoor.create-device --organization-id=organization-id
+    hardware-id/uuid.Uuid := device-description["id"]
+    alias-id/uuid.Uuid := device-description["alias"]
+    initial-state := {
       "identity": {
-        "device_id": "$alias_id",
-        "organization_id": "$organization_id",
-        "hardware_id": "$hardware_id",
+        "device_id": "$alias-id",
+        "organization_id": "$organization-id",
+        "hardware_id": "$hardware-id",
       }
     }
 
-    broker.backdoor.create_device --device_id=alias_id --state=initial_state
+    broker.backdoor.create-device --device-id=alias-id --state=initial-state
 
-    encoded_firmware := build_encoded_firmware
-        --firmware_token=firmware_token
-        --device_id=alias_id
-        --organization_id=TEST_ORGANIZATION_UUID
-        --hardware_id=hardware_id
+    encoded-firmware := build-encoded-firmware
+        --firmware-token=firmware-token
+        --device-id=alias-id
+        --organization-id=TEST-ORGANIZATION-UUID
+        --hardware-id=hardware-id
 
-    device_description["encoded_firmware"] = encoded_firmware
+    device-description["encoded_firmware"] = encoded-firmware
 
-    return device_description
+    return device-description
 
   /**
   Ensures that there exists
   */
-  ensure_available_artemis_service
-      --sdk_version=TEST_SDK_VERSION
-      --artemis_version=TEST_ARTEMIS_VERSION:
-    with_tmp_directory: | admin_tmp_dir |
-      admin_config := cli.Config "$admin_tmp_dir/config" (deep_copy_ config.data)
+  ensure-available-artemis-service
+      --sdk-version=TEST-SDK-VERSION
+      --artemis-version=TEST-ARTEMIS-VERSION:
+    with-tmp-directory: | admin-tmp-dir |
+      admin-config := cli.Config "$admin-tmp-dir/config" (deep-copy_ config.data)
       ui := TestUi
-      cli.main --config=admin_config --cache=cache --ui=ui [
+      cli.main --config=admin-config --cache=cache --ui=ui [
             "auth", "login",
-            "--email", ADMIN_EMAIL,
-            "--password", ADMIN_PASSWORD,
+            "--email", ADMIN-EMAIL,
+            "--password", ADMIN-PASSWORD,
           ]
       uploader.main
-          --config=admin_config
+          --config=admin-config
           --cache=cache
           --ui=ui
           [
             "service",
-            "--sdk-version", sdk_version,
-            "--service-version", artemis_version,
+            "--sdk-version", sdk-version,
+            "--service-version", artemis-version,
             "--force",
             "--local"
           ]
 
 abstract class TestDevice:
-  hardware_id/uuid.Uuid
-  alias_id/uuid.Uuid
-  organization_id/uuid.Uuid
+  hardware-id/uuid.Uuid
+  alias-id/uuid.Uuid
+  organization-id/uuid.Uuid
   broker/TestBroker
 
-  constructor --.broker --.hardware_id --.alias_id --.organization_id:
+  constructor --.broker --.hardware-id --.alias-id --.organization-id:
 
   /**
   Closes the test device and releases all broker connections.
@@ -396,12 +396,12 @@ abstract class TestDevice:
   /**
   Clears the output of the device.
   */
-  abstract clear_output -> none
+  abstract clear-output -> none
 
   /**
   Waits for a specific $needle in the output.
   */
-  abstract wait_for needle/string -> none
+  abstract wait-for needle/string -> none
 
   /**
   Waits until the device has connected to the broker.
@@ -409,37 +409,37 @@ abstract class TestDevice:
   Periodically queries the broker to see whether the device has
     reported its state.
   */
-  wait_until_connected --timeout=(Duration --ms=5_000) -> none:
+  wait-until-connected --timeout=(Duration --ms=5_000) -> none:
       // Wait until the device has reported its state.
-      with_timeout timeout:
+      with-timeout timeout:
         while true:
-          state := broker.backdoor.get_state alias_id
+          state := broker.backdoor.get-state alias-id
           // The initial state has the field "identity" in it.
           if not state.contains "identity": break
           sleep --ms=100
 
 class FakeDevice extends TestDevice:
   device_/Device := ?
-  pending_state_/Map? := null
-  goal_state/Map? := null
+  pending-state_/Map? := null
+  goal-state/Map? := null
   network_/net.Client? := ?
 
   constructor
       --broker/TestBroker
-      --hardware_id/uuid.Uuid
-      --alias_id/uuid.Uuid
-      --organization_id/uuid.Uuid
-      --encoded_firmware/string:
+      --hardware-id/uuid.Uuid
+      --alias-id/uuid.Uuid
+      --organization-id/uuid.Uuid
+      --encoded-firmware/string:
     network_ = net.open
-    firmware_state := {
-      "firmware": encoded_firmware
+    firmware-state := {
+      "firmware": encoded-firmware
     }
     device_ = Device
-        --id=alias_id
-        --hardware_id=hardware_id
-        --organization_id=organization_id
-        --firmware_state=firmware_state
-    super --broker=broker --hardware_id=hardware_id --alias_id=alias_id --organization_id=organization_id
+        --id=alias-id
+        --hardware-id=hardware-id
+        --organization-id=organization-id
+        --firmware-state=firmware-state
+    super --broker=broker --hardware-id=hardware-id --alias-id=alias-id --organization-id=organization-id
   close:
     if network_:
       network_.close
@@ -448,213 +448,213 @@ class FakeDevice extends TestDevice:
   output -> string:
     throw "UNIMPLEMENTED"
 
-  clear_output -> none:
+  clear-output -> none:
     throw "UNIMPLEMENTED"
 
-  wait_for needle/string -> none:
+  wait-for needle/string -> none:
     throw "UNIMPLEMENTED"
 
-  wait_until_connected --timeout=(Duration --ms=5_000) -> none:
+  wait-until-connected --timeout=(Duration --ms=5_000) -> none:
     return
 
-  with_broker_connection_ [block]:
-    broker.with_service: | service/BrokerService |
-      broker_connection := service.connect --device=device_ --network=network_
+  with-broker-connection_ [block]:
+    broker.with-service: | service/BrokerService |
+      broker-connection := service.connect --device=device_ --network=network_
       try:
-        block.call broker_connection
+        block.call broker-connection
       finally:
-        broker_connection.close
+        broker-connection.close
 
   /**
   Reports the state to the broker.
 
   Basically a copy of `report_state` of the synchronize library.
   */
-  report_state:
+  report-state:
     state := {
-      "firmware-state": device_.firmware_state,
+      "firmware-state": device_.firmware-state,
     }
-    if device_.pending_firmware:
-      state["pending-firmware"] = device_.pending_firmware
-    if device_.is_current_state_modified:
-      state["current-state"] = device_.current_state
-    if goal_state:
-      state["goal-state"] = goal_state
+    if device_.pending-firmware:
+      state["pending-firmware"] = device_.pending-firmware
+    if device_.is-current-state-modified:
+      state["current-state"] = device_.current-state
+    if goal-state:
+      state["goal-state"] = goal-state
 
-    with_broker_connection_: | broker_connection/BrokerConnection |
-      broker_connection.report_state state
+    with-broker-connection_: | broker-connection/BrokerConnection |
+      broker-connection.report-state state
 
   /**
   Synchronizes with the broker.
   Use $flash to simulate flashing the goal.
   */
   synchronize:
-    with_broker_connection_: | broker_connection/BrokerConnection |
-      goal_state = broker_connection.fetch_goal_state --no-wait
+    with-broker-connection_: | broker-connection/BrokerConnection |
+      goal-state = broker-connection.fetch-goal-state --no-wait
 
   /**
   Simulates flashing the goal state.
   */
   flash:
-    if not goal_state: return
-    pending_state_ = goal_state
-    device_.pending_firmware = pending_state_["firmware"]
+    if not goal-state: return
+    pending-state_ = goal-state
+    device_.pending-firmware = pending-state_["firmware"]
 
   /**
   Simulates a reboot, thus making the pending state the firmware state.
   */
   reboot:
-    if not pending_state_: return
+    if not pending-state_: return
     // We can't change the firmware state (final variable).
     // Replace the whole device object.
     device_ = Device
-        --id=alias_id
-        --hardware_id=hardware_id
-        --organization_id=organization_id
-        --firmware_state=pending_state_
-    if pending_state_ == goal_state:
-      goal_state = null
-    pending_state_ = null
+        --id=alias-id
+        --hardware-id=hardware-id
+        --organization-id=organization-id
+        --firmware-state=pending-state_
+    if pending-state_ == goal-state:
+      goal-state = null
+    pending-state_ = null
 
 class TestDevicePipe extends TestDevice:
   chunks_/List := []  // Of bytearrays.
-  child_process_/any := null
+  child-process_/any := null
   signal_ := monitor.Signal
-  stdout_task_/Task? := null
-  stderr_task_/Task? := null
+  stdout-task_/Task? := null
+  stderr-task_/Task? := null
 
   constructor
       --broker/TestBroker
-      --hardware_id/uuid.Uuid
-      --alias_id/uuid.Uuid
-      --organization_id/uuid.Uuid
-      --encoded_firmware/string
-      --toit_run/string:
+      --hardware-id/uuid.Uuid
+      --alias-id/uuid.Uuid
+      --organization-id/uuid.Uuid
+      --encoded-firmware/string
+      --toit-run/string:
 
-    broker_config_json := broker.server_config.to_json --der_serializer=: unreachable
-    encoded_broker_config := json.stringify broker_config_json
+    broker-config-json := broker.server-config.to-json --der-serializer=: unreachable
+    encoded-broker-config := json.stringify broker-config-json
 
     super
         --broker=broker
-        --hardware_id=hardware_id
-        --alias_id=alias_id
-        --organization_id=organization_id
+        --hardware-id=hardware-id
+        --alias-id=alias-id
+        --organization-id=organization-id
 
     flags := [
       "test_device.toit",
-      "--hardware-id=$hardware_id",
-      "--alias-id=$alias_id",
-      "--organization-id=$organization_id",
-      "--encoded-firmware=$encoded_firmware",
-      "--broker-config-json=$encoded_broker_config",
+      "--hardware-id=$hardware-id",
+      "--alias-id=$alias-id",
+      "--organization-id=$organization-id",
+      "--encoded-firmware=$encoded-firmware",
+      "--broker-config-json=$encoded-broker-config",
     ]
-    fork_ toit_run flags
+    fork_ toit-run flags
 
   constructor
       --broker/TestBroker
-      --hardware_id/uuid.Uuid
-      --alias_id/uuid.Uuid
-      --organization_id/uuid.Uuid
-      --serial_port/string
-      --toit_run/string:
+      --hardware-id/uuid.Uuid
+      --alias-id/uuid.Uuid
+      --organization-id/uuid.Uuid
+      --serial-port/string
+      --toit-run/string:
     super
         --broker=broker
-        --hardware_id=hardware_id
-        --alias_id=alias_id
-        --organization_id=organization_id
+        --hardware-id=hardware-id
+        --alias-id=alias-id
+        --organization-id=organization-id
 
     flags := [
       "test_device_serial.toit",
-      "--port", serial_port
+      "--port", serial-port
     ]
-    fork_ toit_run flags
+    fork_ toit-run flags
 
 
-  fork_ toit_run flags:
-    fork_data := pipe.fork
+  fork_ toit-run flags:
+    fork-data := pipe.fork
         true                // use_path
-        pipe.PIPE_INHERITED // stdin
-        pipe.PIPE_CREATED   // stdout
-        pipe.PIPE_CREATED   // stderr
-        toit_run
-        [toit_run] + flags
-    stdout := fork_data[1]
-    stderr := fork_data[2]
-    child_process_ = fork_data[3]
+        pipe.PIPE-INHERITED // stdin
+        pipe.PIPE-CREATED   // stdout
+        pipe.PIPE-CREATED   // stderr
+        toit-run
+        [toit-run] + flags
+    stdout := fork-data[1]
+    stderr := fork-data[2]
+    child-process_ = fork-data[3]
 
     // We are listening to both stdout and stderr.
     // We expect only one to be really used. Otherwise, looking for
     // specific strings in the output might not work, as the stdout and
     // stderr could be interleaved.
 
-    stdout_task_ = task --background::
+    stdout-task_ = task --background::
       catch --trace:
         while chunk := stdout.read:
           chunks_.add chunk
-          print_on_stderr_ "STDOUT: $chunk.to_string_non_throwing"
+          print-on-stderr_ "STDOUT: $chunk.to-string-non-throwing"
           signal_.raise
 
-    stderr_task_ = task --background::
+    stderr-task_ = task --background::
       catch --trace:
         while chunk := stderr.read:
           chunks_.add chunk
-          print_on_stderr_ "STDERR: $chunk.to_string_non_throwing"
+          print-on-stderr_ "STDERR: $chunk.to-string-non-throwing"
           signal_.raise
 
   close:
-    critical_do:
-      if stdout_task_:
-        stdout_task_.cancel
-        stdout_task_ = null
-      if stderr_task_:
-        stderr_task_.cancel
-        stderr_task_ = null
-      if child_process_:
+    critical-do:
+      if stdout-task_:
+        stdout-task_.cancel
+        stdout-task_ = null
+      if stderr-task_:
+        stderr-task_.cancel
+        stderr-task_ = null
+      if child-process_:
         SIGKILL ::= 9
-        pipe.kill_ child_process_ SIGKILL
-        child_process_ = null
+        pipe.kill_ child-process_ SIGKILL
+        child-process_ = null
 
-  build_string_from_output_ --from/int -> string:
+  build-string-from-output_ --from/int -> string:
     input := chunks_[from..]
-    total_size := input.reduce --initial=0: | a b/ByteArray | a + b.size
-    buffer := ByteArray total_size
+    total-size := input.reduce --initial=0: | a b/ByteArray | a + b.size
+    buffer := ByteArray total-size
     offset := 0
     input.do: | chunk/ByteArray |
       buffer.replace offset chunk
       offset += chunk.size
-    return buffer.to_string_non_throwing
+    return buffer.to-string-non-throwing
 
   output -> string:
-    return build_string_from_output_ --from=0
+    return build-string-from-output_ --from=0
 
-  clear_output -> none:
+  clear-output -> none:
     chunks_ = []
 
-  wait_for needle/string -> none:
-    last_end := 0
+  wait-for needle/string -> none:
+    last-end := 0
     signal_.wait:
-      if chunks_.is_empty: continue.wait false
+      if chunks_.is-empty: continue.wait false
 
-      start_index := chunks_.size - 1
-      accumulated_size := chunks_[start_index].size
+      start-index := chunks_.size - 1
+      accumulated-size := chunks_[start-index].size
 
       // The string we are looking for could have been split at the
       // boundary of this and the previous chunk.
-      if start_index > 0:
-        start_index--
-        accumulated_size += chunks_[start_index].size
+      if start-index > 0:
+        start-index--
+        accumulated-size += chunks_[start-index].size
 
       // Continue adding prefixes, if the needle is bigger than the
       // accumulated string.
-      while start_index > 0 and  accumulated_size < needle.size:
-        start_index--
-        accumulated_size += chunks_[start_index].size
+      while start-index > 0 and  accumulated-size < needle.size:
+        start-index--
+        accumulated-size += chunks_[start-index].size
 
-      start_index = min last_end start_index
+      start-index = min last-end start-index
 
-      if accumulated_size >= needle.size:
-        last_end = chunks_.size
-        str := build_string_from_output_ --from=start_index
+      if accumulated-size >= needle.size:
+        last-end = chunks_.size
+        str := build-string-from-output_ --from=start-index
         str.contains needle
       else:
         false
@@ -670,267 +670,267 @@ If the type is supabase, uses the running supabase instances. Otherwise,
 If the $args parameter contains a '--toit-run=...' argument, it is
   used to launch devices.
 */
-with_test_cli
+with-test-cli
     --args/List
-    --artemis_type=(server_type_from_args args)
-    --broker_type=(broker_type_from_args args)
+    --artemis-type=(server-type-from-args args)
+    --broker-type=(broker-type-from-args args)
     --logger/log.Logger=log.default
-    --gold_name/string?=null
+    --gold-name/string?=null
     [block]:
-  with_artemis_server --args=args --type=artemis_type: | artemis_server |
-    with_test_cli
-        --artemis_server=artemis_server
-        broker_type
+  with-artemis-server --args=args --type=artemis-type: | artemis-server |
+    with-test-cli
+        --artemis-server=artemis-server
+        broker-type
         --logger=logger
         --args=args
-        --gold_name=gold_name
+        --gold-name=gold-name
         block
 
-with_test_cli
-    --artemis_server/TestArtemisServer
-    broker_type
+with-test-cli
+    --artemis-server/TestArtemisServer
+    broker-type
     --logger/log.Logger
     --args/List
-    --gold_name/string?
+    --gold-name/string?
     [block]:
-  with_broker --args=args --type=broker_type --logger=logger: | broker/TestBroker |
-    with_test_cli
-        --artemis_server=artemis_server
+  with-broker --args=args --type=broker-type --logger=logger: | broker/TestBroker |
+    with-test-cli
+        --artemis-server=artemis-server
         --broker=broker
         --logger=logger
         --args=args
-        --gold_name=gold_name
+        --gold-name=gold-name
         block
 
-with_test_cli
-    --artemis_server/TestArtemisServer
+with-test-cli
+    --artemis-server/TestArtemisServer
     --broker/TestBroker
     --logger/log.Logger
     --args/List
-    --gold_name/string?
+    --gold-name/string?
     [block]:
 
   // Use 'toit.run' (or 'toit.run.exe' on Windows), unless there is an
   // argument `--toit-run=...`.
-  toit_run := platform == PLATFORM_WINDOWS ? "toit.run.exe" : "toit.run"
+  toit-run := platform == PLATFORM-WINDOWS ? "toit.run.exe" : "toit.run"
   prefix := "--toit-run="
   for i := 0; i < args.size; i++:
     arg := args[i]
-    if arg.starts_with prefix:
-      toit_run = arg[prefix.size..]
+    if arg.starts-with prefix:
+      toit-run = arg[prefix.size..]
       break  // Use the first occurrence.
 
-  with_tmp_directory: | tmp_dir |
-    config_file := "$tmp_dir/config"
-    config := cli.read_config_file config_file --init=: it
-    cache_dir := "$tmp_dir/CACHE"
-    directory.mkdir cache_dir
-    cache := cli.Cache --app_name="artemis-test" --path=cache_dir
+  with-tmp-directory: | tmp-dir |
+    config-file := "$tmp-dir/config"
+    config := cli.read-config-file config-file --init=: it
+    cache-dir := "$tmp-dir/CACHE"
+    directory.mkdir cache-dir
+    cache := cli.Cache --app-name="artemis-test" --path=cache-dir
 
-    SDK_VERSION_OPTION ::= "--sdk-version="
-    SDK_PATH_OPTION ::= "--sdk-path="
-    ENVELOPE_PATH_OPTION ::= "--envelope-path="
+    SDK-VERSION-OPTION ::= "--sdk-version="
+    SDK-PATH-OPTION ::= "--sdk-path="
+    ENVELOPE-PATH-OPTION ::= "--envelope-path="
 
-    sdk_version := "v0.0.0"
-    sdk_path/string? := null
-    envelope_path/string? := null
+    sdk-version := "v0.0.0"
+    sdk-path/string? := null
+    envelope-path/string? := null
     args.do: | arg/string |
-      if arg.starts_with SDK_VERSION_OPTION:
-        sdk_version = arg[SDK_VERSION_OPTION.size ..]
-      else if arg.starts_with SDK_PATH_OPTION:
-        sdk_path = arg[SDK_PATH_OPTION.size ..]
-      else if arg.starts_with ENVELOPE_PATH_OPTION:
-        envelope_path = arg[ENVELOPE_PATH_OPTION.size ..]
+      if arg.starts-with SDK-VERSION-OPTION:
+        sdk-version = arg[SDK-VERSION-OPTION.size ..]
+      else if arg.starts-with SDK-PATH-OPTION:
+        sdk-path = arg[SDK-PATH-OPTION.size ..]
+      else if arg.starts-with ENVELOPE-PATH-OPTION:
+        envelope-path = arg[ENVELOPE-PATH-OPTION.size ..]
 
-    if sdk_version == "" or sdk_path == null or envelope_path == null:
+    if sdk-version == "" or sdk-path == null or envelope-path == null:
       print "Missing SDK version, SDK path or envelope path."
       exit 1
-    TEST_SDK_VERSION = sdk_version
+    TEST-SDK-VERSION = sdk-version
 
     // Prefill the cache with the Dev SDK from the Makefile.
-    sdk_key := "$artemis_cache.SDK_PATH/$sdk_version"
-    cache.get_directory_path sdk_key: | store/cli.DirectoryStore |
-      store.copy sdk_path
+    sdk-key := "$artemis-cache.SDK-PATH/$sdk-version"
+    cache.get-directory-path sdk-key: | store/cli.DirectoryStore |
+      store.copy sdk-path
 
-    envelope_key := "$artemis_cache.ENVELOPE_PATH/$sdk_version/firmware-esp32.envelope"
-    cache.get_file_path envelope_key: | store/cli.FileStore |
-      store.copy envelope_path
+    envelope-key := "$artemis-cache.ENVELOPE-PATH/$sdk-version/firmware-esp32.envelope"
+    cache.get-file-path envelope-key: | store/cli.FileStore |
+      store.copy envelope-path
 
-    artemis_config := artemis_server.server_config
-    broker_config := broker.server_config
-    cli_server_config.add_server_to_config config artemis_config
-    cli_server_config.add_server_to_config config broker_config
+    artemis-config := artemis-server.server-config
+    broker-config := broker.server-config
+    cli-server-config.add-server-to-config config artemis-config
+    cli-server-config.add-server-to-config config broker-config
 
-    artemis_task/Task? := null
+    artemis-task/Task? := null
 
-    if not gold_name:
-      toit_file := program_name
-      last_separator := max (toit_file.index_of --last "/") (toit_file.index_of --last "\\")
-      gold_name = program_name[last_separator + 1 ..].trim --right ".toit"
-      gold_name = gold_name.trim --right "_slow"
+    if not gold-name:
+      toit-file := program-name
+      last-separator := max (toit-file.index-of --last "/") (toit-file.index-of --last "\\")
+      gold-name = program-name[last-separator + 1 ..].trim --right ".toit"
+      gold-name = gold-name.trim --right "_slow"
 
-    test_cli := TestCli config cache artemis_server broker
-        --toit_run=toit_run
-        --gold_name=gold_name
-        --sdk_version=sdk_version
-        --tmp_dir=tmp_dir
+    test-cli := TestCli config cache artemis-server broker
+        --toit-run=toit-run
+        --gold-name=gold-name
+        --sdk-version=sdk-version
+        --tmp-dir=tmp-dir
 
-    test_cli.replacements[tmp_dir] = "TMP_DIR"
-    test_cli.replacements[TEST_SDK_VERSION] = "TEST_SDK_VERSION"
-    test_cli.replacements[TEST_ARTEMIS_VERSION] = "TEST_ARTEMIS_VERSION"
+    test-cli.replacements[tmp-dir] = "TMP_DIR"
+    test-cli.replacements[TEST-SDK-VERSION] = "TEST_SDK_VERSION"
+    test-cli.replacements[TEST-ARTEMIS-VERSION] = "TEST_ARTEMIS_VERSION"
 
     try:
-      test_cli.run ["config", "broker", "--artemis", "default", artemis_config.name]
-      test_cli.run ["config", "broker", "default", broker_config.name]
-      block.call test_cli
+      test-cli.run ["config", "broker", "--artemis", "default", artemis-config.name]
+      test-cli.run ["config", "broker", "default", broker-config.name]
+      block.call test-cli
     finally:
-      test_cli.close
-      if artemis_task: artemis_task.cancel
-      directory.rmdir --recursive cache_dir
+      test-cli.close
+      if artemis-task: artemis-task.cancel
+      directory.rmdir --recursive cache-dir
 
-build_encoded_firmware -> string
-    --device_id/uuid.Uuid
-    --organization_id/uuid.Uuid=TEST_ORGANIZATION_UUID
-    --hardware_id/uuid.Uuid=device_id
-    --firmware_token/ByteArray=#[random 256, random 256, random 256, random 256]
-    --sdk_version/string=TEST_SDK_VERSION
-    --pod_id/uuid.Uuid=TEST_POD_UUID:
-  device_specific := ubjson.encode {
+build-encoded-firmware -> string
+    --device-id/uuid.Uuid
+    --organization-id/uuid.Uuid=TEST-ORGANIZATION-UUID
+    --hardware-id/uuid.Uuid=device-id
+    --firmware-token/ByteArray=#[random 256, random 256, random 256, random 256]
+    --sdk-version/string=TEST-SDK-VERSION
+    --pod-id/uuid.Uuid=TEST-POD-UUID:
+  device-specific := ubjson.encode {
     "artemis.device": {
-      "device_id": "$device_id",
-      "organization_id": "$organization_id",
-      "hardware_id": "$hardware_id",
+      "device_id": "$device-id",
+      "organization_id": "$organization-id",
+      "hardware_id": "$hardware-id",
     },
     "parts": ubjson.encode [{
       "from": 0,
       "to": 10,
-      "hash": firmware_token,
+      "hash": firmware-token,
     }],
-    "sdk-version": sdk_version,
-    "pod-id": pod_id.to_byte_array
+    "sdk-version": sdk-version,
+    "pod-id": pod-id.to-byte-array
   }
   return base64.encode (ubjson.encode {
-    "device-specific": device_specific,
+    "device-specific": device-specific,
     "checksum": #[],
   })
 
-build_encoded_firmware -> string
+build-encoded-firmware -> string
     --device/Device
-    --sdk_version/string?=null
-    --pod_id/uuid.Uuid?=null:
-  return build_encoded_firmware
-      --device_id=device.id
-      --organization_id=device.organization_id
-      --hardware_id=device.hardware_id
-      --sdk_version=sdk_version
-      --pod_id=pod_id
+    --sdk-version/string?=null
+    --pod-id/uuid.Uuid?=null:
+  return build-encoded-firmware
+      --device-id=device.id
+      --organization-id=device.organization-id
+      --hardware-id=device.hardware-id
+      --sdk-version=sdk-version
+      --pod-id=pod-id
 
-server_type_from_args args/List:
+server-type-from-args args/List:
   args.do: | arg |
-    if not arg.ends_with "-server": continue.do
+    if not arg.ends-with "-server": continue.do
     return arg[2..].trim --right "-server"
   return "http"
 
-broker_type_from_args args/List:
+broker-type-from-args args/List:
   args.do: | arg |
-    if not arg.ends_with "-broker": continue.do
+    if not arg.ends-with "-broker": continue.do
     return arg[2..].trim --right "-broker"
   return "http"
 
-random_uuid -> uuid.Uuid:
-  return uuid.uuid5 "random" "uuid $Time.now.ns_since_epoch $random"
+random-uuid -> uuid.Uuid:
+  return uuid.uuid5 "random" "uuid $Time.now.ns-since-epoch $random"
 
-with_fleet --args/List --count/int [block]:
-  with_test_cli --args=args: | test_cli/TestCli |
-    with_tmp_directory: | fleet_dir |
-      os.env["ARTEMIS_FLEET_ROOT"] = fleet_dir
+with-fleet --args/List --count/int [block]:
+  with-test-cli --args=args: | test-cli/TestCli |
+    with-tmp-directory: | fleet-dir |
+      os.env["ARTEMIS_FLEET_ROOT"] = fleet-dir
 
-      test_cli.replacements[fleet_dir] = "<FLEET_ROOT>"
-      test_cli.run [
+      test-cli.replacements[fleet-dir] = "<FLEET_ROOT>"
+      test-cli.run [
         "auth", "login",
-        "--email", TEST_EXAMPLE_COM_EMAIL,
-        "--password", TEST_EXAMPLE_COM_PASSWORD,
+        "--email", TEST-EXAMPLE-COM-EMAIL,
+        "--password", TEST-EXAMPLE-COM-PASSWORD,
       ]
 
-      test_cli.run [
+      test-cli.run [
         "auth", "login",
         "--broker",
-        "--email", TEST_EXAMPLE_COM_EMAIL,
-        "--password", TEST_EXAMPLE_COM_PASSWORD,
+        "--email", TEST-EXAMPLE-COM-EMAIL,
+        "--password", TEST-EXAMPLE-COM-PASSWORD,
       ]
 
-      test_cli.run [
+      test-cli.run [
         "fleet",
         "init",
-        "--organization-id", "$TEST_ORGANIZATION_UUID",
+        "--organization-id", "$TEST-ORGANIZATION-UUID",
       ]
 
-      fleet_file := read_json "$fleet_dir/fleet.json"
-      test_cli.replacements[fleet_file["id"]] = pad_replacement_id "FLEET_ID"
+      fleet-file := read-json "$fleet-dir/fleet.json"
+      test-cli.replacements[fleet-file["id"]] = pad-replacement-id "FLEET_ID"
 
-      identity_dir := "$fleet_dir/identities"
-      directory.mkdir --recursive identity_dir
-      test_cli.run [
+      identity-dir := "$fleet-dir/identities"
+      directory.mkdir --recursive identity-dir
+      test-cli.run [
         "fleet",
         "create-identities",
-        "--output-directory", identity_dir,
+        "--output-directory", identity-dir,
         "$count",
       ]
 
-      devices := read_json "$fleet_dir/devices.json"
+      devices := read-json "$fleet-dir/devices.json"
       // Replace the names with something deterministic.
       counter := 0
       devices.do: | _ device |
         device["name"] = "name-$(counter++)"
-      write_json_to_file "$fleet_dir/devices.json" devices --pretty
+      write-json-to-file "$fleet-dir/devices.json" devices --pretty
 
       ids := devices.keys
-      expect_equals count ids.size
+      expect-equals count ids.size
 
-      fake_devices := []
+      fake-devices := []
       ids.do: | id/string |
-        id_file := "$identity_dir/$(id).identity"
-        expect (file.is_file id_file)
-        content := read_base64_ubjson id_file
-        fake_device := test_cli.start_fake_device --identity=content
-        test_cli.replacements[id] = "-={| UUID-FOR-FAKE-DEVICE $(%05d fake_devices.size) |}=-"
-        fake_devices.add fake_device
+        id-file := "$identity-dir/$(id).identity"
+        expect (file.is-file id-file)
+        content := read-base64-ubjson id-file
+        fake-device := test-cli.start-fake-device --identity=content
+        test-cli.replacements[id] = "-={| UUID-FOR-FAKE-DEVICE $(%05d fake-devices.size) |}=-"
+        fake-devices.add fake-device
 
-      block.call test_cli fake_devices fleet_dir
+      block.call test-cli fake-devices fleet-dir
 
-expect_throws [--check_exception] [block]:
+expect-throws [--check-exception] [block]:
   exception := catch: block.call
-  expect_not_null exception
-  expect (check_exception.call exception)
+  expect-not-null exception
+  expect (check-exception.call exception)
 
-expect_throws --contains/string [block]:
-  expect_throws --check_exception=(: it.contains contains) block
+expect-throws --contains/string [block]:
+  expect-throws --check-exception=(: it.contains contains) block
 
-deep_copy_ o/any -> any:
+deep-copy_ o/any -> any:
   if o is Map:
-    return o.map: | _ value | deep_copy_ value
+    return o.map: | _ value | deep-copy_ value
   if o is List:
-    return o.map: deep_copy_ it
+    return o.map: deep-copy_ it
   return o
 
 /**
 Takes a string 'str' and returns a string that can be used as a replacement
   for an ID. That is, it has the same length as a UUID, and is visibly a UUID.
 */
-pad_replacement_id str/string -> string:
+pad-replacement-id str/string -> string:
   prefix := "-={|"
   suffix := "|}=-"
-  total_chars := prefix.size + suffix.size + str.size
-  padding := 36 - total_chars
+  total-chars := prefix.size + suffix.size + str.size
+  padding := 36 - total-chars
   if padding < 0: throw "Replacement string too long: $str"
-  left_padding := padding / 2
-  right_padding := padding - left_padding
-  return "$prefix$("~" * left_padding)$str$("~" * right_padding)$suffix"
+  left-padding := padding / 2
+  right-padding := padding - left-padding
+  return "$prefix$("~" * left-padding)$str$("~" * right-padding)$suffix"
 
-check_resource_lock --args/List lock_type/string:
+check-resource-lock --args/List lock-type/string:
   args.do:
-    if it.starts_with "--resource-locks=":
-      resource_locks := it["--resource-locks=".size..].split ";"
-      expect (resource_locks.contains lock_type)
+    if it.starts-with "--resource-locks=":
+      resource-locks := it["--resource-locks=".size..].split ";"
+      expect (resource-locks.contains lock-type)
       return
-  throw "Expected --resource-locks=$lock_type"
+  throw "Expected --resource-locks=$lock-type"

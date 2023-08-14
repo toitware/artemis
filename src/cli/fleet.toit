@@ -12,14 +12,14 @@ import .device
 import .event
 import .firmware
 import .pod
-import .pod_specification
-import .pod_registry
+import .pod-specification
+import .pod-registry
 import .ui
 import .utils
 import .utils.names
-import ..shared.json_diff
+import ..shared.json-diff
 
-DEFAULT_GROUP ::= "default"
+DEFAULT-GROUP ::= "default"
 
 class DeviceFleet:
   id/uuid.Uuid
@@ -30,10 +30,10 @@ class DeviceFleet:
   constructor
       --.id
       --.group
-      --.name=(random_name --uuid=id)
+      --.name=(random-name --uuid=id)
       --.aliases=[]:
 
-  short_string -> string:
+  short-string -> string:
     if name: return "$id ($name)"
     return "$id"
 
@@ -44,9 +44,9 @@ class DeviceFleet:
         --name=name
         --aliases=aliases
 
-  compare_to other/DeviceFleet -> int:
-    bytes1 := id.to_byte_array
-    bytes2 := other.id.to_byte_array
+  compare-to other/DeviceFleet -> int:
+    bytes1 := id.to-byte-array
+    bytes2 := other.id.to-byte-array
     for i := 0; i < bytes1.size; i++:
       if bytes1[i] < bytes2[i]: return -1
       if bytes1[i] > bytes2[i]: return 1
@@ -61,79 +61,79 @@ class PodFleet:
   constructor --.id --.name --.revision --.tags:
 
 class Status_:
-  static CHECKIN_VERIFICATION_COUNT ::= 5
-  static UNKNOWN_MISSED_CHECKINS ::= -1
-  never_seen/bool
-  last_seen/Time?
-  is_fully_updated/bool
-  /** Number of missed checkins out of $CHECKIN_VERIFICATION_COUNT. */
-  missed_checkins/int
-  is_modified/bool
+  static CHECKIN-VERIFICATION-COUNT ::= 5
+  static UNKNOWN-MISSED-CHECKINS ::= -1
+  never-seen/bool
+  last-seen/Time?
+  is-fully-updated/bool
+  /** Number of missed checkins out of $CHECKIN-VERIFICATION-COUNT. */
+  missed-checkins/int
+  is-modified/bool
 
-  constructor --.never_seen --.is_fully_updated --.missed_checkins --.last_seen --.is_modified:
+  constructor --.never-seen --.is-fully-updated --.missed-checkins --.last-seen --.is-modified:
 
-  is_healthy -> bool:
-    return is_fully_updated and missed_checkins == 0
+  is-healthy -> bool:
+    return is-fully-updated and missed-checkins == 0
 
 class FleetFile:
   path/string
   id/uuid.Uuid
-  organization_id/uuid.Uuid
-  group_pods/Map
+  organization-id/uuid.Uuid
+  group-pods/Map
 
-  constructor --.path --.id --.organization_id --.group_pods:
+  constructor --.path --.id --.organization-id --.group-pods:
 
   static parse path/string --ui/Ui -> FleetFile:
-    fleet_content := null
-    exception := catch: fleet_content = read_json path
+    fleet-content := null
+    exception := catch: fleet-content = read-json path
     if exception:
       ui.error "Fleet file $path is not a valid JSON."
       ui.error exception.message
       ui.abort
-    if fleet_content is not Map:
+    if fleet-content is not Map:
       ui.abort "Fleet file $path has invalid format."
-    if not fleet_content.contains "id":
+    if not fleet-content.contains "id":
       ui.abort "Fleet file $path does not contain an ID."
-    if not fleet_content.contains "organization":
+    if not fleet-content.contains "organization":
       ui.abort "Fleet file $path does not contain an organization ID."
 
-    group_entry := fleet_content.get "groups"
-    if not group_entry:
+    group-entry := fleet-content.get "groups"
+    if not group-entry:
       ui.abort "Fleet file $path does not contain a 'groups' entry."
-    if group_entry is not Map:
+    if group-entry is not Map:
       ui.abort "Fleet file $path has invalid format for 'groups'."
-    group_pods := (group_entry as Map).map: | group_name/string entry |
+    group-pods := (group-entry as Map).map: | group-name/string entry |
       if entry is not Map:
-        ui.abort "Fleet file $path has invalid format for group '$group_name'."
+        ui.abort "Fleet file $path has invalid format for group '$group-name'."
       if not entry.contains "pod":
-        ui.abort "Fleet file $path does not contain a 'pod' entry for group '$group_name'."
+        ui.abort "Fleet file $path does not contain a 'pod' entry for group '$group-name'."
       if entry["pod"] is not string:
-        ui.abort "Fleet file $path has invalid format for 'pod' in group '$group_name'."
+        ui.abort "Fleet file $path has invalid format for 'pod' in group '$group-name'."
       PodReference.parse entry["pod"] --ui=ui
 
     return FleetFile
         --path=path
-        --id=uuid.parse fleet_content["id"]
-        --organization_id=uuid.parse fleet_content["organization"]
-        --group_pods=group_pods
+        --id=uuid.parse fleet-content["id"]
+        --organization-id=uuid.parse fleet-content["organization"]
+        --group-pods=group-pods
 
   write -> none:
     groups := {:}
-    sorted_keys := group_pods.keys.sort
+    sorted-keys := group-pods.keys.sort
 
     // Write the default group at the top.
-    if group_pods.contains DEFAULT_GROUP:
-      groups[DEFAULT_GROUP] = {
-        "pod": group_pods[DEFAULT_GROUP].to_string
+    if group-pods.contains DEFAULT-GROUP:
+      groups[DEFAULT-GROUP] = {
+        "pod": group-pods[DEFAULT-GROUP].to-string
       }
-    sorted_keys.do: | group_name |
-      if group_name == DEFAULT_GROUP: continue.do
-      groups[group_name] = {
-        "pod": group_pods[group_name].to_string
+    sorted-keys.do: | group-name |
+      if group-name == DEFAULT-GROUP: continue.do
+      groups[group-name] = {
+        "pod": group-pods[group-name].to-string
       }
-    write_json_to_file --pretty path {
+    write-json-to-file --pretty path {
       "id": "$id",
-      "organization": "$organization_id",
+      "organization": "$organization-id",
       "groups": groups,
     }
 
@@ -144,53 +144,53 @@ class DevicesFile:
   constructor .path .devices:
 
   static parse path/string --ui/Ui -> DevicesFile:
-    encoded_devices := null
-    exception := catch: encoded_devices = read_json path
+    encoded-devices := null
+    exception := catch: encoded-devices = read-json path
     if exception:
       ui.error "Fleet file $path is not a valid JSON."
       ui.error exception.message
       ui.abort
-    if encoded_devices is not Map:
+    if encoded-devices is not Map:
       ui.abort "Fleet file $path has invalid format."
 
     devices := []
-    encoded_devices.do: | device_id encoded_device |
-      if encoded_device is not Map:
-        ui.abort "Fleet file $path has invalid format for device ID $device_id."
+    encoded-devices.do: | device-id encoded-device |
+      if encoded-device is not Map:
+        ui.abort "Fleet file $path has invalid format for device ID $device-id."
       exception = catch:
         device := DeviceFleet
-            --id=uuid.parse device_id
-            --name=encoded_device.get "name"
-            --aliases=encoded_device.get "aliases"
-            --group=(encoded_device.get "group") or DEFAULT_GROUP
+            --id=uuid.parse device-id
+            --name=encoded-device.get "name"
+            --aliases=encoded-device.get "aliases"
+            --group=(encoded-device.get "group") or DEFAULT-GROUP
         devices.add device
       if exception:
-        ui.error "Fleet file $path has invalid format for device ID $device_id."
+        ui.error "Fleet file $path has invalid format for device ID $device-id."
         ui.error exception.message
         ui.abort
 
     return DevicesFile path devices
 
-  check_groups fleet_file/FleetFile --ui/Ui:
+  check-groups fleet-file/FleetFile --ui/Ui:
     devices.do: | device/DeviceFleet |
-      if not fleet_file.group_pods.contains device.group:
-        ui.abort "Device $device.short_string is in group '$device.group' which doesn't exist."
+      if not fleet-file.group-pods.contains device.group:
+        ui.abort "Device $device.short-string is in group '$device.group' which doesn't exist."
 
   write -> none:
-    sorted_devices := devices.sort: | a/DeviceFleet b/DeviceFleet | a.compare_to b
-    encoded_devices := {:}
-    sorted_devices.do: | device/DeviceFleet |
+    sorted-devices := devices.sort: | a/DeviceFleet b/DeviceFleet | a.compare-to b
+    encoded-devices := {:}
+    sorted-devices.do: | device/DeviceFleet |
       entry := {:}
       if device.name: entry["name"] = device.name
-      if not device.aliases.is_empty: entry["aliases"] = device.aliases
+      if not device.aliases.is-empty: entry["aliases"] = device.aliases
       group := device.group
-      if group != DEFAULT_GROUP: entry["group"] = group
-      encoded_devices["$device.id"] = entry
-    write_json_to_file --pretty path encoded_devices
+      if group != DEFAULT-GROUP: entry["group"] = group
+      encoded-devices["$device.id"] = entry
+    write-json-to-file --pretty path encoded-devices
 
 class Fleet:
-  static DEVICES_FILE_ ::= "devices.json"
-  static FLEET_FILE_ ::= "fleet.json"
+  static DEVICES-FILE_ ::= "devices.json"
+  static FLEET-FILE_ ::= "fleet.json"
   /** Signal that an alias is ambiguous. */
   static AMBIGUOUS_ ::= -1
 
@@ -198,87 +198,87 @@ class Fleet:
   artemis_/Artemis
   ui_/Ui
   cache_/Cache
-  fleet_root_/string
+  fleet-root_/string
   devices_/List
-  organization_id/uuid.Uuid
+  organization-id/uuid.Uuid
   /** A map from group-name to $PodReference. */
-  group_pods_/Map
+  group-pods_/Map
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
-  constructor .fleet_root_ .artemis_ --ui/Ui --cache/Cache --config/Config:
+  constructor .fleet-root_ .artemis_ --ui/Ui --cache/Cache --config/Config:
     ui_ = ui
     cache_ = cache
-    fleet_file := load_fleet_file fleet_root_ --ui=ui_
-    devices_file := load_devices_file fleet_root_ --ui=ui_
-    devices_file.check_groups fleet_file --ui=ui_
+    fleet-file := load-fleet-file fleet-root_ --ui=ui_
+    devices-file := load-devices-file fleet-root_ --ui=ui_
+    devices-file.check-groups fleet-file --ui=ui_
 
-    id = fleet_file.id
-    organization_id = fleet_file.organization_id
-    group_pods_ = fleet_file.group_pods
-    devices_ = devices_file.devices
-    aliases_ = build_alias_map_ devices_ ui
+    id = fleet-file.id
+    organization-id = fleet-file.organization-id
+    group-pods_ = fleet-file.group-pods
+    devices_ = devices-file.devices
+    aliases_ = build-alias-map_ devices_ ui
 
     // TODO(florian): should we always do this check?
-    org := artemis_.connected_artemis_server.get_organization organization_id
+    org := artemis_.connected-artemis-server.get-organization organization-id
     if not org:
-      ui.abort "Organization $organization_id does not exist or is not accessible."
+      ui.abort "Organization $organization-id does not exist or is not accessible."
 
-  static init fleet_root/string artemis/Artemis --organization_id/uuid.Uuid --ui/Ui:
-    if not file.is_directory fleet_root:
-      ui.abort "Fleet root $fleet_root is not a directory."
+  static init fleet-root/string artemis/Artemis --organization-id/uuid.Uuid --ui/Ui:
+    if not file.is-directory fleet-root:
+      ui.abort "Fleet root $fleet-root is not a directory."
 
-    if file.is_file "$fleet_root/$FLEET_FILE_":
-      ui.abort "Fleet root $fleet_root already contains a $FLEET_FILE_ file."
+    if file.is-file "$fleet-root/$FLEET-FILE_":
+      ui.abort "Fleet root $fleet-root already contains a $FLEET-FILE_ file."
 
-    if file.is_file "$fleet_root/$DEVICES_FILE_":
-      ui.abort "Fleet root $fleet_root already contains a $DEVICES_FILE_ file."
+    if file.is-file "$fleet-root/$DEVICES-FILE_":
+      ui.abort "Fleet root $fleet-root already contains a $DEVICES-FILE_ file."
 
-    org := artemis.connected_artemis_server.get_organization organization_id
+    org := artemis.connected-artemis-server.get-organization organization-id
     if not org:
-      ui.abort "Organization $organization_id does not exist or is not accessible."
+      ui.abort "Organization $organization-id does not exist or is not accessible."
 
-    write_json_to_file --pretty "$fleet_root/$FLEET_FILE_" {
-      "id": "$random_uuid",
-      "organization": "$organization_id",
+    write-json-to-file --pretty "$fleet-root/$FLEET-FILE_" {
+      "id": "$random-uuid",
+      "organization": "$organization-id",
       "groups": {
-        DEFAULT_GROUP: {
-          "pod": "$INITIAL_POD_NAME@latest",
+        DEFAULT-GROUP: {
+          "pod": "$INITIAL-POD-NAME@latest",
         },
       }
     }
-    write_json_to_file --pretty "$fleet_root/$DEVICES_FILE_" {:}
+    write-json-to-file --pretty "$fleet-root/$DEVICES-FILE_" {:}
 
-    default_specification_path := "$fleet_root/$(INITIAL_POD_NAME).json"
-    if not file.is_file default_specification_path:
-      write_json_to_file --pretty default_specification_path INITIAL_POD_SPECIFICATION
+    default-specification-path := "$fleet-root/$(INITIAL-POD-NAME).json"
+    if not file.is-file default-specification-path:
+      write-json-to-file --pretty default-specification-path INITIAL-POD-SPECIFICATION
 
-    ui.info "Fleet root $fleet_root initialized."
+    ui.info "Fleet root $fleet-root initialized."
 
-  static load_fleet_file fleet_root/string --ui/Ui -> FleetFile:
-    if not file.is_directory fleet_root:
-      ui.abort "Fleet root $fleet_root is not a directory."
-    fleet_path := "$fleet_root/$FLEET_FILE_"
-    if not file.is_file fleet_path:
-      ui.error "Fleet root $fleet_root does not contain a $FLEET_FILE_ file."
+  static load-fleet-file fleet-root/string --ui/Ui -> FleetFile:
+    if not file.is-directory fleet-root:
+      ui.abort "Fleet root $fleet-root is not a directory."
+    fleet-path := "$fleet-root/$FLEET-FILE_"
+    if not file.is-file fleet-path:
+      ui.error "Fleet root $fleet-root does not contain a $FLEET-FILE_ file."
       ui.error "Use 'init' to initialize a fleet root."
       ui.abort
 
-    return FleetFile.parse fleet_path --ui=ui
+    return FleetFile.parse fleet-path --ui=ui
 
-  static load_devices_file fleet_root/string --ui/Ui -> DevicesFile:
-    if not file.is_directory fleet_root:
-      ui.abort "Fleet root $fleet_root is not a directory."
-    devices_path := "$fleet_root/$DEVICES_FILE_"
-    if not file.is_file devices_path:
-      ui.error "Fleet root $fleet_root does not contain a $DEVICES_FILE_ file."
+  static load-devices-file fleet-root/string --ui/Ui -> DevicesFile:
+    if not file.is-directory fleet-root:
+      ui.abort "Fleet root $fleet-root is not a directory."
+    devices-path := "$fleet-root/$DEVICES-FILE_"
+    if not file.is-file devices-path:
+      ui.error "Fleet root $fleet-root does not contain a $DEVICES-FILE_ file."
       ui.error "Use 'init' to initialize a fleet root."
       ui.abort
 
-    return DevicesFile.parse devices_path --ui=ui
+    return DevicesFile.parse devices-path --ui=ui
 
-  write_devices_ -> none:
-    file := DevicesFile "$fleet_root_/$DEVICES_FILE_" devices_
+  write-devices_ -> none:
+    file := DevicesFile "$fleet-root_/$DEVICES-FILE_" devices_
     file.write
 
   /**
@@ -288,37 +288,37 @@ class Fleet:
     designators. This function builds a map for these and warns the
     user if any of them is ambiguous.
   */
-  static build_alias_map_ devices/List ui/Ui -> Map:
+  static build-alias-map_ devices/List ui/Ui -> Map:
     result := {:}
-    ambiguous_ids := {:}
+    ambiguous-ids := {:}
     devices.size.repeat: | index/int |
       device/DeviceFleet := devices[index]
-      add_alias := : | id/string |
+      add-alias := : | id/string |
         if result.contains id:
           old := result[id]
           if old == index:
             // The name, device-id or alias appears twice for the same
             // device. Not best practice, but not ambiguous.
-            continue.add_alias
+            continue.add-alias
 
           if old == AMBIGUOUS_:
-            ambiguous_ids[id].add index
+            ambiguous-ids[id].add index
           else:
-            ambiguous_ids[id] = [old, index]
+            ambiguous-ids[id] = [old, index]
             result[id] = AMBIGUOUS_
         else:
           result[id] = index
 
-      add_alias.call "$device.id"
+      add-alias.call "$device.id"
       if device.name:
-        add_alias.call device.name
+        add-alias.call device.name
       device.aliases.do: | alias/string |
-        add_alias.call alias
-    if ambiguous_ids.size > 0:
+        add-alias.call alias
+    if ambiguous-ids.size > 0:
       ui.warning "The following names, device-ids or aliases are ambiguous:"
-      ambiguous_ids.do: | id/string index_list/List |
-        uuid_list := index_list.map: devices[it].id
-        ui.warning "  $id maps to $(uuid_list.join ", ")"
+      ambiguous-ids.do: | id/string index-list/List |
+        uuid-list := index-list.map: devices[it].id
+        ui.warning "  $id maps to $(uuid-list.join ", ")"
     return result
 
   /**
@@ -326,22 +326,22 @@ class Fleet:
 
   Returns the path to the identity file.
   */
-  create_identity -> string
-      --id/uuid.Uuid=random_uuid
+  create-identity -> string
+      --id/uuid.Uuid=random-uuid
       --name/string?=null
       --aliases/List?=null
       --group/string
-      --output_directory/string:
-    if not has_group group:
+      --output-directory/string:
+    if not has-group group:
       ui_.abort "Group '$group' not found."
 
-    old_size := devices_.size
-    new_file := "$output_directory/$(id).identity"
+    old-size := devices_.size
+    new-file := "$output-directory/$(id).identity"
 
     artemis_.provision
-        --device_id=id
-        --out_path=new_file
-        --organization_id=organization_id
+        --device-id=id
+        --out-path=new-file
+        --organization-id=organization-id
 
     device := DeviceFleet
         --id=id
@@ -349,375 +349,375 @@ class Fleet:
         --aliases=aliases
         --name=name
     devices_.add device
-    write_devices_
+    write-devices_
 
-    return new_file
+    return new-file
 
-  roll_out --diff_bases/List:
-    broker := artemis_.connected_broker
-    detailed_devices := {:}
-    fleet_devices := devices_
+  roll-out --diff-bases/List:
+    broker := artemis_.connected-broker
+    detailed-devices := {:}
+    fleet-devices := devices_
 
-    existing_devices := broker.get_devices --device_ids=(fleet_devices.map: it.id)
-    fleet_devices.do: | fleet_device/DeviceFleet |
-      if not existing_devices.contains fleet_device.id:
-        ui_.abort "Device $fleet_device.id is unknown to the broker."
+    existing-devices := broker.get-devices --device-ids=(fleet-devices.map: it.id)
+    fleet-devices.do: | fleet-device/DeviceFleet |
+      if not existing-devices.contains fleet-device.id:
+        ui_.abort "Device $fleet-device.id is unknown to the broker."
 
-    base_patches := {:}
+    base-patches := {:}
 
-    base_firmwares := diff_bases.map: | diff_base/string |
-      pod := Pod.parse diff_base --tmp_directory=artemis_.tmp_directory --ui=ui_
-      FirmwareContent.from_envelope pod.envelope_path --cache=cache_
+    base-firmwares := diff-bases.map: | diff-base/string |
+      pod := Pod.parse diff-base --tmp-directory=artemis_.tmp-directory --ui=ui_
+      FirmwareContent.from-envelope pod.envelope-path --cache=cache_
 
-    base_firmwares.do: | content/FirmwareContent |
-      trivial_patches := artemis_.extract_trivial_patches content
-      trivial_patches.do: | _ patch/FirmwarePatch |
-        artemis_.upload_patch patch --organization_id=organization_id
+    base-firmwares.do: | content/FirmwareContent |
+      trivial-patches := artemis_.extract-trivial-patches content
+      trivial-patches.do: | _ patch/FirmwarePatch |
+        artemis_.upload-patch patch --organization-id=organization-id
 
     pods := {:}  // From group-name to Pod.
-    fleet_devices.do: | fleet_device/DeviceFleet |
-      group_name := fleet_device.group
-      if pods.contains group_name: continue.do
-      reference := pod_reference_for_group group_name
-      pods[group_name] = download reference
+    fleet-devices.do: | fleet-device/DeviceFleet |
+      group-name := fleet-device.group
+      if pods.contains group-name: continue.do
+      reference := pod-reference-for-group group-name
+      pods[group-name] = download reference
 
-    fleet_devices.do: | fleet_device/DeviceFleet |
+    fleet-devices.do: | fleet-device/DeviceFleet |
       artemis_.update
-          --device_id=fleet_device.id
-          --pod=pods[fleet_device.group]
-          --base_firmwares=base_firmwares
+          --device-id=fleet-device.id
+          --pod=pods[fleet-device.group]
+          --base-firmwares=base-firmwares
 
-      ui_.info "Successfully updated device $fleet_device.short_string."
+      ui_.info "Successfully updated device $fleet-device.short-string."
 
   /**
   Uploads the given $pod to the broker.
 
   Also uploads the trivial patches.
   */
-  upload --pod/Pod --tags/List --force_tags/bool -> none:
-    artemis_.upload --pod=pod --organization_id=organization_id
+  upload --pod/Pod --tags/List --force-tags/bool -> none:
+    artemis_.upload --pod=pod --organization-id=organization-id
 
-    broker := artemis_.connected_broker
+    broker := artemis_.connected-broker
     pod.split: | manifest/Map parts/Map |
       parts.do: | id/string content/ByteArray |
         // Only upload if we don't have it in our cache.
-        key := "$POD_PARTS_PATH/$organization_id/$id"
-        cache_.get_file_path key: | store/FileStore |
-          broker.pod_registry_upload_pod_part content --part_id=id
-              --organization_id=organization_id
+        key := "$POD-PARTS-PATH/$organization-id/$id"
+        cache_.get-file-path key: | store/FileStore |
+          broker.pod-registry-upload-pod-part content --part-id=id
+              --organization-id=organization-id
           store.save content
-      key := "$POD_MANIFEST_PATH/$organization_id/$pod.id"
-      cache_.get_file_path key: | store/FileStore |
+      key := "$POD-MANIFEST-PATH/$organization-id/$pod.id"
+      cache_.get-file-path key: | store/FileStore |
         encoded := ubjson.encode manifest
-        broker.pod_registry_upload_pod_manifest encoded --pod_id=pod.id
-            --organization_id=organization_id
+        broker.pod-registry-upload-pod-manifest encoded --pod-id=pod.id
+            --organization-id=organization-id
         store.save encoded
 
-    description_ids := broker.pod_registry_descriptions
-        --fleet_id=this.id
-        --organization_id=this.organization_id
+    description-ids := broker.pod-registry-descriptions
+        --fleet-id=this.id
+        --organization-id=this.organization-id
         --names=[pod.name]
-        --create_if_absent
+        --create-if-absent
 
-    description_id := (description_ids[0] as PodRegistryDescription).id
+    description-id := (description-ids[0] as PodRegistryDescription).id
 
-    broker.pod_registry_add
-        --pod_description_id=description_id
-        --pod_id=pod.id
+    broker.pod-registry-add
+        --pod-description-id=description-id
+        --pod-id=pod.id
 
-    is_existing_tag_error := : | error |
+    is-existing-tag-error := : | error |
       error is string and
         (error.contains "duplicate key value" or error.contains "already exists")
 
-    tag_errors := []
+    tag-errors := []
     tags.do: | tag/string |
-      force := force_tags or (tag == "latest")
-      exception := catch --unwind=(: not is_existing_tag_error.call it):
-        broker.pod_registry_tag_set
-            --pod_description_id=description_id
-            --pod_id=pod.id
+      force := force-tags or (tag == "latest")
+      exception := catch --unwind=(: not is-existing-tag-error.call it):
+        broker.pod-registry-tag-set
+            --pod-description-id=description-id
+            --pod-id=pod.id
             --tag=tag
             --force=force
       if exception:
-        tag_errors.add "Tag '$tag' already exists for pod $pod.name."
+        tag-errors.add "Tag '$tag' already exists for pod $pod.name."
 
-    registered_pods := broker.pod_registry_pods --fleet_id=this.id --pod_ids=[pod.id]
-    pod_entry/PodRegistryEntry := registered_pods[0]
+    registered-pods := broker.pod-registry-pods --fleet-id=this.id --pod-ids=[pod.id]
+    pod-entry/PodRegistryEntry := registered-pods[0]
 
-    prefix := tag_errors.is_empty ? "Successfully uploaded" : "Uploaded"
-    ui_.info "$prefix $pod.name#$pod_entry.revision to fleet $this.id."
-    ui_.info "  id: $pod_entry.id"
+    prefix := tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
+    ui_.info "$prefix $pod.name#$pod-entry.revision to fleet $this.id."
+    ui_.info "  id: $pod-entry.id"
     ui_.info "  references:"
-    sorted_uploaded_tags := pod_entry.tags.sort
-    sorted_uploaded_tags.do: ui_.info "    - $pod.name@$it"
+    sorted-uploaded-tags := pod-entry.tags.sort
+    sorted-uploaded-tags.do: ui_.info "    - $pod.name@$it"
 
-    if not tag_errors.is_empty:
-      tag_errors.do: ui_.error it
+    if not tag-errors.is-empty:
+      tag-errors.do: ui_.error it
       ui_.abort
 
   download reference/PodReference -> Pod:
     if reference.name and not (reference.tag or reference.revision):
       reference = reference.with --tag="latest"
-    pod_id := reference.id
-    if not pod_id:
-      pod_id = get_pod_id reference
-    return download --pod_id=pod_id
+    pod-id := reference.id
+    if not pod-id:
+      pod-id = get-pod-id reference
+    return download --pod-id=pod-id
 
-  download --pod_id/uuid.Uuid -> Pod:
-    broker := artemis_.connected_broker
-    manifest_key := "$POD_MANIFEST_PATH/$organization_id/$pod_id"
-    encoded_manifest := cache_.get manifest_key: | store/FileStore |
-      bytes := broker.pod_registry_download_pod_manifest
-        --pod_id=pod_id
-        --organization_id=this.organization_id
+  download --pod-id/uuid.Uuid -> Pod:
+    broker := artemis_.connected-broker
+    manifest-key := "$POD-MANIFEST-PATH/$organization-id/$pod-id"
+    encoded-manifest := cache_.get manifest-key: | store/FileStore |
+      bytes := broker.pod-registry-download-pod-manifest
+        --pod-id=pod-id
+        --organization-id=this.organization-id
       store.save bytes
-    manifest := ubjson.decode encoded_manifest
-    return Pod.from_manifest
+    manifest := ubjson.decode encoded-manifest
+    return Pod.from-manifest
         manifest
-        --tmp_directory=artemis_.tmp_directory
-        --download=: | part_id/string |
-          key := "$POD_PARTS_PATH/$organization_id/$part_id"
+        --tmp-directory=artemis_.tmp-directory
+        --download=: | part-id/string |
+          key := "$POD-PARTS-PATH/$organization-id/$part-id"
           cache_.get key: | store/FileStore |
-            bytes := broker.pod_registry_download_pod_part
-                part_id
-                --organization_id=this.organization_id
+            bytes := broker.pod-registry-download-pod-part
+                part-id
+                --organization-id=this.organization-id
             store.save bytes
 
-  list_pods --names/List -> Map:
-    broker := artemis_.connected_broker
+  list-pods --names/List -> Map:
+    broker := artemis_.connected-broker
     descriptions := ?
-    if names.is_empty:
-      descriptions = broker.pod_registry_descriptions --fleet_id=this.id
+    if names.is-empty:
+      descriptions = broker.pod-registry-descriptions --fleet-id=this.id
     else:
-      descriptions = broker.pod_registry_descriptions
-          --fleet_id=this.id
-          --organization_id=this.organization_id
+      descriptions = broker.pod-registry-descriptions
+          --fleet-id=this.id
+          --organization-id=this.organization-id
           --names=names
-          --no-create_if_absent
+          --no-create-if-absent
     result := {:}
     descriptions.do: | description/PodRegistryDescription |
-      pods := broker.pod_registry_pods --pod_description_id=description.id
+      pods := broker.pod-registry-pods --pod-description-id=description.id
       result[description] = pods
     return result
 
-  delete --description_names/List:
-    broker := artemis_.connected_broker
-    descriptions := broker.pod_registry_descriptions
-        --fleet_id=this.id
-        --organization_id=this.organization_id
-        --names=description_names
-        --no-create_if_absent
-    unknown_pod_descriptions := []
-    description_names.do: | name/string |
-      was_found := descriptions.any: | description/PodRegistryDescription |
+  delete --description-names/List:
+    broker := artemis_.connected-broker
+    descriptions := broker.pod-registry-descriptions
+        --fleet-id=this.id
+        --organization-id=this.organization-id
+        --names=description-names
+        --no-create-if-absent
+    unknown-pod-descriptions := []
+    description-names.do: | name/string |
+      was-found := descriptions.any: | description/PodRegistryDescription |
         description.name == name
-      if not was_found: unknown_pod_descriptions.add name
-    if not unknown_pod_descriptions.is_empty:
-      if unknown_pod_descriptions.size == 1:
-        ui_.abort "Unknown pod $(unknown_pod_descriptions[0])."
+      if not was-found: unknown-pod-descriptions.add name
+    if not unknown-pod-descriptions.is-empty:
+      if unknown-pod-descriptions.size == 1:
+        ui_.abort "Unknown pod $(unknown-pod-descriptions[0])."
       else:
-        ui_.abort "Unknown pods $(unknown_pod_descriptions.join ", ")."
-    broker.pod_registry_descriptions_delete
-        --fleet_id=this.id
-        --description_ids=descriptions.map: it.id
+        ui_.abort "Unknown pods $(unknown-pod-descriptions.join ", ")."
+    broker.pod-registry-descriptions-delete
+        --fleet-id=this.id
+        --description-ids=descriptions.map: it.id
 
-  delete --pod_references/List:
-    broker := artemis_.connected_broker
-    pod_ids := get_pod_ids pod_references
-    broker.pod_registry_delete
-        --fleet_id=this.id
-        --pod_ids=pod_ids
+  delete --pod-references/List:
+    broker := artemis_.connected-broker
+    pod-ids := get-pod-ids pod-references
+    broker.pod-registry-delete
+        --fleet-id=this.id
+        --pod-ids=pod-ids
 
-  pod_reference_for_group name/string -> PodReference:
-    return group_pods_.get name
-        --if_absent=: ui_.abort "Unknown group $name"
+  pod-reference-for-group name/string -> PodReference:
+    return group-pods_.get name
+        --if-absent=: ui_.abort "Unknown group $name"
 
-  has_group group/string -> bool:
-    return group_pods_.contains group
+  has-group group/string -> bool:
+    return group-pods_.contains group
 
-  add_device --device_id/uuid.Uuid --name/string? --group/string --aliases/List?:
-    if aliases and aliases.is_empty: aliases = null
-    devices_.add (DeviceFleet --id=device_id --group=group --name=name --aliases=aliases)
-    write_devices_
+  add-device --device-id/uuid.Uuid --name/string? --group/string --aliases/List?:
+    if aliases and aliases.is-empty: aliases = null
+    devices_.add (DeviceFleet --id=device-id --group=group --name=name --aliases=aliases)
+    write-devices_
 
-  build_status_ device/DeviceDetailed get_state_events/List? last_event/Event? -> Status_:
-    CHECKIN_VERIFICATIONS ::= 5
-    SLACK_FACTOR ::= 0.3
-    firmware_state := device.reported_state_firmware
-    current_state := device.reported_state_current
-    if not firmware_state:
-      if not last_event:
+  build-status_ device/DeviceDetailed get-state-events/List? last-event/Event? -> Status_:
+    CHECKIN-VERIFICATIONS ::= 5
+    SLACK-FACTOR ::= 0.3
+    firmware-state := device.reported-state-firmware
+    current-state := device.reported-state-current
+    if not firmware-state:
+      if not last-event:
         return Status_
-            --is_fully_updated=false
-            --missed_checkins=Status_.UNKNOWN_MISSED_CHECKINS
-            --never_seen=true
-            --last_seen=null
-            --is_modified=false
+            --is-fully-updated=false
+            --missed-checkins=Status_.UNKNOWN-MISSED-CHECKINS
+            --never-seen=true
+            --last-seen=null
+            --is-modified=false
 
       return Status_
-          --is_fully_updated=false
-          --missed_checkins=Status_.UNKNOWN_MISSED_CHECKINS
-          --never_seen=false
-          --last_seen=last_event.timestamp
-          --is_modified=false
+          --is-fully-updated=false
+          --missed-checkins=Status_.UNKNOWN-MISSED-CHECKINS
+          --never-seen=false
+          --last-seen=last-event.timestamp
+          --is-modified=false
 
     goal := device.goal
-    is_updated/bool := ?
+    is-updated/bool := ?
     // TODO(florian): remove the special case of `null` meaning "back to firmware".
-    if not goal and not current_state:
-      is_updated = true
+    if not goal and not current-state:
+      is-updated = true
     else if not goal:
-      is_updated = false
+      is-updated = false
     else:
-      is_updated = json_equals firmware_state goal
-    max_offline_s/int? := firmware_state.get "max-offline"
+      is-updated = json-equals firmware-state goal
+    max-offline-s/int? := firmware-state.get "max-offline"
     // If the device has no max_offline, we assume it's 20 seconds.
     // TODO(florian): handle this better.
-    if not max_offline_s:
-      max_offline_s = 20
-    max_offline := Duration --s=max_offline_s
+    if not max-offline-s:
+      max-offline-s = 20
+    max-offline := Duration --s=max-offline-s
 
-    missed_checkins/int := ?
-    if not get_state_events or get_state_events.is_empty:
-      missed_checkins = Status_.UNKNOWN_MISSED_CHECKINS
+    missed-checkins/int := ?
+    if not get-state-events or get-state-events.is-empty:
+      missed-checkins = Status_.UNKNOWN-MISSED-CHECKINS
     else:
-      slack := max_offline * SLACK_FACTOR
-      missed_checkins = 0
-      checkin_index := CHECKIN_VERIFICATIONS - 1
+      slack := max-offline * SLACK-FACTOR
+      missed-checkins = 0
+      checkin-index := CHECKIN-VERIFICATIONS - 1
       last := Time.now
-      earliest_time := last - (max_offline * CHECKIN_VERIFICATIONS)
-      for i := 0; i < get_state_events.size; i++:
-        event := get_state_events[i]
-        event_timestamp := event.timestamp
-        if event_timestamp < earliest_time:
-          event_timestamp = earliest_time
+      earliest-time := last - (max-offline * CHECKIN-VERIFICATIONS)
+      for i := 0; i < get-state-events.size; i++:
+        event := get-state-events[i]
+        event-timestamp := event.timestamp
+        if event-timestamp < earliest-time:
+          event-timestamp = earliest-time
           // We want to handle this interval, but no need to look at more
           // events.
-          i = get_state_events.size
-        duration_since_last_checkin := event_timestamp.to last
-        missed := (duration_since_last_checkin - slack).in_ms / max_offline.in_ms
-        missed_checkins += missed
+          i = get-state-events.size
+        duration-since-last-checkin := event-timestamp.to last
+        missed := (duration-since-last-checkin - slack).in-ms / max-offline.in-ms
+        missed-checkins += missed
         last = event.timestamp
     return Status_
-        --is_fully_updated=is_updated
-        --missed_checkins=missed_checkins
-        --never_seen=false
-        --last_seen=last_event and last_event.timestamp
-        --is_modified=device.reported_state_current != null
+        --is-fully-updated=is-updated
+        --missed-checkins=missed-checkins
+        --never-seen=false
+        --last-seen=last-event and last-event.timestamp
+        --is-modified=device.reported-state-current != null
 
-  status --include_healthy/bool --include_never_seen/bool:
-    broker := artemis_.connected_broker
-    device_ids := devices_.map: it.id
-    detailed_devices := broker.get_devices --device_ids=device_ids
-    get_state_events := broker.get_events
-        --device_ids=device_ids
-        --limit=Status_.CHECKIN_VERIFICATION_COUNT
+  status --include-healthy/bool --include-never-seen/bool:
+    broker := artemis_.connected-broker
+    device-ids := devices_.map: it.id
+    detailed-devices := broker.get-devices --device-ids=device-ids
+    get-state-events := broker.get-events
+        --device-ids=device-ids
+        --limit=Status_.CHECKIN-VERIFICATION-COUNT
         --types=["get-goal"]
-    last_events := broker.get_events --device_ids=device_ids --limit=1
+    last-events := broker.get-events --device-ids=device-ids --limit=1
 
-    pod_ids := []
-    devices_.do: | fleet_device/DeviceFleet |
-      device/DeviceDetailed? := detailed_devices.get fleet_device.id
+    pod-ids := []
+    devices_.do: | fleet-device/DeviceFleet |
+      device/DeviceDetailed? := detailed-devices.get fleet-device.id
       if not device:
-        ui_.abort "Device $fleet_device.id is unknown to the broker."
-      pod_id := device.pod_id_current or device.pod_id_firmware
+        ui_.abort "Device $fleet-device.id is unknown to the broker."
+      pod-id := device.pod-id-current or device.pod-id-firmware
       // Add nulls as well.
-      pod_ids.add pod_id
+      pod-ids.add pod-id
 
-    pod_id_entries := broker.pod_registry_pods
-        --fleet_id=this.id
-        --pod_ids=(pod_ids.filter: it != null)
-    pod_entry_map := {:}
-    pod_id_entries.do: | entry/PodRegistryEntry |
-      pod_entry_map[entry.id] = entry
-    description_set := {}
-    description_set.add_all
-        (pod_id_entries.map: | entry/PodRegistryEntry | entry.pod_description_id)
-    description_ids := []
-    description_ids.add_all description_set
-    descriptions := broker.pod_registry_descriptions --ids=description_ids
-    description_map := {:}
+    pod-id-entries := broker.pod-registry-pods
+        --fleet-id=this.id
+        --pod-ids=(pod-ids.filter: it != null)
+    pod-entry-map := {:}
+    pod-id-entries.do: | entry/PodRegistryEntry |
+      pod-entry-map[entry.id] = entry
+    description-set := {}
+    description-set.add-all
+        (pod-id-entries.map: | entry/PodRegistryEntry | entry.pod-description-id)
+    description-ids := []
+    description-ids.add-all description-set
+    descriptions := broker.pod-registry-descriptions --ids=description-ids
+    description-map := {:}
     descriptions.do: | description/PodRegistryDescription |
-      description_map[description.id] = description
+      description-map[description.id] = description
 
     now := Time.now
-    statuses := devices_.map: | fleet_device/DeviceFleet |
-      device/DeviceDetailed? := detailed_devices.get fleet_device.id
+    statuses := devices_.map: | fleet-device/DeviceFleet |
+      device/DeviceDetailed? := detailed-devices.get fleet-device.id
       if not device:
-        ui_.abort "Device $fleet_device.id is unknown to the broker."
-      last_events_of_device := last_events.get fleet_device.id
-      last_event := last_events_of_device and not last_events_of_device.is_empty
-          ? last_events_of_device[0]
+        ui_.abort "Device $fleet-device.id is unknown to the broker."
+      last-events-of-device := last-events.get fleet-device.id
+      last-event := last-events-of-device and not last-events-of-device.is-empty
+          ? last-events-of-device[0]
           : null
-      build_status_ device (get_state_events.get fleet_device.id) last_event
+      build-status_ device (get-state-events.get fleet-device.id) last-event
 
     rows := []
     for i := 0; i < devices_.size; i++:
-      fleet_device/DeviceFleet := devices_[i]
-      pod_id/uuid.Uuid? := pod_ids[i]
+      fleet-device/DeviceFleet := devices_[i]
+      pod-id/uuid.Uuid? := pod-ids[i]
       status/Status_ := statuses[i]
-      if not include_healthy and status.is_healthy: continue
-      if not include_never_seen and status.never_seen: continue
+      if not include-healthy and status.is-healthy: continue
+      if not include-never-seen and status.never-seen: continue
 
-      pod_name/string? := null
-      pod_revision/int? := null
-      pod_tags/List? := null
-      pod_description := ""
-      if pod_id:
-        entry/PodRegistryEntry? := pod_entry_map.get pod_id
+      pod-name/string? := null
+      pod-revision/int? := null
+      pod-tags/List? := null
+      pod-description := ""
+      if pod-id:
+        entry/PodRegistryEntry? := pod-entry-map.get pod-id
         if not entry:
-          pod_description = "$pod_id"
+          pod-description = "$pod-id"
         else:
-          description/PodRegistryDescription := description_map.get entry.pod_description_id
-          pod_name = description.name
-          pod_revision = entry.revision
-          pod_tags = entry.tags
-          pod_description = "$description.name#$entry.revision"
-          if not entry.tags.is_empty:
-            pod_description += " $(entry.tags.join ",")"
+          description/PodRegistryDescription := description-map.get entry.pod-description-id
+          pod-name = description.name
+          pod-revision = entry.revision
+          pod-tags = entry.tags
+          pod-description = "$description.name#$entry.revision"
+          if not entry.tags.is-empty:
+            pod-description += " $(entry.tags.join ",")"
 
       cross := "✗"
       // TODO(florian): when the UI wants structured output we shouldn't change the last
       // seen to human readable.
-      human_last_seen := ""
-      if status.last_seen:
-        human_last_seen = timestamp_to_human_readable status.last_seen
-      else if status.never_seen:
-        human_last_seen = "never"
+      human-last-seen := ""
+      if status.last-seen:
+        human-last-seen = timestamp-to-human-readable status.last-seen
+      else if status.never-seen:
+        human-last-seen = "never"
       else:
-        human_last_seen = "unknown"
-      missed_checkins_string := ""
-      if status.missed_checkins == Status_.UNKNOWN_MISSED_CHECKINS:
-        missed_checkins_string = "?"
-      else if status.missed_checkins > 0:
-        missed_checkins_string = cross
+        human-last-seen = "unknown"
+      missed-checkins-string := ""
+      if status.missed-checkins == Status_.UNKNOWN-MISSED-CHECKINS:
+        missed-checkins-string = "?"
+      else if status.missed-checkins > 0:
+        missed-checkins-string = cross
       rows.add {
-        "device-id": "$fleet_device.id",
-        "device-name": fleet_device.name or "",
-        "pod-id": "$pod_id",
-        "pod-name": pod_name,
-        "pod-revision": pod_revision,
-        "pod-tags": pod_tags,
-        "pod-description": pod_description,
-        "outdated": not status.is_fully_updated,
-        "outdated-human": status.is_fully_updated ? "" : cross,
-        "modified": status.is_modified,
-        "modified-human": status.is_modified ? cross : "",
-        "missed-checkins": status.missed_checkins,
-        "missed-checkins-human": missed_checkins_string,
-        "last-seen-human": human_last_seen,
-        "last-seen": status.last_seen ? "$status.last_seen" : null,
-        "never-seen": status.never_seen,
-        "aliases": fleet_device.aliases.is_empty ? "" : fleet_device.aliases.join ", ",
+        "device-id": "$fleet-device.id",
+        "device-name": fleet-device.name or "",
+        "pod-id": "$pod-id",
+        "pod-name": pod-name,
+        "pod-revision": pod-revision,
+        "pod-tags": pod-tags,
+        "pod-description": pod-description,
+        "outdated": not status.is-fully-updated,
+        "outdated-human": status.is-fully-updated ? "" : cross,
+        "modified": status.is-modified,
+        "modified-human": status.is-modified ? cross : "",
+        "missed-checkins": status.missed-checkins,
+        "missed-checkins-human": missed-checkins-string,
+        "last-seen-human": human-last-seen,
+        "last-seen": status.last-seen ? "$status.last-seen" : null,
+        "never-seen": status.never-seen,
+        "aliases": fleet-device.aliases.is-empty ? "" : fleet-device.aliases.join ", ",
         // TODO(florian): add more useful information.
       }
 
-    rows.sort --in_place: | a/Map b/Map |
-      a_pod_name := a["pod-name"] or ""
-      b_pod_name := b["pod-name"] or ""
-      a_pod_name.compare_to b_pod_name --if_equal=:
-        a["device-name"].compare_to b["device-name"] --if_equal=:
-          a["device-id"].compare_to b["device-id"]
+    rows.sort --in-place: | a/Map b/Map |
+      a-pod-name := a["pod-name"] or ""
+      b-pod-name := b["pod-name"] or ""
+      a-pod-name.compare-to b-pod-name --if-equal=:
+        a["device-name"].compare-to b["device-name"] --if-equal=:
+          a["device-id"].compare-to b["device-id"]
 
     // TODO(florian): we shouldn't have any `ui_.result` outside of `cmd` files.
     ui_.do --kind=Ui.RESULT: | printer/Printer |
@@ -734,38 +734,38 @@ class Fleet:
             "aliases": "Aliases",
           }
 
-  resolve_alias alias/string -> DeviceFleet:
+  resolve-alias alias/string -> DeviceFleet:
     if not aliases_.contains alias:
       ui_.abort "No device with name, device-id, or alias $alias in the fleet."
-    device_index := aliases_[alias]
-    if device_index == AMBIGUOUS_:
+    device-index := aliases_[alias]
+    if device-index == AMBIGUOUS_:
       ui_.abort "The name, device-id, or alias $alias is ambiguous."
-    return devices_[device_index]
+    return devices_[device-index]
 
-  device device_id/uuid.Uuid ->  DeviceFleet:
+  device device-id/uuid.Uuid ->  DeviceFleet:
     devices_.do: | device/DeviceFleet |
-      if device.id == device_id:
+      if device.id == device-id:
         return device
-    ui_.abort "No device with id $device_id in the fleet."
+    ui_.abort "No device with id $device-id in the fleet."
     unreachable
 
-  pod pod_id/uuid.Uuid -> PodFleet:
-    broker := artemis_.connected_broker
-    pod_entry := broker.pod_registry_pods
-        --fleet_id=this.id
-        --pod_ids=[pod_id]
-    if not pod_entry.is_empty:
-      description_id := pod_entry[0].pod_description_id
-      description := broker.pod_registry_descriptions --ids=[description_id]
-      if not description.is_empty:
-        return PodFleet --id=pod_id --name=description[0].name --revision=pod_entry[0].revision --tags=pod_entry[0].tags
+  pod pod-id/uuid.Uuid -> PodFleet:
+    broker := artemis_.connected-broker
+    pod-entry := broker.pod-registry-pods
+        --fleet-id=this.id
+        --pod-ids=[pod-id]
+    if not pod-entry.is-empty:
+      description-id := pod-entry[0].pod-description-id
+      description := broker.pod-registry-descriptions --ids=[description-id]
+      if not description.is-empty:
+        return PodFleet --id=pod-id --name=description[0].name --revision=pod-entry[0].revision --tags=pod-entry[0].tags
 
-    return PodFleet --id=pod_id --name=null --revision=null --tags=null
+    return PodFleet --id=pod-id --name=null --revision=null --tags=null
 
-  get_pod_id reference/PodReference -> uuid.Uuid:
-    return (get_pod_ids [reference])[0]
+  get-pod-id reference/PodReference -> uuid.Uuid:
+    return (get-pod-ids [reference])[0]
 
-  get_pod_ids references/List -> List:
+  get-pod-ids references/List -> List:
     references.do: | reference/PodReference |
       if not reference.id:
         if not reference.name:
@@ -773,32 +773,32 @@ class Fleet:
         if not reference.tag and not reference.revision:
           throw "Either tag or revision must be specified: $reference"
 
-    missing_ids := references.filter: | reference/PodReference |
+    missing-ids := references.filter: | reference/PodReference |
       not reference.id
-    broker := artemis_.connected_broker
-    pod_ids_response := broker.pod_registry_pod_ids --fleet_id=this.id --references=missing_ids
+    broker := artemis_.connected-broker
+    pod-ids-response := broker.pod-registry-pod-ids --fleet-id=this.id --references=missing-ids
 
-    has_errors := false
+    has-errors := false
     result := references.map: | reference/PodReference |
       if reference.id: continue.map reference.id
-      resolved := pod_ids_response.get reference
+      resolved := pod-ids-response.get reference
       if not resolved:
-        has_errors = true
+        has-errors = true
         if reference.tag:
           ui_.error "No pod with name $reference.name and tag $reference.tag in the fleet."
         else:
           ui_.error "No pod with name $reference.name and revision $reference.revision in the fleet."
       resolved
-    if has_errors: ui_.abort
+    if has-errors: ui_.abort
     return result
 
-  get_pod_id --name/string --tag/string? --revision/int? -> uuid.Uuid:
-    return get_pod_id (PodReference --name=name --tag=tag --revision=revision)
+  get-pod-id --name/string --tag/string? --revision/int? -> uuid.Uuid:
+    return get-pod-id (PodReference --name=name --tag=tag --revision=revision)
 
-  pod_exists reference/PodReference -> bool:
-    broker := artemis_.connected_broker
-    pod_id := get_pod_id reference
-    pod_entry := broker.pod_registry_pods
-        --fleet_id=this.id
-        --pod_ids=[pod_id]
-    return not pod_entry.is_empty
+  pod-exists reference/PodReference -> bool:
+    broker := artemis_.connected-broker
+    pod-id := get-pod-id reference
+    pod-entry := broker.pod-registry-pods
+        --fleet-id=this.id
+        --pod-ids=[pod-id]
+    return not pod-entry.is-empty

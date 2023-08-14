@@ -7,14 +7,14 @@ import .src.snapshot
 
 main args:
   cmd := cli.Command "snapshot-uuid"
-      --long_help="""
+      --long-help="""
         Extracts the UUID of the given snapshot.
         """
       --rest=[
         cli.Option "snapshot"
             --type="file"
             --required
-            --short_help="The snapshot to get the UUID from.",
+            --short-help="The snapshot to get the UUID from.",
       ]
-      --run=:: print (extract_uuid --path=it["snapshot"])
+      --run=:: print (extract-uuid --path=it["snapshot"])
   cmd.run args

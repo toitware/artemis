@@ -10,9 +10,9 @@ import artemis.shared.utils
 
 class BinaryResponse:
   bytes/ByteArray
-  total_size/int
+  total-size/int
 
-  constructor .bytes .total_size:
+  constructor .bytes .total-size:
 
 abstract class HttpServer:
   port/int? := null
@@ -36,55 +36,55 @@ abstract class HttpServer:
       socket_.close
       socket_ = null
 
-  abstract run_command command/int encoded/ByteArray user_id/string? -> any
+  abstract run-command command/int encoded/ByteArray user-id/string? -> any
 
   /**
   Starts the server in a blocking way.
 
-  Sets the given $port_latch with the value of the port on which the server is
+  Sets the given $port-latch with the value of the port on which the server is
     listening.
   */
-  start port_latch/monitor.Latch?=null:
+  start port-latch/monitor.Latch?=null:
     network := net.open
-    socket := network.tcp_listen (port or 0)
-    port = socket.local_address.port
-    if port_latch: port_latch.set port
-    server := http.Server --max_tasks=64 --logger=(log.default.with_level log.INFO_LEVEL)
-    print "Listening on port $socket.local_address.port"
+    socket := network.tcp-listen (port or 0)
+    port = socket.local-address.port
+    if port-latch: port-latch.set port
+    server := http.Server --max-tasks=64 --logger=(log.default.with-level log.INFO-LEVEL)
+    print "Listening on port $socket.local-address.port"
     server.listen socket:: | request/http.Request writer/http.ResponseWriter |
-      bytes := utils.read_all request.body
+      bytes := utils.read-all request.body
       command := bytes[0]
       encoded := bytes[1..]
-      user_id := request.headers.single "X-User-Id"
+      user-id := request.headers.single "X-User-Id"
       if not request.headers.single "X-Artemis-Header":
         throw "Missing X-Artemis-Header"
 
-      listeners.do: it.call "pre" command encoded user_id
-      reply_ command encoded user_id writer
+      listeners.do: it.call "pre" command encoded user-id
+      reply_ command encoded user-id writer
 
-  reply_ command/int encoded/ByteArray user_id/string? writer/http.ResponseWriter:
-    response_data := null
+  reply_ command/int encoded/ByteArray user-id/string? writer/http.ResponseWriter:
+    response-data := null
     exception := catch --trace:
-      with_timeout --ms=3_000:
-        response_data = run_command command encoded user_id
+      with-timeout --ms=3_000:
+        response-data = run-command command encoded user-id
     if exception:
       listeners.do: it.call "error" command exception
-      encoded_response := json.encode exception
-      writer.headers.set "Content-Length" "$encoded_response.size"
-      writer.write_headers http.STATUS_IM_A_TEAPOT --message="Error"
-      writer.write encoded_response
+      encoded-response := json.encode exception
+      writer.headers.set "Content-Length" "$encoded-response.size"
+      writer.write-headers http.STATUS-IM-A-TEAPOT --message="Error"
+      writer.write encoded-response
     else:
-      listeners.do: it.call "post" command response_data
-      if response_data is BinaryResponse:
-        binary := response_data as BinaryResponse
-        status := http.STATUS_OK
-        if binary.bytes.size != binary.total_size:
-          writer.headers.add "Content-Range" "$binary.bytes.size/$binary.total_size"
-          status = http.STATUS_PARTIAL_CONTENT
+      listeners.do: it.call "post" command response-data
+      if response-data is BinaryResponse:
+        binary := response-data as BinaryResponse
+        status := http.STATUS-OK
+        if binary.bytes.size != binary.total-size:
+          writer.headers.add "Content-Range" "$binary.bytes.size/$binary.total-size"
+          status = http.STATUS-PARTIAL-CONTENT
         writer.headers.set "Content-Length" "$binary.bytes.size"
-        writer.write_headers status
+        writer.write-headers status
         writer.write binary.bytes
       else:
-        encoded_response := json.encode response_data
-        writer.headers.set "Content-Length" "$encoded_response.size"
-        writer.write encoded_response
+        encoded-response := json.encode response-data
+        writer.headers.set "Content-Length" "$encoded-response.size"
+        writer.write encoded-response

@@ -15,7 +15,7 @@ class Organization:
 
   constructor --.id --.name:
 
-  constructor.from_map map/Map:
+  constructor.from-map map/Map:
     id = uuid.parse map["id"]
     name = map["name"]
 
@@ -27,12 +27,12 @@ This class contains additional information, like the time the
 */
 class OrganizationDetailed extends Organization:
   /** The time the organization was created. */
-  created_at/Time
+  created-at/Time
   // TODO(florian): add members.
 
-  constructor --id/uuid.Uuid --name/string --.created_at:
+  constructor --id/uuid.Uuid --name/string --.created-at:
     super --id=id --name=name
 
-  constructor.from_map map/Map:
-    created_at = Time.parse map["created_at"]
-    super.from_map map
+  constructor.from-map map/Map:
+    created-at = Time.parse map["created_at"]
+    super.from-map map

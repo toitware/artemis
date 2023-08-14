@@ -1,48 +1,48 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import binary show LITTLE_ENDIAN
+import binary show LITTLE-ENDIAN
 import bytes show Buffer Reader
 import expect show *
 
-import artemis.cli.utils.binary_diff show *
+import artemis.cli.utils.binary-diff show *
 import artemis.shared.utils.patch show *
 
 main:
   [true, false].do: | fast |
-    one_way --fast=fast
-    round_trip --fast=fast
-        (URFAUST + FAUST1).to_byte_array
-        (FAUST1 + URFAUST).to_byte_array
-    round_trip --fast=fast
-        MOBY_15.to_byte_array
-        MOBY_2705.to_byte_array
-    round_trip --fast=fast
-        MOBY_2705.to_byte_array
-        MOBY_15.to_byte_array
-  MOBY_2705_ALIGNED ::= MOBY_2705[..MOBY_2705.size & ~3]
-  MOBY_15_ALLIGNED ::= MOBY_15[..MOBY_15.size & ~3]
-  literal_round_trip
-      MOBY_2705_ALIGNED.to_byte_array
-  literal_round_trip
-      MOBY_2705.to_byte_array
-  literal_round_trip
-      MOBY_15.to_byte_array
-  literal_round_trip
+    one-way --fast=fast
+    round-trip --fast=fast
+        (URFAUST + FAUST1).to-byte-array
+        (FAUST1 + URFAUST).to-byte-array
+    round-trip --fast=fast
+        MOBY-15.to-byte-array
+        MOBY-2705.to-byte-array
+    round-trip --fast=fast
+        MOBY-2705.to-byte-array
+        MOBY-15.to-byte-array
+  MOBY-2705-ALIGNED ::= MOBY-2705[..MOBY-2705.size & ~3]
+  MOBY-15-ALLIGNED ::= MOBY-15[..MOBY-15.size & ~3]
+  literal-round-trip
+      MOBY-2705-ALIGNED.to-byte-array
+  literal-round-trip
+      MOBY-2705.to-byte-array
+  literal-round-trip
+      MOBY-15.to-byte-array
+  literal-round-trip
       ByteArray 512
   4.repeat:
-    literal_round_trip
-        (ByteArray 90 + it) + MOBY_2705.to_byte_array
-  literal_round_trip
-      MOBY_15.to_byte_array + (ByteArray 87) + MOBY_2705.to_byte_array
+    literal-round-trip
+        (ByteArray 90 + it) + MOBY-2705.to-byte-array
+  literal-round-trip
+      MOBY-15.to-byte-array + (ByteArray 87) + MOBY-2705.to-byte-array
   4.repeat:
-    literal_round_trip
-        (ByteArray 87) + MOBY_2705.to_byte_array + (ByteArray 87 + it)
-  literal_round_trip
-      (ByteArray 87 --filler=42) + MOBY_2705.to_byte_array + (ByteArray 87 --filler=91)
+    literal-round-trip
+        (ByteArray 87) + MOBY-2705.to-byte-array + (ByteArray 87 + it)
+  literal-round-trip
+      (ByteArray 87 --filler=42) + MOBY-2705.to-byte-array + (ByteArray 87 --filler=91)
 
-  odd_size_test
+  odd-size-test
 
-one_way --fast/bool -> none:
+one-way --fast/bool -> none:
   zeros := ByteArray 32
   writer := Buffer
 
@@ -54,15 +54,15 @@ one_way --fast/bool -> none:
       writer
       zeros.size // Total new bytes size.
       --fast=fast
-      --with_header=false
-      --with_footer=false
-      --with_checksums=false
+      --with-header=false
+      --with-footer=false
+      --with-checksums=false
 
   result := writer.bytes
   print result
 
-  now := "Now is the time for all good men".to_byte_array
-  to  := "to come to the aid of the party.".to_byte_array
+  now := "Now is the time for all good men".to-byte-array
+  to  := "to come to the aid of the party.".to-byte-array
   writer = Buffer
   diff
       OldData now 0 0
@@ -70,9 +70,9 @@ one_way --fast/bool -> none:
       writer
       to.size
       --fast=fast
-      --with_header=false
-      --with_footer=false
-      --with_checksums=false
+      --with-header=false
+      --with-footer=false
+      --with-checksums=false
 
   result = writer.bytes
   print result.size
@@ -84,9 +84,9 @@ one_way --fast/bool -> none:
       writer
       to.size
       --fast=fast
-      --with_header=false
-      --with_footer=false
-      --with_checksums=false
+      --with-header=false
+      --with-footer=false
+      --with-checksums=false
 
   result = writer.bytes
   print result.size
@@ -94,8 +94,8 @@ one_way --fast/bool -> none:
 
   print "**** Welcome to Denmark ****"
 
-  now = "Welcome to Aarhus, hope you like".to_byte_array
-  to  = "Welcome to Copenhagen, hope you ".to_byte_array
+  now = "Welcome to Aarhus, hope you like".to-byte-array
+  to  = "Welcome to Copenhagen, hope you ".to-byte-array
   writer = Buffer
   diff
       OldData now 0 0
@@ -103,9 +103,9 @@ one_way --fast/bool -> none:
       writer
       to.size
       --fast=fast
-      --with_header=false
-      --with_footer=false
-      --with_checksums=false
+      --with-header=false
+      --with-footer=false
+      --with-checksums=false
 
   result = writer.bytes
   print result.size
@@ -113,12 +113,12 @@ one_way --fast/bool -> none:
 
   print "**** Faust *****"
 
-  now = URFAUST.to_byte_array
-  to  = FAUST1.to_byte_array
+  now = URFAUST.to-byte-array
+  to  = FAUST1.to-byte-array
 
-  old_data := OldData now 0 0
+  old-data := OldData now 0 0
 
-  ur_sections := Section.get_sections old_data 16
+  ur-sections := Section.get-sections old-data 16
 
   writer = Buffer
   diff
@@ -127,12 +127,12 @@ one_way --fast/bool -> none:
       writer
       to.size
       --fast=fast
-      --with_header=false
-      --with_footer=false
-      --with_checksums=false
+      --with-header=false
+      --with-footer=false
+      --with-checksums=false
   result = writer.bytes
 
-  expected_slow := #[
+  expected-slow := #[
       0x7f, 0x52, 0x00, 0xfb, 0x0a, 0x48, 0x61, 0x62, 0x65,
       0x20, 0x6e, 0x75, 0x6e, 0x2c, 0x20, 0x61, 0x63, 0x68, 0x21,
       0x20, 0x50, 0x68, 0x69, 0x6c, 0x6f, 0x73, 0x6f, 0x70, 0x68,
@@ -176,12 +176,12 @@ one_way --fast/bool -> none:
   ]
 
   if not fast:
-    expect_bytes_equal expected_slow result
+    expect-bytes-equal expected-slow result
 
-  now = (URFAUST + FAUST1).to_byte_array
-  to  = (FAUST1 + URFAUST).to_byte_array
+  now = (URFAUST + FAUST1).to-byte-array
+  to  = (FAUST1 + URFAUST).to-byte-array
 
-  old_data = OldData now 0 0
+  old-data = OldData now 0 0
 
   writer = Buffer
   diff
@@ -190,9 +190,9 @@ one_way --fast/bool -> none:
       writer
       to.size
       --fast=fast
-      --with_header=false
-      --with_footer=false
-      --with_checksums=false
+      --with-header=false
+      --with-footer=false
+      --with-checksums=false
   result = writer.bytes
 
   // Just swapping the order of the bytes is quite compact.
@@ -201,7 +201,7 @@ one_way --fast/bool -> none:
       0x96, 0xf8, 0x48, 0xef, 0x00, 0x00, 0x01, 0x7e, 0x03, 0x86]
 
   if not fast:
-    expect_bytes_equal expected result
+    expect-bytes-equal expected result
 
   writer = Buffer
   diff
@@ -210,9 +210,9 @@ one_way --fast/bool -> none:
       writer
       to.size
       --fast=fast
-      --with_header=true
-      --with_footer=true
-      --with_checksums=true
+      --with-header=true
+      --with-footer=true
+      --with-checksums=true
   result = writer.bytes
 
   // A bit less compact with headers, footers and checksums.
@@ -225,26 +225,26 @@ one_way --fast/bool -> none:
   ]
 
   if not fast:
-    expect_bytes_equal expected result
+    expect-bytes-equal expected result
 
-  List.chunk_up 0 result.size 16: | from to size |
+  List.chunk-up 0 result.size 16: | from to size |
     print result[from..to]
 
 class TestWriter implements PatchObserver:
   size /int? := null
   writer /Buffer := Buffer
 
-  on_write data from/int=0 to/int=data.size:
+  on-write data from/int=0 to/int=data.size:
     writer.write data[from..to]
 
-  on_size size/int: this.size = size
+  on-size size/int: this.size = size
 
-  on_new_checksum checksum/ByteArray:
+  on-new-checksum checksum/ByteArray:
 
-  on_checkpoint patch_position/int:
+  on-checkpoint patch-position/int:
 
-round_trip now/ByteArray to/ByteArray --fast/bool -> none:
-  old_data := OldData now 0 0
+round-trip now/ByteArray to/ByteArray --fast/bool -> none:
+  old-data := OldData now 0 0
 
   writer := Buffer
   diff
@@ -253,50 +253,50 @@ round_trip now/ByteArray to/ByteArray --fast/bool -> none:
       writer
       to.size
       --fast=fast
-      --with_header=true
-      --with_footer=true
-      --with_checksums=false
+      --with-header=true
+      --with-footer=true
+      --with-checksums=false
   result := writer.bytes
 
-  test_writer := TestWriter
+  test-writer := TestWriter
 
   patcher := Patcher
       Reader result
       now
 
-  patcher.patch test_writer
+  patcher.patch test-writer
 
-  expect_equals to.size test_writer.size
-  expect_equals to test_writer.writer.bytes
+  expect-equals to.size test-writer.size
+  expect-equals to test-writer.writer.bytes
 
-literal_round_trip now/ByteArray -> none:
+literal-round-trip now/ByteArray -> none:
   writer := Buffer
-  literal_block now writer --total_new_bytes=now.size --with_footer=true
+  literal-block now writer --total-new-bytes=now.size --with-footer=true
 
   result := writer.bytes
 
-  test_writer := TestWriter
+  test-writer := TestWriter
 
   patcher := Patcher
       Reader result
       #[]
 
-  patcher.patch test_writer
+  patcher.patch test-writer
 
-  round_tripped := test_writer.writer.bytes
-  expect_equals now.size round_tripped.size
-  expect_equals now test_writer.writer.bytes
+  round-tripped := test-writer.writer.bytes
+  expect-equals now.size round-tripped.size
+  expect-equals now test-writer.writer.bytes
 
-odd_size_test:
-  4.repeat: | old_extra |
-    4.repeat: | new_extra |
-      old := ByteArray 124 + old_extra: it
-      new := ByteArray 124 + new_extra: it
+odd-size-test:
+  4.repeat: | old-extra |
+    4.repeat: | new-extra |
+      old := ByteArray 124 + old-extra: it
+      new := ByteArray 124 + new-extra: it
       for i := 0; i < old.size - 4; i += 4:
-        LITTLE_ENDIAN.put_uint32 old i i
-        LITTLE_ENDIAN.put_uint32 new i i
+        LITTLE-ENDIAN.put-uint32 old i i
+        LITTLE-ENDIAN.put-uint32 new i i
       for i := 0; i < new.size - 4; i += 8:
-        LITTLE_ENDIAN.put_uint32 new i i + 451
+        LITTLE-ENDIAN.put-uint32 new i i + 451
 
       [true, false].do: | fast |
         [true, false].do: | checksums |
@@ -307,25 +307,25 @@ odd_size_test:
               writer
               new.size
               --fast=fast
-              --with_header=false
-              --with_footer=true
-              --with_checksums=checksums
+              --with-header=false
+              --with-footer=true
+              --with-checksums=checksums
           result := writer.bytes
 
-          test_writer := TestWriter
+          test-writer := TestWriter
 
           patcher := Patcher
               Reader result
               old
 
-          patcher.patch test_writer
+          patcher.patch test-writer
 
-          round_tripped := test_writer.writer.bytes
+          round-tripped := test-writer.writer.bytes
 
-          expect_equals new.size round_tripped.size
-          expect_equals new test_writer.writer.bytes
+          expect-equals new.size round-tripped.size
+          expect-equals new test-writer.writer.bytes
 
-MOBY_2705 ::= """\
+MOBY-2705 ::= """\
 Call me Ishmael. Some years ago—never mind how long precisely—having
 little or no money in my purse, and nothing particular to interest me
 on shore, I thought I would sail about a little and see the watery part
@@ -491,7 +491,7 @@ as a sort of brief interlude and solo between more extensive
 performances. I take it that this part of the bill must have run
 something like this:"""
 
-MOBY_15 ::= """\
+MOBY-15 ::= """\
 Call me Ishmael. Some years ago—never mind how long precisely—having
 little or no money in my purse, and nothing particular to interest me
 on shore, I thought I would sail about a little and see the watery part

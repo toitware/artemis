@@ -5,20 +5,20 @@ import expect show *
 import .utils
 
 main args:
-  with_tmp_directory: | tmp_dir |
-    id := random_uuid
+  with-tmp-directory: | tmp-dir |
+    id := random-uuid
     pod := Pod
         --id=id
         --chip="esp32"
         --name="name"
-        --envelope="envelope".to_byte_array
-        --tmp_directory=tmp_dir
+        --envelope="envelope".to-byte-array
+        --tmp-directory=tmp-dir
 
-    out := "$tmp_dir/$(id).pod"
+    out := "$tmp-dir/$(id).pod"
     ui := TestUi
     pod.write out --ui=ui
-    pod2 := Pod.parse out --ui=ui --tmp_directory=tmp_dir
-    expect_equals id pod2.id
-    expect_equals "name" pod2.name
-    expect_equals "esp32" pod2.chip
-    expect_equals "envelope".to_byte_array pod2.envelope
+    pod2 := Pod.parse out --ui=ui --tmp-directory=tmp-dir
+    expect-equals id pod2.id
+    expect-equals "name" pod2.name
+    expect-equals "esp32" pod2.chip
+    expect-equals "envelope".to-byte-array pod2.envelope

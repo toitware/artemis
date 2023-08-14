@@ -4,19 +4,19 @@
 
 import ar
 import cli
-import encoding.url as url_encoding
+import encoding.url as url-encoding
 
 // TODO(florian): these should come from the cli package.
 import artemis.cli.config as cli
 import artemis.cli.cache as cli
-import artemis.cli.cache show service_image_cache_key
+import artemis.cli.cache show service-image-cache-key
 import artemis.cli.git show Git
 import artemis.cli.sdk show *
 import artemis.cli.ui as ui
-import artemis.shared.version show ARTEMIS_VERSION
+import artemis.shared.version show ARTEMIS-VERSION
 import host.file
 import uuid
-import snapshot show cache_snapshot extract_uuid
+import snapshot show cache-snapshot extract-uuid
 import supabase
 
 import .client
@@ -25,17 +25,17 @@ import .utils
 main args:
   // Use the same config as the CLI.
   // This way we get the same server configurations and oauth tokens.
-  config := cli.read_config
+  config := cli.read-config
   // Use the same cache as the CLI.
   // This way we can reuse the SDKs.
-  cache := cli.Cache --app_name="artemis"
+  cache := cli.Cache --app-name="artemis"
   ui := ui.ConsoleUi
 
   main --config=config --cache=cache --ui=ui args
 
 main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   cmd := cli.Command "uploader"
-      --long_help="""
+      --long-help="""
         Administrative tool to upload CLI snapshots and Artemis service
         images to the Artemis server.
 
@@ -43,13 +43,13 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         """
       --options=[
         cli.OptionString "server"
-            --short_help="The server to upload to.",
+            --short-help="The server to upload to.",
         cli.OptionString "snapshot-directory"
-            --short_help="The directory to store the snapshot in.",
+            --short-help="The directory to store the snapshot in.",
       ]
 
-  cli_snapshot_cmd := cli.Command "cli-snapshot"
-      --long_help="""
+  cli-snapshot-cmd := cli.Command "cli-snapshot"
+      --long-help="""
         Uploads the CLI snapshot to the Artemis server.
 
         After downloading it again with the downloader, allows to
@@ -59,15 +59,15 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         """
       --rest=[
         cli.OptionString "snapshot"
-            --short_help="The snapshot to upload."
+            --short-help="The snapshot to upload."
             --type="file"
             --required,
       ]
-      --run=:: upload_cli_snapshot config cache ui it
-  cmd.add cli_snapshot_cmd
+      --run=:: upload-cli-snapshot config cache ui it
+  cmd.add cli-snapshot-cmd
 
-  service_cmd := cli.Command "service"
-      --long_help="""
+  service-cmd := cli.Command "service"
+      --long-help="""
         Builds and uploads the Artemis service image.
 
         Downloads the SDK if necessary.
@@ -95,134 +95,134 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         """
       --options=[
         cli.OptionString "sdk-version"
-            --short_help="The version of the SDK to use."
+            --short-help="The version of the SDK to use."
             --required,
         cli.OptionString "service-version"
-            --short_help="The version of the service to use.",
+            --short-help="The version of the service to use.",
         cli.OptionString "commit"
-            --short_help="The commit to build.",
+            --short-help="The commit to build.",
         cli.Flag "local"
-            --short_help="Build the service from the checked out code of the current repository.",
+            --short-help="Build the service from the checked out code of the current repository.",
         cli.Option "organization-id"
-            --short_help="The organization ID to upload the service to.",
+            --short-help="The organization ID to upload the service to.",
         cli.Flag "force"
-            --short_name="f"
-            --short_help="Force the upload, even if the service already exists."
+            --short-name="f"
+            --short-help="Force the upload, even if the service already exists."
             --default=false,
       ]
-      --run=:: build_and_upload config cache ui it
-  cmd.add service_cmd
+      --run=:: build-and-upload config cache ui it
+  cmd.add service-cmd
 
   cmd.run args
 
-SERVICE_PATH_IN_REPOSITORY ::= "src/service/run/device.toit"
+SERVICE-PATH-IN-REPOSITORY ::= "src/service/run/device.toit"
 
-build_and_upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
-  sdk_version := parsed["sdk-version"]
-  service_version := parsed["service-version"]
+build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
+  sdk-version := parsed["sdk-version"]
+  service-version := parsed["service-version"]
   commit := parsed["commit"]
-  use_local := parsed["local"]
-  snapshot_directory := parsed["snapshot-directory"]
-  organization_id := parsed["organization-id"]
+  use-local := parsed["local"]
+  snapshot-directory := parsed["snapshot-directory"]
+  organization-id := parsed["organization-id"]
   force := parsed["force"]
 
   git := Git --ui=ui
   // Get the SDK.
-  sdk := get_sdk sdk_version --cache=cache
-  root := git.current_repository_root
+  sdk := get-sdk sdk-version --cache=cache
+  root := git.current-repository-root
 
-  with_tmp_directory: | tmp_dir/string |
-    full_service_version := ?
-    service_source_path := ?
-    if use_local:
+  with-tmp-directory: | tmp-dir/string |
+    full-service-version := ?
+    service-source-path := ?
+    if use-local:
       // Build the service from the checked out code.
       // No caching is possible.
       // The full version string is then '<service-version>-<timestamp>',
       // where the timestamp is the time when the build was started.
-      service_source_path = "$root/$SERVICE_PATH_IN_REPOSITORY"
+      service-source-path = "$root/$SERVICE-PATH-IN-REPOSITORY"
 
       // Since we are reusing an ID, we need to remove the cached version.
-      full_service_version = service_version or ARTEMIS_VERSION
-      cache_key := service_image_cache_key
-          --sdk_version=sdk_version
-          --service_version=full_service_version
-          --artemis_config=get_artemis_config parsed config
-      cache.remove cache_key
+      full-service-version = service-version or ARTEMIS-VERSION
+      cache-key := service-image-cache-key
+          --sdk-version=sdk-version
+          --service-version=full-service-version
+          --artemis-config=get-artemis-config parsed config
+      cache.remove cache-key
     else:
-      ui.info "Cloning repository and checking out $(commit or service_version)."
-      clone_dir := "$tmp_dir/artemis"
-      git.init clone_dir --origin="file://$(url_encoding.encode root)"
-      git.config --repository_root=clone_dir
+      ui.info "Cloning repository and checking out $(commit or service-version)."
+      clone-dir := "$tmp-dir/artemis"
+      git.init clone-dir --origin="file://$(url-encoding.encode root)"
+      git.config --repository-root=clone-dir
           --key="advice.detachedHead"
           --value="false"
       git.fetch
           --checkout
           --depth=1
-          --repository_root=clone_dir
-          --ref=(commit or service_version)
+          --repository-root=clone-dir
+          --ref=(commit or service-version)
       ui.info "Downloading packages."
-      sdk.download_packages clone_dir
-      service_source_path = "$clone_dir/$SERVICE_PATH_IN_REPOSITORY"
+      sdk.download-packages clone-dir
+      service-source-path = "$clone-dir/$SERVICE-PATH-IN-REPOSITORY"
 
-      full_service_version = service_version
-      if commit: full_service_version += "-$commit"
+      full-service-version = service-version
+      if commit: full-service-version += "-$commit"
 
-    ar_file := "$tmp_dir/service.ar"
+    ar-file := "$tmp-dir/service.ar"
     ui.info "Creating snapshot."
 
-    snapshot_path := "$tmp_dir/service.snapshot"
-    sdk.compile_to_snapshot service_source_path
-        --optimization_level=2
-        --out=snapshot_path
+    snapshot-path := "$tmp-dir/service.snapshot"
+    sdk.compile-to-snapshot service-source-path
+        --optimization-level=2
+        --out=snapshot-path
 
-    create_image_archive snapshot_path --sdk=sdk --out=ar_file
+    create-image-archive snapshot-path --sdk=sdk --out=ar-file
 
-    with_upload_client parsed config ui: | client/UploadClient |
-      image_id := (uuid.uuid5 "artemis"
-          "$Time.monotonic_us $sdk_version $full_service_version").stringify
+    with-upload-client parsed config ui: | client/UploadClient |
+      image-id := (uuid.uuid5 "artemis"
+          "$Time.monotonic-us $sdk-version $full-service-version").stringify
 
-      image_content := file.read_content ar_file
-      snapshot_content := file.read_content snapshot_path
+      image-content := file.read-content ar-file
+      snapshot-content := file.read-content snapshot-path
       client.upload
-          --sdk_version=sdk_version
-          --service_version=full_service_version
-          --image_id=image_id
-          --image_content=image_content
-          --snapshot=snapshot_content
-          --organization_id=organization_id
+          --sdk-version=sdk-version
+          --service-version=full-service-version
+          --image-id=image-id
+          --image-content=image-content
+          --snapshot=snapshot-content
+          --organization-id=organization-id
           --force=force
 
-      cache_snapshot snapshot_content
-          --output_directory=snapshot_directory
+      cache-snapshot snapshot-content
+          --output-directory=snapshot-directory
 
-create_image_archive snapshot_path/string --sdk/Sdk --out/string:
-  ar_stream := file.Stream.for_write out
-  ar_writer := ar.ArWriter ar_stream
+create-image-archive snapshot-path/string --sdk/Sdk --out/string:
+  ar-stream := file.Stream.for-write out
+  ar-writer := ar.ArWriter ar-stream
 
-  ar_writer.add "artemis" """{ "magic": "🐅", "version": 1 }"""
+  ar-writer.add "artemis" """{ "magic": "🐅", "version": 1 }"""
 
-  with_tmp_directory: | tmp_dir/string |
-    [32, 64].do: | word_size |
+  with-tmp-directory: | tmp-dir/string |
+    [32, 64].do: | word-size |
       // Note that 'ar' file names can only be 15 characters long.
-      image_name := "service-$(word_size).img"
-      image_path := "$tmp_dir/$image_name"
-      sdk.compile_snapshot_to_image
-          --snapshot_path=snapshot_path
-          --out=image_path
-          --word_size=word_size
+      image-name := "service-$(word-size).img"
+      image-path := "$tmp-dir/$image-name"
+      sdk.compile-snapshot-to-image
+          --snapshot-path=snapshot-path
+          --out=image-path
+          --word-size=word-size
 
-      ar_writer.add image_name (file.read_content image_path)
+      ar-writer.add image-name (file.read-content image-path)
 
-    ar_stream.close
+    ar-stream.close
 
-upload_cli_snapshot config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
+upload-cli-snapshot config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   snapshot := parsed["snapshot"]
-  snapshot_directory := parsed["snapshot-directory"]
+  snapshot-directory := parsed["snapshot-directory"]
 
-  snapshot_content := file.read_content snapshot
-  with_upload_client parsed config ui: | client/UploadClient |
-    uuid := extract_uuid snapshot_content
-    client.upload snapshot_content --snapshot_uuid=uuid
+  snapshot-content := file.read-content snapshot
+  with-upload-client parsed config ui: | client/UploadClient |
+    uuid := extract-uuid snapshot-content
+    client.upload snapshot-content --snapshot-uuid=uuid
 
-  cache_snapshot snapshot_content
-      --output_directory=snapshot_directory
+  cache-snapshot snapshot-content
+      --output-directory=snapshot-directory

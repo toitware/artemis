@@ -2,7 +2,7 @@
 
 import ar
 import host.file
-import snapshot show cache_snapshot
+import snapshot show cache-snapshot
 import uuid
 
 import .utils
@@ -18,24 +18,24 @@ class CompiledProgram:
     sdk_ = sdk
 
   constructor.application path/string --sdk/Sdk:
-    snapshot_uuid/string? := extract_id_from_snapshot path
-    if snapshot_uuid: return CompiledProgram.snapshot path --sdk=sdk
+    snapshot-uuid/string? := extract-id-from-snapshot path
+    if snapshot-uuid: return CompiledProgram.snapshot path --sdk=sdk
     return CompiledProgram.source path --sdk=sdk
 
   constructor.source path/string --sdk/Sdk:
-    with_tmp_directory: | tmp/string |
-      snapshot_path := "$tmp/snapshot"
-      sdk.run_toit_compile ["-w", snapshot_path, path]
-      snapshot_content := file.read_content snapshot_path
-      cache_snapshot snapshot_content
-      return CompiledProgram.snapshot snapshot_path --sdk=sdk
+    with-tmp-directory: | tmp/string |
+      snapshot-path := "$tmp/snapshot"
+      sdk.run-toit-compile ["-w", snapshot-path, path]
+      snapshot-content := file.read-content snapshot-path
+      cache-snapshot snapshot-content
+      return CompiledProgram.snapshot snapshot-path --sdk=sdk
     unreachable
 
   constructor.snapshot path/string --sdk/Sdk:
-    with_tmp_directory: | tmp/string |
-      image_ubjson_path := "$tmp/image.ubjson"
-      sdk.run_snapshot_to_image_tool ["-m32", "-m64", "--format=ubjson", "-o", image_ubjson_path, path]
-      image := read_ubjson image_ubjson_path
+    with-tmp-directory: | tmp/string |
+      image-ubjson-path := "$tmp/image.ubjson"
+      sdk.run-snapshot-to-image-tool ["-m32", "-m64", "--format=ubjson", "-o", image-ubjson-path, path]
+      image := read-ubjson image-ubjson-path
       id := uuid.parse image["id"]
       image32/ByteArray? := null
       image64/ByteArray? := null
@@ -47,20 +47,20 @@ class CompiledProgram:
       return CompiledProgram id image32 image64 --sdk=sdk
     unreachable
 
-extract_id_from_snapshot snapshot_path/string -> string?:
-  if not file.is_file snapshot_path:
-    print_on_stderr_ "$snapshot_path: Not a file"
+extract-id-from-snapshot snapshot-path/string -> string?:
+  if not file.is-file snapshot-path:
+    print-on-stderr_ "$snapshot-path: Not a file"
     exit 1
 
-  snapshot := file.read_content snapshot_path
-  ar_reader/ar.ArReader? := null
+  snapshot := file.read-content snapshot-path
+  ar-reader/ar.ArReader? := null
   exception := catch:
-    ar_reader = ar.ArReader.from_bytes snapshot
+    ar-reader = ar.ArReader.from-bytes snapshot
   if exception: return null
-  first := ar_reader.next
+  first := ar-reader.next
   if first.name != "toit": return null
   id/string? := null
-  while member := ar_reader.next:
+  while member := ar-reader.next:
     if member.name == "uuid":
       id = (uuid.Uuid member.content).stringify
   return id

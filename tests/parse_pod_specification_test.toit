@@ -2,31 +2,31 @@
 
 import expect show *
 
-import artemis.cli.pod_specification
+import artemis.cli.pod-specification
   show
     PodSpecification
     PodSpecificationException
-    INITIAL_POD_SPECIFICATION
-    EXAMPLE_POD_SPECIFICATION
+    INITIAL-POD-SPECIFICATION
+    EXAMPLE-POD-SPECIFICATION
 
 import .utils
 
 main:
-  test_examples
-  test_custom_envelope
-  test_errors
+  test-examples
+  test-custom-envelope
+  test-errors
 
-test_examples:
-  PodSpecification.from_json INITIAL_POD_SPECIFICATION --path="ignored"
-  PodSpecification.from_json EXAMPLE_POD_SPECIFICATION --path="ignored"
+test-examples:
+  PodSpecification.from-json INITIAL-POD-SPECIFICATION --path="ignored"
+  PodSpecification.from-json EXAMPLE-POD-SPECIFICATION --path="ignored"
 
-expect_format_error str/string json/Map:
-  exception := catch: PodSpecification.from_json json --path="ignored"
+expect-format-error str/string json/Map:
+  exception := catch: PodSpecification.from-json json --path="ignored"
   expect exception is PodSpecificationException
-  expect_equals str exception.message
-  expect_equals str "$exception"
+  expect-equals str exception.message
+  expect-equals str "$exception"
 
-VALID_SPECIFICATION ::= {
+VALID-SPECIFICATION ::= {
   "version": 1,
   "name": "test-pod",
   "sdk-version": "1.0.0",
@@ -69,189 +69,189 @@ VALID_SPECIFICATION ::= {
   }
 }
 
-new_valid -> Map:
-  return deep_copy_ VALID_SPECIFICATION
+new-valid -> Map:
+  return deep-copy_ VALID-SPECIFICATION
 
-test_custom_envelope:
-  custom_envelope := new_valid
-  custom_envelope["firmware-envelope"] = "envelope-path"
-  custom_envelope.remove "sdk-version"
-  pod := PodSpecification.from_json custom_envelope --path="ignored"
-  expect_equals "envelope-path" pod.envelope
+test-custom-envelope:
+  custom-envelope := new-valid
+  custom-envelope["firmware-envelope"] = "envelope-path"
+  custom-envelope.remove "sdk-version"
+  pod := PodSpecification.from-json custom-envelope --path="ignored"
+  expect-equals "envelope-path" pod.envelope
 
-  version_and_envelope := new_valid
-  version_and_envelope["firmware-envelope"] = "envelope-path"
-  pod = PodSpecification.from_json version_and_envelope --path="ignored"
-  expect_equals "envelope-path" pod.envelope
-  expect_equals "1.0.0" pod.sdk_version
+  version-and-envelope := new-valid
+  version-and-envelope["firmware-envelope"] = "envelope-path"
+  pod = PodSpecification.from-json version-and-envelope --path="ignored"
+  expect-equals "envelope-path" pod.envelope
+  expect-equals "1.0.0" pod.sdk-version
 
-test_errors:
-  no_version := new_valid
-  no_version.remove "version"
-  expect_format_error
+test-errors:
+  no-version := new-valid
+  no-version.remove "version"
+  expect-format-error
       "Missing version in pod specification."
-      no_version
+      no-version
 
-  no_name := new_valid
-  no_name.remove "name"
-  expect_format_error
+  no-name := new-valid
+  no-name.remove "name"
+  expect-format-error
       "Missing name in pod specification."
-      no_name
+      no-name
 
-  no_sdk_version := new_valid
-  no_sdk_version.remove "sdk-version"
-  expect_format_error
+  no-sdk-version := new-valid
+  no-sdk-version.remove "sdk-version"
+  expect-format-error
       "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
-      no_sdk_version
+      no-sdk-version
 
-  no_artemis_version := new_valid
-  no_artemis_version.remove "artemis-version"
-  expect_format_error
+  no-artemis-version := new-valid
+  no-artemis-version.remove "artemis-version"
+  expect-format-error
       "Missing artemis-version in pod specification."
-      no_artemis_version
+      no-artemis-version
 
-  no_max_offline := new_valid
-  no_max_offline.remove "max-offline"
-  no_max_offline_spec := PodSpecification.from_json no_max_offline --path="ignored"
-  expect_equals 0 no_max_offline_spec.max_offline_seconds
+  no-max-offline := new-valid
+  no-max-offline.remove "max-offline"
+  no-max-offline-spec := PodSpecification.from-json no-max-offline --path="ignored"
+  expect-equals 0 no-max-offline-spec.max-offline-seconds
 
-  no_connections := new_valid
-  no_connections.remove "connections"
-  expect_format_error
+  no-connections := new-valid
+  no-connections.remove "connections"
+  expect-format-error
       "Missing connections in pod specification."
-      no_connections
+      no-connections
 
-  no_containers := new_valid
-  no_containers.remove "containers"
+  no-containers := new-valid
+  no-containers.remove "containers"
   // Should work without error.
-  PodSpecification.from_json no_containers --path="ignored"
+  PodSpecification.from-json no-containers --path="ignored"
 
-  both_apps_and_containers := new_valid
-  both_apps_and_containers["apps"] = both_apps_and_containers["containers"]
-  expect_format_error
+  both-apps-and-containers := new-valid
+  both-apps-and-containers["apps"] = both-apps-and-containers["containers"]
+  expect-format-error
       "Both 'apps' and 'containers' are present in pod specification."
-      both_apps_and_containers
+      both-apps-and-containers
 
-  invalid_version := new_valid
-  invalid_version["version"] = 2
-  expect_format_error
+  invalid-version := new-valid
+  invalid-version["version"] = 2
+  expect-format-error
       "Unsupported pod specification version 2"
-      invalid_version
+      invalid-version
 
-  invalid_containers := new_valid
-  invalid_containers["containers"] = 1
-  expect_format_error
+  invalid-containers := new-valid
+  invalid-containers["containers"] = 1
+  expect-format-error
       "Entry containers in pod specification is not a map: 1"
-      invalid_containers
+      invalid-containers
 
-  invalid_container := new_valid
-  invalid_container["containers"]["app1"] = 1
-  expect_format_error
+  invalid-container := new-valid
+  invalid-container["containers"]["app1"] = 1
+  expect-format-error
       "Container app1 in pod specification is not a map: 1"
-      invalid_container
+      invalid-container
 
-  invalid_connections := new_valid
-  invalid_connections["connections"] = 1
-  expect_format_error
+  invalid-connections := new-valid
+  invalid-connections["connections"] = 1
+  expect-format-error
       "Entry connections in pod specification is not a list: 1"
-      invalid_connections
+      invalid-connections
 
-  invalid_connection := new_valid
-  invalid_connection["connections"][0] = 1
-  expect_format_error
+  invalid-connection := new-valid
+  invalid-connection["connections"][0] = 1
+  expect-format-error
       "Connection in pod specification is not a map: 1"
-      invalid_connection
+      invalid-connection
 
-  no_type := new_valid
-  no_type["connections"][0].remove "type"
-  expect_format_error
+  no-type := new-valid
+  no-type["connections"][0].remove "type"
+  expect-format-error
       "Missing type in connection."
-      no_type
+      no-type
 
-  invalid_type := new_valid
-  invalid_type["connections"][0]["type"] = "invalid"
-  expect_format_error
+  invalid-type := new-valid
+  invalid-type["connections"][0]["type"] = "invalid"
+  expect-format-error
       "Unknown connection type: invalid"
-      invalid_type
+      invalid-type
 
-  no_ssid := new_valid
-  no_ssid["connections"][0].remove "ssid"
-  expect_format_error
+  no-ssid := new-valid
+  no-ssid["connections"][0].remove "ssid"
+  expect-format-error
       "Missing ssid in wifi connection."
-      no_ssid
+      no-ssid
 
-  no_password := new_valid
-  no_password["connections"][0].remove "password"
-  expect_format_error
+  no-password := new-valid
+  no-password["connections"][0].remove "password"
+  expect-format-error
       "Missing password in wifi connection."
-      no_password
+      no-password
 
-  entrypoint_and_snapshot := new_valid
-  entrypoint_and_snapshot["containers"]["app1"]["snapshot"] = "foo.snapshot"
-  expect_format_error
+  entrypoint-and-snapshot := new-valid
+  entrypoint-and-snapshot["containers"]["app1"]["snapshot"] = "foo.snapshot"
+  expect-format-error
       "Container app1 has both entrypoint and snapshot."
-      entrypoint_and_snapshot
+      entrypoint-and-snapshot
 
-  no_entrypoint_or_snapshot := new_valid
-  no_entrypoint_or_snapshot["containers"]["app1"].remove "entrypoint"
-  no_entrypoint_or_snapshot["containers"]["app1"].remove "snapshot"
-  expect_format_error
-      "Unsupported container app1: $no_entrypoint_or_snapshot["containers"]["app1"]"
-      no_entrypoint_or_snapshot
+  no-entrypoint-or-snapshot := new-valid
+  no-entrypoint-or-snapshot["containers"]["app1"].remove "entrypoint"
+  no-entrypoint-or-snapshot["containers"]["app1"].remove "snapshot"
+  expect-format-error
+      "Unsupported container app1: $no-entrypoint-or-snapshot["containers"]["app1"]"
+      no-entrypoint-or-snapshot
 
-  bad_arguments := new_valid
-  bad_arguments["containers"]["app1"]["arguments"] = 1
-  expect_format_error
+  bad-arguments := new-valid
+  bad-arguments["containers"]["app1"]["arguments"] = 1
+  expect-format-error
       "Entry arguments in container app1 is not a list: 1"
-      bad_arguments
+      bad-arguments
 
-  bad_arguments_not_strings := new_valid
-  bad_arguments_not_strings["containers"]["app1"]["arguments"] = [1]
-  expect_format_error
+  bad-arguments-not-strings := new-valid
+  bad-arguments-not-strings["containers"]["app1"]["arguments"] = [1]
+  expect-format-error
       "Entry arguments in container app1 is not a list of strings: [1]"
-      bad_arguments_not_strings
+      bad-arguments-not-strings
 
-  git_url_no_ref := new_valid
-  git_url_no_ref["containers"]["app2"].remove "branch"
-  expect_format_error
+  git-url-no-ref := new-valid
+  git-url-no-ref["containers"]["app2"].remove "branch"
+  expect-format-error
       "In container app2, git entry requires a branch/tag: foo"
-      git_url_no_ref
+      git-url-no-ref
 
-  git_url_no_relative_path := new_valid
-  git_url_no_relative_path["containers"]["app2"]["entrypoint"] = "/abs"
-  expect_format_error
+  git-url-no-relative-path := new-valid
+  git-url-no-relative-path["containers"]["app2"]["entrypoint"] = "/abs"
+  expect-format-error
       "In container app2, git entry requires a relative path: /abs"
-      git_url_no_relative_path
+      git-url-no-relative-path
 
-  bad_trigger := new_valid
-  bad_trigger["containers"]["app4"]["triggers"] = [{ "foobar": true }]
-  expect_format_error
+  bad-trigger := new-valid
+  bad-trigger["containers"]["app4"]["triggers"] = [{ "foobar": true }]
+  expect-format-error
       "Unknown trigger in container app4: {foobar: true}"
-      bad_trigger
+      bad-trigger
 
-  bad_trigger = new_valid
-  bad_trigger["containers"]["app4"]["triggers"] = ["foobar"]
-  expect_format_error
+  bad-trigger = new-valid
+  bad-trigger["containers"]["app4"]["triggers"] = ["foobar"]
+  expect-format-error
       "Unknown trigger in container app4: foobar"
-      bad_trigger
+      bad-trigger
 
-  bad_trigger = new_valid
-  bad_trigger["containers"]["app4"]["triggers"] = [{"boot": true}]
-  expect_format_error
+  bad-trigger = new-valid
+  bad-trigger["containers"]["app4"]["triggers"] = [{"boot": true}]
+  expect-format-error
       "Unknown trigger in container app4: {boot: true}"
-      bad_trigger
+      bad-trigger
 
-  duplicate_trigger := new_valid
-  duplicate_trigger["containers"]["app4"]["triggers"] = [
+  duplicate-trigger := new-valid
+  duplicate-trigger["containers"]["app4"]["triggers"] = [
     { "interval": "5s" },
     { "interval": "5s" },
   ]
-  expect_format_error
+  expect-format-error
       "Duplicate trigger 'interval' in container app4"
-      duplicate_trigger
+      duplicate-trigger
 
-  bad_interval := new_valid
-  bad_interval["containers"]["app4"]["triggers"] = [{ "interval": "foobar" }]
-  expect_format_error
+  bad-interval := new-valid
+  bad-interval["containers"]["app4"]["triggers"] = [{ "interval": "foobar" }]
+  expect-format-error
       "Entry interval in trigger in container app4 is not a valid duration: foobar"
-      bad_interval
+      bad-interval

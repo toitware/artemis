@@ -10,22 +10,22 @@ import .implementation.container as implementation
 import .implementation.controller as implementation
 import .implementation.device as implementation
 
-DEFAULT_TIMEOUT_RUN_OFFLINE_ ::= Duration --m=5
+DEFAULT-TIMEOUT-RUN-OFFLINE_ ::= Duration --m=5
 
-artemis_client_/api.ArtemisClient? ::= (api.ArtemisClient).open
-    --if_absent=: null
+artemis-client_/api.ArtemisClient? ::= (api.ArtemisClient).open
+    --if-absent=: null
 
 /**
 Whether the Artemis service is available.
 */
 available -> bool:
-  return artemis_client_ != null
+  return artemis-client_ != null
 
 /**
 Returns the version of the Artemis service.
 */
 version -> string:
-  client := artemis_client_
+  client := artemis-client_
   if not client: throw "Artemis unavailable"
   return client.version
 
@@ -38,8 +38,8 @@ The Artemis service will attempt to stay connected as
 */
 run --online/bool [block] -> none:
   if not online: throw "Bad Argument"
-  implementation.Controller.run artemis_client_ block
-      --mode=api.ArtemisService.CONTROLLER_MODE_ONLINE
+  implementation.Controller.run artemis-client_ block
+      --mode=api.ArtemisService.CONTROLLER-MODE-ONLINE
 
 /**
 Runs the $block while forcing Artemis to stay offline.
@@ -48,17 +48,17 @@ The Artemis service guarantees to stay disconnected as
   long as the $block is still executing.
 */
 run --offline/bool [block] -> none
-    --timeout/Duration?=DEFAULT_TIMEOUT_RUN_OFFLINE_:
+    --timeout/Duration?=DEFAULT-TIMEOUT-RUN-OFFLINE_:
   if not offline: throw "Bad Argument"
-  with_timeout timeout:
-    implementation.Controller.run artemis_client_ block
-        --mode=api.ArtemisService.CONTROLLER_MODE_OFFLINE
+  with-timeout timeout:
+    implementation.Controller.run artemis-client_ block
+        --mode=api.ArtemisService.CONTROLLER-MODE-OFFLINE
 
 /**
 The $device is a local representation of the present physical
   or logical device running the Artemis service.
 */
-device/Device ::= implementation.Device artemis_client_
+device/Device ::= implementation.Device artemis-client_
 
 /**
 A physical or logical device running the Artemis service.
@@ -90,7 +90,7 @@ interface Container:
   /**
   Returns the currently executing container.
   */
-  static current ::= implementation.ContainerCurrent artemis_client_
+  static current ::= implementation.ContainerCurrent artemis-client_
 
   /**
   Restarts this container.
@@ -136,9 +136,9 @@ class Channel extends ServiceResourceProxy:
     super client handle
 
   static open --topic/string --receive/bool=false -> Channel:
-    client := artemis_client_
+    client := artemis-client_
     if not client: throw "Artemis unavailable"
-    handle := client.channel_open --topic=topic --receive=receive
+    handle := client.channel-open --topic=topic --receive=receive
     return Channel.internal_ client handle --topic=topic
 
   /**
@@ -154,9 +154,9 @@ class Channel extends ServiceResourceProxy:
   Receiving from an non-empty channel will cause
     $receive to return a non-null byte array.
   */
-  is_empty -> bool:
+  is-empty -> bool:
     if buffered_ > received_: return false
-    receive_next_page_
+    receive-next-page_
     return cursor_ == null
 
   /**
@@ -173,9 +173,9 @@ class Channel extends ServiceResourceProxy:
   */
   position -> ChannelPosition:
     pages := pages_
-    if pages.is_empty:
+    if pages.is-empty:
       assert: received_ == 0
-      return ChannelPosition.internal_ receive_next_page_
+      return ChannelPosition.internal_ receive-next-page_
     else:
       first/ChannelPage_ := pages.first
       return ChannelPosition.internal_ first.position + received_
@@ -183,12 +183,12 @@ class Channel extends ServiceResourceProxy:
   /**
   Sends an $element of bytes to the channel.
 
-  Variant of $(send element [--if_full]).
+  Variant of $(send element [--if-full]).
 
   The channel must not be full.
   */
   send element/ByteArray --copy/bool=true -> none:
-    send element --if_full=: throw "OUT_OF_BOUNDS"
+    send element --if-full=: throw "OUT_OF_BOUNDS"
 
   /**
   Sends an $element of bytes to the channel.
@@ -197,10 +197,10 @@ class Channel extends ServiceResourceProxy:
     the channel, so it will be returned from $receive
     only after those elements have been received.
 
-  If the channel is full, the $if_full block is invoked
+  If the channel is full, the $if-full block is invoked
     with the $element.
   */
-  send element/ByteArray [--if_full] -> none:
+  send element/ByteArray [--if-full] -> none:
     sent := element
     if element is not ByteArraySlice_:
       // Even small external byte arrays are neutered
@@ -212,10 +212,10 @@ class Channel extends ServiceResourceProxy:
       // was not external, but no such check exists.
       size := element.size
       sent = ByteArraySlice_ element 0 size
-    success := (client_ as api.ArtemisClient).channel_send
+    success := (client_ as api.ArtemisClient).channel-send
         handle_
         sent
-    if not success: if_full.call element
+    if not success: if-full.call element
 
   /**
   Returns the next element in the channel or null if the
@@ -232,9 +232,9 @@ class Channel extends ServiceResourceProxy:
   */
   receive -> ByteArray?:
     while buffered_ == received_:
-      receive_next_page_
+      receive-next-page_
       if not cursor_: return null
-    next := receive_next_ buffer_
+    next := receive-next_ buffer_
     received_++
     return next
 
@@ -258,13 +258,13 @@ class Channel extends ServiceResourceProxy:
     acknowledged_ = acknowledged
 
     pages := pages_
-    while not pages.is_empty:
+    while not pages.is-empty:
       first/ChannelPage_ := pages.first
       count := first.count
       // Don't acknowledge the page until we're completely done with it.
       if acknowledged < count: break
-      (client_ as api.ArtemisClient).channel_acknowledge handle_ first.position count
-      pages.remove_first
+      (client_ as api.ArtemisClient).channel-acknowledge handle_ first.position count
+      pages.remove-first
 
       // Adjust the bookkeeping counts, so they represent the state
       // for the remaining pages.
@@ -274,7 +274,7 @@ class Channel extends ServiceResourceProxy:
       received_ = received
       acknowledged_ = acknowledged
 
-  receive_next_page_ -> int:
+  receive-next-page_ -> int:
     pages := pages_
     buffer := buffer_
     cursor_ = null
@@ -282,7 +282,7 @@ class Channel extends ServiceResourceProxy:
     // We have read the entire last page. We can reuse the
     // buffer if it has already been acked.
     peek := pages.size
-    result := (client_ as api.ArtemisClient).channel_receive_page handle_
+    result := (client_ as api.ArtemisClient).channel-receive-page handle_
         --peek=peek
         --buffer=(peek == 0) ? buffer : null
     position := result[0]
@@ -296,7 +296,7 @@ class Channel extends ServiceResourceProxy:
     buffered_ += count
     return position
 
-  receive_next_ buffer/ByteArray -> ByteArray?:
+  receive-next_ buffer/ByteArray -> ByteArray?:
     cursor := cursor_
     from := cursor
     to := cursor
@@ -383,7 +383,7 @@ The channels keep track of the position of all elements
 class ChannelPosition implements Comparable:
   value/int
   constructor.internal_ value/int:
-    this.value = value & api.ArtemisService.CHANNEL_POSITION_MASK
+    this.value = value & api.ArtemisService.CHANNEL-POSITION-MASK
 
   stringify -> string:
     return "$(%08x value)"
@@ -398,16 +398,16 @@ class ChannelPosition implements Comparable:
     return other is ChannelPosition and value == other.value
 
   operator < other/ChannelPosition -> bool:
-    return (api.ArtemisService.channel_position_compare value other.value) < 0
+    return (api.ArtemisService.channel-position-compare value other.value) < 0
 
   operator <= other/ChannelPosition -> bool:
-    return (api.ArtemisService.channel_position_compare value other.value) <= 0
+    return (api.ArtemisService.channel-position-compare value other.value) <= 0
 
   operator > other/ChannelPosition -> bool:
-    return (api.ArtemisService.channel_position_compare value other.value) > 0
+    return (api.ArtemisService.channel-position-compare value other.value) > 0
 
   operator >= other/ChannelPosition -> bool:
-    return (api.ArtemisService.channel_position_compare value other.value) >= 0
+    return (api.ArtemisService.channel-position-compare value other.value) >= 0
 
   /**
   Compares this position to $other.
@@ -421,18 +421,18 @@ class ChannelPosition implements Comparable:
     are far apart, then they have wrapped around which means that
     the smaller number is considered greater than the larger number.
   */
-  compare_to other/ChannelPosition -> int:
-    return api.ArtemisService.channel_position_compare value other.value
+  compare-to other/ChannelPosition -> int:
+    return api.ArtemisService.channel-position-compare value other.value
 
   /**
-  Variant of $(compare_to other).
+  Variant of $(compare-to other).
 
-  Calls $if_equal if this and $other are equal. Then returns the
+  Calls $if-equal if this and $other are equal. Then returns the
     result of the call.
   */
-  compare_to other/ChannelPosition [--if_equal] -> int:
-    result := api.ArtemisService.channel_position_compare value other.value
-    if result == 0: result = if_equal.call
+  compare-to other/ChannelPosition [--if-equal] -> int:
+    result := api.ArtemisService.channel-position-compare value other.value
+    if result == 0: result = if-equal.call
     return result
 
 class ChannelPage_:

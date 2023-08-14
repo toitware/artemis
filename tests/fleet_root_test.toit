@@ -6,43 +6,43 @@ import expect show *
 import .utils
 
 main args:
-  with_test_cli --args=args: | test_cli/TestCli |
-    run_test test_cli
+  with-test-cli --args=args: | test-cli/TestCli |
+    run-test test-cli
 
-run_test test_cli/TestCli:
-  test_cli.run [
+run-test test-cli/TestCli:
+  test-cli.run [
     "auth", "login",
-    "--email", TEST_EXAMPLE_COM_EMAIL,
-    "--password", TEST_EXAMPLE_COM_PASSWORD,
+    "--email", TEST-EXAMPLE-COM-EMAIL,
+    "--password", TEST-EXAMPLE-COM-PASSWORD,
   ]
 
-  test_cli.run [
+  test-cli.run [
     "auth", "login",
     "--broker",
-    "--email", TEST_EXAMPLE_COM_EMAIL,
-    "--password", TEST_EXAMPLE_COM_PASSWORD,
+    "--email", TEST-EXAMPLE-COM-EMAIL,
+    "--password", TEST-EXAMPLE-COM-PASSWORD,
   ]
 
-  with_tmp_directory: | fleet_tmp_dir |
-    test_cli.run [
+  with-tmp-directory: | fleet-tmp-dir |
+    test-cli.run [
       "fleet",
-      "--fleet-root", fleet_tmp_dir,
+      "--fleet-root", fleet-tmp-dir,
       "init",
-      "--organization-id", "$TEST_ORGANIZATION_UUID",
+      "--organization-id", "$TEST-ORGANIZATION-UUID",
     ]
 
-    expect (file.is_file "$fleet_tmp_dir/fleet.json")
-    expect (file.is_file "$fleet_tmp_dir/devices.json")
-    expect (file.is_file "$fleet_tmp_dir/my-pod.json")
+    expect (file.is-file "$fleet-tmp-dir/fleet.json")
+    expect (file.is-file "$fleet-tmp-dir/devices.json")
+    expect (file.is-file "$fleet-tmp-dir/my-pod.json")
 
-  with_tmp_directory: | fleet_tmp_dir |
-    os.env["ARTEMIS_FLEET_ROOT"] = fleet_tmp_dir
-    test_cli.run [
+  with-tmp-directory: | fleet-tmp-dir |
+    os.env["ARTEMIS_FLEET_ROOT"] = fleet-tmp-dir
+    test-cli.run [
       "fleet",
       "init",
-      "--organization-id", "$TEST_ORGANIZATION_UUID",
+      "--organization-id", "$TEST-ORGANIZATION-UUID",
     ]
 
-    expect (file.is_file "$fleet_tmp_dir/fleet.json")
-    expect (file.is_file "$fleet_tmp_dir/devices.json")
-    expect (file.is_file "$fleet_tmp_dir/my-pod.json")
+    expect (file.is-file "$fleet-tmp-dir/fleet.json")
+    expect (file.is-file "$fleet-tmp-dir/devices.json")
+    expect (file.is-file "$fleet-tmp-dir/my-pod.json")

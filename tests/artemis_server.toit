@@ -3,32 +3,32 @@
 import monitor
 import net
 import supabase
-import supabase.filter show equals greater_than_or_equal
+import supabase.filter show equals greater-than-or-equal
 import uuid
 
-import .supabase_local_server
-import ..tools.http_servers.artemis_server show HttpArtemisServer DeviceEntry EventEntry
-import ..tools.http_servers.artemis_server as http_servers
-import ..tools.lan_ip.lan_ip
-import artemis.shared.server_config show ServerConfig ServerConfigHttp ServerConfigSupabase
+import .supabase-local-server
+import ..tools.http-servers.artemis-server show HttpArtemisServer DeviceEntry EventEntry
+import ..tools.http-servers.artemis-server as http-servers
+import ..tools.lan-ip.lan-ip
+import artemis.shared.server-config show ServerConfig ServerConfigHttp ServerConfigSupabase
 import .utils
 
 class TestArtemisServer:
-  server_config/ServerConfig
+  server-config/ServerConfig
   backdoor/ArtemisServerBackdoor
 
-  constructor .server_config .backdoor:
+  constructor .server-config .backdoor:
 
 interface ArtemisServerBackdoor:
   /**
-  Fetches the information of the device with the given $hardware_id.
+  Fetches the information of the device with the given $hardware-id.
 
   Returns a list of [hardware_id, fleet_id, alias]. If no alias exists, uses "" instead.
   */
-  fetch_device_information --hardware_id/uuid.Uuid -> List
+  fetch-device-information --hardware-id/uuid.Uuid -> List
 
-  /** Whether there exists a '$type'-event for the given $hardware_id. */
-  has_event --hardware_id/uuid.Uuid --type/string -> bool
+  /** Whether there exists a '$type'-event for the given $hardware-id. */
+  has-event --hardware-id/uuid.Uuid --type/string -> bool
 
   /**
   Installs the given images.
@@ -40,35 +40,35 @@ interface ArtemisServerBackdoor:
   - image: The image identifier.
   - content: The image content (a byte array).
   */
-  install_service_images images/List
+  install-service-images images/List
 
   /**
-  Creates a new device in the given $organization_id.
+  Creates a new device in the given $organization-id.
 
   Returns a map with the device ID ("id"), and alias ID ("alias") of
     the created device.
   */
-  create_device --organization_id/uuid.Uuid -> Map
+  create-device --organization-id/uuid.Uuid -> Map
 
   /**
-  Removes the device with the given $device_id.
+  Removes the device with the given $device-id.
   */
-  remove_device device_id/uuid.Uuid -> none
+  remove-device device-id/uuid.Uuid -> none
 
-with_artemis_server
+with-artemis-server
     --type/string
     --args/List
     [block]:
   if type == "supabase":
     // Make sure we are running with the correct resource lock.
-    check_resource_lock "artemis_server" --args=args
-    server_config := get_supabase_config --sub_directory=SUPABASE_ARTEMIS
-    service_key := get_supabase_service_key --sub_directory=SUPABASE_ARTEMIS
-    backdoor := SupabaseBackdoor server_config service_key
-    test_server := TestArtemisServer server_config backdoor
-    block.call test_server
+    check-resource-lock "artemis_server" --args=args
+    server-config := get-supabase-config --sub-directory=SUPABASE-ARTEMIS
+    service-key := get-supabase-service-key --sub-directory=SUPABASE-ARTEMIS
+    backdoor := SupabaseBackdoor server-config service-key
+    test-server := TestArtemisServer server-config backdoor
+    block.call test-server
   else if type == "http":
-    with_http_artemis_server block
+    with-http-artemis-server block
   else:
     throw "Unknown Artemis server type: $type"
 
@@ -77,42 +77,42 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
 
   constructor .server:
 
-  fetch_device_information --hardware_id/uuid.Uuid -> List:
-    entry/DeviceEntry := server.devices["$hardware_id"]
+  fetch-device-information --hardware-id/uuid.Uuid -> List:
+    entry/DeviceEntry := server.devices["$hardware-id"]
     return [
       uuid.parse entry.id,
-      uuid.parse entry.organization_id,
+      uuid.parse entry.organization-id,
       uuid.parse entry.alias,
     ]
 
-  has_event --hardware_id/uuid.Uuid --type/string -> bool:
-    hardware_id_string := "$hardware_id"
+  has-event --hardware-id/uuid.Uuid --type/string -> bool:
+    hardware-id-string := "$hardware-id"
     server.events.do: | entry/EventEntry |
-      if entry.device_id == hardware_id_string and
+      if entry.device-id == hardware-id-string and
           entry.data is Map and (entry.data.get "type") == type:
         return true
     return false
 
-  install_service_images images/List -> none:
-    image_binaries := {:}
-    sdk_service_versions := []
+  install-service-images images/List -> none:
+    image-binaries := {:}
+    sdk-service-versions := []
     images.do: | entry/Map |
-      sdk_service_versions.add {
+      sdk-service-versions.add {
         "sdk_version": entry["sdk_version"],
         "service_version": entry["service_version"],
         "image": entry["image"],
       }
-      image_binaries[entry["image"]] = entry["content"]
+      image-binaries[entry["image"]] = entry["content"]
 
-    server.sdk_service_versions = sdk_service_versions
-    server.image_binaries = image_binaries
+    server.sdk-service-versions = sdk-service-versions
+    server.image-binaries = image-binaries
 
-  create_device --organization_id/uuid.Uuid -> Map:
+  create-device --organization-id/uuid.Uuid -> Map:
     // TODO(florian): the server should automatically generate an alias
     // if none is given.
-    alias := random_uuid
-    response := server.create_device_in_organization {
-      "organization_id": "$organization_id",
+    alias := random-uuid
+    response := server.create-device-in-organization {
+      "organization_id": "$organization-id",
       "alias": "$alias",
     }
     return {
@@ -120,69 +120,69 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
       "alias": uuid.parse response["alias"],
     }
 
-  remove_device device_id/uuid.Uuid -> none:
-    server.remove_device "$device_id"
+  remove-device device-id/uuid.Uuid -> none:
+    server.remove-device "$device-id"
 
-with_http_artemis_server [block]:
-  server := http_servers.HttpArtemisServer 0
-  port_latch := monitor.Latch
-  server_task := task:: server.start port_latch
+with-http-artemis-server [block]:
+  server := http-servers.HttpArtemisServer 0
+  port-latch := monitor.Latch
+  server-task := task:: server.start port-latch
 
   host := "localhost"
-  if platform != PLATFORM_WINDOWS:
-    lan_ip := get_lan_ip
-    host = host.replace "localhost" lan_ip
+  if platform != PLATFORM-WINDOWS:
+    lan-ip := get-lan-ip
+    host = host.replace "localhost" lan-ip
 
-  server_config := ServerConfigHttp "test-artemis-server"
+  server-config := ServerConfigHttp "test-artemis-server"
       --host=host
-      --port=port_latch.get
+      --port=port-latch.get
       --path="/"
-      --root_certificate_names=null
-      --root_certificate_ders=null
-      --poll_interval=Duration --ms=500
-      --admin_headers={
+      --root-certificate-names=null
+      --root-certificate-ders=null
+      --poll-interval=Duration --ms=500
+      --admin-headers={
         "X-Artemis-Header": "true",
       }
-      --device_headers={
+      --device-headers={
         "X-Artemis-Header": "true",
       }
 
-  server.create_organization
-      --id="$TEST_ORGANIZATION_UUID"
-      --name=TEST_ORGANIZATION_NAME
-      --admin_id="$TEST_EXAMPLE_COM_UUID"
+  server.create-organization
+      --id="$TEST-ORGANIZATION-UUID"
+      --name=TEST-ORGANIZATION-NAME
+      --admin-id="$TEST-EXAMPLE-COM-UUID"
 
-  server.create_user
-      --name=TEST_EXAMPLE_COM_NAME
-      --email=TEST_EXAMPLE_COM_EMAIL
-      --id="$TEST_EXAMPLE_COM_UUID"
-  server.create_user
-      --name=DEMO_EXAMPLE_COM_NAME
-      --email=DEMO_EXAMPLE_COM_EMAIL
-      --id="$DEMO_EXAMPLE_COM_UUID"
-  server.create_user
-      --name=ADMIN_NAME
-      --email=ADMIN_EMAIL
-      --id="$ADMIN_UUID"
+  server.create-user
+      --name=TEST-EXAMPLE-COM-NAME
+      --email=TEST-EXAMPLE-COM-EMAIL
+      --id="$TEST-EXAMPLE-COM-UUID"
+  server.create-user
+      --name=DEMO-EXAMPLE-COM-NAME
+      --email=DEMO-EXAMPLE-COM-EMAIL
+      --id="$DEMO-EXAMPLE-COM-UUID"
+  server.create-user
+      --name=ADMIN-NAME
+      --email=ADMIN-EMAIL
+      --id="$ADMIN-UUID"
 
   backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
 
-  test_server := TestArtemisServer server_config backdoor
+  test-server := TestArtemisServer server-config backdoor
   try:
-    block.call test_server
+    block.call test-server
   finally:
     server.close
-    server_task.cancel
+    server-task.cancel
 
 class SupabaseBackdoor implements ArtemisServerBackdoor:
-  server_config_/ServerConfigSupabase
-  service_key_/string
+  server-config_/ServerConfigSupabase
+  service-key_/string
 
-  constructor .server_config_ .service_key_:
+  constructor .server-config_ .service-key_:
 
-  fetch_device_information --hardware_id/uuid.Uuid -> List:
+  fetch-device-information --hardware-id/uuid.Uuid -> List:
     entry := query_ "devices" [
-      equals "id" "$hardware_id",
+      equals "id" "$hardware-id",
     ]
     return [
       uuid.parse entry[0]["id"],
@@ -190,11 +190,11 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
       uuid.parse entry[0]["alias"],
     ]
 
-  has_event --hardware_id/uuid.Uuid --type/string -> bool:
+  has-event --hardware-id/uuid.Uuid --type/string -> bool:
     // For simplicity just run through all entries.
     // In the test-setup we should not have that many.
     entries := query_ "events" [
-      equals "device_id" "$hardware_id",
+      equals "device_id" "$hardware-id",
     ]
     if not entries: return false
     entries.do:
@@ -203,48 +203,48 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
         return true
     return false
 
-  install_service_images images/List -> none:
-    with_backdoor_client_: | client/supabase.Client |
+  install-service-images images/List -> none:
+    with-backdoor-client_: | client/supabase.Client |
       // Clear the sdks, service-versions and images table.
       // Deletes require a where clause, so we use a filter that matches all IDs.
-      filter := greater_than_or_equal "id" 0
+      filter := greater-than-or-equal "id" 0
       client.rest.delete "sdks" --filters=[filter]
       client.rest.delete "artemis_services" --filters=[filter]
       client.rest.delete "service_images" --filters=[filter]
 
-      sdk_versions := {:}
-      service_versions := {:}
+      sdk-versions := {:}
+      service-versions := {:}
 
       images.do: | entry/Map |
-        sdk_version := entry["sdk_version"]
-        service_version := entry["service_version"]
+        sdk-version := entry["sdk_version"]
+        service-version := entry["service_version"]
         image := entry["image"]
         content := entry["content"]
 
-        sdk_id := sdk_versions.get sdk_version --init=:
-          new_entry := client.rest.insert "sdks" {
-            "version": sdk_version,
+        sdk-id := sdk-versions.get sdk-version --init=:
+          new-entry := client.rest.insert "sdks" {
+            "version": sdk-version,
           }
-          new_entry["id"]
-        service_id := service_versions.get service_version --init=:
-          new_entry := client.rest.insert "artemis_services" {
-            "version": service_version,
+          new-entry["id"]
+        service-id := service-versions.get service-version --init=:
+          new-entry := client.rest.insert "artemis_services" {
+            "version": service-version,
           }
-          new_entry["id"]
+          new-entry["id"]
 
         client.rest.insert "service_images" {
-          "sdk_id": sdk_id,
-          "service_id": service_id,
+          "sdk_id": sdk-id,
+          "service_id": service-id,
           "image": image,
         }
 
         client.storage.upload --path="service-images/$image" --content=content
 
-  create_device --organization_id/uuid.Uuid -> Map:
-    alias := random_uuid
-    with_backdoor_client_: | client/supabase.Client |
+  create-device --organization-id/uuid.Uuid -> Map:
+    alias := random-uuid
+    with-backdoor-client_: | client/supabase.Client |
       response := client.rest.insert "devices" {
-        "organization_id": "$organization_id",
+        "organization_id": "$organization-id",
         "alias": "$alias",
       }
       return {
@@ -253,23 +253,23 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
       }
     unreachable
 
-  remove_device device_id/uuid.Uuid -> none:
-    with_backdoor_client_: | client/supabase.Client |
-      client.rest.delete "devices" --filters=[equals "id" "$device_id"]
+  remove-device device-id/uuid.Uuid -> none:
+    with-backdoor-client_: | client/supabase.Client |
+      client.rest.delete "devices" --filters=[equals "id" "$device-id"]
 
   query_ table/string filters/List=[] -> List?:
-    with_backdoor_client_: | client/supabase.Client |
+    with-backdoor-client_: | client/supabase.Client |
       return client.rest.select table --filters=filters
     unreachable
 
-  with_backdoor_client_ [block]:
+  with-backdoor-client_ [block]:
     network := net.open
-    supabase_client/supabase.Client? := null
+    supabase-client/supabase.Client? := null
     try:
-      supabase_client = supabase.Client
-          --host=server_config_.host
-          --anon=service_key_
-      block.call supabase_client
+      supabase-client = supabase.Client
+          --host=server-config_.host
+          --anon=service-key_
+      block.call supabase-client
     finally:
-      if supabase_client: supabase_client.close
+      if supabase-client: supabase-client.close
       network.close

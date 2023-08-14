@@ -8,288 +8,288 @@ import log
 import net
 import uuid
 
-import .artemis_server
+import .artemis-server
 import .utils
 
-import artemis.cli.artemis_servers.artemis_server show ArtemisServerCli
-import artemis.service.artemis_servers.artemis_server show ArtemisServerService
-import artemis.shared.server_config show ServerConfig
-import artemis.cli.auth as cli_auth
+import artemis.cli.artemis-servers.artemis-server show ArtemisServerCli
+import artemis.service.artemis-servers.artemis-server show ArtemisServerService
+import artemis.shared.server-config show ServerConfig
+import artemis.cli.auth as cli-auth
 
 main args:
-  server_type := ?
-  if args.is_empty:
-    server_type = "http"
+  server-type := ?
+  if args.is-empty:
+    server-type = "http"
   else if args[0] == "--http-server":
-    server_type = "http"
+    server-type = "http"
   else if args[0] == "--supabase-server":
-    server_type = "supabase"
+    server-type = "supabase"
   else:
     throw "Unknown server server type: $args[0]"
-  with_artemis_server --args=args --type=server_type: | artemis_server/TestArtemisServer |
-    run_test artemis_server --authenticate=: | server/ArtemisServerCli |
-      server.sign_in
-            --email=TEST_EXAMPLE_COM_EMAIL
-            --password=TEST_EXAMPLE_COM_PASSWORD
+  with-artemis-server --args=args --type=server-type: | artemis-server/TestArtemisServer |
+    run-test artemis-server --authenticate=: | server/ArtemisServerCli |
+      server.sign-in
+            --email=TEST-EXAMPLE-COM-EMAIL
+            --password=TEST-EXAMPLE-COM-PASSWORD
 
-run_test artemis_server/TestArtemisServer [--authenticate]:
-  server_config := artemis_server.server_config
-  backdoor := artemis_server.backdoor
-  with_tmp_config: | config |
+run-test artemis-server/TestArtemisServer [--authenticate]:
+  server-config := artemis-server.server-config
+  backdoor := artemis-server.backdoor
+  with-tmp-config: | config |
     network := net.open
-    server_cli := ArtemisServerCli network server_config config
-    authenticate.call server_cli
-    hardware_id := test_create_device_in_organization server_cli backdoor
-    test_notify_created server_cli backdoor --hardware_id=hardware_id
-    server_service := ArtemisServerService server_config --hardware_id=hardware_id
-    test_check_in network server_service backdoor --hardware_id=hardware_id
+    server-cli := ArtemisServerCli network server-config config
+    authenticate.call server-cli
+    hardware-id := test-create-device-in-organization server-cli backdoor
+    test-notify-created server-cli backdoor --hardware-id=hardware-id
+    server-service := ArtemisServerService server-config --hardware-id=hardware-id
+    test-check-in network server-service backdoor --hardware-id=hardware-id
 
-    test_organizations server_cli backdoor
-    test_profile server_cli backdoor
-    test_sdk server_cli backdoor
+    test-organizations server-cli backdoor
+    test-profile server-cli backdoor
+    test-sdk server-cli backdoor
 
-test_create_device_in_organization server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> uuid.Uuid:
+test-create-device-in-organization server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> uuid.Uuid:
   // Test without and with alias.
-  device1 := server_cli.create_device_in_organization
-      --device_id=null
-      --organization_id=TEST_ORGANIZATION_UUID
-  hardware_id1 := device1.hardware_id
-  data := backdoor.fetch_device_information --hardware_id=hardware_id1
-  expect_equals hardware_id1 data[0]
-  expect_equals TEST_ORGANIZATION_UUID data[1]
+  device1 := server-cli.create-device-in-organization
+      --device-id=null
+      --organization-id=TEST-ORGANIZATION-UUID
+  hardware-id1 := device1.hardware-id
+  data := backdoor.fetch-device-information --hardware-id=hardware-id1
+  expect-equals hardware-id1 data[0]
+  expect-equals TEST-ORGANIZATION-UUID data[1]
 
-  alias_id := random_uuid
-  device2 := server_cli.create_device_in_organization
-      --device_id=alias_id
-      --organization_id=TEST_ORGANIZATION_UUID
+  alias-id := random-uuid
+  device2 := server-cli.create-device-in-organization
+      --device-id=alias-id
+      --organization-id=TEST-ORGANIZATION-UUID
   sleep --ms=200
-  hardware_id2 := device2.hardware_id
-  data = backdoor.fetch_device_information --hardware_id=hardware_id2
-  expect_equals hardware_id2 data[0]
-  expect_equals TEST_ORGANIZATION_UUID data[1]
-  expect_equals alias_id data[2]
+  hardware-id2 := device2.hardware-id
+  data = backdoor.fetch-device-information --hardware-id=hardware-id2
+  expect-equals hardware-id2 data[0]
+  expect-equals TEST-ORGANIZATION-UUID data[1]
+  expect-equals alias-id data[2]
 
-  return hardware_id2
+  return hardware-id2
 
-test_notify_created server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor --hardware_id/uuid.Uuid:
-  expect_not (backdoor.has_event --hardware_id=hardware_id --type="created")
-  server_cli.notify_created --hardware_id=hardware_id
-  expect (backdoor.has_event --hardware_id=hardware_id --type="created")
+test-notify-created server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor --hardware-id/uuid.Uuid:
+  expect-not (backdoor.has-event --hardware-id=hardware-id --type="created")
+  server-cli.notify-created --hardware-id=hardware-id
+  expect (backdoor.has-event --hardware-id=hardware-id --type="created")
 
-test_check_in network/net.Interface
-    server_service/ArtemisServerService
+test-check-in network/net.Interface
+    server-service/ArtemisServerService
     backdoor/ArtemisServerBackdoor
-    --hardware_id/uuid.Uuid:
-  expect_not (backdoor.has_event --hardware_id=hardware_id --type="ping")
-  server_service.check_in network log.default
-  expect (backdoor.has_event --hardware_id=hardware_id --type="ping")
+    --hardware-id/uuid.Uuid:
+  expect-not (backdoor.has-event --hardware-id=hardware-id --type="ping")
+  server-service.check-in network log.default
+  expect (backdoor.has-event --hardware-id=hardware-id --type="ping")
 
-test_organizations server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
-  original_orgs := server_cli.get_organizations
+test-organizations server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
+  original-orgs := server-cli.get-organizations
 
   // For now we can't be sure that there aren't other organizations from
   // previous runs of the test.
   // Just ensure that there is at least one.
-  expect original_orgs.size >= 1  // The prefilled organization.
-  expect (original_orgs.any: it.id == TEST_ORGANIZATION_UUID)
+  expect original-orgs.size >= 1  // The prefilled organization.
+  expect (original-orgs.any: it.id == TEST-ORGANIZATION-UUID)
 
-  org := server_cli.create_organization "Testy"
-  expect_equals "Testy" org.name
-  expect_not_equals "" org.id
-  expect_not (original_orgs.any: it.id == org.id)
+  org := server-cli.create-organization "Testy"
+  expect-equals "Testy" org.name
+  expect-not-equals "" org.id
+  expect-not (original-orgs.any: it.id == org.id)
 
-  new_orgs := server_cli.get_organizations
-  expect_equals (original_orgs.size + 1) new_orgs.size
-  original_orgs.do: | old_org |
-    expect (new_orgs.any: it.id == old_org.id)
-  expect (new_orgs.any: it.id == org.id)
+  new-orgs := server-cli.get-organizations
+  expect-equals (original-orgs.size + 1) new-orgs.size
+  original-orgs.do: | old-org |
+    expect (new-orgs.any: it.id == old-org.id)
+  expect (new-orgs.any: it.id == org.id)
 
-  detailed := server_cli.get_organization org.id
-  expect_equals org.id detailed.id
-  expect_equals org.name detailed.name
-  expect (detailed.created_at < Time.now)
+  detailed := server-cli.get-organization org.id
+  expect-equals org.id detailed.id
+  expect-equals org.name detailed.name
+  expect (detailed.created-at < Time.now)
 
-  non_existent := server_cli.get_organization NON_EXISTENT_UUID
-  expect_null non_existent
+  non-existent := server-cli.get-organization NON-EXISTENT-UUID
+  expect-null non-existent
 
   // Test member functions.
-  current_user_id := TEST_EXAMPLE_COM_UUID
-  demo_user_id := DEMO_EXAMPLE_COM_UUID
+  current-user-id := TEST-EXAMPLE-COM-UUID
+  demo-user-id := DEMO-EXAMPLE-COM-UUID
 
-  members := server_cli.get_organization_members org.id
-  expect_equals 1 members.size
-  expect_equals current_user_id members[0]["id"]
-  expect_equals "admin" members[0]["role"]
+  members := server-cli.get-organization-members org.id
+  expect-equals 1 members.size
+  expect-equals current-user-id members[0]["id"]
+  expect-equals "admin" members[0]["role"]
 
   // Add a new member.
-  server_cli.organization_member_add
-      --organization_id=org.id
-      --user_id=demo_user_id
+  server-cli.organization-member-add
+      --organization-id=org.id
+      --user-id=demo-user-id
       --role="member"
-  members = server_cli.get_organization_members org.id
-  expect_equals 2 members.size
+  members = server-cli.get-organization-members org.id
+  expect-equals 2 members.size
   expect members[0]["id"] != members[1]["id"]
   members.do: | member |
-    if member["id"] == current_user_id:
-      expect_equals "admin" member["role"]
+    if member["id"] == current-user-id:
+      expect-equals "admin" member["role"]
     else:
-      expect_equals demo_user_id member["id"]
-      expect_equals "member" member["role"]
+      expect-equals demo-user-id member["id"]
+      expect-equals "member" member["role"]
 
   // Update the role of the new member.
-  server_cli.organization_member_set_role
-      --organization_id=org.id
-      --user_id=demo_user_id
+  server-cli.organization-member-set-role
+      --organization-id=org.id
+      --user-id=demo-user-id
       --role="admin"
-  members = server_cli.get_organization_members org.id
-  expect_equals 2 members.size
+  members = server-cli.get-organization-members org.id
+  expect-equals 2 members.size
   expect members[0]["id"] != members[1]["id"]
   members.do: | member |
     id := member["id"]
-    expect (id == current_user_id or id == demo_user_id)
-    expect_equals "admin" member["role"]
+    expect (id == current-user-id or id == demo-user-id)
+    expect-equals "admin" member["role"]
 
   // Remove the new member.
-  server_cli.organization_member_remove
-      --organization_id=org.id
-      --user_id=demo_user_id
+  server-cli.organization-member-remove
+      --organization-id=org.id
+      --user-id=demo-user-id
 
-  members = server_cli.get_organization_members org.id
-  expect_equals 1 members.size
-  expect_equals current_user_id members[0]["id"]
-  expect_equals "admin" members[0]["role"]
+  members = server-cli.get-organization-members org.id
+  expect-equals 1 members.size
+  expect-equals current-user-id members[0]["id"]
+  expect-equals "admin" members[0]["role"]
 
   // Add the new member with admin role.
-  server_cli.organization_member_add
-      --organization_id=org.id
-      --user_id=demo_user_id
+  server-cli.organization-member-add
+      --organization-id=org.id
+      --user-id=demo-user-id
       --role="admin"
-  members = server_cli.get_organization_members org.id
-  expect_equals 2 members.size
+  members = server-cli.get-organization-members org.id
+  expect-equals 2 members.size
   expect members[0]["id"] != members[1]["id"]
   members.do: | member |
     id := member["id"]
-    expect (id == current_user_id or id == demo_user_id)
-    expect_equals "admin" member["role"]
+    expect (id == current-user-id or id == demo-user-id)
+    expect-equals "admin" member["role"]
 
   // Keep the demo user in the same organization as the test user,
   // so we can read the user's profile in 'test_profile'
 
-test_profile server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
-  profile := server_cli.get_profile
+test-profile server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
+  profile := server-cli.get-profile
 
-  profile = server_cli.get_profile
-  expect_equals "Test User" profile["name"]
+  profile = server-cli.get-profile
+  expect-equals "Test User" profile["name"]
   id := profile["id"]
 
-  server_cli.update_profile --name="Test User updated"
-  profile = server_cli.get_profile
-  expect_equals "Test User updated" profile["name"]
+  server-cli.update-profile --name="Test User updated"
+  profile = server-cli.get-profile
+  expect-equals "Test User updated" profile["name"]
 
-  profile2 := server_cli.get_profile --user_id=id
-  expect_equals profile["id"] profile2["id"]
-  expect_equals profile["name"] profile2["name"]
-  expect_equals profile["email"] profile2["email"]
+  profile2 := server-cli.get-profile --user-id=id
+  expect-equals profile["id"] profile2["id"]
+  expect-equals profile["name"] profile2["name"]
+  expect-equals profile["email"] profile2["email"]
 
   // Change it back.
   // Other tests might need the profile to be in a certain state.
-  server_cli.update_profile --name="Test User"
+  server-cli.update-profile --name="Test User"
 
-  profile_non_existent := server_cli.get_profile --user_id=NON_EXISTENT_UUID
-  expect_null profile_non_existent
+  profile-non-existent := server-cli.get-profile --user-id=NON-EXISTENT-UUID
+  expect-null profile-non-existent
 
   // The following test requires that we have added the demo user
   // and test user into the same organization.
-  profile_demo := server_cli.get_profile --user_id=DEMO_EXAMPLE_COM_UUID
-  expect_equals DEMO_EXAMPLE_COM_NAME profile_demo["name"]
+  profile-demo := server-cli.get-profile --user-id=DEMO-EXAMPLE-COM-UUID
+  expect-equals DEMO-EXAMPLE-COM-NAME profile-demo["name"]
 
-test_sdk server_cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
-  SDK_V1 ::= "v2.0.0-alpha.46"
-  SDK_V2 ::= "v2.0.0-alpha.47"
-  SERVICE_V1 ::= "v0.0.1"
-  SERVICE_V2 ::= "v0.0.2"
+test-sdk server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
+  SDK-V1 ::= "v2.0.0-alpha.46"
+  SDK-V2 ::= "v2.0.0-alpha.47"
+  SERVICE-V1 ::= "v0.0.1"
+  SERVICE-V2 ::= "v0.0.2"
 
-  IMAGE_V1_V1 ::= "foobar"
-  IMAGE_V2_V1 ::= "toto"
-  IMAGE_V2_V2 ::= "titi"
+  IMAGE-V1-V1 ::= "foobar"
+  IMAGE-V2-V1 ::= "toto"
+  IMAGE-V2-V2 ::= "titi"
 
-  CONTENT_V1_V1 ::= "foobar_content".to_byte_array
-  CONTENT_V2_V1 ::= "toto_content".to_byte_array
-  CONTENT_V2_V2 ::= "titi_content".to_byte_array
+  CONTENT-V1-V1 ::= "foobar_content".to-byte-array
+  CONTENT-V2-V1 ::= "toto_content".to-byte-array
+  CONTENT-V2-V2 ::= "titi_content".to-byte-array
 
-  test_images := [
+  test-images := [
     {
-      "sdk_version": SDK_V1,
-      "service_version": SERVICE_V1,
-      "image": IMAGE_V1_V1,
-      "content": CONTENT_V1_V1,
+      "sdk_version": SDK-V1,
+      "service_version": SERVICE-V1,
+      "image": IMAGE-V1-V1,
+      "content": CONTENT-V1-V1,
     },
     {
-      "sdk_version": SDK_V2,
-      "service_version": SERVICE_V1,
-      "image": IMAGE_V2_V1,
-      "content": CONTENT_V2_V1,
+      "sdk_version": SDK-V2,
+      "service_version": SERVICE-V1,
+      "image": IMAGE-V2-V1,
+      "content": CONTENT-V2-V1,
     },
     {
-      "sdk_version": SDK_V2,
-      "service_version": SERVICE_V2,
-      "image": IMAGE_V2_V2,
-      "content": CONTENT_V2_V2,
+      "sdk_version": SDK-V2,
+      "service_version": SERVICE-V2,
+      "image": IMAGE-V2-V2,
+      "content": CONTENT-V2-V2,
     },
   ]
-  backdoor.install_service_images test_images
+  backdoor.install-service-images test-images
 
-  images := server_cli.list_sdk_service_versions --organization_id=TEST_ORGANIZATION_UUID
-  expect_equals test_images.size images.size
+  images := server-cli.list-sdk-service-versions --organization-id=TEST-ORGANIZATION-UUID
+  expect-equals test-images.size images.size
 
-  test_images.do: | test_image |
-    filtered_image := images.filter: | image |
-      image["sdk_version"] == test_image["sdk_version"] and
-        image["service_version"] == test_image["service_version"]
-    expect_equals 1 filtered_image.size
-    image := filtered_image[0]["image"]
-    expect_equals test_image["image"] image
+  test-images.do: | test-image |
+    filtered-image := images.filter: | image |
+      image["sdk_version"] == test-image["sdk_version"] and
+        image["service_version"] == test-image["service_version"]
+    expect-equals 1 filtered-image.size
+    image := filtered-image[0]["image"]
+    expect-equals test-image["image"] image
 
-    downloaded_content := server_cli.download_service_image image
-    expect_equals test_image["content"] downloaded_content
+    downloaded-content := server-cli.download-service-image image
+    expect-equals test-image["content"] downloaded-content
 
   // Test that the filters on list_sdk_service_versions work.
-  images = server_cli.list_sdk_service_versions
-      --organization_id=TEST_ORGANIZATION_UUID
-      --sdk_version=SDK_V1
-  expect_equals 1 images.size
-  expect_equals SDK_V1 images[0]["sdk_version"]
-  expect_equals SERVICE_V1 images[0]["service_version"]
+  images = server-cli.list-sdk-service-versions
+      --organization-id=TEST-ORGANIZATION-UUID
+      --sdk-version=SDK-V1
+  expect-equals 1 images.size
+  expect-equals SDK-V1 images[0]["sdk_version"]
+  expect-equals SERVICE-V1 images[0]["service_version"]
 
-  images = server_cli.list_sdk_service_versions
-      --organization_id=TEST_ORGANIZATION_UUID
-      --sdk_version=SDK_V2
-  expect_equals 2 images.size
+  images = server-cli.list-sdk-service-versions
+      --organization-id=TEST-ORGANIZATION-UUID
+      --sdk-version=SDK-V2
+  expect-equals 2 images.size
   images.do: | image |
-    expect_equals SDK_V2 image["sdk_version"]
-    expect (image["service_version"] == SERVICE_V1 or
-        image["service_version"] == SERVICE_V2)
+    expect-equals SDK-V2 image["sdk_version"]
+    expect (image["service_version"] == SERVICE-V1 or
+        image["service_version"] == SERVICE-V2)
 
-  images = server_cli.list_sdk_service_versions
-      --organization_id=TEST_ORGANIZATION_UUID
-      --service_version=SERVICE_V1
-  expect_equals 2 images.size
+  images = server-cli.list-sdk-service-versions
+      --organization-id=TEST-ORGANIZATION-UUID
+      --service-version=SERVICE-V1
+  expect-equals 2 images.size
   images.do: | image |
-    expect_equals SERVICE_V1 image["service_version"]
-    expect (image["sdk_version"] == SDK_V1 or
-        image["sdk_version"] == SDK_V2)
+    expect-equals SERVICE-V1 image["service_version"]
+    expect (image["sdk_version"] == SDK-V1 or
+        image["sdk_version"] == SDK-V2)
 
-  images = server_cli.list_sdk_service_versions
-      --organization_id=TEST_ORGANIZATION_UUID
-      --service_version=SERVICE_V2
-  expect_equals 1 images.size
-  expect_equals SERVICE_V2 images[0]["service_version"]
-  expect_equals SDK_V2 images[0]["sdk_version"]
+  images = server-cli.list-sdk-service-versions
+      --organization-id=TEST-ORGANIZATION-UUID
+      --service-version=SERVICE-V2
+  expect-equals 1 images.size
+  expect-equals SERVICE-V2 images[0]["service_version"]
+  expect-equals SDK-V2 images[0]["sdk_version"]
 
-  images = server_cli.list_sdk_service_versions
-      --organization_id=TEST_ORGANIZATION_UUID
-      --sdk_version=SDK_V2
-      --service_version=SERVICE_V1
-  expect_equals 1 images.size
-  expect_equals SERVICE_V1 images[0]["service_version"]
-  expect_equals SDK_V2 images[0]["sdk_version"]
+  images = server-cli.list-sdk-service-versions
+      --organization-id=TEST-ORGANIZATION-UUID
+      --sdk-version=SDK-V2
+      --service-version=SERVICE-V1
+  expect-equals 1 images.size
+  expect-equals SERVICE-V1 images[0]["service_version"]
+  expect-equals SDK-V2 images[0]["sdk_version"]

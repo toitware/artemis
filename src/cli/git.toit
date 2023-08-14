@@ -15,7 +15,7 @@ class Git:
   Returns the root of the Git repository that contains the
     current working directory.
   */
-  current_repository_root -> string:
+  current-repository-root -> string:
     out := run_ [
       "rev-parse",
       "--show-toplevel"
@@ -23,40 +23,40 @@ class Git:
     return out.trim
 
   /**
-  Inits a new Git repository in the given $repository_root.
+  Inits a new Git repository in the given $repository-root.
 
   If $origin is given adds the given remote as "origin".
   */
-  init repository_root/string --origin/string?=null --quiet/bool?=false:
+  init repository-root/string --origin/string?=null --quiet/bool?=false:
     args := [
       "init",
       "--initial-branch=main",
-      repository_root,
+      repository-root,
     ]
     if quiet:
       args.add "--quiet"
 
-    run_ args --description="Init of $repository_root"
+    run_ args --description="Init of $repository-root"
 
     if origin:
       args = [
-        "-C", repository_root,
+        "-C", repository-root,
         "remote",
         "add",
         "origin",
         origin,
       ]
 
-      run_ args --description="Remote-add of $origin in $repository_root"
+      run_ args --description="Remote-add of $origin in $repository-root"
 
   /**
-  Sets the configuration $key to $value in the given $repository_root.
+  Sets the configuration $key to $value in the given $repository-root.
 
   If $global is true, the configuration is set globally.
   */
-  config --key/string --value/string --repository_root/string=current_repository_root --global/bool=false:
+  config --key/string --value/string --repository-root/string=current-repository-root --global/bool=false:
     args := [
-      "-C", repository_root,
+      "-C", repository-root,
       "config",
       key,
       value,
@@ -64,11 +64,11 @@ class Git:
     if global:
       args.add "--global"
 
-    run_ args --description="Config of $key in $repository_root"
+    run_ args --description="Config of $key in $repository-root"
 
   /**
   Fetches the given $ref from the given $remote in the Git repository
-    at the given $repository_root.
+    at the given $repository-root.
 
   If $depth is given, the repository is shallow-cloned with the given depth.
   If $force is given, the ref is fetched with --force.
@@ -76,13 +76,13 @@ class Git:
   If $checkout is true, the ref is checked out after fetching.
   */
   fetch --ref/string --remote/string="origin"
-      --repository_root/string=current_repository_root
+      --repository-root/string=current-repository-root
       --depth/int?=null
       --force/bool=false
       --checkout/bool=false
       --quiet/bool?=false:
     args := [
-      "-C", repository_root,
+      "-C", repository-root,
       "remote",
       "-v",
     ]
@@ -93,7 +93,7 @@ class Git:
     sleep --ms=20
 
     args = [
-      "-C", repository_root,
+      "-C", repository-root,
       "fetch",
       remote,
       // TODO(florian): is the following also useful in the
@@ -110,13 +110,13 @@ class Git:
 
     try:
       run_ args --description="Fetch of $ref from $remote"
-    finally: | is_exception _ |
-      if is_exception:
+    finally: | is-exception _ |
+      if is-exception:
         ui_.error "Verbose remote was: $output"
 
     if checkout:
       args = [
-        "-C", repository_root,
+        "-C", repository-root,
         "checkout",
         ref,
       ]
@@ -128,9 +128,9 @@ class Git:
   /**
   Tags the given $commit with the given tag $name.
   */
-  tag --commit/string --name/string --repository_root/string=current_repository_root:
+  tag --commit/string --name/string --repository-root/string=current-repository-root:
     run_ --description="Tag of $name" [
-      "-C", repository_root.copy,
+      "-C", repository-root.copy,
       "tag",
       name,
       commit,
@@ -139,10 +139,10 @@ class Git:
   /**
   Deletes the tag with the given $name.
   */
-  tag --delete/bool --name/string --repository_root/string=current_repository_root:
+  tag --delete/bool --name/string --repository-root/string=current-repository-root:
     if not delete: throw "INVALID_ARGUMENT"
     run_ --description="Tag delete" [
-      "-C", repository_root,
+      "-C", repository-root,
       "tag",
       "-d",
       name,
@@ -156,11 +156,11 @@ class Git:
   tag --update/bool
       --name/string
       --ref/string
-      --repository_root/string=current_repository_root
+      --repository-root/string=current-repository-root
       --force/bool=false:
     if not update: throw "INVALID_ARGUMENT"
     args := [
-      "-C", repository_root,
+      "-C", repository-root,
       "tag",
       name,
       ref,
@@ -179,45 +179,45 @@ class Git:
   run_ args/List --description -> string:
     output := bytes.Buffer
     stdout := bytes.Buffer
-    fork_data := pipe.fork
-        --environment=git_env_
+    fork-data := pipe.fork
+        --environment=git-env_
         true                // use_path
-        pipe.PIPE_INHERITED // stdin
-        pipe.PIPE_CREATED   // stdout
-        pipe.PIPE_CREATED   // stderr
+        pipe.PIPE-INHERITED // stdin
+        pipe.PIPE-CREATED   // stdout
+        pipe.PIPE-CREATED   // stderr
         "git"
         ["git"] + args
 
-    stdout_pipe := fork_data[1]
-    stderr_pipe := fork_data[2]
-    pid := fork_data[3]
+    stdout-pipe := fork-data[1]
+    stderr-pipe := fork-data[2]
+    pid := fork-data[3]
 
     semaphore := monitor.Semaphore
-    stdout_task := task::
+    stdout-task := task::
       catch --trace:
-        while chunk := stdout_pipe.read:
+        while chunk := stdout-pipe.read:
           output.write chunk
           stdout.write chunk
       semaphore.up
 
-    stderr_task := task::
+    stderr-task := task::
       catch --trace:
-        while chunk := stderr_pipe.read:
+        while chunk := stderr-pipe.read:
           output.write chunk
       semaphore.up
 
     2.repeat: semaphore.down
-    exit_value := pipe.wait_for pid
+    exit-value := pipe.wait-for pid
 
-    if (pipe.exit_code exit_value) != 0:
+    if (pipe.exit-code exit-value) != 0:
       ui_.error "$description failed"
       ui_.error "Git arguments: $args"
-      ui_.error output.bytes.to_string_non_throwing
+      ui_.error output.bytes.to-string-non-throwing
       ui_.abort
 
-    return stdout.bytes.to_string_non_throwing
+    return stdout.bytes.to-string-non-throwing
 
-  git_env_ -> Map:
+  git-env_ -> Map:
     return {
       "GIT_TERMINAL_PROMPT": "0",  // Disable stdin.
     }

@@ -6,43 +6,43 @@ import log
 import net
 import uuid
 
-import ..artemis_server
-import ....shared.server_config
+import ..artemis-server
+import ....shared.server-config
 import ....shared.utils as utils
 import ....shared.constants show *
 
 class ArtemisServerServiceHttp implements ArtemisServerService:
-  server_config_/ServerConfigHttp
-  hardware_id_/uuid.Uuid
+  server-config_/ServerConfigHttp
+  hardware-id_/uuid.Uuid
 
-  constructor .server_config_ --hardware_id/uuid.Uuid:
-    hardware_id_ = hardware_id
+  constructor .server-config_ --hardware-id/uuid.Uuid:
+    hardware-id_ = hardware-id
 
-  check_in network/net.Interface logger/log.Logger -> none:
-    send_request_ network COMMAND_CHECK_IN_ {
-      "hardware_id": "$hardware_id_",
+  check-in network/net.Interface logger/log.Logger -> none:
+    send-request_ network COMMAND-CHECK-IN_ {
+      "hardware_id": "$hardware-id_",
       "data": { "type": "ping" },
     }
 
-  send_request_ network/net.Interface command/int data/Map -> any:
+  send-request_ network/net.Interface command/int data/Map -> any:
     client := http.Client network
     try:
       encoded := #[command] + (json.encode data)
 
       headers := null
-      if server_config_.device_headers:
+      if server-config_.device-headers:
         headers = http.Headers
-        server_config_.device_headers.do: | key value |
+        server-config_.device-headers.do: | key value |
           headers.add key value
       response := client.post encoded
-          --host=server_config_.host
-          --port=server_config_.port
-          --path=server_config_.path
+          --host=server-config_.host
+          --port=server-config_.port
+          --path=server-config_.path
           --headers=headers
 
-      if response.status_code != http.STATUS_OK:
-        throw "HTTP error: $response.status_code $response.status_message"
+      if response.status-code != http.STATUS-OK:
+        throw "HTTP error: $response.status-code $response.status-message"
 
-      return json.decode_stream response.body
+      return json.decode-stream response.body
     finally:
       client.close

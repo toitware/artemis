@@ -10,61 +10,61 @@ import ..cache
 import ..config
 import ..fleet
 import ..pod
-import ..pod_registry
+import ..pod-registry
 import ..sdk
 import ..ui
 import ..utils
-import ...service.run.host show run_host
+import ...service.run.host show run-host
 
-create_serial_commands config/Config cache/Cache ui/Ui -> List:
+create-serial-commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "serial"
-      --short_help="Serial port commands."
+      --short-help="Serial port commands."
 
-  flash_options := [
+  flash-options := [
     cli.Option "port"
-        --short_name="p"
+        --short-name="p"
         --required,
     cli.Option "baud",
     OptionPatterns "partition"
         ["file:<name>=<path>", "empty:<name>=<size>"]
-        --short_help="Add a custom partition to the device."
-        --split_commas
+        --short-help="Add a custom partition to the device."
+        --split-commas
         --multi,
   ]
 
-  flash_cmd := cli.Command "flash"
-      --long_help="""
+  flash-cmd := cli.Command "flash"
+      --long-help="""
         Flashes a device with the firmware.
 
-        The pod to flash on the device is found through the '$DEFAULT_GROUP' group
+        The pod to flash on the device is found through the '$DEFAULT-GROUP' group
         or the specified '--group' in the current fleet.
 
         Unless '--no-default' is used, automatically makes this device the
         new default device.
         """
-      --options=flash_options + [
+      --options=flash-options + [
         cli.Flag "default"
             --default=true
-            --short_help="Make this device the default device.",
+            --short-help="Make this device the default device.",
         cli.Option "group"
-            --default=DEFAULT_GROUP
-            --short_help="Add this device to a group.",
+            --default=DEFAULT-GROUP
+            --short-help="Add this device to a group.",
         cli.Option "local"
             --type="file"
-            --short_help="A local pod file to flash.",
+            --short-help="A local pod file to flash.",
         cli.Flag "simulate"
             --hidden
             --default=false,
       ]
       --rest=[
         cli.Option "remote"
-            --short_help="A remote pod reference; a UUID, name@tag, or name#revision.",
+            --short-help="A remote pod reference; a UUID, name@tag, or name#revision.",
       ]
       --run=:: flash it config cache ui
-  cmd.add flash_cmd
+  cmd.add flash-cmd
 
-  flash_station_cmd := cli.Command "flash-station"
-      --long_help="""
+  flash-station-cmd := cli.Command "flash-station"
+      --long-help="""
         Commands for a flash station.
 
         Flash stations are typically used to flash devices in a factory.
@@ -73,56 +73,56 @@ create_serial_commands config/Config cache/Cache ui/Ui -> List:
 
         Flash station commands don't need any valid fleet root.
         """
-  cmd.add flash_station_cmd
+  cmd.add flash-station-cmd
 
-  flash_station_flash_cmd := cli.Command "flash"
-      --long_help="""
+  flash-station-flash-cmd := cli.Command "flash"
+      --long-help="""
         Flashes a device on a flash station.
 
         Does not require Internet access.
 
         The 'port' argument is used to select the serial port to use.
         """
-      --options=flash_options + [
+      --options=flash-options + [
         cli.Option "pod"
             --type="file"
-            --short_help="The pod to flash."
+            --short-help="The pod to flash."
             --required,
         cli.Option "identity"
             --type="file"
-            --short_name="i"
-            --short_help="The identity file to use."
+            --short-name="i"
+            --short-help="The identity file to use."
             --required,
       ]
       --run=:: flash --station it config cache ui
-  flash_station_cmd.add flash_station_flash_cmd
+  flash-station-cmd.add flash-station-flash-cmd
 
   return [cmd]
 
-build_partitions_table_ partition_list/List --ui/Ui -> List:
+build-partitions-table_ partition-list/List --ui/Ui -> List:
   result := []
-  partition_list.do: | partition_entry |
-    if partition_entry is not Map:
+  partition-list.do: | partition-entry |
+    if partition-entry is not Map:
       ui.abort "Partition entry must be a map."
-    partition := partition_entry as Map
+    partition := partition-entry as Map
     type := partition.contains "file" ? "file" : "empty"
     description/string := partition[type]
-    delimiter_index := description.index_of "="
-    if delimiter_index < 0:
+    delimiter-index := description.index-of "="
+    if delimiter-index < 0:
       ui.abort "Partition of type '$type' is malformed: '$description'."
-    name := description[..delimiter_index]
-    if name.is_empty:
+    name := description[..delimiter-index]
+    if name.is-empty:
       ui.abort "Partition of type '$type' has no name."
     if name.size > 15:
       ui.abort "Partition of type '$type' has name with more than 15 characters."
-    value := description[delimiter_index + 1 ..]
+    value := description[delimiter-index + 1 ..]
     if type == "file":
-      if not file.is_file value:
+      if not file.is-file value:
         ui.error "Partition $type:$name refers to invalid file."
         ui.error "No such file: $value."
         ui.abort
     else:
-      size := int.parse value --on_error=:
+      size := int.parse value --on-error=:
         ui.abort "Partition $type:$name has illegal size: '$it'."
       if size <= 0:
         ui.abort "Partition $type:$name has illegal size: $size."
@@ -133,68 +133,68 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   port := parsed["port"]
   baud := parsed["baud"]
   simulate := parsed["simulate"]
-  should_make_default := parsed["default"]
+  should-make-default := parsed["default"]
   group := parsed["group"]
   local := parsed["local"]
   remote := parsed["remote"]
-  partitions := build_partitions_table_ parsed["partition"] --ui=ui
+  partitions := build-partitions-table_ parsed["partition"] --ui=ui
 
   if local and remote:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
 
-  with_fleet parsed config cache ui: | fleet/Fleet |
+  with-fleet parsed config cache ui: | fleet/Fleet |
     artemis := fleet.artemis_
 
-    with_tmp_directory: | tmp_dir/string |
-      identity_path := fleet.create_identity
+    with-tmp-directory: | tmp-dir/string |
+      identity-path := fleet.create-identity
           --group=group
-          --output_directory=tmp_dir
-      identity := read_base64_ubjson identity_path
+          --output-directory=tmp-dir
+      identity := read-base64-ubjson identity-path
       // TODO(florian): Abstract away the identity format.
-      device_id := uuid.parse identity["artemis.device"]["device_id"]
-      fleet_device := fleet.device device_id
-      ui.info "Successfully provisioned device $fleet_device.name ($device_id)."
+      device-id := uuid.parse identity["artemis.device"]["device_id"]
+      fleet-device := fleet.device device-id
+      ui.info "Successfully provisioned device $fleet-device.name ($device-id)."
 
       pod/Pod := ?
       reference/PodReference := ?
       if local:
-        pod = Pod.from_file local
-            --organization_id=fleet.organization_id
+        pod = Pod.from-file local
+            --organization-id=fleet.organization-id
             --artemis=artemis
             --ui=ui
         reference = PodReference --id=pod.id
       else:
         if remote:
-          reference = PodReference.parse remote --allow_name_only --ui=ui
+          reference = PodReference.parse remote --allow-name-only --ui=ui
         else:
-          reference = fleet.pod_reference_for_group group
+          reference = fleet.pod-reference-for-group group
         pod = fleet.download reference
 
       // Make unique for the given device.
-      config_bytes := artemis.compute_device_specific_data
+      config-bytes := artemis.compute-device-specific-data
           --pod=pod
-          --identity_path=identity_path
+          --identity-path=identity-path
 
-      config_path := "$tmp_dir/$(device_id).config"
-      write_blob_to_file config_path config_bytes
+      config-path := "$tmp-dir/$(device-id).config"
+      write-blob-to-file config-path config-bytes
 
-      sdk := get_sdk pod.sdk_version --cache=cache
+      sdk := get-sdk pod.sdk-version --cache=cache
       if not simulate:
         ui.do --kind=Ui.VERBOSE: | printer/Printer|
-          debug_line := "Flashing the device with pod $reference"
-          if reference.id: debug_line += "."
-          else: debug_line += " ($pod.id)."
-          printer.emit debug_line
+          debug-line := "Flashing the device with pod $reference"
+          if reference.id: debug-line += "."
+          else: debug-line += " ($pod.id)."
+          printer.emit debug-line
         // Flash.
         sdk.flash
-            --envelope_path=pod.envelope_path
-            --config_path=config_path
+            --envelope-path=pod.envelope-path
+            --config-path=config-path
             --port=port
-            --baud_rate=baud
+            --baud-rate=baud
             --partitions=partitions
             --chip=pod.chip
-        if should_make_default: make_default_ device_id config ui
-        info := "Successfully flashed device $fleet_device.name ($device_id"
+        if should-make-default: make-default_ device-id config ui
+        info := "Successfully flashed device $fleet-device.name ($device-id"
         if group: info += " in group '$group'"
         info += ") with pod '$reference'"
         if reference.id: info += "."
@@ -203,48 +203,48 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       else:
         ui.info "Simulating flash."
         ui.info "Using the local Artemis service and not the one specified in the specification."
-        old_default := config.get CONFIG_ARTEMIS_DEFAULT_KEY
-        if should_make_default: make_default_ device_id config ui
-        run_host
+        old-default := config.get CONFIG-ARTEMIS-DEFAULT-KEY
+        if should-make-default: make-default_ device-id config ui
+        run-host
             --pod=pod
-            --identity_path=identity_path
+            --identity-path=identity-path
             --cache=cache
 
-make_default_ device_id/uuid.Uuid config/Config ui/Ui:
-  config[CONFIG_DEVICE_DEFAULT_KEY] = "$device_id"
+make-default_ device-id/uuid.Uuid config/Config ui/Ui:
+  config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
   config.write
-  ui.info "Default device set to $device_id."
+  ui.info "Default device set to $device-id."
 
 flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if not station: throw "INVALID_ARGUMENT"
-  identity_path := parsed["identity"]
-  pod_path := parsed["pod"]
+  identity-path := parsed["identity"]
+  pod-path := parsed["pod"]
   port := parsed["port"]
   baud := parsed["baud"]
-  partitions := build_partitions_table_ parsed["partition"] --ui=ui
+  partitions := build-partitions-table_ parsed["partition"] --ui=ui
 
-  with_artemis parsed config cache ui: | artemis/Artemis |
-    pod := Pod.parse pod_path --tmp_directory=artemis.tmp_directory --ui=ui
-    with_tmp_directory: | tmp_dir/string |
+  with-artemis parsed config cache ui: | artemis/Artemis |
+    pod := Pod.parse pod-path --tmp-directory=artemis.tmp-directory --ui=ui
+    with-tmp-directory: | tmp-dir/string |
       // Make unique for the given device.
-      config_bytes := artemis.compute_device_specific_data
+      config-bytes := artemis.compute-device-specific-data
           --pod=pod
-          --identity_path=identity_path
+          --identity-path=identity-path
 
-      config_path := "$tmp_dir/config"
-      write_blob_to_file config_path config_bytes
+      config-path := "$tmp-dir/config"
+      write-blob-to-file config-path config-bytes
 
       // Flash.
-      sdk := get_sdk pod.sdk_version --cache=cache
+      sdk := get-sdk pod.sdk-version --cache=cache
       // TODO(florian): don't print anything if ui is quiet/silent.
       sdk.flash
-          --envelope_path=pod.envelope_path
-          --config_path=config_path
+          --envelope-path=pod.envelope-path
+          --config-path=config-path
           --port=port
-          --baud_rate=baud
+          --baud-rate=baud
           --partitions=partitions
           --chip=pod.chip
-      identity := read_base64_ubjson identity_path
+      identity := read-base64-ubjson identity-path
       // TODO(florian): Abstract away the identity format.
-      device_id := uuid.parse identity["artemis.device"]["device_id"]
-      ui.info "Successfully flashed device $device_id with pod '$pod.name' ($pod.id)."
+      device-id := uuid.parse identity["artemis.device"]["device_id"]
+      ui.info "Successfully flashed device $device-id with pod '$pod.name' ($pod.id)."

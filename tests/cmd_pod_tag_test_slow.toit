@@ -2,34 +2,34 @@
 
 // ARTEMIS_TEST_FLAGS: BROKER
 
-import artemis.cli.utils show write_blob_to_file
+import artemis.cli.utils show write-blob-to-file
 import expect show *
 import .utils
 
 main args:
-  with_fleet --count=0 --args=args: | test_cli/TestCli _ fleet_dir/string |
-    run_test test_cli fleet_dir
+  with-fleet --count=0 --args=args: | test-cli/TestCli _ fleet-dir/string |
+    run-test test-cli fleet-dir
 
-run_test test_cli/TestCli fleet_dir/string:
-  pod_name := "test-pod"
+run-test test-cli/TestCli fleet-dir/string:
+  pod-name := "test-pod"
 
-  add_pod_replacements := : | output/string |
-    pods := test_cli.run --json [
-      "pod", "list", "--name", pod_name
+  add-pod-replacements := : | output/string |
+    pods := test-cli.run --json [
+      "pod", "list", "--name", pod-name
     ]
     pods.do:
-      test_cli.replacements["$it["id"]"] = pad_replacement_id "ID $pod_name#$(it["revision"])"
+      test-cli.replacements["$it["id"]"] = pad-replacement-id "ID $pod-name#$(it["revision"])"
     output
 
-  test_cli.ensure_available_artemis_service
+  test-cli.ensure-available-artemis-service
 
   name := "test-pod"
   spec := """
     {
       "version": 1,
       "name": "$name",
-      "sdk-version": "$test_cli.sdk_version",
-      "artemis-version": "$TEST_ARTEMIS_VERSION",
+      "sdk-version": "$test-cli.sdk-version",
+      "artemis-version": "$TEST-ARTEMIS-VERSION",
       "connections": [
         {
           "type": "wifi",
@@ -39,25 +39,25 @@ run_test test_cli/TestCli fleet_dir/string:
       ]
     }
     """
-  spec_path := "$fleet_dir/$(name).json"
-  write_blob_to_file spec_path spec
+  spec-path := "$fleet-dir/$(name).json"
+  write-blob-to-file spec-path spec
 
-  test_cli.run [
-    "pod", "upload", spec_path, "--tag", "some-tag"
+  test-cli.run [
+    "pod", "upload", spec-path, "--tag", "some-tag"
   ]
-  add_pod_replacements.call ""
+  add-pod-replacements.call ""
 
-  test_cli.run_gold "BAA-upload-existing-tag"
+  test-cli.run-gold "BAA-upload-existing-tag"
       "Upload a pod with existing tag"
-      --expect_exit_1
-      --before_gold=add_pod_replacements
+      --expect-exit-1
+      --before-gold=add-pod-replacements
       [
-        "pod", "upload", spec_path, "--tag", "some-tag"
+        "pod", "upload", spec-path, "--tag", "some-tag"
       ]
 
-  test_cli.run_gold "BAC-upload-existing-tag-force"
+  test-cli.run-gold "BAC-upload-existing-tag-force"
       "Upload a pod with existing tag using --force"
-      --before_gold=add_pod_replacements
+      --before-gold=add-pod-replacements
       [
-        "pod", "upload", spec_path, "--tag", "some-tag", "--force"
+        "pod", "upload", spec-path, "--tag", "some-tag", "--force"
       ]

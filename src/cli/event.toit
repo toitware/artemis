@@ -17,9 +17,9 @@ class Event:
 
   constructor .type .timestamp .data:
 
-  to_json -> Map:
+  to-json -> Map:
     return {
       "type": type,
-      "timestamp": timestamp_to_string timestamp,
+      "timestamp": timestamp-to-string timestamp,
       "data": data,
     }

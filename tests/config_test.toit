@@ -5,37 +5,37 @@ import artemis.cli.config as cfg
 import .utils
 
 main:
-  with_tmp_directory: | tmp_dir |
-    config_file := "$tmp_dir/config"
-    config := cfg.Config config_file {:}
+  with-tmp-directory: | tmp-dir |
+    config-file := "$tmp-dir/config"
+    config := cfg.Config config-file {:}
 
     // All `get` commands return 'null' if the value doesn't exist yet.
-    expect_null (config.get "foo")
-    expect_null (config.get "foo.bar")
-    expect_null (config.get "foo.bar.baz")
+    expect-null (config.get "foo")
+    expect-null (config.get "foo.bar")
+    expect-null (config.get "foo.bar.baz")
 
     // Initial a non existing value with the `--init` function.
     // Note that the key is split on dots, and intermediate maps
     // are created.
     initial := config.get "foo.bar.baz" --init=: "qux"
-    expect_equals "qux" initial
+    expect-equals "qux" initial
     expect (config.get "foo") is Map
     expect (config.get "foo.bar") is Map
-    expect_equals "qux" (config.get "foo.bar.baz")
+    expect-equals "qux" (config.get "foo.bar.baz")
 
     // Overwrite the value with an operator.
     config["foo.bar.baz"] = "quux"
-    expect_equals "quux" (config.get "foo.bar.baz")
+    expect-equals "quux" (config.get "foo.bar.baz")
 
     // Create a new value with the operator.
     config["foo.bar.gee"] = 499
-    expect_equals 499 (config.get "foo.bar.gee")
+    expect-equals 499 (config.get "foo.bar.gee")
 
     config["foo.bar.gee"] = 500
 
     config.write
 
     // Read the config back in.
-    config2 := cfg.read_config_file config_file --init=: unreachable
+    config2 := cfg.read-config-file config-file --init=: unreachable
 
-    expect_structural_equals config.data config2.data
+    expect-structural-equals config.data config2.data

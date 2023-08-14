@@ -10,17 +10,17 @@ import .connection
 import ..broker
 import ...device
 import ....shared.constants show *
-import ....shared.server_config show ServerConfigHttp
+import ....shared.server-config show ServerConfigHttp
 
 class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
-  server_config_/ServerConfigHttp
+  server-config_/ServerConfigHttp
 
-  constructor .logger_ .server_config_:
+  constructor .logger_ .server-config_:
 
   connect --network/net.Client --device/Device -> BrokerConnection:
-    connection := HttpConnection_ network server_config_
-    return BrokerConnectionHttp logger_ device connection server_config_.poll_interval
+    connection := HttpConnection_ network server-config_
+    return BrokerConnectionHttp logger_ device connection server-config_.poll-interval
 
 
 class BrokerConnectionHttp implements BrokerConnection:
@@ -28,54 +28,54 @@ class BrokerConnectionHttp implements BrokerConnection:
   connection_/HttpConnection_
   logger_/log.Logger
 
-  poll_interval_/Duration
-  last_poll_us_/int? := null
+  poll-interval_/Duration
+  last-poll-us_/int? := null
 
-  constructor .logger_ .device_ .connection_ .poll_interval_:
+  constructor .logger_ .device_ .connection_ .poll-interval_:
 
-  fetch_goal_state --wait/bool -> Map?:
+  fetch-goal-state --wait/bool -> Map?:
     // We deliberately delay fetching from the cloud, so we
     // can avoid fetching from the cloud over and over again.
-    last := last_poll_us_
+    last := last-poll-us_
     if last:
-      elapsed := Duration --us=(Time.monotonic_us - last)
-      interval := poll_interval_
+      elapsed := Duration --us=(Time.monotonic-us - last)
+      interval := poll-interval_
       if elapsed < interval:
         // We are not yet supposed to go online.
         // If we are allowed to wait, do so. Otherwise return null.
         if not wait: return null
         sleep interval - elapsed
-    result := connection_.send_request COMMAND_GET_GOAL_ {
+    result := connection_.send-request COMMAND-GET-GOAL_ {
       "_device_id": "$device_.id",
     }
-    last_poll_us_ = Time.monotonic_us
+    last-poll-us_ = Time.monotonic-us
     return result
 
-  fetch_image id/uuid.Uuid [block] -> none:
+  fetch-image id/uuid.Uuid [block] -> none:
     payload :=  {
-      "path": "/toit-artemis-assets/$device_.organization_id/images/$id.$BITS_PER_WORD",
+      "path": "/toit-artemis-assets/$device_.organization-id/images/$id.$BITS-PER-WORD",
     }
-    connection_.send_request COMMAND_DOWNLOAD_ payload: | reader/Reader |
+    connection_.send-request COMMAND-DOWNLOAD_ payload: | reader/Reader |
       block.call reader
 
-  fetch_firmware id/string --offset/int=0 [block] -> none:
+  fetch-firmware id/string --offset/int=0 [block] -> none:
     payload := {
-      "path": "/toit-artemis-assets/$device_.organization_id/firmware/$id",
+      "path": "/toit-artemis-assets/$device_.organization-id/firmware/$id",
       "offset": offset,
     }
-    expected_status := offset == 0 ? null : http.STATUS_PARTIAL_CONTENT
-    connection_.send_request COMMAND_DOWNLOAD_ payload --expected_status=expected_status:
+    expected-status := offset == 0 ? null : http.STATUS-PARTIAL-CONTENT
+    connection_.send-request COMMAND-DOWNLOAD_ payload --expected-status=expected-status:
       | reader/Reader |
       block.call reader offset
 
-  report_state state/Map -> none:
-    connection_.send_request COMMAND_REPORT_STATE_ {
+  report-state state/Map -> none:
+    connection_.send-request COMMAND-REPORT-STATE_ {
       "_device_id": "$device_.id",
       "_state": state,
     }
 
-  report_event --type/string data/any -> none:
-    connection_.send_request COMMAND_REPORT_EVENT_ {
+  report-event --type/string data/any -> none:
+    connection_.send-request COMMAND-REPORT-EVENT_ {
       "_device_id": "$device_.id",
       "_type": type,
       "_data": data,

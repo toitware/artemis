@@ -14,7 +14,7 @@ import system.services
 // version will be used instead.
 
 // WAS: import artemis.api
-import .pkg_artemis_src_copy.api as api
+import .pkg-artemis-src-copy.api as api
 
 // --------------------------------------------------------------------------
 
@@ -27,29 +27,29 @@ import .jobs
 import .scheduler show Scheduler
 import .synchronize show SynchronizeJob
 
-import ..shared.server_config
+import ..shared.server-config
 import ..shared.version
 
-run_artemis device/Device server_config/ServerConfig -> Duration
-    --start_ntp/bool=true
+run-artemis device/Device server-config/ServerConfig -> Duration
+    --start-ntp/bool=true
     --cause/string?=null:
-  logger := log.default.with_name "artemis"
-  tags := {"device": device.id, "version": ARTEMIS_VERSION}
+  logger := log.default.with-name "artemis"
+  tags := {"device": device.id, "version": ARTEMIS-VERSION}
   if cause: tags["cause"] = cause
   logger.info "starting" --tags=tags
 
   scheduler ::= Scheduler logger device
   containers ::= ContainerManager logger scheduler
-  broker := BrokerService logger server_config
+  broker := BrokerService logger server-config
 
   // Set up the basic jobs.
   synchronizer/SynchronizeJob := SynchronizeJob logger device containers broker
   jobs := [synchronizer]
-  if start_ntp: jobs.add (NtpJob logger (Duration --m=10))
-  scheduler.add_jobs jobs
+  if start-ntp: jobs.add (NtpJob logger (Duration --m=10))
+  scheduler.add-jobs jobs
 
   // Add the container jobs based on the current device state.
-  containers.load device.current_state
+  containers.load device.current-state
 
   // Run the scheduler until it terminates and gives us
   // the wakeup time for the next job to run. While we
@@ -64,9 +64,9 @@ run_artemis device/Device server_config/ServerConfig -> Duration
   finally:
     // We sometimes cancel the scheduler when running tests,
     // so we have to be careful and clean up anyway.
-    critical_do: provider.uninstall
+    critical-do: provider.uninstall
 
-  containers.setup_deep_sleep_triggers
+  containers.setup-deep-sleep-triggers
 
   // Compute the duration of the deep sleep and return it.
   duration := JobTime.now.to wakeup
@@ -81,45 +81,45 @@ class ArtemisServiceProvider extends ChannelServiceProvider
 
   constructor .device_ .containers_ .synchronizer_:
     super "toit.io/artemis"
-        --major=ARTEMIS_VERSION_MAJOR
-        --minor=ARTEMIS_VERSION_MINOR
+        --major=ARTEMIS-VERSION-MAJOR
+        --minor=ARTEMIS-VERSION-MINOR
     provides api.ArtemisService.SELECTOR --handler=this
 
   handle index/int arguments/any --gid/int --client/int -> any:
-    if index == api.ArtemisService.VERSION_INDEX:
+    if index == api.ArtemisService.VERSION-INDEX:
       return version
-    if index == api.ArtemisService.CONTAINER_CURRENT_RESTART_INDEX:
-      return container_current_restart --gid=gid --wakeup_us=arguments
-    if index == api.ArtemisService.CONTROLLER_OPEN_INDEX:
-      return controller_open --client=client --mode=arguments
-    if index == api.ArtemisService.DEVICE_ID_INDEX:
-      return device_id
+    if index == api.ArtemisService.CONTAINER-CURRENT-RESTART-INDEX:
+      return container-current-restart --gid=gid --wakeup-us=arguments
+    if index == api.ArtemisService.CONTROLLER-OPEN-INDEX:
+      return controller-open --client=client --mode=arguments
+    if index == api.ArtemisService.DEVICE-ID-INDEX:
+      return device-id
     return super index arguments --gid=gid --client=client
 
   version -> string:
-    return ARTEMIS_VERSION
+    return ARTEMIS-VERSION
 
-  device_id -> ByteArray:
-    return device_.id.to_byte_array
+  device-id -> ByteArray:
+    return device_.id.to-byte-array
 
-  container_current_restart --gid/int --wakeup_us/int? -> none:
+  container-current-restart --gid/int --wakeup-us/int? -> none:
     job := containers_.get --gid=gid
-    job.restart --wakeup_us=wakeup_us
+    job.restart --wakeup-us=wakeup-us
 
-  controller_open --client/int --mode/int -> ControllerResource:
+  controller-open --client/int --mode/int -> ControllerResource:
     online := false
-    if mode == api.ArtemisService.CONTROLLER_MODE_ONLINE:
+    if mode == api.ArtemisService.CONTROLLER-MODE-ONLINE:
       online = true
-    else if mode != api.ArtemisService.CONTROLLER_MODE_OFFLINE:
+    else if mode != api.ArtemisService.CONTROLLER-MODE-OFFLINE:
       throw "ILLEGAL_ARGUMENT"
     return ControllerResource this client
         --synchronizer=synchronizer_
         --online=online
 
-  container_current_restart --wakeup_us/int? -> none:
+  container-current-restart --wakeup-us/int? -> none:
     unreachable  // Here to satisfy the checker.
 
-  controller_open --mode/int -> int:
+  controller-open --mode/int -> int:
     unreachable  // Here to satisfy the checker.
 
 class ControllerResource extends services.ServiceResource:
@@ -130,5 +130,5 @@ class ControllerResource extends services.ServiceResource:
     super provider client
     synchronizer.control --online=online
 
-  on_closed -> none:
+  on-closed -> none:
     synchronizer.control --online=online --close

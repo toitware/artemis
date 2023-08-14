@@ -9,9 +9,9 @@ import ..auth
 import ..config
 import ..event
 import ..device
-import ..pod_registry
+import ..pod-registry
 import ..ui
-import ...shared.server_config
+import ...shared.server-config
 import .supabase
 import .http.base
 
@@ -23,18 +23,18 @@ interface BrokerCli implements Authenticatable:
   // At the moment we require the connection to be open when artemis receives the
   // broker.
 
-  constructor server_config/ServerConfig config/Config:
-    if server_config is ServerConfigSupabase:
-      return create_broker_cli_supabase_http (server_config as ServerConfigSupabase) config
-    if server_config is ServerConfigHttp:
-      return create_broker_cli_http_toit (server_config as ServerConfigHttp)
+  constructor server-config/ServerConfig config/Config:
+    if server-config is ServerConfigSupabase:
+      return create-broker-cli-supabase-http (server-config as ServerConfigSupabase) config
+    if server-config is ServerConfigHttp:
+      return create-broker-cli-http-toit (server-config as ServerConfigHttp)
     throw "Unknown broker config type"
 
   /** Closes this broker. */
   close -> none
 
   /** Whether this broker is closed. */
-  is_closed -> bool
+  is-closed -> bool
 
   /**
   A unique ID of the broker that can be used for caching.
@@ -47,25 +47,25 @@ interface BrokerCli implements Authenticatable:
 
   If the user is not authenticated, the $block is called.
   */
-  ensure_authenticated [block]
+  ensure-authenticated [block]
 
   /**
   Signs the user up with the given $email and $password.
   */
-  sign_up --email/string --password/string
+  sign-up --email/string --password/string
 
   /**
   Signs the user in with the given $email and $password.
   */
-  sign_in --email/string --password/string
+  sign-in --email/string --password/string
 
   /**
   Signs the user in using OAuth.
   */
-  sign_in --provider/string --ui/Ui --open_browser
+  sign-in --provider/string --ui/Ui --open-browser
 
   /**
-  Updates the goal state of the device with the given $device_id.
+  Updates the goal state of the device with the given $device-id.
 
   The block is called with a $DeviceDetailed as argument:
 
@@ -75,51 +75,51 @@ interface BrokerCli implements Authenticatable:
     still required to return the new goal state. It is not enough to just
     modify the goal map of the $DeviceDetailed.
   */
-  update_goal --device_id/uuid.Uuid [block] -> none
+  update-goal --device-id/uuid.Uuid [block] -> none
 
   /**
-  Uploads an application image with the given $app_id so that a device in
-    $organization_id can fetch it.
+  Uploads an application image with the given $app-id so that a device in
+    $organization-id can fetch it.
 
-  There may be multiple images for the same $app_id, that differ in the $word_size.
-    Generally $word_size is either 32 or 64.
+  There may be multiple images for the same $app-id, that differ in the $word-size.
+    Generally $word-size is either 32 or 64.
   */
-  upload_image
-      --organization_id/uuid.Uuid
-      --app_id/uuid.Uuid
-      --word_size/int
+  upload-image
+      --organization-id/uuid.Uuid
+      --app-id/uuid.Uuid
+      --word-size/int
       content/ByteArray -> none
 
   /**
-  Uploads a firmware with the given $firmware_id so that a device in
-    $organization_id can fetch it.
+  Uploads a firmware with the given $firmware-id so that a device in
+    $organization-id can fetch it.
 
   The $chunks are a list of byte arrays.
   */
-  upload_firmware --organization_id/uuid.Uuid --firmware_id/string chunks/List -> none
+  upload-firmware --organization-id/uuid.Uuid --firmware-id/string chunks/List -> none
 
   /**
-  Downloads a firmware chunk inside the given $organization_id.
+  Downloads a firmware chunk inside the given $organization-id.
   */
-  download_firmware --organization_id/uuid.Uuid --id/string -> ByteArray
+  download-firmware --organization-id/uuid.Uuid --id/string -> ByteArray
 
   /**
-  Informs the broker that a device with the given $device_id has been provisioned.
+  Informs the broker that a device with the given $device-id has been provisioned.
   The $state map is the initial state of the device. Until it connects to the
     broker there is (probably) only identity information in it.
   */
-  notify_created --device_id/uuid.Uuid --state/Map -> none
+  notify-created --device-id/uuid.Uuid --state/Map -> none
 
   /**
-  Fetches all events of the given $types for all devices in the $device_ids list.
+  Fetches all events of the given $types for all devices in the $device-ids list.
   If no $types are given, all events are returned.
   Returns a mapping from device-id to list of $Event s.
   At most $limit events per device are returned.
   If $since is not null, only events that are newer than $since are returned.
   */
-  get_events -> Map
+  get-events -> Map
       --types/List?=null
-      --device_ids/List
+      --device-ids/List
       --limit/int=10
       --since/Time?=null
 
@@ -127,48 +127,48 @@ interface BrokerCli implements Authenticatable:
   Fetches the device details for the given device ids.
   Returns a map from id to $DeviceDetailed.
   */
-  get_devices --device_ids/List -> Map
+  get-devices --device-ids/List -> Map
 
   /**
   Creates a new pod description.
   */
-  pod_registry_description_upsert -> int
-      --fleet_id/uuid.Uuid
-      --organization_id/uuid.Uuid
+  pod-registry-description-upsert -> int
+      --fleet-id/uuid.Uuid
+      --organization-id/uuid.Uuid
       --name/string
       --description/string?
 
   /**
   Deletes the pod descriptions with the given ids.
   */
-  pod_registry_descriptions_delete --fleet_id/uuid.Uuid --description_ids/List -> none
+  pod-registry-descriptions-delete --fleet-id/uuid.Uuid --description-ids/List -> none
 
   /**
   Adds a pod.
   */
-  pod_registry_add -> none
-      --pod_description_id/int
-      --pod_id/uuid.Uuid
+  pod-registry-add -> none
+      --pod-description-id/int
+      --pod-id/uuid.Uuid
 
   /**
   Deletes the pods with the given ids.
   */
-  pod_registry_delete --fleet_id/uuid.Uuid --pod_ids/List -> none
+  pod-registry-delete --fleet-id/uuid.Uuid --pod-ids/List -> none
 
   /**
   Adds a tag.
   */
-  pod_registry_tag_set -> none
-      --pod_description_id/int
-      --pod_id/uuid.Uuid
+  pod-registry-tag-set -> none
+      --pod-description-id/int
+      --pod-id/uuid.Uuid
       --tag/string
       --force/bool=false
 
   /**
   Removes a tag.
   */
-  pod_registry_tag_remove -> none
-      --pod_description_id/int
+  pod-registry-tag-remove -> none
+      --pod-description-id/int
       --tag/string
 
   /**
@@ -176,42 +176,42 @@ interface BrokerCli implements Authenticatable:
 
   Returns a list of $PodRegistryDescription.
   */
-  pod_registry_descriptions --fleet_id/uuid.Uuid -> List
+  pod-registry-descriptions --fleet-id/uuid.Uuid -> List
 
   /**
   Returns a list of descriptions by their ids.
 
   Returns a list of $PodRegistryDescription.
   */
-  pod_registry_descriptions --ids/List -> List
+  pod-registry-descriptions --ids/List -> List
 
   /**
   Gets pod descriptions by name.
 
-  If $create_if_absent is true, a new description is created if none
+  If $create-if-absent is true, a new description is created if none
     with the given name exists.
 
   Returns a list of $PodRegistryDescription.
   */
-  pod_registry_descriptions -> List
-      --fleet_id/uuid.Uuid
-      --organization_id/uuid.Uuid
+  pod-registry-descriptions -> List
+      --fleet-id/uuid.Uuid
+      --organization-id/uuid.Uuid
       --names/List
-      --create_if_absent/bool
+      --create-if-absent/bool
 
   /**
   Returns the pods of a pod description.
 
   Returns a list of $PodRegistryEntry.
   */
-  pod_registry_pods --pod_description_id/int -> List
+  pod-registry-pods --pod-description-id/int -> List
 
   /**
-  Returns the pods with the given $pod_ids.
+  Returns the pods with the given $pod-ids.
 
   Returns a list of $PodRegistryEntry.
   */
-  pod_registry_pods --fleet_id/uuid.Uuid --pod_ids/List -> List
+  pod-registry-pods --fleet-id/uuid.Uuid --pod-ids/List -> List
 
   /**
   Returns the pod-id for the given name/tag combinations.
@@ -221,20 +221,20 @@ interface BrokerCli implements Authenticatable:
 
   The $references list must contain $PodReference objects.
   */
-  pod_registry_pod_ids --fleet_id/uuid.Uuid --references/List -> Map
+  pod-registry-pod-ids --fleet-id/uuid.Uuid --references/List -> Map
 
   /**
   Uploads a pod part to the registry.
   */
-  pod_registry_upload_pod_part -> none
-      --organization_id/uuid.Uuid
-      --part_id/string
+  pod-registry-upload-pod-part -> none
+      --organization-id/uuid.Uuid
+      --part-id/string
       content/ByteArray
 
   /**
   Downloads a pod part from the registry.
   */
-  pod_registry_download_pod_part part_id/string --organization_id/uuid.Uuid -> ByteArray
+  pod-registry-download-pod-part part-id/string --organization-id/uuid.Uuid -> ByteArray
 
   /**
   Saves the manifest of a pod.
@@ -242,20 +242,20 @@ interface BrokerCli implements Authenticatable:
   The $content is a binary blob (for example a UBJSON map) that can be used to recover
     a pod from its parts.
   */
-  pod_registry_upload_pod_manifest -> none
-      --organization_id/uuid.Uuid
-      --pod_id/uuid.Uuid
+  pod-registry-upload-pod-manifest -> none
+      --organization-id/uuid.Uuid
+      --pod-id/uuid.Uuid
       content/ByteArray
 
   /**
   Downloads the manifest of a pod.
   */
-  pod_registry_download_pod_manifest -> ByteArray
-      --organization_id/uuid.Uuid
-      --pod_id/uuid.Uuid
+  pod-registry-download-pod-manifest -> ByteArray
+      --organization-id/uuid.Uuid
+      --pod-id/uuid.Uuid
 
-with_broker server_config/ServerConfig config/Config [block]:
-  broker := BrokerCli server_config config
+with-broker server-config/ServerConfig config/Config [block]:
+  broker := BrokerCli server-config config
   try:
     block.call broker
   finally:

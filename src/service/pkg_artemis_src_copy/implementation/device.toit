@@ -13,4 +13,4 @@ class Device implements artemis.Device:
   constructor client/api.ArtemisClient?:
     if not client: throw "Artemis unavailable"
     client_ = client
-    id = uuid.Uuid client.device_id
+    id = uuid.Uuid client.device-id

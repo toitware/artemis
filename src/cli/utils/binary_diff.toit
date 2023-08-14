@@ -1,136 +1,136 @@
 // Copyright (C) 2020 Toitware ApS. All rights reserved.
 
-import binary show LITTLE_ENDIAN
+import binary show LITTLE-ENDIAN
 import crypto.adler32 show *
 import crypto.sha256 show *
 import host.pipe
 import writer
 
-import ...shared.utils.patch_format
+import ...shared.utils.patch-format
 
 // Smaller numbers take longer, but get smaller diffs.
-SECTION_SIZE_ ::= 16
+SECTION-SIZE_ ::= 16
 
-/// Create a binary diff from $old_bytes to $new_bytes, and write it
+/// Create a binary diff from $old-bytes to $new-bytes, and write it
 /// to the open file, $fd.  Returns the size of the diff file in bytes.
-diff old_bytes/OldData new_bytes/ByteArray fd total_new_bytes=new_bytes.size --fast/bool --with_header=true --with_footer=true --with_checksums=true -> int:
-  pages := NewOldOffsets old_bytes new_bytes old_bytes.sections SECTION_SIZE_ --fast=fast
+diff old-bytes/OldData new-bytes/ByteArray fd total-new-bytes=new-bytes.size --fast/bool --with-header=true --with-footer=true --with-checksums=true -> int:
+  pages := NewOldOffsets old-bytes new-bytes old-bytes.sections SECTION-SIZE_ --fast=fast
 
-  bdiff_size := 0
+  bdiff-size := 0
 
-  end_state := diff_files old_bytes new_bytes pages fast total_new_bytes --with_header=with_header --with_checksums=with_checksums:
+  end-state := diff-files old-bytes new-bytes pages fast total-new-bytes --with-header=with-header --with-checksums=with-checksums:
     // Do not print anything.
     null
 
-  writer := Writer_ new_bytes
-  bdiff_size += writer.write_diff fd end_state --with_footer=with_footer
+  writer := Writer_ new-bytes
+  bdiff-size += writer.write-diff fd end-state --with-footer=with-footer
 
-  return bdiff_size
+  return bdiff-size
 
-literal_block new_bytes/ByteArray fd --total_new_bytes/int?=null --with_footer=false -> int:
-  initial_state := total_new_bytes
-      ? InitialState_ (OldData #[] 0 0) new_bytes total_new_bytes --with_header=true
-      : InitialState_.no_old_bytes new_bytes --with_header=false
+literal-block new-bytes/ByteArray fd --total-new-bytes/int?=null --with-footer=false -> int:
+  initial-state := total-new-bytes
+      ? InitialState_ (OldData #[] 0 0) new-bytes total-new-bytes --with-header=true
+      : InitialState_.no-old-bytes new-bytes --with-header=false
 
-  head/Action := initial_state
+  head/Action := initial-state
 
   head = MoveCursor_ head 0 true  // Switch to byte oriented mode.
 
-  start_of_section := 0
-  scanning_repeated_bytes := false
+  start-of-section := 0
+  scanning-repeated-bytes := false
   // The loop has two states - counting repeated bytes and literal non-repeated data.
-  assert: head.byte_oriented
-  for i := 0; i <= new_bytes.size; i++:
-    if scanning_repeated_bytes:
-      if i == new_bytes.size or not all_same_ new_bytes[i - 1..i + 1]:
-        head = RepeatedBytes_ head --repeats=(i - start_of_section) --value=new_bytes[i - 1]
-        scanning_repeated_bytes = false
-        start_of_section = i
-    if not scanning_repeated_bytes:
-      if i == new_bytes.size or (i < new_bytes.size - 8 and all_same_ new_bytes[i..i + 8]):
-        if start_of_section != i:
-          head = Literal_.literal_section head (i - start_of_section)
-        start_of_section = i
-        scanning_repeated_bytes = true
+  assert: head.byte-oriented
+  for i := 0; i <= new-bytes.size; i++:
+    if scanning-repeated-bytes:
+      if i == new-bytes.size or not all-same_ new-bytes[i - 1..i + 1]:
+        head = RepeatedBytes_ head --repeats=(i - start-of-section) --value=new-bytes[i - 1]
+        scanning-repeated-bytes = false
+        start-of-section = i
+    if not scanning-repeated-bytes:
+      if i == new-bytes.size or (i < new-bytes.size - 8 and all-same_ new-bytes[i..i + 8]):
+        if start-of-section != i:
+          head = Literal_.literal-section head (i - start-of-section)
+        start-of-section = i
+        scanning-repeated-bytes = true
 
-  assert: head.bits_spent & 7 == 0
+  assert: head.bits-spent & 7 == 0
 
-  writer := Writer_ new_bytes
+  writer := Writer_ new-bytes
 
-  bdiff_size := writer.write_diff fd head --with_footer=with_footer
+  bdiff-size := writer.write-diff fd head --with-footer=with-footer
 
-  return bdiff_size
+  return bdiff-size
 
-all_same_ byte_array/ByteArray -> bool:
-  value := byte_array[0]
-  byte_array.size.repeat:
-    if value != byte_array[it]: return false
+all-same_ byte-array/ByteArray -> bool:
+  value := byte-array[0]
+  byte-array.size.repeat:
+    if value != byte-array[it]: return false
   return true
 
-new_checksum_block new_bytes/ByteArray fd checksum/ByteArray --with_header=true -> int:
-  initial_state := InitialState_.no_old_bytes new_bytes --with_header
-  checksum_action := NewChecksumAction_ initial_state --checksum=checksum
+new-checksum-block new-bytes/ByteArray fd checksum/ByteArray --with-header=true -> int:
+  initial-state := InitialState_.no-old-bytes new-bytes --with-header
+  checksum-action := NewChecksumAction_ initial-state --checksum=checksum
 
-  assert: checksum_action.bits_spent & 7 == 0
+  assert: checksum-action.bits-spent & 7 == 0
 
-  writer := Writer_ new_bytes
+  writer := Writer_ new-bytes
 
-  bdiff_size := writer.write_diff fd checksum_action --with_footer=false
+  bdiff-size := writer.write-diff fd checksum-action --with-footer=false
 
-  return bdiff_size
+  return bdiff-size
 
 class BitSequence_:
   // First we will output these bits.
   bits/int
   // This is the number of bits in the above int that are output.
-  number_of_bits/int
+  number-of-bits/int
   // Once we have output the initial bits, we output this byte array.
-  byte_array/ByteArray? := null
-  byte_array_start/int := 0
-  byte_array_count/int := 0
+  byte-array/ByteArray? := null
+  byte-array-start/int := 0
+  byte-array-count/int := 0
 
-  constructor .number_of_bits .bits:
+  constructor .number-of-bits .bits:
 
-  constructor .number_of_bits .bits .byte_array .byte_array_start=0 .byte_array_count=byte_array.size:
+  constructor .number-of-bits .bits .byte-array .byte-array-start=0 .byte-array-count=byte-array.size:
 
-  static size_field_ size_in_bits [block]:
+  static size-field_ size-in-bits [block]:
     // 2 bit field gives the size of the size field, 6, 14, 22, or 30 bits.
     for i := 6; i <= 30; i += 8:
-      if size_in_bits < (1 << i):
+      if size-in-bits < (1 << i):
         block.call (i / 8) i
         return
     throw "Metadata size too large"
 
-  static empty_byte_array_ := ByteArray 0
+  static empty-byte-array_ := ByteArray 0
 
   // Specialized constructor used by the Metadata actions.
   // Emits the 16 bit metadata code, then the size, then the
   // byte array.
-  constructor.metadata code/int --ignorable/bool data/ByteArray=empty_byte_array_:
-    number_of_bits = 16
+  constructor.metadata code/int --ignorable/bool data/ByteArray=empty-byte-array_:
+    number-of-bits = 16
     assert: 0 <= code <= 0x7f
-    bits = (ignorable ? IGNORABLE_METADATA : NON_IGNORABLE_METADATA) + code
+    bits = (ignorable ? IGNORABLE-METADATA : NON-IGNORABLE-METADATA) + code
 
     // Append variable sized big-endian size field, in bits.
     size := data.size * 8
-    size_field_size := 0
-    size_code := 0
-    size_field_ size: | size_code size_field_size |
+    size-field-size := 0
+    size-code := 0
+    size-field_ size: | size-code size-field-size |
       bits <<= 2
-      bits |= size_code
-      bits <<= size_field_size
+      bits |= size-code
+      bits <<= size-field-size
       bits |= size
-      number_of_bits += 2 + size_field_size
+      number-of-bits += 2 + size-field-size
 
-    byte_array = data
-    byte_array_count = data.size
+    byte-array = data
+    byte-array-count = data.size
 
 /// Immutable diff table structure.  Always returns a new
 /// one rather than mutating it.  This is used for creating
 /// diffs, but a mutable version is more efficient for
 /// patching.
 class DiffTable_:
-  diffs_/List := List DIFF_TABLE_SIZE: 0
+  diffs_/List := List DIFF-TABLE-SIZE: 0
 
   constructor:
 
@@ -142,25 +142,25 @@ class DiffTable_:
   /// Puts a new value in the middle and shifts the later items down
   /// by one.
   insert value/int -> DiffTable_:
-    pos := DIFF_TABLE_INSERTION
-    new_diffs := List DIFF_TABLE_SIZE:
+    pos := DIFF-TABLE-INSERTION
+    new-diffs := List DIFF-TABLE-SIZE:
       it <= pos ? diffs_[it] : diffs_[it - 1]
-    new_diffs[pos] = value
-    return DiffTable_.private_ new_diffs
+    new-diffs[pos] = value
+    return DiffTable_.private_ new-diffs
 
-  make_entry_zero_zero -> DiffTable_:
+  make-entry-zero-zero -> DiffTable_:
     if diffs_[0] == 0: return this
-    zero_found := false
-    new_diffs := List DIFF_TABLE_SIZE:
-      result := zero_found ? diffs_[it] : (it == 0 ? 0 : diffs_[it - 1])
+    zero-found := false
+    new-diffs := List DIFF-TABLE-SIZE:
+      result := zero-found ? diffs_[it] : (it == 0 ? 0 : diffs_[it - 1])
       if diffs_[it] == 0:
-        zero_found = true
+        zero-found = true
       result
-    return DiffTable_.private_ new_diffs
+    return DiffTable_.private_ new-diffs
 
   /// Find the position of a number in the table or return null if
   /// it's not there.
-  index_of value/int? -> int?:
+  index-of value/int? -> int?:
     if not value: return null
     diffs_.size.repeat: if diffs_[it] == value: return it
     return null
@@ -169,20 +169,20 @@ class DiffTable_:
   /// the start, and other items are moved down.
   promote index/int -> DiffTable_:
     if index == 0: return this
-    new_position := index / 2
-    new_diffs := List DIFF_TABLE_SIZE:
-      (it < new_position or it > index) ? diffs_[it] : it == new_position ? diffs_[index] : diffs_[it - 1]
-    return DiffTable_.private_ new_diffs
+    new-position := index / 2
+    new-diffs := List DIFF-TABLE-SIZE:
+      (it < new-position or it > index) ? diffs_[it] : it == new-position ? diffs_[index] : diffs_[it - 1]
+    return DiffTable_.private_ new-diffs
 
 class OldData:
   bytes/ByteArray
-  ignore_from/int
-  ignore_to/int
+  ignore-from/int
+  ignore-to/int
   sections/Map? := null
 
-  constructor .bytes .ignore_from=0 .ignore_to=0:
+  constructor .bytes .ignore-from=0 .ignore-to=0:
     if bytes.size != 0:
-      sections = Section.get_sections this SECTION_SIZE_
+      sections = Section.get-sections this SECTION-SIZE_
 
   size -> int:
     return bytes.size
@@ -191,97 +191,97 @@ class OldData:
     assert: length > 0
     if index < 0: return false
     if index + length > size: return false
-    if ignore_to <= index: return true
-    if index + length <= ignore_from: return true
+    if ignore-to <= index: return true
+    if index + length <= ignore-from: return true
     return false
 
   operator [] index/int:
-    if ignore_from <= index < ignore_to: throw "Out of bounds"
+    if ignore-from <= index < ignore-to: throw "Out of bounds"
     return bytes[index]
 
-  read_int32 index/int:
-    if ignore_from - 4 < index < ignore_to: throw "Out of bounds"
-    return LITTLE_ENDIAN.read_int bytes 4 index
+  read-int32 index/int:
+    if ignore-from - 4 < index < ignore-to: throw "Out of bounds"
+    return LITTLE-ENDIAN.read-int bytes 4 index
 
 abstract class Action:
-  old_bytes/OldData     // Same for all actions.
-  new_bytes/ByteArray   // Same for all actions.
+  old-bytes/OldData     // Same for all actions.
+  new-bytes/ByteArray   // Same for all actions.
   predecessor/Action?   // The chain back in time of immutable actions.
-  diff_table/DiffTable_  // The following values represent the situation after this action.
-  old_position/int
-  new_position/int
-  bits_spent/int
-  byte_oriented/bool
-  years_past_its_prime/int := 0
+  diff-table/DiffTable_  // The following values represent the situation after this action.
+  old-position/int
+  new-position/int
+  bits-spent/int
+  byte-oriented/bool
+  years-past-its-prime/int := 0
 
-  constructor.private_ .predecessor .diff_table .old_position .new_position .bits_spent:
-    byte_oriented = predecessor.byte_oriented
-    old_bytes = predecessor.old_bytes
-    new_bytes = predecessor.new_bytes
-    years_past_its_prime = predecessor.years_past_its_prime + predecessor.data_width_
+  constructor.private_ .predecessor .diff-table .old-position .new-position .bits-spent:
+    byte-oriented = predecessor.byte-oriented
+    old-bytes = predecessor.old-bytes
+    new-bytes = predecessor.new-bytes
+    years-past-its-prime = predecessor.years-past-its-prime + predecessor.data-width_
 
-  constructor.private_ .predecessor .diff_table .old_position .new_position .bits_spent .byte_oriented:
-    old_bytes = predecessor.old_bytes
-    new_bytes = predecessor.new_bytes
-    years_past_its_prime = predecessor.years_past_its_prime + predecessor.data_width_
+  constructor.private_ .predecessor .diff-table .old-position .new-position .bits-spent .byte-oriented:
+    old-bytes = predecessor.old-bytes
+    new-bytes = predecessor.new-bytes
+    years-past-its-prime = predecessor.years-past-its-prime + predecessor.data-width_
 
-  constructor.private_ .predecessor .diff_table .old_position .new_position .bits_spent .byte_oriented .old_bytes .new_bytes:
+  constructor.private_ .predecessor .diff-table .old-position .new-position .bits-spent .byte-oriented .old-bytes .new-bytes:
 
-  set_its_the_best -> none:
-    years_past_its_prime = 0
+  set-its-the-best -> none:
+    years-past-its-prime = 0
 
-  past_its_prime -> bool:
-    return years_past_its_prime > 500
+  past-its-prime -> bool:
+    return years-past-its-prime > 500
 
   // *** Methods for the ComparableSet_ ***
-  abstract comparable_hash_code -> int
+  abstract comparable-hash-code -> int
   abstract compare other -> bool
-  worse_than other -> bool:
-    return other.bits_spent < bits_spent
+  worse-than other -> bool:
+    return other.bits-spent < bits-spent
 
   // Compare that fits with ordered_diff_hash.
-  base_compare_ other -> bool:
-    if other.old_position != old_position: return false
-    if other.byte_oriented != byte_oriented: return false
-    (DIFF_TABLE_INSERTION + 1).repeat:
-      if diff_table[it] != other.diff_table[it]: return false
+  base-compare_ other -> bool:
+    if other.old-position != old-position: return false
+    if other.byte-oriented != byte-oriented: return false
+    (DIFF-TABLE-INSERTION + 1).repeat:
+      if diff-table[it] != other.diff-table[it]: return false
     return true
 
   // Hash that fits with base_compare_
-  ordered_diff_hash_ seed -> int:
+  ordered-diff-hash_ seed -> int:
     hash := seed
-    if byte_oriented: hash += 57
-    (DIFF_TABLE_INSERTION + 1).repeat:
+    if byte-oriented: hash += 57
+    (DIFF-TABLE-INSERTION + 1).repeat:
       hash *= 11
-      hash += diff_table[it]
+      hash += diff-table[it]
       hash &= 0x1fff_ffff
-    hash += old_position * 13
+    hash += old-position * 13
     hash &= 0x1fff_ffff
     return hash
 
   // *** Methods for the RoughlyComparableSet_ ***
-  abstract rough_hash_code -> int
-  abstract roughly_equals other -> bool
-  roughly_worse_than other -> bool:
-    return other.bits_spent < bits_spent
+  abstract rough-hash-code -> int
+  abstract roughly-equals other -> bool
+  roughly-worse-than other -> bool:
+    return other.bits-spent < bits-spent
 
   // Compare that fits with unordered_diff_hash.
-  unordered_compare_ other -> bool:
-    if other.byte_oriented != byte_oriented: return false
-    if other.old_position != old_position: return false
-    if byte_oriented:
-      assert: diff_table[0] == 0
-      if other.diff_table[1] != diff_table[1]: return false
+  unordered-compare_ other -> bool:
+    if other.byte-oriented != byte-oriented: return false
+    if other.old-position != old-position: return false
+    if byte-oriented:
+      assert: diff-table[0] == 0
+      if other.diff-table[1] != diff-table[1]: return false
     else:
-      if other.diff_table[0] != diff_table[0]: return false
+      if other.diff-table[0] != diff-table[0]: return false
     return true
 
   // Hash that fits with unordered_compare_.  Seed is a per-class constant.
-  unordered_diff_hash_ seed -> int:
+  unordered-diff-hash_ seed -> int:
     sum := seed
     product := seed | 1
     eor := 0
-    diff := diff_table[byte_oriented ? 1 : 0]
+    diff := diff-table[byte-oriented ? 1 : 0]
     sum += diff
     if diff == 0:
       product *= 941
@@ -289,11 +289,11 @@ abstract class Action:
       product *= diff
     product &= 0xfffff
     eor ^= diff
-    if byte_oriented: sum += 57
+    if byte-oriented: sum += 57
     return (941 + sum + product + eor) & 0x1fff_ffff
 
-  diff_to_int_ value/int?:
-    if byte_oriented:
+  diff-to-int_ value/int?:
+    if byte-oriented:
       integer := value & 0xff
       if integer >= 0x80: integer -= 0x100 // Treat as signed byte.
       return integer
@@ -303,66 +303,66 @@ abstract class Action:
     if 0 - 0x8000 <= value <= 0x7fff: return value
     return null
 
-  data_width_ -> int:
-    return byte_oriented ? 1 : 4
+  data-width_ -> int:
+    return byte-oriented ? 1 : 4
 
-  old_data -> int:
-    if byte_oriented:
-      return old_bytes[old_position]
-    return old_bytes.read_int32 old_position
+  old-data -> int:
+    if byte-oriented:
+      return old-bytes[old-position]
+    return old-bytes.read-int32 old-position
 
-  new_data -> int:
-    if byte_oriented:
-      return new_bytes[new_position]
-    return LITTLE_ENDIAN.read_int new_bytes 4 new_position
+  new-data -> int:
+    if byte-oriented:
+      return new-bytes[new-position]
+    return LITTLE-ENDIAN.read-int new-bytes 4 new-position
 
-  add_data new_position/int fast/bool -> List:
-    wanted_diff := null
+  add-data new-position/int fast/bool -> List:
+    wanted-diff := null
 
-    if not byte_oriented:
-      assert: old_position.is_aligned 4
-      assert: new_position.is_aligned 4
+    if not byte-oriented:
+      assert: old-position.is-aligned 4
+      assert: new-position.is-aligned 4
 
-    if old_bytes.valid old_position data_width_:
-      wanted_diff = diff_to_int_ new_data - old_data
+    if old-bytes.valid old-position data-width_:
+      wanted-diff = diff-to-int_ new-data - old-data
       // If a diff table entry fits, it's the best move.
-      index := diff_table.index_of wanted_diff
+      index := diff-table.index-of wanted-diff
       if index:
-        return [create_diff_ new_data index]
+        return [create-diff_ new-data index]
     // No existing diff table entry fits.  We can either overwrite a
     // byte/word or add a new diff table entry.
     result := []
-    if wanted_diff and not fast:
-      worth := not byte_oriented
-      if byte_oriented and old_bytes.valid old_position 17:
+    if wanted-diff and not fast:
+      worth := not byte-oriented
+      if byte-oriented and old-bytes.valid old-position 17:
         16.repeat:
           ahead := it + 1
-          if old_position + ahead < old_bytes.size and new_position + ahead < new_bytes.size:
-            if (old_bytes[old_position + ahead] + wanted_diff) & 0xff == new_bytes[new_position + ahead]:
+          if old-position + ahead < old-bytes.size and new-position + ahead < new-bytes.size:
+            if (old-bytes[old-position + ahead] + wanted-diff) & 0xff == new-bytes[new-position + ahead]:
               worth = true
       if worth:
         result.add
-          NewDiffEntry_ this new_data
+          NewDiffEntry_ this new-data
     result.add
-      Literal_ this new_data new_position
+      Literal_ this new-data new-position
     return result
 
-  move_cursor new_to_old/int new_position/int --fast=null -> List:
-    current_new_to_old := old_position - new_position
-    diff := new_to_old - current_new_to_old
-    possible_old_position := new_position + new_to_old
-    if not old_bytes.valid possible_old_position 8: return []
-    if new_position >= new_bytes.size - 8: return []
-    match_count := 0
+  move-cursor new-to-old/int new-position/int --fast=null -> List:
+    current-new-to-old := old-position - new-position
+    diff := new-to-old - current-new-to-old
+    possible-old-position := new-position + new-to-old
+    if not old-bytes.valid possible-old-position 8: return []
+    if new-position >= new-bytes.size - 8: return []
+    match-count := 0
     8.repeat:
-      if old_bytes[possible_old_position + it] == new_bytes[new_position + it]:
-        match_count++
-    if match_count < 5: return []
+      if old-bytes[possible-old-position + it] == new-bytes[new-position + it]:
+        match-count++
+    if match-count < 5: return []
     result := []
-    if not byte_oriented:
+    if not byte-oriented:
       // Currently word oriented.
-      if new_to_old.is_aligned 4:
-        assert: current_new_to_old.is_aligned 4
+      if new-to-old.is-aligned 4:
+        assert: current-new-to-old.is-aligned 4
         if diff != 0:
           result.add
             MoveCursor_ this diff false  // Word oriented.
@@ -371,7 +371,7 @@ abstract class Action:
           MoveCursor_ this diff true  // Byte oriented.
     else:
       // Currently byte oriented.
-      if new_position.is_aligned 4 and new_to_old.is_aligned 4:
+      if new-position.is-aligned 4 and new-to-old.is-aligned 4:
         result.add
           MoveCursor_ this diff false // Word oriented.
       if diff != 0:
@@ -379,31 +379,31 @@ abstract class Action:
           MoveCursor_ this diff true // Byte oriented.
     return result
 
-  create_diff_ data/int index/int:
+  create-diff_ data/int index/int:
     if index == 0:
       return BuildingDiffZero_ this data
     // A non-zero diff can't be promoted to the zero position in
     // byte mode.
-    new_diff_table := (index == 1 and byte_oriented) ? diff_table : (diff_table.promote index)
-    return DiffTableAction_ this new_diff_table data index
+    new-diff-table := (index == 1 and byte-oriented) ? diff-table : (diff-table.promote index)
+    return DiffTableAction_ this new-diff-table data index
 
-  short_string -> string:
+  short-string -> string:
     return stringify
 
-  old_representation_ bytes/int -> string:
+  old-representation_ bytes/int -> string:
     old := ""
-    pos := old_position - bytes
+    pos := old-position - bytes
     (min 8 bytes).repeat:
-      old += "$(%02x old_bytes[pos + it]) "
+      old += "$(%02x old-bytes[pos + it]) "
     if bytes > 8:
       old += "..."
     return "$(%-30s old) $(%8d pos)"
 
-  new_representation_ bytes/int -> string:
+  new-representation_ bytes/int -> string:
     new := ""
-    pos := new_position - bytes
+    pos := new-position - bytes
     (min 8 bytes).repeat:
-      new += "$(%02x new_bytes[pos + it]) "
+      new += "$(%02x new-bytes[pos + it]) "
     if bytes > 8:
       new += "..."
     return "$(%-30s new) $(%8d pos)"
@@ -411,40 +411,40 @@ abstract class Action:
 /// Returns a non-negative number as a series of bytes in big-endian order.
 /// Since the size of the data attached to the metadata is given, we can
 ///   use 8 bit numbers, 16 bit number, 24 bit numbers etc.
-metadata_number_ x -> ByteArray:
+metadata-number_ x -> ByteArray:
   assert: x >= 0
-  little_endian := []
+  little-endian := []
   while x != 0:
-    little_endian.add x & 0xff
+    little-endian.add x & 0xff
     x >>= 8
-  return ByteArray little_endian.size: little_endian[little_endian.size - 1 - it]
+  return ByteArray little-endian.size: little-endian[little-endian.size - 1 - it]
 
 class InitialState_ extends Action:
-  with_header_ ::= ?
+  with-header_ ::= ?
   // Total size of the result.  This may be after some binary patches have been
   // concatenated, so it may not reflect the size of the current block being
   // diffed.
-  total_new_bytes_/int
+  total-new-bytes_/int
 
-  constructor old_bytes/OldData new_bytes/ByteArray .total_new_bytes_=new_bytes.size --with_header=true:
-    with_header_ = with_header
-    super.private_ null DiffTable_ 0 0 0 false old_bytes new_bytes
+  constructor old-bytes/OldData new-bytes/ByteArray .total-new-bytes_=new-bytes.size --with-header=true:
+    with-header_ = with-header
+    super.private_ null DiffTable_ 0 0 0 false old-bytes new-bytes
 
-  constructor.no_old_bytes bytes/ByteArray --with_header=false:
-    with_header_ = with_header
-    total_new_bytes_ = 0
-    dummy_old_data := OldData (ByteArray 0) 0 0
-    super.private_ null DiffTable_ 0 0 0 false dummy_old_data bytes
+  constructor.no-old-bytes bytes/ByteArray --with-header=false:
+    with-header_ = with-header
+    total-new-bytes_ = 0
+    dummy-old-data := OldData (ByteArray 0) 0 0
+    super.private_ null DiffTable_ 0 0 0 false dummy-old-data bytes
 
-  emit_bits optional_pad/int -> List:
+  emit-bits optional-pad/int -> List:
     result := []
-    if with_header_:
+    if with-header_:
       magic := #[0x70, 0x17, 0xd1, 0xff]  // 0x7017d1ff.
       result.add
         BitSequence_.metadata 'M' --ignorable=false magic
-      if total_new_bytes_ != 0:
+      if total-new-bytes_ != 0:
         result.add
-          BitSequence_.metadata 'n' --ignorable=true (metadata_number_ total_new_bytes_)
+          BitSequence_.metadata 'n' --ignorable=true (metadata-number_ total-new-bytes_)
     else:
       // Add state reset action instead of header so that sections can be
       // concatenated.
@@ -455,104 +455,104 @@ class InitialState_ extends Action:
   stringify -> string:
     return "Initial State"
 
-  short_string -> string:
-    return "Initial    $(bits_spent) bits, offset: $(old_position - new_position)"
+  short-string -> string:
+    return "Initial    $(bits-spent) bits, offset: $(old-position - new-position)"
 
-  comparable_hash_code -> int:
+  comparable-hash-code -> int:
     return 123
 
   compare other -> bool:
     return false
 
-  rough_hash_code -> int:
+  rough-hash-code -> int:
     return 123
 
-  roughly_equals other -> bool:
+  roughly-equals other -> bool:
     return false
 
 class RepeatedBytes_ extends Action:
   value /int
   repeats /int
   constructor predecessor/Action --.repeats --.value=0:
-    super.private_ predecessor predecessor.diff_table predecessor.old_position
-        predecessor.new_position + repeats
-        predecessor.bits_spent + 24 + (value == 0 ? 0 : 8)
-    if not byte_oriented: assert: repeats % 4 == 0
+    super.private_ predecessor predecessor.diff-table predecessor.old-position
+        predecessor.new-position + repeats
+        predecessor.bits-spent + 24 + (value == 0 ? 0 : 8)
+    if not byte-oriented: assert: repeats % 4 == 0
 
-  emit_bits optional_pad/int -> List:
-    rep := byte_oriented ? repeats : repeats / 4
+  emit-bits optional-pad/int -> List:
+    rep := byte-oriented ? repeats : repeats / 4
     if value == 0:
-      return [BitSequence_.metadata 'Z' --ignorable=false (metadata_number_ rep)]
+      return [BitSequence_.metadata 'Z' --ignorable=false (metadata-number_ rep)]
     else:
-      return [BitSequence_.metadata 'L' --ignorable=false (#[value] + (metadata_number_ rep))]
+      return [BitSequence_.metadata 'L' --ignorable=false (#[value] + (metadata-number_ rep))]
 
   stringify -> string:
     return "Repeated, value=$value, repeats=$repeats"
 
-  short_string -> string:
+  short-string -> string:
     return "Repeated, value=$value, repeats=$repeats"
 
-  comparable_hash_code -> int:
+  comparable-hash-code -> int:
     return (value + 1) * repeats
 
   compare other -> bool:
     if other is not RepeatedBytes_: return false
     if other.value != value: return false
     if other.repeats != repeats: return false
-    return base_compare_ other
+    return base-compare_ other
 
-  rough_hash_code -> int:
+  rough-hash-code -> int:
     return (value + 1) * repeats
 
-  roughly_equals other -> bool:
+  roughly-equals other -> bool:
     return compare other
 
 class SpecialAction_ extends Action:
-  hash_code_ := 0
-  constructor predecessor/Action bits_spent/int=predecessor.bits_spent:
-    super.private_ predecessor predecessor.diff_table predecessor.old_position predecessor.new_position bits_spent
-    hash_code_ = random 0 1_000_000_000
+  hash-code_ := 0
+  constructor predecessor/Action bits-spent/int=predecessor.bits-spent:
+    super.private_ predecessor predecessor.diff-table predecessor.old-position predecessor.new-position bits-spent
+    hash-code_ = random 0 1_000_000_000
 
-  comparable_hash_code -> int:
-    return hash_code_
+  comparable-hash-code -> int:
+    return hash-code_
 
   compare other -> bool:
     return identical this other
 
-  rough_hash_code -> int:
-    return hash_code_
+  rough-hash-code -> int:
+    return hash-code_
 
-  roughly_equals other -> bool:
+  roughly-equals other -> bool:
     return identical this other
 
 class OldChecksumAction_ extends SpecialAction_:
-  old_data_/OldData ::= ?
+  old-data_/OldData ::= ?
 
-  constructor predecessor/Action .old_data_:
+  constructor predecessor/Action .old-data_:
     super predecessor
 
-  emit_bits optional_pad/int -> List:
+  emit-bits optional-pad/int -> List:
     result := []
-    if old_data_.ignore_from > 0:
-      old_sha := sha256 old_data_.bytes 0 old_data_.ignore_from
-      payload := create_old_sha_payload_ old_sha 0 old_data_.ignore_from
+    if old-data_.ignore-from > 0:
+      old-sha := sha256 old-data_.bytes 0 old-data_.ignore-from
+      payload := create-old-sha-payload_ old-sha 0 old-data_.ignore-from
       result.add
         BitSequence_.metadata 'S' --ignorable=true payload
-    if old_data_.ignore_to < old_data_.size:
-      old_sha := sha256 old_data_.bytes old_data_.ignore_to old_data_.size
-      payload := create_old_sha_payload_ old_sha old_data_.ignore_to old_data_.size - old_data_.ignore_to
+    if old-data_.ignore-to < old-data_.size:
+      old-sha := sha256 old-data_.bytes old-data_.ignore-to old-data_.size
+      payload := create-old-sha-payload_ old-sha old-data_.ignore-to old-data_.size - old-data_.ignore-to
       result.add
         BitSequence_.metadata 'S' --ignorable=true payload
     return result
 
-  create_old_sha_payload_ sha/ByteArray from/int size/int -> ByteArray:
-    old_payload := ByteArray 6 + sha.size: | index |
+  create-old-sha-payload_ sha/ByteArray from/int size/int -> ByteArray:
+    old-payload := ByteArray 6 + sha.size: | index |
       if index < 3: continue.ByteArray (from >> (16 - 8 * index)) & 0xff
       index -= 3
       if index < 3: continue.ByteArray (size >> (16 - 8 * index)) & 0xff
       index -= 3
       continue.ByteArray sha[index]
-    return old_payload
+    return old-payload
 
   stringify -> string:
     return "Old checksum"
@@ -563,7 +563,7 @@ class NewChecksumAction_ extends SpecialAction_:
   constructor predecessor/Action --.checksum=null:
     super predecessor
 
-  emit_bits optional_pad/int -> List:
+  emit-bits optional-pad/int -> List:
     assert: checksum.size == 32
     return [BitSequence_.metadata 's' --ignorable=true checksum]
 
@@ -574,11 +574,11 @@ class EndAction_ extends SpecialAction_:
   constructor predecessor/Action:
     super predecessor
 
-  emit_bits optional_pad/int -> List:
+  emit-bits optional-pad/int -> List:
     return [BitSequence_.metadata 'E' --ignorable=false]
 
-  short_string -> string:
-    return "End        $(bits_spent - predecessor.bits_spent) bits, offset: $(old_position - new_position)"
+  short-string -> string:
+    return "End        $(bits-spent - predecessor.bits-spent) bits, offset: $(old-position - new-position)"
 
 /// Used to pad output up to a whole number of bytes.  If we were already
 /// aligned it takes 0 bits, otherwise 17-23 bits.
@@ -586,107 +586,107 @@ class PadAction_ extends SpecialAction_:
   constructor predecessor/Action:
     super predecessor
 
-  emit_bits pad_bits/int -> List:
+  emit-bits pad-bits/int -> List:
     result := []
-    emit_driver pad_bits: | bits bit_pattern |
+    emit-driver pad-bits: | bits bit-pattern |
       result.add
-        BitSequence_ bits bit_pattern
+        BitSequence_ bits bit-pattern
     return result
 
-  static emit_driver pad_bits [block] -> none:
-    if pad_bits == 0: return
-    assert: 0 < pad_bits <= 7
+  static emit-driver pad-bits [block] -> none:
+    if pad-bits == 0: return
+    assert: 0 < pad-bits <= 7
     block.call
-      16 + pad_bits
+      16 + pad-bits
       // We use the code that moves the old-data cursor by 0 bytes.
-      0b1111_1110_1000_0000 << pad_bits
+      0b1111_1110_1000_0000 << pad-bits
 
-  short_string -> string:
-    return "Pad        , offset: $(old_position - new_position)"
+  short-string -> string:
+    return "Pad        , offset: $(old-position - new-position)"
 
 class MoveCursor_ extends Action:
   step/int
 
-  constructor predecessor/Action .step/int byte_oriented/bool:
-    extra_bits := 8
-    if step.abs != 1: extra_bits = 16
-    if not -128 <= step <= 127: extra_bits = 32
-    if predecessor.byte_oriented != byte_oriented: extra_bits = 32
-    if step == 0 and predecessor.byte_oriented != byte_oriented: extra_bits = 8
-    assert: predecessor.old_position + step >= 0
-    new_diff_table := predecessor.diff_table
-    if (not predecessor.byte_oriented) and byte_oriented:
+  constructor predecessor/Action .step/int byte-oriented/bool:
+    extra-bits := 8
+    if step.abs != 1: extra-bits = 16
+    if not -128 <= step <= 127: extra-bits = 32
+    if predecessor.byte-oriented != byte-oriented: extra-bits = 32
+    if step == 0 and predecessor.byte-oriented != byte-oriented: extra-bits = 8
+    assert: predecessor.old-position + step >= 0
+    new-diff-table := predecessor.diff-table
+    if (not predecessor.byte-oriented) and byte-oriented:
       // In byte oriented mode the first entry in the diff table is always
       // zero, but this is not the case in word oriented mode.
-      new_diff_table = new_diff_table.make_entry_zero_zero
+      new-diff-table = new-diff-table.make-entry-zero-zero
     super.private_
       predecessor
-      new_diff_table
-      predecessor.old_position + step
-      predecessor.new_position
-      predecessor.bits_spent + extra_bits
-      byte_oriented
+      new-diff-table
+      predecessor.old-position + step
+      predecessor.new-position
+      predecessor.bits-spent + extra-bits
+      byte-oriented
 
-  emit_bits optional_pad/int -> List:
-    if step == 0 and predecessor.byte_oriented != byte_oriented:
+  emit-bits optional-pad/int -> List:
+    if step == 0 and predecessor.byte-oriented != byte-oriented:
       return [BitSequence_ 8 0b1111_1111]
-    in_byte_range := 0 - 0x80 <= step <= 0x7f
-    if predecessor.byte_oriented != byte_oriented or not in_byte_range:
-      location := ByteArray 3: (old_position >> (8 * (2 - it))) & 0xff
-      flag := byte_oriented ? 1 : 0
+    in-byte-range := 0 - 0x80 <= step <= 0x7f
+    if predecessor.byte-oriented != byte-oriented or not in-byte-range:
+      location := ByteArray 3: (old-position >> (8 * (2 - it))) & 0xff
+      flag := byte-oriented ? 1 : 0
       return [BitSequence_ 8 0b1110_1110 + flag location]
     if step.abs == 1:
       if step == 1:
         return [BitSequence_ 8 0b1111_1101]
       else:
         return [BitSequence_ 8 0b1111_1100]
-    assert: in_byte_range
+    assert: in-byte-range
     return [BitSequence_ 16 0b1111_1110_0000_0000 + ((step + 0x80) & 0xff)]
 
-  comparable_hash_code -> int:
-    hash := ordered_diff_hash_ 103
+  comparable-hash-code -> int:
+    hash := ordered-diff-hash_ 103
     // Don't use the step for the hash - it's where we land, not how
     // we got there.
     return hash
 
   compare other/Action -> bool:
     if other is not MoveCursor_: return false
-    return base_compare_ other
+    return base-compare_ other
 
-  rough_hash_code -> int:
-    hash := unordered_diff_hash_ 103
+  rough-hash-code -> int:
+    hash := unordered-diff-hash_ 103
     return hash
 
-  roughly_equals other -> bool:
+  roughly-equals other -> bool:
     if other is not MoveCursor_: return false
-    return unordered_compare_ other
+    return unordered-compare_ other
 
   stringify -> string:
     entries := ""
-    DIFF_TABLE_SIZE.repeat:
-      entries += "$diff_table[it], "
-    return "$(byte_oriented ? "B" : "W") Move cursor, old_position $old_position, $bits_spent bits spent, $entries"
+    DIFF-TABLE-SIZE.repeat:
+      entries += "$diff-table[it], "
+    return "$(byte-oriented ? "B" : "W") Move cursor, old_position $old-position, $bits-spent bits spent, $entries"
 
-  short_string -> string:
-    return "Offset   $(byte_oriented ? "B" : "W") $(bits_spent - predecessor.bits_spent) bits, offset: $(old_position - new_position)"
+  short-string -> string:
+    return "Offset   $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits, offset: $(old-position - new-position)"
 
 class NewDiffEntry_ extends Action:
   diff/int
 
   constructor predecessor/Action data/int:
-    wanted_diff := predecessor.diff_to_int_ data - predecessor.old_data
-    assert: wanted_diff
-    diff = wanted_diff
-    extra_bits := (one_byte_ wanted_diff predecessor.byte_oriented) ? 14 : 22
+    wanted-diff := predecessor.diff-to-int_ data - predecessor.old-data
+    assert: wanted-diff
+    diff = wanted-diff
+    extra-bits := (one-byte_ wanted-diff predecessor.byte-oriented) ? 14 : 22
     super.private_
       predecessor
-      predecessor.diff_table.insert wanted_diff
-      predecessor.old_position + predecessor.data_width_
-      predecessor.new_position + predecessor.data_width_
-      predecessor.bits_spent + extra_bits
+      predecessor.diff-table.insert wanted-diff
+      predecessor.old-position + predecessor.data-width_
+      predecessor.new-position + predecessor.data-width_
+      predecessor.bits-spent + extra-bits
 
-  emit_bits optional_pad/int -> List:
-    byte := one_byte_ diff byte_oriented
+  emit-bits optional-pad/int -> List:
+    byte := one-byte_ diff byte-oriented
     if byte:
       return [BitSequence_ 14 0b1111_00_0000_0000 + byte]
     assert: 0 - 0x8000 <= diff <= 0x7fff
@@ -694,8 +694,8 @@ class NewDiffEntry_ extends Action:
 
   /// If the difference can be represented as a signed 8 bit value, then
   /// returns that difference, biased by 0x80.  Otherwise returns null.
-  static one_byte_ diff/int byte_oriented/bool -> int?:
-    if byte_oriented:
+  static one-byte_ diff/int byte-oriented/bool -> int?:
+    if byte-oriented:
       masked := diff & 0xff
       signed := masked >= 0x80  ? masked - 0x100 : masked
       return signed + 0x80
@@ -705,160 +705,160 @@ class NewDiffEntry_ extends Action:
 
   stringify -> string:
     entries := ""
-    DIFF_TABLE_SIZE.repeat:
-      entries += "$diff_table[it], "
-    return "$(byte_oriented ? "B" : "W") New diff, $bits_spent bits spent, $entries"// $name from $predecessor.name"
+    DIFF-TABLE-SIZE.repeat:
+      entries += "$diff-table[it], "
+    return "$(byte-oriented ? "B" : "W") New diff, $bits-spent bits spent, $entries"// $name from $predecessor.name"
 
-  short_string -> string:
-    old := old_representation_ data_width_
-    new := new_representation_ data_width_
-    line := "New diff $(byte_oriented ? "B" : "W") $(bits_spent - predecessor.bits_spent) bits"
+  short-string -> string:
+    old := old-representation_ data-width_
+    new := new-representation_ data-width_
+    line := "New diff $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits"
     return "$(%30s line) $old\n$(%30s   "") $new"
 
-  comparable_hash_code -> int:
-    hash := ordered_diff_hash_ 41
+  comparable-hash-code -> int:
+    hash := ordered-diff-hash_ 41
     return hash
 
   compare other -> bool:
     if other is not NewDiffEntry_: return false
-    return base_compare_ other
+    return base-compare_ other
 
-  rough_hash_code -> int:
-    hash := unordered_diff_hash_ 41
+  rough-hash-code -> int:
+    hash := unordered-diff-hash_ 41
     return hash
 
-  roughly_equals other -> bool:
+  roughly-equals other -> bool:
     if other is not NewDiffEntry_: return false
-    return unordered_compare_ other
+    return unordered-compare_ other
 
 class DiffTableAction_ extends Action:
   index/int
 
-  emit_bits optional_pad/int -> List:
+  emit-bits optional-pad/int -> List:
     if index == 1: return [BitSequence_ 3 0b100]
     if index <= 3: return [BitSequence_ 4 0b1010 + index - 2]
     if index <= 7: return [BitSequence_ 5 0b11000 + index - 4]
     return [BitSequence_ 8 0b1110_0000 + index - 8]
 
-  constructor predecessor/Action new_diff_table/DiffTable_ data/int .index:
+  constructor predecessor/Action new-diff-table/DiffTable_ data/int .index:
     assert: index != null
     assert: index != 0
-    extra_bits := 0
-    if index == 1: extra_bits = 3
-    else if index <= 3: extra_bits = 4
-    else if index <= 7: extra_bits = 5
-    else: extra_bits = 8
+    extra-bits := 0
+    if index == 1: extra-bits = 3
+    else if index <= 3: extra-bits = 4
+    else if index <= 7: extra-bits = 5
+    else: extra-bits = 8
     super.private_
       predecessor
-      new_diff_table
-      predecessor.old_position + predecessor.data_width_
-      predecessor.new_position + predecessor.data_width_
-      predecessor.bits_spent + extra_bits
+      new-diff-table
+      predecessor.old-position + predecessor.data-width_
+      predecessor.new-position + predecessor.data-width_
+      predecessor.bits-spent + extra-bits
 
   stringify -> string:
     entries := ""
-    DIFF_TABLE_SIZE.repeat:
-      entries += "$diff_table[it], "
-    return "$(byte_oriented ? "B" : "W") Diff at $index by $diff_table[index], $bits_spent bits spent, $entries"// $name from $predecessor.name"
+    DIFF-TABLE-SIZE.repeat:
+      entries += "$diff-table[it], "
+    return "$(byte-oriented ? "B" : "W") Diff at $index by $diff-table[index], $bits-spent bits spent, $entries"// $name from $predecessor.name"
 
-  short_string -> string:
-    old := old_representation_ data_width_
-    new := new_representation_ data_width_
-    line := "Diff   $(byte_oriented ? "B" : "W") $(bits_spent - predecessor.bits_spent) bits, index: $index"
+  short-string -> string:
+    old := old-representation_ data-width_
+    new := new-representation_ data-width_
+    line := "Diff   $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits, index: $index"
     return "$(%30s line) $old\n$(%30s   "") $new"
 
-  comparable_hash_code -> int:
-    hash := ordered_diff_hash_ index
+  comparable-hash-code -> int:
+    hash := ordered-diff-hash_ index
     return hash
 
   compare other -> bool:
     if other is not DiffTableAction_: return false
     if other.index != index: return false
-    return base_compare_ other
+    return base-compare_ other
 
-  rough_hash_code -> int:
-    hash := unordered_diff_hash_ 71
+  rough-hash-code -> int:
+    hash := unordered-diff-hash_ 71
     return hash
 
-  roughly_equals other -> bool:
+  roughly-equals other -> bool:
     if other is not DiffTableAction_: return false
-    return unordered_compare_ other
+    return unordered-compare_ other
 
 /// We are adding literal data.
 class Literal_ extends Action:
-  byte_count/int
-  new_position_/int
+  byte-count/int
+  new-position_/int
 
-  constructor predecessor/Action data/int .new_position_/int:
-    byte_count = predecessor.data_width_
+  constructor predecessor/Action data/int .new-position_/int:
+    byte-count = predecessor.data-width_
     super.private_
       predecessor
-      predecessor.diff_table
-      predecessor.old_position + predecessor.data_width_  // Overwrite, so we still step forwards.
-      predecessor.new_position + predecessor.data_width_  // Overwrite, so we still step forwards.
-      predecessor.bits_spent + 8 + 8 * predecessor.data_width_
+      predecessor.diff-table
+      predecessor.old-position + predecessor.data-width_  // Overwrite, so we still step forwards.
+      predecessor.new-position + predecessor.data-width_  // Overwrite, so we still step forwards.
+      predecessor.bits-spent + 8 + 8 * predecessor.data-width_
 
-  constructor.literal_section predecessor/Action size/int:
-    new_position_ = predecessor.new_position
-    byte_count = size
-    if not predecessor.byte_oriented and not size.is_aligned 4: throw "Literal section must be a multiple of 4"
-    new_bits_spent := predecessor.bits_spent
-    emit_driver byte_count 4: | bits _ _ length |
-      new_bits_spent += bits + length * 8
+  constructor.literal-section predecessor/Action size/int:
+    new-position_ = predecessor.new-position
+    byte-count = size
+    if not predecessor.byte-oriented and not size.is-aligned 4: throw "Literal section must be a multiple of 4"
+    new-bits-spent := predecessor.bits-spent
+    emit-driver byte-count 4: | bits _ _ length |
+      new-bits-spent += bits + length * 8
     super.private_
       predecessor
-      predecessor.diff_table
-      predecessor.old_position + byte_count
-      predecessor.new_position + byte_count
-      new_bits_spent
+      predecessor.diff-table
+      predecessor.old-position + byte-count
+      predecessor.new-position + byte-count
+      new-bits-spent
 
   constructor.private_ predecessor/Literal_:
-    byte_count = predecessor.byte_count + predecessor.data_width_
-    new_bits_spent := predecessor.predecessor.bits_spent
-    emit_driver byte_count predecessor.data_width_: | bits _ _ length |
-      new_bits_spent += bits + length * 8
-    new_position_ = predecessor.new_position_
+    byte-count = predecessor.byte-count + predecessor.data-width_
+    new-bits-spent := predecessor.predecessor.bits-spent
+    emit-driver byte-count predecessor.data-width_: | bits _ _ length |
+      new-bits-spent += bits + length * 8
+    new-position_ = predecessor.new-position_
     super.private_
       predecessor.predecessor  // Chop previous action out of chain.
-      predecessor.diff_table
-      predecessor.old_position + predecessor.data_width_  // Overwrite, so we still step forwards.
-      predecessor.new_position + predecessor.data_width_  // Overwrite, so we still step forwards.
-      new_bits_spent
+      predecessor.diff-table
+      predecessor.old-position + predecessor.data-width_  // Overwrite, so we still step forwards.
+      predecessor.new-position + predecessor.data-width_  // Overwrite, so we still step forwards.
+      new-bits-spent
 
-  emit_bits optional_pad/int -> List:
+  emit-bits optional-pad/int -> List:
     result := []
-    if byte_count >= 64:
+    if byte-count >= 64:
       // If we have a large-ish number of literal bytes it is worth spending
       // 17-23 bits to byte align first - this ensures that we can use
       // memcpy-like operations when patching.
-      PadAction_.emit_driver optional_pad: | bits bit_pattern |
+      PadAction_.emit-driver optional-pad: | bits bit-pattern |
         result.add
-          BitSequence_ bits bit_pattern
+          BitSequence_ bits bit-pattern
 
-    emit_driver byte_count data_width_: | bits bit_pattern from length |
+    emit-driver byte-count data-width_: | bits bit-pattern from length |
       result.add
-        BitSequence_ bits bit_pattern new_bytes new_position_+from length
+        BitSequence_ bits bit-pattern new-bytes new-position_+from length
     return result
 
-  static emit_driver byte_count/int data_width/int [block]-> none:
-    datum_count := byte_count / data_width
+  static emit-driver byte-count/int data-width/int [block]-> none:
+    datum-count := byte-count / data-width
     offset := 0
-    while datum_count > 6:
-      chunk := min 262 datum_count
-      block.call 16 0b1111_1011_0000_0000 + chunk - 7 offset chunk * data_width
-      offset += chunk * data_width
-      datum_count -= chunk
-    while datum_count > 0:
-      chunk := min 3 datum_count
-      block.call 8 0b11111000 + chunk - 1 offset chunk * data_width
-      offset += chunk * data_width
-      datum_count -= chunk
+    while datum-count > 6:
+      chunk := min 262 datum-count
+      block.call 16 0b1111_1011_0000_0000 + chunk - 7 offset chunk * data-width
+      offset += chunk * data-width
+      datum-count -= chunk
+    while datum-count > 0:
+      chunk := min 3 datum-count
+      block.call 8 0b11111000 + chunk - 1 offset chunk * data-width
+      offset += chunk * data-width
+      datum-count -= chunk
 
-  add_data new_position/int fast/bool -> List:
-    assert: new_position == new_position_ + byte_count
-    result := super new_position fast
+  add-data new-position/int fast/bool -> List:
+    assert: new-position == new-position_ + byte-count
+    result := super new-position fast
     extended := Literal_.private_ this
-    extended.years_past_its_prime = years_past_its_prime + data_width_
+    extended.years-past-its-prime = years-past-its-prime + data-width_
     if result.size != 0 and result[result.size - 1] is Literal_:
       result[result.size - 1] = extended
     else:
@@ -867,65 +867,65 @@ class Literal_ extends Action:
 
   stringify -> string:
     entries := ""
-    DIFF_TABLE_SIZE.repeat:
-      entries += "$diff_table[it], "
-    return "$(byte_oriented ? "B" : "W") Literal_ length $byte_count, $bits_spent bits spent, $entries"// $name from $predecessor.name"
+    DIFF-TABLE-SIZE.repeat:
+      entries += "$diff-table[it], "
+    return "$(byte-oriented ? "B" : "W") Literal_ length $byte-count, $bits-spent bits spent, $entries"// $name from $predecessor.name"
 
-  short_string -> string:
-    old := old_representation_ byte_count
-    new := new_representation_ byte_count
-    line := "Literl $(byte_oriented ? "B" : "W") $(bits_spent - predecessor.bits_spent) bits, bytes: $byte_count"
+  short-string -> string:
+    old := old-representation_ byte-count
+    new := new-representation_ byte-count
+    line := "Literl $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits, bytes: $byte-count"
     return "$(%30s line) $old\n$(%30s   "") $new"
 
-  byte_count_category_ -> int:
-    if byte_count < 10: return byte_count
-    if byte_count < 200: return 10
+  byte-count-category_ -> int:
+    if byte-count < 10: return byte-count
+    if byte-count < 200: return 10
     return 200
 
-  comparable_hash_code -> int:
-    hash := ordered_diff_hash_ 521
-    hash += byte_count_category_ * 53
+  comparable-hash-code -> int:
+    hash := ordered-diff-hash_ 521
+    hash += byte-count-category_ * 53
     hash &= 0x1fff_ffff
     return hash
 
   compare other -> bool:
     if other is not Literal_: return false
-    if other.byte_count_category_ != byte_count_category_: return false
-    return base_compare_ other
+    if other.byte-count-category_ != byte-count-category_: return false
+    return base-compare_ other
 
-  rough_hash_code -> int:
-    hash := unordered_diff_hash_ 521
-    hash += byte_count_category_ * 53
+  rough-hash-code -> int:
+    hash := unordered-diff-hash_ 521
+    hash += byte-count-category_ * 53
     hash &= 0x1fff_ffff
     return hash
 
-  roughly_equals other -> bool:
+  roughly-equals other -> bool:
     if other is not Literal_: return false
-    if other.byte_count_category_ != byte_count_category_: return false
-    return unordered_compare_ other
+    if other.byte-count-category_ != byte-count-category_: return false
+    return unordered-compare_ other
 
 /// We are building up a sequence of matches of entry 0
 /// in the diff table.
 class BuildingDiffZero_ extends Action:
-  data_count/int
+  data-count/int
 
   constructor predecessor/Action data/int:
-    data_count = 1
+    data-count = 1
     super.private_
       predecessor
-      predecessor.diff_table
-      predecessor.old_position + predecessor.data_width_
-      predecessor.new_position + predecessor.data_width_
-      predecessor.bits_spent + 2
+      predecessor.diff-table
+      predecessor.old-position + predecessor.data-width_
+      predecessor.new-position + predecessor.data-width_
+      predecessor.bits-spent + 2
 
-  constructor.private_ predecessor diff_table old_position new_position bits_spent .data_count:
-    super.private_ predecessor diff_table old_position new_position bits_spent
+  constructor.private_ predecessor diff-table old-position new-position bits-spent .data-count:
+    super.private_ predecessor diff-table old-position new-position bits-spent
 
-  emit_bits optional_pad/int -> List:
+  emit-bits optional-pad/int -> List:
     list := []
-    emit_driver data_count: | bit_count pattern argument |
+    emit-driver data-count: | bit-count pattern argument |
       list.add
-        BitSequence_ bit_count pattern + argument
+        BitSequence_ bit-count pattern + argument
     return list
 
   //  2, 0b00, 0, 1,        // 00          Diff index 0 1.
@@ -933,7 +933,7 @@ class BuildingDiffZero_ extends Action:
   //  4, 0b0111, 4, 11,     // 0111xxxx    Diff index 0 11-23.
   //  8, 0b01111101, 8, 47, // 01111101    Diff index 0 47-302.
   //  8, 0b01111110, 16, 255, // 01111110  Diff index 0 255-65790.
-  static emit_driver count/int [block]-> none:
+  static emit-driver count/int [block]-> none:
     while count > 302:
       increment := min 65790 count
       block.call 24 0b0111_1110_0000_0000_0000_0000 increment - 255
@@ -956,90 +956,90 @@ class BuildingDiffZero_ extends Action:
 
   stringify -> string:
     entries := ""
-    DIFF_TABLE_SIZE.repeat:
-      entries += "$diff_table[it], "
-    return "$(byte_oriented ? "B" : "W") Zero diff, $data_count bytes, $bits_spent bits spent, age $years_past_its_prime, $entries"// $name from $predecessor.name"
+    DIFF-TABLE-SIZE.repeat:
+      entries += "$diff-table[it], "
+    return "$(byte-oriented ? "B" : "W") Zero diff, $data-count bytes, $bits-spent bits spent, age $years-past-its-prime, $entries"// $name from $predecessor.name"
 
-  short_string -> string:
-    old := old_representation_ data_count * data_width_
-    new := new_representation_ data_count * data_width_
-    line := "0 diff $(byte_oriented ? "B" : "W") $(bits_spent - predecessor.bits_spent) bits, bytes: $(byte_oriented ? data_count : data_count*4)"
+  short-string -> string:
+    old := old-representation_ data-count * data-width_
+    new := new-representation_ data-count * data-width_
+    line := "0 diff $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits, bytes: $(byte-oriented ? data-count : data-count*4)"
     return "$(%30s line) $old\n$(%30s   "") $new"
 
-  move_cursor new_to_old/int new_position/int --fast=null -> List:
-    if new_bytes.size - new_position < 4: return []
-    if not old_bytes.valid old_position data_width_: return []
+  move-cursor new-to-old/int new-position/int --fast=null -> List:
+    if new-bytes.size - new-position < 4: return []
+    if not old-bytes.valid old-position data-width_: return []
 
     // If we have a perfect match, don't bother trying to find other matches in
     // the old file.
-    data_width_.repeat:
-      if old_bytes[old_position + it] != new_bytes[this.new_position + it]:
-        return super new_to_old new_position --fast=fast
+    data-width_.repeat:
+      if old-bytes[old-position + it] != new-bytes[this.new-position + it]:
+        return super new-to-old new-position --fast=fast
     return []
 
-  add_data new_position/int fast/bool -> List:
-    if not old_bytes.valid old_position data_width_:
-      return super new_position fast
-    diff := diff_table[0]
-    wanted_diff := diff_to_int_ new_data - old_data
-    if old_position + data_width_ <= old_bytes.size and wanted_diff == diff:
+  add-data new-position/int fast/bool -> List:
+    if not old-bytes.valid old-position data-width_:
+      return super new-position fast
+    diff := diff-table[0]
+    wanted-diff := diff-to-int_ new-data - old-data
+    if old-position + data-width_ <= old-bytes.size and wanted-diff == diff:
       // Match, so we keep building.  There are some lengths where we have
       // to move to a wider bit representation.
-      new_bits_spent := predecessor.bits_spent
-      emit_driver data_count + 1: | bits _ _ |
-        new_bits_spent += bits
+      new-bits-spent := predecessor.bits-spent
+      emit-driver data-count + 1: | bits _ _ |
+        new-bits-spent += bits
       // By passing this instance's previous action instead of this, we cut
       // out this from the chain.
-      next := BuildingDiffZero_.private_ predecessor diff_table old_position + data_width_ new_position + data_width_ new_bits_spent data_count + 1
-      next.years_past_its_prime = years_past_its_prime + data_width_
+      next := BuildingDiffZero_.private_ predecessor diff-table old-position + data-width_ new-position + data-width_ new-bits-spent data-count + 1
+      next.years-past-its-prime = years-past-its-prime + data-width_
       return [next]
 
-    return super new_position fast
+    return super new-position fast
 
-  comparable_hash_code -> int:
-    hash := ordered_diff_hash_ data_count
+  comparable-hash-code -> int:
+    hash := ordered-diff-hash_ data-count
     return hash
 
   compare other -> bool:
     if other is not BuildingDiffZero_: return false
-    if other.data_count != data_count: return false
-    return base_compare_ other
+    if other.data-count != data-count: return false
+    return base-compare_ other
 
-  rough_hash_code -> int:
-    hash := unordered_diff_hash_ data_count
+  rough-hash-code -> int:
+    hash := unordered-diff-hash_ data-count
     return hash
 
-  roughly_equals other -> bool:
+  roughly-equals other -> bool:
     if other is not BuildingDiffZero_: return false
-    if other.data_count != data_count: return false
-    return unordered_compare_ other
+    if other.data-count != data-count: return false
+    return unordered-compare_ other
 
 class ComparableSet_ extends Set:
-  hash_code_ key:
-    return key.comparable_hash_code
+  hash-code_ key:
+    return key.comparable-hash-code
 
-  compare_ key key_or_probe:
-    return key.compare key_or_probe
+  compare_ key key-or-probe:
+    return key.compare key-or-probe
 
-  add_or_improve key:
-    existing_key := get key --if_absent=:
+  add-or-improve key:
+    existing-key := get key --if-absent=:
       add key
       null
-    if existing_key and existing_key.worse_than key:
+    if existing-key and existing-key.worse-than key:
       add key  // Overwrites.
 
 class RoughlyComparableSet_ extends Set:
-  hash_code_ key:
-    return key.rough_hash_code
+  hash-code_ key:
+    return key.rough-hash-code
 
-  compare_ key key_or_probe:
-    return key.roughly_equals key_or_probe
+  compare_ key key-or-probe:
+    return key.roughly-equals key-or-probe
 
-  add_or_improve key:
-    existing_key := get key --if_absent=:
+  add-or-improve key:
+    existing-key := get key --if-absent=:
       add key
       null
-    if existing_key and existing_key.roughly_worse_than key:
+    if existing-key and existing-key.roughly-worse-than key:
       add key  // Overwrites.
 
 /// Old and new bytes match up, but their positions in the files are offset
@@ -1049,163 +1049,163 @@ class NewOldOffsets:
   pages_/List
 
   // Determine new-old offsets per 128-byte page.
-  static PAGE_BITS_ ::= 7
+  static PAGE-BITS_ ::= 7
 
   // If a rolling hash occurs too many places in the old file then it's just
   // a common pattern like all-zeros.  These don't help us match up parts of
   // the old and new file, so we ignore them.
-  static MAX_HASH_POPULARITY ::= 5
+  static MAX-HASH-POPULARITY ::= 5
 
   // If a part of the new file matches up with too many places in the old
   // file then we don't keep track of all the places, because that just
   // slows us down when creating the diff.
-  static MAX_OFFSETS ::= 32
+  static MAX-OFFSETS ::= 32
 
-  operator [] new_position/int -> Set:  // Of ints.
-    return pages_[new_position >> PAGE_BITS_]
+  operator [] new-position/int -> Set:  // Of ints.
+    return pages_[new-position >> PAGE-BITS_]
 
-  constructor old_bytes/OldData new_bytes/ByteArray sections/Map section_size/int --fast/bool:
-    pages_ = List (new_bytes.size >> PAGE_BITS_) + 2: Set
+  constructor old-bytes/OldData new-bytes/ByteArray sections/Map section-size/int --fast/bool:
+    pages_ = List (new-bytes.size >> PAGE-BITS_) + 2: Set
 
-    byte_positions_per_word := fast ? 1 : 4
+    byte-positions-per-word := fast ? 1 : 4
 
-    adlers := List byte_positions_per_word: Adler32
+    adlers := List byte-positions-per-word: Adler32
 
     // The rolling Adler checksum requires that we 'unadd' data that is rolling
     // out of the window.  Special-case the initial area where we are near the
     // start and there is no data to unadd.
-    for i:= 0; i < section_size; i += 4:
-      byte_positions_per_word.repeat:
-        adlers[it].add new_bytes i + 2 + it i + 4 + it
+    for i:= 0; i < section-size; i += 4:
+      byte-positions-per-word.repeat:
+        adlers[it].add new-bytes i + 2 + it i + 4 + it
 
-    for i := 0; i < new_bytes.size - 2 * section_size; i += 4:
-      byte_positions_per_word.repeat: | j |
+    for i := 0; i < new-bytes.size - 2 * section-size; i += 4:
+      byte-positions-per-word.repeat: | j |
         adler := adlers[j]
         index := i + j
-        rolling_hash := Section.hash_number (adler.get --destructive=false)
-        if sections.contains rolling_hash:
-          if sections[rolling_hash].size < MAX_HASH_POPULARITY:
-            sections[rolling_hash].do: | section |
+        rolling-hash := Section.hash-number (adler.get --destructive=false)
+        if sections.contains rolling-hash:
+          if sections[rolling-hash].size < MAX-HASH-POPULARITY:
+            sections[rolling-hash].do: | section |
               mismatch := false
-              if old_bytes.valid section.position section_size:
-                for k := 0; k < section_size; k += 4:
-                  if old_bytes[section.position + k + 2] != new_bytes[index + k + 2]: mismatch = true
-                  if old_bytes[section.position + k + 3] != new_bytes[index + k + 3]: mismatch = true
+              if old-bytes.valid section.position section-size:
+                for k := 0; k < section-size; k += 4:
+                  if old-bytes[section.position + k + 2] != new-bytes[index + k + 2]: mismatch = true
+                  if old-bytes[section.position + k + 3] != new-bytes[index + k + 3]: mismatch = true
               if not mismatch:
-                new_to_old := section.position - index
-                page := index >> PAGE_BITS_
+                new-to-old := section.position - index
+                page := index >> PAGE-BITS_
                 set := pages_[page]
-                if set.size < MAX_OFFSETS: set.add new_to_old
+                if set.size < MAX-OFFSETS: set.add new-to-old
                 // TODO: Should we spread the offset to adjacent pages?
         adler.unadd
-          new_bytes
+          new-bytes
           index + 2
           index + 4
         adler.add
-          new_bytes
-          index + 2 + section_size
-          index + 4 + section_size
+          new-bytes
+          index + 2 + section-size
+          index + 4 + section-size
 
-diff_files old_bytes/OldData new_bytes/ByteArray pages/NewOldOffsets fast_mode/bool total_new_bytes=new_bytes.size --with_header=true --with_checksums=true [logger]:
+diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets fast-mode/bool total-new-bytes=new-bytes.size --with-header=true --with-checksums=true [logger]:
   actions := ComparableSet_
-  state/Action := InitialState_ old_bytes new_bytes total_new_bytes --with_header=with_header
-  if with_checksums:
-    state = OldChecksumAction_ state old_bytes
+  state/Action := InitialState_ old-bytes new-bytes total-new-bytes --with-header=with-header
+  if with-checksums:
+    state = OldChecksumAction_ state old-bytes
   actions.add state
 
-  last_time := Time.now
-  last_size := 0
+  last-time := Time.now
+  last-size := 0
 
-  new_bytes.size.repeat: | new_position |
-    actions_at_this_point := actions.any:
-      it.new_position == new_position
+  new-bytes.size.repeat: | new-position |
+    actions-at-this-point := actions.any:
+      it.new-position == new-position
     // At some unaligned positions there are no actions to consider.
-    assert: actions_at_this_point or not new_position.is_aligned 4
-    if actions_at_this_point:
-      new_actions := ComparableSet_
-      best_bdiff_length := int.MAX
-      not_in_this_round := []
-      best_offset_printed := false
-      at_unaligned_end_zone := new_position == (round_down new_bytes.size 4)
-      fast := fast_mode and pages[new_position].size == 0 and not at_unaligned_end_zone
+    assert: actions-at-this-point or not new-position.is-aligned 4
+    if actions-at-this-point:
+      new-actions := ComparableSet_
+      best-bdiff-length := int.MAX
+      not-in-this-round := []
+      best-offset-printed := false
+      at-unaligned-end-zone := new-position == (round-down new-bytes.size 4)
+      fast := fast-mode and pages[new-position].size == 0 and not at-unaligned-end-zone
       actions.do: | action |
         limit := fast ? 16 : 64
-        if actions.size > 1000 or new_actions.size > 1000: limit = fast ? 16 : 32
-        if actions.size > 10000 or new_actions.size > 10000: limit = fast ? 8 : 16
-        if action.new_position != new_position:
-          not_in_this_round.add action
-          best_bdiff_length = min best_bdiff_length action.bits_spent
+        if actions.size > 1000 or new-actions.size > 1000: limit = fast ? 16 : 32
+        if actions.size > 10000 or new-actions.size > 10000: limit = fast ? 8 : 16
+        if action.new-position != new-position:
+          not-in-this-round.add action
+          best-bdiff-length = min best-bdiff-length action.bits-spent
         else:
-          if at_unaligned_end_zone and not action.byte_oriented:
+          if at-unaligned-end-zone and not action.byte-oriented:
             action = MoveCursor_ action 0 true // Switch to byte oriented mode.
-          possible_children := action.add_data new_position fast
-          possible_children.do: | child |
-            bits := child.bits_spent
+          possible-children := action.add-data new-position fast
+          possible-children.do: | child |
+            bits := child.bits-spent
             // Prefilter - no need to add actions that are already too poor.
-            if bits - best_bdiff_length < limit:
-              new_actions.add_or_improve child
-              best_bdiff_length = min best_bdiff_length bits
-          if (not fast_mode) or new_position & 0x7f == 0:
-            pages[new_position].do: | new_to_old |
-              jitters_done := false
-              jitters := action.byte_oriented
-                ? (new_position & 0xf == 0 ? [0, 1, -1, 2, -2, 3, -3] : [0, 1, -1])
+            if bits - best-bdiff-length < limit:
+              new-actions.add-or-improve child
+              best-bdiff-length = min best-bdiff-length bits
+          if (not fast-mode) or new-position & 0x7f == 0:
+            pages[new-position].do: | new-to-old |
+              jitters-done := false
+              jitters := action.byte-oriented
+                ? (new-position & 0xf == 0 ? [0, 1, -1, 2, -2, 3, -3] : [0, 1, -1])
                 : [0]
               jitters.do: | jitter |
-                if not jitters_done:
-                  shifted_actions := action.move_cursor new_to_old+jitter new_position --fast=fast_mode
-                  shifted_actions.do: | shifted_action |
-                    jitters_done = true
-                    shifted_children := shifted_action.add_data new_position fast
-                    shifted_children.do: | shifted_child |
-                      bits := shifted_child.bits_spent
-                      if bits - best_bdiff_length < limit:
-                        new_actions.add_or_improve shifted_child
-                        best_bdiff_length = min best_bdiff_length bits
-      actions = new_actions
+                if not jitters-done:
+                  shifted-actions := action.move-cursor new-to-old+jitter new-position --fast=fast-mode
+                  shifted-actions.do: | shifted-action |
+                    jitters-done = true
+                    shifted-children := shifted-action.add-data new-position fast
+                    shifted-children.do: | shifted-child |
+                      bits := shifted-child.bits-spent
+                      if bits - best-bdiff-length < limit:
+                        new-actions.add-or-improve shifted-child
+                        best-bdiff-length = min best-bdiff-length bits
+      actions = new-actions
       limit := 64
       if actions.size > 1000:
         limit = 32
       if actions.size > 10000:
         limit = 16
       if actions.size > 100:
-        fuzzy_set := RoughlyComparableSet_
+        fuzzy-set := RoughlyComparableSet_
         actions.do:
-          if it.bits_spent - best_bdiff_length < limit and not it.past_its_prime:
-            fuzzy_set.add_or_improve it
-          if it.bits_spent == best_bdiff_length:
-            it.set_its_the_best
+          if it.bits-spent - best-bdiff-length < limit and not it.past-its-prime:
+            fuzzy-set.add-or-improve it
+          if it.bits-spent == best-bdiff-length:
+            it.set-its-the-best
         actions = ComparableSet_
-        actions.add_all fuzzy_set
+        actions.add-all fuzzy-set
       else:
-        actions.filter --in_place:
-          if it.bits_spent == best_bdiff_length:
-            it.set_its_the_best
-          result := it.bits_spent - best_bdiff_length <= limit
-          if it.past_its_prime: result = false
+        actions.filter --in-place:
+          if it.bits-spent == best-bdiff-length:
+            it.set-its-the-best
+          result := it.bits-spent - best-bdiff-length <= limit
+          if it.past-its-prime: result = false
           result
-      actions.add_all not_in_this_round
-      PROGRESS_EVERY ::= 10000
-      if new_position % PROGRESS_EVERY == 0:
+      actions.add-all not-in-this-round
+      PROGRESS-EVERY ::= 10000
+      if new-position % PROGRESS-EVERY == 0:
         end := Time.now
-        size := best_bdiff_length
-        duration := last_time.to end
-        compressed_size := size - last_size
-        compression_message := ""
-        if new_position != 0:
-          compression_message = "$(((compressed_size * 1000.0 / (8 * PROGRESS_EVERY)).to_int + 0.1)/10.0)%"
-          point := compression_message.index_of "."
-          compression_message = compression_message.copy 0 point + 2
-          compression_message += "%"
-          logger.call "Pos $(%7d new_position), $(%6d best_bdiff_length) bits, $(%6d (duration/PROGRESS_EVERY).in_us)us/byte $compression_message"
-        last_time = end
-        last_size = size
-  end_state := null
+        size := best-bdiff-length
+        duration := last-time.to end
+        compressed-size := size - last-size
+        compression-message := ""
+        if new-position != 0:
+          compression-message = "$(((compressed-size * 1000.0 / (8 * PROGRESS-EVERY)).to-int + 0.1)/10.0)%"
+          point := compression-message.index-of "."
+          compression-message = compression-message.copy 0 point + 2
+          compression-message += "%"
+          logger.call "Pos $(%7d new-position), $(%6d best-bdiff-length) bits, $(%6d (duration/PROGRESS-EVERY).in-us)us/byte $compression-message"
+        last-time = end
+        last-size = size
+  end-state := null
   actions.do:
-    if it.new_position == new_bytes.size:
-      if not end_state or end_state.worse_than it:
-        end_state = it
-  return end_state
+    if it.new-position == new-bytes.size:
+      if not end-state or end-state.worse-than it:
+        end-state = it
+  return end-state
 
 /**
 A section of the old version of a diff-file pair.  By using a
@@ -1222,104 +1222,104 @@ class Section:
   size/int
   adler/ByteArray     // Adler32 of bytes 2 and 3 out of every 4-byte part.
 
-  static first_eight_bytes hash/ByteArray -> string:
+  static first-eight-bytes hash/ByteArray -> string:
     return "$(%02x hash[0])$(%02x hash[1])$(%02x hash[2])$(%02x hash[3])"
 
   stringify:
-    return "0x$(%06x position)-0x$(%06x position + size - 1): Rolling:$(first_eight_bytes adler)"
+    return "0x$(%06x position)-0x$(%06x position + size - 1): Rolling:$(first-eight-bytes adler)"
 
   constructor .position .size .adler:
 
-  static hash_number hash/ByteArray -> int:
+  static hash-number hash/ByteArray -> int:
     return hash[0] + (hash[1] << 8) + (hash[2] << 16) + (hash[3] << 24)
 
-  adler_number -> int:
-    return hash_number adler
+  adler-number -> int:
+    return hash-number adler
 
-  adler_match a/Adler32:
+  adler-match a/Adler32:
     other := a.get --destructive=false
     if other.size != adler.size: return false
     other.size.repeat:
       if other[it] != adler[it]: return false
     return true
 
-  static get_sections bytes/OldData section_size/int -> Map:
+  static get-sections bytes/OldData section-size/int -> Map:
     sections := {:}
-    for pos := 0; pos < bytes.size; pos += section_size:
-      if bytes.valid pos section_size:
-        half_adler := Adler32
+    for pos := 0; pos < bytes.size; pos += section-size:
+      if bytes.valid pos section-size:
+        half-adler := Adler32
         two := ByteArray 2
-        for i := 0; i < section_size and pos + i < bytes.size; i += 4:
+        for i := 0; i < section-size and pos + i < bytes.size; i += 4:
           two[0] = bytes[pos + i + 2]
           two[1] = bytes[pos + i + 3]
-          half_adler.add two
+          half-adler.add two
 
-        section := Section pos section_size half_adler.get
-        number := section.adler_number
+        section := Section pos section-size half-adler.get
+        number := section.adler-number
         list := (sections.get number --init=: [])
-        if list.size < 16 or (pos / section_size) & 0x1f == 0:
+        if list.size < 16 or (pos / section-size) & 0x1f == 0:
           list.add section
 
     return sections
 
 class Writer_:
-  new_bytes/ByteArray
+  new-bytes/ByteArray
   fd := null
-  number_of_bits := 0
+  number-of-bits := 0
   accumulator := 0
 
-  constructor .new_bytes:
+  constructor .new-bytes:
 
-  write_diff file end_state/Action --with_footer=true -> int:
-    bdiff_size := 0
+  write-diff file end-state/Action --with-footer=true -> int:
+    bdiff-size := 0
     fd = file
 
     count := 1
 
-    action/Action? := end_state
+    action/Action? := end-state
     while action.predecessor != null:
       count++
       action = action.predecessor
-    all_actions := List count
-    action = end_state
+    all-actions := List count
+    action = end-state
     while action:
       count--
-      all_actions[count] = action
+      all-actions[count] = action
       action = action.predecessor
 
-    last_action := PadAction_ end_state
-    all_actions.add last_action
+    last-action := PadAction_ end-state
+    all-actions.add last-action
 
-    if with_footer:
-      end_action := EndAction_ last_action
-      all_actions.add end_action
+    if with-footer:
+      end-action := EndAction_ last-action
+      all-actions.add end-action
 
-    one_byte_buffer := ByteArray 1
-    all_actions.do: | action |
-      next_byte_boundary := round_up number_of_bits 8
-      (action.emit_bits next_byte_boundary - number_of_bits).do: | to_output/BitSequence_ |
-        accumulator <<= to_output.number_of_bits
-        accumulator |= to_output.bits
-        number_of_bits += to_output.number_of_bits
-        while number_of_bits >= 8:
-          byte := (accumulator >> (number_of_bits - 8)) & 0xff
-          one_byte_buffer[0] = byte
-          fd.write one_byte_buffer
-          bdiff_size++
-          number_of_bits -= 8
-          accumulator &= (1 << number_of_bits) - 1
-        extra_bytes := to_output.byte_array_count
-        position := to_output.byte_array_start
-        while extra_bytes-- != 0:
+    one-byte-buffer := ByteArray 1
+    all-actions.do: | action |
+      next-byte-boundary := round-up number-of-bits 8
+      (action.emit-bits next-byte-boundary - number-of-bits).do: | to-output/BitSequence_ |
+        accumulator <<= to-output.number-of-bits
+        accumulator |= to-output.bits
+        number-of-bits += to-output.number-of-bits
+        while number-of-bits >= 8:
+          byte := (accumulator >> (number-of-bits - 8)) & 0xff
+          one-byte-buffer[0] = byte
+          fd.write one-byte-buffer
+          bdiff-size++
+          number-of-bits -= 8
+          accumulator &= (1 << number-of-bits) - 1
+        extra-bytes := to-output.byte-array-count
+        position := to-output.byte-array-start
+        while extra-bytes-- != 0:
           accumulator <<= 8
-          accumulator |= to_output.byte_array[position++]
-          one_byte_buffer[0] = (accumulator >> number_of_bits) & 0xff
-          fd.write one_byte_buffer
-          bdiff_size++
+          accumulator |= to-output.byte-array[position++]
+          one-byte-buffer[0] = (accumulator >> number-of-bits) & 0xff
+          fd.write one-byte-buffer
+          bdiff-size++
           accumulator &= 0xff  // Avoid Smi overflow.
-    if number_of_bits != 0:
-      one_byte_buffer[0] = (accumulator << (8 - number_of_bits)) & 0xff
-      fd.write one_byte_buffer
-      bdiff_size++
+    if number-of-bits != 0:
+      one-byte-buffer[0] = (accumulator << (8 - number-of-bits)) & 0xff
+      fd.write one-byte-buffer
+      bdiff-size++
 
-    return bdiff_size
+    return bdiff-size

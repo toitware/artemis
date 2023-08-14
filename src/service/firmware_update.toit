@@ -3,7 +3,7 @@
 import log
 import system.firmware
 
-import binary show LITTLE_ENDIAN
+import binary show LITTLE-ENDIAN
 import reader show Reader
 
 import .brokers.broker
@@ -15,32 +15,32 @@ import ..shared.utils.patch
 Updates the firmware for the $device to match the encoded firmware
   specified by the $new string.
 */
-firmware_update logger/log.Logger broker_connection/BrokerConnection -> none
+firmware-update logger/log.Logger broker-connection/BrokerConnection -> none
     --device/Device
     --new/string:
-  old_firmware := Firmware.encoded device.firmware
-  new_firmware := Firmware.encoded new
-  checkpoint := device.checkpoint --old=old_firmware --new=new_firmware
+  old-firmware := Firmware.encoded device.firmware
+  new-firmware := Firmware.encoded new
+  checkpoint := device.checkpoint --old=old-firmware --new=new-firmware
 
-  logger.info "firmware update" --tags={"size": new_firmware.size}
+  logger.info "firmware update" --tags={"size": new-firmware.size}
   elapsed := Duration.of:
-    firmware.map: | old_mapping/firmware.FirmwareMapping? |
-      index := checkpoint ? checkpoint.read_part_index : 0
-      read_offset := checkpoint ? checkpoint.read_offset : 0
-      patcher := FirmwarePatcher_ logger old_mapping
+    firmware.map: | old-mapping/firmware.FirmwareMapping? |
+      index := checkpoint ? checkpoint.read-part-index : 0
+      read-offset := checkpoint ? checkpoint.read-offset : 0
+      patcher := FirmwarePatcher_ logger old-mapping
           --device=device
           --checkpoint=checkpoint
-          --new=new_firmware
-          --old=old_firmware
+          --new=new-firmware
+          --old=old-firmware
       try:
-        while index < new_firmware.parts.size:
-          patcher.write_part broker_connection index read_offset
-          read_offset = 0
+        while index < new-firmware.parts.size:
+          patcher.write-part broker-connection index read-offset
+          read-offset = 0
           index++
-        patcher.write_checksum
-      finally: | is_exception exception |
+        patcher.write-checksum
+      finally: | is-exception exception |
         patcher.close
-        if is_exception:
+        if is-exception:
           // We only keep the last checkpoint if we get a specific
           // recognizable error from reading the patch. The intent
           // is to use checkpoints exclusively for loss of power
@@ -48,13 +48,13 @@ firmware_update logger/log.Logger broker_connection/BrokerConnection -> none
           // we may have gotten a corrupt patch or written to the
           // flash in an incorrect way, so we prefer not catching
           // such exceptions.
-          if PATCH_READING_FAILED_EXCEPTION == exception.value:
+          if PATCH-READING-FAILED-EXCEPTION == exception.value:
             logger.warn "firmware update: interrupted due to network error"
           else:
             // Got an unexpected exception. Be careful and clear the
             // checkpoint information and let the exception continue
             // unwinding the stack.
-            device.checkpoint_update null
+            device.checkpoint-update null
             logger.warn "firmware update: abandoned due to non-network error"
   logger.info "firmware update: 100%" --tags={"elapsed": elapsed}
 
@@ -63,19 +63,19 @@ class FirmwarePatcher_ implements PatchObserver:
   device_/Device
   new_/Firmware
   old_/Firmware
-  old_mapping_/firmware.FirmwareMapping?
+  old-mapping_/firmware.FirmwareMapping?
 
   // Bookkeeping for firmware writing.
   writer_/firmware.FirmwareWriter? := null
-  write_skip_/int := 0
-  write_offset_/int := 0
-  write_offset_next_print_/int := 0
+  write-skip_/int := 0
+  write-offset_/int := 0
+  write-offset-next-print_/int := 0
 
   // Checkpoint handling.
-  next_checkpoint_/Checkpoint? := null
-  next_checkpoint_part_index_/int? := null
+  next-checkpoint_/Checkpoint? := null
+  next-checkpoint-part-index_/int? := null
 
-  constructor .logger_ .old_mapping_
+  constructor .logger_ .old-mapping_
       --device/Device
       --checkpoint/Checkpoint?
       --new/Firmware
@@ -87,101 +87,101 @@ class FirmwarePatcher_ implements PatchObserver:
 
   reposition_ checkpoint/Checkpoint? -> int:
     if writer_: writer_.close
-    write_skip := checkpoint ? checkpoint.write_skip : 0
-    write_offset := checkpoint ? checkpoint.write_offset : 0
-    write_skip_ = write_skip
-    write_offset_ = write_offset - write_skip  // We haven't written the skipped part yet.
-    writer_ = firmware.FirmwareWriter write_offset new_.size
-    return checkpoint ? checkpoint.read_offset : 0
+    write-skip := checkpoint ? checkpoint.write-skip : 0
+    write-offset := checkpoint ? checkpoint.write-offset : 0
+    write-skip_ = write-skip
+    write-offset_ = write-offset - write-skip  // We haven't written the skipped part yet.
+    writer_ = firmware.FirmwareWriter write-offset new_.size
+    return checkpoint ? checkpoint.read-offset : 0
 
-  write_part broker_connection/BrokerConnection index/int read_offset/int -> none:
-    next_checkpoint_ = null
-    next_checkpoint_part_index_ = index
+  write-part broker-connection/BrokerConnection index/int read-offset/int -> none:
+    next-checkpoint_ = null
+    next-checkpoint-part-index_ = index
     try:
       part/Map := new_.parts[index]
       type := part.get "type"
       if type == "config":
-        assert: read_offset == 0
-        write_device_specific_ part new_.device_specific_encoded
+        assert: read-offset == 0
+        write-device-specific_ part new_.device-specific-encoded
       else:
         // TODO(kasper): Find the old part based on name/type, not index.
-        write_patched_ broker_connection read_offset --new=part --old=old_.parts[index]
+        write-patched_ broker-connection read-offset --new=part --old=old_.parts[index]
     finally:
-      next_checkpoint_part_index_ = null
+      next-checkpoint-part-index_ = null
 
-  write_checksum -> none:
-    on_write new_.checksum
+  write-checksum -> none:
+    on-write new_.checksum
     writer_.commit
 
-  write_device_specific_ part/Map device_specific/ByteArray -> none:
-    padded_size := part["to"] - part["from"]
+  write-device-specific_ part/Map device-specific/ByteArray -> none:
+    padded-size := part["to"] - part["from"]
     size := ByteArray 4
-    LITTLE_ENDIAN.put_uint32 size 0 device_specific.size
-    on_write size
-    on_write device_specific
-    pad_ padded_size - (device_specific.size + 4)
+    LITTLE-ENDIAN.put-uint32 size 0 device-specific.size
+    on-write size
+    on-write device-specific
+    pad_ padded-size - (device-specific.size + 4)
 
-  write_patched_ broker_connection/BrokerConnection read_offset/int --new/Map --old/Map -> none:
-    new_hash/ByteArray := new["hash"]
-    old_hash/ByteArray := old["hash"]
+  write-patched_ broker-connection/BrokerConnection read-offset/int --new/Map --old/Map -> none:
+    new-hash/ByteArray := new["hash"]
+    old-hash/ByteArray := old["hash"]
 
-    old_mapping/firmware.FirmwareMapping? := null
-    if old_mapping_:
-      old_from := old["from"]
-      old_to := old["to"]
-      old_mapping = old_mapping_[old_from..old_to]
+    old-mapping/firmware.FirmwareMapping? := null
+    if old-mapping_:
+      old-from := old["from"]
+      old-to := old["to"]
+      old-mapping = old-mapping_[old-from..old-to]
 
-    if old_mapping and new_hash == old_hash:
+    if old-mapping and new-hash == old-hash:
       // We do not currently use checkpoints for copied parts, so
       // this should always be started from offset zero.
-      assert: read_offset == 0
-      copy_ old_mapping
+      assert: read-offset == 0
+      copy_ old-mapping
       return
 
-    new_id := Firmware.id --hash=new_hash
-    resource_urls := []
-    if old_mapping:
-      old_id := Firmware.id --hash=old_hash
-      resource_urls.add "$new_id/$old_id"
+    new-id := Firmware.id --hash=new-hash
+    resource-urls := []
+    if old-mapping:
+      old-id := Firmware.id --hash=old-hash
+      resource-urls.add "$new-id/$old-id"
 
     // We might not find the old->new patch. Use the 'none' patch as
     // a fallback. We try this if we fail to fetch and thus never
     // start applying the patch version.
-    resource_urls.add "$new_id/none"
+    resource-urls.add "$new-id/none"
 
-    resource_urls.do: | resource_url/string |
+    resource-urls.do: | resource-url/string |
       // If we get an exception before we start applying the patch,
       // we continue to the next resource URL in the list. Notice
       // how the 'unwind' argument is a block to get lazy evaluation
       // so we can update 'started_applying' from within the block
       // passed to 'fetch_firmware'.
-      started_applying := false
-      exception := catch --unwind=(: started_applying):
-        broker_connection.fetch_firmware resource_url --offset=read_offset:
+      started-applying := false
+      exception := catch --unwind=(: started-applying):
+        broker-connection.fetch-firmware resource-url --offset=read-offset:
           | reader/Reader offset/int |
-            started_applying = true
-            apply_ reader offset old_mapping
+            started-applying = true
+            apply_ reader offset old-mapping
         // If we get here, we expect that we have started applying
         // the patch. Getting here without having started applying
         // the patch indicates that fetching the firmware neither
         // threw nor invoked the block, which shouldn't happen,
         // but to be safe we check anyway.
-        if started_applying: return
+        if started-applying: return
       // We didn't start applying the patch, so we conclude that
       // we failed fetching it. If there are more possible URLs
       // to fetch from, we try the next.
       logger_.warn "firmware update: failed to fetch patch" --tags={
-        "url": resource_url,
+        "url": resource-url,
         "error": exception
       }
 
     // We never got started applying any of the patches, so we conclude
     // that we were unable to read the patch.
-    throw PATCH_READING_FAILED_EXCEPTION
+    throw PATCH-READING-FAILED-EXCEPTION
 
-  apply_ reader/Reader offset/int old_mapping/firmware.FirmwareMapping? -> none:
-    binary_patcher := Patcher reader old_mapping --patch_offset=offset
-    if not binary_patcher.patch this:
+  apply_ reader/Reader offset/int old-mapping/firmware.FirmwareMapping? -> none:
+    binary-patcher := Patcher reader old-mapping --patch-offset=offset
+    if not binary-patcher.patch this:
       // This should only happen if we to get the wrong bits
       // served to us. It is unlikely, but we log it and throw
       // an exception so we can try to recover.
@@ -193,73 +193,73 @@ class FirmwarePatcher_ implements PatchObserver:
 
   copy_ mapping/firmware.FirmwareMapping -> none:
     writer_.copy mapping: | size/int |
-      write_offset_ += size
-      on_progress_
+      write-offset_ += size
+      on-progress_
 
-  on_write data from/int=0 to/int=data.size -> none:
+  on-write data from/int=0 to/int=data.size -> none:
     write_ from to: | x y | writer_.write data[x..y]
 
   write_ from/int to/int [write] -> none:
     // Skip over already written parts.
-    if write_skip_ > 0:
-      size := min write_skip_ (to - from)
-      write_skip_ -= size
-      write_offset_ += size
-      if write_skip_ > 0: return
+    if write-skip_ > 0:
+      size := min write-skip_ (to - from)
+      write-skip_ -= size
+      write-offset_ += size
+      if write-skip_ > 0: return
       from += size
 
     // Try to get to a checkpoint by writing out the parts
     // leading up to the checkpoint. If we get all the way
     // to the checkpoint write offset, we've reached the
     // checkpoint and we can commit it to flash.
-    if next_checkpoint_:
-      checkpoint_write_offset := next_checkpoint_.write_offset
-      size := min (checkpoint_write_offset - write_offset_) (to - from)
+    if next-checkpoint_:
+      checkpoint-write-offset := next-checkpoint_.write-offset
+      size := min (checkpoint-write-offset - write-offset_) (to - from)
       write.call from (from + size)
-      write_offset_ += size
-      if write_offset_ < checkpoint_write_offset: return
-      commit_checkpoint_
+      write-offset_ += size
+      if write-offset_ < checkpoint-write-offset: return
+      commit-checkpoint_
       from += size
 
     // Write the rest.
     write.call from to
-    write_offset_ += to - from
-    on_progress_
+    write-offset_ += to - from
+    on-progress_
 
-  on_new_checksum hash/ByteArray -> none:
+  on-new-checksum hash/ByteArray -> none:
     // Not used anymore.
     unreachable
 
-  on_size size/int -> none:
+  on-size size/int -> none:
     // Do nothing.
 
-  on_checkpoint read_offset/int -> none:
-    if next_checkpoint_: return
-    current_write_offset := write_offset_
-    checkpoint_write_offset := round_up current_write_offset 16
-    write_skip := checkpoint_write_offset - current_write_offset
-    next_checkpoint_ = Checkpoint
-        --old_checksum=old_.checksum
-        --new_checksum=new_.checksum
-        --read_part_index=next_checkpoint_part_index_
-        --read_offset=read_offset
-        --write_offset=checkpoint_write_offset
-        --write_skip=write_skip
-    if write_skip == 0: commit_checkpoint_
+  on-checkpoint read-offset/int -> none:
+    if next-checkpoint_: return
+    current-write-offset := write-offset_
+    checkpoint-write-offset := round-up current-write-offset 16
+    write-skip := checkpoint-write-offset - current-write-offset
+    next-checkpoint_ = Checkpoint
+        --old-checksum=old_.checksum
+        --new-checksum=new_.checksum
+        --read-part-index=next-checkpoint-part-index_
+        --read-offset=read-offset
+        --write-offset=checkpoint-write-offset
+        --write-skip=write-skip
+    if write-skip == 0: commit-checkpoint_
 
-  on_progress_ -> none:
-    if write_offset_ <= write_offset_next_print_: return
-    percent := (write_offset_ * 100) / new_.size
+  on-progress_ -> none:
+    if write-offset_ <= write-offset-next-print_: return
+    percent := (write-offset_ * 100) / new_.size
     logger_.info "firmware update: $(%3d percent)%"
-    write_offset_next_print_ = write_offset_ + 64 * 1024
+    write-offset-next-print_ = write-offset_ + 64 * 1024
 
   close -> none:
     if not writer_: return
     writer_.close
     writer_ = null
 
-  commit_checkpoint_ -> none:
+  commit-checkpoint_ -> none:
     writer_.flush
-    next := next_checkpoint_
-    device_.checkpoint_update next
-    next_checkpoint_ = null
+    next := next-checkpoint_
+    device_.checkpoint-update next
+    next-checkpoint_ = null

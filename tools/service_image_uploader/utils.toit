@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar
-import certificate_roots
+import certificate-roots
 import cli
 import host.file
 import host.directory
@@ -10,33 +10,33 @@ import writer show Writer
 
 import artemis.cli.config as cli
 import artemis.cli.config show
-    CONFIG_ARTEMIS_DEFAULT_KEY
-    CONFIG_SERVER_AUTHS_KEY
+    CONFIG-ARTEMIS-DEFAULT-KEY
+    CONFIG-SERVER-AUTHS-KEY
     ConfigLocalStorage
-import artemis.cli.server_config show *
+import artemis.cli.server-config show *
 
-with_supabase_client parsed/cli.Parsed config/cli.Config [block]:
-  server_config := get_server_from_config config CONFIG_ARTEMIS_DEFAULT_KEY
-  local_storage := ConfigLocalStorage config --auth_key="$(CONFIG_SERVER_AUTHS_KEY).$(server_config.name)"
-  supabase_config := server_config as supabase.ServerConfig
+with-supabase-client parsed/cli.Parsed config/cli.Config [block]:
+  server-config := get-server-from-config config CONFIG-ARTEMIS-DEFAULT-KEY
+  local-storage := ConfigLocalStorage config --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
+  supabase-config := server-config as supabase.ServerConfig
   client := supabase.Client
-      --server_config=supabase_config
-      --local_storage=local_storage
-      --certificate_provider=: certificate_roots.MAP[it]
+      --server-config=supabase-config
+      --local-storage=local-storage
+      --certificate-provider=: certificate-roots.MAP[it]
   try:
     block.call client
   finally:
     client.close
 
-with_tmp_directory [block]:
-  tmp_dir := directory.mkdtemp "/tmp/artemis-uploader-"
+with-tmp-directory [block]:
+  tmp-dir := directory.mkdtemp "/tmp/artemis-uploader-"
   try:
-    block.call tmp_dir
+    block.call tmp-dir
   finally:
-    directory.rmdir --recursive tmp_dir
+    directory.rmdir --recursive tmp-dir
 
-write_file --path/string content:
-  stream := file.Stream.for_write path
+write-file --path/string content:
+  stream := file.Stream.for-write path
   writer := Writer stream
   try:
     writer.write content

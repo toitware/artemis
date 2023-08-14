@@ -14,57 +14,57 @@ import system.firmware
 import .brokers.broker
 import .containers
 import .device
-import .firmware_update
+import .firmware-update
 import .jobs
-import .check_in
+import .check-in
 
-import ..shared.json_diff show Modification json_equals
+import ..shared.json-diff show Modification json-equals
 
-firmware_is_validation_pending/bool := firmware.is_validation_pending
+firmware-is-validation-pending/bool := firmware.is-validation-pending
 
 /**
 A class representing the new goal state to achieve.
 Also contains the pending steps to reach the goal state.
 */
 class Goal:
-  goal_state/Map
-  pending_steps_/Deque? := null
+  goal-state/Map
+  pending-steps_/Deque? := null
 
-  constructor .goal_state:
+  constructor .goal-state:
 
-  has_pending_steps -> bool:
-    return pending_steps_ != null
+  has-pending-steps -> bool:
+    return pending-steps_ != null
 
-  remove_first_pending_step -> Lambda:
-    result := pending_steps_.remove_first
-    if pending_steps_.is_empty:
-      pending_steps_ = null
+  remove-first-pending-step -> Lambda:
+    result := pending-steps_.remove-first
+    if pending-steps_.is-empty:
+      pending-steps_ = null
     return result
 
-  add_pending_step step/Lambda -> none:
-    if pending_steps_ == null:
-      pending_steps_ = Deque
-    pending_steps_.add step
+  add-pending-step step/Lambda -> none:
+    if pending-steps_ == null:
+      pending-steps_ = Deque
+    pending-steps_.add step
 
 class SynchronizeJob extends TaskJob:
   /** Not connected to the network yet. */
-  static STATE_DISCONNECTED ::= 0
+  static STATE-DISCONNECTED ::= 0
   /** Connecting to the network. */
-  static STATE_CONNECTING ::= 1
+  static STATE-CONNECTING ::= 1
   /** Connected to network, but haven't spoken to broker yet. */
-  static STATE_CONNECTED_TO_NETWORK ::= 2
+  static STATE-CONNECTED-TO-NETWORK ::= 2
   /** Connected, waiting for any goal state updates from broker. */
-  static STATE_CONNECTED_TO_BROKER ::= 3
+  static STATE-CONNECTED-TO-BROKER ::= 3
   /** Processing a received goal state update. */
-  static STATE_PROCESSING_GOAL ::= 4
+  static STATE-PROCESSING-GOAL ::= 4
   /** Processing a container image update. */
-  static STATE_PROCESSING_CONTAINER_IMAGE ::= 5
+  static STATE-PROCESSING-CONTAINER-IMAGE ::= 5
   /** Processing a firmware update. */
-  static STATE_PROCESSING_FIRMWARE ::= 6
+  static STATE-PROCESSING-FIRMWARE ::= 6
   /** Current state is updated to goal state. */
-  static STATE_SYNCHRONIZED ::= 7
+  static STATE-SYNCHRONIZED ::= 7
 
-  static STATE_SUCCESS ::= [
+  static STATE-SUCCESS ::= [
     "disconnected",
     "connecting",
     "connected to network",
@@ -74,7 +74,7 @@ class SynchronizeJob extends TaskJob:
     "firmware update initiated",
     "synchronized",
   ]
-  static STATE_FAILURE ::= [
+  static STATE-FAILURE ::= [
     null,
     "connecting failed",
     "connection to network lost",
@@ -92,11 +92,11 @@ class SynchronizeJob extends TaskJob:
   // with the actual time since the last successful attempt.
   // If we have been unsuccessful in synchronizing for too long,
   // we push the status into yellow, orange, and eventually red.
-  static STATUS_GREEN  ::= 100
-  static STATUS_YELLOW ::= 101
-  static STATUS_ORANGE ::= 102
-  static STATUS_RED    ::= 103
-  static STATUS_CHANGES_AFTER_ATTEMPTS ::= 4  // TODO(kasper): This is low for testing.
+  static STATUS-GREEN  ::= 100
+  static STATUS-YELLOW ::= 101
+  static STATUS-ORANGE ::= 102
+  static STATUS-RED    ::= 103
+  static STATUS-CHANGES-AFTER-ATTEMPTS ::= 4  // TODO(kasper): This is low for testing.
 
   // The status limit unit controls how we round when
   // we compute the number of missed synchronization
@@ -105,65 +105,65 @@ class SynchronizeJob extends TaskJob:
   // that the unit is 1h. If max-offline is 1h or less,
   // we will change the status after 8h. If max-offline
   // is 12h, we will change the status after 96h.
-  static STATUS_LIMIT_UNIT_US ::= Duration.MICROSECONDS_PER_MINUTE  // TODO(kasper): This is low for testing.
-  status_limit_us_/int := ?
+  static STATUS-LIMIT-UNIT-US ::= Duration.MICROSECONDS-PER-MINUTE  // TODO(kasper): This is low for testing.
+  status-limit-us_/int := ?
 
   // We only allow the device to stay running for a
   // specified amount of time when non-green. This
   // is intended to let the device recover through
   // resetting memory and (some) peripheral state.
-  static STATUS_NON_GREEN_MAX_UPTIME ::= Duration --m=10
+  static STATUS-NON-GREEN-MAX-UPTIME ::= Duration --m=10
 
   // We are careful and try to avoid spending too much
   // time waiting for network operations. These can be
   // quite slow in particular for cellular networks, so
   // these settings may have to be tweaked.
-  static TIMEOUT_NETWORK_OPEN       ::= Duration --m=2
-  static TIMEOUT_NETWORK_QUARANTINE ::= Duration --s=10
-  static TIMEOUT_NETWORK_CLOSE      ::= Duration --s=20
+  static TIMEOUT-NETWORK-OPEN       ::= Duration --m=2
+  static TIMEOUT-NETWORK-QUARANTINE ::= Duration --s=10
+  static TIMEOUT-NETWORK-CLOSE      ::= Duration --s=20
 
   // We try to connect to networks in a loop, so to avoid
   // spending too much time trying to connect we have a
   // timeout that governs the total time spent in the loop.
-  static TIMEOUT_CONNECT_TO_BROKER ::= Duration --m=1
+  static TIMEOUT-CONNECT-TO-BROKER ::= Duration --m=1
 
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes
   // more time than that we run the risk of waiting for
   // reading from a network connection that is never going
   // to produce more bits.
-  static TIMEOUT_SYNCHRONIZE_STEP ::= Duration --m=3
+  static TIMEOUT-SYNCHRONIZE-STEP ::= Duration --m=3
 
   // We require the check-in to be reasonably fast. We don't
   // want to waste too much time waiting for it.
-  static TIMEOUT_CHECK_IN ::= Duration --s=20
+  static TIMEOUT-CHECK-IN ::= Duration --s=20
 
   // We use a minimum offline setting to avoid scheduling the
   // synchronization job too often.
-  static OFFLINE_MINIMUM ::= Duration --s=12
+  static OFFLINE-MINIMUM ::= Duration --s=12
 
   // We allow the synchronization job to start a bit early at
   // random to avoid pathological cases where lots of devices
   // synchronize at the same time over and over again.
-  static SCHEDULE_JITTER_MS ::= 8_000
+  static SCHEDULE-JITTER-MS ::= 8_000
 
   logger_/log.Logger
   device_/Device
   containers_/ContainerManager
   broker_/BrokerService
-  state_/int := STATE_DISCONNECTED
+  state_/int := STATE-DISCONNECTED
 
   // The synchronization job can be controlled from the outside
   // and it supports requesting to go online or offline. Since
   // multiple clients can request both at the same time, we keep
   // track of the level, e.g. the outstanding number of requests.
-  control_level_online_/int := 0
-  control_level_offline_/int := 0
+  control-level-online_/int := 0
+  control-level-offline_/int := 0
 
   constructor logger/log.Logger .device_ .containers_ .broker_:
-    logger_ = logger.with_name "synchronize"
-    max_offline := device_.max_offline
-    status_limit_us_ = compute_status_limit_us_ max_offline
+    logger_ = logger.with-name "synchronize"
+    max-offline := device_.max-offline
+    status-limit-us_ = compute-status-limit-us_ max-offline
     super "synchronize"
 
   control --online/bool --close/bool=false -> none:
@@ -174,16 +174,16 @@ class SynchronizeJob extends TaskJob:
         // synchronization. This is a somewhat conservative and
         // we could be more aggressive in shutting down the
         // job if we're just waiting for a new state.
-        control_level_online_--
+        control-level-online_--
       else:
         // If we're no longer forced to stay offline, we may be
         // able to run the synchronization job now.
-        if control_level_offline_-- == 1: scheduler_.on_job_updated
+        if control-level-offline_-- == 1: scheduler_.on-job-updated
     else:
       if online:
         // If we're forced to go online, we let the scheduler
         // know that we may be able to run the synchronization job.
-        if control_level_online_++ == 0: scheduler_.on_job_updated
+        if control-level-online_++ == 0: scheduler_.on-job-updated
         // TODO(kasper): We should really wait until we have had the
         // chance to consider going online. There is a risk that we
         // get so little time that we don't even try and that seems
@@ -193,68 +193,68 @@ class SynchronizeJob extends TaskJob:
         // job right away. This is somewhat abrupt, but if users
         // need to control the network, we do not want to return
         // from this method without having shut it down.
-        if control_level_offline_++ == 0: stop
+        if control-level-offline_++ == 0: stop
 
   runlevel -> int:
-    return Job.RUNLEVEL_SAFE
+    return Job.RUNLEVEL-SAFE
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if firmware_is_validation_pending or not last: return now
-    if control_level_offline_ > 0: return null
-    if control_level_online_ > 0: return now
-    max_offline := device_.max_offline
+    if firmware-is-validation-pending or not last: return now
+    if control-level-offline_ > 0: return null
+    if control-level-online_ > 0: return now
+    max-offline := device_.max-offline
     schedule/JobTime := ?
-    if max_offline:
+    if max-offline:
       // Allow the device to connect more often if we're having
       // trouble synchronzing. This is particularly welcome on
       // devices with a high max-offline setting (multiple hours).
-      status := determine_status_
-      if status > STATUS_YELLOW:
-        max_offline /= (status == STATUS_RED) ? 4 : 2
+      status := determine-status_
+      if status > STATUS-YELLOW:
+        max-offline /= (status == STATUS-RED) ? 4 : 2
       // Compute the duration of the current offline period by
       // letting it run to whatever comes first of the scheduled
       // check-in or hitting the max-offline ceiling, but make
       // sure to not go below the minimum offline setting.
-      offline := min (last.to (check_in_schedule now)) max_offline
-      schedule = last + (max offline OFFLINE_MINIMUM)
+      offline := min (last.to (check-in-schedule now)) max-offline
+      schedule = last + (max offline OFFLINE-MINIMUM)
     else:
-      schedule = last + OFFLINE_MINIMUM
+      schedule = last + OFFLINE-MINIMUM
     if now < schedule:
       // If we're not going to schedule the synchronization
       // job now, we allow running all other jobs.
-      scheduler_.transition --runlevel=Job.RUNLEVEL_NORMAL
+      scheduler_.transition --runlevel=Job.RUNLEVEL-NORMAL
     return schedule
 
-  schedule_tune last/JobTime -> JobTime:
+  schedule-tune last/JobTime -> JobTime:
     // If we got abruptly stopped by a request to go offline, we
     // treat it as if we didn't get a chance to run in the first
     // place. This makes us eager to re-try once we're allowed
     // to go online again.
-    if control_level_offline_ > 0: return last
+    if control-level-offline_ > 0: return last
     // Allow the synchronization job to start early, thus pulling
     // the effective minimum offline period down towards zero. As
     // long as the jitter duration is larger than OFFLINE_MINIMUM
     // we still have a lower bound on the effective offline period.
-    assert: SCHEDULE_JITTER_MS < OFFLINE_MINIMUM.in_ms
-    jitter := Duration --ms=(random SCHEDULE_JITTER_MS)
+    assert: SCHEDULE-JITTER-MS < OFFLINE-MINIMUM.in-ms
+    jitter := Duration --ms=(random SCHEDULE-JITTER-MS)
     // Use the current time rather than the last time we started,
     // so the period begins when we disconnected, not when we
     // started connecting.
     return JobTime.now - jitter
 
-  parse_uuid_ value/string -> uuid.Uuid?:
+  parse-uuid_ value/string -> uuid.Uuid?:
     catch: return uuid.parse value
     logger_.warn "unable to parse uuid '$value'"
     return null
 
   run -> none:
-    status := determine_status_
-    runlevel := Job.RUNLEVEL_NORMAL
-    if firmware_is_validation_pending:
-      runlevel = Job.RUNLEVEL_SAFE
-    else if status > STATUS_GREEN:
-      uptime := Duration --us=Time.monotonic_us
-      if uptime >= STATUS_NON_GREEN_MAX_UPTIME:
+    status := determine-status_
+    runlevel := Job.RUNLEVEL-NORMAL
+    if firmware-is-validation-pending:
+      runlevel = Job.RUNLEVEL-SAFE
+    else if status > STATUS-GREEN:
+      uptime := Duration --us=Time.monotonic-us
+      if uptime >= STATUS-NON-GREEN-MAX-UPTIME:
         // If we're experiencing problems connecting, the most
         // unjarring thing we can do is to force occassional
         // reboots of the system. Rebooting the system will reset
@@ -262,29 +262,29 @@ class SynchronizeJob extends TaskJob:
         // This is in almost all ways better than disallowing
         // some or most containers from running, so this is our
         // starting point for all non-green statuses.
-        runlevel = Job.RUNLEVEL_STOP
-      else if status > STATUS_YELLOW:
-        assert: status == STATUS_ORANGE or status == STATUS_RED
-        runlevel = Job.RUNLEVEL_CRITICAL
+        runlevel = Job.RUNLEVEL-STOP
+      else if status > STATUS-YELLOW:
+        assert: status == STATUS-ORANGE or status == STATUS-RED
+        runlevel = Job.RUNLEVEL-CRITICAL
         // If we're really, really having trouble synchronizing
         // we let the synchronizer run in safe mode every now
         // and then. It is our get-out-of-jail option, but we
         // really prefer running containers marked critical.
-        if status == STATUS_RED and (random 100) < 15:
-          runlevel = Job.RUNLEVEL_SAFE
+        if status == STATUS-RED and (random 100) < 15:
+          runlevel = Job.RUNLEVEL-SAFE
     scheduler_.transition --runlevel=runlevel
-    assert: runlevel != Job.RUNLEVEL_STOP  // Stop does not return.
+    assert: runlevel != Job.RUNLEVEL-STOP  // Stop does not return.
 
     try:
-      start := Time.monotonic_us
-      limit := start + TIMEOUT_CONNECT_TO_BROKER.in_us
-      while not connect_network_ and Time.monotonic_us < limit:
+      start := Time.monotonic-us
+      limit := start + TIMEOUT-CONNECT-TO-BROKER.in-us
+      while not connect-network_ and Time.monotonic-us < limit:
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
         logger_.info "connecting to broker failed - retrying"
     finally:
-      if firmware_is_validation_pending:
+      if firmware-is-validation-pending:
         logger_.error "firmware update was rejected after failing to connect or validate"
         firmware.rollback
 
@@ -294,40 +294,40 @@ class SynchronizeJob extends TaskJob:
   Returns whether we are done with this connection attempt (true)
     or if another attempt makes sense if time permits (false).
   */
-  connect_network_ -> bool:
+  connect-network_ -> bool:
     network/net.Client? := null
     try:
-      state_ = STATE_DISCONNECTED
-      transition_to_ STATE_CONNECTING
-      with_timeout TIMEOUT_NETWORK_OPEN: network = net.open
+      state_ = STATE-DISCONNECTED
+      transition-to_ STATE-CONNECTING
+      with-timeout TIMEOUT-NETWORK-OPEN: network = net.open
       while true:
-        transition_to_ STATE_CONNECTED_TO_NETWORK
-        done := connect_broker_ network
-        with_timeout TIMEOUT_CHECK_IN: check_in network logger_ --device=device_
+        transition-to_ STATE-CONNECTED-TO-NETWORK
+        done := connect-broker_ network
+        with-timeout TIMEOUT-CHECK-IN: check-in network logger_ --device=device_
         if done: return true
-    finally: | is_exception exception |
+    finally: | is-exception exception |
       // We do not expect to be canceled outside of tests, but
       // if we do we prefer maintaining the proper state and
       // get the network correctly quarantined and closed.
-      critical_do:
+      critical-do:
         // We retry if we connected to the network, but failed
         // to actually connect to the broker. This could be an
         // indication that the network doesn't let us connect,
         // so we prefer using a different network for a while.
-        done := state_ != STATE_CONNECTED_TO_NETWORK
-        transition_to_disconnected_ --error=(is_exception ? exception.value : null)
+        done := state_ != STATE-CONNECTED-TO-NETWORK
+        transition-to-disconnected_ --error=(is-exception ? exception.value : null)
         if network:
           // If we are planning to retry another network,
           // we quarantine the one we just tried.
           // TODO(kasper): Add timeout for network.quarantine.
           if not done:
-            with_timeout TIMEOUT_NETWORK_QUARANTINE: network.quarantine
-          with_timeout TIMEOUT_NETWORK_CLOSE: network.close
+            with-timeout TIMEOUT-NETWORK-QUARANTINE: network.quarantine
+          with-timeout TIMEOUT-NETWORK-CLOSE: network.close
         // If we're canceled, we should make sure to propagate
         // the canceled exception and not just swallow it.
         // Otherwise, the caller can easily run into a loop
         // where it is repeatedly asked to retry the connect.
-        if not Task.current.is_canceled: return done
+        if not Task.current.is-canceled: return done
 
   /**
   Tries to connect to the broker and step through the
@@ -337,24 +337,24 @@ class SynchronizeJob extends TaskJob:
     need another attempt using the already established network
     connection (false).
   */
-  connect_broker_ network/net.Client -> bool:
+  connect-broker_ network/net.Client -> bool:
     // TODO(kasper): Add timeout for connect.
-    broker_connection := broker_.connect --network=network --device=device_
+    broker-connection := broker_.connect --network=network --device=device_
     try:
       goal/Goal? := null
       while true:
-        with_timeout TIMEOUT_SYNCHRONIZE_STEP:
-          goal = synchronize_step_ broker_connection goal
+        with-timeout TIMEOUT-SYNCHRONIZE-STEP:
+          goal = synchronize-step_ broker-connection goal
           if goal:
-            assert: goal.has_pending_steps
+            assert: goal.has-pending-steps
             continue
-          if device_.max_offline and control_level_online_ == 0: return true
+          if device_.max-offline and control-level-online_ == 0: return true
           now := JobTime.now
-          if (check_in_schedule now) <= now: return false
-          transition_to_ STATE_CONNECTED_TO_BROKER
+          if (check-in-schedule now) <= now: return false
+          transition-to_ STATE-CONNECTED-TO-BROKER
       finally:
         // TODO(kasper): Add timeout for close.
-        broker_connection.close
+        broker-connection.close
 
   /**
   Synchronizes with the broker.
@@ -363,7 +363,7 @@ class SynchronizeJob extends TaskJob:
     goal then must have a pending step left to apply.
   Returns a goal state if we haven't finished.
   */
-  synchronize_step_ broker_connection/BrokerConnection goal/Goal? -> Goal?:
+  synchronize-step_ broker-connection/BrokerConnection goal/Goal? -> Goal?:
     // TODO(florian): if we have an error here (like using `--goal_state=goal.goal_state`
     //    without checking for 'null' first), we end in a tight error loop.
     //    Is there any way we can protect ourselves better against coding errors
@@ -381,10 +381,10 @@ class SynchronizeJob extends TaskJob:
     // [artemis.synchronize] WARN: connection to network lost {error: LOOKUP_FAILED}
 
    // If our state has changed, we communicate it to the cloud.
-    report_state_if_changed broker_connection --goal_state=(goal and goal.goal_state)
+    report-state-if-changed broker-connection --goal-state=(goal and goal.goal-state)
 
     if goal:
-      assert: goal.has_pending_steps
+      assert: goal.has-pending-steps
 
       // If we already have a goal state, it means that we're going
       // through the steps to get the current state updated to
@@ -392,40 +392,40 @@ class SynchronizeJob extends TaskJob:
       // a new updated goal state in the middle of this, so we check
       // for that here.
       // If we are not yet allowed to go online don't wait for a goal.
-      goal_state := broker_connection.fetch_goal_state --no-wait
+      goal-state := broker-connection.fetch-goal-state --no-wait
       // Since we already have a goal we know that the device
       // was already updated. If we get a null from 'fetch_goal_state' it means
       // that it didn't connect to the broker, as Artemis never deletes a
       // goal once it has been set. (It only updates it.)
-      if goal_state:
-        transition_to_connected_
-        goal = Goal goal_state
+      if goal-state:
+        transition-to-connected_
+        goal = Goal goal-state
     else:
       // We don't have a goal state.
-      goal_state := broker_connection.fetch_goal_state --wait
-      transition_to_connected_
-      if not goal_state:
+      goal-state := broker-connection.fetch-goal-state --wait
+      transition-to-connected_
+      if not goal-state:
         // No goal state from the broker.
         // Potentially a device that has been flashed and provisioned but hasn't been
         // updated through the broker yet.
-        transition_to_ STATE_SYNCHRONIZED
+        transition-to_ STATE-SYNCHRONIZED
         return null
-      goal = Goal goal_state
+      goal = Goal goal-state
 
-    process_goal_ goal broker_connection
+    process-goal_ goal broker-connection
     // We only handle pending steps when we're done handling the other
     // updates. This means that we prioritize firmware updates and
     // state changes over dealing with any pending steps.
-    if goal.has_pending_steps: return goal
+    if goal.has-pending-steps: return goal
 
     // We have successfully finished processing the new goal state
     // and any pending steps. Inform the broker.
-    transition_to_ STATE_CONNECTED_TO_BROKER
-    report_state_if_changed broker_connection
-    transition_to_ STATE_SYNCHRONIZED
+    transition-to_ STATE-CONNECTED-TO-BROKER
+    report-state-if-changed broker-connection
+    transition-to_ STATE-SYNCHRONIZED
     return null
 
-  transition_to_ state/int -> none:
+  transition-to_ state/int -> none:
     previous := state_
     state_ = state
 
@@ -436,212 +436,212 @@ class SynchronizeJob extends TaskJob:
     // connected to broker state.
     if state > previous:
       tags/Map? := null
-      if state == STATE_SYNCHRONIZED:
-        max_offline := device_.max_offline
-        if max_offline and control_level_online_ == 0:
-          tags = {"max-offline": max_offline}
-      logger_.info STATE_SUCCESS[state] --tags=tags
+      if state == STATE-SYNCHRONIZED:
+        max-offline := device_.max-offline
+        if max-offline and control-level-online_ == 0:
+          tags = {"max-offline": max-offline}
+      logger_.info STATE-SUCCESS[state] --tags=tags
 
     // If we've successfully connected to the broker, we consider
     // the current firmware functional. Go ahead and validate the
     // firmware if requested to do so.
-    if firmware_is_validation_pending and state >= STATE_CONNECTED_TO_BROKER:
+    if firmware-is-validation-pending and state >= STATE-CONNECTED-TO-BROKER:
       if firmware.validate:
         logger_.info "firmware update validated after connecting to broker"
-        firmware_is_validation_pending = false
-        device_.firmware_validated
+        firmware-is-validation-pending = false
+        device_.firmware-validated
       else:
         logger_.error "firmware update failed to validate"
 
     // Keep track of the last time we succesfully synchronized.
-    if state == STATE_SYNCHRONIZED:
-      device_.synchronized_last_us_update JobTime.now.us
-      scheduler_.transition --runlevel=Job.RUNLEVEL_NORMAL
+    if state == STATE-SYNCHRONIZED:
+      device_.synchronized-last-us-update JobTime.now.us
+      scheduler_.transition --runlevel=Job.RUNLEVEL-NORMAL
 
-  transition_to_connected_ -> none:
-    if state_ >= STATE_CONNECTED_TO_BROKER: return
-    transition_to_ STATE_CONNECTED_TO_BROKER
+  transition-to-connected_ -> none:
+    if state_ >= STATE-CONNECTED-TO-BROKER: return
+    transition-to_ STATE-CONNECTED-TO-BROKER
 
-  transition_to_disconnected_ --error/Object? -> none:
+  transition-to-disconnected_ --error/Object? -> none:
     previous := state_
-    state_ = STATE_DISCONNECTED
-    if error: logger_.warn STATE_FAILURE[previous] --tags={"error": error}
-    logger_.info STATE_SUCCESS[STATE_DISCONNECTED]
+    state_ = STATE-DISCONNECTED
+    if error: logger_.warn STATE-FAILURE[previous] --tags={"error": error}
+    logger_.info STATE-SUCCESS[STATE-DISCONNECTED]
 
-  determine_status_ -> int:
-    last := device_.synchronized_last_us
+  determine-status_ -> int:
+    last := device_.synchronized-last-us
     elapsed := JobTime.now.us
     if last: elapsed -= last
-    limit := status_limit_us_
+    limit := status-limit-us_
     if elapsed < limit:
-      return STATUS_GREEN
+      return STATUS-GREEN
     else if elapsed < (limit * 2):
-      return STATUS_YELLOW
+      return STATUS-YELLOW
     else if elapsed < (limit * 3):
-      return STATUS_ORANGE
+      return STATUS-ORANGE
     else:
-      return STATUS_RED
+      return STATUS-RED
 
-  static compute_status_limit_us_ max_offline/Duration? -> int:
+  static compute-status-limit-us_ max-offline/Duration? -> int:
     // Compute the number of time units that correspond to
     // the max-offline setting by using ceiling division.
-    max_offline_units := max_offline
-        ? 1 + (max_offline.in_us - 1) / STATUS_LIMIT_UNIT_US
+    max-offline-units := max-offline
+        ? 1 + (max-offline.in-us - 1) / STATUS-LIMIT-UNIT-US
         : 1
     // Convert the units back to a number of microseconds and
     // derive the limit from that and the number of attempts
     // between status changes.
-    max_offline_us := max_offline_units * STATUS_LIMIT_UNIT_US
-    return max_offline_us * STATUS_CHANGES_AFTER_ATTEMPTS
+    max-offline-us := max-offline-units * STATUS-LIMIT-UNIT-US
+    return max-offline-us * STATUS-CHANGES-AFTER-ATTEMPTS
 
   /**
   Process new goal.
   */
-  process_goal_ goal/Goal broker_connection/BrokerConnection -> none:
-    if goal.has_pending_steps:
-      pending/Lambda := goal.remove_first_pending_step
-      pending.call broker_connection
+  process-goal_ goal/Goal broker-connection/BrokerConnection -> none:
+    if goal.has-pending-steps:
+      pending/Lambda := goal.remove-first-pending-step
+      pending.call broker-connection
       return
 
-    assert: state_ >= STATE_CONNECTED_TO_BROKER
-    assert: not goal.has_pending_steps
+    assert: state_ >= STATE-CONNECTED-TO-BROKER
+    assert: not goal.has-pending-steps
 
-    current_state := device_.current_state
-    new_goal_state := goal.goal_state
+    current-state := device_.current-state
+    new-goal-state := goal.goal-state
 
-    firmware_to := new_goal_state.get "firmware"
-    if not firmware_to:
-      transition_to_ STATE_PROCESSING_GOAL
+    firmware-to := new-goal-state.get "firmware"
+    if not firmware-to:
+      transition-to_ STATE-PROCESSING-GOAL
       throw "missing firmware in goal"
 
     // We prioritize the firmware updating and deliberately avoid even
     // looking at the other parts of the updated goal state, because we
     // may not understand it before we've completed the firmware update.
-    firmware_from := current_state["firmware"]
-    if firmware_from != firmware_to:
-      transition_to_ STATE_PROCESSING_FIRMWARE
-      logger_.info "firmware update" --tags={"from": firmware_from, "to": firmware_to}
-      report_state_if_changed broker_connection --goal_state=new_goal_state
-      handle_firmware_update_ broker_connection firmware_to
+    firmware-from := current-state["firmware"]
+    if firmware-from != firmware-to:
+      transition-to_ STATE-PROCESSING-FIRMWARE
+      logger_.info "firmware update" --tags={"from": firmware-from, "to": firmware-to}
+      report-state-if-changed broker-connection --goal-state=new-goal-state
+      handle-firmware-update_ broker-connection firmware-to
       // Handling the firmware update either completes and restarts
       // or throws an exception. We shouldn't get here.
       unreachable
 
-    if device_.firmware_state["firmware"] != firmware_to:
-      assert: firmware_from == firmware_to
+    if device_.firmware-state["firmware"] != firmware-to:
+      assert: firmware-from == firmware-to
       // The firmware has been downloaded and installed, but we haven't
       // rebooted yet. We ignore all other entries in the new goal state.
       return
 
     modification/Modification? := Modification.compute
-        --from=current_state
-        --to=new_goal_state
+        --from=current-state
+        --to=new-goal-state
     if not modification:
       // No changes. All good.
       return
 
-    transition_to_ STATE_PROCESSING_GOAL
+    transition-to_ STATE-PROCESSING-GOAL
     logger_.info "updating" --tags={"changes": Modification.stringify modification}
-    report_state_if_changed broker_connection --goal_state=new_goal_state
+    report-state-if-changed broker-connection --goal-state=new-goal-state
 
-    modification.on_map "apps"
+    modification.on-map "apps"
         --added=: | name/string description |
           if description is not Map:
             logger_.error "updating: container $name has invalid description"
-            continue.on_map
-          description_map := description as Map
-          description_map.get ContainerJob.KEY_ID
-              --if_absent=:
+            continue.on-map
+          description-map := description as Map
+          description-map.get ContainerJob.KEY-ID
+              --if-absent=:
                 logger_.error "updating: container $name has no id"
-              --if_present=:
+              --if-present=:
                 // A container just appeared in the state.
-                id := parse_uuid_ it
+                id := parse-uuid_ it
                 if id:
-                  pending_step := handle_container_install_ name id description_map
-                  if pending_step:
-                    goal.add_pending_step pending_step
+                  pending-step := handle-container-install_ name id description-map
+                  if pending-step:
+                    goal.add-pending-step pending-step
         --removed=: | name/string |
           // A container disappeared completely from the state. We
           // uninstall it.
-          handle_container_uninstall_ name
+          handle-container-uninstall_ name
         --modified=: | name/string nested/Modification |
-          description := new_goal_state["apps"][name]
-          handle_container_modification_ name description nested
+          description := new-goal-state["apps"][name]
+          handle-container-modification_ name description nested
 
-    modification.on_value "max-offline"
-        --added   =: handle_set_max_offline_ it
-        --removed =: handle_set_max_offline_ null
-        --updated =: | _ to | handle_set_max_offline_ to
+    modification.on-value "max-offline"
+        --added   =: handle-set-max-offline_ it
+        --removed =: handle-set-max-offline_ null
+        --updated =: | _ to | handle-set-max-offline_ to
 
-  handle_container_modification_ -> none
+  handle-container-modification_ -> none
       name/string
       description/Map
       modification/Modification:
-    modification.on_value "id"
+    modification.on-value "id"
         --added=: | value |
           logger_.error "updating: container $name gained an id ($value)"
           // Treat it as a request to install the container.
-          id := parse_uuid_ value
-          if id: handle_container_install_ name id description
+          id := parse-uuid_ value
+          if id: handle-container-install_ name id description
           return
         --removed=: | value |
           logger_.error "updating: container $name lost its id ($value)"
           // Treat it as a request to uninstall the container.
-          handle_container_uninstall_ name
+          handle-container-uninstall_ name
           return
         --updated=: | from to |
           // A container had its id (the code) updated. We uninstall
           // the old version and install the new one.
           // TODO(florian): it would be nicer to fetch the new version
           // before uninstalling the old one.
-          handle_container_uninstall_ name
-          id := parse_uuid_ to
-          if id: handle_container_install_ name id description
+          handle-container-uninstall_ name
+          id := parse-uuid_ to
+          if id: handle-container-install_ name id description
           return
 
-    handle_container_update_ name description
+    handle-container-update_ name description
 
-  handle_container_install_ name/string id/uuid.Uuid description/Map -> Lambda?:
+  handle-container-install_ name/string id/uuid.Uuid description/Map -> Lambda?:
     if job := containers_.create --name=name --id=id --description=description:
-      device_.state_container_install_or_update name description
+      device_.state-container-install-or-update name description
       containers_.install job
       return null
 
-    return :: | broker_connection/BrokerConnection |
-      assert: state_ >= STATE_CONNECTED_TO_BROKER
-      transition_to_ STATE_PROCESSING_CONTAINER_IMAGE
-      broker_connection.fetch_image id: | reader/Reader |
+    return :: | broker-connection/BrokerConnection |
+      assert: state_ >= STATE-CONNECTED-TO-BROKER
+      transition-to_ STATE-PROCESSING-CONTAINER-IMAGE
+      broker-connection.fetch-image id: | reader/Reader |
         job := containers_.create
             --name=name
             --id=id
             --description=description
             --reader=reader
-        device_.state_container_install_or_update name description
+        device_.state-container-install-or-update name description
         containers_.install job
 
-  handle_container_uninstall_ name/string -> none:
+  handle-container-uninstall_ name/string -> none:
     job/ContainerJob? := containers_.get --name=name
     if job:
       containers_.uninstall job
     else:
       logger_.error "updating: container $name not found"
-    device_.state_container_uninstall name
+    device_.state-container-uninstall name
 
-  handle_container_update_ name/string description/Map -> none:
+  handle-container-update_ name/string description/Map -> none:
     job/ContainerJob? := containers_.get --name=name
     if job:
       containers_.update job description
-      device_.state_container_install_or_update name description
+      device_.state-container-install-or-update name description
     else:
       logger_.error "updating: container $name not found"
 
-  handle_set_max_offline_ value/any -> none:
-    max_offline := (value is int) ? Duration --s=value : null
-    device_.state_set_max_offline max_offline
-    status_limit_us_ = compute_status_limit_us_ max_offline
+  handle-set-max-offline_ value/any -> none:
+    max-offline := (value is int) ? Duration --s=value : null
+    device_.state-set-max-offline max-offline
+    status-limit-us_ = compute-status-limit-us_ max-offline
 
-  handle_firmware_update_ broker_connection/BrokerConnection new/string -> none:
-    if firmware_is_validation_pending: throw "firmware update: cannot update unvalidated"
+  handle-firmware-update_ broker-connection/BrokerConnection new/string -> none:
+    if firmware-is-validation-pending: throw "firmware update: cannot update unvalidated"
     runlevel := scheduler_.runlevel
     updated := false
     try:
@@ -649,12 +649,12 @@ class SynchronizeJob extends TaskJob:
       // runlevel here. For now, that cannot happen because we're
       // using safe mode for firmware updates, but if we were to
       // change this, we shouldn't increase the runlevel here.
-      scheduler_.transition --runlevel=Job.RUNLEVEL_SAFE
-      firmware_update logger_ broker_connection --device=device_ --new=new
+      scheduler_.transition --runlevel=Job.RUNLEVEL-SAFE
+      firmware-update logger_ broker-connection --device=device_ --new=new
       updated = true
-      transition_to_ STATE_CONNECTED_TO_BROKER
-      device_.state_firmware_update new
-      report_state_if_changed broker_connection
+      transition-to_ STATE-CONNECTED-TO-BROKER
+      device_.state-firmware-update new
+      report-state-if-changed broker-connection
     finally:
       if updated: firmware.upgrade
       scheduler_.transition --runlevel=runlevel
@@ -666,23 +666,23 @@ class SynchronizeJob extends TaskJob:
   The reported state includes the firmware state, the current state,
     and the goal state.
   */
-  report_state_if_changed broker_connection/BrokerConnection --goal_state/Map?=null -> none:
+  report-state-if-changed broker-connection/BrokerConnection --goal-state/Map?=null -> none:
     state := {
-      "firmware-state": device_.firmware_state,
+      "firmware-state": device_.firmware-state,
     }
-    if device_.pending_firmware:
-      state["pending-firmware"] = device_.pending_firmware
-    if device_.is_current_state_modified:
-      state["current-state"] = device_.current_state
-    if goal_state:
-      state["goal-state"] = goal_state
+    if device_.pending-firmware:
+      state["pending-firmware"] = device_.pending-firmware
+    if device_.is-current-state-modified:
+      state["current-state"] = device_.current-state
+    if goal-state:
+      state["goal-state"] = goal-state
 
     sha := sha256.Sha256
     sha.add (tison.encode state)
     checksum := sha.get
-    if checksum == device_.report_state_checksum: return
+    if checksum == device_.report-state-checksum: return
 
-    broker_connection.report_state state
-    transition_to_connected_
-    device_.report_state_checksum = checksum
+    broker-connection.report-state state
+    transition-to-connected_
+    device_.report-state-checksum = checksum
     logger_.info "synchronized state to broker"
