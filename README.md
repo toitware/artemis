@@ -49,17 +49,35 @@ This will automatically trigger a Github action that will upload the
 new image. The `gitversion` script will detect the tag and use it
 as version for this build.
 
-Once the Action has finished get the tar (`sdk/v1.99.0-customer-foo.tar``) from google storage
+Once the action has finished delete the tag again, so the same commit can
+be used for another build.
+
+```
+git tag -d v1.99.0-customer-foo
+git push origin --delete v1.99.0-customer-foo
+```
+
+Then get the tar (`sdk/v1.99.0-customer-foo.tar`) from google storage
 https://console.cloud.google.com/storage/browser/toit-binaries/v1.99.0-customer-foo
 (You can also use command-line tools for this, but through the browser is probably easier).
 
 Untar it, and replace model/esp32-4mb/factory.bin with the ota.bin that was created with Artemis.
-Remove the downloaded tar (if it's in the same directory) and create a new tar:
+```
+# Download the tar from google storage.
+mkdir v1.99.0-customer-foo
+cd v1.99.0-customer-foo
+tar x -f ../$THE_DOWNLOADED_TAR
+cp ../ota.bin model/esp32-4mb/factory.bin
+```
+
+Remove the downloaded tar (if it's in the same directory) and create a new tar.
+Note that the new tar doesn't have the same name as the one you downloaded (as
+Google storage included the directory name in the tar):
 ```
 tar c -f v1.99.0-customer-foo.tar ./*
 ```
 
-Upload this file to google storage, overwriting the original one. (google storage should
+Upload this file to google storage, overwriting the original one. (Google storage should
 ask for confirmation).
 
 Now we need to make the new image available on the Toit console. For this, log into
