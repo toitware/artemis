@@ -10,8 +10,8 @@ command to upload the current checkout to the v1_migration organization:
 ```
 make
 build/bin/uploader service --local \
-    --sdk-version=v2.0.0-alpha.94
-    --service-version=v0.9.2-migration2
+    --sdk-version=v2.0.0-alpha.94 \
+    --service-version=v0.9.2-migration2 \
     --organization-id 367459ff-7ad2-4b3f-8085-4a5dcc2cd82f
 ```
 Replace the versions as needed.
