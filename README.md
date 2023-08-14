@@ -9,7 +9,10 @@ command to upload the current checkout to the v1_migration organization:
 
 ```
 make
-build/bin/uploader service --local --sdk-version=v2.0.0-alpha.94 --service-version=v0.9.2-migration2
+build/bin/uploader service --local \
+    --sdk-version=v2.0.0-alpha.94 \
+    --service-version=v0.9.2-migration2 \
+    --organization-id 367459ff-7ad2-4b3f-8085-4a5dcc2cd82f
 ```
 Replace the versions as needed.
 
@@ -35,9 +38,9 @@ artemis serial write-ota -o ota.bin --local migration.pod
 ```
 Note: this will create a new ID that we will ignore.
 
-Create a meaningful tag on the release-v1.99 branch:
+Create a meaningful tag on the Toit v1 `staging-v1.99`` branch:
 ```
-git checkout release-v1.99
+git checkout staging-v1.99
 git tag v1.99.0-customer-foo
 git push origin v1.99.0-customer-foo
 ```
