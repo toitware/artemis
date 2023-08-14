@@ -157,7 +157,7 @@ class FirmwarePatcher_ implements PatchObserver:
     // Normally we are not supposed to extract anything from the target firmware
     // since the format could have changed.
     // However, for migration purposes we know the format and we don't really
-    // have any better option.
+    // have any better options.
     device_specific := ubjson.decode new_.device_specific_encoded
     new_org := uuid.parse device_specific["artemis.device"]["organization_id"]
 

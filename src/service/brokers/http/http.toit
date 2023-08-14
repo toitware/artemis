@@ -60,7 +60,7 @@ class BrokerConnectionHttp implements BrokerConnection:
 
   fetch_firmware id/string
       --offset/int=0
-      --organization_id/uuid.Uuid?=device_.organization_id
+      --organization_id/uuid.Uuid=device_.organization_id
       [block] -> none:
     payload := {
       "path": "/toit-artemis-assets/$organization_id/firmware/$id",
