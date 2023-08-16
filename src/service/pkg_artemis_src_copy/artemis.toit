@@ -181,6 +181,18 @@ class Channel extends ServiceResourceProxy:
       return ChannelPosition.internal_ first.position + received_
 
   /**
+  The maximum number of bytes that can be held in the channel.
+  */
+  capacity -> int:
+    return (client_ as api.ArtemisClient).channel-capacity handle_
+
+  /**
+  The number of bytes held by the channel.
+  */
+  size -> int:
+    return (client_ as api.ArtemisClient).channel-size handle_
+
+  /**
   Sends an $element of bytes to the channel.
 
   Variant of $(send element [--if-full]).

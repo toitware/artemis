@@ -64,10 +64,14 @@ test-empty:
   flashlog := TestFlashLog 2
   expect-not flashlog.has-more
   flashlog.read: expect false
+  expect-equals 2 * 4096 flashlog.capacity
+  expect-equals FlashLog.HEADER-SIZE_ flashlog.size
 
   flashlog = TestFlashLog 3
   expect-not flashlog.has-more
   flashlog.read: expect false
+  expect-equals 3 * 4096 flashlog.capacity
+  expect-equals FlashLog.HEADER-SIZE_ flashlog.size
 
 test-sn-compare:
   expect-equals -1 (SN.compare 1 2)
@@ -108,9 +112,9 @@ test-large-append:
   // It is a bit nasty, but here we reach into the internals
   // of the FlashLog implementation to test that writing
   // more than the max entry size would indeed overflow.
-  buffer := ByteArray flashlog.size-per-page_ + 1024
+  buffer := ByteArray flashlog.capacity-per-page_ + 1024
   written := (flashlog.encode-next_ buffer too-large)
-  expect written > (flashlog.size-per-page_ - FlashLog.HEADER-SIZE_)
+  expect written > (flashlog.capacity-per-page_ - FlashLog.HEADER-SIZE_)
 
 test-append-while-reading:
   flashlog := TestFlashLog 2
@@ -236,8 +240,11 @@ test-fill-up:
   flashlog.append (ByteArray 1700)
 
   flashlog.append (ByteArray 1000)
+  expect-equals 4096 + 14 + 1 * 1143 flashlog.size
   flashlog.append (ByteArray 1000)
+  expect-equals 4096 + 14 + 2 * 1143 flashlog.size
   flashlog.append (ByteArray 1000)
+  expect-equals 4096 + 14 + 3 * 1143 flashlog.size
 
   last := null
   flashlog.read: | _ sn | last = sn
@@ -1143,7 +1150,7 @@ class TestFlashLog extends FlashLog:
     path_ = null
 
   max-entry-size -> int:
-    return ((size-per-page_ - FlashLog.HEADER-SIZE_ - 1) * 7 + 6) / 8
+    return ((capacity-per-page_ - FlashLog.HEADER-SIZE_ - 1) * 7 + 6) / 8
 
   has-more -> bool:
     // TODO(kasper): Handle reading from ack'ed pages. We
@@ -1205,7 +1212,7 @@ class TestFlashLog extends FlashLog:
 
   dump -> none:
     with-buffer_: | buffer/ByteArray |
-      for page := 0; page < size_; page += size-per-page_:
+      for page := 0; page < capacity; page += capacity-per-page_:
         banner := ?
         if page == read-page_ and page == write-page_:
           banner = "RW"
@@ -1236,7 +1243,7 @@ class TestFlashLog extends FlashLog:
       --reset/bool=false
       --repair/bool=false:
     log := TestFlashLog description.size
-    page-size := log.size-per-page_
+    page-size := log.capacity-per-page_
     buffer := ByteArray page-size
     description.size.repeat: | index/int |
       page/Map := description[index]

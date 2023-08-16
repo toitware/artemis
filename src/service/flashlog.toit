@@ -16,8 +16,8 @@ class FlashLog:
   static MARKER_ ::= 0x21_CE_A9_66
 
   region_/storage.Region
-  size_/int
-  size-per-page_/int
+  capacity/int
+  capacity-per-page_/int
 
   // One page buffer. Re-used whenever possible.
   buffer_/ByteArray? := ?
@@ -46,10 +46,15 @@ class FlashLog:
     if region.size <= region.erase-granularity:
       throw "Must have space for two pages"
     region_ = region
-    size_ = region.size
-    size-per-page_ = region.erase-granularity
-    buffer_ = ByteArray size-per-page_
+    capacity = region.size
+    capacity-per-page_ = region.erase-granularity
+    buffer_ = ByteArray capacity-per-page_
     with-buffer_: ensure-valid_ it
+
+  size -> int:
+    committed := write-page_ - read-page_
+    if committed < 0: committed += capacity
+    return committed + (write-offset_ - write-page_)
 
   acquire -> int:
     return ++usage_
@@ -71,19 +76,19 @@ class FlashLog:
     // ceiling division by 7, we get (bits - 6 + 7 - 1) / 7 and
     // end up with the nicer looking:
     size := 1 + (bytes.size << 3) / 7
-    if size > size-per-page_ - HEADER-SIZE_: throw "Bad Argument"
+    if size > capacity-per-page_ - HEADER-SIZE_: throw "Bad Argument"
 
     with-buffer_ --if-absent=(: ByteArray size): | buffer/ByteArray |
       // Check to see if we have to advance the write page.
-      next := write-page_ + size-per-page_
+      next := write-page_ + capacity-per-page_
       if write-offset_ + size > next:
-        if next >= size_: next = 0
+        if next >= capacity: next = 0
 
         // It is rather unfortunate that we have to reallocate the
         // buffer here if it isn't big enough. This happens when
         // we need to advance the write page while we're still busy
         // reading another page.
-        if buffer.size < size-per-page_: buffer = ByteArray size-per-page_
+        if buffer.size < capacity-per-page_: buffer = ByteArray capacity-per-page_
 
         // Read the whole page, so we can get the sequence
         // number and the count. If the page isn't committed
@@ -119,7 +124,7 @@ class FlashLog:
     [3]: page buffer                 / ByteArray
   */
   read-page buffer/ByteArray --peek/int=0 -> List:
-    if peek < 0 or buffer.size != size-per-page_:
+    if peek < 0 or buffer.size != capacity-per-page_:
       throw "Bad Argument"
     prevalidated := read-page-validated_
     // Run through the pages and skip or validate the ones
@@ -134,8 +139,8 @@ class FlashLog:
         sn := LITTLE-ENDIAN.uint32 buffer HEADER-SN-OFFSET_
         return [sn, null, 0, buffer]
       current := page
-      page += size-per-page_
-      if page >= size_: page = 0
+      page += capacity-per-page_
+      if page >= capacity: page = 0
       if index >= prevalidated:
         is-committed-page_ current buffer: | sn is-acked count |
           if index == prevalidated or sn == next-sn:
@@ -210,7 +215,7 @@ class FlashLog:
       // we set the write offset at the end of the
       // page, so the next append will cause us to
       // advance the write page.
-      write-offset_ = write-page_ + size-per-page_
+      write-offset_ = write-page_ + capacity-per-page_
     block.call sn count
 
   advance-read-page_ buffer/ByteArray sn/int -> none:
@@ -222,8 +227,8 @@ class FlashLog:
       read-page_ = write-page_
       return
 
-    read-page_ += size-per-page_
-    if read-page_ >= size_: read-page_ = 0
+    read-page_ += capacity-per-page_
+    if read-page_ >= capacity: read-page_ = 0
 
     is-committed-page_ read-page_ buffer: | snx is-acked count |
       if is-acked or snx != sn: repair_ buffer
@@ -234,14 +239,14 @@ class FlashLog:
     repair_ buffer
 
   advance-write-page_ buffer/ByteArray sn/int -> bool:
-    next := write-page_ + size-per-page_
-    if next >= size_: next = 0
+    next := write-page_ + capacity-per-page_
+    if next >= capacity: next = 0
 
     // Don't go into the read page.
     if next == read-page_: return false
 
     // Clear the page and start writing into it!
-    region_.erase --from=next --to=next + size-per-page_
+    region_.erase --from=next --to=next + capacity-per-page_
     assert: HEADER-MARKER-OFFSET_ == 0 and HEADER-SN-OFFSET_ == 4
     LITTLE-ENDIAN.put-uint32 buffer HEADER-MARKER-OFFSET_ MARKER_
     LITTLE-ENDIAN.put-uint32 buffer HEADER-SN-OFFSET_ sn
@@ -308,9 +313,9 @@ class FlashLog:
     return true
 
   is-valid_ buffer/ByteArray -> bool:
-    if not (0 <= read-page_ < size_ and 0 <= write-page_ < size_): return false
-    if (round-down read-page_ size-per-page_) != read-page_: return false
-    if (round-down write-page_ size-per-page_) != write-page_: return false
+    if not (0 <= read-page_ < capacity and 0 <= write-page_ < capacity): return false
+    if (round-down read-page_ capacity-per-page_) != read-page_: return false
+    if (round-down write-page_ capacity-per-page_) != write-page_: return false
 
     // Handle split RW pages.
     if read-page_ != write-page_:
@@ -321,8 +326,8 @@ class FlashLog:
           // If the read page is already ack'ed, we should have moved
           // the read page forward.
           if is-acked: return false
-          previous := read-page_ - size-per-page_
-          if previous < 0: previous += size_
+          previous := read-page_ - capacity-per-page_
+          if previous < 0: previous += capacity
           is-committed-page_ previous buffer: | snx is-acked count |
             if not is-acked:
               // If the previous page is earlier in the page list than
@@ -346,9 +351,9 @@ class FlashLog:
         if (api.ArtemisService.channel-position-compare read-sn sn) >= 0: return false
         offset := repair-find-write-offset_ buffer write-page_
         if not offset: return false
-        next := write-page_ + size-per-page_
+        next := write-page_ + capacity-per-page_
         write-offset_ = next  // Don't allow appending to committed pages.
-        if next >= size_: next = 0
+        if next >= capacity: next = 0
         is-committed-page_ next buffer: | snx |
           // If count is zero, we really shouldn't have committed the
           // next page so something is wrong. Also, if the SN of the
@@ -377,8 +382,8 @@ class FlashLog:
         offset := repair-find-write-offset_ buffer write-page_
         if not offset: return false
         write-offset_ = offset  // Potentially repaired.
-        previous := write-page_ - size-per-page_
-        if previous < 0: previous += size_
+        previous := write-page_ - capacity-per-page_
+        if previous < 0: previous += capacity
         is-committed-page_ previous buffer: | snx is-acked count |
           if sn != (SN.next snx --increment=count): return false
           return true
@@ -394,19 +399,19 @@ class FlashLog:
       if is-acked: return false
       offset := repair-find-write-offset_ buffer read-page_
       if not offset: return false
-      next := read-page_ + size-per-page_
+      next := read-page_ + capacity-per-page_
       write-offset_ = next  // Don't allow appending to committed pages.
       assert: count > 0
 
-      previous := read-page_ - size-per-page_
-      if previous < 0: previous += size_
+      previous := read-page_ - capacity-per-page_
+      if previous < 0: previous += capacity
       is-committed-page_ previous buffer: | snx is-acked count |
         if not is-acked:
           compare := (previous < read-page_) ? 0 : -1
           if (api.ArtemisService.channel-position-compare sn snx) <= compare: return false
           if sn == (SN.next snx --increment=count): return false
 
-      if next >= size_: next = 0
+      if next >= capacity: next = 0
       is-committed-page_ next buffer: | snx |
         compare := (next > write-page_) ? -1 : 0
         if (api.ArtemisService.channel-position-compare sn snx) <= compare: return false
@@ -420,8 +425,8 @@ class FlashLog:
       offset := repair-find-write-offset_ buffer read-page_
       if not offset: return false
       write-offset_ = offset  // Potentially repaired.
-      previous := read-page_ - size-per-page_
-      if previous < 0: previous += size_
+      previous := read-page_ - capacity-per-page_
+      if previous < 0: previous += capacity
       is-committed-page_ previous buffer: | snx is-acked count |
         if not is-acked: return false
         if sn != (SN.next snx --increment=count): return false
@@ -436,7 +441,7 @@ class FlashLog:
     last-is-acked/bool := false
     last-count/int := -1
 
-    for page := 0; page < size_; page += size-per-page_:
+    for page := 0; page < capacity; page += capacity-per-page_:
       is-committed-page_ page buffer: | sn is-acked count |
         if not last-page or (api.ArtemisService.channel-position-compare sn last-sn) > 0:
           last-page = page
@@ -455,8 +460,8 @@ class FlashLog:
     if not last-is-acked:
       page := last-page
       while true:
-        page = page - size-per-page_
-        if page < 0: page += size_
+        page = page - capacity-per-page_
+        if page < 0: page += capacity
         is-committed-page_ page buffer: | sn is-acked count |
           if not is-acked and (SN.next sn --increment=count) == first-sn:
             // We should not be able to get to a point where all pages
@@ -482,8 +487,8 @@ class FlashLog:
     read-page-validated_ = 0
 
     next-sn := SN.next last-sn --increment=last-count
-    next := last-page + size-per-page_
-    if next >= size_: next = 0
+    next := last-page + capacity-per-page_
+    if next >= capacity: next = 0
 
     if next != first-page:  // Don't check the first page again.
       is-uncommitted-page_ next buffer: | sn |
@@ -524,9 +529,9 @@ class FlashLog:
     if (buffer[cursor] & 0x80) == 0:
       // Page content must start with MSB set.
       return null
-    while cursor < size-per-page_:
+    while cursor < capacity-per-page_:
       if buffer[cursor] == 0xff:
-        for i := cursor + 1; i < size-per-page_; i++:
+        for i := cursor + 1; i < capacity-per-page_; i++:
           if buffer[i] != 0xff:
             // Page must have all trailing bits set.
             return null
@@ -537,9 +542,9 @@ class FlashLog:
   repair-reset_ buffer/ByteArray initial-sn/int -> none:
     // Start from scratch by building up a committed and ack'ed
     // page as the last one.
-    read-page_ = size_ - size-per-page_
-    write-page_ = size_ - size-per-page_
-    region_.erase --from=write-page_ --to=write-page_ + size-per-page_
+    read-page_ = capacity - capacity-per-page_
+    write-page_ = capacity - capacity-per-page_
+    region_.erase --from=write-page_ --to=write-page_ + capacity-per-page_
 
     buffer.fill 0xff
     LITTLE-ENDIAN.put-uint32 buffer HEADER-MARKER-OFFSET_ MARKER_
@@ -561,7 +566,7 @@ class FlashLog:
     if not (SN.is-valid sn): return
     // Validate count.
     expected-count := LITTLE-ENDIAN.uint16 buffer HEADER-COUNT-OFFSET_
-    if not (0 <= expected-count <= size-per-page_ - HEADER-SIZE_): return
+    if not (0 <= expected-count <= capacity-per-page_ - HEADER-SIZE_): return
     actual-count := decode-count_ buffer
     if expected-count > 0 and actual-count != expected-count: return
     // Validate checksum.

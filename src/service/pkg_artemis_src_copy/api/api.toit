@@ -9,7 +9,7 @@ interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=0
-      --minor=5
+      --minor=6
 
   /** The mode used by controllers that want to go online. */
   static CONTROLLER-MODE-ONLINE ::= 0
@@ -59,6 +59,12 @@ interface ArtemisService:
   channel-acknowledge handle/int position/int count/int -> none
   static CHANNEL-ACKNOWLEDGE-INDEX /int ::= 5
 
+  channel-capacity handle/int -> int
+  static CHANNEL-CAPACITY-INDEX /int ::= 8
+
+  channel-size handle/int -> int
+  static CHANNEL-SIZE-INDEX /int ::= 9
+
 class ArtemisClient extends ServiceClient
     implements ArtemisService:
   static SELECTOR ::= ArtemisService.SELECTOR
@@ -89,3 +95,9 @@ class ArtemisClient extends ServiceClient
 
   channel-acknowledge handle/int position/int count/int -> none:
     invoke_ ArtemisService.CHANNEL-ACKNOWLEDGE-INDEX [handle, position, count]
+
+  channel-capacity handle/int -> int:
+    return invoke_ ArtemisService.CHANNEL-CAPACITY-INDEX handle
+
+  channel-size handle/int -> int:
+    return invoke_ ArtemisService.CHANNEL-SIZE-INDEX handle
