@@ -70,8 +70,8 @@ class ChannelServiceProvider extends ServiceProvider
       channel := (resource client arguments[0]) as ChannelResource
       return channel.acknowledge arguments[1] arguments[2]
     if index == api.ArtemisService.CHANNEL-SIZE-INDEX:
-        channel := (resource client arguments) as ChannelResource
-        return channel.size
+      channel := (resource client arguments) as ChannelResource
+      return channel.size
     if index == api.ArtemisService.CHANNEL-CAPACITY-INDEX:
       channel := (resource client arguments) as ChannelResource
       return channel.capacity
