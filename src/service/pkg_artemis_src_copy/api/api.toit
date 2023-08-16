@@ -100,4 +100,4 @@ class ArtemisClient extends ServiceClient
     return invoke_ ArtemisService.CHANNEL-CAPACITY-INDEX handle
 
   channel-size handle/int -> int:
-    return invoke_ ArtemisService.CHANNEL-SIZE handle
+    return invoke_ ArtemisService.CHANNEL-SIZE-INDEX handle
