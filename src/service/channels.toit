@@ -89,5 +89,11 @@ class ChannelServiceProvider extends ServiceProvider
   channel-acknowledge handle/int sn/int count/int -> none:
     unreachable  // Here to satisfy the checker.
 
+  channel-capacity handle/int -> int:
+    unreachable  // Here to satisfy the checker.
+
+  channel-size handle/int -> int:
+    unreachable  // Here to satisfy the checker.
+
   channel-open client/int --topic/string --receive/bool -> ChannelResource:
     return ChannelResource this client --topic=topic --receive=receive
