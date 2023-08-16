@@ -52,9 +52,9 @@ class FlashLog:
     with-buffer_: ensure-valid_ it
 
   size -> int:
-    // TODO(kasper): Implement this.
-    unreachable
-    return 0
+    committed := write-page_ - read-page_
+    if committed < 0: committed += capacity
+    return committed + (write-offset_ - write-page_)
 
   acquire -> int:
     return ++usage_

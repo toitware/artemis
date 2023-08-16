@@ -64,10 +64,14 @@ test-empty:
   flashlog := TestFlashLog 2
   expect-not flashlog.has-more
   flashlog.read: expect false
+  expect-equals 2 * 4096 flashlog.capacity
+  expect-equals FlashLog.HEADER-SIZE_ flashlog.size
 
   flashlog = TestFlashLog 3
   expect-not flashlog.has-more
   flashlog.read: expect false
+  expect-equals 3 * 4096 flashlog.capacity
+  expect-equals FlashLog.HEADER-SIZE_ flashlog.size
 
 test-sn-compare:
   expect-equals -1 (SN.compare 1 2)
@@ -236,8 +240,11 @@ test-fill-up:
   flashlog.append (ByteArray 1700)
 
   flashlog.append (ByteArray 1000)
+  expect-equals 4096 + 14 + 1 * 1143 flashlog.size
   flashlog.append (ByteArray 1000)
+  expect-equals 4096 + 14 + 2 * 1143 flashlog.size
   flashlog.append (ByteArray 1000)
+  expect-equals 4096 + 14 + 3 * 1143 flashlog.size
 
   last := null
   flashlog.read: | _ sn | last = sn
