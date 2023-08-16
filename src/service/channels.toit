@@ -25,13 +25,19 @@ class ChannelResource extends ServiceResource:
     log_.acquire
     super provider client
 
+  capacity -> int:
+    return log_.capacity
+
+  size -> int:
+    return log_.size
+
   send bytes/ByteArray -> bool:
     log_.append bytes --if-full=: return false
     return true
 
   receive-page --peek/int --buffer/ByteArray? -> List:
     if not receive: throw "PERMISSION_DENIED"
-    buffer = buffer or (ByteArray log_.size-per-page_)
+    buffer = buffer or (ByteArray log_.capacity-per-page_)
     return log_.read-page buffer --peek=peek
 
   acknowledge sn/int count/int -> none:
@@ -63,6 +69,12 @@ class ChannelServiceProvider extends ServiceProvider
     if index == api.ArtemisService.CHANNEL-ACKNOWLEDGE-INDEX:
       channel := (resource client arguments[0]) as ChannelResource
       return channel.acknowledge arguments[1] arguments[2]
+    if index == api.ArtemisService.CHANNEL-SIZE-INDEX:
+        channel := (resource client arguments) as ChannelResource
+        return channel.size
+    if index == api.ArtemisService.CHANNEL-CAPACITY-INDEX:
+      channel := (resource client arguments) as ChannelResource
+      return channel.capacity
     unreachable
 
   channel-open --topic/string --receive/bool -> int?:
