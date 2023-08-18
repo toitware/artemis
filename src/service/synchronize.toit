@@ -352,9 +352,9 @@ class SynchronizeJob extends TaskJob:
           now := JobTime.now
           if (check-in-schedule now) <= now: return false
           transition-to_ STATE-CONNECTED-TO-BROKER
-      finally:
-        // TODO(kasper): Add timeout for close.
-        broker-connection.close
+    finally:
+      // TODO(kasper): Add timeout for close.
+      broker-connection.close
 
   /**
   Synchronizes with the broker.
