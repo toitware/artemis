@@ -350,7 +350,8 @@ get-envelope -> string
   if not url.starts-with HTTP-URL-PREFIX and not url.starts-with HTTPS-URL-PREFIX:
     throw "Invalid envelope URL: $url"
 
-  envelope-key := "$ENVELOPE-PATH/$url/firmware.envelope"
+  url_without_prefix := (url.trim --left HTTP-URL-PREFIX).trim --left HTTPS-URL-PREFIX
+  envelope-key := "$ENVELOPE-PATH/$url_without_prefix/firmware.envelope"
   return cache.get-file-path envelope-key: | store/cli.FileStore |
     store.with-tmp-directory: | tmp-dir |
       out-path := "$tmp-dir/fw.envelope"
