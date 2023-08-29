@@ -10,6 +10,7 @@ import host.os
 import snapshot show cache-snapshot
 import uuid
 import fs
+import semver
 
 import .sdk
 import .cache show ENVELOPE-PATH
@@ -302,7 +303,11 @@ build-envelope-url --sdk-version/string? --envelope/string -> string:
   if not envelope or (not envelope.contains "/" and not envelope.contains "\\"):
     if not sdk-version:
       throw "No sdk_version given"
-    return "https://github.com/toitlang/toit/releases/download/$sdk-version/firmware-$(envelope).gz"
+    sdk-version-no-v := sdk-version[1..]
+    if (semver.compare sdk-version-no-v "2.0.0-alpha.97") < 0:
+      // Backwards compatibility for old SDKs.
+      return "https://github.com/toitlang/toit/releases/download/$sdk-version/firmware-$(envelope).gz"
+    return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/firmware-$(envelope).envelope.gz"
 
   if sdk-version:
     envelope = envelope.replace --all "\$(sdk-version)" sdk-version
