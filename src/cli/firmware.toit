@@ -334,7 +334,7 @@ get-envelope -> string
       return "$local-sdk/build/$chip/firmware.envelope"
 
   sdk-version := specification.sdk-version
-  envelope := specification.envelope or "esp32"
+  envelope := specification.envelope or specification.chip or "esp32"
 
   url := build-envelope-url --sdk-version=sdk-version --envelope=envelope
 
