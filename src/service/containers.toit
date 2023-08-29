@@ -60,7 +60,8 @@ class ContainerManager:
     pin-trigger-manager_.start jobs_.values
 
   setup-deep-sleep-triggers:
-    pin-trigger-manager_.prepare-deep-sleep jobs_.values
+    non-delayed-jobs := jobs_.values.filter: | job/Job | job.scheduler-delayed-until_ == null
+    pin-trigger-manager_.prepare-deep-sleep non-delayed-jobs
 
   get --name/string -> ContainerJob?:
     return jobs_.get name
