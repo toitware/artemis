@@ -1,13 +1,13 @@
 dependencies:
   ar:
     url: github.com/toitlang/pkg-ar
-    version: ^1.0.0
+    version: ^1.0.1
   artemis:
     url: github.com/toitware/toit-artemis
     version: ^0.1.1
   certificate_roots:
     url: github.com/toitware/toit-cert-roots
-    version: ^1.5.0
+    version: ^1.6.1
   cli:
     url: github.com/toitlang/pkg-cli
     version: ^1.2.0
@@ -24,7 +24,7 @@ dependencies:
     version: ^1.0.0
   semver:
     url: github.com/toitware/toit-semver
-    version: ^1.0.0
+    version: ^1.1.0
   snapshot:
     path: tools/snapshot
   supabase:
