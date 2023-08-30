@@ -10,6 +10,7 @@ import host.os
 import snapshot show cache-snapshot
 import uuid
 import fs
+import semver
 
 import .sdk
 import .cache show ENVELOPE-PATH
@@ -302,7 +303,11 @@ build-envelope-url --sdk-version/string? --envelope/string -> string:
   if not envelope or (not envelope.contains "/" and not envelope.contains "\\"):
     if not sdk-version:
       throw "No sdk_version given"
-    return "https://github.com/toitlang/toit/releases/download/$sdk-version/firmware-$(envelope).gz"
+    sdk-version-no-v := sdk-version[1..]
+    if (semver.compare sdk-version-no-v "2.0.0-alpha.97") < 0:
+      // Backwards compatibility for old SDKs.
+      return "https://github.com/toitlang/toit/releases/download/$sdk-version/firmware-$(envelope).gz"
+    return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/firmware-$(envelope).envelope.gz"
 
   if sdk-version:
     envelope = envelope.replace --all "\$(sdk-version)" sdk-version
@@ -334,7 +339,7 @@ get-envelope -> string
       return "$local-sdk/build/$chip/firmware.envelope"
 
   sdk-version := specification.sdk-version
-  envelope := specification.envelope or "esp32"
+  envelope := specification.envelope or specification.chip or "esp32"
 
   url := build-envelope-url --sdk-version=sdk-version --envelope=envelope
 
@@ -350,7 +355,8 @@ get-envelope -> string
   if not url.starts-with HTTP-URL-PREFIX and not url.starts-with HTTPS-URL-PREFIX:
     throw "Invalid envelope URL: $url"
 
-  envelope-key := "$ENVELOPE-PATH/$url/firmware.envelope"
+  url_without_prefix := (url.trim --left HTTP-URL-PREFIX).trim --left HTTPS-URL-PREFIX
+  envelope-key := "$ENVELOPE-PATH/$url_without_prefix/firmware.envelope"
   return cache.get-file-path envelope-key: | store/cli.FileStore |
     store.with-tmp-directory: | tmp-dir |
       out-path := "$tmp-dir/fw.envelope"
