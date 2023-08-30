@@ -140,7 +140,7 @@ class ContainerManager:
     scheduler_.remove-job job
     logger_.info message --tags=job.tags
 
-encode-trigger_reason_ -> int
+encode-trigger-reason_ -> int
     --boot/bool=false
     --install/bool=false
     --interval/bool=false
