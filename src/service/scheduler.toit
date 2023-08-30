@@ -97,7 +97,6 @@ class Scheduler:
       logger_.warn "runlevel decreasing timed out" --tags={"runlevel": runlevel}
 
   on-job-started job/Job -> none:
-    job.scheduler-ran-after-boot_ = true
     job.scheduler-ran-last_ = JobTime.now
     job.scheduler-delayed-until_ = null
     logger_.info "job started" --tags={"job": job}

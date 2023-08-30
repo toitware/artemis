@@ -185,7 +185,10 @@ class PinTriggerManager:
         if level: tags["level"] = level
         else: tags["touch"] = touch
         logger_.info "triggered by pin" --tags=tags
-        job.is-triggered_ = true
+        reason := touch
+            ? encode-trigger-reason_ --touch=pin-number
+            : encode-trigger-reason_ --pin=pin-number
+        job.trigger reason
     // We need a critical_do as `update_` might kill the currently running
     // task.
     critical-do:
@@ -346,7 +349,7 @@ class PinTriggerManager:
                 is-triggered = true
               if is-triggered:
                 job-was-triggered = true
-                job.is-triggered_ = true
+                job.trigger (encode-trigger-reason_ --pin=pin)
                 tags := job.tags.copy
                 tags["pin"] = pin
                 tags["level"] = level
@@ -355,7 +358,7 @@ class PinTriggerManager:
           job.trigger-gpio-touch_.do: | pin |
             if touch-wakeup-pin == pin:
               job-was-triggered = true
-              job.is-triggered_ = true
+              job.trigger (encode-trigger-reason_ --touch=pin)
               tags := job.tags.copy
               tags["pin"] = pin
               logger_.info "triggered by touch" --tags=tags

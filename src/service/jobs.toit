@@ -16,7 +16,6 @@ abstract class Job:
   // information with jobs.
   scheduler_/Scheduler? := null
   scheduler-ran-last_/JobTime? := null
-  scheduler-ran-after-boot_/bool := false
 
   // TODO(kasper): Maybe this should be called run-after? The
   // way this interacts with the other triggers isn't super
@@ -32,9 +31,6 @@ abstract class Job:
 
   runlevel -> int: return RUNLEVEL-NORMAL
   stringify -> string: return name
-
-  has-run-after-boot -> bool:
-    return scheduler-ran-after-boot_
 
   abstract schedule now/JobTime last/JobTime? -> JobTime?
 
@@ -140,6 +136,12 @@ class JobTime implements Comparable:
 
   operator < other/JobTime -> bool:
     return us < other.us
+
+  operator >= other/JobTime -> bool:
+    return us >= other.us
+
+  operator > other/JobTime -> bool:
+    return us > other.us
 
   operator + duration/Duration -> JobTime:
     return JobTime us + duration.in-us
