@@ -104,6 +104,18 @@ test-errors:
       "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
       no-sdk-version
 
+  bad-sdk-version := new-valid
+  bad-sdk-version["sdk-version"] = 2
+  expect-format-error
+      "Entry sdk-version in pod specification is not a string: 2"
+      bad-sdk-version
+
+  bad-sdk-version2 := new-valid
+  bad-sdk-version2["sdk-version"] = "v1.0.0.5"
+  expect-format-error
+      "Invalid sdk-version: v1.0.0.5"
+      bad-sdk-version2
+
   no-artemis-version := new-valid
   no-artemis-version.remove "artemis-version"
   expect-format-error
