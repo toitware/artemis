@@ -14,6 +14,9 @@ class ContainerCurrent implements artemis.Container:
   restart --delay/Duration?=null -> none:
     wakeup-us := delay and Time.monotonic-us + delay.in-us
     client_.container-current-restart --wakeup-us=wakeup-us
-    // The container is restarted, so we don't not
-    // return here.
+    // The container is restarted, so we don't return here.
     unreachable
+
+  last-start-trigger -> artemis.Trigger?:
+    encoded-trigger := client_.container-last-start-trigger
+    return artemis.Trigger.decode encoded-trigger
