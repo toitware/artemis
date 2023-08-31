@@ -1,0 +1,382 @@
+# Manage your fleet
+
+Artemis is a fleet management system for ESP32 devices running the Toit platform.
+It connects your devices to the cloud and makes it possible to seamlessly update
+the firmware, containers, and configurations that run on your devices. It is free for
+up to ten devices and built to scale.
+
+Artemis is the combination of an on-device service that communicates with a broker
+in the cloud &mdash; and the developer tooling to help orchestrate the devices. It is
+possible to host your own broker, so all your data and code remains under your
+control.
+
+---------------------
+
+# Installation
+
+On your development machine, Artemis is a single command line tool (`artemis`).
+You can download it from here:
+
+<Tabs>
+<Tab label="Windows">
+
+Download [`artemis`](https://github.com/toitware/artemis-releases/releases/latest/download/artemis-windows.zip).
+
+</Tab>
+<Tab label="macOS">
+
+Download [`artemis`](https://github.com/toitware/artemis-releases/releases/latest/download/artemis.dmg)
+  (or as an [archive](https://github.com/toitware/artemis-releases/releases/latest/download/artemis-macos.zip)).
+
+</Tab>
+<Tab label="Linux">
+
+Download [`artemis`](https://github.com/toitware/artemis-releases/releases/latest/download/artemis-linux.tar.gz).
+
+</Tab>
+</Tabs>
+
+If you download an archive, you should unpack it and put the embedded `artemis` or `artemis.exe` binary
+somewhere on your `PATH`. The same applies when you extract the `artemis` binary from the macOS `artemis.dmg`
+file.
+
+The Artemis command line tool is a standalone executable written in Toit. Use `artemis help` for usage help.
+
+## Signing up and logging in
+
+All users must be authenticated. For OAuth-based authentication you can just
+sign up and log into Artemis as follows:
+
+``` sh
+artemis auth login
+```
+
+Alternatively, for email-based authentication, sign up with:
+
+``` sh
+artemis auth signup --email=myname@example.com --password=PASSWORD
+```
+
+Then, after having confirmed the email address, log in with:
+
+``` sh
+artemis auth login --email=myname@example.com --password=PASSWORD
+```
+
+Usually, signing up by OAuth is more convenient, but email-based authentication is often useful
+if you want to have multiple accounts. For example, with Google domains anything after
+the "+" is discarded. So `email+additional@gmail.com` is an alias for `email@gmail.com`.
+
+## Creating an organization
+
+Every device must belong to an organization. You can create as many organizations as
+you want (and there will eventually also be a way to remove them again). You can add an
+organization using `artemis org create` like this:
+
+``` sh
+artemis org create "My Organization"
+artemis org show
+artemis org members list
+```
+
+The `artemis org show` command shows you your organization ID, which is a [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier).
+
+Once you create a new organization it is automatically set as default. You can switch to a different organization with
+`artemis org default YOUR-ORG-ID`, or by passing the organization id to the commands that need one.
+
+You can add other users to your organization with `artemis org members add THEIR-USER-ID`. The
+user you want to add can find THEIR-USER-ID with `artemis profile show`.
+
+If you want to, you can also change the name in your profile with:
+
+``` sh
+artemis profile update --name "My full name"
+```
+
+---------------------
+
+# Getting started
+
+Once you've [downloaded](#installation) the command line tool (`artemis`),
+[signed up](#signing-up-and-logging-in), and
+[created an organization](#creating-an-organization),
+you're ready to put Artemis on a device and manage it via the cloud.
+
+## First steps
+
+Artemis manages fleets of devices. To get started, first you must create
+an empty fleet in a suitable directory. Go to the directory and run:
+
+``` sh
+artemis fleet init
+```
+
+This creates three files: `fleet.json`, `devices.json`, and `my-pod.json`.
+The `fleet.json` file holds some metadata and the list of devices in `devices.json`
+is empty. The `my-pod.json` file is the most interesting to get started.
+
+Artemis lets you describe the functionality and configuration of your devices
+in [pods](pods), which is a set of containers and the configuration
+of the environment they need to run in. Pods can be specified through version control friendly
+[specification files](pods#specifications), so let's start with the simplest
+possible specification by putting the following content into the `my-pod.json` file:
+
+``` json
+{
+  "version": 1,
+  "name": "my-pod",
+  "sdk-version": "SDK-VERSION",
+  "artemis-version": "ARTEMIS-VERSION",
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "YOUR WIFI SSID",
+      "password": "YOUR WIFI PASSWORD"
+    }
+  ],
+  "containers": {
+  }
+}
+```
+
+If you fill in your WiFi credentials, you have a working specification for a pod
+named `my-pod`. To make the pod available to your fleet, you will need to upload
+it to your broker:
+
+``` sh
+artemis pod upload my-pod.json
+```
+
+This uploads `my-pod` and gives is a few useful tags, so we can find it later. The
+fleet has a `default` [group of devices](/getstarted/fleet/groups) and in the `fleet.json` file, we can specify
+that the group uses `my-pod@latest` as its pod. Whenever we upload a pod, its `latest`
+tag is automatically updated, so it can be convenient to just refer to that from
+the group:
+
+``` json
+{
+  ...
+  "groups": {
+    "default": {
+      "pod": "my-pod@latest"
+    }
+  }
+}
+```
+
+<Note>
+
+Instead of using the convenient `latest` tag, it is often preferable to use tags that do not
+change in the `fleet.json` file. This makes it possible to reproduce and reason about the
+fleet state at any revision of the `fleet.json` file. So instead of using `my-pod@latest`,
+you can use a stable tag like `my-pod@v1.0.2` or `my-pod@20230515175710-broad-method`.
+
+</Note>
+
+To get your functionality onto your device, you flash a device with firmware
+`my-pod@latest` by running:
+
+``` sh
+artemis serial flash --port /dev/ttyUSB0
+```
+
+This flashes the device over the USB serial port and puts both the Toit
+platform and the Artemis service onto the device. Once flashed, you
+can follow the behavior of your device by monitoring the serial port
+using something like `jag monitor`
+(included with [Jaguar](../device#2-install-jaguar)). It
+shows something like this:
+
+``` text
+rst:0x5 (DEEPSLEEP_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:184
+load:0x40078000,len:12700
+ho 0 tail 12 room 4
+load:0x40080400,len:2916
+entry 0x400805c4
+[toit] INFO: starting <v2.0.0-alpha.69>
+[toit] INFO: using SPIRAM for heap metadata.
+[artemis] INFO: starting {device: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
+[artemis.scheduler] INFO: job started {job: synchronize}
+[artemis.synchronize] INFO: connecting
+[wifi] DEBUG: connecting
+[wifi] DEBUG: connected
+[wifi] INFO: network address dynamically assigned through dhcp {ip: 192.168.86.31}
+[wifi] INFO: dns server address dynamically assigned through dhcp {ip: [192.168.86.1]}
+[network] INFO: opened
+[artemis.synchronize] INFO: connected to network
+[artemis.synchronize] INFO: connected to broker
+[artemis.synchronize] INFO: synchronized
+```
+
+Once you see that the device succesfully connect to the cloud, you should
+be ready to check its state:
+
+``` sh
+artemis device show
+```
+
+Artemis also added your device to your fleet as part of running `artemis serial flash`,
+so you can now check the status of your entire fleet by running:
+
+``` sh
+artemis fleet status
+```
+
+Great! With a little help from the Artemis service and developer tooling,
+you have a cloud-managed device capable of running high-level code.
+
+## Tinkering with your device
+
+Artemis allows you to change and tinker with the current state of a device
+without requiring a full firmware update. This makes it possible to change
+the behavior of a device by adding new functionality (drivers or applications)
+or by changing configurations.
+
+Such incremental changes are great for development; especially as they are faster
+to get onto the device and do not even require restarting the device. However,
+these changes are lost at the next firmware upgrade.
+
+### Controlling synchronization
+
+Devices managed by Artemis need to connect to the cloud to receive updated information.
+The frequency at which they synchronize can be configured by the user.
+
+Devices that connect frequently or all the time are easy
+to interact with and manage, but they spend a lot of power on staying connected
+all the time. The pod specification in the example `my-pod.json` does not specify
+how often to connect, so Artemis assumes that you want an interactive device.
+
+If you don't need your device to stay connected all the time, you can
+give it a 'max-offline' setting. This tells the Artemis service that it is
+okay to be offline for 5m, 1h30m, or 24h without necessarily connecting to the
+Internet.
+
+You can set this through:
+
+``` sh
+artemis device set-max-offline 1m19s
+```
+
+If you monitor the output of your device, you'll see that the device goes
+to sleep between its cloud synchronizations.
+
+You can go back to the original setting, where the device tries to
+stay online all the time by giving it a 'max-offline' setting of 0s:
+
+``` sh
+artemis device set-max-offline 0s
+```
+
+### Installing code
+
+Artemis makes it easy to install and uninstall new code on your devices.
+The code that you install runs in containers, so they are isolated from
+the rest of the system and can be started and stopped independently of
+the other parts of the system.
+
+To install new code on your device, you can install a new named container
+based on a Toit source file:
+
+``` sh
+artemis device container install hello hello.toit
+```
+
+The container name `hello` does not have to match the source file
+name `hello.toit` and you will use the container name to refer to
+the installed container later. There can only be one container with
+a given name on a device, so installing another one will replace
+the original.
+
+By default containers will run when installed and whenever the
+device boots, but you can control this behavior by specifying the
+triggers on the command line. If you *only* want to run when booting,
+you can do:
+
+``` sh
+artemis device container install --trigger boot hello hello.toit
+```
+
+You can also get Artemis to run your containers on a schedule
+by triggering them at a specified interval. As an example, you can
+install the `hello` container and get it to run every 10s
+like this:
+
+```sh
+artemis device container install --trigger interval:10s hello hello.toit
+```
+
+Any arguments you pass to `artemis device container install` after the
+source file will be passed as string arguments to `main`. If you put
+this in `args.toit`:
+
+```
+main args:
+  print "arguments = $args"
+```
+
+and run:
+
+``` sh
+artemis device container install args args.toit foo bar
+```
+
+you should see `arguments = [foo, bar]` printed.
+
+Finally, you can always uninstall a container again using:
+
+``` sh
+artemis device container uninstall hello
+artemis device container uninstall args
+```
+
+## Updating a single device
+
+If you want to update to a new version of the Toit SDK or benefit from the
+latest Artemis release, you can do an over-the-air firmware update. Such
+updates are pushed to the broker in a compressed form and picked up by the
+device.
+
+Similar to `artemis serial flash`, the over-the-air update command also
+uses pods, so the common workflow is to change your pod specification file
+to reflect the state you want your device in, and then update it to
+that through:
+
+``` sh
+artemis pod upload my-pod.json
+artemis device update my-pod@latest
+```
+
+You can specify which device to update using a device-id flag (`-d`), but most
+of the time you just use the default ID that was either set
+during flashing, or that can be set with `artemis device default`.
+
+## Rolling out changes to a fleet
+
+If you've modified the `my-pod.json` file and you want to make the changes available
+to your fleet of devices, you can upload the latest version of your pod using:
+
+``` sh
+artemis pod upload my-pod.json
+```
+
+If your `fleet.json` uses `my-pod@latest`, you can ask the fleet
+to roll out the changes to your devices using:
+
+``` sh
+artemis fleet roll-out
+```
+
+If you changed the pod reference in `fleet.json` to use a stable tag, then
+you need to update that before you run `artemis fleet roll-out`:
+
+``` sh
+artemis fleet group update --tag v1.0.3
+```
+
+Because your pods encapsulate the fully configured firmware, this makes
+it easy to upgrade your containers, the Artemis service, and even the Toit SDK
+and its associated virtual machine.

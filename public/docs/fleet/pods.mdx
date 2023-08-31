@@ -1,0 +1,178 @@
+# Pods
+
+Artemis allows you to build and distribute pods (as in a pod of whales or pea pod).
+A pod is a set of containers, with shared storage and network resources, and a
+description of how to run the containers. Pods are built from declarative specifications
+and they form the basis of Artemis' synchronization mechanisms.
+
+## Building
+
+Pods are built from [specifications](#specifications). Once built, the pods are
+self-contained and have no external dependencies. This makes them ideal for
+deployment and for archiving. To build a pod from a specification, you invoke
+the `artemis pod build` command like this:
+
+``` sh
+artemis pod build -o my-pod.pod my-pod.json
+```
+
+Pods contain symbolic debug information, so it is useful to keep them around
+after having deployed them. This is easy to achieve by [uploading](#uploading)
+them to your broker.
+
+## Uploading
+
+Pods are named and they can be uploaded to your fleet using the
+`artemis pod upload` command:
+
+``` sh
+artemis pod upload my-pod.pod
+```
+
+This creates a new revision of the `my-pod` pod and automatically tags it
+with the `latest` tag and a generated tag like `20230515175710-broad-method`.
+The first component is a timestamp and the last component is a random name
+that makes it easier to refer to the generated tag.
+
+You can specify the tags when you upload, so you can associate more meaningful
+tags with your pod revisions. It is common to use a versioning scheme for the
+tags, so you can compare them more easily using something like [semantic versioning](https://semver.org/).
+
+To upload `my-pod.pod` with the `v1.0.2` tag, you can use:
+
+``` sh
+artemis pod upload my-pod.pod --tag v1.0.2
+```
+
+You can upload multiple pods at the same time, so if you have more than one
+device group that run your code in different configurations, it is straightforward
+to give them the same tag:
+
+``` sh
+artemis pod upload group-0.pod group-1.pod --tag v2.0.0-pre.3
+```
+
+You can always see the available pods and their tags through:
+
+``` sh
+artemis pod list --name my-pod
+```
+
+## Referring to pods
+
+You can refer to a pod using its name and revision &mdash; like `my-pod#4` &mdash; but
+it is more common to use a tagged reference such as `my-pod@latest` or `my-pod@v1.0.3`.
+
+Such pod references are used when updating or flashing a single device:
+
+``` sh
+artemis device update my-pod@v1.0.3
+```
+
+or more commonly indirectly through the [groups](/getstarted/fleet/groups) in the `fleet.json` file:
+
+``` json
+{
+  ...
+  "groups": {
+    "office": {
+      "pod": "wifi-esp32@v2.0.1"
+    },
+    "solar-farm-fr-nce": {
+      "pod": "cellular-esp32s3@2.0.2-pre.7"
+    }
+  }
+}
+```
+
+It is also possible to refer to pods by ID and you can find such IDs in pod lists. To
+update a device to a pod by ID, you can use:
+
+``` sh
+artemis device update 0f587f04-a0e2-5354-ac3d-ceca41a60b63
+```
+
+## Specifications
+
+You can find an example pod specification file in
+[specification.json](https://github.com/toitware/artemis-releases/blob/main/examples/specification.json).
+It is in JSON format and looks similar to this:
+
+``` json
+{
+  "version": 1,
+  "name": "my-pod",
+  "sdk-version": "SDK-VERSION",
+  "artemis-version": "ARTEMIS-VERSION",
+  "max-offline": "0s",
+  "connections": [
+    {
+      "type": "wifi",
+      "ssid": "YOUR WIFI SSID",
+      "password": "YOUR WIFI PASSWORD"
+    }
+  ],
+  "containers": {
+    "hello": {
+      "entrypoint": "hello.toit"
+    },
+    "solar": {
+      "entrypoint": "examples/solar_example.toit",
+      "git": "https://github.com/toitware/toit-solar-position.git",
+      "branch": "v0.0.3"
+    }
+  }
+}
+```
+
+The three version entries are for the specification format (always `1` for now) and the
+SDK and Artemis versions. Be aware that not all combinations of those are supported and
+use `artemis sdk list` to see the valid combinations.
+
+The `max-offline` entry is optional and defaults to 0s. Use it to control for how
+long your device is allowed to stay offline.
+
+The `connections` section contains a prioritized list of ways to connect to the
+Internet. You can have multiple `wifi` entries and Artemis will attempt to
+connect to them in the specified order.
+
+It is also possible to have `cellular` entries in `connections`, but for that to
+work you'll need to have a cellular driver installed as one of your containers.
+You can find a few drivers in the [cellular package](https://github.com/toitware/cellular).
+
+The `containers` section contains named entries for the containers
+you want on your device. The containers that are built from source
+code have an `entrypoint` that refers to the file that has the
+`main` method. You can optionally pull the source code directly
+from git using `git` and `branch`.
+
+If your container is a driver or provides services for other
+containers, you probably want to start it on boot and let it
+run until no other container runs. For that to work, you can
+make it a background container that is automatically terminated
+when the device goes to sleep like this:
+
+``` json
+"containers": {
+  "cellular": {
+    "entrypoint": "src/modules/sequans/monarch.toit",
+    "git": "https://github.com/toitware/cellular.git",
+    "branch": "v2.0.3",
+    "background": true,
+    "critical": true
+  }
+}
+```
+
+The `critical` flag makes the container run continuously. If you want your container
+to run periodically, you can specify interval triggers in the `containers` section
+like this:
+
+``` json
+"containers": {
+  "measure": {
+    "entrypoint": "measure.toit",
+    "triggers": [ { "interval": "20s" } ]
+  }
+}
+```
