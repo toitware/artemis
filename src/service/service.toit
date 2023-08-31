@@ -90,8 +90,8 @@ class ArtemisServiceProvider extends ChannelServiceProvider
       return version
     if index == api.ArtemisService.CONTAINER-CURRENT-RESTART-INDEX:
       return container-current-restart --gid=gid --wakeup-us=arguments
-    if index == api.ArtemisService.CONTAINER-LAST-START-TRIGGER-INDEX:
-      return container-last-start-trigger --gid=gid
+    if index == api.ArtemisService.CONTAINER-CURRENT-TRIGGER-INDEX:
+      return container-current-trigger --gid=gid
     if index == api.ArtemisService.CONTROLLER-OPEN-INDEX:
       return controller-open --client=client --mode=arguments
     if index == api.ArtemisService.DEVICE-ID-INDEX:
@@ -108,7 +108,7 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     job := containers_.get --gid=gid
     job.restart --wakeup-us=wakeup-us
 
-  container-last-start-trigger --gid/int -> int:
+  container-current-trigger --gid/int -> int:
     job := containers_.get --gid=gid
     if job is not ContainerJob:
       return -1
@@ -127,7 +127,7 @@ class ArtemisServiceProvider extends ChannelServiceProvider
   container-current-restart --wakeup-us/int? -> none:
     unreachable  // Here to satisfy the checker.
 
-  container-last-start-trigger -> int:
+  container-current-trigger -> int:
     unreachable // Here to satisfy the checker.
 
   controller-open --mode/int -> int:

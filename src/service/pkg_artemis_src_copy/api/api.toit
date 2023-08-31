@@ -44,8 +44,8 @@ interface ArtemisService:
   container-current-restart --wakeup-us/int? -> none
   static CONTAINER-CURRENT-RESTART-INDEX /int ::= 1
 
-  container-last-start-trigger -> int
-  static CONTAINER-LAST-START-TRIGGER-INDEX /int ::= 10
+  container-current-trigger -> int
+  static CONTAINER-CURRENT-TRIGGER-INDEX /int ::= 10
 
   controller-open --mode/int -> int
   static CONTROLLER-OPEN-INDEX /int ::= 6
@@ -84,8 +84,8 @@ class ArtemisClient extends ServiceClient
   container-current-restart --wakeup-us/int? -> none:
     invoke_ ArtemisService.CONTAINER-CURRENT-RESTART-INDEX wakeup-us
 
-  container-last-start-trigger -> int:
-    return invoke_ ArtemisService.CONTAINER-LAST-START-TRIGGER-INDEX null
+  container-current-trigger -> int:
+    return invoke_ ArtemisService.CONTAINER-CURRENT-TRIGGER-INDEX null
 
   controller-open --mode/int -> int:
     return invoke_ ArtemisService.CONTROLLER-OPEN-INDEX mode

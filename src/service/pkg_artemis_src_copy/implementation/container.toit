@@ -17,6 +17,6 @@ class ContainerCurrent implements artemis.Container:
     // The container is restarted, so we don't return here.
     unreachable
 
-  last-start-trigger -> artemis.Trigger?:
-    encoded-trigger := client_.container-last-start-trigger
+  trigger -> artemis.Trigger?:
+    encoded-trigger := client_.container-current-trigger
     return artemis.Trigger.decode encoded-trigger

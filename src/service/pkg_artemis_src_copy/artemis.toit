@@ -138,14 +138,6 @@ class TriggerTouch extends Trigger:
     return "Trigger - touch $(pin)"
 
 /**
-A boot trigger.
-
-The container was started because
-*/
-class TriggerBoot:
-
-
-/**
 A container is a schedulable unit of execution that runs
   in isolation from the system and the other containers
   on a device.
@@ -187,7 +179,7 @@ interface Container:
 
   Returns null if the trigger is unknown.
   */
-  last-start-trigger -> Trigger?
+  trigger -> Trigger?
 
 /**
 A channel is a cyclic datastructure that persists a sequence
