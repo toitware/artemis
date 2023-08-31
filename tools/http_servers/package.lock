@@ -1,4 +1,4 @@
-sdk: ^2.0.0-alpha.79
+sdk: ^2.0.0-alpha.91
 prefixes:
   artemis: ..
   cli: pkg-cli
@@ -25,8 +25,8 @@ packages:
   pkg-ar:
     url: github.com/toitlang/pkg-ar
     name: ar
-    version: 1.0.0
-    hash: 175bcdfd59b2597c0825ef8765a20498a7e6a2db
+    version: 1.0.1
+    hash: 0f32219787c63521fc5690bbb716fc19cc40f5da
   pkg-cli:
     url: github.com/toitlang/pkg-cli
     name: cli
@@ -62,18 +62,18 @@ packages:
   toit-cert-roots:
     url: github.com/toitware/toit-cert-roots
     name: certificate_roots
-    version: 1.5.0
-    hash: 27a9f9ff3d337b6128e98e220126e3cc275bcd73
+    version: 1.6.1
+    hash: 55d3be82ed53d8d332338b2de931865cf69fe48b
   toit-semver:
     url: github.com/toitware/toit-semver
     name: semver
-    version: 1.0.0
-    hash: b416c5a542287a8cdbb86398fdb452eaad4f55f8
+    version: 1.1.0
+    hash: a681bad211f7d4803dfdc2a0068706559458274e
   toit-supabase:
     url: github.com/toitware/toit-supabase
     name: supabase
-    version: 0.2.0
-    hash: 06f434e8e35705063965320639c0d8299a95c995
+    version: 0.2.1
+    hash: 8a34d1fbcb02b7df8436c3c5e71d5958240da368
     prefixes:
       host: pkg-host
       http: pkg-http
