@@ -12,7 +12,6 @@ import .esp32.pin-trigger
 import .scheduler
 import ..shared.utils as utils
 
-
 class ContainerManager:
   logger_/log.Logger
   scheduler_/Scheduler
@@ -45,7 +44,10 @@ class ContainerManager:
       // very clear how we should handle it if we cannot. Should
       // we drop such an app from the current state? Seems like
       // the right thing to do.
-      if job: add_ job --message="load"
+      if job:
+        if job.trigger-boot_:
+          job.trigger (encode-trigger-reason_ --boot)
+        add_ job --message="load"
 
     // Mark containers that are needed by connections as runlevel safemode.
     // TODO(florian): should required containers be started on-demand?
@@ -98,9 +100,11 @@ class ContainerManager:
         --id=id
         --description=description
         --pin-trigger-manager=pin-trigger-manager_
+        --logger=logger_
 
   install job/ContainerJob -> none:
-    job.has-run-after-install_ = false
+    if job.trigger-install_:
+      job.trigger (encode-trigger-reason_ --install)
     add_ job --message="install"
 
   uninstall job/ContainerJob -> none:
@@ -119,11 +123,10 @@ class ContainerManager:
     scheduler_.remove-job job
     job.update description
     pin-trigger-manager_.update-job job
-    // After updating the description of an app, we
-    // mark it as being newly installed for the purposes
-    // of scheduling. This means that it will start
-    // again if it has an install trigger.
-    job.has-run-after-install_ = false
+    // After updating the description of an app, we consider it
+    // as newly installed. Rearm it if it has an install trigger.
+    if job.trigger-install_:
+      job.trigger (encode-trigger-reason_ --install)
     logger_.info "update" --tags=job.tags
     scheduler_.add-job job
 
@@ -137,11 +140,31 @@ class ContainerManager:
     scheduler_.remove-job job
     logger_.info message --tags=job.tags
 
+encode-trigger-reason_ -> int
+    --boot/bool=false
+    --install/bool=false
+    --interval/bool=false
+    --restart/bool=false
+    --critical/bool=false
+    --pin/int?=null
+    --touch/int?=null:
+  // These constants must be kept in sync with the ones in the
+  // Artemis package.
+  if boot: return 0
+  if install: return 1
+  if interval: return 2
+  if restart: return 3
+  if critical: return 4
+  if pin: return (pin << 8) | 10
+  if touch: return (touch << 8) | 11
+  throw "invalid trigger"
+
 class ContainerJob extends Job:
   // The key of the ID in the $description.
   static KEY-ID ::= "id"
 
   pin-trigger-manager_/PinTriggerManager
+  logger_/log.Logger
 
   id/uuid.Uuid
   description_/Map := ?
@@ -155,16 +178,19 @@ class ContainerJob extends Job:
   trigger-gpio-levels_/Map? := null
   trigger-gpio-touch_/Set? := null
 
-  // The $ContainerManager is responsible for scheduling
-  // newly installed containers, so it manipulates this
-  // field directly.
-  has-run-after-install_/bool := true
-
   is-triggered_/bool := false
+  // The reason for why this job was triggered.
+  last-trigger-reason_/int? := null
 
-  constructor --name/string --.id --description/Map --pin-trigger-manager/PinTriggerManager:
+  constructor
+      --name/string
+      --.id
+      --description/Map
+      --pin-trigger-manager/PinTriggerManager
+      --logger/log.Logger:
     description_ = description
     pin-trigger-manager_ = pin-trigger-manager
+    logger_ = logger.with-name name
     super name
     update description
 
@@ -199,23 +225,29 @@ class ContainerJob extends Job:
     // should probably think about how we want to access
     // the scheduler state here.
     if delayed-until := scheduler-delayed-until_:
-      return delayed-until
+      if delayed-until > now: return delayed-until
+      trigger (encode-trigger-reason_ --restart)
     else if is-critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
-      return now
-    else if trigger-boot_ and not has-run-after-boot:
-      return now
-    else if trigger-install_ and not has-run-after-install_:
-      return now
+      trigger (encode-trigger-reason_ --critical)
     else if trigger-interval_:
-      return last ? last + trigger-interval_ : now
-    else if is-triggered_:
-      return now
-    else:
-      // TODO(kasper): Don't run at all. Maybe that isn't
-      // a great default when you have no triggers?
-      return null
+      result := last ? last + trigger-interval_ : now
+      if result > now: return result
+      trigger (encode-trigger-reason_ --interval)
+
+    if is-triggered_: return now
+    // TODO(kasper): Don't run at all. Maybe that isn't
+    // a great default when you have no triggers?
+    return null
+
+  /**
+  Triggers this job, making it run as soon as possible.
+  */
+  trigger reason/int:
+    if is-running or is-triggered_: return
+    is-triggered_ = true
+    last-trigger-reason_ = reason
 
   schedule-tune last/JobTime -> JobTime:
     // If running the container took a long time, we tune the
@@ -226,7 +258,10 @@ class ContainerJob extends Job:
   start -> none:
     if running_: return
     arguments := description_.get "arguments"
-    has-run-after-install_ = true
+    logger_.debug "starting" --tags={
+      "reason": last-trigger-reason_,
+      "arguments": arguments
+    }
     running_ = containers.start id arguments
 
     scheduler_.on-job-started this
