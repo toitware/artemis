@@ -73,6 +73,71 @@ interface Device:
   id -> uuid.Uuid
 
 /**
+A trigger that was responsible for starting a container.
+*/
+class Trigger:
+  /*
+  These constants must be kept in sync with `encode-trigger-reason_` of
+    the container implementation in the Artemis service.
+  */
+
+  /** The container was started as part of the boot. */
+  static KIND_BOOT ::= 0
+  /** The container was started after having been installed. */
+  static KIND_INSTALL ::= 1
+  /** The container was started due to an interval trigger. */
+  static KIND_INTERVAL ::= 2
+  /** The container was started after the delay of a requested restart expired. */
+  static KIND_RESTART ::= 3
+  /** The container was started by an external pin trigger. */
+  static KIND_PIN ::= 10
+  /** The container was started due to a touch event. */
+  static KIND_TOUCH ::= 11
+
+  kind/int
+
+  constructor .kind:
+
+  static encode kind/int --pin/int=0:
+    return pin << 8 | kind
+
+  static decode value/int -> Trigger?:
+    if value == -1: return null
+    kind := value & 0xff
+    if kind == KIND_PIN: return TriggerPin (value >> 8)
+    if kind == KIND_TOUCH: return TriggerTouch (value >> 8)
+    return Trigger kind
+
+  stringify -> string:
+    if kind == KIND_BOOT: return "Trigger - boot"
+    if kind == KIND_INSTALL: return "Trigger - install"
+    if kind == KIND_INTERVAL: return "Trigger - interval"
+    if kind == KIND_RESTART: return "Trigger - restart"
+    unreachable
+
+/**
+An external-pin trigger.
+*/
+class TriggerPin extends Trigger:
+  pin/int
+  constructor .pin:
+    super Trigger.KIND_PIN
+
+  stringify -> string:
+    return "Trigger - pin $(pin)"
+
+/**
+A touch-event trigger.
+*/
+class TriggerTouch extends Trigger:
+  pin/int
+  constructor .pin:
+    super Trigger.KIND_TOUCH
+
+  stringify -> string:
+    return "Trigger - touch $(pin)"
+
+/**
 A container is a schedulable unit of execution that runs
   in isolation from the system and the other containers
   on a device.
@@ -105,6 +170,16 @@ interface Container:
     putting the device into a power-saving sleep mode.
   */
   restart --delay/Duration?=null -> none
+
+  /**
+  The trigger that caused the last start of this container.
+
+  If multiple triggers were responsible for the start, only
+    one of them is returned.
+
+  Returns null if the trigger is unknown.
+  */
+  trigger -> Trigger?
 
 /**
 A channel is a cyclic datastructure that persists a sequence
