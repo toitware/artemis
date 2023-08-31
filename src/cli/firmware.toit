@@ -303,8 +303,7 @@ build-envelope-url --sdk-version/string? --envelope/string -> string:
   if not envelope or (not envelope.contains "/" and not envelope.contains "\\"):
     if not sdk-version:
       throw "No sdk_version given"
-    sdk-version-no-v := sdk-version[1..]
-    if (semver.compare sdk-version-no-v "2.0.0-alpha.97") < 0:
+    if (semver.compare sdk-version "2.0.0-alpha.97") < 0:
       // Backwards compatibility for old SDKs.
       return "https://github.com/toitlang/toit/releases/download/$sdk-version/firmware-$(envelope).gz"
     return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/firmware-$(envelope).envelope.gz"

@@ -5,6 +5,7 @@ import encoding.json
 import encoding.url as url-encoding
 import host.file
 import fs
+import semver
 
 import .cache as cli
 import .cache show GIT-APP-PATH
@@ -277,6 +278,9 @@ class PodSpecification:
     artemis-version = get-string_ data "artemis-version"
     sdk-version = get-optional-string_ data "sdk-version"
     envelope = get-optional-string_ data "firmware-envelope"
+
+    if sdk-version and not semver.is-valid sdk-version:
+      format-error_ "Invalid sdk-version: $sdk-version"
 
     if not sdk-version and not envelope:
       format-error_ "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
