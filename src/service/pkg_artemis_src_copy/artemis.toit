@@ -89,7 +89,7 @@ class Trigger:
   static KIND_INTERVAL ::= 2
   /** The container was started after the delay of a requested restart expired. */
   static KIND_RESTART ::= 3
-  /** The container was started as it is marked critical. */
+  /** The container was started because it is marked critical. */
   static KIND_CRITICAL ::= 4
   /** The container was started by an external pin trigger. */
   static KIND_PIN ::= 10
