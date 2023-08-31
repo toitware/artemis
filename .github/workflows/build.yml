@@ -330,12 +330,12 @@ jobs:
           export ARTEMIS_VERSION=${{ github.event.release.tag_name }}
 
           rm -rf release-repo/examples
-          cp -r examples release-repo/examples
+          cp -r public/examples release-repo/examples
           sed -i "s/SDK-VERSION/$TOIT_VERSION/g" release-repo/examples/*
           sed -i "s/ARTEMIS-VERSION/$ARTEMIS_VERSION/g" release-repo/examples/*
 
           rm -rf release-repo/broker
-          cp -r supabase_broker release-repo/broker
+          cp -r public/supabase_broker release-repo/broker
 
       - name: Commit and push example and broker
         if: github.event_name == 'release'

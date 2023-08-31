@@ -85,10 +85,10 @@ start-supabase-no-config:
 	  fi
 	@ supabase start --workdir supabase_artemis;
 	@ rm -rf $$HOME/.cache/artemis/broker-local-supabase
-	@ if supabase status --workdir supabase_broker &> /dev/null ; then \
-	    supabase stop --workdir supabase_broker; \
+	@ if supabase status --workdir public/supabase_broker &> /dev/null ; then \
+	    supabase stop --workdir public/supabase_broker; \
 	  fi
-	@ supabase start --workdir supabase_broker;
+	@ supabase start --workdir public/supabase_broker;
 	@ $(MAKE) reload-supabase-schemas
 
 reload-supabase-schemas:
@@ -107,14 +107,14 @@ start-supabase: start-supabase-no-config
 
 stop-supabase:
 	@ supabase stop --workdir supabase_artemis
-	@ supabase stop --workdir supabase_broker
+	@ supabase stop --workdir public/supabase_broker
 
 .PHONY: use-customer-supabase-broker
 use-customer-supabase-broker: start-supabase
 	@ # Adds the local broker using a second Supabase instance.
 	@ $(TOITRUN) src/cli/cli.toit config broker add supabase \
 		broker-local-supabase \
-		`$(TOITRUN) tests/supabase-local-server.toit supabase_broker`
+		`$(TOITRUN) tests/supabase-local-server.toit public/supabase_broker`
 	@ $(TOITRUN) src/cli/cli.toit config broker default broker-local-supabase
 
 .PHONY: setup-local-dev
