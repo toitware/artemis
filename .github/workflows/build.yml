@@ -314,6 +314,39 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
 
+      - name: Checkout release-repo
+        uses: actions/checkout@v3
+        with:
+          repository: toitware/artemis-releases
+          path: release-repo
+          token: ${{ secrets.LEON_ARTEMIS_RELEASE_PAT }}
+
+      - name: Update example and broker
+        if: github.event_name == 'release'
+        shell: bash
+        run: |
+          SUPPORTED_ARRAY=($SUPPORTED_SDK_VERSIONS)
+          export TOIT_VERSION=${SUPPORTED_ARRAY[-1]}
+          export ARTEMIS_VERSION=${{ github.event.release.tag_name }}
+
+          rm -rf release-repo/examples
+          cp -r public/examples release-repo/examples
+          sed -i "s/SDK-VERSION/$TOIT_VERSION/g" release-repo/examples/*
+          sed -i "s/ARTEMIS-VERSION/$ARTEMIS_VERSION/g" release-repo/examples/*
+
+          rm -rf release-repo/broker
+          cp -r public/supabase_broker release-repo/broker
+
+      - name: Commit and push example and broker
+        if: github.event_name == 'release'
+        run: |
+          cd release-repo
+          git config user.name "Leon Gungadin Mogensen"
+          git config user.email "leon@toit.io"
+          git add .
+          git commit -m "Update examples and broker"
+          git push
+
       - name: Create public release
         if: github.event_name == 'release'
         env:

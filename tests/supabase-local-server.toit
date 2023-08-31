@@ -7,7 +7,7 @@ import host.directory
 import artemis.shared.server-config show ServerConfigSupabase
 import ..tools.lan-ip.lan-ip
 
-SUPABASE-BROKER  ::= "../supabase_broker"
+SUPABASE-BROKER  ::= "../public/supabase_broker"
 SUPABASE-ARTEMIS ::= "../supabase_artemis"
 
 get-supabase-config --sub-directory/string -> ServerConfigSupabase:

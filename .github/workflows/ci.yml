@@ -131,7 +131,7 @@ jobs:
       - name: Start Supabase - Broker
         if: matrix.run_supabase_tests
         shell: bash
-        working-directory: ${{ github.workspace }}/supabase_broker
+        working-directory: ${{ github.workspace }}/public/supabase_broker
         run: |
           supabase start -x "$EXCLUDED_SUPABASE_SERVICES"
           supabase status
