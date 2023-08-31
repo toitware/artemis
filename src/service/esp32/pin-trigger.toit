@@ -6,6 +6,19 @@ import gpio.touch as gpio
 import log
 import monitor
 
+// --------------------------------------------------------------------------
+// The Artemis package has temporarily been copied from the open
+// source repository:
+//
+// https://github.com/toitware/toit-artemis/blob/main/src/
+//
+// When the API changes have solidified, the copied directory
+// will be deleted in this repository and the new published
+// version will be used instead.
+
+// WAS: import artemis show Trigger
+import ..pkg-artemis-src-copy.artemis show Trigger
+
 import ..containers
 import ..scheduler
 
@@ -185,10 +198,8 @@ class PinTriggerManager:
         if level: tags["level"] = level
         else: tags["touch"] = touch
         logger_.info "triggered by pin" --tags=tags
-        reason := touch
-            ? encode-trigger-reason_ --touch=pin-number
-            : encode-trigger-reason_ --pin=pin-number
-        job.trigger reason
+        kind := touch ? Trigger.KIND-TOUCH : Trigger.KIND-PIN
+        job.trigger (Trigger.encode kind --pin=pin-number)
     // We need a critical_do as `update_` might kill the currently running
     // task.
     critical-do:
@@ -349,7 +360,7 @@ class PinTriggerManager:
                 is-triggered = true
               if is-triggered:
                 job-was-triggered = true
-                job.trigger (encode-trigger-reason_ --pin=pin)
+                job.trigger (Trigger.encode Trigger.KIND-PIN --pin=pin)
                 tags := job.tags.copy
                 tags["pin"] = pin
                 tags["level"] = level
@@ -358,7 +369,7 @@ class PinTriggerManager:
           job.trigger-gpio-touch_.do: | pin |
             if touch-wakeup-pin == pin:
               job-was-triggered = true
-              job.trigger (encode-trigger-reason_ --touch=pin)
+              job.trigger (Trigger.encode Trigger.KIND-TOUCH --pin=pin)
               tags := job.tags.copy
               tags["pin"] = pin
               logger_.info "triggered by touch" --tags=tags
