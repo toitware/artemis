@@ -89,6 +89,8 @@ class Trigger:
   static KIND_INTERVAL ::= 2
   /** The container was started after the delay of a requested restart expired. */
   static KIND_RESTART ::= 3
+  /** The container was started as it is marked critical. */
+  static KIND_CRITICAL ::= 4
   /** The container was started by an external pin trigger. */
   static KIND_PIN ::= 10
   /** The container was started due to a touch event. */
@@ -98,7 +100,7 @@ class Trigger:
 
   constructor .kind:
 
-  static encode kind/int --pin/int=0:
+  static encode kind/int --pin/int=0 -> int:
     return pin << 8 | kind
 
   static decode value/int -> Trigger?:

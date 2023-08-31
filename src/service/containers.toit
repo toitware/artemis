@@ -7,6 +7,19 @@ import uuid
 
 import system.containers
 
+// --------------------------------------------------------------------------
+// The Artemis package has temporarily been copied from the open
+// source repository:
+//
+// https://github.com/toitware/toit-artemis/blob/main/src/
+//
+// When the API changes have solidified, the copied directory
+// will be deleted in this repository and the new published
+// version will be used instead.
+
+// WAS: import artemis show Trigger
+import .pkg-artemis-src-copy.artemis show Trigger
+
 import .jobs
 import .esp32.pin-trigger
 import .scheduler
@@ -46,7 +59,7 @@ class ContainerManager:
       // the right thing to do.
       if job:
         if job.trigger-boot_:
-          job.trigger (encode-trigger-reason_ --boot)
+          job.trigger (Trigger.encode Trigger.KIND-BOOT)
         add_ job --message="load"
 
     // Mark containers that are needed by connections as runlevel safemode.
@@ -104,7 +117,7 @@ class ContainerManager:
 
   install job/ContainerJob -> none:
     if job.trigger-install_:
-      job.trigger (encode-trigger-reason_ --install)
+      job.trigger (Trigger.encode Trigger.KIND-INSTALL)
     add_ job --message="install"
 
   uninstall job/ContainerJob -> none:
@@ -126,7 +139,7 @@ class ContainerManager:
     // After updating the description of an app, we consider it
     // as newly installed. Rearm it if it has an install trigger.
     if job.trigger-install_:
-      job.trigger (encode-trigger-reason_ --install)
+      job.trigger (Trigger.encode Trigger.KIND-INSTALL)
     logger_.info "update" --tags=job.tags
     scheduler_.add-job job
 
@@ -139,25 +152,6 @@ class ContainerManager:
     jobs_.remove job.name
     scheduler_.remove-job job
     logger_.info message --tags=job.tags
-
-encode-trigger-reason_ -> int
-    --boot/bool=false
-    --install/bool=false
-    --interval/bool=false
-    --restart/bool=false
-    --critical/bool=false
-    --pin/int?=null
-    --touch/int?=null:
-  // These constants must be kept in sync with the ones in the
-  // Artemis package.
-  if boot: return 0
-  if install: return 1
-  if interval: return 2
-  if restart: return 3
-  if critical: return 4
-  if pin: return (pin << 8) | 10
-  if touch: return (touch << 8) | 11
-  throw "invalid trigger"
 
 class ContainerJob extends Job:
   // The key of the ID in the $description.
@@ -226,15 +220,15 @@ class ContainerJob extends Job:
     // the scheduler state here.
     if delayed-until := scheduler-delayed-until_:
       if delayed-until > now: return delayed-until
-      trigger (encode-trigger-reason_ --restart)
+      trigger (Trigger.encode Trigger.KIND-RESTART)
     else if is-critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
-      trigger (encode-trigger-reason_ --critical)
+      trigger (Trigger.encode Trigger.KIND-CRITICAL)
     else if trigger-interval_:
       result := last ? last + trigger-interval_ : now
       if result > now: return result
-      trigger (encode-trigger-reason_ --interval)
+      trigger (Trigger.encode Trigger.KIND-INTERVAL)
 
     if is-triggered_: return now
     // TODO(kasper): Don't run at all. Maybe that isn't
