@@ -541,7 +541,7 @@ class TestDevicePipe extends TestDevice:
         --organization-id=organization-id
 
     flags := [
-      "test_device.toit",
+      "test-device.toit",
       "--hardware-id=$hardware-id",
       "--alias-id=$alias-id",
       "--organization-id=$organization-id",
@@ -564,7 +564,7 @@ class TestDevicePipe extends TestDevice:
         --organization-id=organization-id
 
     flags := [
-      "test_device_serial.toit",
+      "test-device-serial.toit",
       "--port", serial-port
     ]
     fork_ toit-run flags

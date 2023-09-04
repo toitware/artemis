@@ -1,6 +1,6 @@
 # Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*_test.toit" "*_test_slow.toit")
+file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-test.toit" "*-test-slow.toit")
 
 set(TEST_TIMEOUT 100 CACHE STRING "The maximal amount of time each test is allowed to run")
 set(SLOW_TEST_TIMEOUT 300 CACHE STRING "The maximal amount of time each slow test is allowed to run")
@@ -31,16 +31,16 @@ set(TEST_PREFIX "")
 include(fail.cmake OPTIONAL)
 
 set (SUPABASE_ARTEMIS_TESTS
-    "/tests/supabase_uploader_test.toit"
-    "/tests/supabase_policies_test.toit"
+    "/tests/supabase-uploader-test.toit"
+    "/tests/supabase-policies-test.toit"
     )
 
 set (SUPABASE_ARTEMIS_BROKER_TESTS
-    "/tests/supabase_artemis_broker_policies_test.toit"
+    "/tests/supabase-artemis-broker-policies-test.toit"
     )
 
 set (SUPABASE_BROKER_TESTS
-    "/tests/supabase_broker_policies_test.toit"
+    "/tests/supabase-broker-policies-test.toit"
     )
 
 set (SUPABASE_ARTEMIS_FLAG "--supabase-server")
@@ -203,7 +203,7 @@ foreach(file ${TESTS})
       set_tests_properties("${test_name}" PROPERTIES RESOURCE_LOCK "${RESOURCE_LOCKS}")
     endif()
 
-    if ("${file}" MATCHES "_slow.toit")
+    if ("${file}" MATCHES "-slow.toit")
       set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
     else()
       set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${TEST_TIMEOUT})
