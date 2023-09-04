@@ -1,0 +1,70 @@
+# Commands
+
+## `artemis serial flash`
+
+The flash command converts your specification file into a binary firmware and
+flashes it onto your device using a bundled version of
+[`esptool`](https://github.com/espressif/esptool).
+
+Unless you are on Linux you will probably need to change the `/dev/ttyUSB0` to your
+setup.  Sometimes the name is `/dev/ttyACM0`, depending on which USB-to-serial driver
+your computer is using.
+
+On some ESP32 devices, you need to press a button to flash it over USB.
+
+If the flashing doesn't work you might still end up with a provisioned identity, that
+isn't used. We will improve this situation, but for now don't worry about it.
+
+To access `/dev/ttyUSB0` on Linux you probably need to be a member
+of some group, normally either `uucp` or `dialout`.  To see which groups you are
+a member of and which group owns the device, plug in an ESP32 to the USB port
+and try:
+
+``` sh
+groups
+ls -g /dev/ttyUSB0
+```
+
+If you lack a group membership, you can add it with
+
+``` sh
+sudo usermod -aG dialout $USER
+```
+
+You usually have to log out and log back in for this to take effect.
+
+## `artemis device show`
+
+You can always see the status of your device by doing `artemis device show`. It shows
+useful information about a device, including its state and recent events:
+
+``` text
+% artemis device show -d xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --max-events=6
+Device ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+Organization ID: yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy
+
+Firmware state as reported by the device:
+  apps:
+    cellular:
+      id: bad371bf-af6d-5188-0da4-ac3a3b98d3a2
+      triggers:
+        boot: 1
+      background: 1
+  firmware: eyNVAlUPZGV2aWNlLXNwZWNpZmljWyRVI0kB1nsj...QXu7oV/CJX94Q3P0Ae/Vau/XsWL7JJl1iWSw0w==
+  connections: [{type: cellular, config: {cellular.apn: soracom.io, cellular.uart.rx: 23, cellular.uart.tx: 5, cellular.uart.cts: 18, cellular.uart.rts: 19, cellular.log.level: 1}}, {ssid: ..., type: wifi, password: ...}]
+  max-offline: 300
+  sdk-version: v2.0.0-alpha.69
+
+Goal is the same as the reported firmware state.
+
+Events:
+  15:17:12.981 get-goal
+  15:12:05.228 get-goal
+  15:01:43.273 get-goal
+  15:01:41.943 update-state
+  15:01:28.073 update-state
+  15:00:34.871 get-goal
+```
+
+You can use the events as a primitive health monitoring facility and see when
+the device synchronize from the cloud (`get-goal`) and to the cloud (`update-state`).
