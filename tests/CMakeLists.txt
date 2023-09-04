@@ -1,6 +1,6 @@
 # Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*_test.toit" "*_test_slow.toit")
+file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-test.toit" "*-test-slow.toit")
 
 set(TEST_TIMEOUT 100 CACHE STRING "The maximal amount of time each test is allowed to run")
 set(SLOW_TEST_TIMEOUT 300 CACHE STRING "The maximal amount of time each slow test is allowed to run")
