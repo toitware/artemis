@@ -62,6 +62,6 @@ Replaces all certificates with an ID and stores the original bytes in the
   $serialized-certificates map.
 */
 server-config-to-service-json server-config/ServerConfig serialized-certificates/Map -> any:
-  server-config.fill-certificate-ders: certificate-roots.MAP[it]
+  server-config.fill-certificate-ders: certificate-roots.MAP[it].raw
   return server-config.to-service-json --der-serializer=:
     serialize-certificate it serialized-certificates

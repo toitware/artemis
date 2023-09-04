@@ -5,6 +5,7 @@ import encoding.json
 import http
 import net
 import net.x509
+import tls
 import uuid
 
 import ..broker
@@ -83,8 +84,8 @@ class BrokerCliHttp implements BrokerCli:
     root-names := server-config_.root-certificate-names
     if root-names:
       root-certificates := root-names.map:
-        der := certificate-roots.MAP[it]
-        x509.Certificate.parse der
+        der/tls.RootCertificate := certificate-roots.MAP[it]
+        x509.Certificate.parse der.raw
       client = http.Client.tls network_
           --root-certificates=root-certificates
     else:
