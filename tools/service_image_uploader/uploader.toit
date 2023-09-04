@@ -172,7 +172,6 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
     snapshot-path := "$tmp-dir/service.snapshot"
     sdk.compile-to-snapshot service-source-path
-        --optimization-level=2
         --out=snapshot-path
 
     create-image-archive snapshot-path --sdk=sdk --out=ar-file

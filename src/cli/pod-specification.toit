@@ -520,8 +520,9 @@ abstract class ContainerBase implements Container:
   is-critical/bool?
   runlevel/int?
   defines/Map?
+  name/string
 
-  constructor.from-json name/string data/Map:
+  constructor.from-json .name data/Map:
     holder := "container $name"
     arguments = get-optional-list_ data "arguments"
         --holder=holder
@@ -573,12 +574,17 @@ class ContainerPath extends ContainerBase:
   entrypoint/string
   git-url/string?
   git-ref/string?
+  compiler-flags/List?
 
   constructor.from-json name/string data/Map:
     holder := "container $name"
     git-ref = get-optional-string_ data "branch" --holder=holder
     git-url = get-optional-string_ data "git" --holder=holder
     entrypoint = get-string_ data "entrypoint" --holder=holder
+    compiler-flags = get-optional-list_ data "compiler-flags"
+        --holder=holder
+        --type="string"
+        --check=: it is string
     if git-url and not git-ref:
       format-error_ "In container $name, git entry requires a branch/tag: $git-url"
     if git-url and not fs.is-relative entrypoint:
@@ -590,9 +596,11 @@ class ContainerPath extends ContainerBase:
       path := entrypoint
       if fs.is-relative path:
         path = "$relative-to/$path"
-      sdk.compile-to-snapshot path
-          --optimization-level=2
-          --out=output-path
+      exception := catch:
+        sdk.compile-to-snapshot path
+            --flags=compiler-flags
+            --out=output-path
+      if exception: ui.abort "Compilation of container $name failed: $exception."
       return
 
     git := Git --ui=ui
@@ -654,9 +662,11 @@ class ContainerPath extends ContainerBase:
 
       // TODO(florian): move into the clone_dir and compile from there.
       // Otherwise we have unnecessary absolute paths in the snapshot.
-      sdk.compile-to-snapshot entrypoint-path
-          --optimization-level=2
-          --out=output-path
+      exception := catch:
+        sdk.compile-to-snapshot entrypoint-path
+            --flags=compiler-flags
+            --out=output-path
+      if exception: ui.abort "Compilation of container $name failed: $exception."
 
   type -> string:
     return "path"
