@@ -235,6 +235,18 @@ test-errors:
       "In container app2, git entry requires a relative path: /abs"
       git-url-no-relative-path
 
+  bad-compile-flag := new-valid
+  bad-compile-flag["containers"]["app2"]["compile-flags"] = 1
+  expect-format-error
+      "Entry compile-flags in container app2 is not a list: 1"
+      bad-compile-flag
+
+  bad-compile-flag2 := new-valid
+  bad-compile-flag2["containers"]["app2"]["compile-flags"] = [1]
+  expect-format-error
+      "Entry compile-flags in container app2 is not a list of strings: [1]"
+      bad-compile-flag2
+
   bad-trigger := new-valid
   bad-trigger["containers"]["app4"]["triggers"] = [{ "foobar": true }]
   expect-format-error

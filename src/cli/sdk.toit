@@ -31,9 +31,8 @@ class Sdk:
     return sdk-path.ends-with "build/host"
 
   compile-to-snapshot path/string --out/string -> none
-      --optimization-level/int?=null:
-    arguments := ["-w", "$out"]
-    if optimization-level: arguments.add "-O$optimization-level"
+      --flags/List=["-O2"]:
+    arguments := ["-w", "$out"] + flags
     run-toit-compile arguments + [path]
 
   compile-snapshot-to-image -> none

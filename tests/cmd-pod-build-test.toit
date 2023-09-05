@@ -89,6 +89,72 @@ run-test test-cli/TestCli fleet-dir/string:
       --containers=["artemis", "custom"]
       --test-cli=test-cli
 
+  // Test compiler flags.
+  spec = """
+    {
+      "version": 1,
+      "name": "test-pod3",
+      "sdk-version": "$test-cli.sdk-version",
+      "artemis-version": "$TEST-ARTEMIS-VERSION",
+      "connections": [
+        {
+          "type": "wifi",
+          "ssid": "test",
+          "password": "test"
+        }
+      ],
+      "containers": {
+        "hello": {
+          "entrypoint": "hello.toit",
+          "compile-flags": ["-O0"]
+        }
+      }
+    }
+    """
+  spec-path = "$fleet-dir/test-pod3.json"
+  write-blob-to-file spec-path spec
+  write-blob-to-file "$fleet-dir/hello.toit" """
+    main: print "hello"
+    """
+
+  test-cli.run [
+    "pod", "build", spec-path, "-o", "$fleet-dir/test-pod3.pod"
+  ]
+  validate-pod "$fleet-dir/test-pod3.pod"
+      --name="test-pod3"
+      --containers=["artemis", "hello"]
+      --test-cli=test-cli
+
+  // Test invalid compiler flag.
+  // This ensures that the compiler flags are actually passed to the compiler.
+  spec = """
+    {
+      "version": 1,
+      "name": "test-pod4",
+      "sdk-version": "$test-cli.sdk-version",
+      "artemis-version": "$TEST-ARTEMIS-VERSION",
+      "connections": [
+        {
+          "type": "wifi",
+          "ssid": "test",
+          "password": "test"
+        }
+      ],
+      "containers": {
+        "hello": {
+          "entrypoint": "hello.toit",
+          "compile-flags": ["-O0", "--invalid"]
+        }
+      }
+    }
+    """
+  spec-path = "$fleet-dir/test-pod4.json"
+  write-blob-to-file spec-path spec
+
+  test-cli.run --expect-exit-1 --no-quiet [
+    "pod", "build", spec-path, "-o", "$fleet-dir/test-pod4.pod"
+  ]
+
 validate-pod pod-path/string --name/string --containers/List --test-cli/TestCli:
   artemis := test-cli
   with-tmp-directory: | tmp-dir |
