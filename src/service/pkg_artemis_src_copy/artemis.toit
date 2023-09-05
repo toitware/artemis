@@ -76,11 +76,6 @@ interface Device:
 A trigger that was responsible for starting a container.
 */
 class Trigger:
-  /*
-  These constants must be kept in sync with `encode-trigger-reason_` of
-    the container implementation in the Artemis service.
-  */
-
   /** The container was started as part of the boot. */
   static KIND_BOOT ::= 0
   /** The container was started after having been installed. */
