@@ -574,14 +574,14 @@ class ContainerPath extends ContainerBase:
   entrypoint/string
   git-url/string?
   git-ref/string?
-  compiler-flags/List?
+  compile-flags/List?
 
   constructor.from-json name/string data/Map:
     holder := "container $name"
     git-ref = get-optional-string_ data "branch" --holder=holder
     git-url = get-optional-string_ data "git" --holder=holder
     entrypoint = get-string_ data "entrypoint" --holder=holder
-    compiler-flags = get-optional-list_ data "compiler-flags"
+    compile-flags = get-optional-list_ data "compile-flags"
         --holder=holder
         --type="string"
         --check=: it is string
@@ -598,7 +598,7 @@ class ContainerPath extends ContainerBase:
         path = "$relative-to/$path"
       exception := catch:
         sdk.compile-to-snapshot path
-            --flags=compiler-flags
+            --flags=compile-flags
             --out=output-path
       if exception: ui.abort "Compilation of container $name failed: $exception."
       return
@@ -664,7 +664,7 @@ class ContainerPath extends ContainerBase:
       // Otherwise we have unnecessary absolute paths in the snapshot.
       exception := catch:
         sdk.compile-to-snapshot entrypoint-path
-            --flags=compiler-flags
+            --flags=compile-flags
             --out=output-path
       if exception: ui.abort "Compilation of container $name failed: $exception."
 

@@ -106,7 +106,7 @@ run-test test-cli/TestCli fleet-dir/string:
       "containers": {
         "hello": {
           "entrypoint": "hello.toit",
-          "compiler-flags": ["-O0"]
+          "compile-flags": ["-O0"]
         }
       }
     }
@@ -143,7 +143,7 @@ run-test test-cli/TestCli fleet-dir/string:
       "containers": {
         "hello": {
           "entrypoint": "hello.toit",
-          "compiler-flags": ["-O0", "--invalid"]
+          "compile-flags": ["-O0", "--invalid"]
         }
       }
     }
