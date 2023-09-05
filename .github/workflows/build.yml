@@ -162,7 +162,7 @@ jobs:
                 --snapshot-directory tmp_snapshots \
                 --sdk-version $version \
                 --service-version "${{ github.event.release.tag_name }}+O1" \
-                --local
+                --local \
                 --optimization-level=1
           done
 
