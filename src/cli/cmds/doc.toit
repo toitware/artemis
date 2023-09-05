@@ -89,9 +89,12 @@ SPECIFICATION-FORMAT-HELP ::= """
   'entrypoint': optional. A path to a source directory. The path is
       relative to the specification file, or to the git repository if
       'git' is specified.
+  'compile-flags': optional. A list of strings that are passed to the
+      compiler when compiling the source container.
 
   The 'snapshot' and 'entrypoint' entries are mutually exclusive.
   If 'git' is specified, 'entrypoint' must be specified and be a relative path.
+  The 'compile-flags' entry is only valid if 'entrypoint' is specified.
 
   A triggers entry can be either a string, or a map.
   String-triggers:
