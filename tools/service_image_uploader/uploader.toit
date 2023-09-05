@@ -109,6 +109,10 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --short-name="f"
             --short-help="Force the upload, even if the service already exists."
             --default=false,
+        cli.Option "optimization-level"
+            --short-name="O"
+            --short-help="The optimization level to use."
+            --default="2",
       ]
       --run=:: build-and-upload config cache ui it
   cmd.add service-cmd
@@ -125,6 +129,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   snapshot-directory := parsed["snapshot-directory"]
   organization-id := parsed["organization-id"]
   force := parsed["force"]
+  optimization-level := parsed["optimization-level"]
 
   git := Git --ui=ui
   // Get the SDK.
@@ -173,6 +178,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
     snapshot-path := "$tmp-dir/service.snapshot"
     sdk.compile-to-snapshot service-source-path
         --out=snapshot-path
+        --flags=["-O$optimization-level"]
 
     create-image-archive snapshot-path --sdk=sdk --out=ar-file
 
