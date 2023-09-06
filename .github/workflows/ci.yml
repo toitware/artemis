@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - "*"
+      - "*/*"
 
 env:
   EXCLUDED_SUPABASE_SERVICES: imgproxy,inbucket,pgadmin-schema-diff,migra,studio,deno-relay
