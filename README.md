@@ -95,6 +95,14 @@ update_sdk.sh v1.99.0-customer-foo
 
 The image is now available on the console.
 
+Finally, to make it accessible to our users, change it's release level (in the
+debug pod):
+```
+toitadmin sdk set-level v1.99.0-customer-foo alpha
+```
+Alternatively, if the customer isn't in the alpha group, use
+`beta` or `released`.
+
 ## How to migrate a device
 
 In the Artemis fleet where the device should live:
