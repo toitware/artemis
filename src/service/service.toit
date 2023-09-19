@@ -61,10 +61,9 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   try:
     provider.install
     wakeup = scheduler.run
-  finally: | is-exception _ |
+  finally:
     // We sometimes cancel the scheduler when running tests,
     // so we have to be careful and clean up anyway.
-    print_ "scheduler.run done: $is-exception"
     critical-do:
       logger.debug "uninstalling artemis service provider"
       provider.uninstall

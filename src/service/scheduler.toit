@@ -40,7 +40,6 @@ class Scheduler:
         // For now, we only update the storage bucket when we're
         // shutting down. This means that if hit an exceptional
         // case, we will reschedule all jobs.
-        print_ "computing job state"
         jobs-state := {:}
         jobs_.do: | job/Job |
           ran-last := job.scheduler-ran-last_
@@ -51,9 +50,7 @@ class Scheduler:
               ? delayed-until ? [ran-last.us, delayed-until.us] : ran-last.us
               // but we typically do have ran-last.
               : [null, delayed-until.us]
-        print_ "updating job state"
         device_.scheduler-jobs-state-update jobs-state
-        print_ "updating job state -> done"
 
   add-jobs jobs/List -> none:
     jobs.do: add-job it
