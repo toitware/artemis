@@ -176,7 +176,7 @@ class SynchronizeJob extends TaskJob:
         // job if we're just waiting for a new state.
         control-level-online_--
         if control-level-online_ == 0:
-          logger_.info "not piggypacking on network anymore"
+          logger_.info "not piggybacking on network anymore"
       else:
         // If we're no longer forced to stay offline, we may be
         // able to run the synchronization job now.
