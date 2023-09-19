@@ -319,7 +319,6 @@ class SynchronizeJob extends TaskJob:
         if network:
           // If we are planning to retry another network,
           // we quarantine the one we just tried.
-          // TODO(kasper): Add timeout for network.quarantine.
           if not done:
             with-timeout TIMEOUT-NETWORK-QUARANTINE: network.quarantine
           with-timeout TIMEOUT-NETWORK-CLOSE: network.close
@@ -351,7 +350,6 @@ class SynchronizeJob extends TaskJob:
           if device_.max-offline and control-level-online_ == 0: return true
           now := JobTime.now
           if (check-in-schedule now) <= now: return false
-          transition-to_ STATE-CONNECTED-TO-BROKER
     finally:
       // TODO(kasper): Add timeout for close.
       broker-connection.close
@@ -408,7 +406,7 @@ class SynchronizeJob extends TaskJob:
         // No goal state from the broker.
         // Potentially a device that has been flashed and provisioned but hasn't been
         // updated through the broker yet.
-        transition-to_ STATE-SYNCHRONIZED
+        transition-to-synchronized_
         return null
       goal = Goal goal-state
 
@@ -422,7 +420,7 @@ class SynchronizeJob extends TaskJob:
     // and any pending steps. Inform the broker.
     transition-to_ STATE-CONNECTED-TO-BROKER
     report-state-if-changed broker-connection
-    transition-to_ STATE-SYNCHRONIZED
+    transition-to-synchronized_
     return null
 
   transition-to_ state/int -> none:
@@ -453,14 +451,25 @@ class SynchronizeJob extends TaskJob:
       else:
         logger_.error "firmware update failed to validate"
 
-    // Keep track of the last time we succesfully synchronized.
-    if state == STATE-SYNCHRONIZED:
-      device_.synchronized-last-us-update JobTime.now.us
-      scheduler_.transition --runlevel=Job.RUNLEVEL-NORMAL
-
   transition-to-connected_ -> none:
     if state_ >= STATE-CONNECTED-TO-BROKER: return
     transition-to_ STATE-CONNECTED-TO-BROKER
+
+  transition-to-synchronized_ -> none:
+    // Temporarily transition into the synchronized state. We do
+    // not stick around in that state for very long, because after
+    // being synchronized, we go back to just being connected to
+    // the broker.
+    transition-to_ STATE-SYNCHRONIZED
+
+    // Keep track of the last time we succesfully synchronized.
+    device_.synchronized-last-us-update JobTime.now.us
+
+    // Go back to being connected to the broker. Having just
+    // synchronized gives us confidence to run more jobs, so let
+    // the scheduler know that we're in a good state.
+    transition-to_ STATE-CONNECTED-TO-BROKER
+    scheduler_.transition --runlevel=Job.RUNLEVEL-NORMAL
 
   transition-to-disconnected_ --error/Object? -> none:
     previous := state_
