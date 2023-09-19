@@ -176,14 +176,14 @@ class SynchronizeJob extends TaskJob:
         // job if we're just waiting for a new state.
         control-level-online_--
         if control-level-online_ == 0:
-          logger_.info "not piggypacking on network anymore"
+          logger_.info "request to run online - stop"
       else:
         // If we're no longer forced to stay offline, we may be
         // able to run the synchronization job now.
         control-level-offline_--
         if control-level-online_ == 0:
           scheduler_.on-job-updated
-          logger_.info "no longer forced to stay offline"
+          logger_.info "request to run offline - stop"
     else:
       if online:
         control-level-online_++
@@ -191,7 +191,7 @@ class SynchronizeJob extends TaskJob:
         // know that we may be able to run the synchronization job.
         if control-level-online_ == 1:
           scheduler_.on-job-updated
-          logger_.info "should go online"
+          logger_.info "request to run online - start"
         // TODO(kasper): We should really wait until we have had the
         // chance to consider going online. There is a risk that we
         // get so little time that we don't even try and that seems
@@ -204,7 +204,7 @@ class SynchronizeJob extends TaskJob:
         control-level-offline_++
         if control-level-offline_ == 1:
           stop
-          logger_.info "forced to stay offline"
+          logger_.info "request to run offline - start"
 
   runlevel -> int:
     return Job.RUNLEVEL-SAFE
