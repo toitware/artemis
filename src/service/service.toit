@@ -64,12 +64,8 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   finally:
     // We sometimes cancel the scheduler when running tests,
     // so we have to be careful and clean up anyway.
-    critical-do:
-      logger.debug "uninstalling artemis service provider"
-      provider.uninstall
-      logger.debug "uninstalled artemis service provider"
+    critical-do: provider.uninstall
 
-  logger.debug "setting up deep sleep triggers"
   containers.setup-deep-sleep-triggers
 
   // Compute the duration of the deep sleep and return it.
