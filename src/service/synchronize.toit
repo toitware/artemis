@@ -175,15 +175,23 @@ class SynchronizeJob extends TaskJob:
         // we could be more aggressive in shutting down the
         // job if we're just waiting for a new state.
         control-level-online_--
+        if control-level-online_ == 0:
+          logger_.info "request to run online - stop"
       else:
         // If we're no longer forced to stay offline, we may be
         // able to run the synchronization job now.
-        if control-level-offline_-- == 1: scheduler_.on-job-updated
+        control-level-offline_--
+        if control-level-online_ == 0:
+          scheduler_.on-job-updated
+          logger_.info "request to run offline - stop"
     else:
       if online:
+        control-level-online_++
         // If we're forced to go online, we let the scheduler
         // know that we may be able to run the synchronization job.
-        if control-level-online_++ == 0: scheduler_.on-job-updated
+        if control-level-online_ == 1:
+          scheduler_.on-job-updated
+          logger_.info "request to run online - start"
         // TODO(kasper): We should really wait until we have had the
         // chance to consider going online. There is a risk that we
         // get so little time that we don't even try and that seems
@@ -193,7 +201,10 @@ class SynchronizeJob extends TaskJob:
         // job right away. This is somewhat abrupt, but if users
         // need to control the network, we do not want to return
         // from this method without having shut it down.
-        if control-level-offline_++ == 0: stop
+        control-level-offline_++
+        if control-level-offline_ == 1:
+          stop
+          logger_.info "request to run offline - start"
 
   runlevel -> int:
     return Job.RUNLEVEL-SAFE
