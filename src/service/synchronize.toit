@@ -96,7 +96,7 @@ class SynchronizeJob extends TaskJob:
   static STATUS-YELLOW ::= 101
   static STATUS-ORANGE ::= 102
   static STATUS-RED    ::= 103
-  static STATUS-CHANGES-AFTER-ATTEMPTS ::= 4  // TODO(kasper): This is low for testing.
+  static STATUS-CHANGES-AFTER-ATTEMPTS ::= 8
 
   // The status limit unit controls how we round when
   // we compute the number of missed synchronization
@@ -105,7 +105,7 @@ class SynchronizeJob extends TaskJob:
   // that the unit is 1h. If max-offline is 1h or less,
   // we will change the status after 8h. If max-offline
   // is 12h, we will change the status after 96h.
-  static STATUS-LIMIT-UNIT-US ::= Duration.MICROSECONDS-PER-MINUTE  // TODO(kasper): This is low for testing.
+  static STATUS-LIMIT-UNIT-US ::= Duration.MICROSECONDS-PER-HOUR
   status-limit-us_/int := ?
 
   // We only allow the device to stay running for a
