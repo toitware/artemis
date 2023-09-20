@@ -1,12 +1,18 @@
 # Copyright (C) 2022 Toitware ApS.
 
-TOITRUN ?= toit.run
-
 SHELL=bash
 .SHELLFLAGS += -e
 
+TOITRUN ?= toit.run
+
 LOCAL_DEV_SDK ?= v2.0.0-alpha.103
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
+
+# If the 'DEV_TOIT_REPO_PATH' variable is set, use the toit.run in its bin
+# directory.
+ifneq ($(DEV_TOIT_REPO_PATH),)
+	TOITRUN := $(DEV_TOIT_REPO_PATH)/build/host/sdk/bin/toit.run
+endif
 
 export ARTEMIS_CONFIG := $(HOME)/.config/artemis-dev/config
 

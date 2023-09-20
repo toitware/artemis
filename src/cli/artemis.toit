@@ -3,6 +3,7 @@
 import ar
 import crypto.sha256
 import host.file
+import host.os
 import bytes
 import log
 import net
@@ -226,7 +227,7 @@ class Artemis:
     envelope := file.read-content envelope-path
     envelope-sdk-version := Sdk.get-sdk-version-from --envelope=envelope
     if sdk-version:
-      if sdk-version != envelope-sdk-version:
+      if sdk-version != envelope-sdk-version and not os.env.get "DEV_TOIT_REPO_PATH":
         ui_.abort "The envelope uses SDK version '$envelope-sdk-version', but '$sdk-version' was requested."
     else:
       sdk-version = envelope-sdk-version
