@@ -42,14 +42,8 @@ class Scheduler:
         // case, we will reschedule all jobs.
         jobs-state := {:}
         jobs_.do: | job/Job |
-          ran-last := job.scheduler-ran-last_
-          delayed-until := job.scheduler-delayed-until_
-          if not ran-last and not delayed-until: continue.do
-          jobs-state[job.name] = ran-last
-              // The common case is that we do not have delayed-until,
-              ? delayed-until ? [ran-last.us, delayed-until.us] : ran-last.us
-              // but we typically do have ran-last.
-              : [null, delayed-until.us]
+          if deep-sleep-state := job.deep-sleep-state:
+            jobs-state[job.name] = deep-sleep-state
         device_.scheduler-jobs-state-update jobs-state
 
   add-jobs jobs/List -> none:
@@ -57,15 +51,7 @@ class Scheduler:
 
   add-job job/Job -> none:
     job.scheduler_ = this
-    entry := jobs-state-initial_.get job.name
-    if entry is List:
-      ran-last/int? := entry[0]
-      delayed-until/int := entry[1]
-      job.scheduler-ran-last_ = ran-last and (JobTime ran-last)
-      job.scheduler-delayed-until_ = JobTime delayed-until
-    else:
-      job.scheduler-ran-last_ = entry and (JobTime entry)
-      job.scheduler-delayed-until_ = null
+    job.set-saved-deep-sleep-state (jobs-state-initial_.get job.name)
     jobs_.add job
     signal_.awaken
 
@@ -76,6 +62,7 @@ class Scheduler:
   remove-job job/Job -> none:
     job.stop
     jobs_.remove job
+    jobs-state-initial_.remove job.name
 
   transition --runlevel/int --timeout=(Duration --s=2) -> none:
     existing := runlevel_
