@@ -38,14 +38,22 @@ not the same server as Artemis). The organization is called "Test Org".
 
 In general a typical local workflow with HTTP servers looks like this:
 
+In a first terminal:
 ``` sh
 # Optionally, set your DEV_TOIT_REPO_PATH environment variable.
 export DEV_TOIT_REPO_PATH=$PWD/../toit
 
 # Make all binaries and (incidentally) download dependencies.
 make
-# Set up local servers.
+# Start the local servers. This command does not return.
 make start-http
+```
+
+In a second terminal:
+``` sh
+# Optionally, set your DEV_TOIT_REPO_PATH environment variable.
+export DEV_TOIT_REPO_PATH=$PWD/../toit
+
 # Login, upload a service image and create an org:
 make setup-local-dev
 
