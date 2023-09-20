@@ -24,7 +24,8 @@ abstract class Job:
   // same with has_run_after_boot.
   scheduler-delayed-until_/JobTime? := null
 
-  constructor .name:
+  constructor .name saved-state/any:
+    set-saved-deep-sleep-state saved-state
 
   abstract is-running -> bool
   is-background -> bool: return false
@@ -92,8 +93,8 @@ abstract class TaskJob extends Job:
   task_/Task? := null
   latch_/monitor.Latch? := null
 
-  constructor name/string:
-    super name
+  constructor name/string saved-state/any:
+    super name saved-state
 
   is-running -> bool:
     return task_ != null
@@ -133,8 +134,8 @@ abstract class TaskJob extends Job:
 abstract class PeriodicJob extends TaskJob:
   period_/Duration
 
-  constructor name/string .period_:
-    super name
+  constructor name/string saved-state/any .period_:
+    super name saved-state
 
   is-background -> bool:
     // Periodic jobs do not want to cause device

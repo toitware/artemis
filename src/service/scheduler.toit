@@ -12,11 +12,9 @@ class Scheduler:
   runlevel_/int := Job.RUNLEVEL-SAFE
 
   jobs_ ::= []
-  jobs-state-initial_/Map
 
   constructor logger/log.Logger .device_:
     logger_ = logger.with-name "scheduler"
-    jobs-state-initial_ = device_.scheduler-jobs-state
 
   runlevel -> int:
     return runlevel_
@@ -51,7 +49,6 @@ class Scheduler:
 
   add-job job/Job -> none:
     job.scheduler_ = this
-    job.set-saved-deep-sleep-state (jobs-state-initial_.get job.name)
     jobs_.add job
     signal_.awaken
 
@@ -62,7 +59,6 @@ class Scheduler:
   remove-job job/Job -> none:
     job.stop
     jobs_.remove job
-    jobs-state-initial_.remove job.name
 
   transition --runlevel/int --timeout=(Duration --s=2) -> none:
     existing := runlevel_
