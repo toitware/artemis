@@ -220,7 +220,7 @@ class ContainerJob extends Job:
     // the scheduler state here.
     if delayed-until := scheduler-delayed-until_:
       if delayed-until > now: return delayed-until
-      trigger (Trigger.encode Trigger.KIND-RESTART)
+      trigger (Trigger.encode-delayed 0)
     else if is-critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
@@ -228,7 +228,7 @@ class ContainerJob extends Job:
     else if trigger-interval_:
       result := last ? last + trigger-interval_ : now
       if result > now: return result
-      trigger (Trigger.encode Trigger.KIND-INTERVAL)
+      trigger (Trigger.encode-interval trigger-interval_)
 
     if is-triggered_: return now
     // TODO(kasper): Don't run at all. Maybe that isn't
@@ -247,18 +247,19 @@ class ContainerJob extends Job:
   all-active-triggers -> List:
     if scheduler-delayed-until_:
       // If the job is delayed, then no other trigger is active.
-      return [Trigger.encode Trigger.KIND-RESTART]
+      remaining-time-ms := (scheduler-delayed-until_.to-monotonic-us - Time.monotonic-us) / 1000
+      return [Trigger.encode-delayed remaining-time-ms]
 
     result := []
     if trigger-boot_: result.add (Trigger.encode Trigger.KIND-BOOT)
     if trigger-install_: result.add (Trigger.encode Trigger.KIND-INSTALL)
-    if trigger-interval_: result.add (Trigger.encode Trigger.KIND-INTERVAL)
+    if trigger-interval_: result.add (Trigger.encode-interval trigger-interval_)
     if trigger-gpio-levels_:
       trigger-gpio-levels_.do: | pin level |
-        result.add (Trigger.encode Trigger.KIND-PIN --pin=pin)
+        result.add (Trigger.encode-pin pin --level=level)
     if trigger-gpio-touch_:
       trigger-gpio-touch_.do: | pin |
-        result.add (Trigger.encode Trigger.KIND-TOUCH --pin=pin)
+        result.add (Trigger.encode-touch pin)
     return result
 
   schedule-tune last/JobTime -> JobTime:
