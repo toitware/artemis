@@ -227,8 +227,9 @@ class Artemis:
     envelope := file.read-content envelope-path
     envelope-sdk-version := Sdk.get-sdk-version-from --envelope=envelope
     if sdk-version:
-      if sdk-version != envelope-sdk-version and not os.env.get "DEV_TOIT_REPO_PATH":
-        ui_.abort "The envelope uses SDK version '$envelope-sdk-version', but '$sdk-version' was requested."
+      if sdk-version != envelope-sdk-version:
+        if not (is-dev-setup and os.env.get "DEV_TOIT_REPO_PATH"):
+          ui_.abort "The envelope uses SDK version '$envelope-sdk-version', but '$sdk-version' was requested."
     else:
       sdk-version = envelope-sdk-version
       check-sdk-service-version.call
