@@ -9,7 +9,7 @@ interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=0
-      --minor=7
+      --minor=10  // TODO(florian): is this correct?
 
   /** The mode used by controllers that want to go online. */
   static CONTROLLER-MODE-ONLINE ::= 0
@@ -46,6 +46,9 @@ interface ArtemisService:
 
   container-current-trigger -> int
   static CONTAINER-CURRENT-TRIGGER-INDEX /int ::= 10
+
+  container-current-triggers -> List?
+  static CONTAINER-CURRENT-TRIGGERS-INDEX /int ::= 11
 
   controller-open --mode/int -> int
   static CONTROLLER-OPEN-INDEX /int ::= 6
@@ -86,6 +89,9 @@ class ArtemisClient extends ServiceClient
 
   container-current-trigger -> int:
     return invoke_ ArtemisService.CONTAINER-CURRENT-TRIGGER-INDEX null
+
+  container-current-triggers -> List:
+    return invoke_ ArtemisService.CONTAINER-CURRENT-TRIGGERS-INDEX null
 
   controller-open --mode/int -> int:
     return invoke_ ArtemisService.CONTROLLER-OPEN-INDEX mode

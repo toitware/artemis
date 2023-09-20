@@ -178,6 +178,13 @@ interface Container:
   */
   trigger -> Trigger?
 
+  /**
+  The triggers that are installed for this container.
+
+  Returns a list of $Trigger objects.
+  */
+  triggers -> List
+
 /**
 A channel is a cyclic datastructure that persists a sequence
   of distinct elements encoded in individual byte arrays.

@@ -243,6 +243,24 @@ class ContainerJob extends Job:
     is-triggered_ = true
     last-trigger-reason_ = reason
 
+  /** An encoded list (see $Trigger.encode) of all triggers that are active for this job. */
+  all-active-triggers -> List:
+    if scheduler-delayed-until_:
+      // If the job is delayed, then no other trigger is active.
+      return [Trigger.encode Trigger.KIND-RESTART]
+
+    result := []
+    if trigger-boot_: result.add (Trigger.encode Trigger.KIND-BOOT)
+    if trigger-install_: result.add (Trigger.encode Trigger.KIND-INSTALL)
+    if trigger-interval_: result.add (Trigger.encode Trigger.KIND-INTERVAL)
+    if trigger-gpio-levels_:
+      trigger-gpio-levels_.do: | pin level |
+        result.add (Trigger.encode Trigger.KIND-PIN --pin=pin)
+    if trigger-gpio-touch_:
+      trigger-gpio-touch_.do: | pin |
+        result.add (Trigger.encode Trigger.KIND-TOUCH --pin=pin)
+    return result
+
   schedule-tune last/JobTime -> JobTime:
     // If running the container took a long time, we tune the
     // schedule and postpone the next run by making it start
