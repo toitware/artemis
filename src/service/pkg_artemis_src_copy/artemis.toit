@@ -119,6 +119,9 @@ class Trigger:
     if kind == KIND_RESTART: return TriggerRestart value >> 5
     return Trigger kind
 
+  encode -> int:
+    return Trigger.encode kind
+
   stringify -> string:
     if kind == KIND_BOOT: return "Trigger - boot"
     if kind == KIND_INSTALL: return "Trigger - install"
@@ -134,6 +137,9 @@ class TriggerPin extends Trigger:
   constructor .pin --.level:
     super Trigger.KIND_PIN
 
+  encode -> int:
+    return Trigger.encode-pin pin --level=level
+
   stringify -> string:
     return "Trigger - pin $pin-$level"
 
@@ -145,6 +151,9 @@ class TriggerTouch extends Trigger:
   constructor .pin:
     super Trigger.KIND_TOUCH
 
+  encode -> int:
+    return Trigger.encode-touch pin
+
   stringify -> string:
     return "Trigger - touch $pin"
 
@@ -153,6 +162,9 @@ class TriggerInterval extends Trigger:
   constructor .interval:
     super Trigger.KIND_INTERVAL
 
+  encode -> int:
+    return Trigger.encode-interval interval
+
   stringify -> string:
     return "Trigger - interval $interval"
 
@@ -160,6 +172,9 @@ class TriggerRestart extends Trigger:
   remaining-ms/int
   constructor .remaining-ms:
     super Trigger.KIND_RESTART
+
+  encode -> int:
+    return Trigger.encode-delayed remaining-ms
 
   stringify -> string:
     if remaining-ms == 0: return "Trigger - restart"
@@ -215,6 +230,17 @@ interface Container:
   Returns a list of $Trigger objects.
   */
   triggers -> List
+
+  /**
+  Updates the triggers to the given $triggers list.
+
+  These triggers are active until the next time the container is
+    executed, or until the device is reset.
+
+  If $triggers is set to null, then the original triggers are
+    restored.
+  */
+  set-next-start-triggers triggers/List? -> none
 
 /**
 A channel is a cyclic datastructure that persists a sequence
