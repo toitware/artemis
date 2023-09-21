@@ -10,6 +10,7 @@ import host.directory
 import host.pipe
 import host.file
 import host.os
+import fs
 import net
 import uuid
 import artemis.cli
@@ -134,7 +135,8 @@ class TestCli:
   cache/cli.Cache
   artemis/TestArtemisServer
   broker/TestBroker
-  toit-run_/string
+  toit-run-path_/string
+  qemu-path_/string?
   test-devices_/List ::= []
   /** A map of strings to be replaced in the output of $run. */
   replacements/Map ::= {:}
@@ -143,11 +145,13 @@ class TestCli:
   tmp-dir/string
 
   constructor .config .cache .artemis .broker
-      --toit-run/string
+      --toit-run-path/string
+      --qemu-path/string?
       --.gold-name
       --.sdk-version
       --.tmp-dir:
-    toit-run_ = toit-run
+    toit-run-path_ = toit-run-path
+    qemu-path_ = qemu-path
 
   close:
     test-devices_.do: | device/TestDevice |
@@ -165,6 +169,7 @@ class TestCli:
         cli.main args --config=config --cache=cache --ui=ui
     finally: | is-exception _ |
       if is-exception:
+        print "args: $args"
         print ui.stdout
 
     if expect-exit-1 and not exception:
@@ -262,13 +267,29 @@ class TestCli:
     alias-id/uuid.Uuid := device-description["alias"]
     encoded-firmware := device-description["encoded_firmware"]
 
-    result := TestDevicePipe
+    result := TestDevicePipe.fake-host
         --broker=broker
         --alias-id=alias-id
         --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
-        --toit-run=toit-run_
+        --toit-run=toit-run-path_
         --encoded-firmware=encoded-firmware
+    test-devices_.add result
+    return result
+
+  start-device -> TestDevice
+      --alias-id/uuid.Uuid
+      --hardware-id/uuid.Uuid
+      --qemu-image
+      --organization-id=TEST-ORGANIZATION-UUID:
+    result := TestDevicePipe.qemu
+        --broker=broker
+        --alias-id=alias-id
+        --hardware-id=hardware-id
+        --organization-id=TEST-ORGANIZATION-UUID
+        --image-path=qemu-image
+        --toit-run=toit-run-path_
+        --qemu-path=qemu-path_
     test-devices_.add result
     return result
 
@@ -276,13 +297,13 @@ class TestCli:
       --alias-id/uuid.Uuid
       --hardware-id/uuid.Uuid
       --serial-port/string:
-    result := TestDevicePipe
+    result := TestDevicePipe.serial
         --broker=broker
         --alias-id=alias-id
         --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
         --serial-port=serial-port
-        --toit-run=toit-run_
+        --toit-run=toit-run-path_
     test-devices_.add result
     return result
 
@@ -523,7 +544,7 @@ class TestDevicePipe extends TestDevice:
   stdout-task_/Task? := null
   stderr-task_/Task? := null
 
-  constructor
+  constructor.fake-host
       --broker/TestBroker
       --hardware-id/uuid.Uuid
       --alias-id/uuid.Uuid
@@ -550,7 +571,7 @@ class TestDevicePipe extends TestDevice:
     ]
     fork_ toit-run flags
 
-  constructor
+  constructor.serial
       --broker/TestBroker
       --hardware-id/uuid.Uuid
       --alias-id/uuid.Uuid
@@ -569,15 +590,37 @@ class TestDevicePipe extends TestDevice:
     ]
     fork_ toit-run flags
 
+  constructor.qemu
+        --broker/TestBroker
+        --hardware-id/uuid.Uuid
+        --alias-id/uuid.Uuid
+        --organization-id/uuid.Uuid
+        --image-path/string
+        --toit-run/string
+        --qemu-path/string:
+    super
+        --broker=broker
+        --hardware-id=hardware-id
+        --alias-id=alias-id
+        --organization-id=organization-id
 
-  fork_ toit-run flags:
+    flags := [
+      "-L", (fs.dirname qemu-path),
+      "-M", "esp32",
+      "-nographic",
+      "-drive", "file=$image-path,format=raw,if=mtd",
+      "-nic", "user,model=open_eth",
+    ]
+    fork_ qemu-path flags
+
+  fork_ exe flags:
     fork-data := pipe.fork
         true                // use_path
         pipe.PIPE-INHERITED // stdin
         pipe.PIPE-CREATED   // stdout
         pipe.PIPE-CREATED   // stderr
-        toit-run
-        [toit-run] + flags
+        exe
+        [exe] + flags
     stdout := fork-data[1]
     stderr := fork-data[2]
     child-process_ = fork-data[3]
@@ -712,13 +755,16 @@ with-test-cli
 
   // Use 'toit.run' (or 'toit.run.exe' on Windows), unless there is an
   // argument `--toit-run=...`.
-  toit-run := platform == PLATFORM-WINDOWS ? "toit.run.exe" : "toit.run"
-  prefix := "--toit-run="
+  toit-run-path := platform == PLATFORM-WINDOWS ? "toit.run.exe" : "toit.run"
+  qemu-path := platform == PLATFORM-WINDOWS ? "qemu-system-xtensa.exe" : "qemu-system-xtensa"
+  toit-run-prefix := "--toit-run="
+  qemu-prefix := "--qemu="
   for i := 0; i < args.size; i++:
     arg := args[i]
-    if arg.starts-with prefix:
-      toit-run = arg[prefix.size..]
-      break  // Use the first occurrence.
+    if arg.starts-with toit-run-prefix:
+      toit-run-path = arg[toit-run-prefix.size..]
+    if arg.starts-with qemu-prefix:
+      qemu-path = arg[qemu-prefix.size..]
 
   with-tmp-directory: | tmp-dir |
     config-file := "$tmp-dir/config"
@@ -729,20 +775,24 @@ with-test-cli
 
     SDK-VERSION-OPTION ::= "--sdk-version="
     SDK-PATH-OPTION ::= "--sdk-path="
-    ENVELOPE-PATH-OPTION ::= "--envelope-path="
+    ENVELOPE-PATH-ESP32-OPTION ::= "--envelope-esp32-path="
+    ENVELOPE-PATH-ESP32-QEMU-OPTION ::= "--envelope-esp32-qemu-path="
 
     sdk-version := "v0.0.0"
     sdk-path/string? := null
-    envelope-path/string? := null
+    envelope-esp32-path/string? := null
+    envelope-esp32-qemu-path/string? := null
     args.do: | arg/string |
       if arg.starts-with SDK-VERSION-OPTION:
         sdk-version = arg[SDK-VERSION-OPTION.size ..]
       else if arg.starts-with SDK-PATH-OPTION:
         sdk-path = arg[SDK-PATH-OPTION.size ..]
-      else if arg.starts-with ENVELOPE-PATH-OPTION:
-        envelope-path = arg[ENVELOPE-PATH-OPTION.size ..]
+      else if arg.starts-with ENVELOPE-PATH-ESP32-OPTION:
+        envelope-esp32-path = arg[ENVELOPE-PATH-ESP32-OPTION.size ..]
+      else if arg.starts-with ENVELOPE-PATH-ESP32-QEMU-OPTION:
+        envelope-esp32-qemu-path = arg[ENVELOPE-PATH-ESP32-QEMU-OPTION.size ..]
 
-    if sdk-version == "" or sdk-path == null or envelope-path == null:
+    if sdk-version == "" or not sdk-path or not envelope-esp32-path or not envelope-esp32-qemu-path:
       print "Missing SDK version, SDK path or envelope path."
       exit 1
     TEST-SDK-VERSION = sdk-version
@@ -752,9 +802,15 @@ with-test-cli
     cache.get-directory-path sdk-key: | store/cli.DirectoryStore |
       store.copy sdk-path
 
-    envelope-key := "$artemis-cache.ENVELOPE-PATH/$sdk-version/firmware-esp32.envelope"
+    ENVELOPES-URL ::= "github.com/toitlang/envelopes/releases/download/$sdk-version"
+    envelope-key := "$artemis-cache.ENVELOPE-PATH/$ENVELOPES-URL/firmware-esp32.envelope.gz/firmware.envelope"
     cache.get-file-path envelope-key: | store/cli.FileStore |
-      store.copy envelope-path
+      print "Caching envelope: $envelope-esp32-path"
+      store.copy envelope-esp32-path
+    envelope-key = "$artemis-cache.ENVELOPE-PATH/$ENVELOPES-URL/firmware-esp32-qemu.envelope.gz/firmware.envelope"
+    cache.get-file-path envelope-key: | store/cli.FileStore |
+      print "Caching envelope: $envelope-esp32-qemu-path"
+      store.copy envelope-esp32-qemu-path
 
     artemis-config := artemis-server.server-config
     broker-config := broker.server-config
@@ -770,7 +826,8 @@ with-test-cli
       gold-name = gold-name.trim --right "_slow"
 
     test-cli := TestCli config cache artemis-server broker
-        --toit-run=toit-run
+        --toit-run-path=toit-run-path
+        --qemu-path=qemu-path
         --gold-name=gold-name
         --sdk-version=sdk-version
         --tmp-dir=tmp-dir

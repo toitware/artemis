@@ -52,6 +52,10 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "local"
             --type="file"
             --short-help="A local pod file to flash.",
+        cli.Option "qemu-image"
+            --type="file"
+            --short-help="Write to an Qemu image file instead of flashing."
+            --hidden,
         cli.Flag "simulate"
             --hidden
             --default=false,
@@ -93,6 +97,10 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
             --short-name="i"
             --short-help="The identity file to use."
             --required,
+        cli.Option "qemu-image"
+            --type="file"
+            --short-help="Write to an Qemu image file instead of flashing."
+            --hidden,
       ]
       --run=:: flash --station it config cache ui
   flash-station-cmd.add flash-station-flash-cmd
@@ -138,6 +146,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   local := parsed["local"]
   remote := parsed["remote"]
   partitions := build-partitions-table_ parsed["partition"] --ui=ui
+  qemu-image := parsed["qemu-image"]
 
   if local and remote:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
@@ -179,7 +188,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       write-blob-to-file config-path config-bytes
 
       sdk := get-sdk pod.sdk-version --cache=cache
-      if not simulate:
+      if not simulate and not qemu-image:
         ui.do --kind=Ui.VERBOSE: | printer/Printer|
           debug-line := "Flashing the device with pod $reference"
           if reference.id: debug-line += "."
@@ -200,6 +209,16 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         if reference.id: info += "."
         else: info += " ($pod.id)."
         ui.info info
+      else if qemu-image:
+        if pod.chip != "esp32" and not pod.chip.starts-with "esp32-":
+          ui.abort "Cannot write to Qemu image file for chip '$pod.chip'."
+        sdk.extract-qemu-image
+            --output-path=qemu-image
+            --envelope-path=pod.envelope-path
+            --config-path=config-path
+            --partitions=partitions
+            --chip=pod.chip
+        ui.info "Wrote to Qemu image file '$qemu-image'."
       else:
         ui.info "Simulating flash."
         ui.info "Using the local Artemis service and not the one specified in the specification."
@@ -222,6 +241,7 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   port := parsed["port"]
   baud := parsed["baud"]
   partitions := build-partitions-table_ parsed["partition"] --ui=ui
+  qemu-image := parsed["qemu-image"]
 
   with-artemis parsed config cache ui: | artemis/Artemis |
     pod := Pod.parse pod-path --tmp-directory=artemis.tmp-directory --ui=ui
@@ -236,14 +256,24 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
       // Flash.
       sdk := get-sdk pod.sdk-version --cache=cache
-      // TODO(florian): don't print anything if ui is quiet/silent.
-      sdk.flash
-          --envelope-path=pod.envelope-path
-          --config-path=config-path
-          --port=port
-          --baud-rate=baud
-          --partitions=partitions
-          --chip=pod.chip
+      if not qemu-image:
+        // TODO(florian): don't print anything if ui is quiet/silent.
+        sdk.flash
+            --envelope-path=pod.envelope-path
+            --config-path=config-path
+            --port=port
+            --baud-rate=baud
+            --partitions=partitions
+            --chip=pod.chip
+      else:
+        if pod.chip != "esp32" and not pod.chip.starts-with "esp32-":
+          ui.abort "Cannot write to Qemu image file for chip '$pod.chip'."
+        sdk.extract-qemu-image
+            --output-path=qemu-image
+            --envelope-path=pod.envelope-path
+            --config-path=config-path
+            --partitions=partitions
+            --chip=pod.chip
       identity := read-base64-ubjson identity-path
       // TODO(florian): Abstract away the identity format.
       device-id := uuid.parse identity["artemis.device"]["device_id"]

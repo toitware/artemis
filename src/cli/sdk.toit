@@ -251,6 +251,34 @@ class Sdk:
     run-firmware-tool arguments
 
   /**
+  Extracts the given $envelope-path to the given $output-path.
+  */
+  extract-qemu-image
+      --output-path/string
+      --envelope-path/string
+      --config-path/string
+      --partitions/List?
+      --chip/string:
+    // TODO(kasper): We'd like to get the chip variant from the firmware
+    // envelope, but for now we just treat the prefix leading up to
+    // the first dash as the variant. This works well with the current
+    // naming convention.
+    dash-index := chip.index-of "-"
+    if dash-index > 0: chip = chip[..dash-index]
+
+    if partitions and not partitions.is-empty:
+      throw "Partitions are not supported for QEMU images."
+
+    arguments := [
+      "extract",
+      "-e", envelope-path,
+      "--config", config-path,
+      "--output", output-path,
+      "--format", "qemu",
+    ]
+    run-firmware-tool arguments
+
+  /**
   Installs the dependencies of the project at $project-root.
   */
   pkg-install --project-root/string:
