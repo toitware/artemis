@@ -1,9 +1,9 @@
 dependencies:
   artemis:
-    path: ..
+    path: ../.
   cli:
     url: github.com/toitlang/pkg-cli
     version: ^1.2.0
   host:
     url: github.com/toitlang/pkg-host
-    version: ^1.9.0
+    version: ^1.10.0
