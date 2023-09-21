@@ -1,0 +1,3 @@
+# Move devices to a non-existing group
+# [fleet, group, move, --to, default, --group, test-group-5]
+Error: Group 'default' does not exist.

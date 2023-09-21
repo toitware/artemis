@@ -1,0 +1,3 @@
+# Add self again
+# [org, members, add, f76629c5-a070-4bbc-9918-64beaea48848]
+Error: User f76629c5-a070-4bbc-9918-64beaea48848 is already a member of organization -={|~~~~~~~~~~ORG-ID2~~~~~~~~~~~|}=-.
