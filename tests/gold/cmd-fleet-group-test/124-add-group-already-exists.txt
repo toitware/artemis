@@ -1,0 +1,3 @@
+# Add a group that already exists
+# [fleet, group, create, test-group, --template, default, --force]
+Error: Group test-group already exists.

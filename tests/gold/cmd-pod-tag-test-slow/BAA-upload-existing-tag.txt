@@ -1,0 +1,7 @@
+# Upload a pod with existing tag
+# [pod, upload, <FLEET_ROOT>/test-pod.json, --tag, some-tag]
+Uploaded test-pod#2 to fleet -={|~~~~~~~~~~FLEET_ID~~~~~~~~~~|}=-.
+  id: -={|~~~~~~~ID test-pod#2~~~~~~~~|}=-
+  references:
+    - test-pod@latest
+Error: Tag 'some-tag' already exists for pod test-pod.
