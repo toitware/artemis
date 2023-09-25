@@ -169,7 +169,7 @@ class TestCli:
         cli.main args --config=config --cache=cache --ui=ui
     finally: | is-exception _ |
       if is-exception:
-        print "args: $args"
+        print "Execution of '$args' failed unexpectedly."
         print ui.stdout
 
     if expect-exit-1 and not exception:

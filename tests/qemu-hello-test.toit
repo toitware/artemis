@@ -21,17 +21,17 @@ import .utils
 import ..tools.service-image-uploader.uploader as uploader
 
 HELLO-WORLD-CODE ::= """
-  main: print "hello world"
-  """
+main: print "hello world"
+"""
 
 ETHERNET-PROVIDER-CODE ::= """
-  import esp32.net.ethernet as esp32
+import esp32.net.ethernet as esp32
 
-  main:
-    provider := esp32.EthernetServiceProvider.mac-openeth
-        --phy-chip=esp32.PHY-CHIP-DP83848
-    provider.install
-  """
+main:
+  provider := esp32.EthernetServiceProvider.mac-openeth
+      --phy-chip=esp32.PHY-CHIP-DP83848
+  provider.install
+"""
 
 
 main args/List:
@@ -111,8 +111,7 @@ run-test test-cli/TestCli:
   eth-provider-path := "$fleet-dir/eth-provider.toit"
   write-blob-to-file eth-provider-path ETHERNET-PROVIDER-CODE
 
-  print "Creating qemu firmware."
-  // Create a firmware.
+  print "Creating QEMU firmware."
   pod-file := "$tmp-dir/firmware.pod"
   qemu-spec := read-json spec-path
   qemu-spec["firmware-envelope"] = "esp32-qemu"
