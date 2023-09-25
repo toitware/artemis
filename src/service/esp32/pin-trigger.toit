@@ -83,16 +83,15 @@ class PinTriggerManager:
 
     watched-jobs_.do --values: | job/ContainerJob |
       if job.is-running or job.is-triggered_: continue.do
-      if job.trigger-gpio-levels_:
-        job.trigger-gpio-levels_.do: | pin level/int |
-          // If not present set to the current level.
-          // If present, update to BOTH if we have already seen the other level.
-          needed-watchers.update pin
-              --if-absent=level
-              : it != level ? BOTH : level
+      job.do --trigger-gpio-levels: | pin level/int |
+        // If not present set to the current level.
+        // If present, update to BOTH if we have already seen the other level.
+        needed-watchers.update pin
+            --if-absent=level
+            : it != level ? BOTH : level
 
-      if job.trigger-gpio-touch_:
-        needed-touch-watchers.add-all job.trigger-gpio-touch_
+      if job.has-touch-triggers:
+        needed-touch-watchers.add-all job.touch-triggers
 
     // Close all watchers we don't need anymore.
     // If we are really unlucky we might close a pin that we
@@ -170,11 +169,10 @@ class PinTriggerManager:
     if not job.has-pin-triggers: return
 
     watched-jobs_[job.name] = job
-    if job.trigger-gpio-levels_:
-      job.trigger-gpio-levels_.do: | pin level/int |
-        setup-watcher_ pin --level=level
-    if job.trigger-gpio-touch_:
-      job.trigger-gpio-touch_.do: setup-touch-watcher_ it
+    job.do --trigger-gpio-levels: | pin level/int |
+      setup-watcher_ pin --level=level
+    job.do --trigger-touch-pins: | pin/int |
+      setup-touch-watcher_ pin
 
   /**
   Informs the manager that a pin has been triggered.
@@ -300,10 +298,9 @@ class PinTriggerManager:
   trigger-mask_ jobs/List --level/int -> int:
     mask := 0
     jobs.do: | job/ContainerJob |
-      if job.has-gpio-pin-triggers:
-        job.trigger-gpio-levels_.do: | pin pin-level/int |
-          if level == pin-level:
-            mask |= 1 << pin
+      job.do --trigger-gpio-levels: | pin pin-level/int |
+        if level == pin-level:
+          mask |= 1 << pin
     return mask
 
   /**
@@ -350,32 +347,30 @@ class PinTriggerManager:
       job-was-triggered := false
       // If the high_mask isn't 0, then it wins over the low mask.
       jobs.do: | job/ContainerJob |
-        if job.trigger-gpio-levels_:
-          job.trigger-gpio-levels_.do: | pin level/int |
-            pin-mask := 1 << pin
-            if (triggered-pins & pin-mask) != 0:
-              is-triggered := false
-              if level == 1:
-                // Level 1 wins over level 0.
-                is-triggered = true
-              else if high-mask == 0:
-                // Level 0 is only triggered if there is no level 1.
-                is-triggered = true
-              if is-triggered:
-                job-was-triggered = true
-                job.trigger (Trigger.encode-pin pin --level=level)
-                tags := job.tags.copy
-                tags["pin"] = pin
-                tags["level"] = level
-                logger_.info "triggered by pin" --tags=tags
-        if job.trigger-gpio-touch_ and touch-wakeup-pin != -1:
-          job.trigger-gpio-touch_.do: | pin |
-            if touch-wakeup-pin == pin:
+        job.do --trigger-gpio-levels: | pin level/int |
+          pin-mask := 1 << pin
+          if (triggered-pins & pin-mask) != 0:
+            is-triggered := false
+            if level == 1:
+              // Level 1 wins over level 0.
+              is-triggered = true
+            else if high-mask == 0:
+              // Level 0 is only triggered if there is no level 1.
+              is-triggered = true
+            if is-triggered:
               job-was-triggered = true
-              job.trigger (Trigger.encode-touch pin)
+              job.trigger (Trigger.encode-pin pin --level=level)
               tags := job.tags.copy
               tags["pin"] = pin
-              logger_.info "triggered by touch" --tags=tags
+              tags["level"] = level
+              logger_.info "triggered by pin" --tags=tags
+        job.do --trigger-touch-pins: | pin/int |
+          if touch-wakeup-pin == pin:
+            job-was-triggered = true
+            job.trigger (Trigger.encode-touch pin)
+            tags := job.tags.copy
+            tags["pin"] = pin
+            logger_.info "triggered by touch" --tags=tags
 
       if job-was-triggered:
         scheduler_.on-job-updated

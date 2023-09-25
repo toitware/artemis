@@ -58,7 +58,7 @@ class ContainerManager:
       // we drop such an app from the current state? Seems like
       // the right thing to do.
       if job:
-        if job.trigger-boot_:
+        if job.has-boot-trigger:
           job.trigger (Trigger.encode Trigger.KIND-BOOT)
         add_ job --message="load"
 
@@ -116,7 +116,7 @@ class ContainerManager:
         --logger=logger_
 
   install job/ContainerJob -> none:
-    if job.trigger-install_:
+    if job.has-install-trigger:
       job.trigger (Trigger.encode Trigger.KIND-INSTALL)
     add_ job --message="install"
 
@@ -138,7 +138,7 @@ class ContainerManager:
     pin-trigger-manager_.update-job job
     // After updating the description of an app, we consider it
     // as newly installed. Rearm it if it has an install trigger.
-    if job.trigger-install_:
+    if job.has-install-trigger:
       job.trigger (Trigger.encode Trigger.KIND-INSTALL)
     logger_.info "update" --tags=job.tags
     scheduler_.add-job job
@@ -153,6 +153,55 @@ class ContainerManager:
     scheduler_.remove-job job
     logger_.info message --tags=job.tags
 
+class Triggers:
+  trigger-boot/bool := false
+  trigger-install/bool := false
+  trigger-interval/Duration? := null
+  trigger-gpio-levels/Map? := null
+  trigger-gpio-touch/Set? := null
+
+  constructor:
+
+  constructor.from-description triggers/Map?:
+    triggers.do: | name/string value |
+      if name == "boot": trigger-boot = true
+      if name == "install": trigger-install = true
+      if name == "interval": trigger-interval = (Duration --s=value)
+      if name.starts-with "gpio-high:":
+        if not trigger-gpio-levels: trigger-gpio-levels = {:}
+        trigger-gpio-levels[value] = 1
+      if name.starts-with "gpio-low:":
+        if not trigger-gpio-levels: trigger-gpio-levels = {:}
+        trigger-gpio-levels[value] = 0
+      if name.starts-with "gpio-touch:":
+        if not trigger-gpio-touch: trigger-gpio-touch = {}
+        trigger-gpio-touch.add value
+
+  has-gpio-pin-triggers -> bool:
+    return trigger-gpio-levels != null
+
+  has-touch-triggers -> bool:
+    return trigger-gpio-touch != null
+
+  has-pin-trigger pin/int --level/int -> bool:
+    return has-gpio-pin-triggers and (trigger-gpio-levels.get pin) == level
+
+  has-touch-trigger pin/int -> bool:
+    return has-touch-triggers and trigger-gpio-touch.contains pin
+
+  to-encoded-list -> List:
+    result := []
+    if trigger-boot: result.add (Trigger.encode Trigger.KIND-BOOT)
+    if trigger-install: result.add (Trigger.encode Trigger.KIND-INSTALL)
+    if trigger-interval: result.add (Trigger.encode-interval trigger-interval)
+    if trigger-gpio-levels:
+      trigger-gpio-levels.do: | pin level |
+        result.add (Trigger.encode-pin pin --level=level)
+    if trigger-gpio-touch:
+      trigger-gpio-touch.do: | pin |
+        result.add (Trigger.encode-touch pin)
+    return result
+
 class ContainerJob extends Job:
   // The key of the ID in the $description.
   static KEY-ID ::= "id"
@@ -166,11 +215,8 @@ class ContainerJob extends Job:
   runlevel_/int := Job.RUNLEVEL-NORMAL
 
   is-background_/bool := false
-  trigger-boot_/bool := false
-  trigger-install_/bool := false
-  trigger-interval_/Duration? := null
-  trigger-gpio-levels_/Map? := null
-  trigger-gpio-touch_/Set? := null
+
+  triggers_/Triggers := Triggers
 
   is-triggered_/bool := false
   // The reason for why this job was triggered.
@@ -225,10 +271,10 @@ class ContainerJob extends Job:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
       trigger (Trigger.encode Trigger.KIND-CRITICAL)
-    else if trigger-interval_:
-      result := last ? last + trigger-interval_ : now
+    else if trigger-interval := triggers_.trigger-interval:
+      result := last ? last + trigger-interval : now
       if result > now: return result
-      trigger (Trigger.encode-interval trigger-interval_)
+      trigger (Trigger.encode-interval trigger-interval)
 
     if is-triggered_: return now
     // TODO(kasper): Don't run at all. Maybe that isn't
@@ -250,23 +296,13 @@ class ContainerJob extends Job:
       remaining-time-ms := (scheduler-delayed-until_.to-monotonic-us - Time.monotonic-us) / 1000
       return [Trigger.encode-delayed remaining-time-ms]
 
-    result := []
-    if trigger-boot_: result.add (Trigger.encode Trigger.KIND-BOOT)
-    if trigger-install_: result.add (Trigger.encode Trigger.KIND-INSTALL)
-    if trigger-interval_: result.add (Trigger.encode-interval trigger-interval_)
-    if trigger-gpio-levels_:
-      trigger-gpio-levels_.do: | pin level |
-        result.add (Trigger.encode-pin pin --level=level)
-    if trigger-gpio-touch_:
-      trigger-gpio-touch_.do: | pin |
-        result.add (Trigger.encode-touch pin)
-    return result
+    return triggers_.to-encoded-list
 
   schedule-tune last/JobTime -> JobTime:
     // If running the container took a long time, we tune the
     // schedule and postpone the next run by making it start
     // at the beginning of the next period instead of now.
-    return Job.schedule-tune-periodic last trigger-interval_
+    return Job.schedule-tune-periodic last triggers_.trigger-interval
 
   start -> none:
     if running_: return
@@ -312,40 +348,40 @@ class ContainerJob extends Job:
       runlevel_ = Job.RUNLEVEL-CRITICAL
 
     // Reset triggers.
-    trigger-boot_ = false
-    trigger-install_ = false
-    trigger-interval_ = null
-    trigger-gpio-levels_ = null
-    trigger-gpio-touch_ = null
+    triggers_ = is-critical
+        ? Triggers
+        : Triggers.from-description (description.get "triggers")
 
-    // Update triggers unless we're a critical container.
-    if is-critical: return
-    description_.get "triggers" --if-present=: | triggers/Map |
-      triggers.do: | name/string value |
-        if name == "boot": trigger-boot_ = true
-        if name == "install": trigger-install_ = true
-        if name == "interval": trigger-interval_ = (Duration --s=value)
-        if name.starts-with "gpio-high:":
-          if not trigger-gpio-levels_: trigger-gpio-levels_ = {:}
-          trigger-gpio-levels_[value] = 1
-        if name.starts-with "gpio-low:":
-          if not trigger-gpio-levels_: trigger-gpio-levels_ = {:}
-          trigger-gpio-levels_[value] = 0
-        if name.starts-with "gpio-touch:":
-          if not trigger-gpio-touch_: trigger-gpio-touch_ = {}
-          trigger-gpio-touch_.add value
+  has-boot-trigger -> bool:
+    return triggers_.trigger-boot
+
+  has-install-trigger -> bool:
+    return triggers_.trigger-install
 
   has-gpio-pin-triggers -> bool:
-    return trigger-gpio-levels_ != null
+    return triggers_.has-gpio-pin-triggers
 
   has-touch-triggers -> bool:
-    return trigger-gpio-touch_ != null
+    return triggers_.has-touch-triggers
 
   has-pin-triggers -> bool:
-    return has-gpio-pin-triggers or trigger-gpio-touch_ != null
+    return has-gpio-pin-triggers or has-touch-triggers
 
   has-pin-trigger pin/int --level/int -> bool:
-    return has-gpio-pin-triggers and (trigger-gpio-levels_.get pin) == level
+    return triggers_.has-pin-trigger pin --level=level
 
   has-touch-trigger pin/int -> bool:
-    return has-touch-triggers and trigger-gpio-touch_.contains pin
+    return triggers_.has-touch-trigger pin
+
+  do --trigger-gpio-levels/bool [block]:
+    if not has-gpio-pin-triggers: return
+    triggers_.trigger-gpio-levels.do: | pin level |
+      block.call pin level
+
+  do --trigger-touch-pins/bool [block]:
+    if not has-touch-triggers: return
+    triggers_.trigger-gpio-touch.do: | pin |
+      block.call pin
+
+  touch-triggers -> Set:
+    return triggers_.trigger-gpio-touch
