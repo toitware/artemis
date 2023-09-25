@@ -1,0 +1,3 @@
+# Update the default group name
+# [fleet, group, update, default, --name, test-group-5, --force]
+Renamed group 'default' to 'test-group-5'.

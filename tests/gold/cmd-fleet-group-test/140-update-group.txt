@@ -1,0 +1,3 @@
+# Update a group
+# [fleet, group, update, test-group, --pod, unknown@pod2, --force]
+Updated group 'test-group' to pod 'unknown@pod2'.

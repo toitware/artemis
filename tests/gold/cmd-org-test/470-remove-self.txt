@@ -1,0 +1,3 @@
+# Try to remove ourselves from the org without --force
+# [org, members, remove, f76629c5-a070-4bbc-9918-64beaea48848]
+Error: Use '--force' to remove yourself from an organization.
