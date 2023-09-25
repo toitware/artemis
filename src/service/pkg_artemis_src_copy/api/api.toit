@@ -8,8 +8,8 @@ import ..artemis as artemis  // For toitdoc.
 interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
-      --major=0
-      --minor=8
+      --major=1
+      --minor=0
 
   /** The mode used by controllers that want to go online. */
   static CONTROLLER-MODE-ONLINE ::= 0
