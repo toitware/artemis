@@ -329,13 +329,14 @@ get-envelope -> string
     --cache/cli.Cache
     --cache-snapshots/bool=true:
   if is-dev-setup:
-    chip := specification.chip or specification.envelope
+    chip := specification.chip or specification.envelope or "esp32"
     local-sdk := os.env.get "DEV_TOIT_REPO_PATH"
     if local-sdk:
+      envelope-path := "$local-sdk/build/$chip/firmware.envelope"
       if not reported-local-envelope-use_:
-        print-on-stderr_ "Using envelope from local SDK"
+        print-on-stderr_ "Using envelope from local SDK: '$envelope-path'"
         reported-local-envelope-use_ = true
-      return "$local-sdk/build/$chip/firmware.envelope"
+      return envelope-path
 
   sdk-version := specification.sdk-version
   envelope := specification.envelope or specification.chip or "esp32"
