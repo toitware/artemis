@@ -1,0 +1,3 @@
+# Update a group name
+# [fleet, group, update, test-group, --name, test-group-3, --force]
+Renamed group 'test-group' to 'test-group-3'.

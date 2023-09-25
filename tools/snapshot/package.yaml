@@ -1,7 +1,7 @@
 dependencies:
   ar:
     url: github.com/toitlang/pkg-ar
-    version: ^1.0.0
+    version: ^1.0.1
   cli:
     url: github.com/toitlang/pkg-cli
     version: ^1.2.0
@@ -9,4 +9,4 @@ dependencies:
     path: ../fs
   host:
     url: github.com/toitlang/pkg-host
-    version: ^1.9.0
+    version: ^1.10.0

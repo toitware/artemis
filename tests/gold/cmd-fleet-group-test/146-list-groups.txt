@@ -1,0 +1,9 @@
+# List groups
+# [fleet, group, list]
+┌──────────────┬───────────────┐
+│ Group          Pod           │
+├──────────────┼───────────────┤
+│ default        my-pod@latest │
+│ test-group-2   unknown@pod   │
+│ test-group-4   unknown2@tag  │
+└──────────────┴───────────────┘

@@ -1,7 +1,7 @@
 sdk: ^2.0.0-alpha.91
 prefixes:
   ar: pkg-ar
-  artemis: ..
+  artemis: .
   certificate_roots: toit-cert-roots
   cli: pkg-cli
   fs: fs
@@ -10,8 +10,8 @@ prefixes:
   snapshot: snapshot
   supabase: toit-supabase
 packages:
-  ..:
-    path: ..
+  .:
+    path: ../.
     prefixes:
       ar: pkg-ar
       artemis: toit-artemis
@@ -41,13 +41,13 @@ packages:
   pkg-host:
     url: github.com/toitlang/pkg-host
     name: host
-    version: 1.9.0
-    hash: 76e4dc5328a5c3739e97f65ed196d05058071359
+    version: 1.10.0
+    hash: e1c11a0e0bf65fe810520e8d893e554a8fe33b78
   pkg-http:
     url: github.com/toitlang/pkg-http
     name: http
-    version: 2.3.3
-    hash: 1e9de1eade90e9dbe0bab62a11c7bcc9914664d0
+    version: 2.3.4
+    hash: 39fe52083b4c745cc37420649a48277b45728fd2
   pkg-ntp:
     url: github.com/toitlang/pkg-ntp
     name: ntp

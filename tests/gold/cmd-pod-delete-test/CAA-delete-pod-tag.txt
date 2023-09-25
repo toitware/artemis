@@ -1,0 +1,3 @@
+# Delete a pod by tag
+# [pod, delete, pod2@latest]
+Deleted pod 'pod2@latest'.
