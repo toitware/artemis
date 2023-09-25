@@ -42,7 +42,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   containers ::= ContainerManager logger scheduler
   broker := BrokerService logger server-config
 
-  job-states := device.scheduler-jobs-state
+  job-states := device.scheduler-job-states
   // Set up the basic jobs.
   synchronize-state := job-states.get SynchronizeJob.NAME
   synchronizer/SynchronizeJob := SynchronizeJob logger device containers broker synchronize-state
@@ -75,9 +75,9 @@ run-artemis device/Device server-config/ServerConfig -> Duration
     // case, we will reschedule all jobs.
     job-states = {:}
     scheduler.jobs_.do: | job/Job |
-      if deep-sleep-state := job.deep-sleep-state:
-        job-states[job.name] = deep-sleep-state
-    device.scheduler-jobs-state-update job-states
+      if state := job.scheduler-state:
+        job-states[job.name] = state
+    device.scheduler-job-states-update job-states
 
   containers.setup-deep-sleep-triggers
 

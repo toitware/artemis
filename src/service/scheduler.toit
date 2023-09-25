@@ -38,11 +38,11 @@ class Scheduler:
         // For now, we only update the storage bucket when we're
         // shutting down. This means that if hit an exceptional
         // case, we will reschedule all jobs.
-        jobs-state := {:}
+        job-states := {:}
         jobs_.do: | job/Job |
-          if deep-sleep-state := job.deep-sleep-state:
-            jobs-state[job.name] = deep-sleep-state
-        device_.scheduler-jobs-state-update jobs-state
+          if state := job.scheduler-state:
+            job-states[job.name] = state
+        device_.scheduler-job-states-update job-states
 
   add-jobs jobs/List -> none:
     jobs.do: add-job it
