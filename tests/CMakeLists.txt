@@ -5,10 +5,14 @@ file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-test.toit" "*-test-slow.
 set(TEST_TIMEOUT 100 CACHE STRING "The maximal amount of time each test is allowed to run")
 set(SLOW_TEST_TIMEOUT 300 CACHE STRING "The maximal amount of time each slow test is allowed to run")
 set(WITH_LOCAL_SUPABASE TRUE CACHE BOOL "Whether the local supabase tests should be run")
+set(WITH_QEMU TRUE CACHE BOOL "Whether the Qemu tests should run")
 
 set(DEV_SDK_VERSION "" CACHE STRING "Version of the dev sdk")
 set(DEV_SDK_PATH "" CACHE STRING "Path to the dev sdk")
-set(DEV_ENVELOPE_PATH "" CACHE STRING "Path to the dev envelope")
+set(DEV_ENVELOPE_ESP32_PATH "" CACHE STRING "Path to the dev esp32 envelope")
+set(DEV_ENVELOPE_ESP32_QEMU_PATH "" CACHE STRING "Path to the dev esp32-qemu envelope")
+
+set(QEMU_PATH "qemu-system-xtensa" CACHE STRING "Path to the qemu binary")
 
 toit_project(tests "${CMAKE_CURRENT_LIST_DIR}")
 
@@ -82,6 +86,10 @@ endfunction()
 
 foreach(file ${TESTS})
   if ("${file}" MATCHES "supabase" AND NOT "${WITH_LOCAL_SUPABASE}")
+    continue()
+  endif()
+
+  if ("${file}" MATCHES "qemu" AND NOT "${WITH_QEMU}")
     continue()
   endif()
 
@@ -186,6 +194,11 @@ foreach(file ${TESTS})
       set(TEST_CONFIGURATIONS "default")
     endif()
 
+    set(QEMU_FLAG "")
+    if (${WITH_QEMU})
+      set(QEMU_FLAG "--qemu=${QEMU_PATH}")
+    endif()
+
     add_test(
       NAME "${test_name}"
       COMMAND "${TOITRUN}" "${file}"
@@ -193,8 +206,10 @@ foreach(file ${TESTS})
           "--toit-run=${TOITRUN}"
           "--sdk-version=${DEV_SDK_VERSION}"
           "--sdk-path=${DEV_SDK_PATH}"
-          "--envelope-path=${DEV_ENVELOPE_PATH}"
+          "--envelope-esp32-path=${DEV_ENVELOPE_ESP32_PATH}"
+          "--envelope-esp32-qemu-path=${DEV_ENVELOPE_ESP32_QEMU_PATH}"
           "--resource-locks=${RESOURCE_LOCKS}"
+          ${QEMU_FLAG}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       CONFIGURATIONS ${TEST_CONFIGURATIONS}
     )

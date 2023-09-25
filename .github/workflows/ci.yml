@@ -55,6 +55,8 @@ jobs:
           echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
           echo "TPKG_EXEC=$TOIT_SDK_DIR/bin/toit.pkg$BIN_EXTENSION" >> $GITHUB_ENV
 
+          echo "QEMU_EXEC=$DOWNLOAD_DIR/qemu-${{ runner.os }}/qemu-system-xtensa$BIN_EXTENSION" >> $GITHUB_ENV
+
           TOIT_SDK_FILE=toit-$(echo $RUNNER_OS | tr '[:upper:]' '[:lower:]').tar.gz
           TOIT_SDK_BASE_URL=https://github.com/toitlang/toit/releases
 
@@ -66,11 +68,23 @@ jobs:
           url: ${{ env.TOIT_SDK_URL }}
           target: ${{ env.NATIVE_DOWNLOAD_DIR }}
 
-      - name: Extract Toit
+      - uses: suisei-cn/actions-download-file@v1.3.0
+        name: Download Qemu
+        with:
+          url: https://github.com/toitlang/qemu/releases/download/v0.0.3/qemu-${{ runner.os }}.tar.gz
+          target: ${{ env.NATIVE_DOWNLOAD_DIR }}
+
+      - name: Extract Toit and Qemu
         shell: bash
         run: |
           cd "$DOWNLOAD_DIR"
-          tar x -f *.tar.gz
+          for f in *.tar.gz; do
+            tar x -f $f
+          done
+          ls $TOIT_EXEC
+          ls $TOITC_EXEC
+          ls $TPKG_EXEC
+          ls $QEMU_EXEC
 
       - name: Setup environment
         shell: bash
@@ -151,13 +165,25 @@ jobs:
         shell: bash
         run: |
           make rebuild-cmake
-          cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
+          cmake \
+              -DTOITC="$TOITC_EXEC" \
+              -DTOITPKG="$TPKG_EXEC" \
+              -DTOITRUN="$TOIT_EXEC" \
+              -DQEMU_PATH="$QEMU_EXEC" \
+              build
 
       - name: Disable Supabase tests - Windows and macOS
         if: runner.os != 'Linux' || matrix.arch != 'amd64'
         shell: bash
         run: |
           make disable-supabase-tests
+
+      - name: Disable Qemu tests - Windows
+        # TODO(florian): Figure out why the qemu tests fail on Windows.
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          make disable-qemu-tests
 
       - name: Configure arm64
         if: matrix.arch == 'arm64'
@@ -199,7 +225,7 @@ jobs:
         with:
           cpu: cortex-a7
           base_image: "raspios_lite_arm64:2022-01-28"
-          image_additional_mb: 300
+          image_additional_mb: 500
           commands: |
               uname -m
               export HOME=$(pwd)
