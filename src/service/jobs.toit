@@ -40,6 +40,40 @@ abstract class Job:
   abstract start -> none
   abstract stop -> none
 
+  /**
+  State that survives deep sleeps.
+
+  The returned value must be a JSON-serializable object. It is given to
+    to the job before the scheduler makes any scheduling decision.
+
+  # Inheritance
+  Subclasses are allowed to extend the state with additional information.
+  Before calling $set-saved-deep-sleep-state of this object they must restore
+    the original value.
+  */
+  deep-sleep-state -> any:
+    ran-last := scheduler-ran-last_
+    delayed-until := scheduler-delayed-until_
+    if not ran-last and not delayed-until:
+      return null
+    if ran-last and not delayed-until:
+      // The most common case.
+      return ran-last.us
+    return [ran-last and ran-last.us, delayed-until and delayed-until.us]
+
+  /**
+  Sets the state that was saved by the job before a deep sleep.
+  */
+  set-saved-deep-sleep-state state/any -> none:
+    if not state: return
+    if state is List:
+      ran-last-us := state[0]
+      delayed-until-us := state[1]
+      scheduler-ran-last_ = ran-last-us and JobTime ran-last-us
+      scheduler-delayed-until_ = delayed-until-us and JobTime delayed-until-us
+    else:
+      scheduler-ran-last_ = JobTime state
+
   // If a periodic job runs longer than its period, it is beneficial
   // to delay starting the job again until it gets through the period
   // it just started. This helper achieves that by tuning the last
