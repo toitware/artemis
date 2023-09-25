@@ -1,0 +1,4 @@
+# Update a group name and pod
+# [fleet, group, update, test-group-3, --name, test-group-4, --pod, unknown2@tag, --force]
+Updated group 'test-group-3' to pod 'unknown2@tag'.
+Renamed group 'test-group-3' to 'test-group-4'.

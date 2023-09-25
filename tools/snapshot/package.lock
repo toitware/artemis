@@ -12,8 +12,8 @@ packages:
   pkg-ar:
     url: github.com/toitlang/pkg-ar
     name: ar
-    version: 1.0.0
-    hash: 175bcdfd59b2597c0825ef8765a20498a7e6a2db
+    version: 1.0.1
+    hash: 0f32219787c63521fc5690bbb716fc19cc40f5da
   pkg-cli:
     url: github.com/toitlang/pkg-cli
     name: cli
@@ -22,5 +22,5 @@ packages:
   pkg-host:
     url: github.com/toitlang/pkg-host
     name: host
-    version: 1.9.0
-    hash: 76e4dc5328a5c3739e97f65ed196d05058071359
+    version: 1.10.0
+    hash: e1c11a0e0bf65fe810520e8d893e554a8fe33b78
