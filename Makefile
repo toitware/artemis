@@ -33,7 +33,11 @@ install-pkgs: rebuild-cmake
 
 .PHONY: disable-supabase-tests
 disable-supabase-tests: build/CMakeCache.txt
-	(cd build && cmake -DWITH_LOCAL_SUPABASE=OFF .)
+	cmake -DWITH_LOCAL_SUPABASE=OFF build
+
+.PHONY: disable-qemu-tests
+disable-qemu-tests: build/CMakeCache.txt
+	cmake -DWITH_QEMU=OFF build
 
 .PHONY: test
 test: install-pkgs rebuild-cmake download-sdk
@@ -153,11 +157,14 @@ upload-service:
 
 .PHONY: download-sdk
 download-sdk: install-pkgs
-	@ $(TOITRUN) tools/service_image_uploader/sdk-downloader.toit download --version $(LOCAL_DEV_SDK)
+	@ $(TOITRUN) tools/service_image_uploader/sdk-downloader.toit download \
+	    --version $(LOCAL_DEV_SDK) \
+			--envelope=esp32,esp32-qemu
 	@ cmake \
 		-DDEV_SDK_VERSION=$(LOCAL_DEV_SDK) \
 		-DDEV_SDK_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print)" \
-		-DDEV_ENVELOPE_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope)" \
+		-DDEV_ENVELOPE_ESP32_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope="esp32")" \
+		-DDEV_ENVELOPE_ESP32_QEMU_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope="esp32-qemu")" \
 		build
 
 # We rebuild the cmake file all the time.

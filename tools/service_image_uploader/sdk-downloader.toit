@@ -35,6 +35,10 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         cli.Option "version"
             --short-help="The version of the SDK to use."
             --required,
+        cli.Option "envelope"
+            --short-help="The envelope to download."
+            --multi
+            --split-commas,
       ]
 
   download-cmd := cli.Command "download"
@@ -45,7 +49,7 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   print-cmd := cli.Command "print"
       --long-help="Prints the path to the SDK or envelope."
       --options=[
-        cli.Flag "envelope"
+        cli.Option "envelope"
             --short-help="Prints the path to the envelope.",
       ]
       --run=:: print-path config cache ui it
@@ -53,17 +57,20 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
 
   cmd.run args
 
-pod-specification-for_ --sdk-version/string:
+pod-specification-for_ --sdk-version/string --envelope/string:
   json := INITIAL-POD-SPECIFICATION
   json["sdk-version"] = sdk-version
+  json["firmware-envelope"] = envelope
   return PodSpecification.from-json json --path="ignored"
 
 download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   sdk-version := parsed["version"]
+  envelopes := parsed["envelope"]
 
   get-sdk --cache=cache sdk-version
-  pod-specification := pod-specification-for_ --sdk-version=sdk-version
-  get-envelope --specification=pod-specification --cache=cache
+  envelopes.do:
+    pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=it
+    get-envelope --specification=pod-specification --cache=cache
 
 print-path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   // Make sure we don't print anything while downloading.
@@ -73,7 +80,7 @@ print-path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
   path/string := ?
   if envelope:
-    pod-specification := pod-specification-for_ --sdk-version=sdk-version
+    pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=envelope
     path = get-envelope --cache=cache --specification=pod-specification
   else:
     path = (get-sdk --cache=cache sdk-version).sdk-path
