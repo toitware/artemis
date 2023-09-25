@@ -178,5 +178,8 @@ run-test test-cli/TestCli:
       --hardware-id=uuid.parse device-id
       --qemu-image=image-path
 
+  print "Starting to look for 'hello world' and 'INFO: synchronized'."
   test-device.wait-for "hello world"
+  print "Found 'hello world'."
   test-device.wait-for "INFO: synchronized"
+  print "Found 'INFO: synchronized'."
