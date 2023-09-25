@@ -38,20 +38,50 @@ not the same server as Artemis). The organization is called "Test Org".
 
 In general a typical local workflow with HTTP servers looks like this:
 
+In a first terminal:
 ``` sh
+# Optionally, set your DEV_TOIT_REPO_PATH environment variable.
+export DEV_TOIT_REPO_PATH=$PWD/../toit
+
 # Make all binaries and (incidentally) download dependencies.
 make
-# Set up local servers.
+# Start the local servers. This command does not return.
 make start-http
+```
+
+In a second terminal:
+``` sh
+# Optionally, set your DEV_TOIT_REPO_PATH environment variable.
+export DEV_TOIT_REPO_PATH=$PWD/../toit
+
 # Login, upload a service image and create an org:
 make setup-local-dev
 
+# Make a directory for your development fleet.
+mkdir fleet
+
+# Alias the CLI command. (Don't use the built on in `build/bin`,
+# as it uses your production configuration).
+alias artdev="toit.run $PWD/src/cli/cli.toit --fleet-root=$PWD/fleet"
+
+# Create a fleet
+artdev fleet init
+
+# Update my-pod.json and change the WiFi credentials.
+# If you intend to reuse that directory, you might also want to
+# update the artemis-version to "v0.0.1". The 'make setup-local-dev'
+# command above uploads the service snapshot under both versions.
+
+# Create a pod.
+artdev pod upload fleet/my-pod.json
+
 # Flash a device.
-# Make sure the specification is using the SDK/service versions you uploaded in the previous step.
-toit.run src/cli/cli.toit device flash --port=/dev/ttyUSB0 --specification some_specification.json
+artdev serial flash --port=/dev/ttyUSB0
 ```
 
 Whenever you change the Artemis service, you need to upload it again. Use
-`make upload-service` for that.
+`make upload-service` for that. You can then create a new pod with
+`artdev fleet pod upload fleet/my-pod.json`, and roll it out with
+`artdev fleet roll-out`.
 
 Happy hacking!

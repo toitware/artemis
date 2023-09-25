@@ -1,0 +1,9 @@
+# Content of extended spec
+# [pod, print, TMP_DIR/extended.json]
+{
+  "extends": [
+    "minimal.json"
+  ],
+  "max-offline": "1h"
+}
+

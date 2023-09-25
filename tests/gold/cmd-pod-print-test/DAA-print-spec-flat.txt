@@ -1,0 +1,10 @@
+# Content of extended spec after flattening
+# [pod, print, --flat, TMP_DIR/extended.json]
+{
+  "max-offline": "1h",
+  "version": 1,
+  "name": "test-pod-print",
+  "sdk-version": "v0.0.0",
+  "artemis-version": "v1.0.0"
+}
+
