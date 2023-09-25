@@ -54,7 +54,7 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
             --short-help="A local pod file to flash.",
         cli.Option "qemu-image"
             --type="file"
-            --short-help="Write to an Qemu image file instead of flashing."
+            --short-help="Write to a QEMU image file instead of flashing."
             --hidden,
         cli.Flag "simulate"
             --hidden
@@ -99,7 +99,7 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
             --required,
         cli.Option "qemu-image"
             --type="file"
-            --short-help="Write to an Qemu image file instead of flashing."
+            --short-help="Write to a QEMU image file instead of flashing."
             --hidden,
       ]
       --run=:: flash --station it config cache ui
@@ -211,14 +211,14 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         ui.info info
       else if qemu-image:
         if pod.chip != "esp32" and not pod.chip.starts-with "esp32-":
-          ui.abort "Cannot write to Qemu image file for chip '$pod.chip'."
+          ui.abort "Cannot write to QEMU image file for chip '$pod.chip'."
         sdk.extract-qemu-image
             --output-path=qemu-image
             --envelope-path=pod.envelope-path
             --config-path=config-path
             --partitions=partitions
             --chip=pod.chip
-        ui.info "Wrote to Qemu image file '$qemu-image'."
+        ui.info "Wrote to QEMU image file '$qemu-image'."
       else:
         ui.info "Simulating flash."
         ui.info "Using the local Artemis service and not the one specified in the specification."
@@ -267,7 +267,7 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --chip=pod.chip
       else:
         if pod.chip != "esp32" and not pod.chip.starts-with "esp32-":
-          ui.abort "Cannot write to Qemu image file for chip '$pod.chip'."
+          ui.abort "Cannot write to QEMU image file for chip '$pod.chip'."
         sdk.extract-qemu-image
             --output-path=qemu-image
             --envelope-path=pod.envelope-path
