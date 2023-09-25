@@ -199,8 +199,8 @@ class PinTriggerManager:
         else: tags["touch"] = touch
         logger_.info "triggered by pin" --tags=tags
         encoded-trigger := touch
-          ? Trigger.encode-touch pin-number
-          : Trigger.encode-pin pin-number --level=level
+            ? Trigger.encode-touch pin-number
+            : Trigger.encode-pin pin-number --level=level
         job.trigger encoded-trigger
 
     // We need a critical_do as `update_` might kill the currently running
