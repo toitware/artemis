@@ -1,0 +1,5 @@
+# Show the renamed org
+# [org, show, -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=-]
+Id: -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=-
+Name: Testy2
+Created: CREATED-AT
