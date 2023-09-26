@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "name": "my-pod",
+  "firmware-envelope": "esp32-qemu",
+  "connections": [
+    {
+      "type": "ethernet",
+      "requires": ["eth-qemu"]
+    }
+  ],
+  "containers": {
+    "eth-qemu": {
+      "entrypoint": "eth.toit"
+    }
+  }
+}

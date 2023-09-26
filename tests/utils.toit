@@ -370,7 +370,7 @@ class TestCli:
     return device-description
 
   /**
-  Ensures that there exists
+  Ensures that there exists a service image uploaded.
   */
   ensure-available-artemis-service
       --sdk-version=TEST-SDK-VERSION
