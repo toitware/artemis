@@ -79,6 +79,8 @@ update parsed/cli.Parsed config/Config ui/Ui:
     exception := catch:
       authenticatable.update --email=email --password=password
       ui.info "Successfully updated."
+      if password:
+        ui.info "Check your email for a verification link. It might be in your spam folder."
     if exception:
       ui.abort exception
 
