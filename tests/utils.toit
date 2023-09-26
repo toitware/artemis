@@ -698,6 +698,7 @@ class TestDevicePipe extends TestDevice:
       if accumulated-size >= needle.size:
         last-end = chunks_.size
         str := build-string-from-output_ --from=start-index
+        print "DEBUG: Looking for $needle in $str"
         str.contains needle
       else:
         false
