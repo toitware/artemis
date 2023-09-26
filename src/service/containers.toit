@@ -266,7 +266,7 @@ class ContainerJob extends Job:
   stringify -> string:
     return "container:$name"
 
-  deep-sleep-state -> any:
+  scheduler-state -> any:
     job-state := super
     if not override-triggers_: return job-state
     return {
@@ -274,7 +274,7 @@ class ContainerJob extends Job:
       "triggers": override-triggers_.to-encoded-list
     }
 
-  set-saved-deep-sleep-state state/any -> none:
+  set-scheduler-state_ state/any -> none:
     if state is Map:
       job-state := state.get "job"
       super job-state
