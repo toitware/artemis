@@ -65,6 +65,11 @@ interface BrokerCli implements Authenticatable:
   sign-in --provider/string --ui/Ui --open-browser
 
   /**
+  Updates the user's email and/or password.
+  */
+  update --email/string? --password/string?
+
+  /**
   Updates the goal state of the device with the given $device-id.
 
   The block is called with a $DeviceDetailed as argument:
