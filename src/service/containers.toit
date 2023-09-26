@@ -45,13 +45,13 @@ class ContainerManager:
       is-bundled := image.name != null
       if is-bundled: images-bundled_.add image.id
 
-  load state/Map -> none:
+  load state/Map saved-states/Map -> none:
     apps := state.get "apps" --if-absent=: return
     apps.do: | name description |
       id/uuid.Uuid? := null
       catch: id = uuid.parse (description.get ContainerJob.KEY-ID)
       if not id: continue.do
-      job := create --name=name --id=id --description=description
+      job := create --name=name --id=id --description=description --state=(saved-states.get name)
       // TODO(kasper): We should be able to find all container
       // images used by the current state in flash, so it isn't
       // very clear how we should handle it if we cannot. Should
@@ -88,7 +88,8 @@ class ContainerManager:
       if job.gid == gid: return job
     return null
 
-  create --name/string --id/uuid.Uuid --description/Map -> ContainerJob?
+  create -> ContainerJob?
+      --name/string --id/uuid.Uuid --description/Map --state/any
       --reader/Reader?=null:
     if reader:
       writer/containers.ContainerImageWriter := ?
@@ -114,6 +115,7 @@ class ContainerManager:
         --description=description
         --pin-trigger-manager=pin-trigger-manager_
         --logger=logger_
+        --state=state
 
   install job/ContainerJob -> none:
     if job.has-install-trigger:
@@ -227,11 +229,12 @@ class ContainerJob extends Job:
       --.id
       --description/Map
       --pin-trigger-manager/PinTriggerManager
-      --logger/log.Logger:
+      --logger/log.Logger
+      --state/any:
     description_ = description
     pin-trigger-manager_ = pin-trigger-manager
     logger_ = logger.with-name name
-    super name
+    super name state
     update description
 
   stringify -> string:

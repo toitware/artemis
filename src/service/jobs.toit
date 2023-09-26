@@ -24,7 +24,8 @@ abstract class Job:
   // same with has_run_after_boot.
   scheduler-delayed-until_/JobTime? := null
 
-  constructor .name:
+  constructor .name scheduler-state/any:
+    set-scheduler-state_ scheduler-state
 
   abstract is-running -> bool
   is-background -> bool: return false
@@ -41,17 +42,17 @@ abstract class Job:
   abstract stop -> none
 
   /**
-  State that survives deep sleeps.
+  State that has to survive deep sleeps.
 
-  The returned value must be a JSON-serializable object. It is given to
+  The returned value must be a JSON-serializable object. It is later given to
     to the job before the scheduler makes any scheduling decision.
 
   # Inheritance
   Subclasses are allowed to extend the state with additional information.
-  Before calling $set-saved-deep-sleep-state of this object they must restore
+  Before calling $set-scheduler-state_ of this object they must restore
     the original value.
   */
-  deep-sleep-state -> any:
+  scheduler-state -> any:
     ran-last := scheduler-ran-last_
     delayed-until := scheduler-delayed-until_
     if not ran-last and not delayed-until:
@@ -63,8 +64,9 @@ abstract class Job:
 
   /**
   Sets the state that was saved by the job before a deep sleep.
+  See $state.
   */
-  set-saved-deep-sleep-state state/any -> none:
+  set-scheduler-state_ state/any -> none:
     if not state: return
     if state is List:
       ran-last-us := state[0]
@@ -92,8 +94,8 @@ abstract class TaskJob extends Job:
   task_/Task? := null
   latch_/monitor.Latch? := null
 
-  constructor name/string:
-    super name
+  constructor name/string saved-state/any:
+    super name saved-state
 
   is-running -> bool:
     return task_ != null
@@ -133,8 +135,8 @@ abstract class TaskJob extends Job:
 abstract class PeriodicJob extends TaskJob:
   period_/Duration
 
-  constructor name/string .period_:
-    super name
+  constructor name/string saved-state/any .period_:
+    super name saved-state
 
   is-background -> bool:
     // Periodic jobs do not want to cause device

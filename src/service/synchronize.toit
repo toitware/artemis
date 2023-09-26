@@ -47,6 +47,8 @@ class Goal:
     pending-steps_.add step
 
 class SynchronizeJob extends TaskJob:
+  static NAME ::= "synchronize"
+
   /** Not connected to the network yet. */
   static STATE-DISCONNECTED ::= 0
   /** Connecting to the network. */
@@ -160,11 +162,11 @@ class SynchronizeJob extends TaskJob:
   control-level-online_/int := 0
   control-level-offline_/int := 0
 
-  constructor logger/log.Logger .device_ .containers_ .broker_:
-    logger_ = logger.with-name "synchronize"
+  constructor logger/log.Logger .device_ .containers_ .broker_ saved-state/any:
+    logger_ = logger.with-name NAME
     max-offline := device_.max-offline
     status-limit-us_ = compute-status-limit-us_ max-offline
-    super "synchronize"
+    super NAME saved-state
 
   control --online/bool --close/bool=false -> none:
     if close:
@@ -622,7 +624,7 @@ class SynchronizeJob extends TaskJob:
     handle-container-update_ name description
 
   handle-container-install_ name/string id/uuid.Uuid description/Map -> Lambda?:
-    if job := containers_.create --name=name --id=id --description=description:
+    if job := containers_.create --name=name --id=id --description=description --state=null:
       device_.state-container-install-or-update name description
       containers_.install job
       return null
@@ -636,6 +638,7 @@ class SynchronizeJob extends TaskJob:
             --id=id
             --description=description
             --reader=reader
+            --state=null
         device_.state-container-install-or-update name description
         containers_.install job
 

@@ -42,14 +42,18 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   containers ::= ContainerManager logger scheduler
   broker := BrokerService logger server-config
 
+  job-states := device.scheduler-job-states
   // Set up the basic jobs.
-  synchronizer/SynchronizeJob := SynchronizeJob logger device containers broker
+  synchronize-state := job-states.get SynchronizeJob.NAME
+  synchronizer/SynchronizeJob := SynchronizeJob logger device containers broker synchronize-state
   jobs := [synchronizer]
-  if start-ntp: jobs.add (NtpJob logger (Duration --m=10))
+  if start-ntp:
+    ntp-state := job-states.get NtpJob.NAME
+    jobs.add (NtpJob logger ntp-state (Duration --m=10))
   scheduler.add-jobs jobs
 
   // Add the container jobs based on the current device state.
-  containers.load device.current-state
+  containers.load device.current-state job-states
 
   // Run the scheduler until it terminates and gives us
   // the wakeup time for the next job to run. While we
@@ -65,6 +69,15 @@ run-artemis device/Device server-config/ServerConfig -> Duration
     // We sometimes cancel the scheduler when running tests,
     // so we have to be careful and clean up anyway.
     critical-do: provider.uninstall
+
+    // For now, we only update the storage bucket when we're
+    // shutting down. This means that if hit an exceptional
+    // case, we will reschedule all jobs.
+    job-states = {:}
+    scheduler.jobs_.do: | job/Job |
+      if state := job.scheduler-state:
+        job-states[job.name] = state
+    device.scheduler-job-states-update job-states
 
   containers.setup-deep-sleep-triggers
 

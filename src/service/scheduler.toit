@@ -12,11 +12,9 @@ class Scheduler:
   runlevel_/int := Job.RUNLEVEL-SAFE
 
   jobs_ ::= []
-  jobs-state-initial_/Map
 
   constructor logger/log.Logger .device_:
     logger_ = logger.with-name "scheduler"
-    jobs-state-initial_ = device_.scheduler-jobs-state
 
   runlevel -> int:
     return runlevel_
@@ -40,18 +38,17 @@ class Scheduler:
         // For now, we only update the storage bucket when we're
         // shutting down. This means that if hit an exceptional
         // case, we will reschedule all jobs.
-        jobs-state := {:}
+        job-states := {:}
         jobs_.do: | job/Job |
-          if deep-sleep-state := job.deep-sleep-state:
-            jobs-state[job.name] = deep-sleep-state
-        device_.scheduler-jobs-state-update jobs-state
+          if state := job.scheduler-state:
+            job-states[job.name] = state
+        device_.scheduler-job-states-update job-states
 
   add-jobs jobs/List -> none:
     jobs.do: add-job it
 
   add-job job/Job -> none:
     job.scheduler_ = this
-    job.set-saved-deep-sleep-state (jobs-state-initial_.get job.name)
     jobs_.add job
     signal_.awaken
 
@@ -62,7 +59,6 @@ class Scheduler:
   remove-job job/Job -> none:
     job.stop
     jobs_.remove job
-    jobs-state-initial_.remove job.name
 
   transition --runlevel/int --timeout=(Duration --s=2) -> none:
     existing := runlevel_

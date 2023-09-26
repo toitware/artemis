@@ -7,11 +7,13 @@ import ntp
 import .jobs
 
 class NtpJob extends PeriodicJob:
+  static NAME ::= "ntp"
+
   logger_/log.Logger
 
-  constructor logger/log.Logger period/Duration:
-    logger_ = logger.with-name "ntp"
-    super "ntp" period
+  constructor logger/log.Logger saved-state/any period/Duration:
+    logger_ = logger.with-name NAME
+    super NAME saved-state period
 
   run -> none:
     result/ntp.Result? := null
