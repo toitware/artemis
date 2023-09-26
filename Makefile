@@ -116,8 +116,8 @@ start-supabase: start-supabase-no-config
 	@ echo "Run 'make use-customer-supabase-broker' to use the customer broker."
 
 stop-supabase:
-	@ supabase stop --workdir supabase_artemis
-	@ supabase stop --workdir public/supabase_broker
+	@ supabase stop --no-backup --workdir supabase_artemis
+	@ supabase stop --no-backup --workdir public/supabase_broker
 
 .PHONY: use-customer-supabase-broker
 use-customer-supabase-broker: start-supabase
