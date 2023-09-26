@@ -624,7 +624,7 @@ class SynchronizeJob extends TaskJob:
     handle-container-update_ name description
 
   handle-container-install_ name/string id/uuid.Uuid description/Map -> Lambda?:
-    if job := containers_.create --name=name --id=id --description=description --saved-state=null:
+    if job := containers_.create --name=name --id=id --description=description --state=null:
       device_.state-container-install-or-update name description
       containers_.install job
       return null
@@ -638,7 +638,7 @@ class SynchronizeJob extends TaskJob:
             --id=id
             --description=description
             --reader=reader
-            --saved-state=null
+            --state=null
         device_.state-container-install-or-update name description
         containers_.install job
 

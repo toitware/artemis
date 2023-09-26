@@ -1,0 +1,9 @@
+# Content of minimal spec after flattening
+# [pod, print, --flat, TMP_DIR/minimal.json]
+{
+  "version": 1,
+  "name": "test-pod-print",
+  "sdk-version": "v0.0.0",
+  "artemis-version": "v1.0.0"
+}
+

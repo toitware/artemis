@@ -1,0 +1,3 @@
+# Can't add a device to default group that doesn't exist
+# [fleet, add-device, eb45c662-356c-4bea-ad8c-ede37688fddf]
+Error: Group 'default' not found.

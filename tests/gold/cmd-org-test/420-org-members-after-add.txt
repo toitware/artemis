@@ -1,0 +1,8 @@
+# List the members of the org after adding a member
+# [org, members, list]
+┌──────────────────────────────────────┬────────┬───────────┬──────────────────┐
+│ ID                                     Role     Name        Email            │
+├──────────────────────────────────────┼────────┼───────────┼──────────────────┤
+│ f76629c5-a070-4bbc-9918-64beaea48848   admin    Test User   test@example.com │
+│ d9064bb5-1501-4ec9-bfee-21ab74d645b8   member   Demo User   demo@example.com │
+└──────────────────────────────────────┴────────┴───────────┴──────────────────┘
