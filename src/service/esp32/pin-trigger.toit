@@ -319,14 +319,16 @@ class PinTriggerManager:
     if high-mask != 0:
       // TODO(florian): only some pins are allowed.
       logger_.info "setting up external-wakeup trigger any high: $(%b high-mask)"
-      esp32.enable-external-wakeup high-mask true
+      catch --trace:
+        esp32.enable-external-wakeup high-mask true
       if low-mask != 0:
         logger_.warn "pin triggers for low level are ignored"
     else if low-mask != 0:
       if low-mask.population-count > 1:
         logger_.warn "device will only wake up if all trigger pins are 0"
       logger_.info "setting up external-wakeup trigger all low: $(%b low-mask)"
-      esp32.enable-external-wakeup low-mask false
+      catch --trace:
+        esp32.enable-external-wakeup low-mask false
 
     has-touch-triggers := jobs.any: | job/ContainerJob | job.has-touch-triggers
 

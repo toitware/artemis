@@ -50,6 +50,9 @@ interface ArtemisService:
   container-current-triggers -> List?
   static CONTAINER-CURRENT-TRIGGERS-INDEX /int ::= 11
 
+  container-current-set-triggers new-triggers/List? -> none
+  static CONTAINER-CURRENT-SET-TRIGGERS-INDEX /int ::= 12
+
   controller-open --mode/int -> int
   static CONTROLLER-OPEN-INDEX /int ::= 6
 
@@ -92,6 +95,9 @@ class ArtemisClient extends ServiceClient
 
   container-current-triggers -> List:
     return invoke_ ArtemisService.CONTAINER-CURRENT-TRIGGERS-INDEX null
+
+  container-current-set-triggers new-triggers/List -> none:
+    invoke_ ArtemisService.CONTAINER-CURRENT-SET-TRIGGERS-INDEX new-triggers
 
   controller-open --mode/int -> int:
     return invoke_ ArtemisService.CONTROLLER-OPEN-INDEX mode

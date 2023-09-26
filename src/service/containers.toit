@@ -18,7 +18,12 @@ import system.containers
 // version will be used instead.
 
 // WAS: import artemis show Trigger
-import .pkg-artemis-src-copy.artemis show Trigger
+import .pkg-artemis-src-copy.artemis
+  show
+    Trigger
+    TriggerInterval
+    TriggerPin
+    TriggerTouch
 
 import .jobs
 import .esp32.pin-trigger
@@ -179,6 +184,26 @@ class Triggers:
         if not trigger-gpio-touch: trigger-gpio-touch = {}
         trigger-gpio-touch.add value
 
+  constructor.from-encoded-list triggers/List:
+    triggers.do: | encoded/int |
+      trigger := Trigger.decode encoded
+      kind := trigger.kind
+      if kind == Trigger.KIND-BOOT:
+        trigger-boot = true
+      else if kind == Trigger.KIND-INSTALL:
+        trigger-install = true
+      else if kind == Trigger.KIND-INTERVAL:
+        trigger-interval = (trigger as TriggerInterval).interval
+      else if kind == Trigger.KIND-PIN:
+        pin := (trigger as TriggerPin).pin
+        level := (trigger as TriggerPin).level
+        if not trigger-gpio-levels: trigger-gpio-levels = {:}
+        trigger-gpio-levels[pin] = level
+      else if kind == Trigger.KIND-TOUCH:
+        pin := (trigger as TriggerTouch).pin
+        if not trigger-gpio-touch: trigger-gpio-touch = {}
+        trigger-gpio-touch.add pin
+
   has-gpio-pin-triggers -> bool:
     return trigger-gpio-levels != null
 
@@ -218,7 +243,10 @@ class ContainerJob extends Job:
 
   is-background_/bool := false
 
-  triggers_/Triggers := Triggers
+  triggers-default_/Triggers := Triggers
+  // The triggers that are currently active/armed. They might differ from the
+  // default triggers if the user called `set-override-triggers`.
+  triggers-armed_/Triggers := ?
 
   is-triggered_/bool := false
   // The reason for why this job was triggered.
@@ -234,11 +262,26 @@ class ContainerJob extends Job:
     description_ = description
     pin-trigger-manager_ = pin-trigger-manager
     logger_ = logger.with-name name
+    triggers-armed_ = triggers-default_
     super name state
     update description
 
   stringify -> string:
     return "container:$name"
+
+  scheduler-state -> any:
+    state := super
+    if identical triggers-armed_ triggers-default_: return state
+    return [state, triggers-armed_.to-encoded-list]
+
+  set-scheduler-state_ state/any -> none:
+    if state is List:
+      super state[0]
+      triggers := state[1]
+      assert: triggers != null
+      triggers-armed_ = Triggers.from-encoded-list triggers
+    else:
+      super state
 
   is-running -> bool:
     return running_ != null
@@ -274,7 +317,7 @@ class ContainerJob extends Job:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
       trigger (Trigger.encode Trigger.KIND-CRITICAL)
-    else if trigger-interval := triggers_.trigger-interval:
+    else if trigger-interval := triggers-armed_.trigger-interval:
       result := last ? last + trigger-interval : now
       if result > now: return result
       trigger (Trigger.encode-interval trigger-interval)
@@ -293,19 +336,30 @@ class ContainerJob extends Job:
     last-trigger-reason_ = reason
 
   /** An encoded list (see $Trigger.encode) of all triggers that are active for this job. */
-  all-active-triggers -> List:
+  encoded-armed-triggers -> List:
     if scheduler-delayed-until_:
       // If the job is delayed, then no other trigger is active.
       remaining-time-ms := (scheduler-delayed-until_.to-monotonic-us - Time.monotonic-us) / 1000
       return [Trigger.encode-delayed remaining-time-ms]
 
-    return triggers_.to-encoded-list
+    return triggers-armed_.to-encoded-list
+
+  set-override-triggers new-encoded-triggers/List? -> none:
+    if not new-encoded-triggers or triggers-default_.to-encoded-list == new-encoded-triggers:
+      triggers-armed_ = triggers-default_
+      return
+
+    triggers-armed_ = Triggers.from-encoded-list new-encoded-triggers
+    // Typically we are currently running, and don't need any trigger setup.
+    // The following call is just in case of race conditions.
+    if not running_:
+      pin-trigger-manager_.update-job this
 
   schedule-tune last/JobTime -> JobTime:
     // If running the container took a long time, we tune the
     // schedule and postpone the next run by making it start
     // at the beginning of the next period instead of now.
-    return Job.schedule-tune-periodic last triggers_.trigger-interval
+    return Job.schedule-tune-periodic last triggers-armed_.trigger-interval
 
   start -> none:
     if running_: return
@@ -351,40 +405,41 @@ class ContainerJob extends Job:
       runlevel_ = Job.RUNLEVEL-CRITICAL
 
     // Reset triggers.
-    triggers_ = is-critical
+    triggers-default_ = is-critical
         ? Triggers
         : Triggers.from-description (description.get "triggers")
+    triggers-armed_ = triggers-default_
 
   has-boot-trigger -> bool:
-    return triggers_.trigger-boot
+    return triggers-armed_.trigger-boot
 
   has-install-trigger -> bool:
-    return triggers_.trigger-install
+    return triggers-armed_.trigger-install
 
   has-gpio-pin-triggers -> bool:
-    return triggers_.has-gpio-pin-triggers
+    return triggers-armed_.has-gpio-pin-triggers
 
   has-touch-triggers -> bool:
-    return triggers_.has-touch-triggers
+    return triggers-armed_.has-touch-triggers
 
   has-pin-triggers -> bool:
     return has-gpio-pin-triggers or has-touch-triggers
 
   has-pin-trigger pin/int --level/int -> bool:
-    return triggers_.has-pin-trigger pin --level=level
+    return triggers-armed_.has-pin-trigger pin --level=level
 
   has-touch-trigger pin/int -> bool:
-    return triggers_.has-touch-trigger pin
+    return triggers-armed_.has-touch-trigger pin
 
   do --trigger-gpio-levels/bool [block]:
     if not has-gpio-pin-triggers: return
-    triggers_.trigger-gpio-levels.do: | pin level |
+    triggers-armed_.trigger-gpio-levels.do: | pin level |
       block.call pin level
 
   do --trigger-touch-pins/bool [block]:
     if not has-touch-triggers: return
-    triggers_.trigger-gpio-touch.do: | pin |
+    triggers-armed_.trigger-gpio-touch.do: | pin |
       block.call pin
 
   touch-triggers -> Set:
-    return triggers_.trigger-gpio-touch
+    return triggers-armed_.trigger-gpio-touch

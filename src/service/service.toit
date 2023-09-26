@@ -107,6 +107,9 @@ class ArtemisServiceProvider extends ChannelServiceProvider
       return container-current-trigger --gid=gid
     if index == api.ArtemisService.CONTAINER-CURRENT-TRIGGERS-INDEX:
       return container-current-triggers --gid=gid
+    if index == api.ArtemisService.CONTAINER-CURRENT-SET-TRIGGERS-INDEX:
+      container-current-set-triggers --gid=gid --new-triggers=arguments
+      return null
     if index == api.ArtemisService.CONTROLLER-OPEN-INDEX:
       return controller-open --client=client --mode=arguments
     if index == api.ArtemisService.DEVICE-ID-INDEX:
@@ -134,7 +137,14 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     if job is not ContainerJob:
       return null
     container_job := job as ContainerJob
-    return (job as ContainerJob).all-active-triggers
+    return (job as ContainerJob).encoded-armed-triggers
+
+  container-current-set-triggers --gid/int --new-triggers/List?:
+    job := containers_.get --gid=gid
+    if job is not ContainerJob:
+      return
+    container_job := job as ContainerJob
+    container_job.set-override-triggers new-triggers
 
   controller-open --client/int --mode/int -> ControllerResource:
     online := false
@@ -153,6 +163,9 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     unreachable  // Here to satisfy the checker.
 
   container-current-triggers -> List:
+    unreachable  // Here to satisfy the checker.
+
+  container-current-set-triggers new-triggers/List -> none:
     unreachable  // Here to satisfy the checker.
 
   controller-open --mode/int -> int:
