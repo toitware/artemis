@@ -137,7 +137,7 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     if job is not ContainerJob:
       return null
     container_job := job as ContainerJob
-    return (job as ContainerJob).all-active-triggers
+    return (job as ContainerJob).encoded-armed-triggers
 
   container-current-set-triggers --gid/int --new-triggers/List?:
     job := containers_.get --gid=gid
@@ -166,7 +166,7 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     unreachable  // Here to satisfy the checker.
 
   container-current-set-triggers new-triggers/List -> none:
-    unreachable // Here to satisfy the checker.
+    unreachable  // Here to satisfy the checker.
 
   controller-open --mode/int -> int:
     unreachable  // Here to satisfy the checker.
