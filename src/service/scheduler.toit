@@ -93,6 +93,9 @@ class Scheduler:
   on-job-updated -> none:
     signal_.awaken
 
+  on-job-background-state-change job/Job -> none:
+    signal_.awaken
+
   has-running-jobs_ -> bool:
     return jobs_.any: | job/Job |
       job.is-running and not job.is-background
