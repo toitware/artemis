@@ -634,14 +634,14 @@ class TestDevicePipe extends TestDevice:
       catch --trace:
         while chunk := stdout.read:
           chunks_.add chunk
-          print-on-stderr_ "STDOUT: $chunk.to-string-non-throwing"
+          print-on-stderr_ "STDOUT: '$chunk.to-string-non-throwing'"
           signal_.raise
 
     stderr-task_ = task --background::
       catch --trace:
         while chunk := stderr.read:
           chunks_.add chunk
-          print-on-stderr_ "STDERR: $chunk.to-string-non-throwing"
+          print-on-stderr_ "STDERR: '$chunk.to-string-non-throwing'"
           signal_.raise
 
   close:
@@ -698,7 +698,7 @@ class TestDevicePipe extends TestDevice:
       if accumulated-size >= needle.size:
         last-end = chunks_.size
         str := build-string-from-output_ --from=start-index
-        print "DEBUG: Looking for $needle in $str"
+        print "DEBUG: Looking in '$str' ($start-index, $last-end), $str.size"
         str.contains needle
       else:
         false
