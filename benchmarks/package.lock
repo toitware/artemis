@@ -72,8 +72,8 @@ packages:
   toit-supabase:
     url: github.com/toitware/toit-supabase
     name: supabase
-    version: 0.2.1
-    hash: 8a34d1fbcb02b7df8436c3c5e71d5958240da368
+    version: 0.2.2
+    hash: 0a3803a0b7fa1692c48603086ccb182d3955c9e7
     prefixes:
       host: pkg-host
       http: pkg-http
