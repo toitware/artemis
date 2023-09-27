@@ -46,6 +46,9 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
       --short-help="Log in to the Artemis server."
       --options=[
         cli.Flag "broker" --hidden --short-help="Log into the broker.",
+        cli.OptionEnum "provider" ["github", "google"]
+            --short-help="The OAuth2 provider to use."
+            --default="github",
         cli.OptionString "email" --short-help="The email for a password-based login.",
         cli.OptionString "password" --short-help="The password for a password-based login.",
         cli.Flag "open-browser"
@@ -104,13 +107,15 @@ sign-in parsed/cli.Parsed config/Config ui/Ui:
         email := parsed["email"]
         password := parsed["password"]
         if not (email and password):
-          throw "email and password must be provided together."
+          ui.abort "Email and password must be provided together."
+        if parsed.was-provided "provider":
+          ui.abort "The '--provider' option is not supported for password-based login."
         if parsed.was-provided "open-browser":
-          throw "'--open-browser' is not supported for password-based login"
+          ui.abort "The '--open-browser' is not supported for password-based login."
         authenticatable.sign-in --email=email --password=password
       else:
         authenticatable.sign-in
-            --provider="github"
+            --provider=parsed["provider"]
             --ui=ui
             --open-browser=parsed["open-browser"]
       ui.info "Successfully authenticated."
@@ -122,8 +127,6 @@ sign-up parsed/cli.Parsed config/Config ui/Ui:
     exception := catch:
       email := parsed["email"]
       password := parsed["password"]
-      if not (email and password):
-        throw "email and password must be provided together."
       authenticatable.sign-up --email=email --password=password
       ui.info "Successfully signed up. Check your email for a verification link."
     if exception:
