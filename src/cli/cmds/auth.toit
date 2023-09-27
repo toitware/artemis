@@ -47,7 +47,8 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Flag "broker" --hidden --short-help="Log into the broker.",
         cli.OptionEnum "provider" ["github", "google"]
-            --short-help="The OAuth2 provider to use.",
+            --short-help="The OAuth2 provider to use."
+            --default="github",
         cli.OptionString "email" --short-help="The email for a password-based login.",
         cli.OptionString "password" --short-help="The password for a password-based login.",
         cli.Flag "open-browser"
@@ -107,14 +108,12 @@ sign-in parsed/cli.Parsed config/Config ui/Ui:
         password := parsed["password"]
         if not (email and password):
           ui.abort "Email and password must be provided together."
-        if parsed["provider"]:
+        if parsed.was-provided "provider":
           ui.abort "The '--provider' option is not supported for password-based login."
         if parsed.was-provided "open-browser":
           ui.abort "The '--open-browser' is not supported for password-based login."
         authenticatable.sign-in --email=email --password=password
       else:
-      if not parsed.was-provided "provider":
-        ui.abort "Either '--email' and '--password' or '--provider' must be provided."
         authenticatable.sign-in
             --provider=parsed["provider"]
             --ui=ui
