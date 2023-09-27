@@ -215,7 +215,7 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: artemis-release-binaries
-          path: out
+          path: in
 
       - name: Install dependencies
         run: |
@@ -225,7 +225,7 @@ jobs:
 
       - name: Setup binary rights
         run: |
-          chmod +x out/macos/artemis
+          chmod +x in/macos/artemis
 
       - name: Sign and notarize
         uses: toitlang/action-macos-sign-notarize@v1.0.0
@@ -235,7 +235,11 @@ jobs:
           username: ${{ secrets.AC_USERNAME }}
           password: ${{ secrets.AC_PASSWORD }}
           apple-team-id: 33DS2ZRDST
-          app-path: out/macos/artemis
+          app-path: in/macos/artemis
+
+      - name: Create out folder
+        run: |
+          mkdir -p out/macos
 
       - name: Create a DMG
         run: |
@@ -245,13 +249,13 @@ jobs:
           mkdir empty
           create-dmg \
               --volname "artemis" \
-              --add-file artemis out/macos/artemis 0 0 \
+              --add-file artemis in/macos/artemis 0 0 \
               out/macos/artemis.dmg \
               empty
 
       - name: Create a ZIP
         run: |
-          zip -j out/macos/artemis.zip out/macos/artemis
+          zip -j out/macos/artemis.zip in/macos/artemis
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
@@ -342,19 +346,19 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: artemis-release-binaries
-          path: out
+          path: in
 
       - name: Download signed Windows artifacts
         uses: actions/download-artifact@v3
         with:
           name: artemis-signed-windows
-          path: out
+          path: in-win-signed
 
       - name: Download signed macOS artifacts
         uses: actions/download-artifact@v3
         with:
           name: artemis-signed-macos
-          path: out
+          path: in-mac-signed
 
       - name: Create archives
         shell: bash
@@ -362,21 +366,21 @@ jobs:
           mkdir release-assets
 
           mkdir artemis-linux
-          mv out/linux/artemis artemis-linux
+          mv in/linux/artemis artemis-linux
           chmod +x artemis-linux/artemis
           tar -czf release-assets/artemis-linux.tar.gz artemis-linux
 
           mkdir artemis-linux-aarch64
-          mv out/aarch64/artemis artemis-linux-aarch64
+          mv in/aarch64/artemis artemis-linux-aarch64
           chmod +x artemis-linux-aarch64/artemis
           tar -czf release-assets/artemis-linux-aarch64.tar.gz artemis-linux-aarch64
 
           mkdir artemis-windows
-          zip -j release-assets/artemis-windows.zip out/windows/artemis.exe
+          zip -j release-assets/artemis-windows.zip in/win-signed/artemis.exe
 
           mkdir artemis-macos
-          mv out/macos/artemis.dmg release-assets/artemis.dmg
-          mv out/macos/artemis.zip release-assets/artemis-macos.zip
+          mv in-mac-signed/macos/artemis.dmg release-assets/artemis.dmg
+          mv in-mac-signed/macos/artemis.zip release-assets/artemis-macos.zip
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v3
