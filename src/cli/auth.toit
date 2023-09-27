@@ -27,3 +27,8 @@ interface Authenticatable:
   Signs the user in using OAuth.
   */
   sign-in --provider/string --ui/Ui --open-browser/bool
+
+  /**
+  Updates the user's email and/or password.
+  */
+  update --email/string? --password/string?

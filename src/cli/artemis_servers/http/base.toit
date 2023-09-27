@@ -62,6 +62,12 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
   sign-in --provider/string --ui/Ui --open-browser/bool:
     throw "UNIMPLEMENTED"
 
+  update --email/string? --password/string?:
+    payload := {:}
+    if email: payload["email"] = email
+    if password: payload["password"] = password
+    send-request_ COMMAND-UPDATE-CURRENT-USER_ payload
+
   create-device-in-organization --organization-id/uuid.Uuid --device-id/uuid.Uuid? -> Device:
     map := {
       "organization_id": "$organization-id",

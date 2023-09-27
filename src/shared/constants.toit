@@ -6,6 +6,7 @@ COMMAND-CREATE-DEVICE-IN-ORGANIZATION_ ::= 1
 COMMAND-SIGN-UP_ ::= 2
 COMMAND-SIGN-IN_ ::= 3
 COMMAND-GET-ORGANIZATIONS_ ::= 4
+COMMAND-UPDATE-CURRENT-USER_ ::= 18
 /**
 Command to notify the Artemis server that a device has been created.
 

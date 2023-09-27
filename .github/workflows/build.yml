@@ -366,6 +366,11 @@ jobs:
           chmod +x artemis-linux/artemis
           tar -czf release-assets/artemis-linux.tar.gz artemis-linux
 
+          mkdir artemis-linux-aarch64
+          mv out/aarch64/artemis artemis-linux-aarch64
+          chmod +x artemis-linux-aarch64/artemis
+          tar -czf release-assets/artemis-linux-aarch64.tar.gz artemis-linux-aarch64
+
           mkdir artemis-windows
           zip -j release-assets/artemis-windows.zip out/windows/artemis.exe
 

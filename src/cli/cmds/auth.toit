@@ -57,7 +57,35 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: sign-in it config ui
   auth-cmd.add log-in-cmd
 
+  update-cmd := cli.Command "update"
+      --short-help="Updates the email or password for the Artemis account."
+      --options=[
+        cli.Flag "broker" --hidden --short-help="Log into the broker.",
+        cli.Option "email" --short-help="New email for the account.",
+        cli.Option "password" --short-help="New password for the account.",
+      ]
+      --run=:: update it config ui
+  auth-cmd.add update-cmd
+
   return [auth-cmd]
+
+update parsed/cli.Parsed config/Config ui/Ui:
+  email := parsed["email"]
+  password := parsed["password"]
+  if not email and not password:
+    ui.abort "Either email or password must be provided."
+
+  with-authenticatable parsed config ui: | authenticatable/Authenticatable |
+    authenticatable.ensure-authenticated: | error-message |
+      ui.abort error-message
+    exception := catch:
+      authenticatable.update --email=email --password=password
+      ui.info "Successfully updated."
+      if password:
+        ui.info "Check your email for a verification link. It might be in your spam folder."
+    if exception:
+      ui.abort exception
+
 
 with-authenticatable parsed/cli.Parsed config/Config ui/Ui [block]:
   broker := parsed["broker"]
@@ -73,28 +101,34 @@ with-authenticatable parsed/cli.Parsed config/Config ui/Ui [block]:
 
 sign-in parsed/cli.Parsed config/Config ui/Ui:
   with-authenticatable parsed config ui: | authenticatable/Authenticatable |
-    if parsed.was-provided "email" or parsed.was-provided "password":
-      email := parsed["email"]
-      password := parsed["password"]
-      if not (email and password):
-        ui.abort "Email and password must be provided together."
-      if parsed["provider"]:
-        ui.abort "The '--provider' option is not supported for password-based login."
-      if parsed.was-provided "open-browser":
-        ui.abort "The '--open-browser' is not supported for password-based login."
-      authenticatable.sign-in --email=email --password=password
-    else:
+    exception := catch:
+      if parsed.was-provided "email" or parsed.was-provided "password":
+        email := parsed["email"]
+        password := parsed["password"]
+        if not (email and password):
+          ui.abort "Email and password must be provided together."
+        if parsed["provider"]:
+          ui.abort "The '--provider' option is not supported for password-based login."
+        if parsed.was-provided "open-browser":
+          ui.abort "The '--open-browser' is not supported for password-based login."
+        authenticatable.sign-in --email=email --password=password
+      else:
       if not parsed.was-provided "provider":
         ui.abort "Either '--email' and '--password' or '--provider' must be provided."
-      authenticatable.sign-in
-          --provider=parsed["provider"]
-          --ui=ui
-          --open-browser=parsed["open-browser"]
-    ui.info "Successfully authenticated."
+        authenticatable.sign-in
+            --provider=parsed["provider"]
+            --ui=ui
+            --open-browser=parsed["open-browser"]
+      ui.info "Successfully authenticated."
+    if exception:
+      ui.abort exception
 
 sign-up parsed/cli.Parsed config/Config ui/Ui:
   with-authenticatable parsed config ui: | authenticatable/Authenticatable |
-    email := parsed["email"]
-    password := parsed["password"]
-    authenticatable.sign-up --email=email --password=password
-    ui.info "Successfully signed up. Check your email for a verification link."
+    exception := catch:
+      email := parsed["email"]
+      password := parsed["password"]
+      authenticatable.sign-up --email=email --password=password
+      ui.info "Successfully signed up. Check your email for a verification link."
+    if exception:
+      ui.abort exception
