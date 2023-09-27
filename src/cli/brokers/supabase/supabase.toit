@@ -61,6 +61,12 @@ class BrokerCliSupabase extends BrokerCliHttp:
         --ui=ui
         --open-browser=open-browser
 
+  update --email/string? --password/string?:
+    payload := {:}
+    if email: payload["email"] = email
+    if password: payload["password"] = password
+    client_.auth.update-current-user payload
+
   extra-headers -> Map:
     bearer/string := client_.session_
         ? client_.session_.access-token
