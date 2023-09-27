@@ -84,8 +84,7 @@ update parsed/cli.Parsed config/Config ui/Ui:
       ui.info "Successfully updated."
       if password:
         ui.info "Check your email for a verification link. It might be in your spam folder."
-    if exception:
-      ui.abort exception
+    if exception: ui.abort exception
 
 
 with-authenticatable parsed/cli.Parsed config/Config ui/Ui [block]:
@@ -102,7 +101,6 @@ with-authenticatable parsed/cli.Parsed config/Config ui/Ui [block]:
 
 sign-in parsed/cli.Parsed config/Config ui/Ui:
   with-authenticatable parsed config ui: | authenticatable/Authenticatable |
-    exception := catch:
       if parsed.was-provided "email" or parsed.was-provided "password":
         email := parsed["email"]
         password := parsed["password"]
@@ -112,22 +110,23 @@ sign-in parsed/cli.Parsed config/Config ui/Ui:
           ui.abort "The '--provider' option is not supported for password-based login."
         if parsed.was-provided "open-browser":
           ui.abort "The '--open-browser' is not supported for password-based login."
-        authenticatable.sign-in --email=email --password=password
+        exception := catch:
+          authenticatable.sign-in --email=email --password=password
+        if exception: ui.abort exception
       else:
-        authenticatable.sign-in
-            --provider=parsed["provider"]
-            --ui=ui
-            --open-browser=parsed["open-browser"]
+        exception := catch:
+          authenticatable.sign-in
+              --provider=parsed["provider"]
+              --ui=ui
+              --open-browser=parsed["open-browser"]
+        if exception: ui.abort exception
       ui.info "Successfully authenticated."
-    if exception:
-      ui.abort exception
 
 sign-up parsed/cli.Parsed config/Config ui/Ui:
   with-authenticatable parsed config ui: | authenticatable/Authenticatable |
-    exception := catch:
       email := parsed["email"]
       password := parsed["password"]
-      authenticatable.sign-up --email=email --password=password
+      exception := catch:
+        authenticatable.sign-up --email=email --password=password
+      if exception: ui.abort exception
       ui.info "Successfully signed up. Check your email for a verification link."
-    if exception:
-      ui.abort exception
