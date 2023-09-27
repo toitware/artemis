@@ -45,6 +45,12 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   sign-in --provider/string --ui/Ui --open-browser/bool:
     client_.auth.sign-in --provider=provider --ui=ui --open-browser=open-browser
 
+  update --email/string? --password/string?:
+    payload := {:}
+    if email: payload["email"] = email
+    if password: payload["password"] = password
+    client_.auth.update-current-user payload
+
   create-device-in-organization --organization-id/uuid.Uuid --device-id/uuid.Uuid? -> Device:
     payload := {
       "organization_id": "$organization-id",

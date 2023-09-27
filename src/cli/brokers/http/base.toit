@@ -55,6 +55,10 @@ class BrokerCliHttp implements BrokerCli:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
+  update --email/string? --password/string?:
+    // For simplicity do nothing.
+    // This way we can use the same tests for all brokers.
+
   send-request_ command/int data/any -> any:
     if is-closed: throw "CLOSED"
     encoded/ByteArray := ?
