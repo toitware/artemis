@@ -32,3 +32,8 @@ interface Authenticatable:
   Updates the user's email and/or password.
   */
   update --email/string? --password/string?
+
+  /**
+  Logs the user out.
+  */
+  logout

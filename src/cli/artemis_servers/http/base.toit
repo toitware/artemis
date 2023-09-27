@@ -68,6 +68,12 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     if password: payload["password"] = password
     send-request_ COMMAND-UPDATE-CURRENT-USER_ payload
 
+  logout:
+    if not current-user-id_: throw "Not logged in"
+    current-user-id_ = null
+    config_.remove "$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"
+    config_.write
+
   create-device-in-organization --organization-id/uuid.Uuid --device-id/uuid.Uuid? -> Device:
     map := {
       "organization_id": "$organization-id",
