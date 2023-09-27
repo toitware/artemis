@@ -19,15 +19,15 @@ import net
 import system.containers
 
 main:
-  print "requesting data from test-driver"
+  print "Requesting data from test-driver."
   network := net.open
   client := http.Client network
   client.get --uri="http://HOST:PORT/foo"
   client.close
   network.close
-  print "not yet background"
+  print "Not yet background."
   sleep --ms=100
-  print "switching to background"
+  print "Switching to background."
   containers.notify-background-state-changed true
   // Despite the loop we will enter deep sleep.
   while true:
@@ -106,4 +106,4 @@ run-test test-cli/TestCli synchro-done-latch/monitor.Latch qemu-data/Map:
   test-device.wait-for "INFO: synchronized"
   synchro-done-latch.set "synchronized"
   test-device.wait-for "entering deep sleep for"
-  print "found"
+  print "Found."

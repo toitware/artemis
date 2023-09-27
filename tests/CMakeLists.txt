@@ -222,7 +222,7 @@ foreach(file ${TESTS})
 
     if ("${file}" MATCHES "-slow.toit")
       set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
-    elseif ("${file}" MATCHES "qemu")
+    elseif ("${file}" MATCHES "^qemu-")
       set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
     else()
       set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${TEST_TIMEOUT})
