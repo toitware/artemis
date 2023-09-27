@@ -13,7 +13,7 @@ run-test test-cli/TestCli:
   test-start := Time.now
 
   // Some command that requires to be authenticated.
-  output := test-cli.run --expect-exit-1 [ "org", "list" ]
+  output := test-cli.run --expect-exit-1 ["org", "list"]
   expect (output.contains "Not logged in")
 
   test-cli.run [
@@ -22,5 +22,10 @@ run-test test-cli/TestCli:
     "--password", TEST-EXAMPLE-COM-PASSWORD,
   ]
 
-  output = test-cli.run [ "org", "list" ]
+  output = test-cli.run ["org", "list"]
   expect-not (output.contains "Not logged in")
+
+  test-cli.run ["auth", "logout"]
+
+  output = test-cli.run --expect-exit-1 ["org", "list"]
+  expect (output.contains "Not logged in")
