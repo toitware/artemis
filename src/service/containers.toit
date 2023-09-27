@@ -379,8 +379,8 @@ class ContainerJob extends Job:
     running_.on-event:: | event-kind/int value |
       if event-kind == containers.Container.EVENT-BACKGROUND-STATE-CHANGE:
         is-background_ = value
-        logger_.debug "background state change" --tags={"background": value}
-        scheduler_.on-job-background-state-change this
+        logger_.debug "state changed" --tags={"background": value}
+        scheduler_.on-job-updated
 
   stop -> none:
     if not running_: return
