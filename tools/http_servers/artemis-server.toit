@@ -109,6 +109,8 @@ class HttpArtemisServer extends HttpServer:
       return sign-up data
     if command == COMMAND-SIGN-IN_:
       return sign-in data
+    if command == COMMAND-UPDATE-CURRENT-USER_:
+      return update-current-user data user-id
     if command == COMMAND-GET-ORGANIZATIONS_:
       return get-organizations data user-id
     if command == COMMAND-GET-ORGANIZATION-DETAILS_:
@@ -394,3 +396,14 @@ class HttpArtemisServer extends HttpServer:
       if user.email == email:
         return user.id
     throw "Invalid email or password"
+
+  update-current-user data/Map user-id/string?:
+    if not user-id: throw "Not logged in"
+    email := data.get "email"
+    password := data.get "pasword"
+    if not email and not password:
+      throw "Missing email, password"
+    user := users.get user-id
+    if not user: throw "User not found"
+    if email: user.email = email
+    if password: user.password = password
