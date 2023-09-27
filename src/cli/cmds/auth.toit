@@ -77,15 +77,15 @@ sign-in parsed/cli.Parsed config/Config ui/Ui:
       email := parsed["email"]
       password := parsed["password"]
       if not (email and password):
-        throw "email and password must be provided together."
+        ui.abort "Email and password must be provided together."
       if parsed["provider"]:
-        throw "'--provider' is not supported for password-based login"
+        ui.abort "The '--provider' option is not supported for password-based login."
       if parsed.was-provided "open-browser":
-        throw "'--open-browser' is not supported for password-based login"
+        ui.abort "The '--open-browser' is not supported for password-based login."
       authenticatable.sign-in --email=email --password=password
     else:
       if not parsed.was-provided "provider":
-        throw "either '--email' and '--password' or '--provider' must be provided"
+        ui.abort "Either '--email' and '--password' or '--provider' must be provided."
       authenticatable.sign-in
           --provider=parsed["provider"]
           --ui=ui
@@ -96,7 +96,5 @@ sign-up parsed/cli.Parsed config/Config ui/Ui:
   with-authenticatable parsed config ui: | authenticatable/Authenticatable |
     email := parsed["email"]
     password := parsed["password"]
-    if not (email and password):
-      throw "email and password must be provided together."
     authenticatable.sign-up --email=email --password=password
     ui.info "Successfully signed up. Check your email for a verification link."
