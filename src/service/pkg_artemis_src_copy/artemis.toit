@@ -112,7 +112,7 @@ class Trigger:
 
   static decode value/int -> Trigger?:
     if value == -1: return null
-    kind := value & 0x1F
+    kind := value & 0x1f
     if kind == KIND_PIN: return TriggerPin (value >> 8) --level=(value >> 7 & 1)
     if kind == KIND_TOUCH: return TriggerTouch (value >> 8)
     if kind == KIND_INTERVAL: return TriggerInterval (Duration --ms=(value >> 5))
@@ -178,7 +178,8 @@ class TriggerRestart extends Trigger:
 
   stringify -> string:
     if remaining-ms == 0: return "Trigger - restart"
-    return "Trigger - restart in $(remaining-ms)ms"
+    duration := Duration --ms=remaining-ms
+    return "Trigger - restart in $duration"
 
 /**
 A container is a schedulable unit of execution that runs
