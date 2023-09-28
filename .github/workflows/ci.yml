@@ -50,6 +50,10 @@ jobs:
           export DOWNLOAD_DIR="$PWD/downloads"
           echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
 
+          # For upload at the end.
+          # We only upload for Linux and macOS.
+          echo "SNAPSHOTS_DIR=$HOME/.cache/jaguar/snapshots" >> $GITHUB_ENV
+
           TOIT_SDK_DIR=$DOWNLOAD_DIR/toit
           echo "TOIT_EXEC=$TOIT_SDK_DIR/bin/toit.run$BIN_EXTENSION" >> $GITHUB_ENV
           echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
@@ -281,8 +285,15 @@ jobs:
           path: build/bin
 
       - name: Upload snapshot artifacts
-        if: matrix.arch != 'arm64'
+        if: matrix.arch != 'arm64' && always()
         uses: actions/upload-artifact@v3
         with:
           name: snapshots-${{ runner.os }}
           path: build/snapshots
+
+      - name: Upload other snapshots
+        if: (matrix.arch != 'arm64') && (runner.os != 'Windows') && always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: other-snapshots-${{ runner.os }}
+          path: ${{ env.SNAPSHOTS_DIR }}
