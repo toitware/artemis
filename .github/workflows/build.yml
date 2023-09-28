@@ -157,13 +157,15 @@ jobs:
                 --snapshot-directory tmp_snapshots \
                 --sdk-version $version \
                 --service-version ${{ github.event.release.tag_name }} \
-                --local
+                --local \
+                --force
             build/bin/uploader service \
                 --snapshot-directory tmp_snapshots \
                 --sdk-version $version \
                 --service-version "${{ github.event.release.tag_name }}+O1" \
                 --local \
-                --optimization-level=1
+                --optimization-level=1 \
+                --force
           done
 
       - name: Upload artifacts
