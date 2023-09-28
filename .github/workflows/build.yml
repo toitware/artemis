@@ -195,10 +195,9 @@ jobs:
           path: in
 
       - name: Copy to build
-        shell: bash
         run: |
-          mkdir -p build
-          cp in/windows/artemis.exe build/artemis.exe
+          mkdir build/windows
+          copy in/windows/artemis.exe build/windows/artemis.exe
 
       - name: Sign artemis
         working-directory: ./build/windows
@@ -207,10 +206,9 @@ jobs:
           signtool sign /debug /n "Toitware ApS" /t http://timestamp.digicert.com/ $PWD/artemis.exe
 
       - name: Copy signed to out
-        shell: bash
         run: |
-          mkdir -p out/windows
-          cp build/windows/artemis.exe out/windows/artemis.exe
+          mkdir out/windows
+          copy build/windows/artemis.exe out/windows/artemis.exe
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
@@ -238,8 +236,8 @@ jobs:
 
       - name: Copy to build
         run: |
-          mkdir -p build
-          cp in/macos/artemis build/artemis
+          mkdir -p build/macos
+          cp in/macos/artemis build/macos/artemis
 
       - name: Setup binary rights
         run: |
