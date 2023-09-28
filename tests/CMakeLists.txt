@@ -209,6 +209,7 @@ foreach(file ${TESTS})
           "--envelope-esp32-path=${DEV_ENVELOPE_ESP32_PATH}"
           "--envelope-esp32-qemu-path=${DEV_ENVELOPE_ESP32_QEMU_PATH}"
           "--resource-locks=${RESOURCE_LOCKS}"
+          "--qemu-base=${CMAKE_CURRENT_SOURCE_DIR}/qemu-base"
           ${QEMU_FLAG}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       CONFIGURATIONS ${TEST_CONFIGURATIONS}
