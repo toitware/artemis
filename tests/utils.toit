@@ -674,34 +674,26 @@ class TestDevicePipe extends TestDevice:
     chunks_ = []
 
   wait-for needle/string -> none:
-    last-end := 0
+    last-chunk-index := -1
     signal_.wait:
       if chunks_.is-empty: continue.wait false
 
-      start-index := chunks_.size - 1
-      accumulated-size := chunks_[start-index].size
-
-      // The string we are looking for could have been split at the
-      // boundary of this and the previous chunk.
-      if start-index > 0:
+      // The needle could have been partially on the previous chunks.
+      // However, at least one character must be in a new chunk.
+      start-index := last-chunk-index
+      previous-size := 0
+      while start-index > 0 and previous-size < needle.size - 1:
         start-index--
-        accumulated-size += chunks_[start-index].size
+        previous-size = chunks_[start-index].size
 
-      // Continue adding prefixes, if the needle is bigger than the
-      // accumulated string.
-      while start-index > 0 and  accumulated-size < needle.size:
-        start-index--
-        accumulated-size += chunks_[start-index].size
+      if start-index < 0: start-index = 0
 
-      start-index = min last-end start-index
-
-      if accumulated-size >= needle.size:
-        last-end = chunks_.size
-        str := build-string-from-output_ --from=start-index
-        print "DEBUG: Looking in '$str' ($start-index, $last-end), $str.size"
-        str.contains needle
-      else:
-        false
+      // Typically, the needle isn't too big, so we can just
+      // build a string from the output, even if there aren't enough
+      // characters.
+      str := build-string-from-output_ --from=start-index
+      last-chunk-index = chunks_.size
+      str.contains needle
 
 /**
 Starts the artemis server and broker.

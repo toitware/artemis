@@ -61,12 +61,21 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
   update-cmd := cli.Command "update"
       --short-help="Updates the email or password for the Artemis account."
       --options=[
-        cli.Flag "broker" --hidden --short-help="Log into the broker.",
+        cli.Flag "broker" --hidden --short-help="Update the broker.",
         cli.Option "email" --short-help="New email for the account.",
         cli.Option "password" --short-help="New password for the account.",
       ]
       --run=:: update it config ui
   auth-cmd.add update-cmd
+
+  logout-cmd := cli.Command "logout"
+      --aliases=["signout", "log-out", "sign-out"]
+      --short-help="Log out of the Artemis server."
+      --options=[
+        cli.Flag "broker" --hidden --short-help="Log out of the the broker.",
+      ]
+      --run=:: logout it config ui
+  auth-cmd.add logout-cmd
 
   return [auth-cmd]
 
@@ -130,3 +139,12 @@ sign-up parsed/cli.Parsed config/Config ui/Ui:
         authenticatable.sign-up --email=email --password=password
       if exception: ui.abort exception
       ui.info "Successfully signed up. Check your email for a verification link."
+
+logout parsed/cli.Parsed config/Config ui/Ui:
+  with-authenticatable parsed config ui: | authenticatable/Authenticatable |
+    // A bit of a weird situation: we require to be authenticated to log out.
+    authenticatable.ensure-authenticated: | error-message |
+      ui.abort error-message
+    exception := catch: authenticatable.logout
+    if exception: ui.abort exception
+    ui.info "Successfully logged out."

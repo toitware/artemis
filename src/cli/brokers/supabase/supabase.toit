@@ -67,6 +67,9 @@ class BrokerCliSupabase extends BrokerCliHttp:
     if password: payload["password"] = password
     client_.auth.update-current-user payload
 
+  logout:
+    client_.auth.logout
+
   extra-headers -> Map:
     bearer/string := client_.session_
         ? client_.session_.access-token
