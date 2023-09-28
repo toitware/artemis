@@ -20,4 +20,4 @@ dependencies:
     path: ../snapshot
   supabase:
     url: github.com/toitware/toit-supabase
-    version: ^0.2.2
+    version: ^0.2.3

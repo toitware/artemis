@@ -51,6 +51,9 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     if password: payload["password"] = password
     client_.auth.update-current-user payload
 
+  logout:
+    client_.auth.logout
+
   create-device-in-organization --organization-id/uuid.Uuid --device-id/uuid.Uuid? -> Device:
     payload := {
       "organization_id": "$organization-id",
