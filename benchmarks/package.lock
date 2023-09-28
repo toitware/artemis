@@ -1,11 +1,11 @@
 sdk: ^2.0.0-alpha.91
 prefixes:
-  artemis: .
+  artemis: ..
   cli: pkg-cli
   host: pkg-host
 packages:
-  .:
-    path: ../.
+  ..:
+    path: ..
     prefixes:
       ar: pkg-ar
       artemis: toit-artemis
