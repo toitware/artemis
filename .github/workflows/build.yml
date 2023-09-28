@@ -395,7 +395,7 @@ jobs:
           tar -czf release-assets/artemis-linux-aarch64.tar.gz artemis-linux-aarch64
 
           mkdir artemis-windows
-          zip -j release-assets/artemis-windows.zip in/win-signed/artemis.exe
+          zip -j release-assets/artemis-windows.zip in-win-signed/artemis.exe
 
           mkdir artemis-macos
           mv in-mac-signed/macos/artemis.dmg release-assets/artemis.dmg
