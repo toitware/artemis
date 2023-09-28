@@ -48,7 +48,11 @@ All users must be authenticated. For OAuth-based authentication you can just
 sign up and log into Artemis as follows:
 
 ``` sh
-artemis auth login
+artemis auth login --provider=github
+```
+or
+``` sh
+artemis auth login --provider=google
 ```
 
 Alternatively, for email-based authentication, sign up with:
@@ -63,7 +67,7 @@ Then, after having confirmed the email address, log in with:
 artemis auth login --email=myname@example.com --password=PASSWORD
 ```
 
-Usually, signing up by OAuth is more convenient, but email-based authentication is often useful
+Usually, signing up by OAuth is more convenient, but email-based authentication can be useful
 if you want to have multiple accounts. For example, with Google domains anything after
 the "+" is discarded. So `email+additional@gmail.com` is an alias for `email@gmail.com`.
 

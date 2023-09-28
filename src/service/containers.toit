@@ -368,19 +368,31 @@ class ContainerJob extends Job:
       "reason": last-trigger-reason_,
       "arguments": arguments
     }
-    running_ = containers.start id arguments
 
+    // It is unlikely, but possible, that the container stops
+    // prematurely before we've had the chance to report the job
+    // as started. We handle this case by delaying the reporting
+    // of the stopping until we've reported the starting.
+    pending-on-stopped/Lambda? := null
+    running_ = containers.start id arguments
+        --on-event=:: | event-kind/int value |
+          if event-kind == containers.Container.EVENT-BACKGROUND-STATE-CHANGE:
+            is-background_ = value
+            logger_.debug "state changed" --tags={"background": value}
+            if running_: scheduler_.on-job-updated
+        --on-stopped=::
+          mark-stopped := ::
+            running_ = null
+            is-triggered_ = false
+            pin-trigger-manager_.rearm-job this
+            scheduler_.on-job-stopped this
+          if running_:
+            mark-stopped.call
+          else:
+            // Register the `mark-stopped` lambda as pending.
+            pending-on-stopped = mark-stopped
     scheduler_.on-job-started this
-    running_.on-stopped::
-      running_ = null
-      is-triggered_ = false
-      pin-trigger-manager_.rearm-job this
-      scheduler_.on-job-stopped this
-    running_.on-event:: | event-kind/int value |
-      if event-kind == containers.Container.EVENT-BACKGROUND-STATE-CHANGE:
-        is-background_ = value
-        logger_.debug "state changed" --tags={"background": value}
-        scheduler_.on-job-updated
+    if pending-on-stopped: pending-on-stopped.call
 
   stop -> none:
     if not running_: return
