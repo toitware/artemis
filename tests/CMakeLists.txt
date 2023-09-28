@@ -201,16 +201,17 @@ foreach(file ${TESTS})
 
     add_test(
       NAME "${test_name}"
-      COMMAND "${TOITRUN}" "${file}"
-          ${flag}
-          "--toit-run=${TOITRUN}"
-          "--sdk-version=${DEV_SDK_VERSION}"
-          "--sdk-path=${DEV_SDK_PATH}"
-          "--envelope-esp32-path=${DEV_ENVELOPE_ESP32_PATH}"
-          "--envelope-esp32-qemu-path=${DEV_ENVELOPE_ESP32_QEMU_PATH}"
-          "--resource-locks=${RESOURCE_LOCKS}"
-          "--qemu-base=${CMAKE_CURRENT_SOURCE_DIR}/qemu-base"
-          ${QEMU_FLAG}
+      COMMAND cmake -E env TOIT_PACKAGE_CACHE_PATHS=${CMAKE_CURRENT_SOURCE_DIR}/.packages
+        "${TOITRUN}" "${file}"
+            ${flag}
+            "--toit-run=${TOITRUN}"
+            "--sdk-version=${DEV_SDK_VERSION}"
+            "--sdk-path=${DEV_SDK_PATH}"
+            "--envelope-esp32-path=${DEV_ENVELOPE_ESP32_PATH}"
+            "--envelope-esp32-qemu-path=${DEV_ENVELOPE_ESP32_QEMU_PATH}"
+            "--resource-locks=${RESOURCE_LOCKS}"
+            "--qemu-base=${CMAKE_CURRENT_SOURCE_DIR}/qemu-base"
+            ${QEMU_FLAG}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       CONFIGURATIONS ${TEST_CONFIGURATIONS}
     )
@@ -220,6 +221,8 @@ foreach(file ${TESTS})
     endif()
 
     if ("${file}" MATCHES "-slow.toit")
+      set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
+    elseif ("${file}" MATCHES "^qemu-")
       set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
     else()
       set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${TEST_TIMEOUT})
