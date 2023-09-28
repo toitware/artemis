@@ -56,6 +56,11 @@ interface ArtemisServerCli implements Authenticatable:
   update --email/string? --password/string?
 
   /**
+  Signs the user out.
+  */
+  logout
+
+  /**
   Adds a new device to the organization with the given $organization-id.
 
   Takes a $device-id, representing the user's chosen name for the device.

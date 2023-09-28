@@ -46,6 +46,9 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
       --short-help="Log in to the Artemis server."
       --options=[
         cli.Flag "broker" --hidden --short-help="Log into the broker.",
+        cli.OptionEnum "provider" ["github", "google"]
+            --short-help="The OAuth2 provider to use."
+            --default="github",
         cli.OptionString "email" --short-help="The email for a password-based login.",
         cli.OptionString "password" --short-help="The password for a password-based login.",
         cli.Flag "open-browser"
@@ -58,12 +61,21 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
   update-cmd := cli.Command "update"
       --short-help="Updates the email or password for the Artemis account."
       --options=[
-        cli.Flag "broker" --hidden --short-help="Log into the broker.",
+        cli.Flag "broker" --hidden --short-help="Update the broker.",
         cli.Option "email" --short-help="New email for the account.",
         cli.Option "password" --short-help="New password for the account.",
       ]
       --run=:: update it config ui
   auth-cmd.add update-cmd
+
+  logout-cmd := cli.Command "logout"
+      --aliases=["signout", "log-out", "sign-out"]
+      --short-help="Log out of the Artemis server."
+      --options=[
+        cli.Flag "broker" --hidden --short-help="Log out of the the broker.",
+      ]
+      --run=:: logout it config ui
+  auth-cmd.add logout-cmd
 
   return [auth-cmd]
 
@@ -81,8 +93,7 @@ update parsed/cli.Parsed config/Config ui/Ui:
       ui.info "Successfully updated."
       if password:
         ui.info "Check your email for a verification link. It might be in your spam folder."
-    if exception:
-      ui.abort exception
+    if exception: ui.abort exception
 
 
 with-authenticatable parsed/cli.Parsed config/Config ui/Ui [block]:
@@ -99,32 +110,41 @@ with-authenticatable parsed/cli.Parsed config/Config ui/Ui [block]:
 
 sign-in parsed/cli.Parsed config/Config ui/Ui:
   with-authenticatable parsed config ui: | authenticatable/Authenticatable |
-    exception := catch:
       if parsed.was-provided "email" or parsed.was-provided "password":
         email := parsed["email"]
         password := parsed["password"]
         if not (email and password):
-          throw "email and password must be provided together."
+          ui.abort "Email and password must be provided together."
+        if parsed.was-provided "provider":
+          ui.abort "The '--provider' option is not supported for password-based login."
         if parsed.was-provided "open-browser":
-          throw "'--open-browser' is not supported for password-based login"
-        authenticatable.sign-in --email=email --password=password
+          ui.abort "The '--open-browser' is not supported for password-based login."
+        exception := catch:
+          authenticatable.sign-in --email=email --password=password
+        if exception: ui.abort exception
       else:
-        authenticatable.sign-in
-            --provider="github"
-            --ui=ui
-            --open-browser=parsed["open-browser"]
+        exception := catch:
+          authenticatable.sign-in
+              --provider=parsed["provider"]
+              --ui=ui
+              --open-browser=parsed["open-browser"]
+        if exception: ui.abort exception
       ui.info "Successfully authenticated."
-    if exception:
-      ui.abort exception
 
 sign-up parsed/cli.Parsed config/Config ui/Ui:
   with-authenticatable parsed config ui: | authenticatable/Authenticatable |
-    exception := catch:
       email := parsed["email"]
       password := parsed["password"]
-      if not (email and password):
-        throw "email and password must be provided together."
-      authenticatable.sign-up --email=email --password=password
+      exception := catch:
+        authenticatable.sign-up --email=email --password=password
+      if exception: ui.abort exception
       ui.info "Successfully signed up. Check your email for a verification link."
-    if exception:
-      ui.abort exception
+
+logout parsed/cli.Parsed config/Config ui/Ui:
+  with-authenticatable parsed config ui: | authenticatable/Authenticatable |
+    // A bit of a weird situation: we require to be authenticated to log out.
+    authenticatable.ensure-authenticated: | error-message |
+      ui.abort error-message
+    exception := catch: authenticatable.logout
+    if exception: ui.abort exception
+    ui.info "Successfully logged out."
