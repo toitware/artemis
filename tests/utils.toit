@@ -616,14 +616,19 @@ class TestDevicePipe extends TestDevice:
   fork_ exe flags:
     fork-data := pipe.fork
         true                // use_path
-        pipe.PIPE-INHERITED // stdin
+        // We create a stdin pipe, so that qemu can't interfere with
+        // our terminal.
+        pipe.PIPE-CREATED   // stdin.
         pipe.PIPE-CREATED   // stdout
         pipe.PIPE-CREATED   // stderr
         exe
         [exe] + flags
+    stdin := fork-data[0]
     stdout := fork-data[1]
     stderr := fork-data[2]
     child-process_ = fork-data[3]
+
+    stdin.close
 
     // We are listening to both stdout and stderr.
     // We expect only one to be really used. Otherwise, looking for
@@ -631,18 +636,24 @@ class TestDevicePipe extends TestDevice:
     // stderr could be interleaved.
 
     stdout-task_ = task --background::
-      catch --trace:
-        while chunk := stdout.read:
-          chunks_.add chunk
-          print-on-stderr_ "STDOUT: '$chunk.to-string-non-throwing'"
-          signal_.raise
+      try:
+        catch --trace:
+          while chunk := stdout.read:
+            chunks_.add chunk
+            print-on-stderr_ "STDOUT: '$chunk.to-string-non-throwing'"
+            signal_.raise
+      finally:
+        stdout.close
 
     stderr-task_ = task --background::
-      catch --trace:
-        while chunk := stderr.read:
-          chunks_.add chunk
-          print-on-stderr_ "STDERR: '$chunk.to-string-non-throwing'"
-          signal_.raise
+      try:
+        catch --trace:
+          while chunk := stderr.read:
+            chunks_.add chunk
+            print-on-stderr_ "STDERR: '$chunk.to-string-non-throwing'"
+            signal_.raise
+      finally:
+        stderr.close
 
   close:
     critical-do:
