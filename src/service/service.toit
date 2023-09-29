@@ -42,7 +42,11 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   containers ::= ContainerManager logger scheduler
   broker := BrokerService logger server-config
 
+  // Steal the job states, so if we do not shut down
+  // cleanly, we start in a fresh state.
   job-states := device.scheduler-job-states
+  device.scheduler-job-states-update null
+
   // Set up the basic jobs.
   synchronize-state := job-states.get SynchronizeJob.NAME
   synchronizer/SynchronizeJob := SynchronizeJob logger device containers broker synchronize-state
@@ -70,14 +74,14 @@ run-artemis device/Device server-config/ServerConfig -> Duration
     // so we have to be careful and clean up anyway.
     critical-do: provider.uninstall
 
-    // For now, we only update the storage bucket when we're
-    // shutting down. This means that if hit an exceptional
-    // case, we will reschedule all jobs.
-    job-states = {:}
-    scheduler.jobs_.do: | job/Job |
-      if state := job.scheduler-state:
-        job-states[job.name] = state
-    device.scheduler-job-states-update job-states
+  // For now, we only update the storage bucket when we're
+  // shutting down cleanly. This means that if hit an exceptional
+  // case, we will reschedule all jobs.
+  job-states = {:}
+  scheduler.jobs_.do: | job/Job |
+    if state := job.scheduler-state:
+      job-states[job.name] = state
+  device.scheduler-job-states-update job-states
 
   containers.setup-deep-sleep-triggers
 

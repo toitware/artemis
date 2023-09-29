@@ -206,7 +206,7 @@ class Device:
   Stores the scheduler jobs state information in memory that
     is preserved across deep sleeping.
   */
-  scheduler-job-states-update value/Map -> none:
+  scheduler-job-states-update value/Map? -> none:
     ram-store_ RAM-SCHEDULER-JOB-STATES_ value
 
   /**
