@@ -24,8 +24,8 @@ abstract class Job:
   // same with has_run_after_boot.
   scheduler-delayed-until_/JobTime? := null
 
-  constructor .name scheduler-state/any:
-    set-scheduler-state_ scheduler-state
+  constructor .name state/any:
+    set-scheduler-state_ state
 
   abstract is-running -> bool
   is-background -> bool: return false

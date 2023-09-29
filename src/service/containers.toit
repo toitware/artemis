@@ -94,7 +94,10 @@ class ContainerManager:
     return null
 
   create -> ContainerJob?
-      --name/string --id/uuid.Uuid --description/Map --state/any
+      --name/string
+      --id/uuid.Uuid
+      --description/Map
+      --state/any
       --reader/Reader?=null:
     if reader:
       writer/containers.ContainerImageWriter := ?

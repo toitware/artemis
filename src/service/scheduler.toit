@@ -33,16 +33,7 @@ class Scheduler:
         else:
           return schedule-wakeup_ now
     finally:
-      critical-do:
-        transition --runlevel=Job.RUNLEVEL-STOP
-        // For now, we only update the storage bucket when we're
-        // shutting down. This means that if hit an exceptional
-        // case, we will reschedule all jobs.
-        job-states := {:}
-        jobs_.do: | job/Job |
-          if state := job.scheduler-state:
-            job-states[job.name] = state
-        device_.scheduler-job-states-update job-states
+      critical-do: transition --runlevel=Job.RUNLEVEL-STOP
 
   add-jobs jobs/List -> none:
     jobs.do: add-job it
