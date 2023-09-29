@@ -277,6 +277,7 @@ class ContainerJob extends Job:
     return [state, triggers]
 
   set-scheduler-state_ state/any -> none:
+    if not state: return
     super state[0]
     triggers := state[1]
     triggers-armed_ = triggers == null
