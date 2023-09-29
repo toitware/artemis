@@ -271,17 +271,18 @@ class ContainerJob extends Job:
 
   scheduler-state -> any:
     state := super
-    if identical triggers-armed_ triggers-default_: return state
-    return [state, triggers-armed_.to-encoded-list]
+    triggers := identical triggers-armed_ triggers-default_
+        ? null
+        : triggers-armed_.to-encoded-list
+    return [state, triggers]
 
   set-scheduler-state_ state/any -> none:
-    if state is List:
-      super state[0]
-      triggers := state[1]
-      assert: triggers != null
-      triggers-armed_ = Triggers.from-encoded-list triggers
-    else:
-      super state
+    if not state: return
+    super state[0]
+    triggers := state[1]
+    triggers-armed_ = triggers == null
+        ? triggers-default_
+        : Triggers.from-encoded-list triggers
 
   is-running -> bool:
     return running_ != null
