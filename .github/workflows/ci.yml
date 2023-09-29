@@ -285,6 +285,7 @@ jobs:
           path: build/bin
 
       - name: Upload snapshot artifacts
+        # Use 'always()' to upload them even if an earlier step failed.
         if: matrix.arch != 'arm64' && always()
         uses: actions/upload-artifact@v3
         with:
@@ -292,6 +293,7 @@ jobs:
           path: build/snapshots
 
       - name: Upload other snapshots
+        # Use 'always()' to upload them even if an earlier step failed.
         if: (matrix.arch != 'arm64') && (runner.os != 'Windows') && always()
         uses: actions/upload-artifact@v3
         with:
