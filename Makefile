@@ -5,7 +5,7 @@ SHELL=bash
 
 TOITRUN ?= toit.run
 
-LOCAL_DEV_SDK ?= v2.0.0-alpha.110
+LOCAL_DEV_SDK ?= v2.0.0-alpha.111
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 # If the 'DEV_TOIT_REPO_PATH' variable is set, use the toit.run in its bin
