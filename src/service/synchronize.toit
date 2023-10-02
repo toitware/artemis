@@ -184,16 +184,16 @@ class SynchronizeJob extends TaskJob:
         // able to run the synchronization job now.
         control-level-offline_--
         if control-level-online_ == 0:
-          scheduler_.on-job-updated
           logger_.info "request to run offline - stop"
+          scheduler_.on-job-updated
     else:
       if online:
         control-level-online_++
         // If we're forced to go online, we let the scheduler
         // know that we may be able to run the synchronization job.
         if control-level-online_ == 1:
-          scheduler_.on-job-updated
           logger_.info "request to run online - start"
+          scheduler_.on-job-updated
         // TODO(kasper): We should really wait until we have had the
         // chance to consider going online. There is a risk that we
         // get so little time that we don't even try and that seems
@@ -205,8 +205,8 @@ class SynchronizeJob extends TaskJob:
         // from this method without having shut it down.
         control-level-offline_++
         if control-level-offline_ == 1:
-          stop
           logger_.info "request to run offline - start"
+          stop
 
   runlevel -> int:
     return Job.RUNLEVEL-SAFE
@@ -319,9 +319,9 @@ class SynchronizeJob extends TaskJob:
         with-timeout TIMEOUT-CHECK-IN: check-in network logger_ --device=device_
         if done: return true
     finally: | is-exception exception |
-      // We do not expect to be canceled outside of tests, but
-      // if we do we prefer maintaining the proper state and
-      // get the network correctly quarantined and closed.
+      // We get canceled in tests and when forced offline through calls
+      // to $(control --online --close), so we need to maintain the proper
+      // state and get the network correctly quarantined and closed.
       critical-do:
         // We retry if we connected to the network, but failed
         // to actually connect to the broker. This could be an
