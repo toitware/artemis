@@ -106,9 +106,12 @@ abstract class TaskJob extends Job:
     if task_: return
     task_ = task::
       try:
-        catch --trace:
-          scheduler_.on-job-started this
-          run
+        // It is unlikely that we're already canceled at this
+        // point, but it seems possible. Since we're going to
+        // tell that scheduler that the job stopped, we need
+        // to also make sure to tell it that it started.
+        critical-do: scheduler_.on-job-started this
+        catch --trace: run
       finally:
         task_ = null
         latch := latch_

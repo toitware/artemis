@@ -296,6 +296,9 @@ class SynchronizeJob extends TaskJob:
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
         logger_.info "connecting to broker failed - retrying"
+        if Task.current.is-canceled:
+          critical-do: logger_.warn "ignored cancelation in run loop"
+          throw CANCELED-ERROR
     finally:
       if firmware-is-validation-pending:
         logger_.error "firmware update was rejected after failing to connect or validate"
@@ -318,6 +321,9 @@ class SynchronizeJob extends TaskJob:
         done := connect-broker_ network
         with-timeout TIMEOUT-CHECK-IN: check-in network logger_ --device=device_
         if done: return true
+        if Task.current.is-canceled:
+          critical-do: logger_.warn "ignored cancelation in connect-network loop"
+          throw CANCELED-ERROR
     finally: | is-exception exception |
       // We do not expect to be canceled outside of tests, but
       // if we do we prefer maintaining the proper state and
@@ -359,10 +365,16 @@ class SynchronizeJob extends TaskJob:
           goal = synchronize-step_ broker-connection goal
           if goal:
             assert: goal.has-pending-steps
+            if Task.current.is-canceled:
+              critical-do: logger_.warn "ignored cancelation in connect-broker loop (goal)"
+              throw CANCELED-ERROR
             continue
           if device_.max-offline and control-level-online_ == 0: return true
           now := JobTime.now
           if (check-in-schedule now) <= now: return false
+        if Task.current.is-canceled:
+          critical-do: logger_.warn "ignored cancelation in connect-broker loop"
+          throw CANCELED-ERROR
     finally:
       // TODO(kasper): Add timeout for close.
       broker-connection.close
