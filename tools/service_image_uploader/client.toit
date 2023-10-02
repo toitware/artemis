@@ -96,9 +96,8 @@ class UploadClientSupabase implements UploadClient:
         equals "service_id" service-id,
       ]
       if not existing-images.is-empty:
-        suffix := ""
-        if existing-images[0].get "organization_id":
-          suffix = " in organization $organization-id"
+        existing-org := existing-images[0].get "organization_id"
+        suffix := existing-org ? " in organization $existing-org" : ""
         ui_.error "Image already exists$suffix."
         ui_.error "Use --force to overwrite."
         ui_.abort
