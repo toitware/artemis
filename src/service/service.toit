@@ -49,8 +49,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
 
   // Configure the ntp request if requested to do so.
   ntp/NtpRequest? := null
-  if start-ntp:
-    ntp = NtpRequest (Duration --m=10) --device=device
+  if start-ntp: ntp = NtpRequest (Duration --m=10) --device=device
 
   // Set up the basic jobs.
   synchronize-state := job-states.get SynchronizeJob.NAME

@@ -63,10 +63,7 @@ abstract class PeriodicNetworkRequest:
       last-success_ = now
 
     if exception:
-      logger.warn "request failed"
-          --tags={"exception": exception}
-    else:
-      logger.info "request succeeded"
+      logger.warn "failed" --tags={"exception": exception}
 
     exception = catch:
       device.periodic-network-request-last-update {
@@ -74,5 +71,6 @@ abstract class PeriodicNetworkRequest:
         "?$name": last-attempt_.us,
       }
     if exception:
-      logger.warn "request failed to update local state"
-          --tags={"exception": exception}
+      logger.warn "failed to update local state" --tags={
+        "exception": exception
+      }
