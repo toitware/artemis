@@ -43,6 +43,10 @@ abstract class PeriodicNetworkRequest:
     if last-success_: next = max next (last-success_ + period)
     return next
 
+  schedule-now -> bool:
+    now := JobTime.now
+    return (schedule now) <= now
+
   run network/net.Interface logger/log.Logger -> none:
     now := JobTime.now
     next := schedule now

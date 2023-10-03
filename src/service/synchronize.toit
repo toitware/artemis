@@ -12,11 +12,12 @@ import system.containers
 import system.firmware
 
 import .brokers.broker
+import .check-in
 import .containers
 import .device
 import .firmware-update
 import .jobs
-import .check-in
+import .ntp
 
 import ..shared.json-diff show Modification json-equals
 
@@ -153,6 +154,7 @@ class SynchronizeJob extends TaskJob:
   device_/Device
   containers_/ContainerManager
   broker_/BrokerService
+  ntp_/NtpRequest?
   state_/int := STATE-DISCONNECTED
 
   // The synchronization job can be controlled from the outside
@@ -162,8 +164,10 @@ class SynchronizeJob extends TaskJob:
   control-level-online_/int := 0
   control-level-offline_/int := 0
 
-  constructor logger/log.Logger .device_ .containers_ .broker_ saved-state/any:
+  constructor logger/log.Logger .device_ .containers_ .broker_ saved-state/any
+      --ntp/NtpRequest?=null:
     logger_ = logger.with-name NAME
+    ntp_ = ntp
     max-offline := device_.max-offline
     status-limit-us_ = compute-status-limit-us_ max-offline
     super NAME saved-state
@@ -364,6 +368,9 @@ class SynchronizeJob extends TaskJob:
       goal/Goal? := null
       while true:
         with-timeout TIMEOUT-SYNCHRONIZE-STEP:
+          if ntp_ and ntp_.schedule-now:
+            ntp_.run network logger_
+            continue
           goal = synchronize-step_ broker-connection goal
           if goal:
             assert: goal.has-pending-steps
@@ -372,8 +379,7 @@ class SynchronizeJob extends TaskJob:
               throw CANCELED-ERROR
             continue
           if device_.max-offline and control-level-online_ == 0: return true
-          now := JobTime.now
-          if check-in and (check-in.schedule now) <= now: return false
+          if check-in and check-in.schedule-now: return false
         if Task.current.is-canceled:
           critical-do: logger_.warn "ignored cancelation in connect-broker loop"
           throw CANCELED-ERROR
