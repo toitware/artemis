@@ -7,6 +7,7 @@ import uuid
 
 import .firmware
 import .utils show deep-copy
+import .periodic-network-request show PeriodicNetworkRequest  // For toitdoc.
 import ..shared.json-diff show json-equals Modification
 
 /**
@@ -29,7 +30,7 @@ class Device:
   // loss of power. If we ever want to store these in flash
   // instead, we need to manually invalidate them when a new
   // monotonic clock phase starts.
-  static RAM-CHECK-IN-LAST_ ::= "check-in-last"
+  static RAM-PERIODIC-NETWORK-REQUEST-LAST_ ::= "pnr-last"
   static RAM-SYNCHRONIZED-LAST_ ::= "synchronized-last"
   static RAM-SCHEDULER-JOB-STATES_ ::= "scheduler-job-states"
   ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
@@ -183,17 +184,17 @@ class Device:
     report-state-checksum_ = value
 
   /**
-  Gets the last check-in state (if any).
+  Gets the last $PeriodicNetworkRequest state (if any).
   */
-  check-in-last -> Map?:
-    return ram-load_ RAM-CHECK-IN-LAST_
+  periodic-network-request-last -> Map?:
+    return ram-load_ RAM-PERIODIC-NETWORK-REQUEST-LAST_
 
   /**
-  Stores the last check-in state in memory that is preserved across
-    deep sleeping.
+  Stores the last $PeriodicNetworkRequest state in memory that is
+    preserved across deep sleeping.
   */
-  check-in-last-update value/Map -> none:
-    ram-store_ RAM-CHECK-IN-LAST_ value
+  periodic-network-request-last-update value/Map -> none:
+    ram-store_ RAM-PERIODIC-NETWORK-REQUEST-LAST_ value
 
   /**
   Gets the scheduler jobs state information.
