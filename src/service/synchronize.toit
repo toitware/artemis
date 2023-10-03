@@ -228,7 +228,8 @@ class SynchronizeJob extends TaskJob:
       // letting it run to whatever comes first of the scheduled
       // check-in or hitting the max-offline ceiling, but make
       // sure to not go below the minimum offline setting.
-      offline := min (last.to (check-in-schedule now)) max-offline
+      offline := max-offline
+      if check-in: offline = min offline (last.to (check-in.schedule now))
       schedule = last + (max offline OFFLINE-MINIMUM)
     else:
       schedule = last + OFFLINE-MINIMUM
@@ -319,7 +320,8 @@ class SynchronizeJob extends TaskJob:
       while true:
         transition-to_ STATE-CONNECTED-TO-NETWORK
         done := connect-broker_ network
-        with-timeout TIMEOUT-CHECK-IN: check-in network logger_ --device=device_
+        if check-in:
+          with-timeout TIMEOUT-CHECK-IN: check-in.run network logger_
         if done: return true
         if Task.current.is-canceled:
           critical-do: logger_.warn "ignored cancelation in connect-network loop"
@@ -371,7 +373,7 @@ class SynchronizeJob extends TaskJob:
             continue
           if device_.max-offline and control-level-online_ == 0: return true
           now := JobTime.now
-          if (check-in-schedule now) <= now: return false
+          if check-in and (check-in.schedule now) <= now: return false
         if Task.current.is-canceled:
           critical-do: logger_.warn "ignored cancelation in connect-broker loop"
           throw CANCELED-ERROR
