@@ -2,26 +2,24 @@
 
 import esp32
 import log
+import net
 import ntp
 
+import .device
 import .jobs
+import .periodic-network-request
 
-class NtpJob extends PeriodicJob:
-  static NAME ::= "ntp"
+class NtpRequest extends PeriodicNetworkRequest:
+  constructor period/Duration --device/Device:
+    super "ntp" device
+        --period=period
+        --backoff=period
 
-  logger_/log.Logger
-
-  constructor logger/log.Logger saved-state/any period/Duration:
-    logger_ = logger.with-name NAME
-    super NAME saved-state period
-
-  run -> none:
-    result/ntp.Result? := null
-    exception := catch: result = ntp.synchronize
-    if exception: logger_.error "failed" --tags={"exception": exception}
+  request network/net.Interface logger/log.Logger -> none:
+    result/ntp.Result? := ntp.synchronize --network=network
     if not result: return
     esp32.adjust-real-time-clock result.adjustment
-    logger_.info "synchronized" --tags={
-        "adjustment": result.adjustment,
-        "time": Time.now.local,
+    logger.info "synchronized" --tags={
+      "adjustment": result.adjustment,
+      "time": Time.now.local,
     }

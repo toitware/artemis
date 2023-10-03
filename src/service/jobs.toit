@@ -135,29 +135,6 @@ abstract class TaskJob extends Job:
     task_.cancel
     latch.get
 
-abstract class PeriodicJob extends TaskJob:
-  period_/Duration
-
-  constructor name/string saved-state/any .period_:
-    super name saved-state
-
-  is-background -> bool:
-    // Periodic jobs do not want to cause device
-    // wakeups or block the device from going to
-    // sleep. They just run on their schedule when
-    // the device is awake anyway.
-    return true
-
-  schedule now/JobTime last/JobTime? -> JobTime?:
-    if not last: return now
-    return last + period_
-
-  schedule-tune last/JobTime -> JobTime:
-    // If running the periodic task took a long time, we tune
-    // the schedule and postpone the next run by making it
-    // start at the beginning of the next period instead of now.
-    return Job.schedule-tune-periodic last period_
-
 // TODO(kasper): Get rid of this again. It was originally
 // implemented to have one place to handle problems arising
 // from resets to the monotonic clock, but I think we can

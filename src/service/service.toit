@@ -47,14 +47,20 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   job-states := device.scheduler-job-states
   device.scheduler-job-states-update null
 
+  // Configure the ntp request if requested to do so.
+  ntp/NtpRequest? := null
+  if start-ntp: ntp = NtpRequest (Duration --m=10) --device=device
+
   // Set up the basic jobs.
   synchronize-state := job-states.get SynchronizeJob.NAME
-  synchronizer/SynchronizeJob := SynchronizeJob logger device containers broker synchronize-state
-  jobs := [synchronizer]
-  if start-ntp:
-    ntp-state := job-states.get NtpJob.NAME
-    jobs.add (NtpJob logger ntp-state (Duration --m=10))
-  scheduler.add-jobs jobs
+  synchronizer/SynchronizeJob := SynchronizeJob
+      logger
+      device
+      containers
+      broker
+      synchronize-state
+      --ntp=ntp
+  scheduler.add-job synchronizer
 
   // Add the container jobs based on the current device state.
   containers.load device.current-state job-states

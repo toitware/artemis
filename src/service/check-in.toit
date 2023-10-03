@@ -27,6 +27,7 @@ class CheckInRequest extends PeriodicNetworkRequest:
 
   request network/net.Interface logger/log.Logger -> none:
     server_.check-in network logger
+    logger.info "succeeded"
 
 /**
 Sets up the check-in functionality.

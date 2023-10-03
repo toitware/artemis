@@ -43,6 +43,10 @@ abstract class PeriodicNetworkRequest:
     if last-success_: next = max next (last-success_ + period)
     return next
 
+  schedule-now -> bool:
+    now := JobTime.now
+    return (schedule now) <= now
+
   run network/net.Interface logger/log.Logger -> none:
     now := JobTime.now
     next := schedule now
@@ -59,10 +63,7 @@ abstract class PeriodicNetworkRequest:
       last-success_ = now
 
     if exception:
-      logger.warn "request failed"
-          --tags={"exception": exception}
-    else:
-      logger.info "request succeeded"
+      logger.warn "failed" --tags={"exception": exception}
 
     exception = catch:
       device.periodic-network-request-last-update {
@@ -70,5 +71,6 @@ abstract class PeriodicNetworkRequest:
         "?$name": last-attempt_.us,
       }
     if exception:
-      logger.warn "request failed to update local state"
-          --tags={"exception": exception}
+      logger.warn "failed to update local state" --tags={
+        "exception": exception
+      }
