@@ -41,22 +41,22 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase config/Config
 
 
 class BrokerCliSupabase extends BrokerCliHttp:
-  client_/supabase.Client? := null
+  supabase-client_/supabase.Client? := null
 
-  constructor --id/string .client_ http-config/ServerConfigHttp:
+  constructor --id/string .supabase-client_ http-config/ServerConfigHttp:
     super --id=id http-config
 
   ensure-authenticated [block]:
-    client_.ensure-authenticated block
+    supabase-client_.ensure-authenticated block
 
   sign-up --email/string --password/string:
-    client_.auth.sign-up --email=email --password=password
+    supabase-client_.auth.sign-up --email=email --password=password
 
   sign-in --email/string --password/string:
-    client_.auth.sign-in --email=email --password=password
+    supabase-client_.auth.sign-in --email=email --password=password
 
   sign-in --provider/string --ui/Ui --open-browser/bool:
-    client_.auth.sign-in
+    supabase-client_.auth.sign-in
         --provider=provider
         --ui=ui
         --open-browser=open-browser
@@ -65,15 +65,15 @@ class BrokerCliSupabase extends BrokerCliHttp:
     payload := {:}
     if email: payload["email"] = email
     if password: payload["password"] = password
-    client_.auth.update-current-user payload
+    supabase-client_.auth.update-current-user payload
 
   logout:
-    client_.auth.logout
+    supabase-client_.auth.logout
 
   extra-headers -> Map:
-    bearer/string := client_.session_
-        ? client_.session_.access-token
-        : client_.anon_
+    bearer/string := supabase-client_.session_
+        ? supabase-client_.session_.access-token
+        : supabase-client_.anon_
     return {
       "Authorization": "Bearer $bearer",
     }
