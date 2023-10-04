@@ -125,4 +125,10 @@ main args --config/Config --cache/Cache --ui/Ui:
   (create-serial-commands config cache ui).do: root-cmd.add it
   (create-doc-commands config cache ui).do: root-cmd.add it
 
-  root-cmd.run args
+  try:
+    root-cmd.run args
+  finally: | is-exception exception |
+    if is-exception:
+      str := "$exception"
+      if str.size > 80:
+        ui.error "Full exception: $str"
