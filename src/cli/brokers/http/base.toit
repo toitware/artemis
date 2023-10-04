@@ -63,6 +63,9 @@ class BrokerCliHttp implements BrokerCli:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
+  is_success_status_code_ code/int -> bool:
+    return 200 <= code <= 299
+
   send-request_ command/int data/any -> any:
     if is-closed: throw "CLOSED"
     encoded/ByteArray := ?
@@ -74,8 +77,22 @@ class BrokerCliHttp implements BrokerCli:
       encoded = #[command] + (json.encode data)
 
     send-request_ encoded: | response/http.Response |
-      if response.status-code != http.STATUS-OK and response.status-code != http.STATUS-IM-A-TEAPOT:
-        throw "HTTP error: $response.status-code $response.status-message"
+      body := response.body
+      if not is_success_status_code_ response.status_code:
+        body_bytes := utils.read_all body
+        message := ""
+        exception := catch:
+          decoded := json.decode body_bytes
+          message = decoded.get "msg" or
+              decoded.get "message" or
+              decoded.get "error_description" or
+              decoded.get "error" or
+              body_bytes.to_string_non_throwing
+        if exception:
+          message = body_bytes.to_string_non_throwing
+        if message.trim != "":
+          message = " - $message"
+        throw "HTTP error: $response.status_code - $response.status-message$message"
 
       if (command == COMMAND-DOWNLOAD_ or command == COMMAND-DOWNLOAD-PRIVATE_)
           and response.status-code != http.STATUS-IM-A-TEAPOT:
