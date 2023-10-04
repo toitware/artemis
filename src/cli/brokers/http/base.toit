@@ -78,8 +78,23 @@ class BrokerCliHttp implements BrokerCli:
       encoded = #[command] + (json.encode data)
 
     send-request_ encoded: | response/http.Response |
-      if response.status-code != http.STATUS-OK and response.status-code != http.STATUS-IM-A-TEAPOT:
-        throw "HTTP error: $response.status-code $response.status-message"
+      body := response.body
+      if not http.is-success-status-code response.status-code:
+        body-bytes := utils.read-all body
+        message := ""
+        exception := catch:
+          decoded := json.decode body-bytes
+          message = decoded.get "msg" or
+              decoded.get "message" or
+              decoded.get "error_description" or
+              decoded.get "error" or
+              body-bytes.to-string-non-throwing
+        if exception:
+          message = body-bytes.to-string-non-throwing
+        message = message.trim
+        if message != "":
+          message = " - $message"
+        throw "HTTP error: $response.status-code - $response.status-message$message"
 
       if (command == COMMAND-DOWNLOAD_ or command == COMMAND-DOWNLOAD-PRIVATE_)
           and response.status-code != http.STATUS-IM-A-TEAPOT:
