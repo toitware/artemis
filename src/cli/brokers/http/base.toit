@@ -25,6 +25,7 @@ class BrokerCliHttp implements BrokerCli:
   network_/net.Interface? := ?
   id/string
   server-config_/ServerConfigHttp
+  client_/http.Client? := null
 
   constructor .server-config_ --.id:
     network_ = net.open
@@ -33,6 +34,9 @@ class BrokerCliHttp implements BrokerCli:
   close:
     if not network_: return
     remove-finalizer this
+    if client_:
+      client_.close
+      client_ = null
     network_.close
     network_ = null
 
@@ -88,37 +92,35 @@ class BrokerCliHttp implements BrokerCli:
     unreachable
 
   send-request_ encoded/ByteArray [block]:
-    client := ?
-    root-names := server-config_.root-certificate-names
-    if root-names:
-      root-certificates := root-names.map:
-        der/tls.RootCertificate := certificate-roots.MAP[it]
-        x509.Certificate.parse der.raw
-      client = http.Client.tls network_
-          --root-certificates=root-certificates
-    else:
-      client = http.Client network_
-    try:
-      headers := null
-      if server-config_.admin-headers:
-        headers = http.Headers
-        server-config_.admin-headers.do: | key value |
-          headers.add key value
+    if not client_:
+      root-names := server-config_.root-certificate-names
+      if root-names:
+        root-certificates := root-names.map:
+          der/tls.RootCertificate := certificate-roots.MAP[it]
+          x509.Certificate.parse der.raw
+        client_ = http.Client.tls network_
+            --root-certificates=root-certificates
+      else:
+        client_ = http.Client network_
 
-      extra := extra-headers
-      if extra:
-        if not headers: headers = http.Headers
-        extra.do: | key value |
-          headers.add key value
+    headers := null
+    if server-config_.admin-headers:
+      headers = http.Headers
+      server-config_.admin-headers.do: | key value |
+        headers.add key value
 
-      response := client.post encoded
-          --host=server-config_.host
-          --port=server-config_.port
-          --path=server-config_.path
-          --headers=headers
-      block.call response
-    finally:
-      client.close
+    extra := extra-headers
+    if extra:
+      if not headers: headers = http.Headers
+      extra.do: | key value |
+        headers.add key value
+
+    response := client_.post encoded
+        --host=server-config_.host
+        --port=server-config_.port
+        --path=server-config_.path
+        --headers=headers
+    block.call response
 
   extra-headers -> Map?:
     return null
