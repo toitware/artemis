@@ -129,6 +129,8 @@ main args --config/Config --cache/Cache --ui/Ui:
     root-cmd.run args
   finally: | is-exception exception |
     if is-exception:
-      str := "$exception"
+      // Exception traces only contain the first 80 characters
+      // of the exception value. We want all of it!
+      str := "$exception.value"
       if str.size > 80:
         ui.error "Full exception: $str"
