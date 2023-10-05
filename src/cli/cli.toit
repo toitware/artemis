@@ -125,4 +125,12 @@ main args --config/Config --cache/Cache --ui/Ui:
   (create-serial-commands config cache ui).do: root-cmd.add it
   (create-doc-commands config cache ui).do: root-cmd.add it
 
-  root-cmd.run args
+  try:
+    root-cmd.run args
+  finally: | is-exception exception |
+    if is-exception:
+      // Exception traces only contain the first 80 characters
+      // of the exception value. We want all of it!
+      str := "$exception.value"
+      if str.size > 80:
+        ui.error "Full exception: $str"
