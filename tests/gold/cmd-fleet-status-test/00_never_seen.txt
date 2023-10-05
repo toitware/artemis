@@ -3,7 +3,7 @@
 ┌──────────────────────────────────────┬────────┬─────┬──────────┬──────────┬─────────────────┬───────────┬─────────┐
 │ Device ID                              Name     Pod   Outdated   Modified   Missed Checkins   Last Seen   Aliases │
 ├──────────────────────────────────────┼────────┼─────┼──────────┼──────────┼─────────────────┼───────────┼─────────┤
-│ -={| UUID-FOR-FAKE-DEVICE 00000 |}=-   name-0         ✗                     ?                 never               │
-│ -={| UUID-FOR-FAKE-DEVICE 00001 |}=-   name-1         ✗                     ?                 never               │
-│ -={| UUID-FOR-FAKE-DEVICE 00002 |}=-   name-2         ✗                     ?                 never               │
+│ -={| UUID-FOR-FAKE-DEVICE 00000 |}=-   name-0         x                     ?                 never               │
+│ -={| UUID-FOR-FAKE-DEVICE 00001 |}=-   name-1         x                     ?                 never               │
+│ -={| UUID-FOR-FAKE-DEVICE 00002 |}=-   name-2         x                     ?                 never               │
 └──────────────────────────────────────┴────────┴─────┴──────────┴──────────┴─────────────────┴───────────┴─────────┘
