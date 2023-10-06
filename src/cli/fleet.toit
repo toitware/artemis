@@ -676,7 +676,7 @@ class Fleet:
           if not entry.tags.is-empty:
             pod-description += " $(entry.tags.join ",")"
 
-      cross := "✗"
+      cross := "x"
       // TODO(florian): when the UI wants structured output we shouldn't change the last
       // seen to human readable.
       human-last-seen := ""
