@@ -79,7 +79,10 @@ class BrokerCliHttp implements BrokerCli:
 
     send-request_ encoded: | response/http.Response |
       body := response.body
-      if not http.is-success-status-code response.status-code:
+      // Teapot status codes are exceptions from our server code.
+      // They are handled below.
+      if response.status-code != http.STATUS-IM-A-TEAPOT and
+          not http.is-success-status-code response.status-code:
         body-bytes := utils.read-all body
         message := ""
         exception := catch:
