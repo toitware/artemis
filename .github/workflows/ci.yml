@@ -299,3 +299,65 @@ jobs:
         with:
           name: other-snapshots-${{ runner.os }}
           path: ${{ env.SNAPSHOTS_DIR }}
+
+  serial:
+    runs-on: self-linux
+
+    steps:
+      - name: Clean workspace
+        run: |
+          rm -rf ${{ github.workspace }}/*
+
+      - uses: actions/checkout@v3
+
+      - name: Setup Toit, use old SDK
+        run: |
+          LATEST=$(ls $HOME/.cache/artemis/sdks | sort --version-sort | tail -n1)
+          if [[ -z "$LATEST" ]]; then
+            echo "No SDK found - it will be downloaded."
+          else
+            echo "TOIT_EXEC=$HOME/.cache/artemis/sdks/$LATEST/bin/toit.run" >> $GITHUB_ENV
+            echo "TOITC_EXEC=$HOME/.cache/artemis/sdks/$LATEST/bin/toit.compile" >> $GITHUB_ENV
+            echo "TPKG_EXEC=$HOME/.cache/artemis/sdks/$LATEST/bin/toit.pkg" >> $GITHUB_ENV
+          fi
+
+      - name: Download Toit
+        run: |
+          # If TOIT_EXEC is not set, download the latest version.
+          if [[ -z "$TOIT_EXEC" ]]; then
+            mkdir -p $HOME/.cache/artemis-testing/toit
+            wget https://github.com/toitlang/toit/releases/download/v2.0.0-alpha.114/toit-linux.tar.gz
+            tar x -zf toit-linux.tar.gz
+            echo "TOIT_EXEC=$PWD/toit/bin/toit.run" >> $GITHUB_ENV
+            echo "TOITC_EXEC=$PWD/toit/bin/toit.compile" >> $GITHUB_ENV
+            echo "TPKG_EXEC=$PWD/toit/bin/toit.pkg" >> $GITHUB_ENV
+          fi
+
+      - name: Run cmake
+        shell: bash
+        run: |
+          make rebuild-cmake
+          cmake \
+              -DTOITC="$TOITC_EXEC" \
+              -DTOITPKG="$TPKG_EXEC" \
+              -DTOITRUN="$TOIT_EXEC" \
+              build
+
+      - name: Download SDK
+        run: |
+          make TOITRUN=$TOIT_EXEC download-sdk
+
+      - name: Disable Supabase tests
+        run: |
+          make TOITRUN=$TOIT_EXEC disable-supabase-tests
+
+      - name: Disable qemu tests
+        run: |
+          make TOITRUN=$TOIT_EXEC disable-qemu-tests
+
+      - name: Run serial tests
+        run: |
+          export ARTEMIS_TEST_SERIAL_PORT=/dev/ttyUSB0
+          export ARTEMIS_TEST_WIFI_SSID=jaguar
+          export ARTEMIS_TEST_WIFI_PASSWORD=toittoit
+          make TOITRUN=$TOIT_EXEC serial-test
