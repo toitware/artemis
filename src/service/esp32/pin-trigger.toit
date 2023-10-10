@@ -17,7 +17,7 @@ import monitor
 // version will be used instead.
 
 // WAS: import artemis show Trigger
-import ..pkg-artemis-src-copy.artemis show Trigger
+import artemis-pkg.artemis show Trigger
 
 import ..containers
 import ..scheduler
@@ -204,9 +204,6 @@ class PinTriggerManager:
     // We need a critical_do as `update_` might kill the currently running
     // task.
     critical-do:
-      // Update the triggers before we wake up the job.
-      // Otherwise the job might not be able to access the pin.
-      update_
       scheduler_.on-job-updated
 
   /**

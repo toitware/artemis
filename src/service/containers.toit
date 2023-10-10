@@ -18,7 +18,7 @@ import system.containers
 // version will be used instead.
 
 // WAS: import artemis show Trigger
-import .pkg-artemis-src-copy.artemis
+import artemis-pkg.artemis
   show
     Trigger
     TriggerInterval
@@ -367,6 +367,10 @@ class ContainerJob extends Job:
 
   start -> none:
     if running_: return
+    // Update the triggers before we wake up the job.
+    // Otherwise the job might not be able to access the pin.
+    pin-trigger-manager_.update-job this
+
     arguments := description_.get "arguments"
     logger_.debug "starting" --tags={
       "reason": last-trigger-reason_,

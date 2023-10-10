@@ -4,7 +4,7 @@ import system.services show ServiceHandler ServiceResource ServiceProvider
 import system.storage
 
 import .flashlog show FlashLog SN
-import .pkg-artemis-src-copy.api as api
+import artemis-pkg.api
 
 flashlogs_ ::= {:}
 receivers_ ::= {}
