@@ -310,7 +310,7 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - name: Setup Toit, use old SDK
+      - name: Setup Toit, use existing SDK
         run: |
           LATEST=$(ls $HOME/.cache/artemis/sdks | sort --version-sort | tail -n1)
           if [[ -z "$LATEST" ]]; then
@@ -326,7 +326,7 @@ jobs:
           # If TOIT_EXEC is not set, download the latest version.
           if [[ -z "$TOIT_EXEC" ]]; then
             mkdir -p $HOME/.cache/artemis-testing/toit
-            wget https://github.com/toitlang/toit/releases/download/v2.0.0-alpha.114/toit-linux.tar.gz
+            wget https://github.com/toitlang/toit/releases/latest/download/toit-linux.tar.gz
             tar x -zf toit-linux.tar.gz
             echo "TOIT_EXEC=$PWD/toit/bin/toit.run" >> $GITHUB_ENV
             echo "TOITC_EXEC=$PWD/toit/bin/toit.compile" >> $GITHUB_ENV
@@ -351,7 +351,7 @@ jobs:
         run: |
           make TOITRUN=$TOIT_EXEC disable-supabase-tests
 
-      - name: Disable qemu tests
+      - name: Disable QEMU tests
         run: |
           make TOITRUN=$TOIT_EXEC disable-qemu-tests
 
