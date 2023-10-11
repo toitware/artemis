@@ -4,6 +4,8 @@ dependencies:
     version: ^1.0.1
   artemis:
     path: ..
+  artemis-pkg:
+    path: ../artemis-pkg-copy
   certificate_roots:
     url: github.com/toitware/toit-cert-roots
     version: ^1.6.1

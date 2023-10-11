@@ -1,6 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import artemis.service.pkg-artemis-src-copy.artemis
+import artemis-pkg.artemis
 
 main:
   bench-open-empty

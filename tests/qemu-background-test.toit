@@ -47,14 +47,6 @@ start-http-server synchro-done-latch/monitor.Latch -> int:
       writer.write "synchro done"
   return port
 
-make-lock-file tests-dir/string -> string:
-  // Hackish way to make the package file work with the pod file.
-  // The build system already adds the .packages of the tests dir to the
-  // environment variable TOIT_PACKAGE_CACHE_PATHS.
-  lock-content := (file.read-content "package.lock").to-string
-  lock-content = lock-content.replace --all "path: " "path: $tests-dir/"
-  return lock-content
-
 make-test-code port/int -> string:
   test-content := TEST-CODE.replace "HOST" get-lan-ip
   return test-content.replace "PORT" "$port"
@@ -66,7 +58,7 @@ main args/List:
     test-file := "test.toit"
     test-content := make-test-code port
     lock-file := "package.lock"
-    lock-content := make-lock-file directory.cwd
+    lock-content := make-lock-file-content directory.cwd
 
     qemu-data := build-qemu-image
         --test-cli=test-cli

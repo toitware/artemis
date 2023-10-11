@@ -37,8 +37,6 @@ main args/List:
   with-test-cli --args=args: | test-cli/TestCli |
     run-test test-cli serial-port wifi-ssid wifi-password
 
-
-
 run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/string:
   tmp-dir := test-cli.tmp-dir
   ui := TestUi --no-quiet

@@ -995,3 +995,15 @@ check-resource-lock --args/List lock-type/string:
       expect (resource-locks.contains lock-type)
       return
   throw "Expected --resource-locks=$lock-type"
+
+make-lock-file-content tests-dir/string -> string:
+  // Hackish way to make the package file work with the pod file.
+  // The build system already adds the .packages of the tests dir to the
+  // environment variable TOIT_PACKAGE_CACHE_PATHS.
+  lock-content := (file.read-content "package.lock").to-string
+  lock-content = lock-content.replace --all "path: " "path: $tests-dir/"
+  return lock-content
+
+write-lock-file --target-dir/string --tests-dir/string -> none:
+  lock-content := make-lock-file-content tests-dir
+  file.write-content --path="$target-dir/package.lock" lock-content

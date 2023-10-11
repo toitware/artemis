@@ -4,7 +4,7 @@ import binary show LITTLE-ENDIAN
 import crypto.crc
 import system.storage
 
-import .pkg-artemis-src-copy.api as api
+import artemis-pkg.api
 
 class FlashLog:
   static HEADER-MARKER-OFFSET_   ::= 0

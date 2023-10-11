@@ -3,8 +3,8 @@
 import system.services
 import expect show *
 
-import artemis.service.pkg-artemis-src-copy.artemis
-import artemis.service.pkg-artemis-src-copy.api
+import artemis-pkg.artemis
+import artemis-pkg.api
 import artemis.service.channels show ChannelResource ChannelServiceProvider
 
 main:

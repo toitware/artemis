@@ -14,7 +14,7 @@ import system.services
 // version will be used instead.
 
 // WAS: import artemis.api
-import .pkg-artemis-src-copy.api as api
+import artemis-pkg.api
 
 // --------------------------------------------------------------------------
 

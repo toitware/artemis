@@ -2,6 +2,7 @@ sdk: ^2.0.0-alpha.91
 prefixes:
   ar: pkg-ar
   artemis: ..
+  artemis-pkg: artemis-pkg-copy
   certificate_roots: toit-cert-roots
   cli: pkg-cli
   fs: fs
@@ -15,6 +16,7 @@ packages:
     prefixes:
       ar: pkg-ar
       artemis: toit-artemis
+      artemis-pkg: artemis-pkg-copy
       certificate_roots: toit-cert-roots
       cli: pkg-cli
       fs: fs
@@ -24,6 +26,8 @@ packages:
       semver: toit-semver
       snapshot: snapshot
       supabase: toit-supabase
+  artemis-pkg-copy:
+    path: ../artemis-pkg-copy
   fs:
     path: ../tools/fs
     prefixes:
