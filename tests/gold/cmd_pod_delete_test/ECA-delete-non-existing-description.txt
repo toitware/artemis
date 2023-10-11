@@ -1,3 +1,0 @@
-# Can't delete non-existing description
-# [pod, delete, --all, pod1]
-Error: Unknown pod pod1.

@@ -1,3 +1,0 @@
-# Uninstall a non-existing container
-# [device, container, uninstall, hello]
-Error: Container 'hello' is not installed.

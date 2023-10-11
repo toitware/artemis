@@ -1,3 +1,0 @@
-# Remove a member from the org
-# [org, members, remove, d9064bb5-1501-4ec9-bfee-21ab74d645b8]
-Removed user d9064bb5-1501-4ec9-bfee-21ab74d645b8 from organization -={|~~~~~~~~~~ORG-ID2~~~~~~~~~~~|}=-.

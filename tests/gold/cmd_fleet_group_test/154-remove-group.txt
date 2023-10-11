@@ -1,3 +1,0 @@
-# Remove a group
-# [fleet, group, remove, test-group-2]
-Removed group test-group-2.

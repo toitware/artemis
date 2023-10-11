@@ -1,3 +1,0 @@
-# Delete pods by name
-# [pod, delete, --all, pod1, pod3]
-Deleted pods 'pod1, pod3'.

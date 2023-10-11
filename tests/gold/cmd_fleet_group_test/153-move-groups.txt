@@ -1,3 +1,0 @@
-# Move multiple groups to the default group
-# [fleet, group, move, --to, default, --group, test-group-2, --group, test-group-4]
-Moved 3 devices to group 'default'.

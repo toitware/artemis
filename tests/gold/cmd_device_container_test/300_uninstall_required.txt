@@ -1,3 +1,0 @@
-# Can't uninstall required container without force
-# [device, container, uninstall, hello]
-Error: Container 'hello' is required by a connection.

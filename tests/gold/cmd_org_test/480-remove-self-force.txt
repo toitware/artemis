@@ -1,3 +1,0 @@
-# Remove ourselves from the org with --force
-# [org, members, remove, --force, f76629c5-a070-4bbc-9918-64beaea48848]
-Removed user f76629c5-a070-4bbc-9918-64beaea48848 from organization -={|~~~~~~~~~~ORG-ID2~~~~~~~~~~~|}=-.

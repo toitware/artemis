@@ -1,6 +1,0 @@
-# List the members of the org after removing self
-# [org, members, list]
-┌────┬──────┬──────┬───────┐
-│ ID   Role   Name   Email │
-├────┼──────┼──────┼───────┤
-└────┴──────┴──────┴───────┘
