@@ -2,6 +2,7 @@
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
+import expect show *
 import uuid
 import host.os
 
@@ -9,51 +10,39 @@ import .serial
 import .utils
 
 /**
-Tests the pin trigger.
-
-Requires pin 32 and pin33 to be connected.
-Since we are running on a single device we can't test wake up from
-  deep sleep this way.
+Tests that overridden triggers survive deep sleeps.
 */
 
 TEST-CODE ::= """
-import gpio
 import artemis-pkg.artemis
 
 main:
-  print "hello"
+  print "Hello."
   reason := artemis.Container.current.trigger
-  print "reason: \$reason"
+  print "Reason: \$reason."
 
-  pin := gpio.Pin --input 32
-  print "Can access pin 32: \$pin.get"
-
-
-  if reason is artemis.TriggerPin:
-    artemis.Container.current.set-next-start-triggers [
-      artemis.TriggerInterval Duration.ZERO,
-    ]
+  next-trigger := ?
+  if reason is not artemis.TriggerInterval:
+    next-trigger = artemis.TriggerInterval (Duration --s=1)
   else:
-    artemis.Container.current.set-next-start-triggers [
-      artemis.TriggerPin 32 --level=1,
-      // The interval trigger must not delay the execution of the pin trigger.
-      artemis.TriggerInterval (Duration --h=1),
-    ]
-  print "done without closing"
+    interval-trigger := reason as artemis.TriggerInterval
+    next-trigger = artemis.TriggerInterval (interval-trigger.interval + (Duration --s=1))
+
+  artemis.Container.current.set-next-start-triggers [
+    next-trigger
+  ]
+  print "Next trigger is \$next-trigger."
 """
 
-TRIGGER-PIN-32-CODE ::= """
-import gpio
+TEST-PERIODIC-CODE ::= """
+import artemis-pkg.artemis
 
 main:
-  // This pin is connected to pin 32 on the device.
-  pin := gpio.Pin --output 33
-  print "sleeping 2s before triggering pin"
-  sleep (Duration --s=2)
-  print "triggering pin"
-  pin.set 1
-  // Keep the pin high.
-  sleep (Duration --s=10)
+  // Schedule this container to run every second.
+  // This way we have a deep-sleep between some of the test-container runs.
+  artemis.Container.current.set-next-start-triggers [
+    artemis.TriggerInterval (Duration --s=1)
+  ]
 """
 
 main args/List:
@@ -82,7 +71,10 @@ run-test test-cli/TestCli fleet-dir/string serial-port/string wifi-ssid/string w
       --fleet-dir=fleet-dir
       --files={
         "test.toit": TEST-CODE,
-        "trigger-pin-32.toit": TRIGGER-PIN-32-CODE,
+        "test2.toit": TEST-PERIODIC-CODE,
+      }
+      --pod-spec={
+        "max-offline": "2m"
       }
 
   test-device := test-cli.listen-to-serial-device
@@ -92,7 +84,11 @@ run-test test-cli/TestCli fleet-dir/string serial-port/string wifi-ssid/string w
       // Cheat by reusing the alias id.
       --hardware-id=device-id
 
-  test-device.wait-for "done without closing"
-  test-device.wait-for "reason: Trigger - pin 32-1"
-  test-device.wait-for "reason: Trigger - interval"
-  test-device.wait-for "Can access pin 32"
+  test-device.wait-for "Reason: Trigger - boot"
+  expected-interval := 1
+  // We need to wait for the synchronization to succeed (or fail) before we can
+  // see the first deep sleep.
+  while not test-device.output.contains "entering deep sleep":
+    test-device.wait-for "Reason: Trigger - interval $(expected-interval)s"
+    expected-interval++
+  test-device.wait-for "Reason: Trigger - interval $(expected-interval)s"

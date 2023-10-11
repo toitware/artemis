@@ -267,7 +267,9 @@ class ContainerJob extends Job:
     logger_ = logger.with-name name
     triggers-armed_ = triggers-default_
     super name state
-    update description
+    // At this point the scheduler-state has already been set.
+    // Apply-description must be careful not to overwrite it.
+    apply-description_ description
 
   stringify -> string:
     return "container:$name"
@@ -279,9 +281,14 @@ class ContainerJob extends Job:
         : triggers-armed_.to-encoded-list
     return [state, triggers]
 
+  /**
+  Uses the scheduler state to update properties that were
+    changed by the user and that must survive deep sleeps.
+  */
   set-scheduler-state_ state/any -> none:
     if not state: return
     super state[0]
+    // Note that $apply-description_ is called after the scheduler state call.
     triggers := state[1]
     triggers-armed_ = triggers == null
         ? triggers-default_
@@ -317,18 +324,24 @@ class ContainerJob extends Job:
     if delayed-until := scheduler-delayed-until_:
       if delayed-until > now: return delayed-until
       trigger (Trigger.encode-delayed 0)
-    else if is-critical:
+      return now
+
+    // Check if we were triggered from the outside (like from a pin trigger).
+    // If yes, run the container now.
+    if is-triggered_: return now
+
+    if is-critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
       trigger (Trigger.encode Trigger.KIND-CRITICAL)
-    else if trigger-interval := triggers-armed_.trigger-interval:
+      return now
+
+    if trigger-interval := triggers-armed_.trigger-interval:
       result := last ? last + trigger-interval : now
       if result > now: return result
       trigger (Trigger.encode-interval trigger-interval)
+      return now
 
-    if is-triggered_: return now
-    // TODO(kasper): Don't run at all. Maybe that isn't
-    // a great default when you have no triggers?
     return null
 
   /**
@@ -418,7 +431,13 @@ class ContainerJob extends Job:
     // thing we do.
     stop
 
-  update description/Map -> none:
+  /**
+  Applies the given $description.
+  This function is called after the scheduler-state has been set.
+  The function thus must be careful not to overwrite state that was set through the
+    scheduler-state.
+  */
+  apply-description_ description/Map -> none:
     assert: not is-running
     description_ = description
     is-background_ = description.contains "background"
@@ -430,11 +449,16 @@ class ContainerJob extends Job:
     if description.contains "critical":
       runlevel_ = Job.RUNLEVEL-CRITICAL
 
-    // Reset triggers.
+    uses-default-triggers := identical triggers-armed_ triggers-default_
     triggers-default_ = is-critical
         ? Triggers
         : Triggers.from-description (description.get "triggers")
+    if uses-default-triggers: triggers-armed_ = triggers-default_
+
+  update description/Map -> none:
+    // 'update' overrides user-supplied triggers.
     triggers-armed_ = triggers-default_
+    apply-description_ description
 
   has-boot-trigger -> bool:
     return triggers-armed_.trigger-boot
