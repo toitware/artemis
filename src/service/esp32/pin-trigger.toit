@@ -201,10 +201,7 @@ class PinTriggerManager:
             : Trigger.encode-pin pin-number --level=level
         job.trigger encoded-trigger
 
-    // We need a critical_do as `update_` might kill the currently running
-    // task.
-    critical-do:
-      scheduler_.on-job-updated
+    scheduler_.on-job-updated
 
   /**
   Sets up a watcher for the given $pin-number and $level.
