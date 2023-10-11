@@ -369,7 +369,7 @@ jobs:
       # Erase the flash of the device.
       # We don't want it to behave erratically against the WiFi hotspot,
       # which could make future tests fail more easily.
-      - name: Pacify the device
+      - name: Erase device flash
         if: always()
         run: |
           $TOIT_SDK/tools/esptool --port /dev/ttyUSB0 erase_flash
