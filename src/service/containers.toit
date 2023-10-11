@@ -317,10 +317,6 @@ class ContainerJob extends Job:
     return { "name": name, "id": id }
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    // Check whether we have been triggered first.
-    // Otherwise we might hit an interval trigger which would delay the execution.
-    if is-triggered_: return now
-
     // TODO(kasper): Should the delayed restart take
     // precedence over all other triggers? Also, we
     // should probably think about how we want to access
@@ -328,18 +324,24 @@ class ContainerJob extends Job:
     if delayed-until := scheduler-delayed-until_:
       if delayed-until > now: return delayed-until
       trigger (Trigger.encode-delayed 0)
-    else if is-critical:
+      return now
+
+    // Check if we were triggered from the outside (like from a pin trigger).
+    // If yes, run the container now.
+    if is-triggered_: return now
+
+    if is-critical:
       // TODO(kasper): Find a way to reboot the device if
       // a critical container keeps restarting.
       trigger (Trigger.encode Trigger.KIND-CRITICAL)
-    else if trigger-interval := triggers-armed_.trigger-interval:
+      return now
+
+    if trigger-interval := triggers-armed_.trigger-interval:
       result := last ? last + trigger-interval : now
       if result > now: return result
       trigger (Trigger.encode-interval trigger-interval)
+      return now
 
-    if is-triggered_: return now
-    // TODO(kasper): Don't run at all. Maybe that isn't
-    // a great default when you have no triggers?
     return null
 
   /**
@@ -447,11 +449,11 @@ class ContainerJob extends Job:
     if description.contains "critical":
       runlevel_ = Job.RUNLEVEL-CRITICAL
 
-    uses-default-trigger := identical triggers-armed_ triggers-default_
+    uses-default-triggers := identical triggers-armed_ triggers-default_
     triggers-default_ = is-critical
         ? Triggers
         : Triggers.from-description (description.get "triggers")
-    if uses-default-trigger: triggers-armed_ = triggers-default_
+    if uses-default-triggers: triggers-armed_ = triggers-default_
 
   update description/Map -> none:
     // 'update' overrides user-supplied triggers.
