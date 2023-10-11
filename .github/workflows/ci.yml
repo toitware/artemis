@@ -310,34 +310,27 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      # Finds a Toit SDK in the cache of Artemis.
-      # For the very first run, there might not be an SDK, in which case
-      # one will be downloaded in the next step.
-      # Note that this SDK could be older. However, we only use it to
-      # download the required SDK, at which point we will switch to that one
-      # instead.
-      - name: Setup Toit, use existing SDK
+      # Downloads the SDK that is defined in the Makefile
+      # Reuses the SDK if it's already downloaded.
+      - name: Setup Toit SDK
         run: |
-          LATEST=$(ls $HOME/.cache/artemis/sdks | sort --version-sort | tail -n1)
-          if [[ -z "$LATEST" ]]; then
-            echo "No SDK found - it will be downloaded."
-          else
-            echo "TOIT_EXEC=$HOME/.cache/artemis/sdks/$LATEST/bin/toit.run" >> $GITHUB_ENV
-            echo "TOITC_EXEC=$HOME/.cache/artemis/sdks/$LATEST/bin/toit.compile" >> $GITHUB_ENV
-            echo "TPKG_EXEC=$HOME/.cache/artemis/sdks/$LATEST/bin/toit.pkg" >> $GITHUB_ENV
-          fi
+          SDK_VERSION=$(make dev-sdk-version)
+          TOIT_SDK=$HOME/.cache/artemis/sdks/$SDK_VERSION
 
-      - name: Download Toit
-        run: |
-          # If TOIT_EXEC is not set, download the latest version.
-          if [[ -z "$TOIT_EXEC" ]]; then
-            mkdir -p $HOME/.cache/artemis-testing/toit
-            wget https://github.com/toitlang/toit/releases/latest/download/toit-linux.tar.gz
+          # Check whether the SDK is already downloaded.
+          if [[ -d $TOIT_SDK ]]; then
+            echo "SDK already downloaded."
+          else
+            mkdir -p $HOME/.cache/artemis/sdks
+            wget https://github.com/toitlang/toit/releases/download/$SDK_VERSION/toit-linux.tar.gz
             tar x -zf toit-linux.tar.gz
-            echo "TOIT_EXEC=$PWD/toit/bin/toit.run" >> $GITHUB_ENV
-            echo "TOITC_EXEC=$PWD/toit/bin/toit.compile" >> $GITHUB_ENV
-            echo "TPKG_EXEC=$PWD/toit/bin/toit.pkg" >> $GITHUB_ENV
+            mv toit $TOIT_SDK
           fi
+          echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_ENV
+          echo "TOIT_SDK=$TOIT_SDK" >> $GITHUB_ENV
+          echo "TOIT_EXEC=$TOIT_SDK/bin/toit.run" >> $GITHUB_ENV
+          echo "TOITC_EXEC=$TOIT_SDK/bin/toit.compile" >> $GITHUB_ENV
+          echo "TPKG_EXEC=$TOIT_SDK/bin/toit.pkg" >> $GITHUB_ENV
 
       - name: Run cmake
         shell: bash
@@ -349,26 +342,10 @@ jobs:
               -DTOITRUN="$TOIT_EXEC" \
               build
 
-      - name: Download SDK
+      # The SDK is already downloaded, but we might still need envelopes.
+      - name: Download envelopes
         run: |
           make TOITRUN=$TOIT_EXEC download-sdk
-
-      # Now that 'download-sdk' was executed we know that the SDK in the cache is
-      # up to date.
-      - name: Update Toit setup
-        run: |
-          LATEST=$(ls $HOME/.cache/artemis/sdks | sort --version-sort | tail -n1)
-          echo "TOIT_EXEC=$HOME/.cache/artemis/sdks/$LATEST/bin/toit.run" >> $GITHUB_ENV
-          echo "TOITC_EXEC=$HOME/.cache/artemis/sdks/$LATEST/bin/toit.compile" >> $GITHUB_ENV
-          echo "TPKG_EXEC=$HOME/.cache/artemis/sdks/$LATEST/bin/toit.pkg" >> $GITHUB_ENV
-
-          # Start using the latest SDK (in case it's different than the one we
-          # used before).
-          cmake \
-              -DTOITC="$TOITC_EXEC" \
-              -DTOITPKG="$TPKG_EXEC" \
-              -DTOITRUN="$TOIT_EXEC" \
-              build
 
       - name: Disable Supabase tests
         run: |
