@@ -410,9 +410,9 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
 
           // The update might have led to a missed checkin.
           // Remove the check-mark.
-          // We use a string instead of a character, as the size of the cross is more
-          // than one byte.
-          CROSS ::= "✗"
+          // We use a string instead of a character, as the size of the cross could be
+          // more than one byte if we use Unicode.
+          CROSS ::= "x"
           // Replacing the cross by using the index is a bit brittle.
           // Due to unicode characters before the cross, the index might not be the same.
           if line.size > missed-index and line[missed-index] == CROSS[0]:

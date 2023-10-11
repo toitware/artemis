@@ -1,3 +1,0 @@
-# Delete a pod by revision
-# [pod, delete, pod1#2]
-Deleted pod 'pod1#2'.

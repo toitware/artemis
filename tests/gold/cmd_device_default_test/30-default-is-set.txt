@@ -1,3 +1,0 @@
-# The default device is set
-# [device, default]
--={| UUID-FOR-FAKE-DEVICE 00000 |}=-

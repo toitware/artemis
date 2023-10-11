@@ -299,3 +299,77 @@ jobs:
         with:
           name: other-snapshots-${{ runner.os }}
           path: ${{ env.SNAPSHOTS_DIR }}
+
+  serial:
+    runs-on: self-linux
+
+    steps:
+      - name: Clean workspace
+        run: |
+          rm -rf ${{ github.workspace }}/*
+
+      - uses: actions/checkout@v3
+
+      # Downloads the SDK that is defined in the Makefile
+      # Reuses the SDK if it's already downloaded.
+      - name: Setup Toit SDK
+        run: |
+          SDK_VERSION=$(make dev-sdk-version)
+          TOIT_SDK=$HOME/.cache/artemis/sdks/$SDK_VERSION
+
+          # Check whether the SDK is already downloaded.
+          if [[ -d $TOIT_SDK ]]; then
+            echo "SDK already downloaded."
+          else
+            mkdir -p $HOME/.cache/artemis/sdks
+            wget https://github.com/toitlang/toit/releases/download/$SDK_VERSION/toit-linux.tar.gz
+            tar x -zf toit-linux.tar.gz
+            mv toit $TOIT_SDK
+          fi
+          echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_ENV
+          echo "TOIT_SDK=$TOIT_SDK" >> $GITHUB_ENV
+          echo "TOIT_EXEC=$TOIT_SDK/bin/toit.run" >> $GITHUB_ENV
+          echo "TOITC_EXEC=$TOIT_SDK/bin/toit.compile" >> $GITHUB_ENV
+          echo "TPKG_EXEC=$TOIT_SDK/bin/toit.pkg" >> $GITHUB_ENV
+
+      - name: Run cmake
+        shell: bash
+        run: |
+          make rebuild-cmake
+          cmake \
+              -DTOITC="$TOITC_EXEC" \
+              -DTOITPKG="$TPKG_EXEC" \
+              -DTOITRUN="$TOIT_EXEC" \
+              build
+
+      # The SDK is already downloaded, but we might still need envelopes.
+      - name: Download envelopes
+        run: |
+          make TOITRUN=$TOIT_EXEC download-sdk
+
+      - name: Disable Supabase tests
+        run: |
+          make TOITRUN=$TOIT_EXEC disable-supabase-tests
+
+      - name: Disable QEMU tests
+        run: |
+          make TOITRUN=$TOIT_EXEC disable-qemu-tests
+
+      - name: Build
+        run: |
+          make TOITRUN=$TOIT_EXEC
+
+      - name: Run serial tests
+        run: |
+          export ARTEMIS_TEST_SERIAL_PORT=/dev/ttyUSB0
+          export ARTEMIS_TEST_WIFI_SSID=jaguar
+          export ARTEMIS_TEST_WIFI_PASSWORD=toittoit
+          make TOITRUN=$TOIT_EXEC serial-test
+
+      # Erase the flash of the device.
+      # We don't want it to behave erratically against the WiFi hotspot,
+      # which could make future tests fail more easily.
+      - name: Erase device flash
+        if: always()
+        run: |
+          $TOIT_SDK/tools/esptool --port /dev/ttyUSB0 erase_flash
