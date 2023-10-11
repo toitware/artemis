@@ -414,7 +414,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
           // Remove the check-mark.
           // We use a string instead of a character, as the size of the cross is more
           // than one byte.
-          CROSS ::= "✗"
+          CROSS ::= "x"
           // Replacing the cross by using the index is a bit brittle.
           // Due to unicode characters before the cross, the index might not be the same.
           if line.size > missed-index and line[missed-index] == CROSS[0]:
