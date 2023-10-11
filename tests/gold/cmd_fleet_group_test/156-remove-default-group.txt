@@ -1,3 +1,0 @@
-# Remove the default group
-# [fleet, group, remove, default]
-Removed group default.

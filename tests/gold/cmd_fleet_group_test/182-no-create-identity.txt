@@ -1,3 +1,0 @@
-# Can't create an identity for a group that doesn't exist
-# [fleet, create-identities, --group, does-not-exist, 1]
-Error: Group 'does-not-exist' not found.

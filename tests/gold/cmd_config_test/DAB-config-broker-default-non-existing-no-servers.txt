@@ -1,3 +1,0 @@
-# Try to set the default broker to a non-existing broker when there are no servers
-# [config, broker, default, non-existing]
-Error: Unknown broker non-existing.

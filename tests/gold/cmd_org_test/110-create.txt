@@ -1,4 +1,0 @@
-# Create a new organization 'Testy'
-# [org, create, Testy]
-Created organization -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=- - Testy.
-Default organization set to -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=- - Testy.

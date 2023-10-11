@@ -1,3 +1,0 @@
-# Delete a pod by id
-# [pod, delete, -={|~~~~~~~~~~POD3-ID~~~~~~~~~~~|}=-]
-Deleted pod '-={|~~~~~~~~~~POD3-ID~~~~~~~~~~~|}=-'.

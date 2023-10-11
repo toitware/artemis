@@ -1,5 +1,0 @@
-# Show the default org
-# [org, show]
-Id: -={|~~~~~~~~~~ORG-ID2~~~~~~~~~~~|}=-
-Name: Testy2
-Created: CREATED-AT2

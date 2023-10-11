@@ -1,3 +1,0 @@
-# Add a group without force
-# [fleet, group, create, test-group, --template, default]
-Error: No pod with name my-pod and tag latest in the fleet.

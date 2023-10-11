@@ -1,3 +1,0 @@
-# No default device is set. -> Error.
-# [device, default]
-Error: No default device set.

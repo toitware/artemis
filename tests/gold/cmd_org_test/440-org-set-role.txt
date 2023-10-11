@@ -1,3 +1,0 @@
-# Change the role of a member of the org
-# [org, members, set-role, d9064bb5-1501-4ec9-bfee-21ab74d645b8, admin]
-Set role of user d9064bb5-1501-4ec9-bfee-21ab74d645b8 to admin in organization -={|~~~~~~~~~~ORG-ID2~~~~~~~~~~~|}=-.

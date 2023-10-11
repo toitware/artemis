@@ -1,3 +1,0 @@
-# Add a group with a pod
-# [fleet, group, create, test-group, --pod, unknown@pod, --force]
-Created group test-group.
