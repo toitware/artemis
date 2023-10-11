@@ -1,5 +1,0 @@
-# The default org is still be Testy
-# [org, default]
-Id: -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=-
-Name: Testy
-Created: CREATED-AT

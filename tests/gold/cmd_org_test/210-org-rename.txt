@@ -1,3 +1,0 @@
-# Update the name of the org
-# [org, update, -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=-, --name, Testy2]
-Updated organization -={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=-.

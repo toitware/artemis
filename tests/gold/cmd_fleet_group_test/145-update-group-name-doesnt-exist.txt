@@ -1,3 +1,0 @@
-# Update a group name that doesn't exist
-# [fleet, group, update, test-group-5, --name, test-group-6, --force]
-Error: Group 'test-group-5' does not exist.

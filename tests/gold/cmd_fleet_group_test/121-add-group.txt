@@ -1,3 +1,0 @@
-# Add a group
-# [fleet, group, create, test-group, --template, default, --force]
-Created group test-group.

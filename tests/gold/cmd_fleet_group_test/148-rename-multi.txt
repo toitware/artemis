@@ -1,3 +1,0 @@
-# Can't rename multiple groups at once
-# [fleet, group, update, test-group-2, test-group-4, --name, test-group-5, --force]
-Error: Cannot rename more than one group.

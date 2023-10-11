@@ -1,3 +1,0 @@
-# Show the default-org with --id-only
-# [org, default, --id-only]
--={|~~~~~~~~~NEW-ORG-ID~~~~~~~~~|}=-

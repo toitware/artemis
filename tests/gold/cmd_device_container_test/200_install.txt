@@ -1,4 +1,0 @@
-# Install a container
-# [device, container, install, hello, TMP_DIR/hello.toit]
-Installing container 'hello'.
-Request sent to broker. Container will be installed when device synchronizes.
