@@ -538,17 +538,10 @@ abstract class ContainerBase implements Container:
         runlevel = value
       else if value is string:
         runlevel = Container.STRING-TO-RUNLEVEL_.get value
-            --if-absent=: format-error_ "Unknown $runlevel-key '$value' in $holder"
+            --if-absent=: format-error_ "Unknown $runlevel-key in $holder: $value"
       else:
         format-error_ "Entry $runlevel-key in $holder is not an int or a string: $value"
         unreachable
-    else:
-      runlevel = null
-
-    runlevel-string := get-optional-string_ data "runlevel"
-    if runlevel-string:
-      runlevel = Container.STRING-TO-RUNLEVEL_.get runlevel-string
-          --if-absent=: format-error_ "Unknown runlevel '$runlevel-string' in container $name"
     else:
       runlevel = null
 

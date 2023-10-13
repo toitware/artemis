@@ -138,6 +138,12 @@ test-errors:
   // Should work without error.
   PodSpecification.from-json no-containers --path="ignored"
 
+  [ null, "safe", "critical", "normal", 1, 2, 3, 5, 1000 ].do: | runlevel |
+    runlevel-app4 := new-valid
+    runlevel-app4["containers"]["app4"]["runlevel"] = runlevel
+    // Should work without error.
+    PodSpecification.from-json runlevel-app4 --path="ignored"
+
   both-apps-and-containers := new-valid
   both-apps-and-containers["apps"] = both-apps-and-containers["containers"]
   expect-format-error
@@ -279,3 +285,24 @@ test-errors:
   expect-format-error
       "Entry interval in trigger in container app4 is not a valid duration: foobar"
       bad-interval
+
+  [ -100, -10, 0].do: | bad/int |
+    bad-runlevel := new-valid
+    bad-runlevel["containers"]["app4"]["runlevel"] = bad
+    expect-format-error
+        "Entry runlevel in container app4 must be positive"
+        bad-runlevel
+
+  [ "", "safemode", "stop", "criticalz" ].do: | bad/string |
+    bad-runlevel := new-valid
+    bad-runlevel["containers"]["app4"]["runlevel"] = bad
+    expect-format-error
+        "Unknown runlevel in container app4: $bad"
+        bad-runlevel
+
+  [ 3.5, true ].do: | bad |
+    bad-runlevel := new-valid
+    bad-runlevel["containers"]["app4"]["runlevel"] = bad
+    expect-format-error
+        "Entry runlevel in container app4 is not an int or a string: $bad"
+        bad-runlevel
