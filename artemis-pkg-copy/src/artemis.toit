@@ -125,7 +125,7 @@ class Trigger:
   stringify -> string:
     if kind == KIND_BOOT: return "Trigger - boot"
     if kind == KIND_INSTALL: return "Trigger - install"
-    if kind == KIND_RESTART: return "Trigger - restart"
+    if kind == KIND_CRITICAL: return "Trigger - critical"
     unreachable
 
 /**
