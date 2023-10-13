@@ -138,7 +138,7 @@ test-errors:
   // Should work without error.
   PodSpecification.from-json no-containers --path="ignored"
 
-  [ null, "safe", "critical", "normal", 1, 2, 3, 5, 1000 ].do: | runlevel |
+  [ null, "critical", "priority", "normal", 1, 2, 3, 5, 1000 ].do: | runlevel |
     runlevel-app4 := new-valid
     runlevel-app4["containers"]["app4"]["runlevel"] = runlevel
     // Should work without error.
@@ -293,7 +293,7 @@ test-errors:
         "Entry runlevel in container app4 must be positive"
         bad-runlevel
 
-  [ "", "safemode", "stop", "criticalz" ].do: | bad/string |
+  [ "", "safe", "stop", "criticalz" ].do: | bad/string |
     bad-runlevel := new-valid
     bad-runlevel["containers"]["app4"]["runlevel"] = bad
     expect-format-error

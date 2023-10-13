@@ -9,7 +9,7 @@ class Scheduler:
   signal_ ::= SchedulerSignal_
   logger_/log.Logger
   device_/Device
-  runlevel_/int := Job.RUNLEVEL-SAFE
+  runlevel_/int := Job.RUNLEVEL-CRITICAL
 
   jobs_ ::= []
 

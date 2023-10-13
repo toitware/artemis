@@ -5,8 +5,8 @@ import .scheduler
 
 abstract class Job:
   static RUNLEVEL-STOP     ::= 0
-  static RUNLEVEL-SAFE     ::= 1
-  static RUNLEVEL-CRITICAL ::= 2
+  static RUNLEVEL-CRITICAL ::= 1
+  static RUNLEVEL-PRIORITY ::= 2
   static RUNLEVEL-NORMAL   ::= 3
 
   name/string

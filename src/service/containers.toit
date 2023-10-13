@@ -310,7 +310,7 @@ class ContainerJob extends Job:
     return running and running.gid
 
   runlevel -> int:
-    return is-required_ ? Job.RUNLEVEL-SAFE : runlevel_
+    return is-required_ ? Job.RUNLEVEL-CRITICAL : runlevel_
 
   description -> Map:
     return description_
@@ -448,7 +448,7 @@ class ContainerJob extends Job:
 
     runlevel_ = description.get "runlevel"
         --if-present=: | runlevel/int |
-          max runlevel Job.RUNLEVEL-SAFE
+          max runlevel Job.RUNLEVEL-CRITICAL
         --if-absent=:
           is-critical ? Job.RUNLEVEL-CRITICAL : Job.RUNLEVEL-NORMAL
 
