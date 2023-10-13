@@ -67,7 +67,7 @@ class ContainerManager:
           job.trigger (Trigger.encode Trigger.KIND-BOOT)
         add_ job --message="load"
 
-    // Mark containers that are needed by connections as runlevel safemode.
+    // Mark containers that are needed by connections as required.
     // TODO(florian): should required containers be started on-demand?
     connections := state.get "connections"
     connections.do: | connection/Map |
@@ -75,7 +75,7 @@ class ContainerManager:
       if requires:
         requires.do: | required-name/string |
           job := get --name=required-name
-          if job: job.runlevel_ = Job.RUNLEVEL-SAFE
+          if job: job.is-required_ = true
 
     pin-trigger-manager_.start jobs_.values
 
@@ -244,7 +244,9 @@ class ContainerJob extends Job:
   running_/containers.Container? := null
   runlevel_/int := Job.RUNLEVEL-NORMAL
 
+  is-required_/bool := false
   is-background_/bool := false
+  is-critical_/bool := false
 
   triggers-default_/Triggers := Triggers
   // The triggers that are currently active/armed. They might differ from the
@@ -301,14 +303,14 @@ class ContainerJob extends Job:
     return is-background_
 
   is-critical -> bool:
-    return runlevel_ <= Job.RUNLEVEL-CRITICAL
+    return is-critical_
 
   gid -> int?:
     running := running_
     return running and running.gid
 
   runlevel -> int:
-    return runlevel_
+    return is-required_ ? Job.RUNLEVEL-SAFE : runlevel_
 
   description -> Map:
     return description_
@@ -441,13 +443,14 @@ class ContainerJob extends Job:
     assert: not is-running
     description_ = description
     is-background_ = description.contains "background"
+    is-critical := description.contains "critical"
+    is-critical_ = is-critical
 
-    runlevel_ = description.get "runlevel" --if-absent=: Job.RUNLEVEL-NORMAL
-
-    // TODO(florian): Remove updates of the runlevel_.
-    // Update runlevel.
-    if description.contains "critical":
-      runlevel_ = Job.RUNLEVEL-CRITICAL
+    runlevel_ = description.get "runlevel"
+        --if-present=: | runlevel/int |
+          max runlevel Job.RUNLEVEL-SAFE
+        --if-absent=:
+          is-critical ? Job.RUNLEVEL-CRITICAL : Job.RUNLEVEL-NORMAL
 
     uses-default-triggers := identical triggers-armed_ triggers-default_
     triggers-default_ = is-critical

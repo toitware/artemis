@@ -467,13 +467,12 @@ class EthernetConnectionInfo implements ConnectionInfo:
     return result
 
 interface Container:
-  static RUNLEVEL-STOP     ::= 0
+  // Must match the corresponding constants in src/service/jobs.toit.
   static RUNLEVEL-SAFE     ::= 1
   static RUNLEVEL-CRITICAL ::= 2
   static RUNLEVEL-NORMAL   ::= 3
 
   static STRING-TO-RUNLEVEL_ ::= {
-    "stop": RUNLEVEL-STOP,
     "safe": RUNLEVEL-SAFE,
     "critical": RUNLEVEL-CRITICAL,
     "normal": RUNLEVEL-NORMAL,
@@ -531,10 +530,18 @@ abstract class ContainerBase implements Container:
     is-background = get-optional-bool_ data "background"
     is-critical = get-optional-bool_ data "critical"
 
-    runlevel-string := get-optional-string_ data "run-level"
-    if runlevel-string:
-      runlevel = Container.STRING-TO-RUNLEVEL_.get runlevel-string
-          --if-absent=: format-error_ "Unknown run-level '$runlevel-string' in container $name"
+    runlevel-key := "runlevel"
+    if has-key_ data runlevel-key:
+      value := data[runlevel-key]
+      if value is int:
+        if value <= 0: format_error_ "Entry $runlevel-key in $holder must be positive"
+        runlevel = value
+      else if value is string:
+        runlevel = Container.STRING-TO-RUNLEVEL_.get value
+            --if-absent=: format-error_ "Unknown $runlevel-key in $holder: $value"
+      else:
+        format-error_ "Entry $runlevel-key in $holder is not an int or a string: $value"
+        unreachable
     else:
       runlevel = null
 
