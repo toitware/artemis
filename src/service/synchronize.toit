@@ -213,7 +213,7 @@ class SynchronizeJob extends TaskJob:
           stop
 
   runlevel -> int:
-    return Job.RUNLEVEL-SAFE
+    return Job.RUNLEVEL-CRITICAL
 
   schedule now/JobTime last/JobTime? -> JobTime?:
     if firmware-is-validation-pending or not last: return now
@@ -269,7 +269,7 @@ class SynchronizeJob extends TaskJob:
     status := determine-status_
     runlevel := Job.RUNLEVEL-NORMAL
     if firmware-is-validation-pending:
-      runlevel = Job.RUNLEVEL-SAFE
+      runlevel = Job.RUNLEVEL-CRITICAL
     else if status > STATUS-GREEN:
       uptime := Duration --us=Time.monotonic-us
       if uptime >= STATUS-NON-GREEN-MAX-UPTIME:
@@ -283,13 +283,13 @@ class SynchronizeJob extends TaskJob:
         runlevel = Job.RUNLEVEL-STOP
       else if status > STATUS-YELLOW:
         assert: status == STATUS-ORANGE or status == STATUS-RED
-        runlevel = Job.RUNLEVEL-CRITICAL
+        runlevel = Job.RUNLEVEL-PRIORITY
         // If we're really, really having trouble synchronizing
-        // we let the synchronizer run in safe mode every now
+        // we let the synchronizer run in critical mode every now
         // and then. It is our get-out-of-jail option, but we
         // really prefer running containers marked critical.
         if status == STATUS-RED and (random 100) < 15:
-          runlevel = Job.RUNLEVEL-SAFE
+          runlevel = Job.RUNLEVEL-CRITICAL
     scheduler_.transition --runlevel=runlevel
     assert: runlevel != Job.RUNLEVEL-STOP  // Stop does not return.
 
@@ -690,9 +690,9 @@ class SynchronizeJob extends TaskJob:
     try:
       // TODO(kasper): We should make sure we're not increasing the
       // runlevel here. For now, that cannot happen because we're
-      // using safe mode for firmware updates, but if we were to
+      // using critical mode for firmware updates, but if we were to
       // change this, we shouldn't increase the runlevel here.
-      scheduler_.transition --runlevel=Job.RUNLEVEL-SAFE
+      scheduler_.transition --runlevel=Job.RUNLEVEL-CRITICAL
       firmware-update logger_ broker-connection --device=device_ --new=new
       updated = true
       transition-to_ STATE-CONNECTED-TO-BROKER

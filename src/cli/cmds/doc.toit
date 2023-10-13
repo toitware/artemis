@@ -82,7 +82,7 @@ SPECIFICATION-FORMAT-HELP ::= """
       and they thus cannot have triggers. By default, they run at a lower
       runlevel ("critical") than other containers.
   'runlevel': optional. Either a positive integer or a symbolic name
-      for the runlevel ("safe", "critical", or "normal"). The runlevel is
+      for the runlevel ("critical", "priority", or "normal"). The runlevel is
       used to determine which containers to consider when making scheduling
       decisions. A container is only schedulable if its runlevel is lower
       than or equal to the scheduler's current runlevel. The scheduler may

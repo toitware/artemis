@@ -468,13 +468,13 @@ class EthernetConnectionInfo implements ConnectionInfo:
 
 interface Container:
   // Must match the corresponding constants in src/service/jobs.toit.
-  static RUNLEVEL-SAFE     ::= 1
-  static RUNLEVEL-CRITICAL ::= 2
+  static RUNLEVEL-CRITICAL ::= 1
+  static RUNLEVEL-PRIORITY ::= 2
   static RUNLEVEL-NORMAL   ::= 3
 
   static STRING-TO-RUNLEVEL_ ::= {
-    "safe": RUNLEVEL-SAFE,
     "critical": RUNLEVEL-CRITICAL,
+    "priority": RUNLEVEL-PRIORITY,
     "normal": RUNLEVEL-NORMAL,
   }
 
