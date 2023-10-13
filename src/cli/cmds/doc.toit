@@ -79,8 +79,16 @@ SPECIFICATION-FORMAT-HELP ::= """
       task is running.
   'critical': optional. If true, the container is considered critical
       and prioritized by the system. Critical containers run all the time
-      and they thus cannot have triggers. They run at a lower runlevel
-      (for example in safemode) than other containers.
+      and they thus cannot have triggers. By default, they run at a lower
+      runlevel ("critical") than other containers.
+  'runlevel': optional. Either a positive integer or a symbolic name
+      for the runlevel ("safe", "critical", or "normal"). The runlevel is
+      used to determine which containers to consider when making scheduling
+      decisions. A container is only schedulable if its runlevel is lower
+      than or equal to the scheduler's current runlevel. The scheduler may
+      choose to adjust its runlevel based on a number a factors, including,
+      but not limited to, how succesful the latest attempts at synchronizing
+      with the cloud have been.
   'snapshot': optional. A path to a snapshot file. The path is relative
       to the specification file.
   'git': optional. A git repository to checkout before running the container.
