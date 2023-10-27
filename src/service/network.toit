@@ -26,6 +26,8 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
   static QUARANTINE-NO-DATA    ::= Duration --m=10
   static QUARANTINE-NO-NETWORK ::= Duration --m=1
 
+  static SYSTEM-NETWORK-NAME ::= "system"
+
   logger_/log.Logger
   device_/Device
   proxy-mask_/int? := null
@@ -60,10 +62,11 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     throw "CONNECT_FAILED: no available networks"
 
   open-network_ connection/Connection -> net.Client?:
+    logger_.info "opening" --tags={"connection": connection.name}
     network/net.Client? := null
     exception := catch: network = connection.open
     if not network:
-      logger_.warn "connect failed" --tags={
+      logger_.warn "opening failed" --tags={
         "connection": connection.name,
         "error": exception
       }
@@ -74,12 +77,14 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     // the default network provided by the system. For now, it feels
     // like it is worth having here if we end up running on a base
     // firmware image that has some embedded network configuration.
-    network := net.open --name="system" --service=default-network-service_
+    logger_.info "opening" --tags={"connection": SYSTEM-NETWORK-NAME}
+    network := net.open --name=SYSTEM-NETWORK-NAME --service=default-network-service_
     proxy-mask_ = network.proxy-mask
     logger_.info "opened" --tags={"connection": network.name}
     return network
 
   close-network network/net.Interface -> none:
+    logger_.info "closing" --tags={"connection": network.name}
     proxy-mask_ = null
     network.close
     logger_.info "closed" --tags={"connection": network.name}
