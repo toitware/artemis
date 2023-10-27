@@ -123,12 +123,12 @@ class SynchronizeJob extends TaskJob:
   // these settings may have to be tweaked.
   static TIMEOUT-NETWORK-OPEN       ::= Duration --m=2
   static TIMEOUT-NETWORK-QUARANTINE ::= Duration --s=10
-  static TIMEOUT-NETWORK-CLOSE      ::= Duration --s=20
+  static TIMEOUT-NETWORK-CLOSE      ::= Duration --s=30
 
   // We try to connect to networks in a loop, so to avoid
   // spending too much time trying to connect we have a
   // timeout that governs the total time spent in the loop.
-  static TIMEOUT-CONNECT-TO-BROKER ::= Duration --m=1
+  static TIMEOUT-CONNECT-TO-BROKER ::= Duration --m=2
 
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes
