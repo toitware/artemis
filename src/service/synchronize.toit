@@ -22,6 +22,7 @@ import .ntp
 import ..shared.json-diff show Modification json-equals
 
 firmware-is-validation-pending/bool := firmware.is-validation-pending
+firmware-is-upgrade-pending/bool := false
 
 /**
 A class representing the new goal state to achieve.
@@ -123,12 +124,13 @@ class SynchronizeJob extends TaskJob:
   // these settings may have to be tweaked.
   static TIMEOUT-NETWORK-OPEN       ::= Duration --m=2
   static TIMEOUT-NETWORK-QUARANTINE ::= Duration --s=10
-  static TIMEOUT-NETWORK-CLOSE      ::= Duration --s=20
+  static TIMEOUT-NETWORK-CLOSE      ::= Duration --s=30
 
   // We try to connect to networks in a loop, so to avoid
   // spending too much time trying to connect we have a
   // timeout that governs the total time spent in the loop.
-  static TIMEOUT-CONNECT-TO-BROKER ::= Duration --m=1
+  static TIMEOUT-BROKER-CONNECT ::= Duration --m=1
+  static TIMEOUT-BROKER-CLOSE   ::= Duration --s=30
 
   // We allow each step in the synchronization process to
   // only take a specified amount of time. If it takes
@@ -295,7 +297,7 @@ class SynchronizeJob extends TaskJob:
 
     try:
       start := Time.monotonic-us
-      limit := start + TIMEOUT-CONNECT-TO-BROKER.in-us
+      limit := start + TIMEOUT-BROKER-CONNECT.in-us
       while not connect-network_ and Time.monotonic-us < limit:
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
@@ -305,8 +307,11 @@ class SynchronizeJob extends TaskJob:
           critical-do: logger_.warn "ignored cancelation in run loop"
           throw CANCELED-ERROR
     finally:
+      if firmware-is-upgrade-pending:
+        exception := catch: firmware.upgrade
+        logger_.error "firmware update: rebooting to apply update failed" --tags={"error": exception}
       if firmware-is-validation-pending:
-        logger_.error "firmware update was rejected after failing to connect or validate"
+        logger_.error "firmware update: rejected after failing to connect or validate"
         firmware.rollback
 
   /**
@@ -335,23 +340,26 @@ class SynchronizeJob extends TaskJob:
       // to $(control --online --close), so we need to maintain the proper
       // state and get the network correctly quarantined and closed.
       critical-do:
+        error := (is-exception ? exception.value : null)
+        if firmware-is-upgrade-pending: error = null
         // We retry if we connected to the network, but failed
         // to actually connect to the broker. This could be an
         // indication that the network doesn't let us connect,
         // so we prefer using a different network for a while.
         done := state_ != STATE-CONNECTED-TO-NETWORK
-        transition-to-disconnected_ --error=(is-exception ? exception.value : null)
+        transition-to-disconnected_ --error=error
         if network:
           // If we are planning to retry another network,
           // we quarantine the one we just tried.
           if not done:
             with-timeout TIMEOUT-NETWORK-QUARANTINE: network.quarantine
           with-timeout TIMEOUT-NETWORK-CLOSE: network.close
-        // If we're canceled, we should make sure to propagate
-        // the canceled exception and not just swallow it.
-        // Otherwise, the caller can easily run into a loop
+        // If we're canceled or doing a firmware upgrade, we should
+        // make sure to propagate the exception and not just swallow
+        // it. Otherwise, the caller can easily run into a loop
         // where it is repeatedly asked to retry the connect.
-        if not Task.current.is-canceled: return done
+        if not (firmware-is-upgrade-pending or Task.current.is-canceled):
+          return done
 
   /**
   Tries to connect to the broker and step through the
@@ -384,8 +392,7 @@ class SynchronizeJob extends TaskJob:
           critical-do: logger_.warn "ignored cancelation in connect-broker loop"
           throw CANCELED-ERROR
     finally:
-      // TODO(kasper): Add timeout for close.
-      broker-connection.close
+      with-timeout TIMEOUT-BROKER-CLOSE: broker-connection.close
 
   /**
   Synchronizes with the broker.
@@ -478,11 +485,11 @@ class SynchronizeJob extends TaskJob:
     // firmware if requested to do so.
     if firmware-is-validation-pending and state >= STATE-CONNECTED-TO-BROKER:
       if firmware.validate:
-        logger_.info "firmware update validated after connecting to broker"
+        logger_.info "firmware update: validated after connecting to broker"
         firmware-is-validation-pending = false
         device_.firmware-validated
       else:
-        logger_.error "firmware update failed to validate"
+        logger_.error "firmware update: failed to validate"
 
   transition-to-connected_ -> none:
     if state_ >= STATE-CONNECTED-TO-BROKER: return
@@ -565,8 +572,8 @@ class SynchronizeJob extends TaskJob:
       logger_.info "firmware update" --tags={"from": firmware-from, "to": firmware-to}
       report-state-if-changed broker-connection --goal-state=new-goal-state
       handle-firmware-update_ broker-connection firmware-to
-      // Handling the firmware update either completes and restarts
-      // or throws an exception. We shouldn't get here.
+      // Handling the firmware update always throws an exception. We
+      // shouldn't get here.
       unreachable
 
     if device_.firmware-state["firmware"] != firmware-to:
@@ -686,7 +693,6 @@ class SynchronizeJob extends TaskJob:
   handle-firmware-update_ broker-connection/BrokerConnection new/string -> none:
     if firmware-is-validation-pending: throw "firmware update: cannot update unvalidated"
     runlevel := scheduler_.runlevel
-    updated := false
     try:
       // TODO(kasper): We should make sure we're not increasing the
       // runlevel here. For now, that cannot happen because we're
@@ -694,13 +700,19 @@ class SynchronizeJob extends TaskJob:
       // change this, we shouldn't increase the runlevel here.
       scheduler_.transition --runlevel=Job.RUNLEVEL-CRITICAL
       firmware-update logger_ broker-connection --device=device_ --new=new
-      updated = true
+      firmware-is-upgrade-pending = true
       transition-to_ STATE-CONNECTED-TO-BROKER
       device_.state-firmware-update new
       report-state-if-changed broker-connection
+      logger_.info "firmware update: rebooting to apply update"
+      // We throw an exception to complete the firmware upgrade, because
+      // we really want to tear down the broker connection and network
+      // in an orderly fashion. Throwing an exception lets us unwind and
+      // run all the cleanup code, before actually rebooting through a
+      // call to firmware.upgrade in $run.
+      throw "FIRMWARE_UPGRADE"
     finally:
-      if updated: firmware.upgrade
-      scheduler_.transition --runlevel=runlevel
+      if not firmware-is-upgrade-pending: scheduler_.transition --runlevel=runlevel
 
   /**
   Reports the current device state to the broker, but only if we know
