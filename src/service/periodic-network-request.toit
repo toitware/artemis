@@ -26,8 +26,15 @@ abstract class PeriodicNetworkRequest:
   last-success_/JobTime? := null
   last-attempt_/JobTime? := null
 
+  // Keep a cache of the map of the last successes and attempts
+  // around, so we can update it in place before writing it back.
+  static last-cache_/Map? := null
+
   constructor .name .device --.period --.backoff:
-    last := device.periodic-network-request-last
+    last := last-cache_
+    if not last:
+      last = device.periodic-network-request-last or {:}
+      last-cache_ = last
     catch:
       // If we cannot decode the last success, it is fine
       // that we do not decode the last attempt.
@@ -66,10 +73,11 @@ abstract class PeriodicNetworkRequest:
       logger.warn "failed" --tags={"exception": exception}
 
     exception = catch:
-      device.periodic-network-request-last-update {
-        "+$name": last-success_ and last-success_.us,
-        "?$name": last-attempt_.us,
-      }
+      last := last-cache_
+      last["+$name"] = last-success_ and last-success_.us
+      last["?$name"] = last-attempt_.us
+      device.periodic-network-request-last-update last
+      last-cache_ = last
     if exception:
       logger.warn "failed to update local state" --tags={
         "exception": exception
