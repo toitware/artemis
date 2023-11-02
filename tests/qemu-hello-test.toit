@@ -44,8 +44,7 @@ run-test test-cli/TestCli qemu-data/Map:
       --qemu-image=image-path
 
   print "Starting to look for 'hello world' and 'INFO: synchronized'."
-  test-device.wait-for "hello world"
+  pos := test-device.wait-for "hello world" --start-at=0
   print "Found 'hello world'."
-  test-device.wait-for "INFO: synchronized"
+  test-device.wait-for "INFO: synchronized" --start-at=pos
   print "Found 'INFO: synchronized'."
-  "Successfully provisioned device polished-virus (5e0a2c16-75e9-56d6-9aef-a4d2d81ed3f5)"

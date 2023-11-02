@@ -39,6 +39,10 @@ build-qemu-image -> Map
   files.do: | filename/string blob |
     write-blob-to-file "$tmp-dir/$filename" blob
 
+  lock-file := "package.lock"
+  lock-content := make-lock-file-content directory.cwd
+  write-blob-to-file "$tmp-dir/$lock-file" lock-content
+
   if not pod-spec.contains "artemis-version":
     pod-spec["artemis-version"] = TEST-ARTEMIS-VERSION
   if not pod-spec.contains "sdk-version":
