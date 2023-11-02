@@ -46,5 +46,5 @@ run-test test-cli/TestCli qemu-data/Map:
   print "Starting to look for 'hello world' and 'INFO: synchronized'."
   pos := test-device.wait-for "hello world" --start-at=0
   print "Found 'hello world'."
-  test-device.wait-for "INFO: synchronized" --start-at=pos
+  test-device.wait-for-synchronized --start-at=pos
   print "Found 'INFO: synchronized'."

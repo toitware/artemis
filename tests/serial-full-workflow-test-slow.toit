@@ -303,7 +303,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
       // Cheat by reusing the alias id.
       --hardware-id=uuid.parse device-id
 
-  pos := test-device.wait-for "INFO: synchronized" --start-at=0
+  pos := test-device.wait-for-synchronized --start-at=0
 
   with-timeout --ms=15_000:
     while true:
