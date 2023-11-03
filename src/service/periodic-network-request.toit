@@ -33,7 +33,10 @@ abstract class PeriodicNetworkRequest:
   constructor .name .device --.period --.backoff:
     last := last-cache_
     if not last:
-      last = device.periodic-network-request-last or {:}
+      stored := device.periodic-network-request-last
+      // We need the last map to be modifiable, so we copy
+      // it if we got it from the storage bucket.
+      last = stored is Map ? stored.copy : {:}
       last-cache_ = last
     catch:
       // If we cannot decode the last success, it is fine
