@@ -389,7 +389,10 @@ class ContainerJob extends Job:
       "arguments": arguments
     }
 
-    // Update the triggers before we wake up the job.
+    // Reset the triggers to the default triggers.
+    triggers-armed_ = triggers-default_
+
+    // Update the pin-trigger manager before we wake up the job.
     // Otherwise the job might not be able to access the pin.
     pin-trigger-manager_.update-job this
 

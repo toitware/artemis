@@ -92,7 +92,7 @@ run-test test-cli/TestCli fleet-dir/string serial-port/string wifi-ssid/string w
       // Cheat by reusing the alias id.
       --hardware-id=device-id
 
-  test-device.wait-for "done without closing"
-  test-device.wait-for "reason: Trigger - pin 32-1"
-  test-device.wait-for "reason: Trigger - interval"
-  test-device.wait-for "Can access pin 32"
+  pos := test-device.wait-for "done without closing" --start-at=0
+  pos = test-device.wait-for "reason: Trigger - pin 32-1" --start-at=pos
+  pos = test-device.wait-for "reason: Trigger - interval" --start-at=pos
+  test-device.wait-for "Can access pin 32" --start-at=pos

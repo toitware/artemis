@@ -84,11 +84,11 @@ run-test test-cli/TestCli fleet-dir/string serial-port/string wifi-ssid/string w
       // Cheat by reusing the alias id.
       --hardware-id=device-id
 
-  test-device.wait-for "Reason: Trigger - boot"
+  pos := test-device.wait-for "Reason: Trigger - boot" --start-at=0
   expected-interval := 1
   // We need to wait for the synchronization to succeed (or fail) before we can
   // see the first deep sleep.
   while not test-device.output.contains "entering deep sleep":
-    test-device.wait-for "Reason: Trigger - interval $(expected-interval)s"
+    pos = test-device.wait-for "Reason: Trigger - interval $(expected-interval)s" --start-at=pos
     expected-interval++
-  test-device.wait-for "Reason: Trigger - interval $(expected-interval)s"
+  test-device.wait-for "Reason: Trigger - interval $(expected-interval)s" --start-at=pos
