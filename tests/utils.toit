@@ -425,7 +425,10 @@ abstract class TestDevice:
   Starts searching at $start-at.
   Returns the index *after* the needle.
   */
-  abstract wait-for needle/string --start-at/int -> int
+  abstract wait-for needle/string --start-at/int --not-followed-by/string?=null -> int
+
+  wait-for-synchronized --start-at/int -> int:
+    return wait-for "INFO: synchronized" --start-at=start-at --not-followed-by=" state"
 
   /**
   Waits until the device has connected to the broker.
@@ -475,7 +478,7 @@ class FakeDevice extends TestDevice:
   clear-output -> none:
     throw "UNIMPLEMENTED"
 
-  wait-for needle/string --start-at/int -> int:
+  wait-for needle/string --start-at/int --not-followed-by/string?=null -> int:
     throw "UNIMPLEMENTED"
 
   wait-until-connected --timeout=(Duration --ms=5_000) -> none:
@@ -677,12 +680,22 @@ class TestDevicePipe extends TestDevice:
   clear-output -> none:
     output_ = #[]
 
-  wait-for needle/string --start-at/int -> int:
+  wait-for needle/string --start-at/int --not-followed-by/string?=null -> int:
+    not-followed-size := not-followed-by ? not-followed-by.size : 0
+    start := start-at
     signal_.wait:
-      if output_.size < start-at + needle.size: continue.wait false
-      index := output_.to-string-non-throwing.index-of needle start-at
-      if index == -1: continue.wait false
-      return index + needle.size
+      if output_.size < start-at + needle.size + not-followed-size: continue.wait false
+      output-string := output_.to-string-non-throwing
+      while true:
+        index := output-string.index-of needle start
+        if index == -1: continue.wait false
+        if not-followed-by and
+            output-string[index + needle.size ..].starts-with not-followed-by:
+          // This occurrence was followed by the "not-followed-by" string.
+          // Try again starting at the next character.
+          start = index + 1
+          continue
+        return index + needle.size
     unreachable
 
 /**

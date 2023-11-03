@@ -93,7 +93,7 @@ run-test test-cli/TestCli synchro-done-latch/monitor.Latch qemu-data/Map:
       --qemu-image=image-path
 
   print "Starting to look for 'INFO: synchronized'."
-  pos := test-device.wait-for "INFO: synchronized" --start-at=0
+  pos := test-device.wait-for-synchronized --start-at=0
   synchro-done-latch.set "synchronized"
   test-device.wait-for "entering deep sleep for" --start-at=pos
   print "Found."
