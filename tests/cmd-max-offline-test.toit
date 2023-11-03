@@ -44,8 +44,9 @@ main args:
     // We give the infrastructure some time to react.
     slack := Duration --s=10
 
+    pos := 0
     with-timeout slack:
-      device.wait-for "synchronized {max-offline: 1s}"
+      pos = device.wait-for "synchronized {max-offline: 1s}" --start-at=pos
 
     test-cli.run [
       "--fleet-root", test-cli.tmp-dir,
@@ -59,4 +60,4 @@ main args:
     // refuses to run that often.
     offline := max (Duration --s=1) SynchronizeJob.OFFLINE-MINIMUM
     with-timeout slack + offline:
-      device.wait-for "synchronized {max-offline: 3m0s}"
+      pos = device.wait-for "synchronized {max-offline: 3m0s}" --start-at=pos

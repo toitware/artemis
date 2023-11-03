@@ -421,8 +421,11 @@ abstract class TestDevice:
 
   /**
   Waits for a specific $needle in the output.
+
+  Starts searching at $start-at.
+  Returns the index *after* the needle.
   */
-  abstract wait-for needle/string -> none
+  abstract wait-for needle/string --start-at/int -> int
 
   /**
   Waits until the device has connected to the broker.
@@ -472,7 +475,7 @@ class FakeDevice extends TestDevice:
   clear-output -> none:
     throw "UNIMPLEMENTED"
 
-  wait-for needle/string -> none:
+  wait-for needle/string --start-at/int -> int:
     throw "UNIMPLEMENTED"
 
   wait-until-connected --timeout=(Duration --ms=5_000) -> none:
@@ -538,7 +541,7 @@ class FakeDevice extends TestDevice:
     pending-state_ = null
 
 class TestDevicePipe extends TestDevice:
-  chunks_/List := []  // Of bytearrays.
+  output_/ByteArray := #[]
   child-process_/any := null
   signal_ := monitor.Signal
   stdout-task_/Task? := null
@@ -639,7 +642,7 @@ class TestDevicePipe extends TestDevice:
       try:
         catch --trace:
           while chunk := stdout.read:
-            chunks_.add chunk
+            output_ += chunk
             print-on-stderr_ "STDOUT: '$chunk.to-string-non-throwing'"
             signal_.raise
       finally:
@@ -649,7 +652,7 @@ class TestDevicePipe extends TestDevice:
       try:
         catch --trace:
           while chunk := stderr.read:
-            chunks_.add chunk
+            output_ += chunk
             print-on-stderr_ "STDERR: '$chunk.to-string-non-throwing'"
             signal_.raise
       finally:
@@ -668,43 +671,19 @@ class TestDevicePipe extends TestDevice:
         pipe.kill_ child-process_ SIGKILL
         child-process_ = null
 
-  build-string-from-output_ --from/int -> string:
-    input := chunks_[from..]
-    total-size := input.reduce --initial=0: | a b/ByteArray | a + b.size
-    buffer := ByteArray total-size
-    offset := 0
-    input.do: | chunk/ByteArray |
-      buffer.replace offset chunk
-      offset += chunk.size
-    return buffer.to-string-non-throwing
-
   output -> string:
-    return build-string-from-output_ --from=0
+    return output_.to-string-non-throwing
 
   clear-output -> none:
-    chunks_ = []
+    output_ = #[]
 
-  wait-for needle/string -> none:
-    last-chunk-index := -1
+  wait-for needle/string --start-at/int -> int:
     signal_.wait:
-      if chunks_.is-empty: continue.wait false
-
-      // The needle could have been partially on the previous chunks.
-      // However, at least one character must be in a new chunk.
-      start-index := last-chunk-index
-      previous-size := 0
-      while start-index > 0 and previous-size < needle.size - 1:
-        start-index--
-        previous-size = chunks_[start-index].size
-
-      if start-index < 0: start-index = 0
-
-      // Typically, the needle isn't too big, so we can just
-      // build a string from the output, even if there aren't enough
-      // characters.
-      str := build-string-from-output_ --from=start-index
-      last-chunk-index = chunks_.size
-      str.contains needle
+      if output_.size < start-at + needle.size: continue.wait false
+      index := output_.to-string-non-throwing.index-of needle start-at
+      if index == -1: continue.wait false
+      return index + needle.size
+    unreachable
 
 /**
 Starts the artemis server and broker.

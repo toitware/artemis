@@ -57,8 +57,7 @@ main args/List:
     port := start-http-server synchro-done-latch
     test-file := "test.toit"
     test-content := make-test-code port
-    lock-file := "package.lock"
-    lock-content := make-lock-file-content directory.cwd
+
 
     qemu-data := build-qemu-image
         --test-cli=test-cli
@@ -66,7 +65,6 @@ main args/List:
         --fleet-dir=fleet-dir
         --files={
           test-file: test-content,
-          lock-file: lock-content
         }
         --pod-spec={
           "max-offline": "2m",
@@ -95,7 +93,7 @@ run-test test-cli/TestCli synchro-done-latch/monitor.Latch qemu-data/Map:
       --qemu-image=image-path
 
   print "Starting to look for 'INFO: synchronized'."
-  test-device.wait-for "INFO: synchronized"
+  pos := test-device.wait-for "INFO: synchronized" --start-at=0
   synchro-done-latch.set "synchronized"
-  test-device.wait-for "entering deep sleep for"
+  test-device.wait-for "entering deep sleep for" --start-at=pos
   print "Found."
