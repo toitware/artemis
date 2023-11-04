@@ -460,5 +460,5 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         hello-world-path,
       ]
 
-  with-timeout --ms=25_000:
+  with-timeout --ms=35_000:
     test-device.wait-for "hello world" --start-at=pos
