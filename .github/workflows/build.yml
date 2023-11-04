@@ -352,7 +352,7 @@ jobs:
           git config user.name "Leon Gungadin Mogensen"
           git config user.email "leon@toit.io"
           git add .
-          git commit -m "Update docs for version ${{ github.event.release.tag_name }}" || true
+          git commit -m "Update docs for Artemis ${{ github.event.release.tag_name }}" || true
           git push
 
   do_release:
