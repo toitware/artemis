@@ -23,7 +23,7 @@ all: build
 build: rebuild-cmake install-pkgs
 	(cd build && ninja build)
 
-.PHONY: build/host/CMakeCache.txt
+.PHONY: build/CMakeCache.txt
 build/CMakeCache.txt:
 	$(MAKE) rebuild-cmake
 
@@ -58,12 +58,12 @@ TOITWARE_TESTING_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 TOITWARE_TESTING_CERTIFICATE := Baltimore CyberTrust Root
 
 .PHONY: start-http
-start-http: install-pkgs
+start-http: install-pkgs build/lan-ip.snapshot
 	@ # Adds the local Artemis server and makes it the default.
 	@ # Use the public IP, so that we can flash devices which then can use
 	@ # the broker.
 	@ $(TOITRUN) src/cli/cli.toit config broker add http \
-		--host=`$(TOITRUN) tools/lan_ip/lan-ip.toit` \
+		--host=`$(TOITRUN) build/lan-ip.snapshot` \
 		--port 4999 \
 		--path / \
 		--admin-header "X-Artemis-Header=true" \
@@ -72,7 +72,7 @@ start-http: install-pkgs
 	@ $(TOITRUN) src/cli/cli.toit config broker default --artemis artemis-local-http
 	@ # Adds the local broker and makes it the default.
 	@ $(TOITRUN) src/cli/cli.toit config broker add http \
-		--host=`$(TOITRUN) tools/lan_ip/lan-ip.toit` \
+		--host=`$(TOITRUN) build/lan-ip.snapshot` \
 		--port 4998 \
 		--path / \
 		--admin-header "X-Artemis-Header=true" \
@@ -84,6 +84,14 @@ start-http: install-pkgs
 	@ $(TOITRUN) tools/http_servers/combined.toit \
 		--artemis-port 4999 \
 		--broker-port 4998
+
+# We compile the 'lan-ip' tool into a snapshot to separate any
+# output from the compiler from the output from the program. This
+# way, we can reliably use `$(TOITRUN) build/lan-ip.snapshot` to
+# get the IP address we need.
+.PHONY: build/lan-ip.snapshot
+build/lan-ip.snapshot: tools/lan_ip/lan-ip.toit install-pkgs
+	@ $(TOITRUN) -w $@ $<
 
 .PHONY: start-supabase stop-supabase start-supabase-no-config reload-supabase-schemas
 # Starts the Supabase servers but doesn't add them to the config.
@@ -106,7 +114,7 @@ reload-supabase-schemas:
 	    docker kill -s SIGUSR1 $$container; \
 		done
 
-start-supabase: start-supabase-no-config
+start-supabase: start-supabase-no-config install-pkgs
 	@ # Add the local Artemis server and makes it the default.
 	@ $(TOITRUN) src/cli/cli.toit config broker add supabase \
 		artemis-local-supabase \
@@ -120,7 +128,7 @@ stop-supabase:
 	@ supabase stop --no-backup --workdir public/supabase_broker
 
 .PHONY: use-customer-supabase-broker
-use-customer-supabase-broker: start-supabase
+use-customer-supabase-broker: start-supabase install-pkgs
 	@ # Adds the local broker using a second Supabase instance.
 	@ $(TOITRUN) src/cli/cli.toit config broker add supabase \
 		broker-local-supabase \
@@ -128,7 +136,7 @@ use-customer-supabase-broker: start-supabase
 	@ $(TOITRUN) src/cli/cli.toit config broker default broker-local-supabase
 
 .PHONY: setup-local-dev
-setup-local-dev:
+setup-local-dev: install-pkgs
 	@ # The HTTP server doesn't have any default users.
 	@ if [[ $$($(TOITRUN) src/cli/cli.toit config broker default --artemis) == "artemis-local-http" ]]; then \
 	    $(TOITRUN) src/cli/cli.toit auth signup --email test-admin@toit.io --password password; \
@@ -147,7 +155,7 @@ dev-sdk-version:
 	@ echo $(LOCAL_DEV_SDK)
 
 .PHONY: upload-service
-upload-service:
+upload-service: install-pkgs
 	@ $(TOITRUN) tools/service_image_uploader/uploader.toit service --local --force \
 		--sdk-version=$(LOCAL_DEV_SDK) \
 		--service-version=$(SETUP_LOCAL_DEV_SERVICE)
