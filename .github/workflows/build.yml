@@ -30,8 +30,8 @@ env:
   SUPPORTED_SDK_VERSIONS: |
       v2.0.0-alpha.117
       v2.0.0-alpha.118
-      v2.0.0-alpha.119
       v2.0.0-alpha.120
+      v2.0.0-alpha.119
 
 jobs:
   build:
