@@ -1,16 +1,17 @@
 import net
 import encoding.json
 import host.pipe
+import system
 
 main:
   print get-lan-ip
 
 get-lan-ip -> string:
-  if platform == PLATFORM-LINUX:
+  if system.platform == system.PLATFORM-LINUX:
     return get-lan-ip-linux
-  else if platform == PLATFORM-MACOS:
+  else if system.platform == system.PLATFORM-MACOS:
     return get-lan-ip-macos
-  print "Platform '$platform' is not supported."
+  print "Platform '$system.platform' is not supported."
   exit 1
   unreachable
 
