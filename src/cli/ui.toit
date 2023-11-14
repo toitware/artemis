@@ -23,6 +23,12 @@ abstract class PrinterBase implements Printer:
       handle-structured_ o
       return
 
+    if o is not string and o is not List and o is not Map:
+      // Always print the message.
+      // We are using `emit` in 'abort' messages, and we don't want to
+      // have an error, just because the exception wasn't a recognized object.
+      o = "$o"
+
     if o is string:
       message := o as string
       if title:
@@ -51,7 +57,8 @@ abstract class PrinterBase implements Printer:
     else if o is Map:
       emit-map_ (o as Map) --indentation=indentation
     else:
-      throw "Invalid type"
+      // We converted all other types to strings above.
+      unreachable
 
   emit-list_ list/List --indentation/string:
     list.do:
