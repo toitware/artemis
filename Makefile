@@ -23,7 +23,7 @@ all: build
 build: rebuild-cmake install-pkgs
 	(cd build && ninja build)
 
-.PHONY: build/host/CMakeCache.txt
+.PHONY: build/CMakeCache.txt
 build/CMakeCache.txt:
 	$(MAKE) rebuild-cmake
 
