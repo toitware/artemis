@@ -4,7 +4,7 @@ import http
 import log
 import net
 import reader show Reader
-import system show BITS-PER-BYTE
+import system
 import uuid
 
 import .connection
@@ -54,7 +54,7 @@ class BrokerConnectionHttp implements BrokerConnection:
 
   fetch-image id/uuid.Uuid [block] -> none:
     payload :=  {
-      "path": "/toit-artemis-assets/$device_.organization-id/images/$id.$BITS-PER-WORD",
+      "path": "/toit-artemis-assets/$device_.organization-id/images/$id.$system.BITS-PER-WORD",
     }
     connection_.send-request COMMAND-DOWNLOAD_ payload: | reader/Reader |
       block.call reader

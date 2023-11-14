@@ -11,9 +11,10 @@ import http
 import host.directory
 import host.file
 import host.os
+import host.pipe
 import log
 import net
-import host.pipe
+import system
 import writer
 import uuid
 import ..ui
@@ -119,7 +120,7 @@ download-url url/string --out-path/string -> none:
     network.close
 
 tool-path_ tool/string -> string:
-  if platform != PLATFORM-WINDOWS: return tool
+  if system.platform != system.PLATFORM-WINDOWS: return tool
   // On Windows, we use the <tool>.exe that comes with Git for Windows.
 
   // TODO(florian): depending on environment variables is brittle.
@@ -147,7 +148,7 @@ copy-directory --source/string --target/string:
 
     tmp-tar := "$tmp-dir/tmp.tar"
     extra-args := []
-    if platform == PLATFORM-WINDOWS:
+    if system.platform == system.PLATFORM-WINDOWS:
       // Tar can't handle backslashes as separators.
       source = source.replace --all "\\" "/"
       target = target.replace --all "\\" "/"
@@ -172,7 +173,7 @@ untar path/string --target/string:
     "x",  // Extract.
   ]
 
-  if platform == PLATFORM-WINDOWS:
+  if system.platform == system.PLATFORM-WINDOWS:
     // The target must use slashes as separators.
     // Otherwise Git's tar can't find the target directory.
     target = target.replace --all "\\" "/"

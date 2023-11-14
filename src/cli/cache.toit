@@ -2,12 +2,13 @@
 
 import crypto.sha256
 import encoding.base64
+import encoding.json
 import fs
 import fs.xdg
 import host.os
 import host.file
 import host.directory
-import encoding.json
+import system
 import uuid
 import writer
 import .server-config
@@ -153,7 +154,7 @@ class Cache:
   If they are different, then the escaped paths are also different.
   */
   escape-path_ path/string -> string:
-    if platform != PLATFORM-WINDOWS:
+    if system.platform != system.PLATFORM-WINDOWS:
       return path
     // On Windows, we need to escape some characters.
     // We use '#' as escape character.
@@ -177,7 +178,7 @@ class Cache:
     return escaped-path
 
   key-path_ key/string -> string:
-    if platform == PLATFORM-WINDOWS and key.size > 100:
+    if system.platform == system.PLATFORM-WINDOWS and key.size > 100:
       // On Windows we shorten the path so it doesn't run into the 260 character limit.
       sha := sha256.Sha256
       sha.add key
@@ -188,7 +189,7 @@ class Cache:
   with-tmp-directory_ key/string?=null [block]:
     ensure-cache-directory_
     prefix := ?
-    if key and platform != PLATFORM-WINDOWS:
+    if key and system.platform != system.PLATFORM-WINDOWS:
       // On Windows don't try to create long prefixes as paths are limited to 260 characters.
       escaped-key := escape-path_ key
       escaped-key = escaped-key.replace --all "/" "_"
