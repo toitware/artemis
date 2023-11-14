@@ -21,7 +21,7 @@ main args:
 
 // Just a commit that exists on main.
 // It's safe to update the commit to a newer version.
-TEST-COMMIT ::= "58f2d290269fe497945b3faa921803c8ef56de8d"
+TEST-COMMIT ::= "9057219f6f76b9439625d76f66de8328cad6f2d6"
 
 run-main-test
     test-cli/TestCli
