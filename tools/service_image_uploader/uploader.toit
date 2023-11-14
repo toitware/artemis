@@ -15,6 +15,7 @@ import artemis.cli.sdk show *
 import artemis.cli.ui as ui
 import artemis.shared.version show ARTEMIS-VERSION
 import host.file
+import host.pipe
 import uuid
 import snapshot show cache-snapshot extract-uuid
 import supabase
@@ -165,6 +166,11 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
           --depth=1
           --repository-root=clone-dir
           --ref=(commit or service-version)
+
+      ui.info "Generating version.toit."
+      exit-status := pipe.run-program ["make", "-C", clone-dir, "rebuild-cmake"]
+      if exit-status != 0: throw "make failed with exit code $(pipe.exit-code exit-status)"
+
       ui.info "Downloading packages."
       sdk.download-packages clone-dir
       service-source-path = "$clone-dir/$SERVICE-PATH-IN-REPOSITORY"

@@ -2,7 +2,6 @@
 
 import ar
 import certificate-roots
-import .cache as cli
 import encoding.json
 import encoding.ubjson
 import host.file
@@ -12,8 +11,10 @@ import http
 import log
 import net
 import semver
+import system
 import writer show Writer
 
+import .cache as cli
 import .cache show SDK-PATH
 import .utils
 
@@ -117,7 +118,7 @@ class Sdk:
   Sets the property $name to $value in the given $envelope.
   */
   firmware-set-property name/string value/string --envelope/string:
-    if platform == PLATFORM-WINDOWS and (value.contains " " or value.contains ","):
+    if system.platform == system.PLATFORM-WINDOWS and (value.contains " " or value.contains ","):
       // Ugly work-around for Windows issue where arguments are not escaped
       // correctly.
       // See https://github.com/toitlang/toit/issues/1403 and
@@ -313,7 +314,7 @@ class Sdk:
   bin-executable name/string -> string:
     return "$sdk-path/bin/$name$exe-extension"
 
-  static exe-extension ::= (platform == PLATFORM-WINDOWS) ? ".exe" : ""
+  static exe-extension ::= (system.platform == system.PLATFORM-WINDOWS) ? ".exe" : ""
 
   /**
   Extracts the SDK version from the given $envelope-path.
@@ -338,7 +339,7 @@ Chooses the download URL based on the current platform.
 */
 sdk-url version/string -> string:
   platform-str/string := ?
-  if platform == PLATFORM-LINUX:
+  if system.platform == system.PLATFORM-LINUX:
     // TODO(florian): There should be a way to get the architecture from the core
     //   library.
     arch := (pipe.backticks [ "uname", "-m" ]).trim
@@ -348,12 +349,12 @@ sdk-url version/string -> string:
       platform-str = "aarch64"
     else:
       throw "Unsupported architecture: $arch"
-  else if platform == PLATFORM-MACOS:
+  else if system.platform == system.PLATFORM-MACOS:
     platform-str = "macos"
-  else if platform == PLATFORM-WINDOWS:
+  else if system.platform == system.PLATFORM-WINDOWS:
     platform-str = "windows"
   else:
-    throw "Unsupported platform: $platform"
+    throw "Unsupported platform: $system.platform"
 
   return "https://github.com/toitlang/toit/releases/download/$version/toit-$(platform-str).tar.gz"
 

@@ -4,6 +4,7 @@
 
 import http
 import net
+import system
 import host.pipe
 
 import .oauth
@@ -125,16 +126,17 @@ Only works on Linux, macOS and Windows.
 If launching the browser fails, no error is reported.
 */
 open-browser url/string -> none:
+  platform := system.platform
   catch:
     command/string? := null
     args/List? := null
-    if platform == PLATFORM-LINUX:
+    if platform == system.PLATFORM-LINUX:
       command = "xdg-open"
       args = [ url ]
-    else if platform == PLATFORM-MACOS:
+    else if platform == system.PLATFORM-MACOS:
       command = "open"
       args = [ url ]
-    else if platform == PLATFORM-WINDOWS:
+    else if platform == system.PLATFORM-WINDOWS:
       command = "cmd"
       escaped-url := url.replace "&" "^&"
       args = [ "/c", "start", escaped-url ]
