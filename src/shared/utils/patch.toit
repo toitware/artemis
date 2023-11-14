@@ -3,11 +3,12 @@
 import binary show LITTLE-ENDIAN
 import crypto.sha256 show *
 import reader show *
+import system show BITS-PER-BYTE
 import system.firmware
 
 import .patch-format
 
-PATCH-READING-FAILED-EXCEPTION := "PATCH_READING_FAILED"
+PATCH-READING-FAILED-EXCEPTION ::= "PATCH_READING_FAILED"
 
 interface PatchWriter_:
   on-write data from/int=0 to/int=data.size -> none

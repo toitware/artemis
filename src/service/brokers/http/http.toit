@@ -4,6 +4,7 @@ import http
 import log
 import net
 import reader show Reader
+import system show BITS-PER-BYTE
 import uuid
 
 import .connection
