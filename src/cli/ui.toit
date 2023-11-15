@@ -23,35 +23,41 @@ abstract class PrinterBase implements Printer:
       handle-structured_ o
       return
 
-    if o is string:
-      message := o as string
-      if title:
-        message = "$title: $message"
+    // Prints the prefix on a line. Typically something like 'Warning: ' or 'Error: '.
+    print-prefix-on-line := :
       if prefix_:
-        message = "$prefix_$message"
+        print_ prefix_
         prefix_ = null
-      print_ message
-      return
-
-    if prefix_:
-      print_ prefix_
-      prefix_ = null
-
-    if o is List and header:
-      emit-table_ --title=title --header=header (o as List)
-      return
 
     indentation := ""
-    if title:
-      print_ "$title:"
-      indentation = "  "
+    // Local block that prints the title, if any on one line, and
+    // adjusts the indentation.
+    print-title-on-line := :
+      if title:
+        print_ "$title:"
+        indentation = "  "
 
-    if o is List:
+    if o is List and header:
+      // A table.
+      print-prefix-on-line.call
+      emit-table_ --title=title --header=header (o as List)
+    else if o is List:
+      print-prefix-on-line.call
+      print-title-on-line.call
       emit-list_ (o as List) --indentation=indentation
     else if o is Map:
+      print-prefix-on-line.call
+      print-title-on-line.call
       emit-map_ (o as Map) --indentation=indentation
     else:
-      throw "Invalid type"
+      // Convert to string.
+      msg := "$o"
+      if title:
+        msg = "$title: $msg"
+      if prefix_:
+        msg = "$prefix_$msg"
+        prefix_ = null
+      print_ msg
 
   emit-list_ list/List --indentation/string:
     list.do:
