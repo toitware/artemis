@@ -5,5 +5,5 @@ packages:
   pkg-host:
     url: github.com/toitlang/pkg-host
     name: host
-    version: 1.10.0
-    hash: e1c11a0e0bf65fe810520e8d893e554a8fe33b78
+    version: 1.11.0
+    hash: 7e7df6ac70d98a02f232185add81a06cec0d77e8
