@@ -5,7 +5,7 @@ prefixes:
   artemis-pkg: artemis-pkg-copy
   certificate_roots: toit-cert-roots
   cli: pkg-cli
-  fs: fs
+  fs: pkg-fs
   host: pkg-host
   http: pkg-http
   snapshot: snapshot
@@ -28,8 +28,6 @@ packages:
       supabase: toit-supabase
   artemis-pkg-copy:
     path: ../artemis-pkg-copy
-  fs:
-    path: ../tools/fs
   pkg-ar:
     url: github.com/toitlang/pkg-ar
     name: ar
