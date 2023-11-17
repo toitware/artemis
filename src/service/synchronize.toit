@@ -348,18 +348,24 @@ class SynchronizeJob extends TaskJob:
         // so we prefer using a different network for a while.
         done := state_ != STATE-CONNECTED-TO-NETWORK
         transition-to-disconnected_ --error=error
+        // The synchronization may be interrupted by doing a
+        // firmware upgrade or by a request to go offline. The
+        // latter leads to cancelation.
+        interrupted := firmware-is-upgrade-pending or Task.current.is-canceled
         if network:
-          // If we are planning to retry another network,
-          // we quarantine the one we just tried.
-          if not done:
+          // If we are planning to retry another network, we
+          // quarantine the one we just tried. We don't do
+          // this if we were interrupted, because there is no
+          // evidence that there is anything wrong with the
+          // network in that case.
+          if not done and not interrupted:
             with-timeout TIMEOUT-NETWORK-QUARANTINE: network.quarantine
           with-timeout TIMEOUT-NETWORK-CLOSE: network.close
-        // If we're canceled or doing a firmware upgrade, we should
-        // make sure to propagate the exception and not just swallow
-        // it. Otherwise, the caller can easily run into a loop
-        // where it is repeatedly asked to retry the connect.
-        if not (firmware-is-upgrade-pending or Task.current.is-canceled):
-          return done
+        // If we're interrupted, we must make sure to propagate
+        // the exception and not just swallow it. Otherwise, the
+        // caller can easily run into a loop where it is repeatedly
+        // asked to retry the connect.
+        if not interrupted: return done
 
   /**
   Tries to connect to the broker and step through the
