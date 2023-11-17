@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.23)
 
-project(artemis)
+project(artemis NONE)
 
 set(TOITRUN "toit.run" CACHE FILEPATH "The executable used to run the tests")
 set(TOITC "toit.compile" CACHE FILEPATH "The executable used to compile executables")

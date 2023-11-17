@@ -29,7 +29,7 @@ build/CMakeCache.txt:
 
 .PHONY: install-pkgs
 install-pkgs: rebuild-cmake
-	(cd build && ninja download_packages)
+	cmake --build build --target download_packages
 
 .PHONY: disable-supabase-tests
 disable-supabase-tests: build/CMakeCache.txt
@@ -41,11 +41,11 @@ disable-qemu-tests: build/CMakeCache.txt
 
 .PHONY: test
 test: install-pkgs rebuild-cmake download-sdk
-	(cd build && ninja check)
+	cmake --build build --target check
 
 .PHONY: serial-test
 serial-test: install-pkgs rebuild-cmake download-sdk
-	(cd build && ninja serial_check)
+	cmake --build build --target serial_check
 
 # From https://app.supabase.com/project/voisfafsfolxhqpkudzd/settings/auth
 ARTEMIS_HOST := voisfafsfolxhqpkudzd.supabase.co
@@ -174,4 +174,4 @@ download-sdk: install-pkgs
 .PHONY: rebuild-cmake
 rebuild-cmake:
 	mkdir -p build
-	(cd build && cmake .. -DDEFAULT_SDK_VERSION=$(LOCAL_DEV_SDK) -G Ninja)
+	cmake -B build -DDEFAULT_SDK_VERSION=$(LOCAL_DEV_SDK) -DCMAKE_BUILD_TYPE=Debug
