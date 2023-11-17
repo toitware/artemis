@@ -21,7 +21,7 @@ all: build
 
 .PHONY: build
 build: rebuild-cmake install-pkgs
-	(cd build && ninja build)
+	cmake --build build --target build
 
 .PHONY: build/CMakeCache.txt
 build/CMakeCache.txt:
