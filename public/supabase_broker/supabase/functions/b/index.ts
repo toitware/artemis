@@ -104,7 +104,7 @@ async function handleRequest(req: Request) {
   const supabaseClient = createSupabaseClient(req);
 
     // Function to handle retries for supabase.rpc calls.
-    const retrySupabaseRPC = async <T>(methodName: string, parameters: T) => {
+    const retrySupabaseRpc = async <T>(methodName: string, parameters: T) => {
       const maxRetries = 3;
       let attempt = 0;
       let error;
@@ -115,11 +115,12 @@ async function handleRequest(req: Request) {
           return response;
         } catch (rpcError) {
           error = rpcError;
-          // Retry only if the error is a 502 Bad Gateway
+          // Retry only if the error is a 502 Bad Gateway.
           if (error?.status === 502) {
             console.log(`Retrying ${methodName} after receiving a 502 error.`);
             attempt++;
-            await new Promise((resolve) => setTimeout(resolve, 100)); // Wait for a 100ms second before retrying.
+            // Wait for 200ms before retrying. Wait longer for each retry.
+            await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
           } else {
             // For non-502 errors, throw the error immediately
             throw error;
@@ -195,7 +196,7 @@ async function handleRequest(req: Request) {
       return { data: new BinaryResponse(new DataView(bytes), data.size), error: null };
     }
     case COMMAND_UPDATE_GOAL_: {
-      const { error } = await retrySupabaseRPC(
+      const { error } = await retrySupabaseRpc(
         "toit_artemis.set_goal",
         params,
       );
@@ -205,7 +206,7 @@ async function handleRequest(req: Request) {
       return supabaseClient.rpc("toit_artemis.get_devices", params);
     }
     case COMMAND_NOTIFY_BROKER_CREATED_: {
-      const { error } = await retrySupabaseRPC(
+      const { error } = await retrySupabaseRpc(
         "toit_artemis.new_provisioned",
         params,
       );
@@ -218,14 +219,14 @@ async function handleRequest(req: Request) {
       return supabaseClient.rpc("toit_artemis.get_goal", params);
     }
     case COMMAND_REPORT_STATE_: {
-      const { error } = await retrySupabaseRPC(
+      const { error } = await retrySupabaseRpc(
         "toit_artemis.update_state",
         params,
       );
       return { error };
     }
     case COMMAND_REPORT_EVENT_: {
-      const { error } = await retrySupabaseRPC(
+      const { error } = await retrySupabaseRpc(
         "toit_artemis.report_event",
         params,
       );
@@ -235,57 +236,57 @@ async function handleRequest(req: Request) {
       return supabaseClient.rpc("toit_artemis.upsert_pod_description", params);
     }
     case COMMAND_POD_REGISTRY_ADD_: {
-      const { error } = await retrySupabaseRPC(
+      const { error } = await retrySupabaseRpc(
         "toit_artemis.insert_pod",
         params,
       );
       return { error };
     }
     case COMMAND_POD_REGISTRY_TAG_SET_: {
-      const { error } = await retrySupabaseRPC(
+      const { error } = await retrySupabaseRpc(
         "toit_artemis.set_pod_tag",
         params,
       );
       return { error };
     }
     case COMMAND_POD_REGISTRY_TAG_REMOVE_: {
-      const { error } = await retrySupabaseRPC(
+      const { error } = await retrySupabaseRpc(
         "toit_artemis.delete_pod_tag",
         params,
       );
       return { error };
     }
     case COMMAND_POD_REGISTRY_DESCRIPTIONS_: {
-      return retrySupabaseRPC("toit_artemis.get_pod_descriptions", params);
+      return retrySupabaseRpc("toit_artemis.get_pod_descriptions", params);
     }
     case COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_IDS_:
-      return retrySupabaseRPC(
+      return retrySupabaseRpc(
         "toit_artemis.get_pod_descriptions_by_ids",
         params,
       );
     case COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_NAMES_:
-      return retrySupabaseRPC(
+      return retrySupabaseRpc(
         "toit_artemis.get_pod_descriptions_by_names",
         params,
       );
     case COMMAND_POD_REGISTRY_PODS_: {
-      return retrySupabaseRPC("toit_artemis.get_pods", params);
+      return retrySupabaseRpc("toit_artemis.get_pods", params);
     }
     case COMMAND_POD_REGISTRY_PODS_BY_IDS_: {
-      return retrySupabaseRPC("toit_artemis.get_pods_by_ids", params);
+      return retrySupabaseRpc("toit_artemis.get_pods_by_ids", params);
     }
     case COMMAND_POD_REGISTRY_POD_IDS_BY_REFERENCE_: {
-      return retrySupabaseRPC("toit_artemis.get_pods_by_reference", params);
+      return retrySupabaseRpc("toit_artemis.get_pods_by_reference", params);
     }
     case COMMAND_POD_REGISTRY_DELETE_DESCRIPTIONS_: {
-      const { error } = await retrySupabaseRPC(
+      const { error } = await retrySupabaseRpc(
         "toit_artemis.delete_pod_descriptions",
         params,
       );
       return { error };
     }
     case COMMAND_POD_REGISTRY_DELETE_: {
-      const { error } = await retrySupabaseRPC(
+      const { error } = await retrySupabaseRpc(
         "toit_artemis.delete_pods",
         params,
       );
