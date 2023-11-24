@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS.
 
 import artemis.cli.pod-specification show PodSpecification PodSpecificationException
-import artemis.cli.utils show read-json write-json-to-file write-blob-to-file
+import artemis.cli.utils show write-json-to-file write-blob-to-file
 import artemis.shared.json-diff show json-equals
 
 import expect show *
@@ -30,7 +30,7 @@ run-test test/string expected-path/string --should-update/bool:
     write-json-to-file --pretty expected-path actual-json
     return
 
-  expected-json := read-json expected-path
+  expected-json := PodSpecification.read-file expected-path
   expect (json-equals expected-json actual-json)
 
 run-negative-test test/string fail-path/string --should-update/bool:

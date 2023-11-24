@@ -170,7 +170,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   spec-path := "$fleet-dir/my-pod.json"
   test-cli.replacements["my-pod.json"] = "FLEET-POD-FILE"
 
-  default-spec := read-json spec-path
+  default-spec := PodSpecification.read-file spec-path
   // Only replace the artemis version. Keep the rest as is.
   default-spec["artemis-version"] = service-version
   write-json-to-file --pretty spec-path default-spec
@@ -224,7 +224,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
       ]
 
   // Make our own specification.
-  our-spec := read-json spec-path
+  our-spec := PodSpecification.read-file spec-path
   our-spec["max-offline"] = "10s"
   our-spec["artemis-version"] = service-version
   our-spec["connections"][0]["ssid"] = wifi-ssid
@@ -331,7 +331,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         "--fleet-root", fleet-dir,
       ]
 
-  updated-spec := read-json spec-path
+  updated-spec := PodSpecification.read-file spec-path
   // Unfortunately we can't go below 10 seconds as the device
   // prevents that. We could set it, but it wouldn't take effect.
   updated-spec["max-offline"] = "11s"

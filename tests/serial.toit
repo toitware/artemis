@@ -4,7 +4,7 @@ import host.directory
 import host.file
 import uuid
 import artemis.cli.ui show Ui
-import artemis.cli.utils show read-json write-json-to-file write-blob-to-file copy-directory
+import artemis.cli.utils show write-json-to-file write-blob-to-file copy-directory
 
 import .utils
 

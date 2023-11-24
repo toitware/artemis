@@ -1,7 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import encoding.base64
-import encoding.json
 import encoding.url as url-encoding
 import host.file
 import fs
@@ -336,7 +335,7 @@ class PodSpecification:
 
     json := null
     exception := catch:
-      json = read-json path
+      json = read-file path
     if exception:
       fail.call "Failed to read pod specification from $path: $exception."
 
@@ -366,6 +365,9 @@ class PodSpecification:
     if extends-chain.is-empty:
       remove-null-values_ json
     return json
+
+  static read-file path/string -> any:
+    return read-json path
 
   /**
   Returns the path to which all other paths of this specification are
