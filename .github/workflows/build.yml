@@ -168,6 +168,17 @@ jobs:
                 --force
           done
 
+      - name: Sign Windows binary
+        if: github.event_name == 'release' || inputs.sign_windows
+        uses: toitlang/action-code-sign@a4adedba46f2630ed60a1d6e6aa828ac7038c945 # v1.0.0
+        with:
+          certificate: ${{ secrets.DIGICERT_CERTIFICATE }}
+          api-key: ${{ secrets.DIGICERT_API_KEY }}
+          certificate-password: ${{ secrets.DIGICERT_PASSWORD }}
+          certificate-fingerprint: ${{ secrets.DIGICERT_FINGERPRINT }}
+          keypair-alias: ${{ vars.DIGICERT_KEYPAIR_ALIAS }}
+          path: build/windows
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -181,42 +192,6 @@ jobs:
         with:
           name: artemis-release-binaries
           path: out/*
-
-  sign_artemis_windows:
-    runs-on: windows-signing
-    needs: [build]
-    if: github.event_name == 'release' || inputs.sign_windows
-    steps:
-      - name: Clean workspace
-        run: |
-          rm -Recurse -Force ${{ github.workspace }}\*
-
-      - uses: actions/download-artifact@v3
-        with:
-          name: artemis-release-binaries
-          path: in
-
-      - name: Copy to build
-        run: |
-          mkdir build/windows
-          copy in/windows/artemis.exe build/windows/artemis.exe
-
-      - name: Sign artemis
-        working-directory: ./build/windows
-        # Signs in place.
-        run: |
-          signtool sign /debug /n "Toitware ApS" /t http://timestamp.digicert.com/ $PWD/artemis.exe
-
-      - name: Copy signed to out
-        run: |
-          mkdir out/windows
-          copy build/windows/artemis.exe out/windows/artemis.exe
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: artemis-signed-windows
-          path: ./out/windows
 
   sign_artemis_macos:
     runs-on: macos-latest
@@ -357,21 +332,15 @@ jobs:
   do_release:
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
-    needs: [sign_artemis_windows, sign_artemis_macos, update_public]
+    needs: [sign_artemis_macos, update_public]
     steps:
       - uses: actions/checkout@v3
 
-      - name: Download Linux artifacts
+      - name: Download Linux and Windows artifacts
         uses: actions/download-artifact@v3
         with:
           name: artemis-release-binaries
           path: in
-
-      - name: Download signed Windows artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: artemis-signed-windows
-          path: in-win-signed
 
       - name: Download signed macOS artifacts
         uses: actions/download-artifact@v3
@@ -394,10 +363,8 @@ jobs:
           chmod +x artemis-linux-aarch64/artemis
           tar -czf release-assets/artemis-linux-aarch64.tar.gz artemis-linux-aarch64
 
-          mkdir artemis-windows
-          zip -j release-assets/artemis-windows.zip in-win-signed/artemis.exe
+          zip -j release-assets/artemis-windows.zip in/windows/artemis.exe
 
-          mkdir artemis-macos
           mv in-mac-signed/macos/artemis.dmg release-assets/artemis.dmg
           mv in-mac-signed/macos/artemis.zip release-assets/artemis-macos.zip
 
