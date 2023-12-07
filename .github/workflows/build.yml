@@ -177,7 +177,7 @@ jobs:
           certificate-password: ${{ secrets.DIGICERT_PASSWORD }}
           certificate-fingerprint: ${{ secrets.DIGICERT_FINGERPRINT }}
           keypair-alias: ${{ vars.DIGICERT_KEYPAIR_ALIAS }}
-          path: build/windows
+          path: out/windows
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
