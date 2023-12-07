@@ -74,7 +74,7 @@
             }
           },
           "background": {
-            "description": "Whether the container allows the device to go into deepsleep even when running.",
+            "description": "Whether the container allows the device to go into deep-sleep even when running.",
             "type": "boolean"
           },
           "runlevel": {
