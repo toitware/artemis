@@ -59,7 +59,7 @@ jobs:
 
           echo "TOIT_SDK_URL=$TOIT_SDK_BASE_URL/download/$TOIT_VERSION/toit-linux.tar.gz" >> $GITHUB_ENV
 
-      - uses: suisei-cn/actions-download-file@v1.3.0
+      - uses: suisei-cn/actions-download-file@v1.4.0
         name: Download Toit
         with:
           url: ${{ env.TOIT_SDK_URL }}

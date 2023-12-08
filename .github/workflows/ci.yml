@@ -66,13 +66,13 @@ jobs:
 
           echo "TOIT_SDK_URL=$TOIT_SDK_BASE_URL/download/$TOIT_VERSION/$TOIT_SDK_FILE" >> $GITHUB_ENV
 
-      - uses: suisei-cn/actions-download-file@v1.3.0
+      - uses: suisei-cn/actions-download-file@v1.4.0
         name: Download Toit
         with:
           url: ${{ env.TOIT_SDK_URL }}
           target: ${{ env.NATIVE_DOWNLOAD_DIR }}
 
-      - uses: suisei-cn/actions-download-file@v1.3.0
+      - uses: suisei-cn/actions-download-file@v1.4.0
         name: Download Qemu
         with:
           url: https://github.com/toitlang/qemu/releases/download/v0.0.3/qemu-${{ runner.os }}.tar.gz
