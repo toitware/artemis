@@ -276,7 +276,7 @@ jobs:
           path: docs-repo
           token: ${{ secrets.LEON_ARTEMIS_RELEASE_PAT }}
 
-      - name: Update examples, broker, and schema
+      - name: Update examples, broker, and schemas
         shell: bash
         run: |
           rm -rf release-repo/examples
@@ -285,8 +285,8 @@ jobs:
           rm -rf release-repo/broker
           cp -r public/supabase_broker release-repo/broker
 
-          rm -rf release-repo/schema
-          cp -r public/schema release-repo/schema
+          rm -rf release-repo/schemas
+          cp -r public/schemas release-repo/schemas
 
       - name: Update docs
         shell: bash
