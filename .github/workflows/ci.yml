@@ -27,7 +27,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
           # We have a test that wants to tag a specific commit.
@@ -308,7 +308,7 @@ jobs:
         run: |
           rm -rf ${{ github.workspace }}/*
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # Downloads the SDK that is defined in the Makefile
       # Reuses the SDK if it's already downloaded.
