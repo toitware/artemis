@@ -4,6 +4,7 @@ import monitor
 import net
 import supabase
 import supabase.filter show equals greater-than-or-equal
+import system
 import uuid
 
 import .supabase-local-server
@@ -129,7 +130,7 @@ with-http-artemis-server [block]:
   server-task := task:: server.start port-latch
 
   host := "localhost"
-  if platform != PLATFORM-WINDOWS:
+  if system.platform != system.PLATFORM-WINDOWS:
     lan-ip := get-lan-ip
     host = host.replace "localhost" lan-ip
 

@@ -12,6 +12,7 @@ import host.file
 import host.os
 import fs
 import net
+import system
 import uuid
 import artemis.cli
 import artemis.cli.server-config as cli-server-config
@@ -751,8 +752,9 @@ with-test-cli
 
   // Use 'toit.run' (or 'toit.run.exe' on Windows), unless there is an
   // argument `--toit-run=...`.
-  toit-run-path := platform == PLATFORM-WINDOWS ? "toit.run.exe" : "toit.run"
-  qemu-path := platform == PLATFORM-WINDOWS ? "qemu-system-xtensa.exe" : "qemu-system-xtensa"
+  is-windows := system.platform == system.PLATFORM-WINDOWS
+  toit-run-path := is-windows ? "toit.run.exe" : "toit.run"
+  qemu-path := is-windows ? "qemu-system-xtensa.exe" : "qemu-system-xtensa"
   toit-run-prefix := "--toit-run="
   qemu-prefix := "--qemu="
   for i := 0; i < args.size; i++:
