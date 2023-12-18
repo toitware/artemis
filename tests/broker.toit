@@ -7,6 +7,7 @@ import log
 import monitor
 import net
 import supabase
+import system
 import uuid
 
 import artemis.cli.brokers.broker show BrokerCli
@@ -112,7 +113,7 @@ with-http-broker [block]:
   server-task := task:: server.start port-latch
 
   host := "localhost"
-  if platform != PLATFORM-WINDOWS:
+  if system.platform != system.PLATFORM-WINDOWS:
     lan-ip := get-lan-ip
     host = host.replace "localhost" lan-ip
 

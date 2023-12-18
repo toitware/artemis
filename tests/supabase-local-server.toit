@@ -4,6 +4,7 @@ import encoding.json
 import host.pipe
 import host.os
 import host.directory
+import system
 import artemis.shared.server-config show ServerConfigSupabase
 import ..tools.lan-ip.lan-ip
 
@@ -30,7 +31,7 @@ get-supabase-config --sub-directory/string -> ServerConfigSupabase:
   print-on-stderr_ "HOST: $host ANON_KEY: $anon-key"
   name := sub-directory.trim --left "../"
 
-  if platform != PLATFORM-WINDOWS:
+  if system.platform != system.PLATFORM-WINDOWS:
     lan-ip := get-lan-ip
     host = host.replace "localhost" lan-ip
 
