@@ -279,7 +279,7 @@ jobs:
 
       - name: Upload binary artifacts
         if: matrix.arch != 'arm64'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries-${{ runner.os }}
           path: build/bin
@@ -287,7 +287,7 @@ jobs:
       - name: Upload snapshot artifacts
         # Use 'always()' to upload them even if an earlier step failed.
         if: matrix.arch != 'arm64' && always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: snapshots-${{ runner.os }}
           path: build/snapshots
@@ -295,7 +295,7 @@ jobs:
       - name: Upload other snapshots
         # Use 'always()' to upload them even if an earlier step failed.
         if: (matrix.arch != 'arm64') && (runner.os != 'Windows') && always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: other-snapshots-${{ runner.os }}
           path: ${{ env.SNAPSHOTS_DIR }}
