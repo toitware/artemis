@@ -15,6 +15,7 @@ import artemis.service.brokers.broker
 import artemis.cli.brokers.http.base as http-broker
 import supabase
 import supabase.auth as supabase
+import system
 import artemis.shared.utils
 import uuid
 
@@ -95,7 +96,6 @@ run-test
 test-goal --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.Client:
   test-broker.with-service: | broker-service/broker.BrokerService |
     test-goal broker-cli broker-service --network=network
-
 
 test-goal broker-cli/broker.BrokerCli broker-service/broker.BrokerService --network/net.Client:
   3.repeat: | test-iteration |
@@ -179,7 +179,7 @@ test-image broker-cli/broker.BrokerCli broker-service/broker.BrokerService --net
           // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
           // also verify that the 32-bit image is correct.
           data := utils.read-all reader
-          expect-bytes-equal (BITS-PER-WORD == 32 ? content-32 : content-64) data
+          expect-bytes-equal (system.BITS-PER-WORD == 32 ? content-32 : content-64) data
     finally:
       broker-connection.close
 
