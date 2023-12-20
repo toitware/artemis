@@ -97,7 +97,6 @@ test-goal --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.Cli
   test-broker.with-service: | broker-service/broker.BrokerService |
     test-goal broker-cli broker-service --network=network
 
-
 test-goal broker-cli/broker.BrokerCli broker-service/broker.BrokerService --network/net.Client:
   3.repeat: | test-iteration |
     if test-iteration == 2:
