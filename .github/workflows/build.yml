@@ -180,7 +180,7 @@ jobs:
           path: out/windows
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artemis
           path: |
@@ -188,7 +188,7 @@ jobs:
             build/snapshots/artemis-${{ env.ARTEMIS_UUID }}.snapshot
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artemis-release-binaries
           path: out/*
@@ -200,7 +200,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: artemis-release-binaries
           path: in
@@ -252,7 +252,7 @@ jobs:
           zip -j out/macos/artemis.zip build/macos/artemis
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artemis-signed-macos
           path: ./out
@@ -340,13 +340,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download Linux and Windows artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: artemis-release-binaries
           path: in
 
       - name: Download signed macOS artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: artemis-signed-macos
           path: in-mac-signed
@@ -372,7 +372,7 @@ jobs:
           mv in-mac-signed/macos/artemis.zip release-assets/artemis-macos.zip
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release-assets
           path: release-assets
