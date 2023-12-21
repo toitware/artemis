@@ -352,7 +352,8 @@ class PodSpecification:
       extends-chain.add path
 
       base-specs := extends-entries.map: | extends-path/string |
-        extends-path = fs.join (fs.dirname path) extends-path
+        if fs.is-relative extends-path:
+          extends-path = fs.join (fs.dirname path) extends-path
         if extends-chain.contains extends-path:
           fail.call "Circular extends: $extends-path."
         parse-json-hierarchy extends-path --extends-chain=extends-chain
