@@ -3,7 +3,7 @@ dependencies:
     path: ..
   cli:
     url: github.com/toitlang/pkg-cli
-    version: ^1.3.0
+    version: ^1.5.0
   host:
     url: github.com/toitlang/pkg-host
-    version: ^1.11.0
+    version: ^1.12.0
