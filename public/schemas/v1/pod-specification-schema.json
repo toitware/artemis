@@ -1,17 +1,18 @@
 {
   "$schema": "http://json-schema.org/draft-2020-12/schema",
+  "$id": "https://toit.io/schemas/artemis/pod-specification/v1.json",
   "title": "Pod specification",
   "description": "Pod specification format of Artemis.",
   "type": "object",
-  "comment": "Note that we don't require any of the properties. This is because we allow to extend specifications, and some properties might thus not exist in this file.",
-  "additionalProperties": false,
+  "$comment": "Note that we don't require any of the properties. This is because we allow to extend specifications, and some properties might thus not exist in this file.",
+  "unevaluatedProperties": false,
   "properties": {
     "$schema": {
       "description": "Schema of the pod specification.",
       "type": "string"
     },
     "version": {
-      "comment": "Must be 1 at the moment. Should be replaced by a schema reference.",
+      "$comment": "Must be 1 at the moment. Should be replaced by a schema reference.",
       "description": "Version of the pod specification.",
       "type": "integer"
     },
@@ -60,11 +61,11 @@
     },
     "containers": {
       "description": "List of containers to install.",
-      "comment": "A map from container name to container specification.",
+      "$comment": "A map from container name to container specification.",
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "additionalProperties": false,
+        "unevaluatedProperties": false,
         "properties": {
           "arguments": {
             "description": "Arguments to pass to the container.",
@@ -131,7 +132,7 @@
         },
         "oneOf": [
           {
-            "comment": "Either entrypoint or snapshot must be specified, and they are exclusive.",
+            "$comment": "Either entrypoint or snapshot must be specified, and they are exclusive.",
             "required": [
               "entrypoint"
             ],
@@ -174,7 +175,7 @@
           "required": [
             "interval"
           ],
-          "additionalProperties": false,
+          "unevaluatedProperties": false,
           "properties": {
             "interval": {
               "description": "Interval at which the container should be started. For example '1h'.",
@@ -187,7 +188,7 @@
           "required": [
             "gpio"
           ],
-          "additionalProperties": false,
+          "unevaluatedProperties": false,
           "properties": {
             "gpio": {
               "description": "GPIO triggers.",
@@ -285,7 +286,7 @@
               "type",
               "ssid"
             ],
-            "additionalProperties": false
+            "unevaluatedProperties": false
           },
           {
             "properties": {
@@ -301,7 +302,7 @@
               "type",
               "config"
             ],
-            "additionalProperties": false
+            "unevaluatedProperties": false
           }
         ]
       },
@@ -321,13 +322,13 @@
         "required": [
           "type"
         ],
-        "additionalProperties": false
+        "unevaluatedProperties": false
       },
       {
         "required": [
           "type"
         ],
-        "additionalProperties": false,
+        "unevaluatedProperties": false,
         "properties": {
           "type": {
             "const": "cellular"
@@ -430,7 +431,7 @@
                 "type": "integer"
               }
             },
-            "additionalProperties": false
+            "unevaluatedProperties": false
           },
           "requires": {
             "description": "List of required containers for this connection.",
