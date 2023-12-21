@@ -327,7 +327,7 @@ class PodSpecification:
     return PodSpecification.from-json --path=path json
 
   static parse-json-hierarchy path/string --extends-chain/List=[] -> Map:
-    path = fs.canonicalize path
+    path = fs.clean path
 
     fail := : | error-message/string |
       extends-chain.do --reversed: | include-path/string |
