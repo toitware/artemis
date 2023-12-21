@@ -14,16 +14,16 @@ import .utils_
 
 create-sdk-commands config/Config cache/Cache ui/Ui -> List:
   sdk-cmd := cli.Command "sdk"
-      --short-help="Information about supported SDKs."
+      --help="Information about supported SDKs."
       --options=[
-        cli.Option "server" --hidden --short-help="The server to use.",
+        cli.Option "server" --hidden --help="The server to use.",
       ]
 
   list-cmd := cli.Command "list"
-      --short-help="List supported SDKs."
+      --help="List supported SDKs."
       --options=[
-        cli.Option "sdk-version" --short-help="The SDK version to list.",
-        cli.Option "service-version" --short-help="The service version to list.",
+        cli.Option "sdk-version" --help="The SDK version to list.",
+        cli.Option "service-version" --help="The service version to list.",
       ]
       --run=:: list-sdks it config cache ui
   sdk-cmd.add list-cmd

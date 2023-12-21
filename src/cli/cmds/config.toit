@@ -13,10 +13,10 @@ import ...shared.server-config
 
 create-config-commands config/Config cache/Cache ui/Ui -> List:
   config-cmd := cli.Command "config"
-      --short-help="Configure Artemis tool."
+      --help="Configure Artemis tool."
 
   show-cmd := cli.Command "show"
-      --short-help="Prints the current configuration."
+      --help="Prints the current configuration."
       --run=:: show-config config ui
   config-cmd.add show-cmd
 
@@ -26,16 +26,16 @@ create-config-commands config/Config cache/Cache ui/Ui -> List:
 
 create-server-config-commands config/Config ui/Ui -> List:
   config-broker-cmd := cli.Command "broker"
-      --short-help="Configure the Artemis brokers."
+      --help="Configure the Artemis brokers."
       --options=[
         cli.Flag "artemis"
-            --short-help="Manipulate the config of the Artemis server."
+            --help="Manipulate the config of the Artemis server."
             --hidden
       ]
 
   config-broker-cmd.add
       cli.Command "default"
-          --long-help="""
+          --help="""
             Show or set the default broker.
 
             If no broker is specified, the current default broker is shown.
@@ -45,39 +45,39 @@ create-server-config-commands config/Config ui/Ui -> List:
             """
           --options=[
             cli.Flag "clear"
-                --short-help="Clear the default broker.",
+                --help="Clear the default broker.",
           ]
           --rest=[
             cli.OptionString "name"
-                --short-help="The name of the broker."
+                --help="The name of the broker."
           ]
           --run=:: default-server it config ui
 
   add-cmd := cli.Command "add"
-      --short-help="Add a broker."
+      --help="Add a broker."
       --options=[
         cli.Flag "default"
             --default=true
-            --short-help="Set the broker as the default broker.",
+            --help="Set the broker as the default broker.",
       ]
   config-broker-cmd.add add-cmd
 
   add-cmd.add
       cli.Command "supabase"
-          --short-help="Add a Supabase broker."
+          --help="Add a Supabase broker."
           --options=[
             cli.OptionString "certificate"
-                --short-help="The certificate to use for the broker.",
+                --help="The certificate to use for the broker.",
           ]
           --rest=[
             cli.OptionString "name"
-                --short-help="The name of the broker."
+                --help="The name of the broker."
                 --required,
             cli.OptionString "host"
-                --short-help="The host of the broker."
+                --help="The host of the broker."
                 --required,
             cli.OptionString "anon"
-                --short-help="The key for anonymous access."
+                --help="The key for anonymous access."
                 --required,
           ]
           --run=:: add-supabase it config ui
@@ -85,32 +85,32 @@ create-server-config-commands config/Config ui/Ui -> List:
   add-cmd.add
       cli.Command "http"
           --hidden
-          --short-help="Add an HTTP broker."
+          --help="Add an HTTP broker."
           --options=[
             cli.OptionInt "port"
-                --short-help="The port of the broker."
+                --help="The port of the broker."
                 --short-name="p"
                 --required,
             cli.Option "host"
-                --short-help="The host of the broker."
+                --help="The host of the broker."
                 --short-name="h"
                 --default="localhost",
             cli.Option "path"
-                --short-help="The path of the broker."
+                --help="The path of the broker."
                 --default="/",
             cli.Option "root-certificate"
-                --short-help="The root certificate name of the broker."
+                --help="The root certificate name of the broker."
                 --multi,
             cli.Option "device-header"
-                --short-help="The HTTP header the device needs to add to the request. Of the form KEY=VALUE."
+                --help="The HTTP header the device needs to add to the request. Of the form KEY=VALUE."
                 --multi,
             cli.Option "admin-header"
-                --short-help="The HTTP header the CLI needs to add to the request. Of the form KEY=VALUE."
+                --help="The HTTP header the CLI needs to add to the request. Of the form KEY=VALUE."
                 --multi,
           ]
           --rest=[
             cli.OptionString "name"
-                --short-help="The name of the broker."
+                --help="The name of the broker."
                 --required,
           ]
           --run=:: add-http it config ui

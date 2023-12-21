@@ -28,7 +28,7 @@ main args:
 
 main --config/cli.Config --cache/cli.Cache --ui/Ui args:
   cmd := cli.Command "downloader"
-      --long-help="""
+      --help="""
         Downloads snapshots from the Artemis server and stores them in the Jaguar cache.
 
         The snapshots can be filtered by SDK version and service version for service
@@ -38,13 +38,13 @@ main --config/cli.Config --cache/cli.Cache --ui/Ui args:
         """
       --options=[
         cli.OptionString "sdk-version"
-            --short-help="The version of the SDK to use.",
+            --help="The version of the SDK to use.",
         cli.OptionString "service-version"
-            --short-help="The version of the service to use.",
+            --help="The version of the service to use.",
         cli.OptionString "output-directory"
-            --short-help="The directory to store the downloaded snapshots in.",
+            --help="The directory to store the downloaded snapshots in.",
         cli.OptionString "server"
-            --short-help="The server to download from.",
+            --help="The server to download from.",
       ]
       --examples=[
         cli.Example "Download all snapshots:" --arguments="",

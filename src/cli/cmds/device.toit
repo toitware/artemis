@@ -24,15 +24,15 @@ import ...shared.json-diff show Modification
 
 create-device-commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
-      --short-help="Manage devices."
+      --help="Manage devices."
       --options=[
         cli.Option "device"
             --short-name="d"
-            --short-help="ID, name or alias of the device.",
+            --help="ID, name or alias of the device.",
       ]
 
   update-cmd := cli.Command "update"
-      --long-help="""
+      --help="""
         Updates the firmware on a device.
 
         The firmware can be specified through a local pod file using '--local'
@@ -41,17 +41,17 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Option "local"
             --type="file"
-            --short-help="A local pod file to update to.",
+            --help="A local pod file to update to.",
       ]
       --rest=[
         cli.Option "remote"
-            --short-help="A remote pod reference; a UUID, name@tag, or name#revision.",
+            --help="A remote pod reference; a UUID, name@tag, or name#revision.",
       ]
       --run=:: update it config cache ui
   cmd.add update-cmd
 
   default-cmd := cli.Command "default"
-      --long-help="""
+      --help="""
         Show or set the default device.
 
         If no ID is given, shows the current default device.
@@ -60,47 +60,47 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
         If the '--clear' flag is specified, clears the default device.
         """
       --options=[
-        cli.Flag "id-only" --short-help="Only show the ID of the default device.",
+        cli.Flag "id-only" --help="Only show the ID of the default device.",
         cli.Flag "clear"
-            --short-help="Clear the default device.",
+            --help="Clear the default device.",
       ]
       --rest=[
         cli.Option "device-rest"
-            --short-help="ID, name or alias of the device.",
+            --help="ID, name or alias of the device.",
       ]
       --run=:: default-device it config cache ui
   cmd.add default-cmd
 
   show-cmd := cli.Command "show"
       --aliases=["status"]
-      --long-help="""
+      --help="""
         Show all available information about a device.
 
         If no ID is given, shows the information of the default device.
         """
       --options=[
         cli.Option "event-type"
-            --short-help="Only show events of this type."
+            --help="Only show events of this type."
             --multi,
         cli.Flag "show-event-values"
-            --short-help="Show the values of the events."
+            --help="Show the values of the events."
             --default=false,
         cli.OptionInt "max-events"
-            --short-help="Maximum number of events to show."
+            --help="Maximum number of events to show."
             --default=3,
       ]
       --rest=[
         cli.Option "device-rest"
-            --short-help="ID, name or alias of the device.",
+            --help="ID, name or alias of the device.",
       ]
       --run=:: show it config cache ui
   cmd.add show-cmd
 
   max-offline-cmd := cli.Command "set-max-offline"
-      --short-help="Update the max-offline time of a device."
+      --help="Update the max-offline time of a device."
       --rest=[
         cli.Option "max-offline"
-            --short-help="The new max-offline time."
+            --help="The new max-offline time."
             --type="duration"
             --required,
       ]

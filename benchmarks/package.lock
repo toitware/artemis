@@ -1,6 +1,7 @@
 sdk: ^2.0.0-alpha.120
 prefixes:
   artemis: ..
+  artemis-pkg: artemis-pkg-copy
   cli: pkg-cli
   host: pkg-host
 packages:

@@ -5,10 +5,10 @@ import ..ui
 
 create-doc-commands _ _ ui/Ui -> List:
   cmd := cli.Command "doc"
-      --short-help="Documentation."
+      --help="Documentation."
 
   specification-format-cmd := cli.Command "specification-format"
-      --short-help="Show the format of the pod specification file."
+      --help="Show the format of the pod specification file."
       --run=:: ui.result SPECIFICATION-FORMAT-HELP
   cmd.add specification-format-cmd
 

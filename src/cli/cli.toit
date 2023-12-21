@@ -85,28 +85,28 @@ main args --config/Config --cache/Cache --ui/Ui:
     return
 
   root-cmd := cli.Command "root"
-      --long-help="""
+      --help="""
       A fleet management system for Toit devices.
       """
       --subcommands=[
         cli.Command "version"
-            --long-help="Show the version of the Artemis tool."
+            --help="Show the version of the Artemis tool."
             --run=:: ui.result ARTEMIS-VERSION,
       ]
       --options=[
         cli.Option "fleet-root"
             --type="directory"
-            --short-help="Specify the fleet root. Can also be set with the ARTEMIS_FLEET_ROOT environment variable.",
+            --help="Specify the fleet root. Can also be set with the ARTEMIS_FLEET_ROOT environment variable.",
         cli.OptionEnum "output-format"
             ["text", "json"]
-            --short-help="Specify the format used when printing to the console."
+            --help="Specify the format used when printing to the console."
             --default="text",
         cli.Flag "verbose"
-            --short-help="Enable verbose output. Shorthand for --verbosity-level=verbose."
+            --help="Enable verbose output. Shorthand for --verbosity-level=verbose."
             --default=false,
         cli.OptionEnum "verbosity-level"
             ["debug", "info", "verbose", "quiet", "silent"]
-            --short-help="Specify the verbosity level."
+            --help="Specify the verbosity level."
             --default="info",
       ]
 

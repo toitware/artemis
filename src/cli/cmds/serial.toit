@@ -18,7 +18,7 @@ import ...service.run.host show run-host
 
 create-serial-commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "serial"
-      --short-help="Serial port commands."
+      --help="Serial port commands."
 
   flash-options := [
     cli.Option "port"
@@ -27,14 +27,14 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
     cli.Option "baud",
     OptionPatterns "partition"
         ["file:<name>=<path>", "empty:<name>=<size>"]
-        --short-help="Add a custom partition to the device."
+        --help="Add a custom partition to the device."
         --split-commas
         --multi,
   ]
 
   flash-cmd := cli.Command "flash"
-      --long-help="""
-        Flashes a device with the firmware.
+      --help="""
+        Flash a device with the firmware.
 
         The pod to flash on the device is found through the '$DEFAULT-GROUP' group
         or the specified '--group' in the current fleet.
@@ -45,16 +45,16 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
       --options=flash-options + [
         cli.Flag "default"
             --default=true
-            --short-help="Make this device the default device.",
+            --help="Make this device the default device.",
         cli.Option "group"
             --default=DEFAULT-GROUP
-            --short-help="Add this device to a group.",
+            --help="Add this device to a group.",
         cli.Option "local"
             --type="file"
-            --short-help="A local pod file to flash.",
+            --help="A local pod file to flash.",
         cli.Option "qemu-image"
             --type="file"
-            --short-help="Write to a QEMU image file instead of flashing."
+            --help="Write to a QEMU image file instead of flashing."
             --hidden,
         cli.Flag "simulate"
             --hidden
@@ -62,13 +62,13 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
       ]
       --rest=[
         cli.Option "remote"
-            --short-help="A remote pod reference; a UUID, name@tag, or name#revision.",
+            --help="A remote pod reference; a UUID, name@tag, or name#revision.",
       ]
       --run=:: flash it config cache ui
   cmd.add flash-cmd
 
   flash-station-cmd := cli.Command "flash-station"
-      --long-help="""
+      --help="""
         Commands for a flash station.
 
         Flash stations are typically used to flash devices in a factory.
@@ -80,8 +80,8 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
   cmd.add flash-station-cmd
 
   flash-station-flash-cmd := cli.Command "flash"
-      --long-help="""
-        Flashes a device on a flash station.
+      --help="""
+        Flash a device on a flash station.
 
         Does not require Internet access.
 
@@ -90,16 +90,16 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
       --options=flash-options + [
         cli.Option "pod"
             --type="file"
-            --short-help="The pod to flash."
+            --help="The pod to flash."
             --required,
         cli.Option "identity"
             --type="file"
             --short-name="i"
-            --short-help="The identity file to use."
+            --help="The identity file to use."
             --required,
         cli.Option "qemu-image"
             --type="file"
-            --short-help="Write to a QEMU image file instead of flashing."
+            --help="Write to a QEMU image file instead of flashing."
             --hidden,
       ]
       --run=:: flash --station it config cache ui

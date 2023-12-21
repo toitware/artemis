@@ -30,27 +30,27 @@ main args:
 
 main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   cmd := cli.Command "sdk downloader"
-      --long-help="Downloads SDKs and envelopes into the cache."
+      --help="Downloads SDKs and envelopes into the cache."
       --options=[
         cli.Option "version"
-            --short-help="The version of the SDK to use."
+            --help="The version of the SDK to use."
             --required,
         cli.Option "envelope"
-            --short-help="The envelope to download."
+            --help="The envelope to download."
             --multi
             --split-commas,
       ]
 
   download-cmd := cli.Command "download"
-      --long-help="Caches SDKs and envelopes."
+      --help="Caches SDKs and envelopes."
       --run=:: download config cache ui it
   cmd.add download-cmd
 
   print-cmd := cli.Command "print"
-      --long-help="Prints the path to the SDK or envelope."
+      --help="Prints the path to the SDK or envelope."
       --options=[
         cli.Option "envelope"
-            --short-help="Prints the path to the envelope.",
+            --help="Prints the path to the envelope.",
       ]
       --run=:: print-path config cache ui it
   cmd.add print-cmd

@@ -10,14 +10,14 @@ import .base
 
 main args:
   root-cmd := cli.Command "root"
-    --long-help="""An HTTP-based Artemis server.
+    --help="""An HTTP-based Artemis server.
 
       Can be used instead of the Supabase servers.
       This server keeps data in memory and should thus only be used for testing.
       """
     --options=[
       cli.OptionInt "port" --short-name="p"
-          --short-help="The port to listen on."
+          --help="The port to listen on."
     ]
     --run=:: | parsed/cli.Parsed |
       broker := HttpArtemisServer parsed["port"]

@@ -11,18 +11,18 @@ import ..artemis-servers.artemis-server show with-server ArtemisServerCli
 
 create-profile-commands config/Config cache/Cache ui/Ui -> List:
   profile-cmd := cli.Command "profile"
-      --short-help="Manage the user profile."
+      --help="Manage the user profile."
       --options=[
-        cli.OptionString "server" --hidden --short-help="The server to use.",
+        cli.OptionString "server" --hidden --help="The server to use.",
       ]
 
   show-cmd := cli.Command "show"
-      --short-help="Show the profile."
+      --help="Show the profile."
       --run=:: show-profile it config ui
   profile-cmd.add show-cmd
 
   update-cmd := cli.Command "update"
-      --short-help="Update the profile."
+      --help="Update the profile."
       --options=[
         cli.OptionString "name",
         // TODO(florian): support changing the email.

@@ -19,11 +19,11 @@ import ..utils show json-encode-pretty read-json
 
 create-pod-commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "pod"
-      --short-help="Create and manage pods."
+      --help="Create and manage pods."
 
   create-cmd := cli.Command "build"
       --aliases=["create", "compile"]
-      --long-help="""
+      --help="""
         Create a pod.
 
         The specification file contains the pod specification. It includes
@@ -38,20 +38,20 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "output"
             --type="file"
             --short-name="o"
-            --short-help="File to write the pod to."
+            --help="File to write the pod to."
             --required,
       ]
       --rest=[
         cli.Option "specification"
             --type="file"
-            --short-help="The specification of the pod."
+            --help="The specification of the pod."
             --required,
       ]
       --run=:: create-pod it config cache ui
   cmd.add create-cmd
 
   upload-cmd := cli.Command "upload"
-      --long-help="""
+      --help="""
         Upload the given pod(s) to the broker.
 
         When a pod has been uploaded to the fleet, it can be used for flashing
@@ -60,17 +60,17 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Option "tag"
             --short-name="t"
-            --short-help="A tag to attach to the pod."
+            --help="A tag to attach to the pod."
             --multi,
         cli.Flag "force"
             --short-name="f"
-            --short-help="Force tags even if they already exist."
+            --help="Force tags even if they already exist."
             --default=false,
       ]
       --rest=[
         cli.Option "pod"
             --type="file"
-            --short-help="A pod to upload."
+            --help="A pod to upload."
             --multi
             --required,
       ]
@@ -78,7 +78,7 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
   cmd.add upload-cmd
 
   download-cmd := cli.Command "download"
-      --long-help="""
+      --help="""
         Download a pod from the broker.
 
         The pod to download is specified through a pod reference like
@@ -91,33 +91,33 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "output"
             --type="file"
             --short-name="o"
-            --short-help="File to write the pod to."
+            --help="File to write the pod to."
             --required,
       ]
       --rest=[
         cli.Option "reference"
-            --short-help="A pod reference: a UUID, name@tag, or name#revision."
+            --help="A pod reference: a UUID, name@tag, or name#revision."
             --required,
       ]
       --run=:: download it config cache ui
   cmd.add download-cmd
 
   list-cmd := cli.Command "list"
-      --long-help="""
+      --help="""
         List all pods available on the broker.
 
         If no names are given, all pods for this fleet are listed.
         """
       --options=[
         cli.Option "name"
-            --short-help="List pods with this name."
+            --help="List pods with this name."
             --multi,
       ]
       --run=:: list it config cache ui
   cmd.add list-cmd
 
   print-cmd := cli.Command "print"
-      --long-help="""
+      --help="""
         Print the given pod specification.
 
         If the '--flat' option is given, the pod specification is printed
@@ -127,19 +127,19 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Flag "flat"
-            --short-help="Print the merged pod specification.",
+            --help="Print the merged pod specification.",
       ]
       --rest=[
         cli.Option "specification"
             --type="file"
-            --short-help="The specification of the pod."
+            --help="The specification of the pod."
             --required,
       ]
       --run=:: print it config cache ui
   cmd.add print-cmd
 
   delete-cmd := cli.Command "delete"
-      --long-help="""
+      --help="""
         Delete the given pod(s) from the broker.
 
         The pod to delete is specified through a pod reference like
@@ -150,11 +150,11 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Flag "all"
-            --short-help="Delete all pods with the given name.",
+            --help="Delete all pods with the given name.",
       ]
       --rest=[
         cli.Option "name-or-reference"
-            --short-help="A pod name or reference (a UUID, name@tag, or name#revision)."
+            --help="A pod name or reference (a UUID, name@tag, or name#revision)."
             --multi
             --required,
       ]
