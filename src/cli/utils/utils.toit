@@ -335,7 +335,7 @@ class OptionPatterns extends cli.OptionEnum:
   constructor name/string patterns/List
       --default=null
       --short-name/string?=null
-      --short-help/string?=null
+      --help/string?=null
       --required/bool=false
       --hidden/bool=false
       --multi/bool=false
@@ -343,7 +343,7 @@ class OptionPatterns extends cli.OptionEnum:
     super name patterns
       --default=default
       --short-name=short-name
-      --short-help=short-help
+      --help=help
       --required=required
       --hidden=hidden
       --multi=multi
@@ -384,14 +384,14 @@ class OptionUuid extends cli.Option:
   constructor name/string
       --.default=null
       --short-name/string?=null
-      --short-help/string?=null
+      --help/string?=null
       --required/bool=false
       --hidden/bool=false
       --multi/bool=false
       --split-commas/bool=false:
     if multi and default: throw "Multi option can't have default value."
     if required and default: throw "Option can't have default value and be required."
-    super.from-subclass name --short-name=short-name --short-help=short-help \
+    super.from-subclass name --short-name=short-name --help=help \
         --required=required --hidden=hidden --multi=multi \
         --split-commas=split-commas
 

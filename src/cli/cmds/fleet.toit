@@ -16,8 +16,9 @@ import ..utils
 
 create-fleet-commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "fleet"
-      --short-help="Manage multiple devices at the same time."
-      --long-help="""
+      --help="""
+        Manage multiple devices at the same time.
+
         The 'fleet' command allows you to manage multiple devices at the same
         time. It can be used to create identity files and update multiple
         devices at the same time.
@@ -39,7 +40,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         """
 
   init-cmd := cli.Command "init"
-      --long-help="""
+      --help="""
         Initialize a fleet root.
 
         This command initializes a fleet root in a directory, so it can be
@@ -52,13 +53,13 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         OptionUuid "organization-id"
-            --short-help="The organization to use."
+            --help="The organization to use."
       ]
       --run=:: init it config cache ui
   cmd.add init-cmd
 
   create-identities-cmd := cli.Command "create-identities"
-      --long-help="""
+      --help="""
         Create a specified number of identity files.
 
         Identity files describe a device, containing their ID and organization.
@@ -74,25 +75,25 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Option "output-directory"
             --type="directory"
-            --short-help="Directory to write the identity files to."
+            --help="Directory to write the identity files to."
             --default=".",
         cli.Option "group"
             --default=DEFAULT-GROUP
-            --short-help="Add the devices to a group.",
+            --help="Add the devices to a group.",
       ]
       --aliases=[
         "provision",
       ]
       --rest=[
         cli.OptionInt "count"
-            --short-help="Number of identity files to create."
+            --help="Number of identity files to create."
             --required,
       ]
       --run=:: create-identities it config cache ui
   cmd.add create-identities-cmd
 
   create-identity-cmd := cli.Command "create-identity"
-      --long-help="""
+      --help="""
         Create a single identity file.
 
         An identity file describe a device, containing their ID and organization.
@@ -110,31 +111,31 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Option "output-directory"
             --type="directory"
-            --short-help="Directory to write the identity file to."
+            --help="Directory to write the identity file to."
             --default=".",
         cli.Option "group"
             --default=DEFAULT-GROUP
-            --short-help="Add the devices to a group.",
+            --help="Add the devices to a group.",
         cli.Option "name"
-            --short-help="The name of the device.",
+            --help="The name of the device.",
         cli.Option "alias"
-            --short-help="The alias of the device."
+            --help="The alias of the device."
             --multi
             --split-commas,
       ]
       --rest=[
         OptionUuid "id"
-            --short-help="The ID of the device.",
+            --help="The ID of the device.",
       ]
       --run=:: create-identity it config cache ui
   cmd.add create-identity-cmd
 
   update-cmd := cli.Command "update"
-      --short-help="Deprecated alias for 'roll-out'."
+      --help="Deprecated alias for 'roll-out'."
       --options=[
         cli.Option "diff-base"
             --type="pod-file"
-            --short-help="The base pod to use for diff-based updates."
+            --help="The base pod to use for diff-based updates."
             --multi,
       ]
       --run=::
@@ -147,7 +148,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         "rollout",
         "deploy"
       ]
-      --long-help="""
+      --help="""
         Roll out the fleet configuration to all devices in the fleet.
 
         If a device has no known state, patches for all base firmwares are
@@ -170,29 +171,29 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Option "diff-base"
             --type="pod-file"
-            --short-help="The base pod to use for diff-based updates."
+            --help="The base pod to use for diff-based updates."
             --multi,
       ]
       --run=:: roll-out it config cache ui
   cmd.add roll-out-cmd
 
   status-cmd := cli.Command "status"
-      --long-help="""
+      --help="""
         Show the status of the fleet.
         """
       --options=[
         cli.Flag "include-healthy"
-            --short-help="Show healthy devices."
+            --help="Show healthy devices."
             --default=true,
         cli.Flag "include-never-seen"
-            --short-help="Include devices that have never been seen."
+            --help="Include devices that have never been seen."
             --default=false,
       ]
       --run=:: status it config cache ui
   cmd.add status-cmd
 
   add-device-cmd := cli.Command "add-device"
-      --long-help="""
+      --help="""
         Add an existing device to the fleet.
 
         This command adds an existing device to the fleet. The device must
@@ -206,25 +207,25 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Option "name"
-            --short-help="The name of the device.",
+            --help="The name of the device.",
         cli.Option "alias"
-            --short-help="The alias of the device."
+            --help="The alias of the device."
             --multi
             --split-commas,
         cli.Option "group"
             --default=DEFAULT-GROUP
-            --short-help="Add the device to a group.",
+            --help="Add the device to a group.",
       ]
       --rest=[
         OptionUuid "device-id"
-            --short-help="The ID of the device to add."
+            --help="The ID of the device to add."
             --required,
       ]
       --run=:: add-device it config cache ui
   cmd.add add-device-cmd
 
   group-cmd := cli.Command "group"
-      --long-help="""
+      --help="""
         Manage groups in the fleet.
 
         Groups are used to organize devices in the fleet. Devices can be
@@ -234,12 +235,12 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
   cmd.add group-cmd
 
   group-list-cmd := cli.Command "list"
-      --short-help="List the groups in the fleet."
+      --help="List the groups in the fleet."
       --run=:: group-list it config cache ui
   group-cmd.add group-list-cmd
 
   group-create-cmd := cli.Command "create"
-      --long-help="""
+      --help="""
         Create a group in the fleet.
 
         If a pod reference is given, uses it for the new group.
@@ -248,23 +249,23 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Option "pod"
-            --short-help="The pod reference to use for the group.",
+            --help="The pod reference to use for the group.",
         cli.Option "template"
-            --short-help="The existing group that should be used as a template for the new group.",
+            --help="The existing group that should be used as a template for the new group.",
         cli.Flag "force"
-            --short-help="Create the group even if the pod doesn't exist."
+            --help="Create the group even if the pod doesn't exist."
             --short-name="f",
       ]
       --rest=[
         cli.Option "name"
-            --short-help="The name of the new group."
+            --help="The name of the new group."
             --required,
       ]
       --run=:: group-create it config cache ui
   group-cmd.add group-create-cmd
 
   group-update-cmd := cli.Command "update"
-      --long-help="""
+      --help="""
         Update one or several groups in the fleet.
 
         Updates the pod reference and/or name of the given groups. However,
@@ -276,18 +277,18 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Option "pod"
             --type="pod-reference"
-            --short-help="The pod reference to use for the group.",
+            --help="The pod reference to use for the group.",
         cli.Option "name"
-            --short-help="The new name of the group.",
+            --help="The new name of the group.",
         cli.Option "tag"
-            --short-help="The tag to update the existing pod to.",
+            --help="The tag to update the existing pod to.",
         cli.Flag "force"
-            --short-help="Update the group even if the pod doesn't exist."
+            --help="Update the group even if the pod doesn't exist."
             --short-name="f",
       ]
       --rest=[
         cli.Option "group"
-            --short-help="The name of the group to update."
+            --help="The name of the group to update."
             --required
             --multi,
       ]
@@ -305,28 +306,28 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
   group-cmd.add group-update-cmd
 
   group-remove-cmd := cli.Command "remove"
-      --short-help="Remove a group from the fleet."
+      --help="Remove a group from the fleet."
       --rest=[
         cli.Option "group"
-            --short-help="The name of the group to remove."
+            --help="The name of the group to remove."
             --required,
       ]
       --run=:: group-remove it config cache ui
   group-cmd.add group-remove-cmd
 
   group-move-cmd := cli.Command "move"
-      --short-help="Move devices between groups."
+      --help="Move devices between groups."
       --options=[
         cli.Option "to"
-            --short-help="The group to move the devices to."
+            --help="The group to move the devices to."
             --required,
         cli.Option "group"
-            --short-help="A group to move the devices from."
+            --help="A group to move the devices from."
             --multi,
       ]
       --rest=[
         cli.Option "device"
-            --short-help="The ID, namer or alias of a device to move."
+            --help="The ID, namer or alias of a device to move."
             --multi,
       ]
       --run=:: group-move it config cache ui

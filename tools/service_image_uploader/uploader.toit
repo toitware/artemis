@@ -36,7 +36,7 @@ main args:
 
 main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   cmd := cli.Command "uploader"
-      --long-help="""
+      --help="""
         Administrative tool to upload CLI snapshots and Artemis service
         images to the Artemis server.
 
@@ -44,13 +44,13 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         """
       --options=[
         cli.OptionString "server"
-            --short-help="The server to upload to.",
+            --help="The server to upload to.",
         cli.OptionString "snapshot-directory"
-            --short-help="The directory to store the snapshot in.",
+            --help="The directory to store the snapshot in.",
       ]
 
   cli-snapshot-cmd := cli.Command "cli-snapshot"
-      --long-help="""
+      --help="""
         Uploads the CLI snapshot to the Artemis server.
 
         After downloading it again with the downloader, allows to
@@ -60,7 +60,7 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         """
       --rest=[
         cli.OptionString "snapshot"
-            --short-help="The snapshot to upload."
+            --help="The snapshot to upload."
             --type="file"
             --required,
       ]
@@ -68,7 +68,7 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   cmd.add cli-snapshot-cmd
 
   service-cmd := cli.Command "service"
-      --long-help="""
+      --help="""
         Builds and uploads the Artemis service image.
 
         Downloads the SDK if necessary.
@@ -96,23 +96,23 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         """
       --options=[
         cli.OptionString "sdk-version"
-            --short-help="The version of the SDK to use."
+            --help="The version of the SDK to use."
             --required,
         cli.OptionString "service-version"
-            --short-help="The version of the service to use.",
+            --help="The version of the service to use.",
         cli.OptionString "commit"
-            --short-help="The commit to build.",
+            --help="The commit to build.",
         cli.Flag "local"
-            --short-help="Build the service from the checked out code of the current repository.",
+            --help="Build the service from the checked out code of the current repository.",
         cli.Option "organization-id"
-            --short-help="The organization ID to upload the service to.",
+            --help="The organization ID to upload the service to.",
         cli.Flag "force"
             --short-name="f"
-            --short-help="Force the upload, even if the service already exists."
+            --help="Force the upload, even if the service already exists."
             --default=false,
         cli.Option "optimization-level"
             --short-name="O"
-            --short-help="The optimization level to use."
+            --help="The optimization level to use."
             --default="2",
       ]
       --run=:: build-and-upload config cache ui it

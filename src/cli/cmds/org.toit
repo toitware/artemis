@@ -15,33 +15,33 @@ import ..utils
 
 create-org-commands config/Config cache/Cache ui/Ui -> List:
   org-cmd := cli.Command "org"
-      --short-help="Manage organizations."
+      --help="Manage organizations."
       --options=[
-        cli.OptionString "server" --hidden --short-help="The server to use.",
+        cli.OptionString "server" --hidden --help="The server to use.",
       ]
 
   list-cmd := cli.Command "list"
-      --short-help="List organizations."
+      --help="List organizations."
       --run=:: list-orgs it config ui
   org-cmd.add list-cmd
 
   create-cmd := cli.Command "create"
-      --short-help="Create a new organization."
+      --help="Create a new organization."
       --options=[
         cli.Flag "default"
             --default=true
-            --short-help="Make this organization the default.",
+            --help="Make this organization the default.",
       ]
       --rest=[
         cli.OptionString "name"
-            --short-help="Name of the organization."
+            --help="Name of the organization."
             --required,
       ]
       --run=:: create-org it config ui
   org-cmd.add create-cmd
 
   show-cmd := cli.Command "show"
-      --long-help="""
+      --help="""
         Show details of an organization.
 
         If no ID is given, shows the default organization.
@@ -49,13 +49,13 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
       --rest=[
         // TODO(florian): would be nice to accept a name here as well.
         OptionUuid "organization-id"
-            --short-help="ID of the organization."
+            --help="ID of the organization."
       ]
       --run=:: show-org it config ui
   org-cmd.add show-cmd
 
   default-cmd := cli.Command "default"
-      --long-help="""
+      --help="""
         Show or set the default organization.
 
         If no ID is given, shows the current default organization.
@@ -64,48 +64,48 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
         If the '--clear' flag is specified, clears the default organization.
         """
       --options=[
-        cli.Flag "id-only" --short-help="Only show the ID of the default organization.",
+        cli.Flag "id-only" --help="Only show the ID of the default organization.",
         cli.Flag "clear"
-            --short-help="Clear the default organization.",
+            --help="Clear the default organization.",
       ]
       --rest=[
         OptionUuid "organization-id"
-            --short-help="ID of the organization."
+            --help="ID of the organization."
       ]
       --run=:: default-org it config cache ui
   org-cmd.add default-cmd
 
   update-cmd := cli.Command "update"
-      --short-help="Update an organization."
+      --help="Update an organization."
       --options=[
         cli.OptionString "name"
-            --short-help="Name of the organization."
+            --help="Name of the organization."
       ]
       --rest=[
         OptionUuid "organization-id"
-            --short-help="ID of the organization."
+            --help="ID of the organization."
       ]
       --run=:: update-org it config ui
   org-cmd.add update-cmd
 
   member-cmd := cli.Command "members"
-      --short-help="Manage organization members."
+      --help="Manage organization members."
       --options=[
         OptionUuid "organization-id"
-            --short-help="ID of the organization."
+            --help="ID of the organization."
       ]
   org-cmd.add member-cmd
 
   member-list-cmd := cli.Command "list"
-      --short-help="List members of an organization."
+      --help="List members of an organization."
       --options=[
-        cli.Flag "id-only" --short-help="Only show the IDs of the members."
+        cli.Flag "id-only" --help="Only show the IDs of the members."
       ]
       --run=:: member-list it config cache ui
   member-cmd.add member-list-cmd
 
   member-add-cmd := cli.Command "add"
-      --long-help="""
+      --help="""
         Add a member to an organization.
 
         Add the member with the given user ID to an organization. The
@@ -115,39 +115,39 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.OptionEnum "role" ["member", "admin" ]
-            --short-help="Role of the member."
+            --help="Role of the member."
             --default="member"
       ]
       --rest=[
         OptionUuid "user-id"
-            --short-help="ID of the user to add."
+            --help="ID of the user to add."
             --required,
       ]
       --run=:: member-add it config cache ui
   member-cmd.add member-add-cmd
 
   member-remove-cmd := cli.Command "remove"
-      --short-help="Remove a member from an organization."
+      --help="Remove a member from an organization."
       --options=[
           cli.Flag "force" --short-name="f"
-            --short-help="Force removal even if the user is self.",
+            --help="Force removal even if the user is self.",
       ]
       --rest=[
         OptionUuid "user-id"
-            --short-help="ID of the user to remove."
+            --help="ID of the user to remove."
             --required,
       ]
       --run=:: member-remove it config cache ui
   member-cmd.add member-remove-cmd
 
   member-set-role := cli.Command "set-role"
-      --short-help="Set the role of a member."
+      --help="Set the role of a member."
       --rest=[
         OptionUuid "user-id"
-            --short-help="ID of the user to add."
+            --help="ID of the user to add."
             --required,
         cli.OptionEnum "role" ["member", "admin" ]
-            --short-help="Role of the member."
+            --help="Role of the member."
             --required,
       ]
       --run=:: member-set-role it config cache ui

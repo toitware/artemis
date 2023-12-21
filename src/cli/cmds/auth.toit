@@ -15,27 +15,26 @@ import ..brokers.broker show with-broker BrokerCli
 
 create-auth-commands config/Config cache/Cache ui/Ui -> List:
   auth-cmd := cli.Command "auth"
-      --short-help="Authenticate against the Artemis server."
+      --help="Authenticate against the Artemis server."
 
   sign-up-cmd := cli.Command "signup"
-      --short-help="Sign up for an Artemis account with email and password."
-      --long-help="""
-      Sign up for an Artemis account.
+      --help="""
+        Sign up for an Artemis account with email and password.
 
-      The usual way of signing up is to use oauth2. This command is only
-      needed if a password-based login is required.
+        The usual way of signing up is to use oauth2. This command is only
+        needed if a password-based login is required.
 
-      If the account with the given email already exists, then the login
-      options are merged, and both the password and oauth2 login methods
-      are available.
-      """
+        If the account with the given email already exists, then the login
+        options are merged, and both the password and oauth2 login methods
+        are available.
+        """
       --options=[
-        cli.Flag "broker" --hidden --short-help="Sign up for the broker.",
+        cli.Flag "broker" --hidden --help="Sign up for the broker.",
         cli.OptionString "email"
-            --short-help="The email address for the account."
+            --help="The email address for the account."
             --required,
         cli.OptionString "password"
-            --short-help="The password for the account."
+            --help="The password for the account."
             --required,
       ]
       --run=:: sign-up it config ui
@@ -43,36 +42,36 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
 
   log-in-cmd := cli.Command "login"
       --aliases=["signin"]
-      --short-help="Log in to the Artemis server."
+      --help="Log in to the Artemis server."
       --options=[
-        cli.Flag "broker" --hidden --short-help="Log into the broker.",
+        cli.Flag "broker" --hidden --help="Log into the broker.",
         cli.OptionEnum "provider" ["github", "google"]
-            --short-help="The OAuth2 provider to use."
+            --help="The OAuth2 provider to use."
             --default="github",
-        cli.OptionString "email" --short-help="The email for a password-based login.",
-        cli.OptionString "password" --short-help="The password for a password-based login.",
+        cli.OptionString "email" --help="The email for a password-based login.",
+        cli.OptionString "password" --help="The password for a password-based login.",
         cli.Flag "open-browser"
             --default=true
-            --short-help="Automatically open the browser for OAuth authentication.",
+            --help="Automatically open the browser for OAuth authentication.",
       ]
       --run=:: sign-in it config ui
   auth-cmd.add log-in-cmd
 
   update-cmd := cli.Command "update"
-      --short-help="Updates the email or password for the Artemis account."
+      --help="Updates the email or password for the Artemis account."
       --options=[
-        cli.Flag "broker" --hidden --short-help="Update the broker.",
-        cli.Option "email" --short-help="New email for the account.",
-        cli.Option "password" --short-help="New password for the account.",
+        cli.Flag "broker" --hidden --help="Update the broker.",
+        cli.Option "email" --help="New email for the account.",
+        cli.Option "password" --help="New password for the account.",
       ]
       --run=:: update it config ui
   auth-cmd.add update-cmd
 
   logout-cmd := cli.Command "logout"
       --aliases=["signout", "log-out", "sign-out"]
-      --short-help="Log out of the Artemis server."
+      --help="Log out of the Artemis server."
       --options=[
-        cli.Flag "broker" --hidden --short-help="Log out of the the broker.",
+        cli.Flag "broker" --hidden --help="Log out of the the broker.",
       ]
       --run=:: logout it config ui
   auth-cmd.add logout-cmd

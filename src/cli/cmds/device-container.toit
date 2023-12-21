@@ -15,33 +15,33 @@ import ..utils
 
 create-container-command config/Config cache/Cache ui/Ui -> cli.Command:
   cmd := cli.Command "container"
-      --short-help="Manage the containers installed on a device."
+      --help="Manage the containers installed on a device."
 
   install-cmd := cli.Command "install"
-      --short-help="Install a container on a device."
+      --help="Install a container on a device."
       --options=[
         OptionPatterns "trigger"
             ["none", "boot", "install", "interval:<duration>", "gpio-high:<pin>", "gpio-low:<pin>"]
-            --short-help="Trigger to start the container. Defaults to 'boot,install'."
+            --help="Trigger to start the container. Defaults to 'boot,install'."
             --split-commas
             --multi,
         cli.Flag "background"
-            --short-help="Run in background and do not delay sleep."
+            --help="Run in background and do not delay sleep."
             --default=false,
         cli.Flag "critical"
-            --short-help="Run automatically and restart if necessary."
+            --help="Run automatically and restart if necessary."
             --default=false,
       ]
       --rest=[
         cli.OptionString "name"
-            --short-help="Name of the container when installed."
+            --help="Name of the container when installed."
             --required,
         cli.OptionString "path"
-            --short-help="Path to source code or snapshot."
+            --help="Path to source code or snapshot."
             --type="file"
             --required,
         cli.Option "arguments"
-            --short-help="Argument to pass to the container."
+            --help="Argument to pass to the container."
             --type="string"
             --multi,
       ]
@@ -49,16 +49,16 @@ create-container-command config/Config cache/Cache ui/Ui -> cli.Command:
   cmd.add install-cmd
 
   uninstall-cmd := cli.Command "uninstall"
-      --long-help="Uninstall a container from a device."
+      --help="Uninstall a container from a device."
       --options=[
           cli.Flag "force"
             --short-name="f"
-            --short-help="Force uninstallation of a container that is required for a connection."
+            --help="Force uninstallation of a container that is required for a connection."
             --default=false,
       ]
       --rest=[
         cli.OptionString "name"
-            --short-help="Name of the container to uninstall.",
+            --help="Name of the container to uninstall.",
       ]
       --run=:: uninstall-container it config cache ui
   cmd.add uninstall-cmd

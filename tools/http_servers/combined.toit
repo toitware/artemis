@@ -8,16 +8,16 @@ import .broker
 
 main args:
   root-cmd := cli.Command "root"
-    --long-help="""An HTTP-based Artemis server and broker.
+    --help="""An HTTP-based Artemis server and broker.
 
       This server keeps data in memory and should thus only be used for
       testing.
       """
     --options=[
       cli.OptionInt "artemis-port"
-          --short-help="The port the Artemis server should listen on.",
+          --help="The port the Artemis server should listen on.",
       cli.OptionInt "broker-port"
-          --short-help="The port the broker should listen on."
+          --help="The port the broker should listen on."
     ]
     --run=:: | parsed/cli.Parsed |
       task::
