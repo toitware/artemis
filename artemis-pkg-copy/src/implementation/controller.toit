@@ -18,4 +18,6 @@ class Controller extends services.ServiceResourceProxy:
     try:
       block.call
     finally:
-      controller.close
+      // It is important that we give Artemis a chance to react to
+      // the close event, even if we're out of time.
+      critical-do --no-respect-deadline: controller.close
