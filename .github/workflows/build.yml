@@ -46,30 +46,12 @@ jobs:
             exit 1
           fi
           export TOIT_VERSION=${SUPPORTED_ARRAY[-1]}
+          echo "TOIT_VERSION=$TOIT_VERSION" >> $GITHUB_ENV
 
-          export DOWNLOAD_DIR="${{ github.workspace }}/downloads"
-          echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
-
-          TOIT_SDK_DIR=$DOWNLOAD_DIR/toit
-          echo "TOIT_EXEC=$TOIT_SDK_DIR/bin/toit.run$BIN_EXTENSION" >> $GITHUB_ENV
-          echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
-          echo "TPKG_EXEC=$TOIT_SDK_DIR/bin/toit.pkg$BIN_EXTENSION" >> $GITHUB_ENV
-
-          TOIT_SDK_BASE_URL=https://github.com/toitlang/toit/releases
-
-          echo "TOIT_SDK_URL=$TOIT_SDK_BASE_URL/download/$TOIT_VERSION/toit-linux.tar.gz" >> $GITHUB_ENV
-
-      - uses: suisei-cn/actions-download-file@v1.4.0
-        name: Download Toit
+      - name: Setup Toit
+        uses: toitlang/action-setup@v1
         with:
-          url: ${{ env.TOIT_SDK_URL }}
-          target: ${{ env.DOWNLOAD_DIR }}
-
-      - name: Extract Toit - Linux
-        shell: bash
-        run: |
-          cd "$DOWNLOAD_DIR"
-          tar x -f *.tar.gz
+          toit-version: ${{ env.TOIT_VERSION }}
 
       - name: Install dependencies
         run: |
@@ -81,7 +63,6 @@ jobs:
         shell: bash
         run: |
           make rebuild-cmake
-          cmake -DTOITC="$TOITC_EXEC" -DTOITPKG="$TPKG_EXEC" -DTOITRUN="$TOIT_EXEC" build
 
       - name: Build the CLI
         shell: bash
