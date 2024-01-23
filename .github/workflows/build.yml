@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p out/linux
-          $TOITC_EXEC --strip -o out/linux/artemis build/snapshots/artemis.snapshot
+          toit.compile --strip -o out/linux/artemis build/snapshots/artemis.snapshot
 
           for SYSTEM in windows macos aarch64; do
             if [[ $SYSTEM == "windows" ]]; then
@@ -93,7 +93,7 @@ jobs:
               ARCH="amd64"
             fi
             mkdir -p out/$SYSTEM
-            $TOITC_EXEC --strip --arch $ARCH --os $OS \
+            toit.compile --strip --arch $ARCH --os $OS \
               -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot
           done
 
