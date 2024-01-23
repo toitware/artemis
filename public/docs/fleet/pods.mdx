@@ -13,7 +13,7 @@ deployment and for archiving. To build a pod from a specification, you invoke
 the `artemis pod build` command like this:
 
 ``` sh
-artemis pod build -o my-pod.pod my-pod.json
+artemis pod build -o my-pod.pod my-pod.yaml
 ```
 
 Pods contain symbolic debug information, so it is useful to keep them around
@@ -95,34 +95,26 @@ artemis device update 0f587f04-a0e2-5354-ac3d-ceca41a60b63
 ## Specifications
 
 You can find an example pod specification file in
-[specification.json](https://github.com/toitware/artemis-releases/blob/main/examples/specification.json).
-It is in JSON format and looks similar to this:
+[specification.yaml](https://github.com/toitware/artemis-releases/blob/main/examples/specification.yaml).
+It is in YAML format and looks similar to this:
 
-``` json
-{
-  "version": 1,
-  "name": "my-pod",
-  "sdk-version": "SDK-VERSION",
-  "artemis-version": "ARTEMIS-VERSION",
-  "max-offline": "0s",
-  "connections": [
-    {
-      "type": "wifi",
-      "ssid": "YOUR WIFI SSID",
-      "password": "YOUR WIFI PASSWORD"
-    }
-  ],
-  "containers": {
-    "hello": {
-      "entrypoint": "hello.toit"
-    },
-    "solar": {
-      "entrypoint": "examples/solar_example.toit",
-      "git": "https://github.com/toitware/toit-solar-position.git",
-      "branch": "v0.0.3"
-    }
-  }
-}
+``` yaml
+version: 1
+name: example
+sdk-version: SDK-VERSION
+artemis-version: ARTEMIS-VERSION
+max-offline: 0s
+connections:
+  - type: wifi
+    ssid: YOUR-WIFI-SSID
+    password: YOUR-WIFI-PASSWORD
+containers:
+  hello:
+    entrypoint: hello.toit
+  solar:
+    entrypoint: examples/solar_example.toit
+    git: https://github.com/toitware/toit-solar-position.git
+    branch: v0.0.3
 ```
 
 The three version entries are for the specification format (always `1` for now) and the
@@ -152,27 +144,24 @@ run until no other container runs. For that to work, you can
 make it a background container that is automatically terminated
 when the device goes to sleep like this:
 
-``` json
-"containers": {
-  "cellular": {
-    "entrypoint": "src/modules/sequans/monarch.toit",
-    "git": "https://github.com/toitware/cellular.git",
-    "branch": "v2.1.12",
-    "background": true,
-    "critical": true
-  }
-}
+``` yaml
+containers:
+  cellular:
+    entrypoint: src/modules/sequans/monarch.toit
+    git: https://github.com/toitware/cellular.git
+    branch: v2.1.12
+    background: true
+    critical: true
 ```
 
 The `critical` flag makes the container run continuously. If you want your container
 to run periodically, you can specify interval triggers in the `containers` section
 like this:
 
-``` json
-"containers": {
-  "measure": {
-    "entrypoint": "measure.toit",
-    "triggers": [ { "interval": "20s" } ]
-  }
-}
+``` yaml
+containers:
+  measure:
+    entrypoint: measure.toit
+    triggers:
+      - interval: 20s
 ```

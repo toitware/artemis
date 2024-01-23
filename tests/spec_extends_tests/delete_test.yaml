@@ -1,0 +1,3 @@
+extends:
+  - delete_1_0.yaml
+  - delete_2_0.yaml

@@ -1,0 +1,16 @@
+version: 1
+name: example
+sdk-version: SDK-VERSION
+artemis-version: ARTEMIS-VERSION
+max-offline: 0s
+connections:
+  - type: wifi
+    ssid: YOUR-WIFI-SSID
+    password: YOUR-WIFI-PASSWORD
+containers:
+  hello:
+    entrypoint: hello.toit
+  solar:
+    entrypoint: examples/solar_example.toit
+    git: https://github.com/toitware/toit-solar-position.git
+    branch: v0.0.3

@@ -15,7 +15,7 @@ import ..pod-specification
 import ..pod-registry
 import ..ui
 import ..utils.names
-import ..utils show json-encode-pretty read-json
+import ..utils show json-encode-pretty read-json read-yaml
 
 create-pod-commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "pod"
@@ -276,8 +276,13 @@ print parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     // This way we report errors in extended specifications.
     json := PodSpecification.parse-json-hierarchy specification-path
     if not flat:
-      // If we only want the non-flattened version read the json by hand.
-      json = read-json specification-path
+      // If we only want the non-flattened version read the json/yaml again by hand.
+      if specification-path.ends-with ".json":
+        json = read-json specification-path
+      else if specification-path.ends-with ".yaml" or specification-path.ends-with ".yml":
+        json = read-yaml specification-path
+      else:
+        ui.abort "Unknown file extension for specification file '$specification-path'."
 
     ui.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit-structured

@@ -34,7 +34,7 @@ run-test test-cli/TestCli:
 
     expect (file.is-file "$fleet-tmp-dir/fleet.json")
     expect (file.is-file "$fleet-tmp-dir/devices.json")
-    expect (file.is-file "$fleet-tmp-dir/my-pod.json")
+    expect (file.is-file "$fleet-tmp-dir/my-pod.yaml")
 
     // We are not allowed to initialize a folder twice.
     already-initialized-message := test-cli.run --expect-exit-1 [

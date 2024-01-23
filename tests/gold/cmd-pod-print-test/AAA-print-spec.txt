@@ -1,5 +1,5 @@
 # Content of minimal spec
-# [pod, print, TMP_DIR/minimal.json]
+# [pod, print, TMP_DIR/minimal.yaml]
 {
   "version": 1,
   "name": "test-pod-print",

@@ -5,8 +5,9 @@ import certificate-roots
 import cli
 import encoding.base64
 import encoding.json
-import encoding.ubjson
 import encoding.tison
+import encoding.ubjson
+import encoding.yaml
 import http
 import host.directory
 import host.file
@@ -41,6 +42,9 @@ write-json-to-file path/string value/any --pretty/bool=false -> none:
   else:
     write-blob-to-file path (json.encode value)
 
+write-yaml-to-file path/string value/any -> none:
+  write-blob-to-file path (yaml.encode value)
+
 write-ubjson-to-file path/string value/any -> none:
   encoded := ubjson.encode value
   write-blob-to-file path encoded
@@ -55,6 +59,10 @@ read-json path/string -> any:
     return json.decode-stream stream
   finally:
     stream.close
+
+read-yaml path/string -> any:
+  content := file.read-content path
+  return yaml.decode content
 
 read-ubjson path/string -> any:
   data := file.read-content path

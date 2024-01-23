@@ -1,0 +1,4 @@
+name: nested
+extends:
+  - nested_1_0.yaml
+  - nested_2_0.yaml

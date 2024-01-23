@@ -33,7 +33,7 @@ run-test test-cli/TestCli:
 
     expect (file.is-file "$fleet-tmp-dir/fleet.json")
     expect (file.is-file "$fleet-tmp-dir/devices.json")
-    expect (file.is-file "$fleet-tmp-dir/my-pod.json")
+    expect (file.is-file "$fleet-tmp-dir/my-pod.yaml")
 
   with-tmp-directory: | fleet-tmp-dir |
     os.env["ARTEMIS_FLEET_ROOT"] = fleet-tmp-dir
@@ -45,4 +45,4 @@ run-test test-cli/TestCli:
 
     expect (file.is-file "$fleet-tmp-dir/fleet.json")
     expect (file.is-file "$fleet-tmp-dir/devices.json")
-    expect (file.is-file "$fleet-tmp-dir/my-pod.json")
+    expect (file.is-file "$fleet-tmp-dir/my-pod.yaml")

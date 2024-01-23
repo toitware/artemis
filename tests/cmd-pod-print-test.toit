@@ -1,27 +1,23 @@
 // Copyright (C) 2023 Toitware ApS.
 
-import artemis.cli.utils show write-blob-to-file
+import artemis.cli.utils show write-blob-to-file write-yaml-to-file
 import expect show *
 import .utils
 
-MINIMAL-SPEC-FILENAME ::= "minimal.json"
-MINIMAL-SPEC ::= """
-{
+MINIMAL-SPEC-FILENAME ::= "minimal.yaml"
+MINIMAL-SPEC ::= {
   "version": 1,
   "name": "test-pod-print",
   "sdk-version": "v0.0.0",
-  "artemis-version": "v1.0.0"
+  "artemis-version": "v1.0.0",
 }
-"""
 
-EXTENDED-SPEC ::= """
-{
+EXTENDED-SPEC ::= {
   "extends": [
-    "$MINIMAL-SPEC-FILENAME"
+    "$MINIMAL-SPEC-FILENAME",
   ],
-  "max-offline": "1h"
+  "max-offline": "1h",
 }
-"""
 
 main args:
   with-test-cli --args=args: | test-cli/TestCli |
@@ -32,10 +28,10 @@ run-test test-cli/TestCli:
     test-cli.replacements[dir] = "TMP_DIR"
 
     minimal-spec-path := "$dir/$MINIMAL-SPEC-FILENAME"
-    write-blob-to-file minimal-spec-path MINIMAL-SPEC
+    write-yaml-to-file minimal-spec-path MINIMAL-SPEC
 
-    extended-spec-path := "$dir/extended.json"
-    write-blob-to-file extended-spec-path EXTENDED-SPEC
+    extended-spec-path := "$dir/extended.yaml"
+    write-yaml-to-file extended-spec-path EXTENDED-SPEC
 
     test-cli.run-gold "AAA-print-spec"
         "Content of minimal spec"

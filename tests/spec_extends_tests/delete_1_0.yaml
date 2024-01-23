@@ -1,0 +1,6 @@
+extends:
+  - delete_1_1.yaml
+  - delete_1_2.yaml
+sdk-version: shadowing 1_1
+max-offline:
+name:

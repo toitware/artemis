@@ -238,7 +238,7 @@ jobs:
               mkdir fleet
               export ARTEMIS_FLEET_ROOT=$PWD/fleet
               build/bin/artemis fleet init
-              build/bin/artemis pod build -o test.pod fleet/my-pod.json
+              build/bin/artemis pod build -o test.pod fleet/my-pod.yaml
 
       - name: Kill http-servers
         if: matrix.arch == 'arm64'

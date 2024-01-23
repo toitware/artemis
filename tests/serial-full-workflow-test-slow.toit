@@ -8,7 +8,7 @@ import artemis.cli.config
 import artemis.cli.server-config as cli-server-config
 import artemis.service
 import artemis.shared.server-config show ServerConfig ServerConfigHttp
-import artemis.cli.utils show read-json write-json-to-file write-blob-to-file
+import artemis.cli.utils show read-json read-yaml write-yaml-to-file write-blob-to-file
 import encoding.json
 import host.directory
 import host.file
@@ -167,13 +167,13 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         "fleet", "status",
       ]
 
-  spec-path := "$fleet-dir/my-pod.json"
-  test-cli.replacements["my-pod.json"] = "FLEET-POD-FILE"
+  spec-path := "$fleet-dir/my-pod.yaml"
+  test-cli.replacements["my-pod.yaml"] = "FLEET-POD-FILE"
 
-  default-spec := read-json spec-path
+  default-spec := read-yaml spec-path
   // Only replace the artemis version. Keep the rest as is.
   default-spec["artemis-version"] = service-version
-  write-json-to-file --pretty spec-path default-spec
+  write-yaml-to-file spec-path default-spec
 
 
   print "Creating default firmware."
@@ -224,13 +224,13 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
       ]
 
   // Make our own specification.
-  our-spec := read-json spec-path
+  our-spec := read-yaml spec-path
   our-spec["max-offline"] = "10s"
   our-spec["artemis-version"] = service-version
   our-spec["connections"][0]["ssid"] = wifi-ssid
   our-spec["connections"][0]["password"] = wifi-password
   our-spec["containers"].remove "solar"
-  write-json-to-file --pretty spec-path our-spec
+  write-yaml-to-file spec-path our-spec
 
   // Compile the specification.
   test-cli.run-gold "DAC-compile-modified-firmware"
@@ -331,11 +331,11 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         "--fleet-root", fleet-dir,
       ]
 
-  updated-spec := read-json spec-path
+  updated-spec := read-yaml spec-path
   // Unfortunately we can't go below 10 seconds as the device
   // prevents that. We could set it, but it wouldn't take effect.
   updated-spec["max-offline"] = "11s"
-  write-json-to-file --pretty spec-path updated-spec
+  write-yaml-to-file spec-path updated-spec
 
   test-cli.run-gold "DDA-device-show"
       "Show the device before update."
