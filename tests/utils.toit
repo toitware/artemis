@@ -818,9 +818,9 @@ with-test-cli
     artemis-task/Task? := null
 
     if not gold-name:
-      toit-file := program-name
+      toit-file := system.program-name
       last-separator := max (toit-file.index-of --last "/") (toit-file.index-of --last "\\")
-      gold-name = program-name[last-separator + 1 ..].trim --right ".toit"
+      gold-name = toit-file[last-separator + 1 ..].trim --right ".toit"
       gold-name = gold-name.trim --right "_slow"
 
     test-cli := TestCli config cache artemis-server broker

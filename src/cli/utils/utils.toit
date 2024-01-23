@@ -406,4 +406,4 @@ class OptionUuid extends cli.Option:
 
 /** Whether we are running in a development setup. */
 is-dev-setup -> bool:
-  return program-name.ends-with ".toit"
+  return system.program-name.ends-with ".toit"

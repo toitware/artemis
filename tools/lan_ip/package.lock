@@ -1,9 +1,9 @@
-sdk: ^2.0.0-alpha.64
+sdk: ^2.0.0-alpha.124
 prefixes:
   host: pkg-host
 packages:
   pkg-host:
     url: github.com/toitlang/pkg-host
     name: host
-    version: 1.11.0
-    hash: 7e7df6ac70d98a02f232185add81a06cec0d77e8
+    version: 1.13.0
+    hash: 64ee9e7bf1fd0e748e778a61269cd653fd748af8
