@@ -50,10 +50,11 @@ class HttpConnection_:
 
     body/Reader? := null
     status/int := -1
+    response/http.Response? := null
 
     MAX-ATTEMPTS ::= 3
     for i := 0; i < MAX-ATTEMPTS; i++:
-      response := client_.post encoded
+      response = client_.post encoded
           --host=config_.host
           --port=config_.port
           --path=config_.path
