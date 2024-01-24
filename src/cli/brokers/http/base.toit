@@ -110,6 +110,20 @@ class BrokerCliHttp implements BrokerCli:
     unreachable
 
   send-request_ encoded/ByteArray [block]:
+    MAX-ATTEMPTS ::= 3
+    MAX-ATTEMPTS.repeat: | attempt/int |
+      response := send-request_ encoded
+      // Cloudflare frequently rejects our requests with a 502.
+      // Just try again.
+      if response.status-code == http.STATUS-BAD-GATEWAY and attempt != MAX-ATTEMPTS - 1:
+        // Try again with a different client.
+        client_.close
+        client_ = null
+      else:
+        block.call response
+        return
+
+  send-request_ encoded/ByteArray -> http.Response:
     if not client_:
       root-names := server-config_.root-certificate-names
       if root-names:
@@ -133,12 +147,11 @@ class BrokerCliHttp implements BrokerCli:
       extra.do: | key value |
         headers.add key value
 
-    response := client_.post encoded
+    return client_.post encoded
         --host=server-config_.host
         --port=server-config_.port
         --path=server-config_.path
         --headers=headers
-    block.call response
 
   extra-headers -> Map?:
     return null
