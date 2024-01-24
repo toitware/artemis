@@ -100,6 +100,9 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --required,
         cli.OptionString "service-version"
             --help="The version of the service to use.",
+        cli.OptionEnum "chip-family" ["esp32"]
+            --default="esp32"
+            --help="The chip family to upload the service for.",
         cli.OptionString "commit"
             --help="The commit to build.",
         cli.Flag "local"
@@ -120,11 +123,13 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
 
   cmd.run args
 
-SERVICE-PATH-IN-REPOSITORY ::= "src/service/run/device.toit"
+service-path-in-repository root/string --chip-family/string -> string:
+  return "$root/src/service/run/$(chip-family).toit"
 
 build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   sdk-version := parsed["sdk-version"]
   service-version := parsed["service-version"]
+  chip-family := parsed["chip-family"]
   commit := parsed["commit"]
   use-local := parsed["local"]
   snapshot-directory := parsed["snapshot-directory"]
@@ -145,7 +150,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       // No caching is possible.
       // The full version string is then '<service-version>-<timestamp>',
       // where the timestamp is the time when the build was started.
-      service-source-path = "$root/$SERVICE-PATH-IN-REPOSITORY"
+      service-source-path = service-path-in-repository root --chip-family=chip-family
 
       // Since we are reusing an ID, we need to remove the cached version.
       full-service-version = service-version or ARTEMIS-VERSION
@@ -173,7 +178,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
       ui.info "Downloading packages."
       sdk.download-packages clone-dir
-      service-source-path = "$clone-dir/$SERVICE-PATH-IN-REPOSITORY"
+      service-source-path = service-path-in-repository clone-dir --chip-family=chip-family
 
       full-service-version = service-version
       if commit: full-service-version += "-$commit"
