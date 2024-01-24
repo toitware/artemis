@@ -179,6 +179,11 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       ui.info "Downloading packages."
       sdk.download-packages clone-dir
       service-source-path = service-path-in-repository clone-dir --chip-family=chip-family
+      if chip-family == "esp32" and not file.is-file service-source-path:
+        // Older versions of Artemis used 'device.toit' as the entry point
+        // for all ESP32 chips. We preserve compatibility with that by
+        // mapping 'esp32' to 'device' if we can't find it under the new name.
+        service-source-path = service-path-in-repository clone-dir --chip-family="device"
 
       full-service-version = service-version
       if commit: full-service-version += "-$commit"
