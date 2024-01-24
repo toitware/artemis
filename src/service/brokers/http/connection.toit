@@ -12,16 +12,20 @@ import ....shared.server-config show ServerConfigHttp
 class HttpConnection_:
   client_/http.Client? := ?
   config_/ServerConfigHttp
+  network_/net.Interface
 
-  constructor network/net.Interface .config_:
-    if config_.root-certificate-ders:
-      root-certificates := config_.root-certificate-ders.map:
+  constructor .network_ .config_:
+    client_ = create-client_ config_ network_
+
+  static create-client_ config/ServerConfigHttp network/net.Interface -> http.Client:
+    if config.root-certificate-ders:
+      root-certificates := config.root-certificate-ders.map:
         x509.Certificate.parse it
-      client_ = http.Client.tls network
+      return http.Client.tls network
           --root-certificates=root-certificates
           --security-store=HttpSecurityStore_
     else:
-      client_ = http.Client network
+      return http.Client network
 
   is-closed -> bool:
     return client_ == null
@@ -44,13 +48,27 @@ class HttpConnection_:
       config_.device-headers.do: | key value |
         request-headers.add key value
 
-    response := client_.post encoded
-        --host=config_.host
-        --port=config_.port
-        --path=config_.path
-        --headers=request-headers
-    body := response.body
-    status := response.status-code
+    body/Reader? := null
+    status/int := -1
+
+    MAX-ATTEMPTS ::= 3
+    for i := 0; i < MAX-ATTEMPTS; i++:
+      response := client_.post encoded
+          --host=config_.host
+          --port=config_.port
+          --path=config_.path
+          --headers=request-headers
+      body = response.body
+      status = response.status-code
+
+      if status != http.STATUS-BAD-GATEWAY or i == MAX-ATTEMPTS - 1:
+        break
+
+      // Cloudflare frequently returns with a 502.
+      // Close the client and try again.
+      client_.close
+      client_ = null
+      client_ = create-client_ config_ network_
 
     if status == http.STATUS-IM-A-TEAPOT:
       decoded := json.decode-stream body
