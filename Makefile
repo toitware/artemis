@@ -3,7 +3,15 @@
 SHELL=bash
 .SHELLFLAGS += -e
 
-TOITRUN ?= toit.run
+ifeq ($(OS),Windows_NT)
+  EXE_SUFFIX=.exe
+  DETECTED_OS=$(OS)
+else
+  EXE_SUFFIX=
+  DETECTED_OS=$(shell uname)
+endif
+
+TOITRUN ?= toit.run$(EXE_SUFFIX)
 
 LOCAL_DEV_SDK ?= v2.0.0-alpha.130
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
@@ -11,7 +19,7 @@ SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 # If the 'DEV_TOIT_REPO_PATH' variable is set, use the toit.run in its bin
 # directory.
 ifneq ($(DEV_TOIT_REPO_PATH),)
-	TOITRUN := $(DEV_TOIT_REPO_PATH)/build/host/sdk/bin/toit.run
+	TOITRUN := $(DEV_TOIT_REPO_PATH)/build/host/sdk/bin/toit.run$(EXE_SUFFIX)
 endif
 
 export ARTEMIS_CONFIG := $(HOME)/.config/artemis-dev/config
