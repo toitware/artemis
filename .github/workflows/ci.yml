@@ -47,36 +47,24 @@ jobs:
           echo "TOIT_VERSION=$TOIT_VERSION" >> $GITHUB_ENV
           echo "toitVersion=$TOIT_VERSION" >> $GITHUB_OUTPUT
 
-          export NATIVE_DOWNLOAD_DIR="${{ github.workspace }}/downloads"
-          echo "NATIVE_DOWNLOAD_DIR=$NATIVE_DOWNLOAD_DIR" >> $GITHUB_ENV
-          echo "nativeDownloadDir=$NATIVE_DOWNLOAD_DIR" >> $GITHUB_OUTPUT
-
-          export DOWNLOAD_DIR="$PWD/downloads"
-          echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
-
           # For upload at the end.
           # We only upload for Linux and macOS.
           echo "SNAPSHOTS_DIR=$HOME/.cache/jaguar/snapshots" >> $GITHUB_ENV
-
-          echo "QEMU_EXEC=$DOWNLOAD_DIR/qemu-${{ runner.os }}/qemu-system-xtensa$BIN_EXTENSION" >> $GITHUB_ENV
 
       - uses: toitlang/action-setup@v1
         with:
           toit-version: ${{ steps.constants.outputs.toitVersion }}
 
-      - uses: suisei-cn/actions-download-file@v1.4.0
-        name: Download Qemu
-        with:
-          url: https://github.com/toitlang/qemu/releases/download/v0.0.3/qemu-${{ runner.os }}.tar.gz
-          target: ${{ steps.constants.outputs.nativeDownloadDir }}
-
-      - name: Extract Qemu
+      - name: Setup Qemu
+        # TODO(florian): Enable again when Windows tests work again.
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          cd "$DOWNLOAD_DIR"
-          for f in *.tar.gz; do
-            tar x -f $f
-          done
+          mkdir -p downloads
+          cd downloads
+          curl -L  -o qemu-${{ runner.os }}.tar.gz https://github.com/toitlang/qemu/releases/download/v0.0.3/qemu-${{ runner.os }}.tar.gz
+          tar x -f qemu-${{ runner.os }}.tar.gz
+          echo "QEMU_EXEC=${{ github.workspace }}/downloads/qemu-${{ runner.os }}/qemu-system-xtensa$BIN_EXTENSION" >> $GITHUB_ENV
           ls $QEMU_EXEC
 
       - name: Setup environment
