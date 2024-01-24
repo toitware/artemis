@@ -10,6 +10,16 @@ It also uses the seed.sql file to populate the database with some test data.
 This test data is not used in production. Feel free to modify the seed.sql
 file.
 
+## Initial Setup
+This step should not be necessary, as the DB is already running.
+
+After creating a Supabase project, push the migrations and the edge functions. (See below.)
+
+Modify the following settings in Supabase:
+- oauth (if needed)
+- SMTP. The default SMTP server is extremely limited. Don't forget to bump the Rate limit.
+- Email templates
+
 ## Modifying the DB
 
 If you don't change the DB you can work locally, but if you need to
@@ -67,6 +77,8 @@ supabase migration list
 
 The server stores its timestamp in `supabase_migrations.schema_migrations`. It
 is possible to modify the value there (although not recommended).
+
+Don't forget to update the edge function. See the [functions README](supabase/functions/README.md).
 
 #### Getting changes from the server
 If the server was modified (instead of the local DB), you should be able to get
