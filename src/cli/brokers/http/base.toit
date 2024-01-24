@@ -119,11 +119,9 @@ class BrokerCliHttp implements BrokerCli:
         // Try again with a different client.
         client_.close
         client_ = null
-        continue.repeat
-
-      block.call response
-      return
-
+      else:
+        block.call response
+        return
 
   send-request_ encoded/ByteArray -> http.Response:
     if not client_:
