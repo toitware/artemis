@@ -249,7 +249,7 @@ remove-null-values_ o/any -> none:
     list.filter --in-place: it != null
     list.do: remove-null-values_ it
 
-read-spec-file_ path/string -> any:
+read-pod-spec-file path/string -> any:
   if path.ends-with ".json":
     return read-json path
   if path.ends-with ".yaml" or path.ends-with ".yml":
@@ -342,7 +342,7 @@ class PodSpecification:
 
     json := null
     exception := catch:
-      json = read-spec-file_ path
+      json = read-pod-spec-file path
     if exception:
       fail.call "Failed to read pod specification from $path: $exception."
 

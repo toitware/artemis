@@ -362,14 +362,14 @@ to your fleet of devices, you can upload the latest version of your pod using:
 artemis pod upload my-pod.yaml
 ```
 
-If your `fleet.yaml` uses `my-pod@latest`, you can ask the fleet
+If your `fleet.json` uses `my-pod@latest`, you can ask the fleet
 to roll out the changes to your devices using:
 
 ``` sh
 artemis fleet roll-out
 ```
 
-If you changed the pod reference in `fleet.yaml` to use a stable tag, then
+If you changed the pod reference in `fleet.json` to use a stable tag, then
 you need to update that before you run `artemis fleet roll-out`:
 
 ``` sh

@@ -277,12 +277,7 @@ print parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     json := PodSpecification.parse-json-hierarchy specification-path
     if not flat:
       // If we only want the non-flattened version read the json/yaml again by hand.
-      if specification-path.ends-with ".json":
-        json = read-json specification-path
-      else if specification-path.ends-with ".yaml" or specification-path.ends-with ".yml":
-        json = read-yaml specification-path
-      else:
-        ui.abort "Unknown file extension for specification file '$specification-path'."
+      json = read-pod-spec-file specification-path
 
     ui.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit-structured
