@@ -17,7 +17,7 @@ For development it's thus recommended to call `supabase functions serve`
 
 # Deployment
 To deploy the edge functions, run
-  `supabase functions deplay --no-verify-jwt b`.
+  `supabase functions deploy --no-verify-jwt b`.
 
 (The `--no-verify-jwt` might not be necessary, since the `config.toml` already
 has an entry for the `b` functions. I haven't tested it without it, though.)
