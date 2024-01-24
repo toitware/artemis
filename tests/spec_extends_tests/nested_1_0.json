@@ -1,7 +1,0 @@
-{
-  "extends": [
-    "nested_1_1.json",
-    "nested_1_2.json",
-    "nested_1_3.json"
-  ]
-}

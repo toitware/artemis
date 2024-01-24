@@ -1,5 +1,5 @@
 # Content of minimal spec after flattening
-# [pod, print, --flat, TMP_DIR/minimal.json]
+# [pod, print, --flat, TMP_DIR/minimal.yaml]
 {
   "version": 1,
   "name": "test-pod-print",

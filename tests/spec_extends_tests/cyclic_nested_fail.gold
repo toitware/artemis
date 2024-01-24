@@ -1,5 +1,5 @@
-Circular extends: cyclic_nested_1.json.
-  - Extended by cyclic_nested_3.json.
-  - Extended by cyclic_nested_2.json.
-  - Extended by cyclic_nested_1.json.
-  - Extended by cyclic_nested_test.json.
+Circular extends: cyclic_nested_1.yaml.
+  - Extended by cyclic_nested_3.yaml.
+  - Extended by cyclic_nested_2.yaml.
+  - Extended by cyclic_nested_1.yaml.
+  - Extended by cyclic_nested_test.yaml.

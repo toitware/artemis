@@ -1,7 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import encoding.base64
-import encoding.json
 import encoding.url as url-encoding
 import host.file
 import fs
@@ -250,6 +249,13 @@ remove-null-values_ o/any -> none:
     list.filter --in-place: it != null
     list.do: remove-null-values_ it
 
+read-pod-spec-file path/string -> any:
+  if path.ends-with ".json":
+    return read-json path
+  if path.ends-with ".yaml" or path.ends-with ".yml":
+    return read-yaml path
+  throw "Unknown file extension: $path"
+
 /**
 A specification of a pod.
 
@@ -336,7 +342,7 @@ class PodSpecification:
 
     json := null
     exception := catch:
-      json = read-json path
+      json = read-pod-spec-file path
     if exception:
       fail.call "Failed to read pod specification from $path: $exception."
 

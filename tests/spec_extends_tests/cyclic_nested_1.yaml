@@ -1,0 +1,2 @@
+extends:
+  - cyclic_nested_2.yaml

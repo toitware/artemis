@@ -1,0 +1,4 @@
+connections:
+  - type: cellular
+    config:
+      key1: from 2_2

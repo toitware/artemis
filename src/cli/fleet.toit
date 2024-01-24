@@ -249,9 +249,9 @@ class Fleet:
     }
     write-json-to-file --pretty "$fleet-root/$DEVICES-FILE_" {:}
 
-    default-specification-path := "$fleet-root/$(INITIAL-POD-NAME).json"
+    default-specification-path := "$fleet-root/$(INITIAL-POD-NAME).yaml"
     if not file.is-file default-specification-path:
-      write-json-to-file --pretty default-specification-path INITIAL-POD-SPECIFICATION
+      write-yaml-to-file default-specification-path INITIAL-POD-SPECIFICATION
 
     ui.info "Fleet root $fleet-root initialized."
 

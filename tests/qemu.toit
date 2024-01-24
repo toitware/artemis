@@ -3,7 +3,8 @@
 import host.directory
 import uuid
 import artemis.cli.ui show Ui
-import artemis.cli.utils show read-json write-json-to-file write-blob-to-file copy-directory
+import artemis.cli.utils show
+  read-json write-json-to-file write-yaml-to-file write-blob-to-file copy-directory
 
 import .utils
 
@@ -13,7 +14,7 @@ build-qemu-image -> Map
     --args/List
     --files/Map
     --pod-spec/Map
-    --pod-spec-filename/string="my-pod.json"
+    --pod-spec-filename/string="my-pod.yaml"
     --tmp-dir/string="$test-cli.tmp-dir/qemu"
     --user-email/string=TEST-EXAMPLE-COM-EMAIL
     --user-password/string=TEST-EXAMPLE-COM-PASSWORD
@@ -48,10 +49,15 @@ build-qemu-image -> Map
   if not pod-spec.contains "sdk-version":
     pod-spec["sdk-version"] = test-cli.sdk-version
   if not pod-spec.contains "extends":
-    pod-spec["extends"] = ["$qemu-base/base.json"]
+    pod-spec["extends"] = ["$qemu-base/base.yaml"]
 
   spec-path := "$tmp-dir/$pod-spec-filename"
-  write-json-to-file spec-path pod-spec
+  if spec-path.ends-with ".json":
+    write-json-to-file spec-path pod-spec
+  else if spec-path.ends-with ".yaml" or spec-path.ends-with ".yml":
+    write-yaml-to-file spec-path pod-spec
+  else:
+    throw "Unknown pod spec file extension: $pod-spec-filename"
   pod-file := "$tmp-dir/$(pod-spec-filename).pod"
 
   test-cli.run [

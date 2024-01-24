@@ -1,2 +1,2 @@
-Circular extends: cyclic_test.json.
-  - Extended by cyclic_test.json.
+Circular extends: cyclic_test.yaml.
+  - Extended by cyclic_test.yaml.

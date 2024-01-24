@@ -2,7 +2,7 @@
 
 // ARTEMIS_TEST_FLAGS: BROKER
 
-import artemis.cli.utils show write-blob-to-file
+import artemis.cli.utils show write-yaml-to-file
 import expect show *
 import .utils
 
@@ -15,8 +15,7 @@ run-test test-cli/TestCli fleet-dir/string:
 
   name := "test-pod"
 
-  spec := """
-    {
+  spec := {
       "version": 1,
       "name": "$name",
       "sdk-version": "$test-cli.sdk-version",
@@ -29,9 +28,8 @@ run-test test-cli/TestCli fleet-dir/string:
         }
       ]
     }
-    """
-  spec-path := "$fleet-dir/$(name).json"
-  write-blob-to-file spec-path spec
+  spec-path := "$fleet-dir/$(name).yaml"
+  write-yaml-to-file spec-path spec
   test-cli.run [
     "pod", "upload", spec-path
   ]

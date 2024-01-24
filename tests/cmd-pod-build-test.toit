@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS.
 
 import ar show ArReader
-import artemis.cli.utils show write-blob-to-file
+import artemis.cli.utils show write-blob-to-file write-yaml-to-file
 import artemis.cli.firmware show get-envelope
 import artemis.cli.pod show Pod
 import artemis.cli.pod-specification show PodSpecification
@@ -18,8 +18,7 @@ main args:
 run-test test-cli/TestCli fleet-dir/string:
   test-cli.ensure-available-artemis-service
 
-  spec := """
-    {
+  spec := {
       "version": 1,
       "name": "test-pod",
       "sdk-version": "$test-cli.sdk-version",
@@ -28,13 +27,12 @@ run-test test-cli/TestCli fleet-dir/string:
         {
           "type": "wifi",
           "ssid": "test",
-          "password": "test"
-        }
-      ]
-    }
-    """
-  spec-path := "$fleet-dir/test-pod.json"
-  write-blob-to-file spec-path spec
+          "password": "test",
+        },
+      ],
+  }
+  spec-path := "$fleet-dir/test-pod.yaml"
+  write-yaml-to-file spec-path spec
   test-cli.run [
     "pod", "build", spec-path, "-o", "$fleet-dir/test-pod.pod"
   ]
@@ -44,8 +42,7 @@ run-test test-cli/TestCli fleet-dir/string:
       --test-cli=test-cli
 
   // Test custom firmwares.
-  spec = """
-    {
+  spec = {
       "version": 1,
       "name": "test-pod2",
       "firmware-envelope": "file://custom.envelope",
@@ -54,13 +51,12 @@ run-test test-cli/TestCli fleet-dir/string:
         {
           "type": "wifi",
           "ssid": "test",
-          "password": "test"
-        }
-      ]
+          "password": "test",
+        },
+      ],
     }
-    """
-  spec-path = "$fleet-dir/test-pod2.json"
-  write-blob-to-file spec-path spec
+  spec-path = "$fleet-dir/test-pod2.yaml"
+  write-yaml-to-file spec-path spec
 
   custom-path := "$fleet-dir/custom.envelope"
 
@@ -90,8 +86,7 @@ run-test test-cli/TestCli fleet-dir/string:
       --test-cli=test-cli
 
   // Test compiler flags.
-  spec = """
-    {
+  spec = {
       "version": 1,
       "name": "test-pod3",
       "sdk-version": "$test-cli.sdk-version",
@@ -110,9 +105,8 @@ run-test test-cli/TestCli fleet-dir/string:
         }
       }
     }
-    """
-  spec-path = "$fleet-dir/test-pod3.json"
-  write-blob-to-file spec-path spec
+  spec-path = "$fleet-dir/test-pod3.yaml"
+  write-yaml-to-file spec-path spec
   write-blob-to-file "$fleet-dir/hello.toit" """
     main: print "hello"
     """
@@ -127,8 +121,7 @@ run-test test-cli/TestCli fleet-dir/string:
 
   // Test invalid compiler flag.
   // This ensures that the compiler flags are actually passed to the compiler.
-  spec = """
-    {
+  spec = {
       "version": 1,
       "name": "test-pod4",
       "sdk-version": "$test-cli.sdk-version",
@@ -147,9 +140,8 @@ run-test test-cli/TestCli fleet-dir/string:
         }
       }
     }
-    """
-  spec-path = "$fleet-dir/test-pod4.json"
-  write-blob-to-file spec-path spec
+  spec-path = "$fleet-dir/test-pod4.yaml"
+  write-yaml-to-file spec-path spec
 
   test-cli.run --expect-exit-1 --no-quiet [
     "pod", "build", spec-path, "-o", "$fleet-dir/test-pod4.pod"

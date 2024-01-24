@@ -115,32 +115,27 @@ an empty fleet in a suitable directory. Go to the directory and run:
 artemis fleet init
 ```
 
-This creates three files: `fleet.json`, `devices.json`, and `my-pod.json`.
+This creates three files: `fleet.json`, `devices.json`, and `my-pod.yaml`.
 The `fleet.json` file holds some metadata and the list of devices in `devices.json`
-is empty. The `my-pod.json` file is the most interesting to get started.
+is empty. The `my-pod.yaml` file is the most interesting to get started.
 
 Artemis lets you describe the functionality and configuration of your devices
 in [pods](pods), which is a set of containers and the configuration
 of the environment they need to run in. Pods can be specified through version control friendly
 [specification files](pods#specifications), so let's start with the simplest
-possible specification by putting the following content into the `my-pod.json` file:
+possible specification by putting the following content into the `my-pod.yaml` file:
 
-``` json
-{
-  "version": 1,
-  "name": "my-pod",
-  "sdk-version": "SDK-VERSION",
-  "artemis-version": "ARTEMIS-VERSION",
-  "connections": [
-    {
-      "type": "wifi",
-      "ssid": "YOUR WIFI SSID",
-      "password": "YOUR WIFI PASSWORD"
-    }
-  ],
-  "containers": {
-  }
-}
+``` yaml
+version: 1
+name: my-pod
+sdk-version: SDK-VERSION
+artemis-version: ARTEMIS-VERSION
+max-offline: 0s
+connections:
+  - type: wifi
+    ssid: YOUR WIFI SSID
+    password: YOUR WIFI PASSWORD
+containers: {}
 ```
 
 If you fill in your WiFi credentials, you have a working specification for a pod
@@ -148,7 +143,7 @@ named `my-pod`. To make the pod available to your fleet, you will need to upload
 it to your broker:
 
 ``` sh
-artemis pod upload my-pod.json
+artemis pod upload my-pod.yaml
 ```
 
 This uploads `my-pod` and gives is a few useful tags, so we can find it later. The
@@ -251,7 +246,7 @@ The frequency at which they synchronize can be configured by the user.
 
 Devices that connect frequently or all the time are easy
 to interact with and manage, but they spend a lot of power on staying connected
-all the time. The pod specification in the example `my-pod.json` does not specify
+all the time. The pod specification in the example `my-pod.yaml` does not specify
 how often to connect, so Artemis assumes that you want an interactive device.
 
 If you don't need your device to stay connected all the time, you can
@@ -350,7 +345,7 @@ to reflect the state you want your device in, and then update it to
 that through:
 
 ``` sh
-artemis pod upload my-pod.json
+artemis pod upload my-pod.yaml
 artemis device update my-pod@latest
 ```
 
@@ -360,11 +355,11 @@ during flashing, or that can be set with `artemis device default`.
 
 ## Rolling out changes to a fleet
 
-If you've modified the `my-pod.json` file and you want to make the changes available
+If you've modified the `my-pod.yaml` file and you want to make the changes available
 to your fleet of devices, you can upload the latest version of your pod using:
 
 ``` sh
-artemis pod upload my-pod.json
+artemis pod upload my-pod.yaml
 ```
 
 If your `fleet.json` uses `my-pod@latest`, you can ask the fleet
