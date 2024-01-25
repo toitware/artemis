@@ -10,22 +10,28 @@ import system.storage
 import ....shared.server-config show ServerConfigHttp
 
 class HttpConnection_:
-  client_/http.Client? := ?
+  client_/http.Client? := null
   config_/ServerConfigHttp
   network_/net.Interface
+  security-store_/HttpSecurityStore_
 
   constructor .network_ .config_:
-    client_ = create-client_ config_ network_
+    security-store_ = HttpSecurityStore_
+    create-fresh-client_
 
-  static create-client_ config/ServerConfigHttp network/net.Interface -> http.Client:
-    if config.root-certificate-ders:
-      root-certificates := config.root-certificate-ders.map:
+  create-fresh-client_ -> none:
+    if client_:
+      client_.close
+      client_ = null
+
+    if config_.root-certificate-ders:
+      root-certificates := config_.root-certificate-ders.map:
         x509.Certificate.parse it
-      return http.Client.tls network
+      client_ = http.Client.tls network_
           --root-certificates=root-certificates
-          --security-store=HttpSecurityStore_
+          --security-store=security-store_
     else:
-      return http.Client network
+      client_ = http.Client network_
 
   is-closed -> bool:
     return client_ == null
@@ -67,9 +73,7 @@ class HttpConnection_:
 
       // Cloudflare frequently returns with a 502.
       // Close the client and try again.
-      client_.close
-      client_ = null
-      client_ = create-client_ config_ network_
+      create-fresh-client_
 
     if status == http.STATUS-IM-A-TEAPOT:
       decoded := json.decode-stream body
