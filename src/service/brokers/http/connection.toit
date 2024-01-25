@@ -7,16 +7,19 @@ import net
 import net.x509
 import reader show Reader
 import system.storage
+import certificate-roots
 import ....shared.server-config show ServerConfigHttp
 
 class HttpConnection_:
   client_/http.Client? := null
   config_/ServerConfigHttp
   network_/net.Interface
-  security-store_/HttpSecurityStore_
+  root-certificates_/List? := null
 
   constructor .network_ .config_:
-    security-store_ = HttpSecurityStore_
+    if config_.root-certificate-ders:
+      root-certificates_ = config_.root-certificate-ders.map:
+        x509.Certificate.parse it
     create-fresh-client_
 
   create-fresh-client_ -> none:
@@ -25,11 +28,9 @@ class HttpConnection_:
       client_ = null
 
     if config_.root-certificate-ders:
-      root-certificates := config_.root-certificate-ders.map:
-        x509.Certificate.parse it
       client_ = http.Client.tls network_
-          --root-certificates=root-certificates
-          --security-store=security-store_
+          --root-certificates=root-certificates_
+          --security-store=HttpSecurityStore_
     else:
       client_ = http.Client network_
 
