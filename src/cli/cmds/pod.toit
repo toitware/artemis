@@ -56,6 +56,9 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
 
         When a pod has been uploaded to the fleet, it can be used for flashing
         new devices and for diff-based over-the-air updates.
+
+        If the '--fleet' option is used, then the given fleet-uuid must be in
+        the same organization as the current fleet.
         """
       --options=[
         cli.Option "tag"
@@ -66,6 +69,8 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
             --short-name="f"
             --help="Force tags even if they already exist."
             --default=false,
+        cli.OptionUuid "fleet"
+            --help="The fleet to upload to.",
       ]
       --rest=[
         cli.Option "pod"
@@ -180,6 +185,7 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   pod-paths := parsed["pod"]
   tags/List := parsed["tag"]
   force/bool := parsed["force"]
+  fleet-uuid/uuid.Uuid? := parsed["fleet"]
 
   if tags.is-empty:
     name := random-name
@@ -199,7 +205,7 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --organization-id=fleet.organization-id
           --artemis=artemis
           --ui=ui
-      fleet.upload --pod=pod --tags=tags --force-tags=force
+      fleet.upload --pod=pod --tags=tags --force-tags=force --fleet-override=fleet-uuid
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   reference-string := parsed["reference"]

@@ -394,8 +394,10 @@ class Fleet:
 
   Also uploads the trivial patches.
   */
-  upload --pod/Pod --tags/List --force-tags/bool -> none:
+  upload --pod/Pod --tags/List --force-tags/bool --fleet-override/uuid.Uuid? -> none:
     artemis_.upload --pod=pod --organization-id=organization-id
+
+    target-fleet := fleet-override or this.id
 
     broker := artemis_.connected-broker
     pod.split: | manifest/Map parts/Map |
@@ -414,7 +416,7 @@ class Fleet:
         store.save encoded
 
     description-ids := broker.pod-registry-descriptions
-        --fleet-id=this.id
+        --fleet-id=target-fleet
         --organization-id=this.organization-id
         --names=[pod.name]
         --create-if-absent
@@ -441,11 +443,11 @@ class Fleet:
       if exception:
         tag-errors.add "Tag '$tag' already exists for pod $pod.name."
 
-    registered-pods := broker.pod-registry-pods --fleet-id=this.id --pod-ids=[pod.id]
+    registered-pods := broker.pod-registry-pods --fleet-id=target-fleet --pod-ids=[pod.id]
     pod-entry/PodRegistryEntry := registered-pods[0]
 
     prefix := tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
-    ui_.info "$prefix $pod.name#$pod-entry.revision to fleet $this.id."
+    ui_.info "$prefix $pod.name#$pod-entry.revision to fleet $target-fleet."
     ui_.info "  id: $pod-entry.id"
     ui_.info "  references:"
     sorted-uploaded-tags := pod-entry.tags.sort

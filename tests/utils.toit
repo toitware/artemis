@@ -897,61 +897,65 @@ random-uuid -> uuid.Uuid:
 
 with-fleet --args/List --count/int [block]:
   with-test-cli --args=args: | test-cli/TestCli |
-    with-tmp-directory: | fleet-dir |
-      os.env["ARTEMIS_FLEET_ROOT"] = fleet-dir
-
-      test-cli.replacements[fleet-dir] = "<FLEET_ROOT>"
-      test-cli.run [
-        "auth", "login",
-        "--email", TEST-EXAMPLE-COM-EMAIL,
-        "--password", TEST-EXAMPLE-COM-PASSWORD,
-      ]
-
-      test-cli.run [
-        "auth", "login",
-        "--broker",
-        "--email", TEST-EXAMPLE-COM-EMAIL,
-        "--password", TEST-EXAMPLE-COM-PASSWORD,
-      ]
-
-      test-cli.run [
-        "fleet",
-        "init",
-        "--organization-id", "$TEST-ORGANIZATION-UUID",
-      ]
-
-      fleet-file := read-json "$fleet-dir/fleet.json"
-      test-cli.replacements[fleet-file["id"]] = pad-replacement-id "FLEET_ID"
-
-      identity-dir := "$fleet-dir/identities"
-      directory.mkdir --recursive identity-dir
-      test-cli.run [
-        "fleet",
-        "create-identities",
-        "--output-directory", identity-dir,
-        "$count",
-      ]
-
-      devices := read-json "$fleet-dir/devices.json"
-      // Replace the names with something deterministic.
-      counter := 0
-      devices.do: | _ device |
-        device["name"] = "name-$(counter++)"
-      write-json-to-file "$fleet-dir/devices.json" devices --pretty
-
-      ids := devices.keys
-      expect-equals count ids.size
-
-      fake-devices := []
-      ids.do: | id/string |
-        id-file := "$identity-dir/$(id).identity"
-        expect (file.is-file id-file)
-        content := read-base64-ubjson id-file
-        fake-device := test-cli.start-fake-device --identity=content
-        test-cli.replacements[id] = "-={| UUID-FOR-FAKE-DEVICE $(%05d fake-devices.size) |}=-"
-        fake-devices.add fake-device
-
+    with-fleet --args=args --count=count --test-cli=test-cli: | fake-devices fleet-dir |
       block.call test-cli fake-devices fleet-dir
+
+with-fleet --args/List --count/int --test-cli/TestCli [block]:
+  with-tmp-directory: | fleet-dir |
+    os.env["ARTEMIS_FLEET_ROOT"] = fleet-dir
+
+    test-cli.replacements[fleet-dir] = "<FLEET_ROOT>"
+    test-cli.run [
+      "auth", "login",
+      "--email", TEST-EXAMPLE-COM-EMAIL,
+      "--password", TEST-EXAMPLE-COM-PASSWORD,
+    ]
+
+    test-cli.run [
+      "auth", "login",
+      "--broker",
+      "--email", TEST-EXAMPLE-COM-EMAIL,
+      "--password", TEST-EXAMPLE-COM-PASSWORD,
+    ]
+
+    test-cli.run [
+      "fleet",
+      "init",
+      "--organization-id", "$TEST-ORGANIZATION-UUID",
+    ]
+
+    fleet-file := read-json "$fleet-dir/fleet.json"
+    test-cli.replacements[fleet-file["id"]] = pad-replacement-id "FLEET_ID"
+
+    identity-dir := "$fleet-dir/identities"
+    directory.mkdir --recursive identity-dir
+    test-cli.run [
+      "fleet",
+      "create-identities",
+      "--output-directory", identity-dir,
+      "$count",
+    ]
+
+    devices := read-json "$fleet-dir/devices.json"
+    // Replace the names with something deterministic.
+    counter := 0
+    devices.do: | _ device |
+      device["name"] = "name-$(counter++)"
+    write-json-to-file "$fleet-dir/devices.json" devices --pretty
+
+    ids := devices.keys
+    expect-equals count ids.size
+
+    fake-devices := []
+    ids.do: | id/string |
+      id-file := "$identity-dir/$(id).identity"
+      expect (file.is-file id-file)
+      content := read-base64-ubjson id-file
+      fake-device := test-cli.start-fake-device --identity=content
+      test-cli.replacements[id] = "-={| UUID-FOR-FAKE-DEVICE $(%05d fake-devices.size) |}=-"
+      fake-devices.add fake-device
+
+    block.call fake-devices fleet-dir
 
 expect-throws [--check-exception] [block]:
   exception := catch: block.call
