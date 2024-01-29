@@ -23,8 +23,6 @@ on:
   release:
     types: [published]
   push:
-    branches:
-      - main
 
 env:
   SUPPORTED_SDK_VERSIONS: |
@@ -149,17 +147,6 @@ jobs:
                 --force
           done
 
-      - name: Sign Windows binary
-        if: github.event_name == 'release' || inputs.sign_windows
-        uses: toitlang/action-code-sign@a4adedba46f2630ed60a1d6e6aa828ac7038c945 # v1.0.0
-        with:
-          certificate: ${{ secrets.DIGICERT_CERTIFICATE }}
-          api-key: ${{ secrets.DIGICERT_API_KEY }}
-          certificate-password: ${{ secrets.DIGICERT_PASSWORD }}
-          certificate-fingerprint: ${{ secrets.DIGICERT_FINGERPRINT }}
-          keypair-alias: ${{ vars.DIGICERT_KEYPAIR_ALIAS }}
-          path: out/windows
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -174,10 +161,10 @@ jobs:
           name: artemis-release-binaries
           path: out/*
 
-  sign_artemis_macos:
+  package-macos:
     runs-on: macos-latest
     needs: [build]
-    if: github.event_name == 'release' || inputs.sign_macos
+
     steps:
       - uses: actions/checkout@v4
 
@@ -202,6 +189,7 @@ jobs:
           chmod +x build/macos/artemis
 
       - name: Sign and notarize
+        if: github.event_name == 'release' || inputs.sign_macos
         uses: toitlang/action-macos-sign-notarize@v1.0.0
         with:
           certificate: ${{ secrets.MACOS_CERTIFICATE }}
@@ -214,7 +202,7 @@ jobs:
 
       - name: Create out folder
         run: |
-          mkdir -p out/macos
+          mkdir -p out
 
       - name: Create a DMG
         run: |
@@ -225,17 +213,88 @@ jobs:
           create-dmg \
               --volname "artemis" \
               --add-file artemis build/macos/artemis 0 0 \
-              out/macos/artemis.dmg \
+              out/artemis.dmg \
               empty
 
       - name: Create a ZIP
         run: |
-          zip -j out/macos/artemis.zip build/macos/artemis
+          zip -j out/artemis.zip build/macos/artemis
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artemis-signed-macos
+          name: artemis-packaged-macos
+          path: ./out
+
+  package-windows:
+    runs-on: windows-latest
+    needs: [build]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: artemis-release-binaries
+          path: in
+
+      - name: Copy to build
+        shell: bash
+        run: |
+          mkdir -p build/windows
+          cp in/windows/artemis.exe build/windows/artemis.exe
+
+      - name: Sign Windows binary
+        if: github.event_name == 'release' || inputs.sign_windows
+        uses: toitlang/action-code-sign@a4adedba46f2630ed60a1d6e6aa828ac7038c945 # v1.0.0
+        with:
+          certificate: ${{ secrets.DIGICERT_CERTIFICATE }}
+          api-key: ${{ secrets.DIGICERT_API_KEY }}
+          certificate-password: ${{ secrets.DIGICERT_PASSWORD }}
+          certificate-fingerprint: ${{ secrets.DIGICERT_FINGERPRINT }}
+          keypair-alias: ${{ vars.DIGICERT_KEYPAIR_ALIAS }}
+          path: build/windows
+
+      - name: Create out folder
+        shell: bash
+        run: |
+          mkdir -p out
+
+      - name: Create a ZIP
+        shell: bash
+        run: |
+          7z a -tzip out/artemis-windows.zip build/windows/artemis.exe
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artemis-packaged-windows
+          path: ./out
+
+  package-linux:
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: artemis-release-binaries
+          path: in
+
+      - name: Create a tarballs
+        run: |
+          mkdir -p out
+          chmod +x in/linux/artemis
+          tar -czf out/artemis-linux.tar.gz in/linux/artemis
+          chmod +x in/aarch64/artemis
+          tar -czf out/artemis-linux-aarch64.tar.gz in/aarch64/artemis
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artemis-packaged-linux
           path: ./out
 
   update_public:
@@ -314,43 +373,41 @@ jobs:
           git push
 
   do_release:
-    if: github.event_name == 'release'
     runs-on: ubuntu-latest
-    needs: [sign_artemis_macos, update_public]
+    needs: [package-windows, package-linux, package-macos, update_public]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Linux and Windows artifacts
+      - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
-          name: artemis-release-binaries
-          path: in
+          name: artemis-packaged-linux
+          path: in-linux
 
-      - name: Download signed macOS artifacts
+      - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
-          name: artemis-signed-macos
-          path: in-mac-signed
+          name: artemis-packaged-macos
+          path: in-mac
 
-      - name: Create archives
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artemis-packaged-windows
+          path: in-windows
+
+      - name: Prepare release assets
         shell: bash
         run: |
           mkdir release-assets
 
-          mkdir artemis-linux
-          mv in/linux/artemis artemis-linux
-          chmod +x artemis-linux/artemis
-          tar -czf release-assets/artemis-linux.tar.gz artemis-linux
+          mv in-linux/artemis-linux.tar.gz release-assets/artemis-linux.tar.gz
+          mv in-linux/artemis-linux-aarch64.tar.gz release-assets/artemis-linux-aarch64.tar.gz
 
-          mkdir artemis-linux-aarch64
-          mv in/aarch64/artemis artemis-linux-aarch64
-          chmod +x artemis-linux-aarch64/artemis
-          tar -czf release-assets/artemis-linux-aarch64.tar.gz artemis-linux-aarch64
+          mv in-windows/artemis-windows.zip release-assets/artemis-windows.zip
 
-          zip -j release-assets/artemis-windows.zip in/windows/artemis.exe
-
-          mv in-mac-signed/macos/artemis.dmg release-assets/artemis.dmg
-          mv in-mac-signed/macos/artemis.zip release-assets/artemis-macos.zip
+          mv in-mac/artemis.dmg release-assets/artemis.dmg
+          mv in-mac/artemis.zip release-assets/artemis-macos.zip
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
@@ -359,6 +416,7 @@ jobs:
           path: release-assets
 
       - name: Upload release artifacts as assets
+        if: github.event_name == 'release'
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -368,6 +426,7 @@ jobs:
           overwrite: true
 
       - name: Create public release
+        if: github.event_name == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.LEON_ARTEMIS_RELEASE_PAT }}
         run: |
