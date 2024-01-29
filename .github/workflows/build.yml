@@ -233,6 +233,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Git version
+        # uses: toitlang/action-git-version@v1.0.0
+        # TODO(florian): use the released version
+        id: version
+        uses: toitlang/action-git-version@ab5a538cb1f1f8b63e9fd945abc32ccd39472339
+
       - uses: actions/download-artifact@v4
         with:
           name: artemis-release-binaries
@@ -265,11 +271,46 @@ jobs:
         run: |
           7z a -tzip out/artemis-windows.zip build/windows/artemis.exe
 
+      - name: Build Windows installer
+        shell: powershell
+        run: |
+          $versionV = "${{ steps.version.outputs.version }}"
+          $version = $versionV.Substring(1)
+          & tools\windows_installer\build.bat $version $PWD\build\windows\artemis.exe build\windows\artemis_installer_x64.exe
+
+      - name: Sign Windows installer
+        if: github.event_name == 'release' || ${{ inputs.sign_windows }}
+        uses: toitlang/action-code-sign@a4adedba46f2630ed60a1d6e6aa828ac7038c945 # v1.0.0
+        with:
+          certificate: ${{ secrets.DIGICERT_CERTIFICATE }}
+          api-key: ${{ secrets.DIGICERT_API_KEY }}
+          certificate-password: ${{ secrets.DIGICERT_PASSWORD }}
+          certificate-fingerprint: ${{ secrets.DIGICERT_FINGERPRINT }}
+          keypair-alias: ${{ vars.DIGICERT_KEYPAIR_ALIAS }}
+          path: build/windows/artemis_installer_x64.exe
+
+      - name: Copy installer to output
+        shell: bash
+        run: |
+          cp build/windows/artemis_installer_x64.exe out
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: artemis-packaged-windows
           path: ./out
+
+      - name: Test installer
+        shell: powershell
+        run: |
+          & $PWD\out/artemis_installer_x64.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /LOG="install.log"
+
+      - name: Upload install log
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-log
+          path: |
+            install.log
 
   package-linux:
     runs-on: ubuntu-latest
