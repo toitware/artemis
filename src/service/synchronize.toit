@@ -612,16 +612,14 @@ class SynchronizeJob extends TaskJob:
                 // A container just appeared in the state.
                 id := parse-uuid_ it
                 if id:
-                  pending-step := handle-container-install_ name id description-map
-                  if pending-step:
-                    goal.add-pending-step pending-step
+                  handle-container-install_ goal name id description-map
         --removed=: | name/string |
           // A container disappeared completely from the state. We
           // uninstall it.
           handle-container-uninstall_ name
         --modified=: | name/string nested/Modification |
           description := new-goal-state["apps"][name]
-          handle-container-modification_ name description nested
+          handle-container-modification_ goal name description nested
 
     modification.on-value "max-offline"
         --added   =: handle-set-max-offline_ it
@@ -629,6 +627,7 @@ class SynchronizeJob extends TaskJob:
         --updated =: | _ to | handle-set-max-offline_ to
 
   handle-container-modification_ -> none
+      goal/Goal
       name/string
       description/Map
       modification/Modification:
@@ -637,7 +636,7 @@ class SynchronizeJob extends TaskJob:
           logger_.error "updating: container $name gained an id ($value)"
           // Treat it as a request to install the container.
           id := parse-uuid_ value
-          if id: handle-container-install_ name id description
+          if id: handle-container-install_ goal name id description
           return
         --removed=: | value |
           logger_.error "updating: container $name lost its id ($value)"
@@ -651,18 +650,18 @@ class SynchronizeJob extends TaskJob:
           // before uninstalling the old one.
           handle-container-uninstall_ name
           id := parse-uuid_ to
-          if id: handle-container-install_ name id description
+          if id: handle-container-install_ goal name id description
           return
 
     handle-container-update_ name description
 
-  handle-container-install_ name/string id/uuid.Uuid description/Map -> Lambda?:
+  handle-container-install_ goal/Goal name/string id/uuid.Uuid description/Map -> none:
     if job := containers_.create --name=name --id=id --description=description --state=null:
       device_.state-container-install-or-update name description
       containers_.install job
-      return null
+      return
 
-    return :: | broker-connection/BrokerConnection |
+    goal.add-pending-step:: | broker-connection/BrokerConnection |
       assert: state_ >= STATE-CONNECTED-TO-BROKER
       transition-to_ STATE-PROCESSING-CONTAINER-IMAGE
       broker-connection.fetch-image id: | reader/Reader |
