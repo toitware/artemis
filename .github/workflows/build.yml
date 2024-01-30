@@ -267,7 +267,8 @@ jobs:
       - name: Create a ZIP
         shell: bash
         run: |
-          7z a -tzip out/artemis-windows.zip build/windows/artemis.exe
+          cd build/windows
+          7z a -tzip ../../out/artemis-windows.zip artemis.exe
 
       - name: Build Windows installer
         shell: powershell
@@ -326,9 +327,9 @@ jobs:
         run: |
           mkdir -p out
           chmod +x in/linux/artemis
-          tar -czf out/artemis-linux.tar.gz in/linux/artemis
+          tar c -z -C in/linux -f out/artemis-linux.tar.gz artemis
           chmod +x in/aarch64/artemis
-          tar -czf out/artemis-linux-aarch64.tar.gz in/aarch64/artemis
+          tar c -z -C in/aarch64 -f out/artemis-linux-aarch64.tar.gz artemis
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
