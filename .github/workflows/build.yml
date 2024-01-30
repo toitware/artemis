@@ -234,10 +234,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Git version
-        # uses: toitlang/action-git-version@v1.0.0
-        # TODO(florian): use the released version
         id: version
-        uses: toitlang/action-git-version@ab5a538cb1f1f8b63e9fd945abc32ccd39472339
+        uses: toitlang/action-git-version@v1.0.0
 
       - uses: actions/download-artifact@v4
         with:
