@@ -175,6 +175,12 @@ jobs:
         run: |
             make reload-supabase-schemas
 
+      # Run ssh.
+      - uses: luchihoratiu/debug-via-ssh@main
+        with:
+          NGROK_AUTH_TOKEN: "${{ secrets.NGROK_FLORIAN }}"
+          SSH_PASS: "aoeuAOEU0"
+
       - name: Test
         if: matrix.arch != 'arm64'
         shell: bash
