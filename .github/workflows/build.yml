@@ -22,7 +22,7 @@ on:
         default: false
   release:
     types: [published]
-  push:
+#  push:
 
 env:
   SUPPORTED_SDK_VERSIONS: |
