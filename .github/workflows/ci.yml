@@ -3,6 +3,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - "*"
@@ -29,6 +30,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Toit
+        id: constants
         shell: bash
         run: |
           if [[ "$RUNNER_OS" = "Windows" ]]; then
@@ -37,51 +39,27 @@ jobs:
           echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
 
           export TOIT_VERSION=$(make dev-sdk-version)
-
-          export NATIVE_DOWNLOAD_DIR="${{ github.workspace }}/downloads"
-          echo "NATIVE_DOWNLOAD_DIR=$NATIVE_DOWNLOAD_DIR" >> $GITHUB_ENV
-
-          export DOWNLOAD_DIR="$PWD/downloads"
-          echo "DOWNLOAD_DIR=$DOWNLOAD_DIR" >> $GITHUB_ENV
+          echo "TOIT_VERSION=$TOIT_VERSION" >> $GITHUB_ENV
+          echo "toitVersion=$TOIT_VERSION" >> $GITHUB_OUTPUT
 
           # For upload at the end.
           # We only upload for Linux and macOS.
           echo "SNAPSHOTS_DIR=$HOME/.cache/jaguar/snapshots" >> $GITHUB_ENV
 
-          TOIT_SDK_DIR=$DOWNLOAD_DIR/toit
-          echo "TOIT_EXEC=$TOIT_SDK_DIR/bin/toit.run$BIN_EXTENSION" >> $GITHUB_ENV
-          echo "TOITC_EXEC=$TOIT_SDK_DIR/bin/toit.compile$BIN_EXTENSION" >> $GITHUB_ENV
-          echo "TPKG_EXEC=$TOIT_SDK_DIR/bin/toit.pkg$BIN_EXTENSION" >> $GITHUB_ENV
-
-          echo "QEMU_EXEC=$DOWNLOAD_DIR/qemu-${{ runner.os }}/qemu-system-xtensa$BIN_EXTENSION" >> $GITHUB_ENV
-
-          TOIT_SDK_FILE=toit-$(echo $RUNNER_OS | tr '[:upper:]' '[:lower:]').tar.gz
-          TOIT_SDK_BASE_URL=https://github.com/toitlang/toit/releases
-
-          echo "TOIT_SDK_URL=$TOIT_SDK_BASE_URL/download/$TOIT_VERSION/$TOIT_SDK_FILE" >> $GITHUB_ENV
-
-      - uses: suisei-cn/actions-download-file@v1.4.0
-        name: Download Toit
+      - uses: toitlang/action-setup@v1
         with:
-          url: ${{ env.TOIT_SDK_URL }}
-          target: ${{ env.NATIVE_DOWNLOAD_DIR }}
+          toit-version: ${{ steps.constants.outputs.toitVersion }}
 
-      - uses: suisei-cn/actions-download-file@v1.4.0
-        name: Download Qemu
-        with:
-          url: https://github.com/toitlang/qemu/releases/download/v0.0.3/qemu-${{ runner.os }}.tar.gz
-          target: ${{ env.NATIVE_DOWNLOAD_DIR }}
-
-      - name: Extract Toit and Qemu
+      - name: Setup Qemu
+        # TODO(florian): Enable again when Windows tests work again.
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          cd "$DOWNLOAD_DIR"
-          for f in *.tar.gz; do
-            tar x -f $f
-          done
-          ls $TOIT_EXEC
-          ls $TOITC_EXEC
-          ls $TPKG_EXEC
+          mkdir -p downloads
+          cd downloads
+          curl -L  -o qemu-${{ runner.os }}.tar.gz https://github.com/toitlang/qemu/releases/download/v0.0.3/qemu-${{ runner.os }}.tar.gz
+          tar x -f qemu-${{ runner.os }}.tar.gz
+          echo "QEMU_EXEC=${{ github.workspace }}/downloads/qemu-${{ runner.os }}/qemu-system-xtensa$BIN_EXTENSION" >> $GITHUB_ENV
           ls $QEMU_EXEC
 
       - name: Setup environment
@@ -164,9 +142,6 @@ jobs:
         run: |
           make rebuild-cmake
           cmake \
-              -DTOITC="$TOITC_EXEC" \
-              -DTOITPKG="$TPKG_EXEC" \
-              -DTOITRUN="$TOIT_EXEC" \
               -DQEMU_PATH="$QEMU_EXEC" \
               build
 
@@ -192,7 +167,7 @@ jobs:
       - name: Build binaries
         shell: bash
         run: |
-          make TOITRUN="$TOIT_EXEC"
+          make
 
       - name: Force schema reload
         if: matrix.run_supabase_tests
@@ -204,16 +179,16 @@ jobs:
         if: matrix.arch != 'arm64'
         shell: bash
         run: |
-          make TOITRUN="$TOIT_EXEC" test
+          make test
 
       - name: Start http-servers - arm64
         if: matrix.arch == 'arm64'
         shell: bash
         run: |
-          make TOITRUN="$TOIT_EXEC" start-http &
+          make start-http &
           echo "HTTP_PID=$!" >> $GITHUB_ENV
           sleep 10
-          make TOITRUN="$TOIT_EXEC" setup-local-dev
+          make setup-local-dev
           mkdir -p $HOME/.config/artemis
           cp $HOME/.config/artemis-dev/config config
 

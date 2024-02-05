@@ -16,6 +16,8 @@ import ...ui
 
 import ....shared.server-config
 
+TOIT_IO_AUTH_REDIRECT_URL ::= "https://toit.io/auth"
+
 class ArtemisServerCliSupabase implements ArtemisServerCli:
   client_/supabase.Client? := ?
   server-config_/ServerConfigSupabase
@@ -43,7 +45,11 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
     client_.auth.sign-in --email=email --password=password
 
   sign-in --provider/string --ui/Ui --open-browser/bool:
-    client_.auth.sign-in --provider=provider --ui=ui --open-browser=open-browser
+    client_.auth.sign-in
+        --provider=provider
+        --ui=ui
+        --open-browser=open-browser
+        --redirect-url=TOIT_IO_AUTH_REDIRECT_URL
 
   update --email/string? --password/string?:
     payload := {:}

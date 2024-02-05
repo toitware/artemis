@@ -7,21 +7,32 @@ import net
 import net.x509
 import reader show Reader
 import system.storage
+import certificate-roots
 import ....shared.server-config show ServerConfigHttp
 
 class HttpConnection_:
-  client_/http.Client? := ?
+  client_/http.Client? := null
   config_/ServerConfigHttp
+  network_/net.Interface
+  root-certificates_/List? := null
 
-  constructor network/net.Interface .config_:
+  constructor .network_ .config_:
     if config_.root-certificate-ders:
-      root-certificates := config_.root-certificate-ders.map:
+      root-certificates_ = config_.root-certificate-ders.map:
         x509.Certificate.parse it
-      client_ = http.Client.tls network
-          --root-certificates=root-certificates
+    create-fresh-client_
+
+  create-fresh-client_ -> none:
+    if client_:
+      client_.close
+      client_ = null
+
+    if config_.root-certificate-ders:
+      client_ = http.Client.tls network_
+          --root-certificates=root-certificates_
           --security-store=HttpSecurityStore_
     else:
-      client_ = http.Client network
+      client_ = http.Client network_
 
   is-closed -> bool:
     return client_ == null
@@ -44,13 +55,26 @@ class HttpConnection_:
       config_.device-headers.do: | key value |
         request-headers.add key value
 
-    response := client_.post encoded
-        --host=config_.host
-        --port=config_.port
-        --path=config_.path
-        --headers=request-headers
-    body := response.body
-    status := response.status-code
+    body/Reader? := null
+    status/int := -1
+    response/http.Response? := null
+
+    MAX-ATTEMPTS ::= 3
+    for i := 0; i < MAX-ATTEMPTS; i++:
+      response = client_.post encoded
+          --host=config_.host
+          --port=config_.port
+          --path=config_.path
+          --headers=request-headers
+      body = response.body
+      status = response.status-code
+
+      if status != http.STATUS-BAD-GATEWAY or i == MAX-ATTEMPTS - 1:
+        break
+
+      // Cloudflare frequently returns with a 502.
+      // Close the client and try again.
+      create-fresh-client_
 
     if status == http.STATUS-IM-A-TEAPOT:
       decoded := json.decode-stream body
