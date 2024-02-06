@@ -48,8 +48,8 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
   quarantine name/string -> none:
     connection/Connection? := connections_.get name
     if connection:
-      logger_.info "quarantining" --tags={"connection": name, "duration": QUARANTINE-NO-DATA}
       connection.quarantine QUARANTINE-NO-DATA
+      logger_.info "quarantined" --tags={"connection": name, "duration": QUARANTINE-NO-DATA}
 
   open-network -> net.Interface:
     if connections_.is-empty: return open-system-network_
@@ -57,9 +57,9 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
       if connection.is-quarantined:
         remaining-us := connection.quarantined-until_ - Time.monotonic-us
         remaining-duration := Duration --us=remaining-us
-        logger_.info "skipping quarantined" --tags={
+        logger_.debug "quarantined - skipped" --tags={
           "connection": connection.name,
-          "remaining": remaining-duration,
+          "duration": remaining-duration,
         }
         continue.do
       network/net.Client? := open-network_ connection
