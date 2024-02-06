@@ -156,6 +156,10 @@ class ConnectionCellular extends Connection:
     return "cellular-$index"
 
   open -> net.Client:
+    // Artemis is long running, so we let the network
+    // manager clean up and re-resolve the services
+    // if things have changed since last attempt.
+    cellular.reset
     return cellular.open --name=name description_["config"]
 
 class ConnectionEthernet extends Connection:
@@ -166,4 +170,8 @@ class ConnectionEthernet extends Connection:
     return "ethernet-$index"
 
   open -> net.Client:
+    // Artemis is long running, so we let the network
+    // manager clean up and re-resolve the services
+    // if things have changed since last attempt.
+    ethernet.reset
     return ethernet.open --name=name
