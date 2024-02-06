@@ -11,14 +11,18 @@ import ...shared.utils.patch-format
 // Smaller numbers take longer, but get smaller diffs.
 SECTION-SIZE_ ::= 16
 
+FAST      ::= 0
+TWO-PHASE ::= 1
+SLOW      ::= 1
+
 /// Create a binary diff from $old-bytes to $new-bytes, and write it
 /// to the open file, $fd.  Returns the size of the diff file in bytes.
-diff old-bytes/OldData new-bytes/ByteArray fd total-new-bytes=new-bytes.size --fast/bool --with-header=true --with-footer=true --with-checksums=true -> int:
-  pages := NewOldOffsets old-bytes new-bytes old-bytes.sections SECTION-SIZE_ --fast=fast
+diff old-bytes/OldData new-bytes/ByteArray fd total-new-bytes=new-bytes.size --algorithm/int --with-header=true --with-footer=true --with-checksums=true -> int:
+  pages := NewOldOffsets old-bytes new-bytes old-bytes.sections SECTION-SIZE_ --algorithm=algorithm
 
   bdiff-size := 0
 
-  end-state := diff-files old-bytes new-bytes pages fast total-new-bytes --with-header=with-header --with-checksums=with-checksums:
+  end-state := diff-files old-bytes new-bytes pages algorithm total-new-bytes --with-header=with-header --with-checksums=with-checksums:
     // Do not print anything.
     null
 
@@ -256,12 +260,8 @@ abstract class Action:
     hash := seed
     if byte-oriented: hash += 57
     (DIFF-TABLE-INSERTION + 1).repeat:
-      hash *= 11
-      hash += diff-table[it]
-      hash &= 0x1fff_ffff
-    hash += old-position * 13
-    hash &= 0x1fff_ffff
-    return hash
+      hash = ((hash * 11) + diff-table[it]) & 0x1fff_ffff
+    return (hash + old-position * 13) & 0x1fff_ffff
 
   // *** Methods for the RoughlyComparableSet_ ***
   abstract rough-hash-code -> int
@@ -350,7 +350,7 @@ abstract class Action:
 
   static EMPTY ::= List 0
 
-  move-cursor new-to-old/int new-position/int --fast=null -> List:
+  move-cursor new-to-old/int new-position/int --fast/bool -> List:
     current-new-to-old := old-position - new-position
     diff := new-to-old - current-new-to-old
     possible-old-position := new-position + new-to-old
@@ -969,7 +969,7 @@ class BuildingDiffZero_ extends Action:
     line := "0 diff $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits, bytes: $(byte-oriented ? data-count : data-count*4)"
     return "$(%30s line) $old\n$(%30s   "") $new"
 
-  move-cursor new-to-old/int new-position/int --fast=null -> List:
+  move-cursor new-to-old/int new-position/int --fast/bool -> List:
     if new-bytes.size - new-position < 4: return Action.EMPTY
     if not old-bytes.valid old-position data-width: return Action.EMPTY
 
@@ -1067,10 +1067,10 @@ class NewOldOffsets:
   operator [] new-position/int -> Set:  // Of ints.
     return pages_[new-position >> PAGE-BITS_]
 
-  constructor old-bytes/OldData new-bytes/ByteArray sections/Map section-size/int --fast/bool:
+  constructor old-bytes/OldData new-bytes/ByteArray sections/Map section-size/int --algorithm/int:
     pages_ = List (new-bytes.size >> PAGE-BITS_) + 2: Set
 
-    byte-positions-per-word := fast ? 1 : 4
+    byte-positions-per-word := (algorithm == FAST) ? 1 : 4
 
     adlers := List byte-positions-per-word: Adler32
 
@@ -1108,8 +1108,10 @@ class NewOldOffsets:
           new-bytes
           index + 2 + section-size
           index + 4 + section-size
+    for i := 0; i < pages_.size; i++:
+      print "$i: $pages_[i]"
 
-diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets fast-mode/bool total-new-bytes=new-bytes.size --with-header=true --with-checksums=true [logger]:
+diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets algorithm/int total-new-bytes=new-bytes.size --with-header=true --with-checksums=true [logger]:
   actions := ComparableSet_
   state/Action := InitialState_ old-bytes new-bytes total-new-bytes --with-header=with-header
   if with-checksums:
@@ -1130,7 +1132,7 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets fast-mode/b
       not-in-this-round := []
       best-offset-printed := false
       at-unaligned-end-zone := new-position == (round-down new-bytes.size 4)
-      fast := fast-mode and pages[new-position].size == 0 and not at-unaligned-end-zone
+      fast := (algorithm == FAST) and pages[new-position].size == 0 and not at-unaligned-end-zone
       actions.do: | action |
         limit := fast ? 16 : 64
         if actions.size > 1000 or new-actions.size > 1000: limit = fast ? 16 : 32
@@ -1148,7 +1150,7 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets fast-mode/b
             if bits - best-bdiff-length < limit:
               new-actions.add-or-improve child
               best-bdiff-length = min best-bdiff-length bits
-          if (not fast-mode) or new-position & 0x7f == 0:
+          if algorithm != FAST or new-position & 0x7f == 0:
             pages[new-position].do: | new-to-old |
               jitters-done := false
               jitters := action.byte-oriented
@@ -1156,7 +1158,7 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets fast-mode/b
                 : [0]
               jitters.do: | jitter |
                 if not jitters-done:
-                  shifted-actions := action.move-cursor new-to-old+jitter new-position --fast=fast-mode
+                  shifted-actions := action.move-cursor new-to-old+jitter new-position --fast=(algorithm == FAST)
                   shifted-actions.do: | shifted-action |
                     jitters-done = true
                     shifted-children := shifted-action.add-data new-position fast
