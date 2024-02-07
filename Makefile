@@ -13,7 +13,7 @@ endif
 
 TOITRUN ?= toit.run$(EXE_SUFFIX)
 
-LOCAL_DEV_SDK ?= v2.0.0-alpha.133
+LOCAL_DEV_SDK ?= v2.0.0-alpha.134
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 # If the 'DEV_TOIT_REPO_PATH' variable is set, use the toit.run in its bin
