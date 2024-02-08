@@ -92,6 +92,18 @@ test-errors:
       "Missing \$schema in pod specification."
       no-schema
 
+  // We do allow a "version=1" instead of the $schema.
+  version-schema := new-valid
+  version-schema.remove "\$schema"
+  version-schema["version"] = 1
+  // Parsing should not throw.
+  PodSpecification.from-json version-schema --path="ignored"
+
+  version-schema["version"] = 2
+  expect-format-error
+      "Unsupported pod specification version: 2"
+      version-schema
+
   no-name := new-valid
   no-name.remove "name"
   expect-format-error
