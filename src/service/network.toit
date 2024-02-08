@@ -42,8 +42,8 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
         --priority=ServiceProvider.PRIORITY-PREFERRED-STRONGLY
         --tags=[TAG-ARTEMIS-NETWORK]
 
-  // TODO(kasper): Avoid this override when we can tell the call to
-  // connect if we want to avoid opening quarantined networks. Right
+  // TODO(kasper): Remove this override once we can tell at the call site of the
+  // connect whether we want to avoid opening quarantined networks. Right
   // now, we rely on the collected client id to determine if we're
   // trying to connect from Artemis itself.
   connect-from-client-id_/int? := null
@@ -146,12 +146,7 @@ abstract class Connection implements Comparable:
     quarantined-until_ = current ? (max current proposed) : proposed
 
   compare-to other/Connection -> int:
-    qu-this := quarantined-until_
-    qu-other := other.quarantined-until_
-    if qu-this == qu-other: return 0
-    if not qu-this: return -1
-    if not qu-other: return 1
-    return qu-this.compare-to qu-other
+    return (quarantined-until_ or 0).compare-to (other.quarantined-until_ or 0)
 
   compare-to other/Connection [--if-equal] -> int:
     result := compare-to other
