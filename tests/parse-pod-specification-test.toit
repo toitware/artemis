@@ -101,7 +101,7 @@ test-errors:
 
   version-schema["version"] = 2
   expect-format-error
-      "Unsupported pod specification version: 2"
+      "Unsupported pod specification version 2"
       version-schema
 
   no-name := new-valid
