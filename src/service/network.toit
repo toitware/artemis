@@ -69,7 +69,7 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     // deadline. The sorting is stable so the order in the configuration
     // is used as the tie-breaker.
     connections := connections_.values
-    connections.sort --in-place
+    connections.sort --in-place: | a b | a.compare-to b
     // TODO(kasper): For now, we need to determine if we're called from
     // Artemis itself. This isn't super pretty, but it works by testing
     // if the request to connect came through the client stored in the
