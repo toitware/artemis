@@ -27,7 +27,7 @@ expect-format-error str/string json/Map:
   expect-equals str "$exception"
 
 VALID-SPECIFICATION ::= {
-  "version": 1,
+  "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
   "name": "test-pod",
   "sdk-version": "1.0.0",
   "artemis-version": "1.0.0",
@@ -86,11 +86,23 @@ test-custom-envelope:
   expect-equals "1.0.0" pod.sdk-version
 
 test-errors:
-  no-version := new-valid
-  no-version.remove "version"
+  no-schema := new-valid
+  no-schema.remove "\$schema"
   expect-format-error
-      "Missing version in pod specification."
-      no-version
+      "Missing \$schema in pod specification."
+      no-schema
+
+  // We do allow a "version=1" instead of the $schema.
+  version-schema := new-valid
+  version-schema.remove "\$schema"
+  version-schema["version"] = 1
+  // Parsing should not throw.
+  PodSpecification.from-json version-schema --path="ignored"
+
+  version-schema["version"] = 2
+  expect-format-error
+      "Unsupported pod specification version 2"
+      version-schema
 
   no-name := new-valid
   no-name.remove "name"
@@ -150,11 +162,11 @@ test-errors:
       "Both 'apps' and 'containers' are present in pod specification."
       both-apps-and-containers
 
-  invalid-version := new-valid
-  invalid-version["version"] = 2
+  invalid-schema := new-valid
+  invalid-schema["\$schema"] = "bad schema"
   expect-format-error
-      "Unsupported pod specification version 2"
-      invalid-version
+      "Unsupported pod specification schema: bad schema"
+      invalid-schema
 
   invalid-containers := new-valid
   invalid-containers["containers"] = 1
