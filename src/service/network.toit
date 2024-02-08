@@ -42,9 +42,9 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
         --priority=ServiceProvider.PRIORITY-PREFERRED-STRONGLY
         --tags=[TAG-ARTEMIS-NETWORK]
 
-  // TODO(kasper): Remove this override once we can tell at the call site of the
-  // connect whether we want to avoid opening quarantined networks. Right
-  // now, we rely on the collected client id to determine if we're
+  // TODO(kasper): Remove this override once we can tell at the call site
+  // of the connect whether we want to avoid opening quarantined networks.
+  // Right now, we rely on the collected client id to determine if we're
   // trying to connect from Artemis itself.
   connect-from-client-id_/int? := null
   connect client/int -> List:
