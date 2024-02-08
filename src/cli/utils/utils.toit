@@ -44,7 +44,7 @@ write-json-to-file path/string value/any --pretty/bool=false -> none:
 
 write-yaml-to-file path/string value/any --header/string?=null -> none:
   content := yaml.encode value
-  if header: content = "$header\n$content"
+  if header: content = header.to-byte-array + #['\n'] + content
   write-blob-to-file path content
 
 write-ubjson-to-file path/string value/any -> none:
