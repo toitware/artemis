@@ -16,7 +16,7 @@ run-test test-cli/TestCli fleet-dir/string:
   name := "test-pod"
 
   spec := {
-      "version": 1,
+      "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "$name",
       "sdk-version": "$test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",

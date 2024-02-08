@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
   "name": "test-pod",
   "sdk-version": "1.0.0",
   "artemis-version": "1.0.0",
