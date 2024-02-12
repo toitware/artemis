@@ -1,6 +1,7 @@
 // Copyright (C) 2024 Toitware ApS. All rights reserved.
 
 import watchdog show WatchdogServiceClient Watchdog
+import system
 
 class WatchdogManager:
   static instance/WatchdogManager ::= WatchdogManager.private_
@@ -10,14 +11,27 @@ class WatchdogManager:
   static STATE-SCHEDULER ::= 2
   static STATE-STOP ::= 3
 
-  static STARTUP_TIMEOUT_S ::= 10
-  static SCHEDULER_TIMEOUT_S ::= 10
-  static STOP_TIMEOUT_S ::= 3
+  static TIMEOUT-STARTUP-S ::= 10
+  static TIMEOUT-SCHEDULER-S ::= 10
+  static TIMEOUT-STOP-S ::= 3
 
-  state ::= STATE-BOOT
+  static STATE-DOG-NAMES ::= {
+    STATE-BOOT: null,
+    STATE-STARTUP: "toit.io/artemis/startup",
+    STATE-SCHEDULER: "toit.io/artemis/scheduler",
+    STATE-STOP: "toit.io/artemis/stop",
+  }
+
+  static STATE-TIMEOUTS-S ::= {
+    STATE-STARTUP: TIMEOUT-STARTUP-S,
+    STATE-SCHEDULER: TIMEOUT-SCHEDULER-S,
+    STATE-STOP: TIMEOUT-STOP-S
+  }
+
+
   main-dog_/Watchdog? := null
 
-  client_ ::= (WatchdogServiceClient).open as WatchdogServiceClient
+  client_/WatchdogServiceClient ::= (WatchdogServiceClient).open as WatchdogServiceClient
 
   constructor.private_:
 
@@ -25,28 +39,32 @@ class WatchdogManager:
     return instance.transition-to_ new-state
 
   transition-to_ new-state/int -> Watchdog:
-    if new-state == STATE-STARTUP:
-      assert: state == STATE-BOOT and main-dog_ == null
-      main-dog_ = client_.create "toit.io/artemis/startup"
-      main-dog_.start --s=STARTUP-TIMEOUT-S
-      return main-dog_
-    if new-state == STATE-SCHEDULER:
-      assert: state == STATE-STARTUP and main-dog_ != null
-      scheduler-dog := client_.create "toit.io/artemis/scheduler"
-      scheduler-dog.start --s=SCHEDULER-TIMEOUT-S
+    new-name := STATE-DOG-NAMES[new-state]
+    new-timeout-s := STATE-TIMEOUTS-S[new-state]
+    new-dog := client_.create new-name
+    new-dog.start --s=new-timeout-s
+    if main-dog_:
       main-dog_.stop
       main-dog_.close
-      main-dog_ = scheduler-dog
-      return scheduler-dog
-    if new-state == STATE-STOP:
-      assert: state == STATE-SCHEDULER and main-dog_ != null
-      stop-dog := client_.create "toit.io/artemis/stop"
-      stop-dog.start --s=STOP-TIMEOUT-S
-      main-dog_.stop
-      main-dog_.close
-      main-dog_ = stop-dog
-      return stop-dog
-    throw "Unknown state"
+      main-dog_ = null
+    main-dog_ = new-dog
+    return new-dog
 
   static create-dog name/string -> Watchdog:
     return instance.client_.create name
+
+  /**
+  Resets the manager.
+
+  After this call no watchdog is running.
+  This function should primarly be used for testing, on host systems.
+  */
+  static reset -> none:
+    instance.reset_
+
+  reset_ -> none:
+    if main-dog_:
+      main-dog_.stop
+      main-dog_.close
+      main-dog_ = null
+

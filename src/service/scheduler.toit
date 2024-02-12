@@ -7,7 +7,7 @@ import .jobs
 import .watchdog
 
 class Scheduler:
-  static MAX-WAIT-DURATION/Duration ::= Duration --s=(WatchdogManager.SCHEDULER-TIMEOUT-S - 2)
+  static MAX-WAIT-DURATION/Duration ::= Duration --s=(WatchdogManager.TIMEOUT-SCHEDULER-S - 2)
 
   signal_ ::= SchedulerSignal_
   logger_/log.Logger
@@ -23,9 +23,9 @@ class Scheduler:
     return runlevel_
 
   run -> JobTime:
-    dog := WatchdogManager.transition-to WatchdogManager.STATE-SCHEDULER
     assert: not jobs_.is-empty
     try:
+      dog := WatchdogManager.transition-to WatchdogManager.STATE-SCHEDULER
       while true:
         dog.feed
         now := JobTime.now
@@ -41,11 +41,10 @@ class Scheduler:
 
           signal_.wait next
         else:
+          WatchdogManager.transition-to WatchdogManager.STATE_STOP
           return schedule-wakeup_ now
     finally:
-      critical-do:
-        WatchdogManager.transition-to WatchdogManager.STATE_STOP
-        transition --runlevel=Job.RUNLEVEL-STOP
+      critical-do: transition --runlevel=Job.RUNLEVEL-STOP
 
   add-jobs jobs/List -> none:
     jobs.do: add-job it

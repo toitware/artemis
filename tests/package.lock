@@ -10,6 +10,7 @@ prefixes:
   http: pkg-http
   snapshot: snapshot
   supabase: toit-supabase
+  watchdog: toit-watchdog
 packages:
   ..:
     path: ..

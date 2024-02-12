@@ -76,9 +76,11 @@ run-artemis device/Device server-config/ServerConfig -> Duration
     provider.install
     wakeup = scheduler.run
   finally:
+    print "***************############### FINALLY"
     // We sometimes cancel the scheduler when running tests,
     // so we have to be careful and clean up anyway.
     critical-do: provider.uninstall
+  print "***************############### UNINSTALLED"
 
   // For now, we only update the storage bucket when we're
   // shutting down cleanly. This means that if hit an exceptional

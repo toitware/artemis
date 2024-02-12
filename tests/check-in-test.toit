@@ -6,6 +6,7 @@
 import encoding.tison
 import expect show *
 import monitor
+import watchdog.provider as watchdog
 
 import .artemis-server
 import .broker show with-http-broker TestBroker
@@ -16,9 +17,12 @@ import artemis.service.check-in show check-in-setup
 import artemis.service.device show Device
 import artemis.shared.server-config show ServerConfig
 import artemis.shared.constants show COMMAND-CHECK-IN_
+import artemis.service.run.host show NullWatchdog
 import ..tools.http-servers.artemis-server
 
 main args:
+  (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install
+
   if args.is-empty: args=["--insert-device"]
   run-test --insert-device=(args[0] == "--insert-device")
 
@@ -58,6 +62,8 @@ run-test --insert-device/bool:
 
       artemis-task := task::
         service.run-artemis device broker-config --no-start-ntp
+        print "************************** HERE"
+        // WatchdogManager.reset
 
       checkin-data := checkin-latch.get
       if not insert-device:

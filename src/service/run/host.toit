@@ -34,18 +34,7 @@ import ...cli.sdk
 import ...cli.ui show Ui ConsoleUi
 import ...cli.utils
 
-class FakeWatchdog implements watchdog.SystemWatchdog:
-  start --ms/int:
-  feed -> none:
-  stop -> none:
-  reboot -> none:
-
 main arguments:
-  watch-dog-provider := watchdog.WatchdogServiceProvider --system-watchdog=FakeWatchdog
-  watch-dog-provider.install
-
-  WatchdogManager.transition-to WatchdogManager.STATE-STARTUP
-
   cache := cli.Cache --app-name="artemis"
   root-cmd := cli.Command "root"
       --options=[
@@ -68,7 +57,18 @@ run-host --pod-path/string --identity-path/string --cache/cli.Cache -> none:
     pod := Pod.parse pod-path --tmp-directory=tmp-dir --ui=ui
     run-host --pod=pod --identity-path=identity-path --cache=cache
 
+/**
+A system watchdog that ignores all calls to it.
+*/
+class NullWatchdog implements watchdog.SystemWatchdog:
+  start --ms/int:
+  feed -> none:
+  stop -> none:
+  reboot -> none:
+
 run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
+  (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install
+
   identity := read-base64-ubjson identity-path
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
   identity["broker"] = tison.encode identity["broker"]
@@ -104,6 +104,11 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
     service.install
 
     while true:
+      // Reset the watchdog manager. We need to do this, as the scheduler
+      // expects to be in `STATE-STARTUP`.
+      // We don't use the returned dogs, as we expect to migrate to a
+      // different state before they need to be fed.
+      WatchdogManager.transition-to WatchdogManager.STATE-STARTUP
       device := Device
           --id=artemis-device.id
           --hardware-id=artemis-device.hardware-id
