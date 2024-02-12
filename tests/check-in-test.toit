@@ -21,10 +21,13 @@ import artemis.service.run.host show NullWatchdog
 import ..tools.http-servers.artemis-server
 
 main args:
-  (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install
+  watchdog-provider := watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog
+  watchdog-provider.install
 
   if args.is-empty: args=["--insert-device"]
   run-test --insert-device=(args[0] == "--insert-device")
+
+  watchdog-provider.uninstall
 
 // Note that the service has global state (when to check in, ...).
 // Calling `run_test` twice from the same test will thus not work.
@@ -62,8 +65,6 @@ run-test --insert-device/bool:
 
       artemis-task := task::
         service.run-artemis device broker-config --no-start-ntp
-        print "************************** HERE"
-        // WatchdogManager.reset
 
       checkin-data := checkin-latch.get
       if not insert-device:
@@ -72,5 +73,7 @@ run-test --insert-device/bool:
         expect-equals "Device not found" checkin-data[1]
       else:
         expect-equals "post" checkin-data[0]
+
+
 
       artemis-task.cancel
