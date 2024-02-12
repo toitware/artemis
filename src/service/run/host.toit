@@ -18,10 +18,13 @@ import encoding.tison
 import encoding.hex
 import uuid
 
+import watchdog.provider as watchdog
+
 import ..utils show decode-server-config
 import ..service show run-artemis
 import ..check-in show check-in-setup
 import ..device
+import ..watchdog
 import ...cli.artemis show Artemis
 import ...cli.cache as cli
 import ...cli.device as artemis-device
@@ -31,7 +34,18 @@ import ...cli.sdk
 import ...cli.ui show Ui ConsoleUi
 import ...cli.utils
 
+class FakeWatchdog implements watchdog.SystemWatchdog:
+  start --ms/int:
+  feed -> none:
+  stop -> none:
+  reboot -> none:
+
 main arguments:
+  watch-dog-provider := watchdog.WatchdogServiceProvider --system-watchdog=FakeWatchdog
+  watch-dog-provider.install
+
+  WatchdogManager.transition-to WatchdogManager.STATE-STARTUP
+
   cache := cli.Cache --app-name="artemis"
   root-cmd := cli.Command "root"
       --options=[
