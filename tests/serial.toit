@@ -51,7 +51,7 @@ flash-serial -> uuid.Uuid
       }
     pod-spec["containers"] = containers
 
-  if not pod-spec.contains "version": pod-spec["version"] = 1
+  if not pod-spec.contains "\$schema": pod-spec["\$schema"] = "https://toit.io/schemas/artemis/pod-specification/v1.json"
   if not pod-spec.contains "name": pod-spec["name"] = "my-pod"
   if not pod-spec.contains "artemis-version": pod-spec["artemis-version"] = TEST-ARTEMIS-VERSION
   if not pod-spec.contains "sdk-version": pod-spec["sdk-version"] = test-cli.sdk-version

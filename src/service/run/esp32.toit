@@ -9,12 +9,14 @@ import encoding.base64
 import encoding.ubjson
 import log
 import uuid
+import watchdog.provider as watchdog
 
 import ..check-in show check-in-setup
 import ..device
 import ..network show NetworkManager
 import ..service show run-artemis
 import ..utils show decode-server-config
+import ..watchdog
 
 ESP32-WAKEUP-CAUSES ::= {
   esp32.WAKEUP-EXT1     : "gpio",
@@ -24,6 +26,11 @@ ESP32-WAKEUP-CAUSES ::= {
 }
 
 main arguments:
+  (watchdog.WatchdogServiceProvider).install
+  // No need to store the returned dog, as we expect to transition out
+  // of startup before it needs to be fed.
+  WatchdogManager.transition-to WatchdogManager.STATE-STARTUP
+
   firmware-description := ubjson.decode (device-specific "parts")
   end := firmware-description.last["to"]
   firmware-ubjson := ubjson.encode {

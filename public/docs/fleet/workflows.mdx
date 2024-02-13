@@ -1,0 +1,95 @@
+# Workflows
+
+Artemis is designed to be used with existing tools and workflows for
+software development.
+
+Here, we will use Git and GitHub as an example, but the same principles apply
+to other version control systems and code hosting platforms.
+
+## Source of truth
+
+Artemis works locally on files, but also uploads data (firmware, configurations)
+to the broker. Even though, devices can only see the broker, we consider the
+files Artemis works with the "source of truth". In fact, there is not even a way to
+retrieve an Artemis fleet configuration (consisting of the `fleet.json` and
+`devices.json` files) from the broker.
+
+It is healthy to think of the broker as a "dumb" communication channel between
+the devices and the Artemis CLI. All the important data is stored locally.
+
+## Git
+
+Since Artemis works locally, it is a good idea to use Git to keep track of the
+changes in the Artemis fleet files. This provides multiple features that
+are critical for efficient fleet management:
+- Versioning
+- Collaboration
+- Code reviews
+- Continuous integration
+
+Artemis could implement these features itself (and many other fleet management
+systems do), but using existing tools is more efficient, flexible and convenient
+for the user.
+
+## Typical setup
+
+Artemis doesn't require any specific setup, and for small projects, the following
+workflow is clearly overkill. However, for larger projects, or projects that
+require the cooperation of multiple developers, the following setup is probably
+a good starting point.
+
+### Tasks
+
+When managing fleets, there are two main tasks:
+- Firmware development
+- Roll out
+
+Both of these should be versioned separately and will therefore live in
+their own repositories.
+
+### Development repository
+
+As an example see [this repository](https://github.com/toitware/demo-artemis-pods).
+
+The development repository is responsible for creating
+pods ("firmware") that can then be rolled out to the production fleet.
+
+Note that even the development repository should contain a fleet configuration.
+For one, Artemis requires one for most of its operations, but also, pod development
+typically wants a fleet to test against. Devices in this fleet are typically
+in physical proximity to the developers and can be used for testing.
+
+For most projects, the development repository can also contain the source
+code that is used to build the firmware. This is not a requirement, and for
+larger projects, it might make sense to have a separate repository for the
+source code.
+
+#### Continuous integration and releases
+
+As part of the continuous integration, the development repository
+builds a new pod at each commit (to `main`), and uploads it. It then
+does a roll-out to the development fleet. Depending on the fleet
+configuration this affects a subset of the devices (or none).
+
+Developers should then monitor the development fleet to see if the new
+pod works as expected.
+
+Once a pod is ready for production, it can be tagged and released. During
+this process, the pod is also uploaded to the production fleet. Note, that
+this doesn't mean that the pod is rolled out to the production fleet. It
+just makes it available for a roll-out.
+
+### Production repository
+
+As an example see [this repository](https://github.com/toitware/demo-artemis-fleet).
+
+The production repository is only responsible for rolling out pods
+to the production fleet. It doesn't contain any pod source code.
+
+Changes to this repository might affect lots of devices and should thus be
+reviewed and tested carefully.
+
+If things go wrong, it is enough to revert to the previous commit and do
+a new roll-out. As long as the devices have some way of connecting to the
+broker they will eventually recover to the previous state.
+

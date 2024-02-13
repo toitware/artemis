@@ -126,7 +126,9 @@ of the environment they need to run in. Pods can be specified through version co
 possible specification by putting the following content into the `my-pod.yaml` file:
 
 ``` yaml
-version: 1
+# yaml-language-server: $schema=https://toit.io/schemas/artemis/pod-specification/v1.json
+
+$schema: https://toit.io/schemas/artemis/pod-specification/v1.json
 name: my-pod
 sdk-version: SDK-VERSION
 artemis-version: ARTEMIS-VERSION
@@ -137,6 +139,10 @@ connections:
     password: YOUR WIFI PASSWORD
 containers: {}
 ```
+
+The first line is a comment and not required. It helps vscode to find the correct
+schema for the file. If the yaml extension is installed, you will get code
+completion and diagnostics this way.
 
 If you fill in your WiFi credentials, you have a working specification for a pod
 named `my-pod`. To make the pod available to your fleet, you will need to upload
