@@ -144,6 +144,10 @@ class SynchronizeJob extends TaskJob:
   // want to waste too much time waiting for it.
   static TIMEOUT-CHECK-IN ::= Duration --s=20
 
+  // The watchdog creation should always work, but just in
+  // case we have a timeout for it.
+  static TIMEOUT-WATCHDOG-CREATION-MS ::= 1_000
+
   // We use a minimum offline setting to avoid scheduling the
   // synchronization job too often.
   static OFFLINE-MINIMUM ::= Duration --s=12
@@ -167,8 +171,8 @@ class SynchronizeJob extends TaskJob:
   control-level-online_/int := 0
   control-level-offline_/int := 0
 
-  watchdog-client_/WatchdogServiceClient
-  watchdog_/Watchdog
+  watchdog-client_/WatchdogServiceClient?
+  watchdog_/Watchdog?
 
   constructor logger/log.Logger .device_ .containers_ .broker_ saved-state/any
       --ntp/NtpRequest?=null:
@@ -176,14 +180,22 @@ class SynchronizeJob extends TaskJob:
     ntp_ = ntp
     max-offline := device_.max-offline
     status-limit-us_ = compute-status-limit-us_ max-offline
-    watchdog-client_ = (WatchdogServiceClient).open as WatchdogServiceClient
-    // Make sure there is some kind of recovery if the device can't synchronize.
-    watchdog_ = watchdog-client_.create "toit.io/artemis/synchronize"
-    // Note that we don't stop/close the watchdog when the synchronize-job is done.
-    // If we go to deep-sleep then the watchdog timer isn't relevant.
-    // If the job is started again, then we will reuse the existing watchdog
-    // without feeding it (thus continuing the countdown).
-    start-watchdog_ watchdog_ max-offline
+    watchdog-client_ = null
+    watchdog_ = null
+    catch --trace:
+      // Creating the watchdog should never fail, but we also don't want this
+      // to be the reason we can't recover from a bad state.
+      // If we can't create a watchdog just run the synchronization without
+      // any watchdog.
+      with-timeout --ms=TIMEOUT-WATCHDOG-CREATION-MS:
+        watchdog-client_ = (WatchdogServiceClient).open as WatchdogServiceClient
+        // Make sure there is some kind of recovery if the device can't synchronize.
+        watchdog_ = watchdog-client_.create "toit.io/artemis/synchronize"
+        // Note that we don't stop/close the watchdog when the synchronize-job is done.
+        // If we go to deep-sleep then the watchdog timer isn't relevant.
+        // If the job is started again, then we will reuse the existing watchdog
+        // without feeding it (thus continuing the countdown).
+        start-watchdog_ watchdog_ max-offline
     super NAME saved-state
 
   control --online/bool --close/bool=false -> none:
@@ -226,7 +238,7 @@ class SynchronizeJob extends TaskJob:
         // job right away. This is somewhat abrupt, but if users
         // need to control the network, we do not want to return
         // from this method without having shut it down.
-        watchdog_.stop
+        stop-watchdog_ watchdog_
         control-level-offline_++
         if control-level-offline_ == 1:
           logger_.info "request to run offline - start"
@@ -577,12 +589,17 @@ class SynchronizeJob extends TaskJob:
     some time. It is a redundant safety mechanism, as there is
     already a reboot strategy implemented.
   */
-  static start-watchdog_ watchdog/Watchdog max-offline/Duration? -> none:
+  static start-watchdog_ watchdog/Watchdog? max-offline/Duration? -> none:
+    if not watchdog: return
     // TODO(florian): make this configurable?
     max-watchdog-offline := max-offline ? max-offline * 5 : Duration.ZERO
     max-watchdog-offline = max max-watchdog-offline (Duration --h=2)
 
     watchdog.start --s=max-watchdog-offline.in-s
+
+  static stop-watchdog_ watchdog/Watchdog? -> none:
+    if not watchdog: return
+    watchdog.stop
 
   /**
   Process new goal.
