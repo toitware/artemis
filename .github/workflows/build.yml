@@ -235,7 +235,7 @@ jobs:
 
       - name: Git version
         id: version
-        uses: toitlang/action-git-version@v1.0.0
+        uses: toitlang/action-git-version@v1.1.0
 
       - uses: actions/download-artifact@v4
         with:
@@ -250,7 +250,7 @@ jobs:
 
       - name: Sign Windows binary
         if: github.event_name == 'release' || inputs.sign_windows
-        uses: toitlang/action-code-sign@a4adedba46f2630ed60a1d6e6aa828ac7038c945 # v1.0.0
+        uses: toitlang/action-code-sign@5da128f4fb4f719c1b667867815f6c31e743b111 # v1.1.0
         with:
           certificate: ${{ secrets.DIGICERT_CERTIFICATE }}
           api-key: ${{ secrets.DIGICERT_API_KEY }}
@@ -279,7 +279,7 @@ jobs:
 
       - name: Sign Windows installer
         if: github.event_name == 'release' || ${{ inputs.sign_windows }}
-        uses: toitlang/action-code-sign@a4adedba46f2630ed60a1d6e6aa828ac7038c945 # v1.0.0
+        uses: toitlang/action-code-sign@5da128f4fb4f719c1b667867815f6c31e743b111 # v1.1.0
         with:
           certificate: ${{ secrets.DIGICERT_CERTIFICATE }}
           api-key: ${{ secrets.DIGICERT_API_KEY }}
