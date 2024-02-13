@@ -359,7 +359,7 @@ abstract class Action:
     match-count := 0
     o := LITTLE-ENDIAN.int64 old-bytes.bytes possible-old-position
     n := LITTLE-ENDIAN.int64 new-bytes new-position
-    match-count = (o.compare-equal-vector n).population-count
+    match-count = (int-vector-equals o n).population-count
     if match-count < 5: return EMPTY
     result := []
     if not byte-oriented:
@@ -1326,3 +1326,6 @@ class Writer_:
       bdiff-size++
 
     return bdiff-size
+
+int-vector-equals a/int b/int -> int:
+  #primitive.core.int-vector-equals
