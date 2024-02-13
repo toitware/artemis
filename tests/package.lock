@@ -10,6 +10,7 @@ prefixes:
   http: pkg-http
   snapshot: snapshot
   supabase: toit-supabase
+  watchdog: toit-watchdog
 packages:
   ..:
     path: ..
@@ -26,6 +27,7 @@ packages:
       semver: toit-semver
       snapshot: snapshot
       supabase: toit-supabase
+      watchdog: toit-watchdog
   artemis-pkg-copy:
     path: ../artemis-pkg-copy
   pkg-ar:
@@ -93,3 +95,8 @@ packages:
     prefixes:
       host: pkg-host
       http: pkg-http
+  toit-watchdog:
+    url: github.com/toitware/toit-watchdog
+    name: watchdog
+    version: 1.4.0
+    hash: 3dccabf427af3a8ba3ef48429244ece0956fa684

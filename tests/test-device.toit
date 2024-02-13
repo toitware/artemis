@@ -6,8 +6,11 @@ import cli
 import artemis.shared.server-config
 import artemis.service.service
 import artemis.service.device as service
+import artemis.service.watchdog show WatchdogManager
 import artemis.cli.utils show OptionUuid
+import artemis.service.run.host show NullWatchdog
 import uuid
+import watchdog.provider as watchdog
 
 main args:
   cmd := cli.Command "root"
@@ -34,6 +37,8 @@ run
     --organization-id/uuid.Uuid
     --encoded-firmware/string
     --broker-config-json/string:
+  (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install
+
   decoded-broker-config := json.parse broker-config-json
   broker-config := server-config.ServerConfig.from-json
       "device-broker"
@@ -49,5 +54,6 @@ run
       }
   while true:
     sleep-duration := service.run-artemis device broker-config --no-start-ntp
+    WatchdogManager.reset
     sleep sleep-duration
 
