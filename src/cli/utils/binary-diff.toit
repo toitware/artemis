@@ -11,18 +11,14 @@ import ...shared.utils.patch-format
 // Smaller numbers take longer, but get smaller diffs.
 SECTION-SIZE_ ::= 16
 
-FAST      ::= 0
-TWO-PHASE ::= 1
-SLOW      ::= 2
-
 /// Create a binary diff from $old-bytes to $new-bytes, and write it
 /// to the open file, $fd.  Returns the size of the diff file in bytes.
-diff old-bytes/OldData new-bytes/ByteArray fd total-new-bytes=new-bytes.size --algorithm/int --with-header=true --with-footer=true --with-checksums=true -> int:
-  pages := NewOldOffsets old-bytes new-bytes old-bytes.sections SECTION-SIZE_ --algorithm=algorithm
+diff old-bytes/OldData new-bytes/ByteArray fd total-new-bytes=new-bytes.size --fast/bool --with-header=true --with-footer=true --with-checksums=true -> int:
+  pages := NewOldOffsets old-bytes new-bytes old-bytes.sections SECTION-SIZE_ --fast=fast
 
   bdiff-size := 0
 
-  end-state := diff-files old-bytes new-bytes pages algorithm total-new-bytes --with-header=with-header --with-checksums=with-checksums:
+  end-state := diff-files old-bytes new-bytes pages fast total-new-bytes --with-header=with-header --with-checksums=with-checksums:
     // Do not print anything.
     null
 
@@ -1075,10 +1071,10 @@ class NewOldOffsets:
   operator [] new-position/int -> Set:  // Of ints.
     return pages_[new-position >> PAGE-BITS_]
 
-  constructor old-bytes/OldData new-bytes/ByteArray sections/Map section-size/int --algorithm/int:
+  constructor old-bytes/OldData new-bytes/ByteArray sections/Map section-size/int --fast/bool:
     pages_ = List (new-bytes.size >> PAGE-BITS_) + 2: Set
 
-    byte-positions-per-word := (algorithm == FAST) ? 1 : 4
+    byte-positions-per-word := fast ? 1 : 4
 
     adlers := List byte-positions-per-word: Adler32
 
@@ -1116,8 +1112,8 @@ class NewOldOffsets:
           index + 2 + section-size
           index + 4 + section-size
 
-diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets algorithm/int total-new-bytes=new-bytes.size --with-header=true --with-checksums=true [logger]:
-  actions := ComparableSet_
+diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets fast-mode/bool total-new-bytes=new-bytes.size --with-header=true --with-checksums=true [logger]:
+  actions/Set := ComparableSet_
   state/Action := InitialState_ old-bytes new-bytes total-new-bytes --with-header=with-header
   if with-checksums:
     state = OldChecksumAction_ state old-bytes
@@ -1132,12 +1128,12 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets algorithm/i
     // At some unaligned positions there are no actions to consider.
     assert: actions-at-this-point or not new-position.is-aligned 4
     if actions-at-this-point:
-      new-actions := algorithm == SLOW ? ComparableSet_ : RoughlyComparableSet_
+      new-actions := RoughlyComparableSet_
       best-bdiff-length := int.MAX
       not-in-this-round := []
       best-offset-printed := false
       at-unaligned-end-zone := new-position == (round-down new-bytes.size 4)
-      fast := (algorithm == FAST) and pages[new-position].size == 0 and not at-unaligned-end-zone
+      fast := fast-mode and pages[new-position].size == 0 and not at-unaligned-end-zone
       actions.do: | action |
         limit := fast ? 16 : 64
         if actions.size > 1000 or new-actions.size > 1000: limit = fast ? 16 : 32
@@ -1155,7 +1151,7 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets algorithm/i
             if bits - best-bdiff-length < limit:
               new-actions.add-or-improve child
               best-bdiff-length = min best-bdiff-length bits
-          if algorithm != FAST or new-position & 0x7f == 0:
+          if (not fast-mode) or new-position & 0x7f == 0:
             pages[new-position].do: | new-to-old |
               jitters-done := false
               jitters := action.byte-oriented
@@ -1163,7 +1159,7 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets algorithm/i
                 : [0]
               jitters.do: | jitter |
                 if not jitters-done:
-                  shifted-actions := action.move-cursor (new-to-old + jitter) new-position --fast=(algorithm == FAST)
+                  shifted-actions := action.move-cursor (new-to-old + jitter) new-position --fast=fast-mode
                   shifted-actions.do: | shifted-action |
                     jitters-done = true
                     shifted-children := shifted-action.add-data new-position fast
