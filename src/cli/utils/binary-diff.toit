@@ -13,7 +13,7 @@ SECTION-SIZE_ ::= 16
 
 FAST      ::= 0
 TWO-PHASE ::= 1
-SLOW      ::= 1
+SLOW      ::= 2
 
 /// Create a binary diff from $old-bytes to $new-bytes, and write it
 /// to the open file, $fd.  Returns the size of the diff file in bytes.
@@ -881,7 +881,8 @@ class Literal_ extends Action:
     return "$(%30s line) $old\n$(%30s   "") $new"
 
   byte-count-category_ -> int:
-    if byte-count < 10: return byte-count
+    if byte-count < 5: return byte-count
+    if byte-count < 10: return 5
     if byte-count < 200: return 10
     return 200
 
@@ -1010,12 +1011,19 @@ class BuildingDiffZero_ extends Action:
 
   rough-hash-code -> int:
     hash := unordered-diff-hash_ data-count
+    hash += data-count-category
     return hash
 
   roughly-equals other -> bool:
     if other is not BuildingDiffZero_: return false
-    if other.data-count != data-count: return false
+    if other.data-count-category != data-count-category: return false
     return unordered-compare_ other
+
+  data-count-category -> int:
+    if data-count < 4: return data-count
+    if data-count < 10: return 4
+    if data-count < 200: return 10
+    return 200
 
 class ComparableSet_ extends Set:
   hash-code_ key:
@@ -1099,7 +1107,6 @@ class NewOldOffsets:
                 page := index >> PAGE-BITS_
                 set := pages_[page]
                 if set.size < MAX-OFFSETS: set.add new-to-old
-                // TODO: Should we spread the offset to adjacent pages?
         adler.unadd
           new-bytes
           index + 2
@@ -1108,8 +1115,6 @@ class NewOldOffsets:
           new-bytes
           index + 2 + section-size
           index + 4 + section-size
-    for i := 0; i < pages_.size; i++:
-      print "$i: $pages_[i]"
 
 diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets algorithm/int total-new-bytes=new-bytes.size --with-header=true --with-checksums=true [logger]:
   actions := ComparableSet_
@@ -1127,7 +1132,7 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets algorithm/i
     // At some unaligned positions there are no actions to consider.
     assert: actions-at-this-point or not new-position.is-aligned 4
     if actions-at-this-point:
-      new-actions := ComparableSet_
+      new-actions := algorithm == SLOW ? ComparableSet_ : RoughlyComparableSet_
       best-bdiff-length := int.MAX
       not-in-this-round := []
       best-offset-printed := false
@@ -1158,7 +1163,7 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets algorithm/i
                 : [0]
               jitters.do: | jitter |
                 if not jitters-done:
-                  shifted-actions := action.move-cursor new-to-old+jitter new-position --fast=(algorithm == FAST)
+                  shifted-actions := action.move-cursor (new-to-old + jitter) new-position --fast=(algorithm == FAST)
                   shifted-actions.do: | shifted-action |
                     jitters-done = true
                     shifted-children := shifted-action.add-data new-position fast

@@ -21,7 +21,7 @@ main:
         new
         writer
         new.size
-        --algorithm=SLOW
+        --algorithm=FAST
         --with-header=true
         --with-footer=true
         --with-checksums=false
