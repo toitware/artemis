@@ -6,6 +6,7 @@
 import encoding.tison
 import expect show *
 import monitor
+import watchdog.provider as watchdog
 
 import .artemis-server
 import .broker show with-http-broker TestBroker
@@ -16,11 +17,17 @@ import artemis.service.check-in show check-in-setup
 import artemis.service.device show Device
 import artemis.shared.server-config show ServerConfig
 import artemis.shared.constants show COMMAND-CHECK-IN_
+import artemis.service.run.host show NullWatchdog
 import ..tools.http-servers.artemis-server
 
 main args:
+  watchdog-provider := watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog
+  watchdog-provider.install
+
   if args.is-empty: args=["--insert-device"]
   run-test --insert-device=(args[0] == "--insert-device")
+
+  watchdog-provider.uninstall
 
 // Note that the service has global state (when to check in, ...).
 // Calling `run_test` twice from the same test will thus not work.
@@ -66,5 +73,7 @@ run-test --insert-device/bool:
         expect-equals "Device not found" checkin-data[1]
       else:
         expect-equals "post" checkin-data[0]
+
+
 
       artemis-task.cancel

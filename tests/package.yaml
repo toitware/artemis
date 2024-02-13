@@ -25,4 +25,7 @@ dependencies:
     path: ../tools/snapshot
   supabase:
     url: github.com/toitware/toit-supabase
-    version: ^0.2.4
+    version: ^0.2.5
+  watchdog:
+    url: github.com/toitware/toit-watchdog
+    version: ^1.3.0

@@ -17,10 +17,12 @@ import .ui
 
 import ..shared.version show SDK-VERSION ARTEMIS-VERSION
 
+JSON-SCHEMA ::= "https://toit.io/schemas/artemis/pod-specification/v1.json"
+
 INITIAL-POD-NAME ::= "my-pod"
 INITIAL-POD-SPECIFICATION -> Map:
   return {
-    "version": 1,
+    "\$schema": JSON-SCHEMA,
     "name": "$INITIAL-POD-NAME",
     "sdk-version": SDK-VERSION,
     "artemis-version": ARTEMIS-VERSION,
@@ -37,7 +39,7 @@ INITIAL-POD-SPECIFICATION -> Map:
 
 EXAMPLE-POD-SPECIFICATION -> Map:
   return {
-    "version": 1,
+    "\$schema": JSON-SCHEMA,
     "name": "example-pod",
     "sdk-version": SDK-VERSION,
     "artemis-version": ARTEMIS-VERSION,
@@ -120,6 +122,12 @@ get-string_ map/Map key/string -> string
   if value is not string:
     format-error_ "$entry-type $key in $holder is not a string: $value"
   return value
+
+get-optional-int_ map/Map key/string -> int?
+    --holder/string="pod specification"
+    --entry-type/string="Entry":
+  if not has-key_ map key: return null
+  return get-int_ map key --holder=holder --entry-type=entry-type
 
 get-optional-string_ map/Map key/string -> string?
     --holder/string="pod specification"
@@ -296,8 +304,18 @@ class PodSpecification:
     if has-key_ data "apps" and has-key_ data "containers":
       format-error_ "Both 'apps' and 'containers' are present in pod specification."
 
-    if (get-int_ data "version") != 1:
-      format-error_ "Unsupported pod specification version $data["version"]"
+    version := get-optional-int_ data "version"
+    schema := get-optional-string_ data "\$schema"
+    if not version and not schema:
+      // This will yield an error since the entry isn't present.
+      get-string_ data "\$schema"
+    if schema:
+      if schema != JSON-SCHEMA:
+        format-error_ "Unsupported pod specification schema: $schema"
+    else:
+      if version != 1:
+        // TODO(florian): recommend to upgrade to a '$schema' entry.
+        format-error_ "Unsupported pod specification version $version"
 
     if has-key_ data "apps" and not has-key_ data "containers":
       check-is-map_ data "apps"

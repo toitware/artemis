@@ -6,7 +6,7 @@ import .utils
 
 MINIMAL-SPEC-FILENAME ::= "minimal.yaml"
 MINIMAL-SPEC ::= {
-  "version": 1,
+  "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
   "name": "test-pod-print",
   "sdk-version": "v0.0.0",
   "artemis-version": "v1.0.0",

@@ -18,10 +18,13 @@ import encoding.tison
 import encoding.hex
 import uuid
 
+import watchdog.provider as watchdog
+
 import ..utils show decode-server-config
 import ..service show run-artemis
 import ..check-in show check-in-setup
 import ..device
+import ..watchdog
 import ...cli.artemis show Artemis
 import ...cli.cache as cli
 import ...cli.device as artemis-device
@@ -54,7 +57,18 @@ run-host --pod-path/string --identity-path/string --cache/cli.Cache -> none:
     pod := Pod.parse pod-path --tmp-directory=tmp-dir --ui=ui
     run-host --pod=pod --identity-path=identity-path --cache=cache
 
+/**
+A system watchdog that ignores all calls to it.
+*/
+class NullWatchdog implements watchdog.SystemWatchdog:
+  start --ms/int:
+  feed -> none:
+  stop -> none:
+  reboot -> none:
+
 run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
+  (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install
+
   identity := read-base64-ubjson identity-path
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
   identity["broker"] = tison.encode identity["broker"]
@@ -90,6 +104,11 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
     service.install
 
     while true:
+      // Reset the watchdog manager. We need to do this, as the scheduler
+      // expects to be in `STATE-STARTUP`.
+      // We don't use the returned dogs, as we expect to migrate to a
+      // different state before they need to be fed.
+      WatchdogManager.transition-to WatchdogManager.STATE-STARTUP
       device := Device
           --id=artemis-device.id
           --hardware-id=artemis-device.hardware-id

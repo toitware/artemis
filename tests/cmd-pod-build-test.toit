@@ -19,7 +19,7 @@ run-test test-cli/TestCli fleet-dir/string:
   test-cli.ensure-available-artemis-service
 
   spec := {
-      "version": 1,
+      "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod",
       "sdk-version": "$test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
@@ -43,7 +43,7 @@ run-test test-cli/TestCli fleet-dir/string:
 
   // Test custom firmwares.
   spec = {
-      "version": 1,
+      "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod2",
       "firmware-envelope": "file://custom.envelope",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
@@ -87,7 +87,7 @@ run-test test-cli/TestCli fleet-dir/string:
 
   // Test compiler flags.
   spec = {
-      "version": 1,
+      "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod3",
       "sdk-version": "$test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
@@ -122,7 +122,7 @@ run-test test-cli/TestCli fleet-dir/string:
   // Test invalid compiler flag.
   // This ensures that the compiler flags are actually passed to the compiler.
   spec = {
-      "version": 1,
+      "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod4",
       "sdk-version": "$test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
@@ -162,7 +162,7 @@ validate-pod pod-path/string --name/string --containers/List --test-cli/TestCli:
 
 get-envelope-for --sdk-version/string --cache -> ByteArray:
   default-spec := {
-      "version": 1,
+      "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod2",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "sdk-version": "$sdk-version",
