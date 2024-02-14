@@ -10,6 +10,7 @@ import encoding.tison
 
 import system.containers
 import system.firmware
+import watchdog show Watchdog WatchdogServiceClient
 
 import .brokers.broker
 import .check-in
@@ -122,7 +123,7 @@ class SynchronizeJob extends TaskJob:
   // time waiting for network operations. These can be
   // quite slow in particular for cellular networks, so
   // these settings may have to be tweaked.
-  static TIMEOUT-NETWORK-OPEN       ::= Duration --m=2
+  static TIMEOUT-NETWORK-OPEN       ::= Duration --m=5
   static TIMEOUT-NETWORK-QUARANTINE ::= Duration --s=10
   static TIMEOUT-NETWORK-CLOSE      ::= Duration --s=30
 
@@ -142,6 +143,10 @@ class SynchronizeJob extends TaskJob:
   // We require the check-in to be reasonably fast. We don't
   // want to waste too much time waiting for it.
   static TIMEOUT-CHECK-IN ::= Duration --s=20
+
+  // The watchdog creation should always work, but just in
+  // case we have a timeout for it.
+  static TIMEOUT-WATCHDOG-CREATION-MS ::= 1_000
 
   // We use a minimum offline setting to avoid scheduling the
   // synchronization job too often.
@@ -166,12 +171,31 @@ class SynchronizeJob extends TaskJob:
   control-level-online_/int := 0
   control-level-offline_/int := 0
 
+  watchdog-client_/WatchdogServiceClient?
+  watchdog_/Watchdog?
+
   constructor logger/log.Logger .device_ .containers_ .broker_ saved-state/any
       --ntp/NtpRequest?=null:
     logger_ = logger.with-name NAME
     ntp_ = ntp
     max-offline := device_.max-offline
     status-limit-us_ = compute-status-limit-us_ max-offline
+    watchdog-client_ = null
+    watchdog_ = null
+    catch --trace:
+      // Creating the watchdog should never fail, but we also don't want this
+      // to be the reason we can't recover from a bad state.
+      // If we can't create a watchdog just run the synchronization without
+      // any watchdog.
+      with-timeout --ms=TIMEOUT-WATCHDOG-CREATION-MS:
+        watchdog-client_ = (WatchdogServiceClient).open as WatchdogServiceClient
+        // Make sure there is some kind of recovery if the device can't synchronize.
+        watchdog_ = watchdog-client_.create "toit.io/artemis/synchronize"
+        // Note that we don't stop/close the watchdog when the synchronize-job is done.
+        // If we go to deep-sleep then the watchdog timer isn't relevant.
+        // If the job is started again, then we will reuse the existing watchdog
+        // without feeding it (thus continuing the countdown).
+        start-watchdog_ watchdog_ max-offline
     super NAME saved-state
 
   control --online/bool --close/bool=false -> none:
@@ -186,6 +210,11 @@ class SynchronizeJob extends TaskJob:
         if control-level-online_ == 0:
           logger_.info "request to run online - stop"
       else:
+        // Restart the watchdog.
+        // We start the timer from scratch. This means that repeated
+        // requests to go offline can prevent the watchdog from triggering.
+        start-watchdog_ watchdog_ device_.max-offline
+
         // If we're no longer forced to stay offline, we may be
         // able to run the synchronization job now.
         control-level-offline_--
@@ -209,6 +238,7 @@ class SynchronizeJob extends TaskJob:
         // job right away. This is somewhat abrupt, but if users
         // need to control the network, we do not want to return
         // from this method without having shut it down.
+        stop-watchdog_ watchdog_
         control-level-offline_++
         if control-level-offline_ == 1:
           logger_.info "request to run offline - start"
@@ -517,6 +547,8 @@ class SynchronizeJob extends TaskJob:
     transition-to_ STATE-CONNECTED-TO-BROKER
     scheduler_.transition --runlevel=Job.RUNLEVEL-NORMAL
 
+    watchdog_.feed
+
   transition-to-disconnected_ --error/Object? -> none:
     previous := state_
     state_ = STATE-DISCONNECTED
@@ -548,6 +580,26 @@ class SynchronizeJob extends TaskJob:
     // between status changes.
     max-offline-us := max-offline-units * STATUS-LIMIT-UNIT-US
     return max-offline-us * STATUS-CHANGES-AFTER-ATTEMPTS
+
+  /**
+  Starts the watchdog.
+
+  The watchdog doesn't guarantee that we will connect to the broker, but
+    rather makes sure that the device resets if it can't synchronize for
+    some time. It is a redundant safety mechanism, as there is
+    already a reboot strategy implemented.
+  */
+  static start-watchdog_ watchdog/Watchdog? max-offline/Duration? -> none:
+    if not watchdog: return
+    // TODO(florian): make this configurable?
+    max-watchdog-offline := max-offline ? max-offline * 5 : Duration.ZERO
+    max-watchdog-offline = max max-watchdog-offline (Duration --h=2)
+
+    watchdog.start --s=max-watchdog-offline.in-s
+
+  static stop-watchdog_ watchdog/Watchdog? -> none:
+    if not watchdog: return
+    watchdog.stop
 
   /**
   Process new goal.
@@ -612,16 +664,14 @@ class SynchronizeJob extends TaskJob:
                 // A container just appeared in the state.
                 id := parse-uuid_ it
                 if id:
-                  pending-step := handle-container-install_ name id description-map
-                  if pending-step:
-                    goal.add-pending-step pending-step
+                  handle-container-install_ goal name id description-map
         --removed=: | name/string |
           // A container disappeared completely from the state. We
           // uninstall it.
           handle-container-uninstall_ name
         --modified=: | name/string nested/Modification |
           description := new-goal-state["apps"][name]
-          handle-container-modification_ name description nested
+          handle-container-modification_ goal name description nested
 
     modification.on-value "max-offline"
         --added   =: handle-set-max-offline_ it
@@ -629,6 +679,7 @@ class SynchronizeJob extends TaskJob:
         --updated =: | _ to | handle-set-max-offline_ to
 
   handle-container-modification_ -> none
+      goal/Goal
       name/string
       description/Map
       modification/Modification:
@@ -637,7 +688,7 @@ class SynchronizeJob extends TaskJob:
           logger_.error "updating: container $name gained an id ($value)"
           // Treat it as a request to install the container.
           id := parse-uuid_ value
-          if id: handle-container-install_ name id description
+          if id: handle-container-install_ goal name id description
           return
         --removed=: | value |
           logger_.error "updating: container $name lost its id ($value)"
@@ -651,18 +702,18 @@ class SynchronizeJob extends TaskJob:
           // before uninstalling the old one.
           handle-container-uninstall_ name
           id := parse-uuid_ to
-          if id: handle-container-install_ name id description
+          if id: handle-container-install_ goal name id description
           return
 
     handle-container-update_ name description
 
-  handle-container-install_ name/string id/uuid.Uuid description/Map -> Lambda?:
+  handle-container-install_ goal/Goal name/string id/uuid.Uuid description/Map -> none:
     if job := containers_.create --name=name --id=id --description=description --state=null:
       device_.state-container-install-or-update name description
       containers_.install job
-      return null
+      return
 
-    return :: | broker-connection/BrokerConnection |
+    goal.add-pending-step:: | broker-connection/BrokerConnection |
       assert: state_ >= STATE-CONNECTED-TO-BROKER
       transition-to_ STATE-PROCESSING-CONTAINER-IMAGE
       broker-connection.fetch-image id: | reader/Reader |

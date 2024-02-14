@@ -251,7 +251,8 @@ class Fleet:
 
     default-specification-path := "$fleet-root/$(INITIAL-POD-NAME).yaml"
     if not file.is-file default-specification-path:
-      write-yaml-to-file default-specification-path INITIAL-POD-SPECIFICATION
+      header := "# yaml-language-server: \$schema=$JSON-SCHEMA\n"
+      write-yaml-to-file default-specification-path INITIAL-POD-SPECIFICATION --header=header
 
     ui.info "Fleet root $fleet-root initialized."
 

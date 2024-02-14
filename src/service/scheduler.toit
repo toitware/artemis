@@ -4,8 +4,11 @@ import log
 
 import .device
 import .jobs
+import .watchdog
 
 class Scheduler:
+  static MAX-WAIT-DURATION/Duration ::= Duration --s=(WatchdogManager.TIMEOUT-SCHEDULER-S - 2)
+
   signal_ ::= SchedulerSignal_
   logger_/log.Logger
   device_/Device
@@ -22,15 +25,23 @@ class Scheduler:
   run -> JobTime:
     assert: not jobs_.is-empty
     try:
+      dog := WatchdogManager.transition-to WatchdogManager.STATE-SCHEDULER
       while true:
+        dog.feed
         now := JobTime.now
         next := start-due-jobs_ now
         if has-running-jobs_:
           // Wait until we need to run the next job. This is scheduled
           // for when JobTime.now reaches 'next'. Wake up earlier if the
           // jobs change by waiting on the signal.
+
+          if not next or (now.to next) > MAX-WAIT-DURATION:
+            // Shorten the wait time so we feed the dog in time.
+            next = now + MAX-WAIT-DURATION
+
           signal_.wait next
         else:
+          WatchdogManager.transition-to WatchdogManager.STATE_STOP
           return schedule-wakeup_ now
     finally:
       critical-do: transition --runlevel=Job.RUNLEVEL-STOP
@@ -118,7 +129,7 @@ monitor SchedulerSignal_:
   awaken -> none:
     awakened_ = true
 
-  wait deadline/JobTime? -> none:
-    deadline-monotonic := deadline ? deadline.to-monotonic-us : null
+  wait deadline/JobTime -> none:
+    deadline-monotonic := deadline.to-monotonic-us
     try-await --deadline=deadline-monotonic: awakened_
     awakened_ = false

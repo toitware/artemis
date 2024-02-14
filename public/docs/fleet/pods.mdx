@@ -99,7 +99,9 @@ You can find an example pod specification file in
 It is in YAML format and looks similar to this:
 
 ``` yaml
-version: 1
+# yaml-language-server: $schema=https://toit.io/schemas/artemis/pod-specification/v1.json
+
+$schema: https://toit.io/schemas/artemis/pod-specification/v1.json
 name: example
 sdk-version: SDK-VERSION
 artemis-version: ARTEMIS-VERSION

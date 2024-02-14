@@ -1,4 +1,6 @@
-version: 1
+# yaml-language-server: $schema=file:///home/flo/code/artemis/public/schemas/pod-specification/v1.json
+
+$schema: https://toit.io/schemas/artemis/pod-specification/v1.json
 name: example
 sdk-version: SDK-VERSION
 artemis-version: ARTEMIS-VERSION

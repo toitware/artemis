@@ -42,23 +42,58 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
         --priority=ServiceProvider.PRIORITY-PREFERRED-STRONGLY
         --tags=[TAG-ARTEMIS-NETWORK]
 
+  // TODO(kasper): Remove this override once we can tell at the call site
+  // of the connect whether we want to avoid opening quarantined networks.
+  // Right now, we rely on the collected client id to determine if we're
+  // trying to connect from Artemis itself.
+  connect-from-client-id_/int? := null
+  connect client/int -> List:
+    try:
+      connect-from-client-id_ = client
+      return super client
+    finally:
+      connect-from-client-id_ = null
+
   proxy-mask -> int:
     return proxy-mask_
 
   quarantine name/string -> none:
     connection/Connection? := connections_.get name
-    if connection: connection.quarantine QUARANTINE-NO-DATA
+    if connection:
+      connection.quarantine QUARANTINE-NO-DATA
+      logger_.info "quarantined" --tags={"connection": name, "duration": QUARANTINE-NO-DATA}
 
   open-network -> net.Interface:
     if connections_.is-empty: return open-system-network_
-    connections_.do --values: | connection/Connection |
-      if connection.is-quarantined: continue.do
+    // Get the connections and sort them according to their quarantining
+    // deadline. The sorting is stable so the order in the configuration
+    // is used as the tie-breaker.
+    connections := connections_.values
+    connections.sort --in-place: | a b | a.compare-to b
+    // TODO(kasper): For now, we need to determine if we're called from
+    // Artemis itself. This isn't super pretty, but it works by testing
+    // if the request to connect came through the client stored in the
+    // cached net.service_ in the current process. This works as long
+    // as the network manager runs as part of the Artemis process.
+    client := net.service_
+    connect-from-artemis := client and client.id == connect-from-client-id_
+    // Try the sorted connections in order.
+    connections.do: | connection/Connection |
+      if connect-from-artemis and connection.is-quarantined:
+        remaining-us := connection.quarantined-until_ - Time.monotonic-us
+        remaining-duration := Duration --us=remaining-us
+        logger_.debug "quarantined - skipped" --tags={
+          "connection": connection.name,
+          "duration": remaining-duration,
+        }
+        continue.do
       network/net.Client? := open-network_ connection
       if network:
         proxy-mask_ = network.proxy-mask
         logger_.info "opened" --tags={"connection": network.name}
         return network
       connection.quarantine QUARANTINE-NO-NETWORK
+      logger_.info "quarantined" --tags={"connection": connection.name, "duration": QUARANTINE-NO-NETWORK}
     throw "CONNECT_FAILED: no available networks"
 
   open-network_ connection/Connection -> net.Client?:
@@ -89,7 +124,7 @@ class NetworkManager extends ProxyingNetworkServiceProvider:
     network.close
     logger_.info "closed" --tags={"connection": network.name}
 
-abstract class Connection:
+abstract class Connection implements Comparable:
   description_/Map
   index/int
   quarantined-until_/int? := null
@@ -109,6 +144,13 @@ abstract class Connection:
     current := quarantined-until_
     proposed := Time.monotonic-us + duration.in-us
     quarantined-until_ = current ? (max current proposed) : proposed
+
+  compare-to other/Connection -> int:
+    return (quarantined-until_ or 0).compare-to (other.quarantined-until_ or 0)
+
+  compare-to other/Connection [--if-equal] -> int:
+    result := compare-to other
+    return result == 0 ? if-equal.call : result
 
   static map device/Device --logger/log.Logger -> Map:
     result := {:}
@@ -156,6 +198,10 @@ class ConnectionCellular extends Connection:
     return "cellular-$index"
 
   open -> net.Client:
+    // Artemis is long running, so we let the network
+    // manager clean up and re-resolve the services
+    // if things have changed since last attempt.
+    cellular.reset
     return cellular.open --name=name description_["config"]
 
 class ConnectionEthernet extends Connection:
@@ -166,4 +212,8 @@ class ConnectionEthernet extends Connection:
     return "ethernet-$index"
 
   open -> net.Client:
+    // Artemis is long running, so we let the network
+    // manager clean up and re-resolve the services
+    // if things have changed since last attempt.
+    ethernet.reset
     return ethernet.open --name=name

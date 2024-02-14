@@ -61,7 +61,9 @@ class UploadClientSupabase implements UploadClient:
       --snapshot/ByteArray
       --organization-id/string?
       --force/bool:
-    client_.ensure-authenticated: it.sign-in --provider="github" --ui=ui_
+    client_.ensure-authenticated: | reason/string |
+      print "Authentication failure: $reason"
+      client_.auth.sign_in --provider="github" --ui=ui_
 
     ui_.info "Uploading image archive."
 

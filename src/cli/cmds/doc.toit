@@ -17,9 +17,10 @@ create-doc-commands _ _ ui/Ui -> List:
 SPECIFICATION-FORMAT-HELP ::= """
   The format of the pod specification file.
 
-  The specification file is a JSON file with the following entries:
+  The specification file is a YAML or JSON file with the following entries:
 
-  'version': The version of the specification file. Must be '1'.
+  '\$schema': The json-schema (used as version) of the specification file.
+      Must be 'https://toit.io/schemas/artemis/pod-specification/v1.json'.
 
   'sdk-version': The SDK version to use. This is a string of the form
       'v<major>.<minor>.<patch>'; for example 'v1.2.3'.

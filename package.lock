@@ -12,6 +12,7 @@ prefixes:
   semver: toit-semver
   snapshot: snapshot
   supabase: toit-supabase
+  watchdog: toit-watchdog
 packages:
   artemis-pkg-copy:
     path: artemis-pkg-copy
@@ -75,8 +76,13 @@ packages:
   toit-supabase:
     url: github.com/toitware/toit-supabase
     name: supabase
-    version: 0.2.4
-    hash: 3dbfb8935f0128439258269b83fe9ca83a535db2
+    version: 0.2.5
+    hash: 4401ef16fe6822dd70bf5247bb66038354ef11b3
     prefixes:
       host: pkg-host
       http: pkg-http
+  toit-watchdog:
+    url: github.com/toitware/toit-watchdog
+    name: watchdog
+    version: 1.4.0
+    hash: 3dccabf427af3a8ba3ef48429244ece0956fa684
