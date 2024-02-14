@@ -425,7 +425,7 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 group-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet-root := compute-fleet-root parsed config ui
-  fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
+  fleet-file := FleetPodManagement.load-fleet-file fleet-root --ui=ui
   ui.do --kind=Ui.RESULT: | printer/Printer |
     structured := []
     fleet-file.group-pods.do: | name pod-reference/PodReference |
@@ -455,7 +455,7 @@ group-create parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if not fleet.pod-exists pod-reference:
         ui.abort "Pod $pod-reference does not exist."
 
-    fleet-file := Fleet.load-fleet-file fleet.fleet-root_ --ui=ui
+    fleet-file := FleetPodManagement.load-fleet-file fleet.fleet-root_ --ui=ui
     if fleet-file.group-pods.contains name:
       ui.abort "Group $name already exists."
     fleet-file.group-pods[name] = pod-reference
@@ -482,7 +482,7 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   with-fleet parsed config cache ui: | fleet/Fleet |
     fleet-root := fleet.fleet-root_
-    fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
+    fleet-file := FleetPodManagement.load-fleet-file fleet-root --ui=ui
 
     pod-reference/PodReference? := null
     if pod:
@@ -527,7 +527,7 @@ group-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   fleet-root := compute-fleet-root parsed config ui
 
-  fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
+  fleet-file := FleetPodManagement.load-fleet-file fleet-root --ui=ui
   if not fleet-file.group-pods.contains group:
     ui.info "Group '$group' does not exist."
     return
@@ -560,7 +560,7 @@ group-move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     devices-to-move.do: | device |
       ids-to-move.add (fleet.resolve-alias device).id
 
-  fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
+  fleet-file := FleetPodManagement.load-fleet-file fleet-root --ui=ui
   if not fleet-file.group-pods.contains to:
     ui.abort "Group '$to' does not exist."
 

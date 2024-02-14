@@ -45,6 +45,13 @@ with-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
     fleet := Fleet fleet-root artemis --ui=ui --cache=cache --config=config
     block.call fleet
 
+with-pod-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
+  fleet-root := compute-fleet-root parsed config ui
+
+  with-artemis parsed config cache ui: | artemis/Artemis |
+    fleet := FleetPodManagement fleet-root artemis --ui=ui --cache=cache --config=config
+    block.call fleet
+
 compute-fleet-root parsed/cli.Parsed config/Config ui/Ui -> string:
   fleet-root := parsed["fleet-root"]
   if fleet-root: return fleet-root
