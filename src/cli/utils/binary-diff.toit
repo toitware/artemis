@@ -196,11 +196,11 @@ class OldData:
     return false
 
   operator [] index/int:
-    if ignore-from <= index < ignore-to: throw "Out of bounds"
+    assert: not ignore-from <= index < ignore-to
     return bytes[index]
 
   read-int32 index/int:
-    if ignore-from - 4 < index < ignore-to: throw "Out of bounds"
+    assert: not ignore-from - 4 < index < ignore-to
     return LITTLE-ENDIAN.read-int bytes 4 index
 
 abstract class Action:
@@ -213,19 +213,23 @@ abstract class Action:
   bits-spent/int
   byte-oriented/bool
   years-past-its-prime/int := 0
+  data-width/int
 
   constructor.private_ .predecessor .diff-table .old-position .new-position .bits-spent:
     byte-oriented = predecessor.byte-oriented
     old-bytes = predecessor.old-bytes
     new-bytes = predecessor.new-bytes
-    years-past-its-prime = predecessor.years-past-its-prime + predecessor.data-width_
+    years-past-its-prime = predecessor.years-past-its-prime + predecessor.data-width
+    data-width = byte-oriented ? 1 : 4
 
   constructor.private_ .predecessor .diff-table .old-position .new-position .bits-spent .byte-oriented:
     old-bytes = predecessor.old-bytes
     new-bytes = predecessor.new-bytes
-    years-past-its-prime = predecessor.years-past-its-prime + predecessor.data-width_
+    years-past-its-prime = predecessor.years-past-its-prime + predecessor.data-width
+    data-width = byte-oriented ? 1 : 4
 
   constructor.private_ .predecessor .diff-table .old-position .new-position .bits-spent .byte-oriented .old-bytes .new-bytes:
+    data-width = byte-oriented ? 1 : 4
 
   set-its-the-best -> none:
     years-past-its-prime = 0
@@ -303,9 +307,6 @@ abstract class Action:
     if 0 - 0x8000 <= value <= 0x7fff: return value
     return null
 
-  data-width_ -> int:
-    return byte-oriented ? 1 : 4
-
   old-data -> int:
     if byte-oriented:
       return old-bytes[old-position]
@@ -323,7 +324,7 @@ abstract class Action:
       assert: old-position.is-aligned 4
       assert: new-position.is-aligned 4
 
-    if old-bytes.valid old-position data-width_:
+    if old-bytes.valid old-position data-width:
       wanted-diff = diff-to-int_ new-data - old-data
       // If a diff table entry fits, it's the best move.
       index := diff-table.index-of wanted-diff
@@ -347,17 +348,19 @@ abstract class Action:
       Literal_ this new-data new-position
     return result
 
+  static EMPTY ::= List 0
+
   move-cursor new-to-old/int new-position/int --fast=null -> List:
     current-new-to-old := old-position - new-position
     diff := new-to-old - current-new-to-old
     possible-old-position := new-position + new-to-old
-    if not old-bytes.valid possible-old-position 8: return []
-    if new-position >= new-bytes.size - 8: return []
+    if not old-bytes.valid possible-old-position 8: return EMPTY
+    if new-position >= new-bytes.size - 8: return EMPTY
     match-count := 0
-    8.repeat:
-      if old-bytes[possible-old-position + it] == new-bytes[new-position + it]:
-        match-count++
-    if match-count < 5: return []
+    o := LITTLE-ENDIAN.int64 old-bytes.bytes possible-old-position
+    n := LITTLE-ENDIAN.int64 new-bytes new-position
+    match-count = (int-vector-equals o n).population-count
+    if match-count < 5: return EMPTY
     result := []
     if not byte-oriented:
       // Currently word oriented.
@@ -681,8 +684,8 @@ class NewDiffEntry_ extends Action:
     super.private_
       predecessor
       predecessor.diff-table.insert wanted-diff
-      predecessor.old-position + predecessor.data-width_
-      predecessor.new-position + predecessor.data-width_
+      predecessor.old-position + predecessor.data-width
+      predecessor.new-position + predecessor.data-width
       predecessor.bits-spent + extra-bits
 
   emit-bits optional-pad/int -> List:
@@ -710,8 +713,8 @@ class NewDiffEntry_ extends Action:
     return "$(byte-oriented ? "B" : "W") New diff, $bits-spent bits spent, $entries"// $name from $predecessor.name"
 
   short-string -> string:
-    old := old-representation_ data-width_
-    new := new-representation_ data-width_
+    old := old-representation_ data-width
+    new := new-representation_ data-width
     line := "New diff $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits"
     return "$(%30s line) $old\n$(%30s   "") $new"
 
@@ -751,8 +754,8 @@ class DiffTableAction_ extends Action:
     super.private_
       predecessor
       new-diff-table
-      predecessor.old-position + predecessor.data-width_
-      predecessor.new-position + predecessor.data-width_
+      predecessor.old-position + predecessor.data-width
+      predecessor.new-position + predecessor.data-width
       predecessor.bits-spent + extra-bits
 
   stringify -> string:
@@ -762,8 +765,8 @@ class DiffTableAction_ extends Action:
     return "$(byte-oriented ? "B" : "W") Diff at $index by $diff-table[index], $bits-spent bits spent, $entries"// $name from $predecessor.name"
 
   short-string -> string:
-    old := old-representation_ data-width_
-    new := new-representation_ data-width_
+    old := old-representation_ data-width
+    new := new-representation_ data-width
     line := "Diff   $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits, index: $index"
     return "$(%30s line) $old\n$(%30s   "") $new"
 
@@ -790,13 +793,13 @@ class Literal_ extends Action:
   new-position_/int
 
   constructor predecessor/Action data/int .new-position_/int:
-    byte-count = predecessor.data-width_
+    byte-count = predecessor.data-width
     super.private_
       predecessor
       predecessor.diff-table
-      predecessor.old-position + predecessor.data-width_  // Overwrite, so we still step forwards.
-      predecessor.new-position + predecessor.data-width_  // Overwrite, so we still step forwards.
-      predecessor.bits-spent + 8 + 8 * predecessor.data-width_
+      predecessor.old-position + predecessor.data-width  // Overwrite, so we still step forwards.
+      predecessor.new-position + predecessor.data-width  // Overwrite, so we still step forwards.
+      predecessor.bits-spent + 8 + 8 * predecessor.data-width
 
   constructor.literal-section predecessor/Action size/int:
     new-position_ = predecessor.new-position
@@ -813,16 +816,16 @@ class Literal_ extends Action:
       new-bits-spent
 
   constructor.private_ predecessor/Literal_:
-    byte-count = predecessor.byte-count + predecessor.data-width_
+    byte-count = predecessor.byte-count + predecessor.data-width
     new-bits-spent := predecessor.predecessor.bits-spent
-    emit-driver byte-count predecessor.data-width_: | bits _ _ length |
+    emit-driver byte-count predecessor.data-width: | bits _ _ length |
       new-bits-spent += bits + length * 8
     new-position_ = predecessor.new-position_
     super.private_
       predecessor.predecessor  // Chop previous action out of chain.
       predecessor.diff-table
-      predecessor.old-position + predecessor.data-width_  // Overwrite, so we still step forwards.
-      predecessor.new-position + predecessor.data-width_  // Overwrite, so we still step forwards.
+      predecessor.old-position + predecessor.data-width  // Overwrite, so we still step forwards.
+      predecessor.new-position + predecessor.data-width  // Overwrite, so we still step forwards.
       new-bits-spent
 
   emit-bits optional-pad/int -> List:
@@ -835,7 +838,7 @@ class Literal_ extends Action:
         result.add
           BitSequence_ bits bit-pattern
 
-    emit-driver byte-count data-width_: | bits bit-pattern from length |
+    emit-driver byte-count data-width: | bits bit-pattern from length |
       result.add
         BitSequence_ bits bit-pattern new-bytes new-position_+from length
     return result
@@ -858,7 +861,7 @@ class Literal_ extends Action:
     assert: new-position == new-position_ + byte-count
     result := super new-position fast
     extended := Literal_.private_ this
-    extended.years-past-its-prime = years-past-its-prime + data-width_
+    extended.years-past-its-prime = years-past-its-prime + data-width
     if result.size != 0 and result[result.size - 1] is Literal_:
       result[result.size - 1] = extended
     else:
@@ -914,8 +917,8 @@ class BuildingDiffZero_ extends Action:
     super.private_
       predecessor
       predecessor.diff-table
-      predecessor.old-position + predecessor.data-width_
-      predecessor.new-position + predecessor.data-width_
+      predecessor.old-position + predecessor.data-width
+      predecessor.new-position + predecessor.data-width
       predecessor.bits-spent + 2
 
   constructor.private_ predecessor diff-table old-position new-position bits-spent .data-count:
@@ -961,28 +964,28 @@ class BuildingDiffZero_ extends Action:
     return "$(byte-oriented ? "B" : "W") Zero diff, $data-count bytes, $bits-spent bits spent, age $years-past-its-prime, $entries"// $name from $predecessor.name"
 
   short-string -> string:
-    old := old-representation_ data-count * data-width_
-    new := new-representation_ data-count * data-width_
+    old := old-representation_ data-count * data-width
+    new := new-representation_ data-count * data-width
     line := "0 diff $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits, bytes: $(byte-oriented ? data-count : data-count*4)"
     return "$(%30s line) $old\n$(%30s   "") $new"
 
   move-cursor new-to-old/int new-position/int --fast=null -> List:
-    if new-bytes.size - new-position < 4: return []
-    if not old-bytes.valid old-position data-width_: return []
+    if new-bytes.size - new-position < 4: return Action.EMPTY
+    if not old-bytes.valid old-position data-width: return Action.EMPTY
 
     // If we have a perfect match, don't bother trying to find other matches in
     // the old file.
-    data-width_.repeat:
+    data-width.repeat:
       if old-bytes[old-position + it] != new-bytes[this.new-position + it]:
         return super new-to-old new-position --fast=fast
-    return []
+    return Action.EMPTY
 
   add-data new-position/int fast/bool -> List:
-    if not old-bytes.valid old-position data-width_:
+    if not old-bytes.valid old-position data-width:
       return super new-position fast
     diff := diff-table[0]
     wanted-diff := diff-to-int_ new-data - old-data
-    if old-position + data-width_ <= old-bytes.size and wanted-diff == diff:
+    if old-position + data-width <= old-bytes.size and wanted-diff == diff:
       // Match, so we keep building.  There are some lengths where we have
       // to move to a wider bit representation.
       new-bits-spent := predecessor.bits-spent
@@ -990,8 +993,8 @@ class BuildingDiffZero_ extends Action:
         new-bits-spent += bits
       // By passing this instance's previous action instead of this, we cut
       // out this from the chain.
-      next := BuildingDiffZero_.private_ predecessor diff-table old-position + data-width_ new-position + data-width_ new-bits-spent data-count + 1
-      next.years-past-its-prime = years-past-its-prime + data-width_
+      next := BuildingDiffZero_.private_ predecessor diff-table old-position + data-width new-position + data-width new-bits-spent data-count + 1
+      next.years-past-its-prime = years-past-its-prime + data-width
       return [next]
 
     return super new-position fast
@@ -1323,3 +1326,6 @@ class Writer_:
       bdiff-size++
 
     return bdiff-size
+
+int-vector-equals a/int b/int -> int:
+  #primitive.core.int-vector-equals
