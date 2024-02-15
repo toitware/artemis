@@ -10,6 +10,7 @@ import encoding.tison
 
 import system.containers
 import system.firmware
+import watchdog show Watchdog WatchdogServiceClient
 
 import .brokers.broker
 import .check-in
@@ -143,6 +144,10 @@ class SynchronizeJob extends TaskJob:
   // want to waste too much time waiting for it.
   static TIMEOUT-CHECK-IN ::= Duration --s=20
 
+  // The watchdog creation should always work, but just in
+  // case we have a timeout for it.
+  static TIMEOUT-WATCHDOG-CREATION-MS ::= 1_000
+
   // We use a minimum offline setting to avoid scheduling the
   // synchronization job too often.
   static OFFLINE-MINIMUM ::= Duration --s=12
@@ -166,12 +171,31 @@ class SynchronizeJob extends TaskJob:
   control-level-online_/int := 0
   control-level-offline_/int := 0
 
+  watchdog-client_/WatchdogServiceClient?
+  watchdog_/Watchdog?
+
   constructor logger/log.Logger .device_ .containers_ .broker_ saved-state/any
       --ntp/NtpRequest?=null:
     logger_ = logger.with-name NAME
     ntp_ = ntp
     max-offline := device_.max-offline
     status-limit-us_ = compute-status-limit-us_ max-offline
+    watchdog-client_ = null
+    watchdog_ = null
+    catch --trace:
+      // Creating the watchdog should never fail, but we also don't want this
+      // to be the reason we can't recover from a bad state.
+      // If we can't create a watchdog just run the synchronization without
+      // any watchdog.
+      with-timeout --ms=TIMEOUT-WATCHDOG-CREATION-MS:
+        watchdog-client_ = (WatchdogServiceClient).open as WatchdogServiceClient
+        // Make sure there is some kind of recovery if the device can't synchronize.
+        watchdog_ = watchdog-client_.create "toit.io/artemis/synchronize"
+        // Note that we don't stop/close the watchdog when the synchronize-job is done.
+        // If we go to deep-sleep then the watchdog timer isn't relevant.
+        // If the job is started again, then we will reuse the existing watchdog
+        // without feeding it (thus continuing the countdown).
+        start-watchdog_ watchdog_ max-offline
     super NAME saved-state
 
   control --online/bool --close/bool=false -> none:
@@ -186,6 +210,11 @@ class SynchronizeJob extends TaskJob:
         if control-level-online_ == 0:
           logger_.info "request to run online - stop"
       else:
+        // Restart the watchdog.
+        // We start the timer from scratch. This means that repeated
+        // requests to go offline can prevent the watchdog from triggering.
+        start-watchdog_ watchdog_ device_.max-offline
+
         // If we're no longer forced to stay offline, we may be
         // able to run the synchronization job now.
         control-level-offline_--
@@ -209,6 +238,7 @@ class SynchronizeJob extends TaskJob:
         // job right away. This is somewhat abrupt, but if users
         // need to control the network, we do not want to return
         // from this method without having shut it down.
+        stop-watchdog_ watchdog_
         control-level-offline_++
         if control-level-offline_ == 1:
           logger_.info "request to run offline - start"
@@ -517,6 +547,8 @@ class SynchronizeJob extends TaskJob:
     transition-to_ STATE-CONNECTED-TO-BROKER
     scheduler_.transition --runlevel=Job.RUNLEVEL-NORMAL
 
+    watchdog_.feed
+
   transition-to-disconnected_ --error/Object? -> none:
     previous := state_
     state_ = STATE-DISCONNECTED
@@ -548,6 +580,26 @@ class SynchronizeJob extends TaskJob:
     // between status changes.
     max-offline-us := max-offline-units * STATUS-LIMIT-UNIT-US
     return max-offline-us * STATUS-CHANGES-AFTER-ATTEMPTS
+
+  /**
+  Starts the watchdog.
+
+  The watchdog doesn't guarantee that we will connect to the broker, but
+    rather makes sure that the device resets if it can't synchronize for
+    some time. It is a redundant safety mechanism, as there is
+    already a reboot strategy implemented.
+  */
+  static start-watchdog_ watchdog/Watchdog? max-offline/Duration? -> none:
+    if not watchdog: return
+    // TODO(florian): make this configurable?
+    max-watchdog-offline := max-offline ? max-offline * 5 : Duration.ZERO
+    max-watchdog-offline = max max-watchdog-offline (Duration --h=2)
+
+    watchdog.start --s=max-watchdog-offline.in-s
+
+  static stop-watchdog_ watchdog/Watchdog? -> none:
+    if not watchdog: return
+    watchdog.stop
 
   /**
   Process new goal.

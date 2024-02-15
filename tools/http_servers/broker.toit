@@ -63,10 +63,10 @@ class HttpBroker extends HttpServer:
         "path": path,
         "content": content,
       }
-      print "$Time.now: Broker request $command (upload) with path=$path and $content.size bytes."
+      print "$Time.now: Broker request upload ($command) with path=$path and $content.size bytes."
     else:
       data = json.decode encoded
-      print "$Time.now: Broker request $command with $data."
+      print "$Time.now: Broker request $(BROKER-COMMAND-TO-STRING.get command) ($command) with $data."
 
     if command == COMMAND-UPLOAD_: return upload data
     if command == COMMAND-DOWNLOAD_: return download data

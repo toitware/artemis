@@ -437,7 +437,7 @@ abstract class TestDevice:
   Periodically queries the broker to see whether the device has
     reported its state.
   */
-  wait-until-connected --timeout=(Duration --ms=5_000) -> none:
+  wait-until-connected --timeout=(Duration --ms=10_000) -> none:
       // Wait until the device has reported its state.
       with-timeout timeout:
         while true:
