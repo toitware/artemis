@@ -213,7 +213,7 @@ abstract class Action:
   bits-spent/int
   byte-oriented/bool
   years-past-its-prime/int := 0
-  data-width /int
+  data-width/int
 
   constructor.private_ .predecessor .diff-table .old-position .new-position .bits-spent:
     byte-oriented = predecessor.byte-oriented
