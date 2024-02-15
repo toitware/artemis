@@ -256,12 +256,8 @@ abstract class Action:
     hash := seed
     if byte-oriented: hash += 57
     (DIFF-TABLE-INSERTION + 1).repeat:
-      hash *= 11
-      hash += diff-table[it]
-      hash &= 0x1fff_ffff
-    hash += old-position * 13
-    hash &= 0x1fff_ffff
-    return hash
+      hash = ((hash * 11) + diff-table[it]) & 0x1fff_ffff
+    return (hash + old-position * 13) & 0x1fff_ffff
 
   // *** Methods for the RoughlyComparableSet_ ***
   abstract rough-hash-code -> int
@@ -350,7 +346,7 @@ abstract class Action:
 
   static EMPTY ::= List 0
 
-  move-cursor new-to-old/int new-position/int --fast=null -> List:
+  move-cursor new-to-old/int new-position/int --fast/bool -> List:
     current-new-to-old := old-position - new-position
     diff := new-to-old - current-new-to-old
     possible-old-position := new-position + new-to-old
@@ -881,7 +877,8 @@ class Literal_ extends Action:
     return "$(%30s line) $old\n$(%30s   "") $new"
 
   byte-count-category_ -> int:
-    if byte-count < 10: return byte-count
+    if byte-count < 5: return byte-count
+    if byte-count < 10: return 5
     if byte-count < 200: return 10
     return 200
 
@@ -969,7 +966,7 @@ class BuildingDiffZero_ extends Action:
     line := "0 diff $(byte-oriented ? "B" : "W") $(bits-spent - predecessor.bits-spent) bits, bytes: $(byte-oriented ? data-count : data-count*4)"
     return "$(%30s line) $old\n$(%30s   "") $new"
 
-  move-cursor new-to-old/int new-position/int --fast=null -> List:
+  move-cursor new-to-old/int new-position/int --fast/bool -> List:
     if new-bytes.size - new-position < 4: return Action.EMPTY
     if not old-bytes.valid old-position data-width: return Action.EMPTY
 
@@ -1010,12 +1007,19 @@ class BuildingDiffZero_ extends Action:
 
   rough-hash-code -> int:
     hash := unordered-diff-hash_ data-count
+    hash += data-count-category
     return hash
 
   roughly-equals other -> bool:
     if other is not BuildingDiffZero_: return false
-    if other.data-count != data-count: return false
+    if other.data-count-category != data-count-category: return false
     return unordered-compare_ other
+
+  data-count-category -> int:
+    if data-count < 4: return data-count
+    if data-count < 10: return 4
+    if data-count < 200: return 10
+    return 200
 
 class ComparableSet_ extends Set:
   hash-code_ key:
@@ -1099,7 +1103,6 @@ class NewOldOffsets:
                 page := index >> PAGE-BITS_
                 set := pages_[page]
                 if set.size < MAX-OFFSETS: set.add new-to-old
-                // TODO: Should we spread the offset to adjacent pages?
         adler.unadd
           new-bytes
           index + 2
@@ -1110,7 +1113,7 @@ class NewOldOffsets:
           index + 4 + section-size
 
 diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets fast-mode/bool total-new-bytes=new-bytes.size --with-header=true --with-checksums=true [logger]:
-  actions := ComparableSet_
+  actions/Set := ComparableSet_
   state/Action := InitialState_ old-bytes new-bytes total-new-bytes --with-header=with-header
   if with-checksums:
     state = OldChecksumAction_ state old-bytes
@@ -1125,7 +1128,7 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets fast-mode/b
     // At some unaligned positions there are no actions to consider.
     assert: actions-at-this-point or not new-position.is-aligned 4
     if actions-at-this-point:
-      new-actions := ComparableSet_
+      new-actions := RoughlyComparableSet_
       best-bdiff-length := int.MAX
       not-in-this-round := []
       best-offset-printed := false
@@ -1156,7 +1159,7 @@ diff-files old-bytes/OldData new-bytes/ByteArray pages/NewOldOffsets fast-mode/b
                 : [0]
               jitters.do: | jitter |
                 if not jitters-done:
-                  shifted-actions := action.move-cursor new-to-old+jitter new-position --fast=fast-mode
+                  shifted-actions := action.move-cursor (new-to-old + jitter) new-position --fast=fast-mode
                   shifted-actions.do: | shifted-action |
                     jitters-done = true
                     shifted-children := shifted-action.add-data new-position fast
