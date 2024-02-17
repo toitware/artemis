@@ -67,7 +67,9 @@ class NullWatchdog implements watchdog.SystemWatchdog:
   reboot -> none:
 
 run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
-  (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install
+  watchdog-provider := watchdog.WatchdogServiceProvider
+      --system-watchdog=NullWatchdog
+  watchdog-provider.install
 
   identity := read-base64-ubjson identity-path
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
