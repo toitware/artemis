@@ -38,6 +38,10 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   if cause: tags["cause"] = cause
   logger.info "starting" --tags=tags
 
+  // Since the Artemis process is running the watchdog service
+  // provider, we need it to be responsive even under load.
+  Process.current.priority = Process.PRIORITY-HIGH
+
   scheduler ::= Scheduler logger device
   containers ::= ContainerManager logger scheduler
   broker := BrokerService logger server-config
