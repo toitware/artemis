@@ -98,7 +98,7 @@ jobs:
         if: matrix.run_supabase_tests
         uses: supabase/setup-cli@v1
         with:
-          version: 1.64.8
+          version: 1.145.6
 
       - name: Start Supabase - Toitware
         if: matrix.run_supabase_tests
