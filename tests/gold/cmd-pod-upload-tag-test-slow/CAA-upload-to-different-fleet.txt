@@ -1,0 +1,7 @@
+# Upload a pod to a different fleet
+# [--fleet-root, <FLEET_ROOT2>, pod, upload, <FLEET_ROOT>/test-pod.pod, --tag, some-tag]
+Successfully uploaded test-pod#1 to fleet -={|~~~~~~~~~FLEET2-ID~~~~~~~~~~|}=-.
+  id: -={|~~~~~~~ID test-pod#4~~~~~~~~|}=-
+  references:
+    - test-pod@latest
+    - test-pod@some-tag
