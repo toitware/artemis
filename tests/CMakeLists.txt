@@ -58,6 +58,12 @@ set (BROKER_FLAGS
       ${SUPABASE_ARTEMIS_BROKER_FLAG}
     )
 
+set (SUPABASE_FLAGS
+      ${SUPABASE_ARTEMIS_FLAG}
+      ${SUPABASE_BROKER_FLAG}
+      ${SUPABASE_ARTEMIS_BROKER_FLAG}
+)
+
 if (NOT ${WITH_LOCAL_SUPABASE})
   list(REMOVE_ITEM ARTEMIS_FLAGS ${SUPABASE_ARTEMIS_FLAG})
   list(REMOVE_ITEM BROKER_FLAGS ${SUPABASE_BROKER_FLAG} ${SUPABASE_ARTEMIS_BROKER_FLAG})
@@ -128,6 +134,14 @@ foreach(file ${TESTS})
             # Skip the artemis broker test if the test uses an artemis server but not the supabase one.
             continue()
           endif()
+        endif()
+
+        # Don't mix http and supabase flags.
+        if ("${broker_flag}" IN_LIST SUPABASE_FLAGS AND NOT "${artemis_flag}" IN_LIST SUPABASE_FLAGS)
+          continue()
+        endif()
+        if (NOT "${broker_flag}" IN_LIST SUPABASE_FLAGS AND "${artemis_flag}" IN_LIST SUPABASE_FLAGS)
+          continue()
         endif()
 
         if ("${flags}" STREQUAL "")
