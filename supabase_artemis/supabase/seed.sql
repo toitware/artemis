@@ -16,11 +16,10 @@ INSERT INTO auth.users (instance_id,id,aud,"role",email,encrypted_password,email
 	('00000000-0000-0000-0000-000000000000'::uuid,'6ac69de5-7b56-4153-a31c-7b4e29bbcbcf'::uuid,'authenticated','authenticated','test-admin@toit.io','$2a$10$BzysDkdyOfTA40JOja2SFeFOh9MDU1MeMD9DjOrLSUiRDKJ6VgIR.','2023-01-10 16:58:19.57372+00','2023-01-10 16:58:19.57372+00','{"provider": "email", "providers": ["email"]}','{}',FALSE,'2023-01-10 16:58:19.57372+00','2023-01-10 16:58:19.57372+00',NULL,NULL,'','','','')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO auth.identities (id,user_id,identity_data,provider,last_sign_in_at,created_at,updated_at) VALUES
-	('f76629c5-a070-4bbc-9918-64beaea48848','f76629c5-a070-4bbc-9918-64beaea48848'::uuid,'{"sub": "f76629c5-a070-4bbc-9918-64beaea48848"}','email','2022-02-11 21:02:04.545','2022-02-11 21:02:04.545','2022-02-11 21:02:04.545'),
-	('d9064bb5-1501-4ec9-bfee-21ab74d645b8','d9064bb5-1501-4ec9-bfee-21ab74d645b8'::uuid,'{"sub": "d9064bb5-1501-4ec9-bfee-21ab74d645b8"}','email','2022-02-12 07:40:23.615','2022-02-12 07:40:23.615','2022-02-12 07:40:23.615'),
-	('6ac69de5-7b56-4153-a31c-7b4e29bbcbcf','6ac69de5-7b56-4153-a31c-7b4e29bbcbcf'::uuid,'{"sub": "6ac69de5-7b56-4153-a31c-7b4e29bbcbcf"}','email','2023-01-10 16:58:19.57372+00','2023-01-10 16:58:19.57372+00','2023-01-10 16:58:19.57372+00')
-ON CONFLICT (id, provider) DO NOTHING;
+INSERT INTO auth.identities (id,user_id,identity_data,provider,last_sign_in_at,created_at,updated_at,provider_id) VALUES
+	('f76629c5-a070-4bbc-9918-64beaea48848','f76629c5-a070-4bbc-9918-64beaea48848'::uuid,'{"sub": "f76629c5-a070-4bbc-9918-64beaea48848"}','email','2022-02-11 21:02:04.545','2022-02-11 21:02:04.545','2022-02-11 21:02:04.545','32d1d852-0b02-459f-b0a9-605cdafb61c4'),
+	('d9064bb5-1501-4ec9-bfee-21ab74d645b8','d9064bb5-1501-4ec9-bfee-21ab74d645b8'::uuid,'{"sub": "d9064bb5-1501-4ec9-bfee-21ab74d645b8"}','email','2022-02-12 07:40:23.615','2022-02-12 07:40:23.615','2022-02-12 07:40:23.615','ef852845-0c1d-4188-8344-cf474e3e99e1'),
+	('6ac69de5-7b56-4153-a31c-7b4e29bbcbcf','6ac69de5-7b56-4153-a31c-7b4e29bbcbcf'::uuid,'{"sub": "6ac69de5-7b56-4153-a31c-7b4e29bbcbcf"}','email','2023-01-10 16:58:19.57372+00','2023-01-10 16:58:19.57372+00','2023-01-10 16:58:19.57372+00','e81abdb0-e0cb-4d49-82f7-fac4ec0aa716');
 
 INSERT INTO public.roles(user_id, organization_id, role)
 VALUES
