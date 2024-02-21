@@ -67,13 +67,13 @@ ARTEMIS_TEST_CERTIFICATE := Baltimore CyberTrust Root
 
 .PHONY: setup-remote-test-supabase
 setup-remote-test-supabase:
-        @ $(TOITRUN) src/cli/cli.toit config broker add supabase \
-                --certificate "$(ARTEMIS_TEST_CERTIFICATE)" \
-                artemis-remote-test-supabase \
-                $(ARTEMIS_TEST_HOST) \
-                $(ARTEMIS_TEST_ANON)
-        @ $(TOITRUN) src/cli/cli.toit config broker default --artemis artemis-remote-test-supabase
-        @ $(TOITRUN) src/cli/cli.toit config broker default artemis-remote-test-supabase
+	@ $(TOITRUN) src/cli/cli.toit config broker add supabase \
+		--certificate "$(ARTEMIS_TEST_CERTIFICATE)" \
+		artemis-remote-test-supabase \
+		$(ARTEMIS_TEST_HOST) \
+		$(ARTEMIS_TEST_ANON)
+	@ $(TOITRUN) src/cli/cli.toit config broker default --artemis artemis-remote-test-supabase
+	@ $(TOITRUN) src/cli/cli.toit config broker default artemis-remote-test-supabase
 
 .PHONY: start-http
 start-http: install-pkgs
