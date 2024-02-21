@@ -8,6 +8,8 @@ SET search_path TO toit_artemis;
 DROP FUNCTION toit_artemis.insert_pod_tag(UUID, BIGINT, TEXT);
 DROP FUNCTION public."toit_artemis.insert_pod_tag"(UUID, BIGINT, TEXT);
 
+-- Update 2024-02-21: This function has a bug.
+-- It is replaced with a fixed version in a later migration: 20240221082344_fix-set_pod_tag.sql.
 CREATE OR REPLACE FUNCTION toit_artemis.set_pod_tag(
         _pod_id UUID,
         _pod_description_id BIGINT,
