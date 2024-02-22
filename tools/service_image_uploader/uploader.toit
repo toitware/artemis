@@ -118,6 +118,14 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --help="The optimization level to use."
             --default="2",
       ]
+      --examples=[
+        cli.Example "Upload the checked out code as version v0.5.5.pre.1+fix.foo to organization 3ea5b632-5739-4f40-8446-2fc102a5b338:"
+            --arguments="--sdk-version=v2.0.0-alpha.139 --service-version=v0.5.5.pre.1+fix.foo --organization-id=3ea5b632-5739-4f40-8446-2fc102a5b338",
+        cli.Example "Upload the commit faea5684479957e48b945f7fdf4cbc70c0053225 as version v0.5.5.pre.2+updated to organization 3ea5b632-5739-4f40-8446-2fc102a5b338:"
+            --arguments="--sdk-version=v2.0.0-alpha.139 --service-version=v0.5.5.pre.2+updated --commit=faea5684479957e48b945f7fdf4cbc70c0053225 --organization-id=3ea5b632-5739-4f40-8446-2fc102a5b338",
+        cli.Example "Upload the build v2.0.0-alpha.140/v0.5.5 to the server for everyone:"
+            --arguments="--sdk-version=v2.0.0-alpha.140 --service-version=v0.5.5"
+      ]
       --run=:: build-and-upload config cache ui it
   cmd.add service-cmd
 

@@ -37,6 +37,11 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
             --help="Name of the organization."
             --required,
       ]
+      --examples=[
+        cli.Example "Create a new organization called 'in-the-sea', and make it the default:"
+            --arguments="in-the-sea"
+            --global-priority=9,
+      ]
       --run=:: create-org it config ui
   org-cmd.add create-cmd
 
@@ -50,6 +55,12 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
         // TODO(florian): would be nice to accept a name here as well.
         OptionUuid "organization-id"
             --help="ID of the organization."
+      ]
+      --examples=[
+        cli.Example "Show the default organization:"
+            --arguments="",
+        cli.Example "Show the organization with ID 12345678-1234-1234-1234-123456789abc:"
+            --arguments="12345678-1234-1234-1234-123456789abc",
       ]
       --run=:: show-org it config ui
   org-cmd.add show-cmd
@@ -72,11 +83,23 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
         OptionUuid "organization-id"
             --help="ID of the organization."
       ]
+      --examples=[
+        cli.Example "Show the default organization:"
+            --arguments="",
+        cli.Example "Set the default organization to the one with ID 12345678-1234-1234-1234-123456789abc:"
+            --arguments="12345678-1234-1234-1234-123456789abc",
+        cli.Example "Clear the default organization:"
+            --arguments="--clear",
+      ]
       --run=:: default-org it config cache ui
   org-cmd.add default-cmd
 
   update-cmd := cli.Command "update"
-      --help="Update an organization."
+      --help="""
+      Update an organization.
+
+      If no ID is given, updates the default organization.
+      """
       --options=[
         cli.OptionString "name"
             --help="Name of the organization."
@@ -84,6 +107,14 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
       --rest=[
         OptionUuid "organization-id"
             --help="ID of the organization."
+      ]
+      --examples=[
+        cli.Example "Update the default organization to be called 'in-the-air':"
+            --arguments="--name=in-the-air ",
+        cli.Example """
+            Update the organization with ID 12345678-1234-1234-1234-123456789abc to be
+            called 'obsolete':"""
+            --arguments="--name=obsolete 12345678-1234-1234-1234-123456789abc",
       ]
       --run=:: update-org it config ui
   org-cmd.add update-cmd
@@ -100,6 +131,12 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
       --help="List members of an organization."
       --options=[
         cli.Flag "id-only" --help="Only show the IDs of the members."
+      ]
+      --examples=[
+        cli.Example "List members of the default organization:"
+            --arguments="",
+        cli.Example "List members of the organization with ID 12345678-1234-1234-1234-123456789abc:"
+            --arguments="12345678-1234-1234-1234-123456789abc",
       ]
       --run=:: member-list it config cache ui
   member-cmd.add member-list-cmd
@@ -123,6 +160,14 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
             --help="ID of the user to add."
             --required,
       ]
+      --examples=[
+        cli.Example "Add user with ID 12345678-1234-1234-1234-123456789abc to the default organization:"
+            --arguments="12345678-1234-1234-1234-123456789abc",
+        cli.Example """
+            Add user with ID 11111111-2222-3333-444444444444 as admin to organization
+            12345678-1234-1234-1234-123456789abc:"""
+            --arguments="--organization-id=12345678-1234-1234-1234-123456789abc --role=admin 12345678-1234-1234-1234-123456789abc",
+      ]
       --run=:: member-add it config cache ui
   member-cmd.add member-add-cmd
 
@@ -137,6 +182,14 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
             --help="ID of the user to remove."
             --required,
       ]
+      --examples=[
+        cli.Example "Remove user with ID 12345678-1234-1234-1234-123456789abc from the default organization:"
+            --arguments="12345678-1234-1234-1234-123456789abc",
+        cli.Example """
+            Remove user with ID 11111111-2222-3333-444444444444 from organization
+            12345678-1234-1234-1234-123456789abc:"""
+            --arguments="--organization-id=12345678-1234-1234-1234-123456789abc 11111111-2222-3333-444444444444",
+      ]
       --run=:: member-remove it config cache ui
   member-cmd.add member-remove-cmd
 
@@ -149,6 +202,16 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
         cli.OptionEnum "role" ["member", "admin" ]
             --help="Role of the member."
             --required,
+      ]
+      --examples=[
+        cli.Example """
+            Set the role of user with ID 12345678-1234-1234-1234-123456789abc to admin in
+            the default organization:"""
+            --arguments="12345678-1234-1234-1234-123456789abc admin",
+        cli.Example """
+            Set the role of user with ID 11111111-2222-3333-444444444444 to member (non-admin) in
+            organization 12345678-1234-1234-1234-123456789abc:"""
+            --arguments="--organization-id=12345678-1234-1234-1234-123456789abc 11111111-2222-3333-444444444444 member",
       ]
       --run=:: member-set-role it config cache ui
   member-cmd.add member-set-role

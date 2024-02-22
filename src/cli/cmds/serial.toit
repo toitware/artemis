@@ -64,6 +64,22 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "remote"
             --help="A remote pod reference; a UUID, name@tag, or name#revision.",
       ]
+      --examples=[
+        cli.Example """
+            Flash the device on port /dev/ttyUSB0 with the pod for the default
+            group and add the new identity to the devices file:"""
+            --arguments="--port /dev/ttyUSB0"
+            --global-priority=6,
+        cli.Example """
+            Flash the device on port /dev/ttyUSB0 with the pod for the 'production'
+            group and add the new identity to the devices file in that group:"""
+            --arguments="--port /dev/ttyUSB0 --group production",
+        cli.Example """
+            Flash the device on port /dev/ttyUSB0 with the pod for the 'production'
+            group and add the new identity to the devices file in that group, but
+            don't make it the default device:"""
+            --arguments="--port /dev/ttyUSB0 --group production --no-default",
+      ]
       --run=:: flash it config cache ui
   cmd.add flash-cmd
 
@@ -83,7 +99,8 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
       --help="""
         Flash a device on a flash station.
 
-        Does not require Internet access.
+        Does not require Internet access, but uses identity files that have
+        been prebuilt using 'fleet create-identities'.
 
         The 'port' argument is used to select the serial port to use.
         """
@@ -101,6 +118,12 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
             --type="file"
             --help="Write to a QEMU image file instead of flashing."
             --hidden,
+      ]
+      --examples=[
+        cli.Example """
+            Flash the device on port /dev/ttyUSB0 with the pod 'my-pod.pod' and
+            the identity '12345678-1234-1234-1234-123456789abc.identity':"""
+            --arguments="--port /dev/ttyUSB0 --pod my-pod.pod --identity 12345678-1234-1234-1234-123456789abc.identity",
       ]
       --run=:: flash --station it config cache ui
   flash-station-cmd.add flash-station-flash-cmd

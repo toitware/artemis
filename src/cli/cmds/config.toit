@@ -51,6 +51,12 @@ create-server-config-commands config/Config ui/Ui -> List:
             cli.OptionString "name"
                 --help="The name of the broker."
           ]
+          --examples=[
+            cli.Example "Prints the current default broker (if any):"
+                --arguments="",
+            cli.Example "Set the default broker to 'my-broker':"
+                --arguments="my-broker",
+          ]
           --run=:: default-server it config ui
 
   add-cmd := cli.Command "add"
@@ -79,6 +85,12 @@ create-server-config-commands config/Config ui/Ui -> List:
             cli.OptionString "anon"
                 --help="The key for anonymous access."
                 --required,
+          ]
+          --examples=[
+            cli.Example "Add a local Supabase broker (anon-token is truncated):"
+                --arguments="my-local-supabase -127.0.0.1:54321 eyJhb...6XHc",
+            cli.Example "Add a Supabase broker with a certificate (anon-token is truncated):"
+                --arguments="my-remote-broker --certificate=\"Baltimore CyberTrust Root\" voisfafsfolxhqpkudzd.subabase.co eyJh...j2e4",
           ]
           --run=:: add-supabase it config ui
 
