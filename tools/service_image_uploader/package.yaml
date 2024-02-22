@@ -9,7 +9,7 @@ dependencies:
     version: ^1.6.1
   cli:
     url: github.com/toitlang/pkg-cli
-    version: ^1.6.0
+    version: ^1.7.0
   host:
     url: github.com/toitlang/pkg-host
     version: ^1.13.0
