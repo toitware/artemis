@@ -45,6 +45,10 @@ create-container-command config/Config cache/Cache ui/Ui -> cli.Command:
             --type="string"
             --multi,
       ]
+      --examples=[
+        cli.Example "Install the 'hello' container and run it every 5 seconds:"
+            --arguments="--trigger=interval:5s hello hello.toit",
+      ]
       --run=:: install-container it config cache ui
   cmd.add install-cmd
 

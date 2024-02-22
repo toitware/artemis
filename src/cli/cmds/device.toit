@@ -47,6 +47,16 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "remote"
             --help="A remote pod reference; a UUID, name@tag, or name#revision.",
       ]
+      --examples=[
+        cli.Example "Update the device big-whale with pod 'pressure@v1.2.3'"
+            --arguments="-d big-whale pressure@v1.2.3",
+        cli.Example "Update the default device (see 'device default') with the pod 'hibernate.pod':"
+            --arguments="--local hibernate.pod",
+        cli.Example """
+            Update the device with UUID '62a99fbc-aac7-4af1-a09b-dfcece191d14' to the
+            pod 'pressure#2':"""
+            --arguments="-d 62a99fbc-aac7-4af1-a09b-dfcece191d14 pressure#2",
+      ]
       --run=:: update it config cache ui
   cmd.add update-cmd
 
@@ -67,6 +77,13 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
       --rest=[
         cli.Option "device-rest"
             --help="ID, name or alias of the device.",
+      ]
+      --examples=[
+        cli.Example "Set the default device to big-whale:" --arguments="big-whale",
+        cli.Example "Set the default device to the device with UUID '62a99fbc-aac7-4af1-a09b-dfcece191d14':"
+            --arguments="62a99fbc-aac7-4af1-a09b-dfcece191d14",
+        cli.Example "Show the default device:" --arguments="",
+        cli.Example "Clear the default device:" --arguments="--clear",
       ]
       --run=:: default-device it config cache ui
   cmd.add default-cmd
@@ -93,6 +110,16 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "device-rest"
             --help="ID, name or alias of the device.",
       ]
+      --examples=[
+        cli.Example "Show the status of the default device (see 'device default'):"
+            --arguments="",
+        cli.Example "Show the status of the device big-whale:"
+            --arguments="big-whale",
+        cli.Example "Show the status of the device with UUID '62a99fbc-aac7-4af1-a09b-dfcece191d14':"
+            --arguments="62a99fbc-aac7-4af1-a09b-dfcece191d14",
+        cli.Example "Show up to 20 events of the device big-whale:"
+            --arguments="--max-events 20 big-whale",
+      ]
       --run=:: show it config cache ui
   cmd.add show-cmd
 
@@ -105,7 +132,7 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --examples=[
-        cli.Example "Set the max-offline time to 15 seconds" --arguments="15",
+        cli.Example "Set the max-offline time to 15 seconds" --arguments="15s",
         cli.Example "Set the max-offline time to 3 minutes" --arguments="3m",
       ]
       --run=:: set-max-offline it config cache ui

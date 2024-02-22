@@ -27,6 +27,10 @@ create-profile-commands config/Config cache/Cache ui/Ui -> List:
         cli.OptionString "name",
         // TODO(florian): support changing the email.
       ]
+      --examples=[
+        cli.Example "Update the name"
+            --arguments="--name=John Doe"
+      ]
       --run=:: update-profile it config ui
   profile-cmd.add update-cmd
 
