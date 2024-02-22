@@ -152,7 +152,8 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
   with-tmp-directory: | tmp-dir/string |
     full-service-version/string := ?
-    repo-path := ?
+    repo-path/string := ?
+
     if use-local:
       // Build the service from the checked out code.
       // No caching is possible.
@@ -160,14 +161,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       // where the timestamp is the time when the build was started.
 
       repo-path = root
-
-      // Since we are reusing an ID, we need to remove the cached version.
       full-service-version = service-version or ARTEMIS-VERSION
-      cache-key := service-image-cache-key
-          --sdk-version=sdk-version
-          --service-version=full-service-version
-          --artemis-config=get-artemis-config parsed config
-      cache.remove cache-key
     else:
       ui.info "Cloning repository and checking out $(commit or service-version)."
       repo-path = "$tmp-dir/artemis"
@@ -186,6 +180,13 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
       full-service-version = service-version
       if commit: full-service-version += "-$commit"
+
+    // Since we are potentially reusing an ID, we need to remove the cached version.
+    cache-key := service-image-cache-key
+        --sdk-version=sdk-version
+        --service-version=full-service-version
+        --artemis-config=get-artemis-config parsed config
+    cache.remove cache-key
 
     service-source-path := service-path-in-repository repo-path --chip-family=chip-family
     if chip-family == "esp32" and not file.is-file service-source-path:
