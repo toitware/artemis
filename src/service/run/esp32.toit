@@ -26,10 +26,10 @@ ESP32-WAKEUP-CAUSES ::= {
 }
 
 // Allow Artemis to run critical tasks that do not yield for up
-// to 5s. If we run with the default granularity, we may experience
+// to 10s. If we run with the default granularity, we may experience
 // issues with the firmware update task that uses relatively slow
 // flash erase operations.
-WATCHDOG-GRANULARITY-MS ::= 5_000 * 2
+WATCHDOG-GRANULARITY-MS ::= 10_000 * 2
 
 main arguments:
   watchdog-provider := watchdog.WatchdogServiceProvider
