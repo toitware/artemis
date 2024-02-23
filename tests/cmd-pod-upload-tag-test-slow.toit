@@ -42,9 +42,11 @@ run-test test-cli/TestCli fleet-dir/string:
   spec-path := "$fleet-dir/$(name).yaml"
   write-yaml-to-file spec-path spec
 
+  revision := 0
   test-cli.run [
     "pod", "upload", spec-path, "--tag", "some-tag"
   ]
+  revision++
   add-pod-replacements.call ""
 
   test-cli.run-gold "BAA-upload-existing-tag"
@@ -54,6 +56,7 @@ run-test test-cli/TestCli fleet-dir/string:
       [
         "pod", "upload", spec-path, "--tag", "some-tag"
       ]
+  revision++
 
   test-cli.run-gold "BAC-upload-existing-tag-force"
       "Upload a pod with existing tag using --force"
@@ -61,15 +64,18 @@ run-test test-cli/TestCli fleet-dir/string:
       [
         "pod", "upload", spec-path, "--tag", "some-tag", "--force"
       ]
+  revision++
 
   pod-path := "$fleet-dir/$(name).pod"
   test-cli.run [
     "pod", "build", "-o", pod-path, spec-path
   ]
-  test-cli.run [
+  json-output := test-cli.run --json [
     "pod", "upload", pod-path
   ]
-
+  revision++
+  expect (json-output.contains "id")
+  expect-equals revision json-output["revision"]
   expect (file.is-file pod-path)
 
   // Test that we can upload the same pod to a different fleet.

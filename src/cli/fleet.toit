@@ -75,6 +75,28 @@ class Status_:
   is-healthy -> bool:
     return is-fully-updated and missed-checkins == 0
 
+class UploadResult:
+  fleet-id/uuid.Uuid
+  id/uuid.Uuid
+  name/string
+  revision/int
+  tags/List
+  tag-errors/List
+
+  constructor --.fleet-id --.id --.name --.revision --.tags --.tag-errors:
+
+  to-json -> Map:
+    result := {
+      "fleet-id": "$fleet-id",
+      "id": "$id",
+      "name": name,
+      "revision": revision,
+      "tags": tags,
+    }
+    if not tag-errors.is-empty:
+      result["tag-errors"] = tag-errors
+    return result
+
 class FleetFile:
   path/string
   id/uuid.Uuid
@@ -395,7 +417,8 @@ class Fleet:
 
   Also uploads the trivial patches.
   */
-  upload --pod/Pod --tags/List --force-tags/bool -> none:
+  upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
+    ui_.info "Uploading pod. This may take a while."
     artemis_.upload --pod=pod --organization-id=organization-id
 
     broker := artemis_.connected-broker
@@ -445,16 +468,14 @@ class Fleet:
     registered-pods := broker.pod-registry-pods --fleet-id=this.id --pod-ids=[pod.id]
     pod-entry/PodRegistryEntry := registered-pods[0]
 
-    prefix := tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
-    ui_.info "$prefix $pod.name#$pod-entry.revision to fleet $this.id."
-    ui_.info "  id: $pod-entry.id"
-    ui_.info "  references:"
     sorted-uploaded-tags := pod-entry.tags.sort
-    sorted-uploaded-tags.do: ui_.info "    - $pod.name@$it"
-
-    if not tag-errors.is-empty:
-      tag-errors.do: ui_.error it
-      ui_.abort
+    return UploadResult
+        --fleet-id=this.id
+        --id=pod.id
+        --name=pod.name
+        --revision=pod-entry.revision
+        --tags=sorted-uploaded-tags
+        --tag-errors=tag-errors
 
   download reference/PodReference -> Pod:
     if reference.name and not (reference.tag or reference.revision):
