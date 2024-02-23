@@ -14,8 +14,7 @@ import artemis.cli.brokers.broker show BrokerCli
 import artemis.service.brokers.broker show BrokerService
 
 import .supabase-local-server
-import ..tools.http-servers.broker show HttpBroker
-import ..tools.http-servers.broker as http-servers
+import ..tools.http-servers.public.broker show HttpBroker
 import ..tools.lan-ip.lan-ip
 import artemis.shared.server-config
   show
@@ -108,7 +107,7 @@ class ToitHttpBackdoor implements BrokerBackdoor:
     server.clear-events
 
 with-http-broker [block]:
-  server := http-servers.HttpBroker 0
+  server := HttpBroker 0
   port-latch := monitor.Latch
   server-task := task:: server.start port-latch
 

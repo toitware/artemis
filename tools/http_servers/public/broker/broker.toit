@@ -1,11 +1,13 @@
-// Copyright (C) 2022 Toitware ApS. All rights reserved.
+// Copyright (C) 2022 Toitware ApS.
+// Use of this source code is governed by an MIT-style license that can be
+// found in the LICENSE file.
 
-import artemis.shared.constants show *
 import cli
 import encoding.json
 import monitor
 
 import .base
+import .constants
 
 main args:
   root-cmd := cli.Command "root"
