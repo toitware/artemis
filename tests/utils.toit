@@ -131,6 +131,9 @@ class TestUi extends Ui:
   abort:
     throw TestExit
 
+  wants-structured-result -> bool:
+    return json_
+
 class TestCli:
   config/cli.Config
   cache/cli.Cache

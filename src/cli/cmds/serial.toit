@@ -232,17 +232,6 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         if reference.id: info += "."
         else: info += " ($pod.id)."
         ui.info info
-        // TODO(florian): this is a bit hackish as it relies on the fact that the JSON
-        // output doesn't otherwise print anything. Otherwise we get the same information twice.
-        ui.do --kind=Ui.RESULT: | printer/Printer|
-          printer.emit-structured
-              --stdout=: // Do nothing.
-              --json=: {
-                "device_id": "$device-id",
-                "pod_id": "$pod.id",
-                "pod_name": "$pod.name",
-                "group": "$group",
-              }
       else if qemu-image:
         if pod.chip != "esp32" and not pod.chip.starts-with "esp32-":
           ui.abort "Cannot write to QEMU image file for chip '$pod.chip'."
@@ -262,6 +251,14 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --pod=pod
             --identity-path=identity-path
             --cache=cache
+
+      if ui.wants-structured-result:
+        ui.result {
+              "device_id": "$device-id",
+              "pod_id": "$pod.id",
+              "pod_name": "$pod.name",
+              "group": "$group",
+            }
 
 make-default_ device-id/uuid.Uuid config/Config ui/Ui:
   config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"

@@ -53,7 +53,7 @@ create-ui-from-args args:
       output-format = arg["--output-format=".size..]
 
   if output-format == null: output-format = "text"
-  if verbose-level == null: verbose-level = output-format == "json" ? "silent" : "info"
+  if verbose-level == null: verbose-level = output-format == "json" ? "quiet" : "info"
 
   level/int := ?
   if verbose-level == "debug": level = Ui.DEBUG-LEVEL

@@ -210,6 +210,15 @@ abstract class Ui implements supabase.Ui cli.Ui:
   */
   abstract create-printer_ prefix/string? kind/int -> Printer
 
+  /**
+  Whether the UI wants a (single) result as output for a command.
+
+  For example, the JSON UI prefers to have a meaningful structured result,
+    while the console UI is more likely to emit informative messages as they
+    come.
+  */
+  abstract wants-structured-result -> bool
+
 /**
 Prints the given $str using $print.
 
@@ -239,6 +248,9 @@ class ConsoleUi extends Ui:
   create-printer_ prefix/string? kind/int -> Printer:
     return ConsolePrinter prefix
 
+  wants-structured-result -> bool:
+    return false
+
 class JsonPrinter extends PrinterBase:
   kind_/int
 
@@ -259,3 +271,6 @@ class JsonUi extends Ui:
 
   create-printer_ prefix/string? kind/int -> Printer:
     return JsonPrinter prefix kind
+
+  wants-structured-result -> bool:
+    return true

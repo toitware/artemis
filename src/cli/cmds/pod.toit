@@ -250,20 +250,22 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --artemis=artemis
           --ui=ui
       upload-result := fleet.upload --pod=pod --tags=tags --force-tags=force
-      ui.do --kind=Ui.RESULT: | printer/Printer |
-        printer.emit-structured
-            --json=: upload-result.to-json
-            --stdout=:
-              // TODO(florian): this is a bit hackish: we shouldn't call "info..." in the
-              // ui.do block.
-              prefix := upload-result.tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
-              ui.info "$prefix $pod.name#$upload-result.revision to fleet $fleet.id."
-              ui.info "  id: $pod.id"
-              ui.info "  references:"
-              upload-result.tags.do: ui.info "    - $pod.name@$it"
+      if ui.wants-structured-result:
+        // Note that we don't print the error-tags as error messages in this case.
+        ui.do --kind=Ui.RESULT: | printer/Printer |
+          printer.emit-structured
+              --json=: upload-result.to-json
+              --stdout=: // Do nothing.
+      else:
+        prefix := upload-result.tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
+        ui.info "$prefix $pod.name#$upload-result.revision to fleet $fleet.id."
+        ui.info "  id: $pod.id"
+        ui.info "  references:"
+        upload-result.tags.do: ui.info "    - $pod.name@$it"
 
-              if not upload-result.tag-errors.is-empty:
-                upload-result.tag-errors.do: ui.error it
+        if not upload-result.tag-errors.is-empty:
+          upload-result.tag-errors.do: ui.error it
+
       if not upload-result.tag-errors.is-empty: ui.abort
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
