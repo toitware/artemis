@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli
+import host.file
 import uuid
 
 import .utils_
@@ -10,6 +11,7 @@ import ..cache
 import ..device
 import ..firmware
 import ..fleet
+import ..pod
 import ..pod-registry
 import ..ui
 import ..utils
@@ -187,8 +189,8 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Option "diff-base"
-            --type="pod-file"
-            --help="The base pod to use for diff-based updates."
+            --type="pod-file|reference"
+            --help="The base pod file or reference to use for diff-based updates."
             --multi,
       ]
       --examples=[
@@ -199,6 +201,10 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             Roll out the fleet configuration to all devices using pods base1.pod
             and base2.pod as diff bases:"""
             --arguments="--diff-base=base1.pod --diff-base=base2.pod",
+        cli.Example """
+            Roll out the fleet configuration to all devices using pod 'my-pod@v2.1.0'
+            as diff base:"""
+            --arguments="--diff-base=my-pod@v2.1.0",
       ]
       --run=:: roll-out it config cache ui
   cmd.add roll-out-cmd
@@ -455,7 +461,12 @@ roll-out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   diff-bases := parsed["diff-base"]
 
   with-fleet parsed config cache ui: | fleet/Fleet |
-    fleet.roll-out --diff-bases=diff-bases
+    pod-diff-bases := diff-bases.map: | file-or-ref/string |
+      if file.is-file file-or-ref:
+        Pod.parse file-or-ref --tmp-directory=fleet.artemis_.tmp-directory --ui=ui
+      else:
+        fleet.download (PodReference.parse file-or-ref --ui=ui)
+    fleet.roll-out --diff-bases=pod-diff-bases
 
 status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   include-healthy := parsed["include-healthy"]
