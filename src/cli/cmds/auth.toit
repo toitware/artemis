@@ -18,6 +18,7 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
       --help="Authenticate against the Artemis server."
 
   sign-up-cmd := cli.Command "signup"
+      --aliases=["sign-up"]
       --help="""
         Sign up for an Artemis account with email and password.
 
