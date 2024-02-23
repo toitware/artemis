@@ -252,6 +252,14 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --identity-path=identity-path
             --cache=cache
 
+      if ui.wants-structured-result:
+        ui.result {
+              "device_id": "$device-id",
+              "pod_id": "$pod.id",
+              "pod_name": "$pod.name",
+              "group": "$group",
+            }
+
 make-default_ device-id/uuid.Uuid config/Config ui/Ui:
   config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
   config.write

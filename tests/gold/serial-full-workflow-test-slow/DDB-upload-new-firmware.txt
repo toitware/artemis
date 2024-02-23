@@ -1,5 +1,6 @@
 # Upload a new version of the firmware.
 # [--fleet-root, TMP_DIR/fleet, pod, upload, TMP_DIR/fleet/FLEET-POD-FILE]
+Uploading pod. This may take a while.
 Successfully uploaded my-pod#3 to fleet -={|       UUID-FOR-FLEET       |}=-.
   id: -={|      UUID-FOR-MY-POD#3     |}=-
   references:
