@@ -463,7 +463,7 @@ roll-out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-fleet parsed config cache ui: | fleet/Fleet |
     pod-diff-bases := diff-bases.map: | file-or-ref/string |
       if file.is-file file-or-ref:
-        pod := Pod.parse file-or-ref --tmp-directory=fleet.artemis_.tmp-directory --ui=ui
+        Pod.parse file-or-ref --tmp-directory=fleet.artemis_.tmp-directory --ui=ui
       else:
         fleet.download (PodReference.parse file-or-ref --ui=ui)
     fleet.roll-out --diff-bases=pod-diff-bases
