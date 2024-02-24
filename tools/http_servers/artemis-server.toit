@@ -6,7 +6,9 @@ import uuid
 import encoding.base64
 import encoding.json
 
-import .base
+// This is a bit hackish, but we want to open-source the base and not
+// copy it.
+import .public.broker.base
 
 main args:
   root-cmd := cli.Command "root"

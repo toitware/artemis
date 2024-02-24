@@ -1,4 +1,6 @@
-// Copyright (C) 2022 Toitware ApS. All rights reserved.
+// Copyright (C) 2022 Toitware ApS.
+// Use of this source code is governed by an MIT-style license that can be
+// found in the LICENSE file.
 
 import encoding.json
 import http
@@ -6,7 +8,7 @@ import log
 import net
 import net.tcp
 import monitor
-import artemis.shared.utils
+import reader show BufferedReader Reader SizedReader
 
 class BinaryResponse:
   bytes/ByteArray
@@ -52,7 +54,7 @@ abstract class HttpServer:
     server := http.Server --max-tasks=64 --logger=(log.default.with-level log.INFO-LEVEL)
     print "Listening on port $socket.local-address.port"
     server.listen socket:: | request/http.Request writer/http.ResponseWriter |
-      bytes := utils.read-all request.body
+      bytes := read-all_ request.body
       command := bytes[0]
       encoded := bytes[1..]
       user-id := request.headers.single "X-User-Id"
@@ -88,3 +90,8 @@ abstract class HttpServer:
         encoded-response := json.encode response-data
         writer.headers.set "Content-Length" "$encoded-response.size"
         writer.write encoded-response
+
+  read-all_ reader/Reader -> ByteArray:
+    buffered := BufferedReader reader
+    buffered.buffer-all
+    return buffered.read-bytes buffered.buffered
