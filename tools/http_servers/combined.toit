@@ -4,7 +4,7 @@ import cli
 import monitor
 
 import .artemis-server
-import .broker
+import .public.broker
 
 main args:
   root-cmd := cli.Command "root"
