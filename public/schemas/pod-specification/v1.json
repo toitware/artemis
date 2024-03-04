@@ -6,6 +6,7 @@
   "type": "object",
   "$comment": "Note that we don't require any of the properties. This is because we allow to extend specifications, and some properties might thus not exist in this file.",
   "unevaluatedProperties": false,
+
   "properties": {
     "$schema": {
       "description": "Schema of the pod specification.",
@@ -56,7 +57,7 @@
       "description": "List of connections to use.",
       "type": "array",
       "items": {
-        "@ref": "#/$defs/connection"
+        "$ref": "#/$defs/connection"
       }
     },
     "containers": {
@@ -103,7 +104,7 @@
             "description": "Triggers that start the container.",
             "type": "array",
             "items": {
-              "@ref": "#/$defs/trigger"
+              "$ref": "#/$defs/trigger"
             }
           },
           "entrypoint": {
