@@ -597,7 +597,7 @@ class Fleet:
       is-updated = false
     else:
       is-updated = json-equals (current-state or firmware-state) goal
-    max-offline-s/int? := firmware-state.get "max-offline"
+    max-offline-s/int? := (current-state or firmware-state).get "max-offline"
     // If the device has no max_offline, we assume it's 20 seconds.
     // TODO(florian): handle this better.
     if not max-offline-s:
