@@ -480,7 +480,7 @@ class Artemis:
       upgrade-from := []
       if known-encoded-firmwares.is-empty:
         if base-firmwares.is-empty:
-          ui_.warning "No old firmware found for device '$device-id'."
+          ui_.warning "Firmware of device '$device-id' is unknown. Upgrade might not use patches."
         else:
           upgrade-from = base-firmwares
       else:
