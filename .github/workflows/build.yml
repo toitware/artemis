@@ -446,6 +446,7 @@ jobs:
           mv in-linux/artemis-linux-aarch64.tar.gz release-assets/artemis-linux-aarch64.tar.gz
 
           mv in-windows/artemis-windows.zip release-assets/artemis-windows.zip
+          mv in-windows/artemis_installer_x64.exe release-assets/artemis-installer-x64.exe
 
           mv in-mac/artemis.dmg release-assets/artemis.dmg
           mv in-mac/artemis.zip release-assets/artemis-macos.zip
