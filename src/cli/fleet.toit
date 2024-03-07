@@ -198,7 +198,13 @@ class DevicesFile:
       encoded-devices["$device.id"] = entry
     write-json-to-file --pretty path encoded-devices
 
-class FleetPodManagement:
+/**
+A fleet.
+
+This class, contrary to $FleetWithDevices, can only manipulate the pods of the fleet.
+In return, it can be instantiated with only a fleet-reference file.
+*/
+class Fleet:
   static FLEET-FILE_ ::= "fleet.json"
 
   id/uuid.Uuid
@@ -211,7 +217,7 @@ class FleetPodManagement:
 
   constructor fleet-root/string artemis/Artemis --ui/Ui --cache/Cache --config/Config:
     fleet-file := load-fleet-file fleet-root --ui=ui
-    return FleetPodManagement fleet-root artemis --ui=ui --cache=cache --config=config --fleet-file=fleet-file
+    return Fleet fleet-root artemis --ui=ui --cache=cache --config=config --fleet-file=fleet-file
 
   constructor .fleet-root_ .artemis_ --ui/Ui --cache/Cache --config/Config --fleet-file/FleetFile:
     ui_ = ui
@@ -429,9 +435,15 @@ class FleetPodManagement:
         --pod-ids=[pod-id]
     return not pod-entry.is-empty
 
-class Fleet extends FleetPodManagement:
+/**
+A fleet with devices.
+
+Contrary to the $Fleet class, this class needs access to the devices of a fleet.
+It can only be instantiated with a non-reference fleet file.
+*/
+class FleetWithDevices extends Fleet:
   static DEVICES-FILE_ ::= "devices.json"
-  static FLEET-FILE_ ::= FleetPodManagement.FLEET-FILE_
+  static FLEET-FILE_ ::= Fleet.FLEET-FILE_
 
   /** Signal that an alias is ambiguous. */
   static AMBIGUOUS_ ::= -1
@@ -443,7 +455,7 @@ class Fleet extends FleetPodManagement:
   aliases_/Map := {:}
 
   constructor fleet-root/string artemis/Artemis --ui/Ui --cache/Cache --config/Config:
-    fleet-file := FleetPodManagement.load-fleet-file fleet-root --ui=ui
+    fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
     if fleet-file.is-reference:
       ui.abort "Fleet root $fleet-root is a reference fleet and cannot be used for device management."
     devices-file := load-devices-file fleet-root --ui=ui

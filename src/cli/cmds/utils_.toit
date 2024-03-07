@@ -38,18 +38,18 @@ default-organization-from-config config/Config -> uuid.Uuid?:
   if not organization-id-string: return null
   return uuid.parse organization-id-string
 
-with-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
+with-devices-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
   fleet-root := compute-fleet-root parsed config ui
 
   with-artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet-root artemis --ui=ui --cache=cache --config=config
+    fleet := FleetWithDevices fleet-root artemis --ui=ui --cache=cache --config=config
     block.call fleet
 
 with-pod-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
   fleet-root := compute-fleet-root parsed config ui
 
   with-artemis parsed config cache ui: | artemis/Artemis |
-    fleet := FleetPodManagement fleet-root artemis --ui=ui --cache=cache --config=config
+    fleet := Fleet fleet-root artemis --ui=ui --cache=cache --config=config
     block.call fleet
 
 compute-fleet-root parsed/cli.Parsed config/Config ui/Ui -> string:

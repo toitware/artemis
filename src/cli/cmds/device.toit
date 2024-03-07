@@ -130,7 +130,7 @@ with-device
 
     if device-rest-reference: device-reference = device-rest-reference
 
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     device/DeviceFleet := ?
     if not device-reference:
       device-id := default-device-from-config config
@@ -156,7 +156,7 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   else:
     ui.abort "No pod specified."
 
-  with-device parsed config cache ui: | device/DeviceFleet artemis/Artemis fleet/Fleet |
+  with-device parsed config cache ui: | device/DeviceFleet artemis/Artemis fleet/FleetWithDevices |
     pod/Pod := ?
     if reference:
       pod = fleet.download reference
@@ -180,7 +180,7 @@ default-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if device-reference and device-rest-reference:
     ui.abort "Cannot specify a device both with '-d' and without it: $device-reference, $device-rest-reference."
 
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     // We allow to set the default with `-d` or by giving it as rest argument.
     device := device-reference or device-rest-reference
     device-id := ?
@@ -215,7 +215,7 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.abort "max-events must be >= 0."
 
   with-device parsed config cache ui --allow-rest-device:
-    | fleet-device/DeviceFleet artemis/Artemis fleet/Fleet |
+    | fleet-device/DeviceFleet artemis/Artemis fleet/FleetWithDevices |
       broker := artemis.connected-broker
       artemis-server := artemis.connected-artemis-server
       devices := broker.get-devices --device-ids=[fleet-device.id]
@@ -292,7 +292,7 @@ filter-sensitive_ o/any -> any:
 
 print-device_
     --show-event-values/bool
-    fleet/Fleet
+    fleet/FleetWithDevices
     fleet-device/DeviceFleet
     broker-device/DeviceDetailed
     organization/OrganizationDetailed
@@ -443,7 +443,7 @@ print-list_ list/List printer/Printer --indentation/int=0:
     else:
       printer.emit "$indentation-str* $value"
 
-print-modification_ modification/Modification --to/Map --fleet/Fleet printer/Printer:
+print-modification_ modification/Modification --to/Map --fleet/FleetWithDevices printer/Printer:
   modification.on-value "firmware"
       --added=: printer.emit   "  +pod: $(firmware-to-pod-description_ it --fleet=fleet)"
       --removed=: printer.emit "  -pod"
@@ -508,7 +508,7 @@ prettify-firmware firmware/string -> string:
   if firmware.size <= 80: return firmware
   return firmware[0..40] + "..." + firmware[firmware.size - 40..]
 
-firmware-to-pod-description_ --fleet/Fleet encoded-firmware/string -> string:
+firmware-to-pod-description_ --fleet/FleetWithDevices encoded-firmware/string -> string:
   firmware := Firmware.encoded encoded-firmware
   pod-id := firmware.pod-id
   fleet-pod := fleet.pod pod-id

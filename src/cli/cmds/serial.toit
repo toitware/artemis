@@ -151,7 +151,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if local and remote:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
 
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     artemis := fleet.artemis_
 
     with-tmp-directory: | tmp-dir/string |

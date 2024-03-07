@@ -167,7 +167,7 @@ create-pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   specification-path := parsed["specification"]
   output := parsed["output"]
 
-  with-pod-fleet parsed config cache ui: | fleet/FleetPodManagement |
+  with-pod-fleet parsed config cache ui: | fleet/Fleet |
     artemis := fleet.artemis_
     pod := Pod.from-specification
         --organization-id=fleet.organization-id
@@ -192,7 +192,7 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   else:
     tags.add "latest"
 
-  with-pod-fleet parsed config cache ui: | fleet/FleetPodManagement |
+  with-pod-fleet parsed config cache ui: | fleet/Fleet |
     artemis := fleet.artemis_
     pod-paths.do: | pod-path/string |
       pod := Pod.from-file pod-path
@@ -207,7 +207,7 @@ download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   reference := PodReference.parse reference-string --allow-name-only --ui=ui
 
-  with-pod-fleet parsed config cache ui: | fleet/FleetPodManagement |
+  with-pod-fleet parsed config cache ui: | fleet/Fleet |
     pod := fleet.download reference
     pod.write output --ui=ui
     ui.info "Downloaded pod '$reference-string' to '$output'."
@@ -215,7 +215,7 @@ download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   names := parsed["name"]
 
-  with-pod-fleet parsed config cache ui: | fleet/FleetPodManagement |
+  with-pod-fleet parsed config cache ui: | fleet/Fleet |
     pods := fleet.list-pods --names=names
     // TODO(florian):
     // we want to have 'created_at' in the registry entry.
@@ -292,7 +292,7 @@ delete parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   reference-strings := parsed["name-or-reference"]
   all := parsed["all"]
 
-  with-pod-fleet parsed config cache ui: | fleet/FleetPodManagement |
+  with-pod-fleet parsed config cache ui: | fleet/Fleet |
     if all:
       fleet.delete --description-names=reference-strings
     else:
