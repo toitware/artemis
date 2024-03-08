@@ -1,0 +1,3 @@
+# Fail when trying to use a ref as fleet
+# [pod, list, --fleet, TMP_DIR/fake-fleet]
+Error: Fleet file in given directory is a reference.

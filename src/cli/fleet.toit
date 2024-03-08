@@ -233,15 +233,15 @@ class Fleet:
   artemis_/Artemis
   ui_/Ui
   cache_/Cache
-  fleet-root_/string
+  fleet-root-or-ref_/string
 
   organization-id/uuid.Uuid
 
-  constructor fleet-root/string artemis/Artemis --ui/Ui --cache/Cache --config/Config:
-    fleet-file := load-fleet-file fleet-root --ui=ui
-    return Fleet fleet-root artemis --ui=ui --cache=cache --config=config --fleet-file=fleet-file
+  constructor fleet-root-or-ref/string artemis/Artemis --ui/Ui --cache/Cache --config/Config:
+    fleet-file := load-fleet-file fleet-root-or-ref --ui=ui
+    return Fleet fleet-root-or-ref artemis --ui=ui --cache=cache --config=config --fleet-file=fleet-file
 
-  constructor .fleet-root_ .artemis_ --ui/Ui --cache/Cache --config/Config --fleet-file/FleetFile:
+  constructor .fleet-root-or-ref_ .artemis_ --ui/Ui --cache/Cache --config/Config --fleet-file/FleetFile:
     ui_ = ui
     cache_ = cache
 
@@ -253,16 +253,40 @@ class Fleet:
     if not org:
       ui.abort "Organization $organization-id does not exist or is not accessible."
 
-  static load-fleet-file fleet-root/string --ui/Ui -> FleetFile:
-    if not file.is-directory fleet-root:
-      ui.abort "Fleet root $fleet-root is not a directory."
-    fleet-path := "$fleet-root/$FLEET-FILE_"
+  static load-fleet-file fleet-root-or-ref/string --ui/Ui -> FleetFile:
+    fleet-path/string := ?
+    must-be-reference/bool := ?
+    if file.is-file fleet-root-or-ref:
+      // Must be a reference.
+      fleet-path = fleet-root-or-ref
+      must-be-reference = true
+    else if file.is-directory fleet-root-or-ref:
+      fleet-path = "$fleet-root-or-ref/$FLEET-FILE_"
+      must-be-reference = false
+    else:
+      ui.abort "Fleet root $fleet-root-or-ref is not a directory or a file."
+      unreachable
+
     if not file.is-file fleet-path:
-      ui.error "Fleet root $fleet-root does not contain a $FLEET-FILE_ file."
+      // Can only happen if the fleet-root-or-ref was a directory.
+      ui.error "Fleet root $fleet-root-or-ref does not contain a $FLEET-FILE_ file."
       ui.error "Use 'init' to initialize a fleet root."
       ui.abort
 
-    return FleetFile.parse fleet-path --ui=ui
+    result := FleetFile.parse fleet-path --ui=ui
+    if must-be-reference and not result.is-reference:
+      ui.abort "Provided fleet-file is not a reference."
+    else if not must-be-reference and result.is-reference:
+      ui.abort "Fleet file in given directory is a reference."
+
+    return result
+
+  create-reference -> Map:
+    return {
+      "id": "$id",
+      "organization": "$organization-id",
+      "is-reference": true,
+    }
 
   /**
   Uploads the given $pod to the broker.
@@ -476,6 +500,9 @@ class FleetWithDevices extends Fleet:
   aliases_/Map := {:}
 
   constructor fleet-root/string artemis/Artemis --ui/Ui --cache/Cache --config/Config:
+    if not file.is-directory fleet-root and file.is-file fleet-root:
+      ui.abort "Fleet argument for this operation must be a fleet root (directory) and not a reference file: '$fleet-root'."
+
     fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
     if fleet-file.is-reference:
       ui.abort "Fleet root $fleet-root is a reference fleet and cannot be used for device management."
@@ -530,7 +557,7 @@ class FleetWithDevices extends Fleet:
     return DevicesFile.parse devices-path --ui=ui
 
   write-devices_ -> none:
-    file := DevicesFile "$fleet-root_/$DEVICES-FILE_" devices_
+    file := DevicesFile "$fleet-root-or-ref_/$DEVICES-FILE_" devices_
     file.write
 
   /**

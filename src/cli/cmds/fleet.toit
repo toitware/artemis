@@ -403,6 +403,28 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: group-move it config cache ui
   group-cmd.add group-move-cmd
 
+  create-reference-cmd := cli.Command "create-reference"
+      --aliases=["create-ref"]
+      --help="""
+        Creates a reference file for this fleet.
+
+        References can be used for pod-management commands, such as 'pod upload',
+        but cannot be used for device management commands, such as 'fleet roll-out'.
+        """
+      --options=[
+        cli.Option "output"
+            --short-name="o"
+            --type="file"
+            --help="The file to write the reference to."
+            --required,
+      ]
+      --examples=[
+        cli.Example "Create a reference file 'my-fleet.ref':"
+            --arguments="--output=my-fleet.ref",
+      ]
+      --run=:: create-reference it config cache ui
+  cmd.add create-reference-cmd
+
   return [cmd]
 
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -416,7 +438,7 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
     organization-id = default-organization-id
 
-  fleet-root := compute-fleet-root parsed config ui
+  fleet-root := compute-fleet-root-or-ref parsed config ui
   with-artemis parsed config cache ui: | artemis/Artemis |
     FleetWithDevices.init fleet-root artemis --organization-id=organization-id --ui=ui
 
@@ -499,16 +521,17 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.info "Added device $device-id to fleet."
 
 group-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet-root := compute-fleet-root parsed config ui
-  fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
-  ui.do --kind=Ui.RESULT: | printer/Printer |
-    structured := []
-    fleet-file.group-pods.do: | name pod-reference/PodReference |
-      structured.add {
-        "name": name,
-        "pod": pod-reference.to-string,
-      }
-    printer.emit structured --header={"name": "Group", "pod": "Pod"}
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    fleet-file := Fleet.load-fleet-file fleet.fleet-root-or-ref_ --ui=ui
+
+    ui.do --kind=Ui.RESULT: | printer/Printer |
+      structured := []
+      fleet-file.group-pods.do: | name pod-reference/PodReference |
+        structured.add {
+          "name": name,
+          "pod": pod-reference.to-string,
+        }
+      printer.emit structured --header={"name": "Group", "pod": "Pod"}
 
 group-create parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   pod := parsed["pod"]
@@ -530,7 +553,7 @@ group-create parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if not fleet.pod-exists pod-reference:
         ui.abort "Pod $pod-reference does not exist."
 
-    fleet-file := Fleet.load-fleet-file fleet.fleet-root_ --ui=ui
+    fleet-file := Fleet.load-fleet-file fleet.fleet-root-or-ref_ --ui=ui
     if fleet-file.group-pods.contains name:
       ui.abort "Group $name already exists."
     fleet-file.group-pods[name] = pod-reference
@@ -556,7 +579,7 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   executed-actions/List := []
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    fleet-root := fleet.fleet-root_
+    fleet-root := fleet.fleet-root-or-ref_
     fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
 
     pod-reference/PodReference? := null
@@ -600,55 +623,54 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 group-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   group := parsed["group"]
 
-  fleet-root := compute-fleet-root parsed config ui
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    fleet-file := Fleet.load-fleet-file fleet.fleet-root-or-ref_ --ui=ui
+    if not fleet-file.group-pods.contains group:
+      ui.info "Group '$group' does not exist."
+      return
 
-  fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
-  if not fleet-file.group-pods.contains group:
-    ui.info "Group '$group' does not exist."
-    return
+    device-file := FleetWithDevices.load-devices-file fleet.fleet-root-or-ref_ --ui=ui
+    used-groups := {}
+    device-file.devices.do: | device/DeviceFleet |
+      used-groups.add device.group
 
-  device-file := FleetWithDevices.load-devices-file fleet-root --ui=ui
-  used-groups := {}
-  device-file.devices.do: | device/DeviceFleet |
-    used-groups.add device.group
+    if used-groups.contains group:
+      ui.abort "Group '$group' is in use."
 
-  if used-groups.contains group:
-    ui.abort "Group '$group' is in use."
+    fleet-file.group-pods.remove group
+    fleet-file.write
 
-  fleet-file.group-pods.remove group
-  fleet-file.write
-
-  ui.info "Removed group $group."
+    ui.info "Removed group $group."
 
 group-move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   to := parsed["to"]
   groups-to-move := parsed["group"]
   devices-to-move := parsed["device"]
 
-  fleet-root := compute-fleet-root parsed config ui
-
-  if groups-to-move.is-empty and devices-to-move.is-empty:
-    ui.abort "No devices or groups given."
-
   ids-to-move := {}
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     devices-to-move.do: | device |
       ids-to-move.add (fleet.resolve-alias device).id
 
-  fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
-  if not fleet-file.group-pods.contains to:
-    ui.abort "Group '$to' does not exist."
+    fleet-root := fleet.fleet-root-or-ref_
 
-  groups-to-move-set := {}
-  groups-to-move-set.add-all groups-to-move
+    if groups-to-move.is-empty and devices-to-move.is-empty:
+      ui.abort "No devices or groups given."
 
-  moved-count := move-devices_
-      --fleet-root=fleet-root
-      --ids-to-move=ids-to-move
-      --groups-to-move=groups-to-move-set
-      --to=to
-      --ui=ui
-  ui.info "Moved $moved-count devices to group '$to'."
+    fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
+    if not fleet-file.group-pods.contains to:
+      ui.abort "Group '$to' does not exist."
+
+    groups-to-move-set := {}
+    groups-to-move-set.add-all groups-to-move
+
+    moved-count := move-devices_
+        --fleet-root=fleet-root
+        --ids-to-move=ids-to-move
+        --groups-to-move=groups-to-move-set
+        --to=to
+        --ui=ui
+    ui.info "Moved $moved-count devices to group '$to'."
 
 move-devices_ -> int
     --fleet-root/string
@@ -672,3 +694,11 @@ move-devices_ -> int
     new-devices-file.write
 
   return moved-count
+
+create-reference parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  output := parsed["output"]
+
+  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+    reference := fleet.create-reference
+    write-json-to-file --pretty output reference
+    ui.info "Created reference file $output."
