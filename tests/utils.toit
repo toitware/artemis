@@ -27,8 +27,6 @@ import artemis.service.brokers.broker show BrokerConnection BrokerService
 import artemis.service.device show Device
 import artemis.cli.ui show ConsolePrinter JsonPrinter Ui Printer
 import artemis.cli.utils show write-blob-to-file read-base64-ubjson
-import ..tools.http-servers.broker as http-servers
-import ..tools.http-servers.artemis-server as http-servers
 import ..tools.service-image-uploader.uploader as uploader
 import monitor
 import .artemis-server
@@ -130,6 +128,9 @@ class TestUi extends Ui:
 
   abort:
     throw TestExit
+
+  wants-structured-result -> bool:
+    return json_
 
 class TestCli:
   config/cli.Config

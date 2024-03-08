@@ -52,8 +52,8 @@ create-ui-from-args args:
     else if arg.starts-with "--output-format=" or arg.starts-with "--output_format=":
       output-format = arg["--output-format=".size..]
 
-  if verbose-level == null: verbose-level = "info"
   if output-format == null: output-format = "text"
+  if verbose-level == null: verbose-level = output-format == "json" ? "quiet" : "info"
 
   level/int := ?
   if verbose-level == "debug": level = Ui.DEBUG-LEVEL
@@ -106,8 +106,7 @@ main args --config/Config --cache/Cache --ui/Ui:
             --default=false,
         cli.OptionEnum "verbosity-level"
             ["debug", "info", "verbose", "quiet", "silent"]
-            --help="Specify the verbosity level."
-            --default="info",
+            --help="Specify the verbosity level.",
       ]
 
   // TODO(florian): the ui should be configurable by flags.

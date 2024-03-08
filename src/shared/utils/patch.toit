@@ -109,6 +109,7 @@ class Patcher:
           ignore-bits_ accumulator-size & 7
       else:
         set-byte-oriented_ (not byte-oriented)
+    yield  // Give other tasks, like the watchdog provider, a chance to run.
 
   // Check that have we output the same bits that the metadata sha hash
   // indicated we should.

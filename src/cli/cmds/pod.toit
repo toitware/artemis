@@ -47,6 +47,10 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
             --help="The specification of the pod."
             --required,
       ]
+      --examples=[
+        cli.Example "Build a pod file 'my-pod.pod' from a specification file 'my-pod.yaml':"
+            --arguments="-o my-pod.pod my-pod.yaml",
+      ]
       --run=:: create-pod it config cache ui
   cmd.add create-cmd
 
@@ -74,6 +78,22 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
             --multi
             --required,
       ]
+      --examples=[
+        cli.Example """
+            Build a pod from specification 'my-pod.yaml' and upload it with just
+            the automatic 'latest' tag:"""
+            --arguments="my-pod.yaml"
+            --global-priority=7,
+        cli.Example """
+            Upload the pod file 'my-pod.pod' with the tag 'v1.0.0', and the automatic
+            'latest' tag:"""
+            --arguments="--tag=v1.0.0 my-pod.pod"
+            --global-priority=4,
+        cli.Example """
+            Upload the pod file 'my-pod.pod' with the tag 'v2.0.0' and reset the tag
+            if it already exists:"""
+            --arguments="--tag=v2.0.0 --force my-pod.pod",
+      ]
       --run=:: upload it config cache ui
   cmd.add upload-cmd
 
@@ -99,6 +119,16 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
             --help="A pod reference: a UUID, name@tag, or name#revision."
             --required,
       ]
+      --examples=[
+        cli.Example "Download the latest version of the pod with name 'my-pod' to 'my-pod.pod':"
+            --arguments="-o my-pod.pod my-pod",
+        cli.Example "Download the pod with UUID '12345678-1234-5678-1234-567812345678' to 'my-pod.pod':"
+            --arguments="-o my-pod.pod 12345678-1234-5678-1234-567812345678",
+        cli.Example "Download the pod with name 'my-pod' and tag 'v1.0.0' to 'my-pod.pod':"
+            --arguments="-o my-pod.pod my-pod@v1.0.0",
+        cli.Example "Download the pod with name 'my-pod' and revision '1' to 'my-pod.pod':"
+            --arguments="-o my-pod.pod my-pod#1",
+      ]
       --run=:: download it config cache ui
   cmd.add download-cmd
 
@@ -112,6 +142,14 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "name"
             --help="List pods with this name."
             --multi,
+      ]
+      --examples=[
+        cli.Example "List all pods available on the broker:"
+            --arguments="",
+        cli.Example "List all pods with the name 'my-pod':"
+            --arguments="--name=my-pod",
+        cli.Example "List all pods with name 'my-pod' or 'my-other-pod':"
+            --arguments="--name=my-pod --name=my-other-pod",
       ]
       --run=:: list it config cache ui
   cmd.add list-cmd
@@ -135,6 +173,12 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
             --help="The specification of the pod."
             --required,
       ]
+      --examples=[
+        cli.Example "Print the merged pod specification from a file 'my-pod.yaml':"
+            --arguments="--flat my-pod.yaml",
+        cli.Example "Print the non-merged pod specification from a file 'my-pod.yaml':"
+            --arguments="my-pod.yaml",
+      ]
       --run=:: print it config cache ui
   cmd.add print-cmd
 
@@ -157,6 +201,12 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
             --help="A pod name or reference (a UUID, name@tag, or name#revision)."
             --multi
             --required,
+      ]
+      --examples=[
+        cli.Example "Delete the pod with name 'my-pod':"
+            --arguments="my-pod",
+        cli.Example "Delete the pod with UUID '12345678-1234-5678-1234-567812345678':"
+            --arguments="12345678-1234-5678-1234-567812345678",
       ]
       --run=:: delete it config cache ui
   cmd.add delete-cmd
@@ -199,7 +249,24 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --organization-id=fleet.organization-id
           --artemis=artemis
           --ui=ui
-      fleet.upload --pod=pod --tags=tags --force-tags=force
+      upload-result := fleet.upload --pod=pod --tags=tags --force-tags=force
+      if ui.wants-structured-result:
+        // Note that we don't print the error-tags as error messages in this case.
+        ui.do --kind=Ui.RESULT: | printer/Printer |
+          printer.emit-structured
+              --json=: upload-result.to-json
+              --stdout=: // Do nothing.
+      else:
+        prefix := upload-result.tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
+        ui.info "$prefix $pod.name#$upload-result.revision to fleet $fleet.id."
+        ui.info "  id: $pod.id"
+        ui.info "  references:"
+        upload-result.tags.do: ui.info "    - $pod.name@$it"
+
+        if not upload-result.tag-errors.is-empty:
+          upload-result.tag-errors.do: ui.error it
+
+      if not upload-result.tag-errors.is-empty: ui.abort
 
 download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   reference-string := parsed["reference"]

@@ -34,6 +34,9 @@ class TestUi extends ConsoleUi:
     stdout = ""
     structured = []
 
+  wants-structured-result -> bool:
+    return needs-structured
+
 class TestJsonPrinter extends JsonPrinter:
   test-ui_/TestJsonUi
 

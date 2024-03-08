@@ -25,6 +25,14 @@ create-sdk-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "sdk-version" --help="The SDK version to list.",
         cli.Option "service-version" --help="The service version to list.",
       ]
+      --examples=[
+        cli.Example "List all available SDKs/service versions:"
+            --arguments="",
+        cli.Example "List all available service versions for a the SDK version v2.0.0-alpha.139:"
+            --arguments="--sdk-version=v2.0.0-alpha.139",
+        cli.Example "List all available SDK versions for the service version v0.5.5:"
+            --arguments="--service-version=v0.5.5",
+      ]
       --run=:: list-sdks it config cache ui
   sdk-cmd.add list-cmd
 

@@ -5,113 +5,290 @@
   "description": "Pod specification format of Artemis.",
   "type": "object",
   "$comment": "Note that we don't require any of the properties. This is because we allow to extend specifications, and some properties might thus not exist in this file.",
-  "unevaluatedProperties": false,
-  "properties": {
-    "$schema": {
-      "description": "Schema of the pod specification.",
-      "type": "string"
+  "$ref": "#/$defs/PodSpecification",
+  "$defs": {
+    "PodSpecification": {
+      "type": "object",
+      "required": [
+        "name",
+        "sdk-version",
+        "artemis-version"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "$schema": {
+          "description": "Schema of the pod specification.",
+          "type": "string"
+        },
+        "version": {
+          "$comment": "Must be 1 at the moment. Deprecated. Use '$schema' instead.",
+          "description": "Version of the pod specification.",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Name of the pod.",
+          "type": "string"
+        },
+        "sdk-version": {
+          "description": "Version of the Toit SDK.",
+          "type": "string"
+        },
+        "artemis-version": {
+          "description": "Version of the Artemis service.",
+          "type": "string"
+        },
+        "envelope": {
+          "description": "Firmware envelope to use. May be a short identifier or a URL. The string '$sdk-version' is replaced by the actual sdk-version.",
+          "type": "string"
+        },
+        "chip": {
+          "description": "The ESP32 chip that is used.",
+          "enum": [
+            "esp32",
+            "esp32s2",
+            "esp32c3",
+            "esp32s3"
+          ]
+        },
+        "max-offline": {
+          "description": "Maximum duration before Artemis should attempt to synchronize. For example '30m'.",
+          "type": "string"
+        },
+        "extends": {
+          "description": "List of paths to pod specifications to extend.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "connections": {
+          "description": "List of connections to use.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Connection"
+          }
+        },
+        "containers": {
+          "description": "List of containers to install.",
+          "$comment": "A map from container name to container specification.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Container"
+          }
+        }
+      }
     },
-    "version": {
-      "$comment": "Must be 1 at the moment. Should be replaced by a schema reference.",
-      "description": "Version of the pod specification.",
-      "type": "integer"
-    },
-    "name": {
-      "description": "Name of the pod.",
-      "type": "string"
-    },
-    "sdk-version": {
-      "description": "Version of the Toit SDK.",
-      "type": "string"
-    },
-    "artemis-version": {
-      "description": "Version of the Artemis service.",
-      "type": "string"
-    },
-    "envelope": {
-      "description": "Firmware envelope to use. May be a short identifier or a URL. The string '$sdk-version' is replaced by the actual sdk-version.",
-      "type": "string"
-    },
-    "chip": {
-      "description": "The ESP32 chip that is used.",
-      "enum": [
-        "esp32",
-        "esp32s2",
-        "esp32c3",
-        "esp32s3"
+    "Connection": {
+      "oneOf": [
+        { "$ref": "#/$defs/WifiConnection" },
+        { "$ref": "#/$defs/EthernetConnection" },
+        { "$ref": "#/$defs/CellularConnection" }
       ]
     },
-    "max-offline": {
-      "description": "Maximum duration before Artemis should attempt to synchronize. For example '30m'.",
-      "type": "string"
+    "ConnectionBase": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "description": "Type of connection.",
+          "enum": [
+            "wifi",
+            "ethernet",
+            "cellular"
+          ]
+        }
+      }
     },
-    "extends": {
-      "description": "List of paths to pod specifications to extend.",
+    "WifiConnection": {
+      "allOf": [
+        { "$ref": "#/$defs/ConnectionBase" },
+        {
+          "properties": {
+            "type": { "const": "wifi" },
+            "ssid": {
+              "description": "SSID of the WiFi network.",
+              "type": "string"
+            },
+            "password": {
+              "description": "Password of the WiFi network.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "ssid"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "ConnectionDependencies": {
+      "description": "List of required containers for this connection.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "connections": {
-      "description": "List of connections to use.",
-      "type": "array",
+    "EthernetConnection": {
+      "allOf": [
+        { "$ref": "#/$defs/ConnectionBase" },
+        {
+          "properties": {
+            "type": { "const": "ethernet" },
+            "requires": { "$ref": "#/$defs/ConnectionDependencies" }
+          },
+          "required": [
+            "type"
+          ]
+        }
+      ]
+    },
+    "CellularConnection": {
+      "allOf": [
+        { "$ref": "#/$defs/ConnectionBase" },
+        {
+          "properties": {
+            "type": { "const": "cellular" },
+            "config": { "$ref": "#/$defs/CellularConfig" },
+            "requires": { "$ref": "#/$defs/ConnectionDependencies" }
+          }
+        }
+      ]
+    },
+    "Pin": {
+      "description": "A pin can either be a number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
+      "type": [
+        "integer",
+        "array"
+      ],
       "items": {
-        "@ref": "#/$defs/connection"
+        "type": "integer"
       }
     },
-    "containers": {
-      "description": "List of containers to install.",
-      "$comment": "A map from container name to container specification.",
+    "CellularConfig": {
+      "description": "Cellular configuration.",
       "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "unevaluatedProperties": false,
-        "properties": {
-          "arguments": {
-            "description": "Arguments to pass to the container.",
-            "type": "array",
-            "items": {
-              "type": "string"
+      "properties": {
+        "cellular.apn": {
+          "description": "APN to use.",
+          "type": "string"
+        },
+        "cellular.bands": {
+          "description": "List of bands to use.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cellular.rats": {
+          "description": "List of radio access technologies to use.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cellular.uart.baud": {
+          "description": "Baud rates that can be used for the UART connection to the module.",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "cellular.uart.priority": {
+          "description": "Whether to run the uart port with high priority.",
+          "type": "boolean"
+        },
+        "cellular.uart.rx": {
+          "description": "Pin that receives data from the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
+          "$ref": "#/$defs/Pin"
+        },
+        "cellular.uart.tx": {
+          "description": "Pin that sends data to the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
+          "$ref": "#/$defs/Pin"
+        },
+        "cellular.uart.cts": {
+          "description": "Pin that controls the flow of data from the module to the device. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
+          "$ref": "#/$defs/Pin"
+        },
+        "cellular.uart.rts": {
+          "description": "Pin that controls the flow of data from the device to the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
+          "$ref": "#/$defs/Pin"
+        },
+        "cellular.power": {
+          "description": "Pin that powers the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
+          "$ref": "#/$defs/Pin"
+        },
+        "cellular.reset": {
+          "description": "Pin that resets the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
+          "$ref": "#/$defs/Pin"
+        },
+        "cellular.log.level": {
+          "description": "Log level for the cellular module. Debug=0, Info=1, Warning=2, Error=3, Fatal=4.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        }
+      }
+    },
+    "Container": {
+      "oneOf": [
+        { "$ref": "#/$defs/PathContainer" },
+        { "$ref": "#/$defs/SnapshotContainer" }
+      ]
+    },
+    "ContainerBase": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "properties": {
+        "arguments": {
+          "description": "Arguments to pass to the container.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "background": {
+          "description": "Whether the container allows the device to go into deep-sleep even when running.",
+          "type": "boolean"
+        },
+        "runlevel": {
+          "description": "Runlevel of the container.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "critical",
+                "priority",
+                "normal"
+              ]
+            },
+            {
+              "type": "integer",
+              "minimum": 0
             }
-          },
-          "background": {
-            "description": "Whether the container allows the device to go into deep-sleep even when running.",
-            "type": "boolean"
-          },
-          "runlevel": {
-            "description": "Runlevel of the container.",
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "critical",
-                  "priority",
-                  "normal"
-                ]
-              },
-              {
-                "type": "integer",
-                "minimum": 0
-              }
-            ]
-          },
-          "critical": {
-            "description": "Whether the container is critical.",
-            "type": "boolean"
-          },
-          "triggers": {
-            "description": "Triggers that start the container.",
-            "type": "array",
-            "items": {
-              "@ref": "#/$defs/trigger"
-            }
-          },
+          ]
+        },
+        "critical": {
+          "description": "Whether the container is critical.",
+          "type": "boolean"
+        },
+        "triggers": {
+          "description": "Triggers that start the container.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Trigger"
+          }
+        }
+      }
+    },
+    "PathContainer": {
+      "allOf": [
+        { "$ref": "#/$defs/ContainerBase" },
+        {
           "entrypoint": {
             "description": "(Relative) path to the entrypoint of the container.",
-            "type": "string"
-          },
-          "snapshot": {
-            "description": "(Relative) path to the snapshot of the container.",
             "type": "string"
           },
           "git": {
@@ -128,320 +305,129 @@
             "items": {
               "type": "string"
             }
-          }
-        },
-        "oneOf": [
-          {
-            "$comment": "Either entrypoint or snapshot must be specified, and they are exclusive.",
-            "required": [
-              "entrypoint"
-            ],
-            "not": {
-              "required": [
-                "snapshot"
-              ]
-            }
           },
-          {
-            "required": [
-              "snapshot"
-            ],
-            "not": {
-              "required": [
-                "entrypoint"
-              ]
-            }
-          }
-        ],
-        "dependencies": {
-          "branch": ["git"],
-          "git": ["entrypoint"]
-        }
-      }
-    }
-  },
-  "@defs": {
-    "trigger": {
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": [
-            "boot",
-            "install"
+          "dependencies": {
+            "branch": ["git"]
+          },
+          "required": [
+            "entrypoint"
           ]
-        },
-        {
-          "type": "object",
-          "required": [
-            "interval"
-          ],
-          "unevaluatedProperties": false,
-          "properties": {
-            "interval": {
-              "description": "Interval at which the container should be started. For example '1h'.",
-              "type": "string"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "gpio"
-          ],
-          "unevaluatedProperties": false,
-          "properties": {
-            "gpio": {
-              "description": "GPIO triggers.",
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "pin": {
-                    "description": "Pin number that triggers the container.",
-                    "type": [
-                      "integer"
-                    ]
-                  },
-                  "level": {
-                    "description": "Level at which the container is triggered.",
-                    "type": "string",
-                    "enum": [
-                      "low",
-                      "high"
-                    ]
-                  },
-                  "touch": {
-                    "description": "Whether the pin is a touch pin.",
-                    "type": "boolean"
-                  }
-                },
-                "required": [
-                  "pin"
-                ],
-                "oneOf": [
-                  {
-                    "required": [
-                      "level"
-                    ],
-                    "not": {
-                      "required": [
-                        "touch"
-                      ]
-                    }
-                  },
-                  {
-                    "required": [
-                      "touch"
-                    ],
-                    "not": {
-                      "required": [
-                        "level"
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          }
         }
       ]
-    }
-  },
-  "connection": {
-    "type": "object",
-    "required": [
-      "type"
-    ],
-    "properties": {
-      "type": {
-        "description": "Type of connection.",
-        "enum": [
-          "wifi",
-          "ethernet",
-          "cellular"
+    },
+    "SnapshotContainer": {
+      "allOf": [
+        { "$ref": "#/$defs/ContainerBase" },
+        {
+          "snapshot": {
+            "description": "(Relative) path to the snapshot of the container.",
+            "type": "string"
+          },
+          "required": [
+            "snapshot"
+          ]
+        }
+      ]
+    },
+    "Trigger": {
+      "oneOf": [
+        { "$ref": "#/$defs/KeywordTrigger" },
+        { "$ref": "#/$defs/IntervalTrigger" },
+        { "$ref": "#/$defs/GpioTrigger" }
+      ]
+    },
+    "KeywordTrigger": {
+      "type": "string",
+      "enum": [
+        "boot",
+        "install"
+      ]
+    },
+    "IntervalTrigger": {
+      "type": "object",
+      "required": [
+        "interval"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "interval": {
+          "description": "Interval at which the container should be started. For example '1h'.",
+          "type": "string"
+        }
+      }
+    },
+    "GpioTrigger": {
+      "type": "object",
+      "required": [
+        "gpio"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "gpio": {
+          "description": "GPIO triggers.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GpioTriggerSpec"
+          }
+        }
+      }
+    },
+    "GpioTriggerSpec": {
+      "description": "GPIO trigger specification.",
+      "oneOf": [
+        { "$ref": "#/$defs/GpioTriggerSpecPin" },
+        { "$ref": "#/$defs/GpioTriggerSpecTouch" }
+      ]
+    },
+    "GpioTriggerSpecBase": {
+      "type": "object",
+      "properties": {
+        "pin": {
+          "description": "Pin number that triggers the container.",
+          "type": [
+            "integer"
+          ]
+        },
+        "required": [
+          "pin"
         ]
       }
     },
-    "oneOf": [
-      {
-        "properties": {
-          "type": {
-            "const": "wifi"
-          }
-        },
-        "oneOf": [
-          {
-            "properties": {
-              "type": {},
-              "ssid": {
-                "description": "SSID of the WiFi network.",
-                "type": "string"
-              },
-              "password": {
-                "description": "Password of the WiFi network.",
-                "type": "string"
-              }
-            },
-            "required": [
-              "type",
-              "ssid"
-            ],
-            "unevaluatedProperties": false
-          },
-          {
-            "properties": {
-              "type": {},
-              "config": {
-                "description": "Non-hardcoded WiFi configuration.",
-                "enum": [
-                  "provisioned"
-                ]
-              }
-            },
-            "required": [
-              "type",
-              "config"
-            ],
-            "unevaluatedProperties": false
-          }
-        ]
-      },
-      {
-        "properties": {
-          "type": {
-            "const": "ethernet"
-          },
-          "requires": {
-            "description": "List of required containers for this connection.",
-            "type": "array",
-            "items": {
-              "type": "string"
+    "GpioTriggerSpecPin": {
+      "allOf": [
+        { "$ref": "#/$defs/GpioTriggerSpecBase" },
+        {
+          "properties": {
+            "level": {
+              "description": "Level at which the container is triggered.",
+              "type": "string",
+              "enum": [
+                "low",
+                "high"
+              ]
             }
-          }
-        },
-        "required": [
-          "type"
-        ],
-        "unevaluatedProperties": false
-      },
-      {
-        "required": [
-          "type"
-        ],
-        "unevaluatedProperties": false,
-        "properties": {
-          "type": {
-            "const": "cellular"
           },
-          "config": {
-            "description": "Cellular configuration.",
-            "type": "object",
-            "properties": {
-              "cellular.apn": {
-                "description": "APN to use.",
-                "type": "string"
-              },
-              "cellular.bands": {
-                "description": "List of bands to use.",
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "cellular.rats": {
-                "description": "List of radio access technologies to use.",
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "cellular.uart.baud": {
-                "description": "Baud rates that can be used for the UART connection to the module.",
-                "type": "array",
-                "items": {
-                  "type": "integer"
-                }
-              },
-              "cellular.uart.priority": {
-                "description": "Whether to run the uart port with high priority.",
-                "type": "boolean"
-              },
-              "cellular.uart.rx": {
-                "description": "Pin that receives data from the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
-                "type": [
-                  "integer",
-                  "array"
-                ],
-                "items": {
-                  "type": "integer"
-                }
-              },
-              "cellular.uart.tx": {
-                "description": "Pin that sends data to the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
-                "type": [
-                  "integer",
-                  "array"
-                ],
-                "items": {
-                  "type": "integer"
-                }
-              },
-              "cellular.uart.cts": {
-                "description": "Pin that controls the flow of data from the module to the device. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
-                "type": [
-                  "integer",
-                  "array"
-                ],
-                "items": {
-                  "type": "integer"
-                }
-              },
-              "cellular.uart.rts": {
-                "description": "Pin that controls the flow of data from the device to the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
-                "type": [
-                  "integer",
-                  "array"
-                ],
-                "items": {
-                  "type": "integer"
-                }
-              },
-              "cellular.power": {
-                "description": "Pin that powers the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
-                "type": [
-                  "integer",
-                  "array"
-                ],
-                "items": {
-                  "type": "integer"
-                }
-              },
-              "cellular.reset": {
-                "description": "Pin that resets the module. Either a pin number, or an array, where the first item is the pin number, and the second item is either 0 (active low), 1 (active high), or 2 (open-drain).",
-                "type": [
-                  "integer",
-                  "array"
-                ],
-                "items": {
-                  "type": "integer"
-                }
-              },
-              "cellular.log.level": {
-                "description": "Log level for the cellular module. Debug=0, Info=1, Warning=2, Error=3, Fatal=4.",
-                "type": "integer"
-              }
-            },
-            "unevaluatedProperties": false
-          },
-          "requires": {
-            "description": "List of required containers for this connection.",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
+          "required": [
+            "level"
+          ]
         }
-      }
-    ]
+      ]
+    },
+    "GpioTriggerSpecTouch": {
+      "allOf": [
+        { "$ref": "#/$defs/GpioTriggerSpecBase" },
+        {
+          "properties": {
+            "touch": {
+              "description": "Whether the pin is a touch pin.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "touch"
+          ]
+        }
+      ]
+    }
   }
 }

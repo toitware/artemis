@@ -25,8 +25,17 @@ ESP32-WAKEUP-CAUSES ::= {
   esp32.WAKEUP-ULP      : "ulp",
 }
 
+// Allow Artemis to run critical tasks that do not yield for up
+// to 10s. If we run with the default granularity, we may experience
+// issues with the firmware update task that uses relatively slow
+// flash erase operations.
+WATCHDOG-GRANULARITY-MS ::= 10_000 * 2
+
 main arguments:
-  (watchdog.WatchdogServiceProvider).install
+  watchdog-provider := watchdog.WatchdogServiceProvider
+      --granularity-ms=WATCHDOG-GRANULARITY-MS
+  watchdog-provider.install
+
   // No need to store the returned dog, as we expect to transition out
   // of startup before it needs to be fed.
   WatchdogManager.transition-to WatchdogManager.STATE-STARTUP

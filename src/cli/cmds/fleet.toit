@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli
+import host.file
 import uuid
 
 import .utils_
@@ -10,6 +11,7 @@ import ..cache
 import ..device
 import ..firmware
 import ..fleet
+import ..pod
 import ..pod-registry
 import ..ui
 import ..utils
@@ -55,6 +57,13 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         OptionUuid "organization-id"
             --help="The organization to use."
       ]
+      --examples=[
+        cli.Example "Initialize a fleet root in the current directory with the default organization:"
+            --arguments=""
+            --global-priority=8,
+        cli.Example "Initialize a fleet in directory 'fleet' with organization '12345678-1234-1234-1234-123456789abc':"
+            --arguments="--fleet-root=./fleet --organization-id=12345678-1234-1234-1234-123456789abc"
+      ]
       --run=:: init it config cache ui
   cmd.add init-cmd
 
@@ -88,6 +97,12 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         cli.OptionInt "count"
             --help="Number of identity files to create."
             --required,
+      ]
+      --examples=[
+        cli.Example "Create 10 identity files in the current directory:"
+            --arguments="10",
+        cli.Example "Create 10 identity files in the directory 'identities' and add them to group 'g1':"
+            --arguments="--output-directory=identities --group=g1 10",
       ]
       --run=:: create-identities it config cache ui
   cmd.add create-identities-cmd
@@ -126,6 +141,10 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --rest=[
         OptionUuid "id"
             --help="The ID of the device.",
+      ]
+      --examples=[
+        cli.Example "Create an identity file 'shark.toit' in directory 'identities' and add it to group 'fish':"
+            --arguments="--output-directory=./identities --group=fish --name=shark.toit",
       ]
       --run=:: create-identity it config cache ui
   cmd.add create-identity-cmd
@@ -170,9 +189,22 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         """
       --options=[
         cli.Option "diff-base"
-            --type="pod-file"
-            --help="The base pod to use for diff-based updates."
+            --type="pod-file|reference"
+            --help="The base pod file or reference to use for diff-based updates."
             --multi,
+      ]
+      --examples=[
+        cli.Example "Roll out the fleet configuration to all devices:"
+            --arguments=""
+            --global-priority=2,
+        cli.Example """
+            Roll out the fleet configuration to all devices using pods base1.pod
+            and base2.pod as diff bases:"""
+            --arguments="--diff-base=base1.pod --diff-base=base2.pod",
+        cli.Example """
+            Roll out the fleet configuration to all devices using pod 'my-pod@v2.1.0'
+            as diff base:"""
+            --arguments="--diff-base=my-pod@v2.1.0",
       ]
       --run=:: roll-out it config cache ui
   cmd.add roll-out-cmd
@@ -188,6 +220,15 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         cli.Flag "include-never-seen"
             --help="Include devices that have never been seen."
             --default=false,
+      ]
+      --examples=[
+        cli.Example "Show the status of the fleet:"
+            --arguments=""
+            --global-priority=5,
+        cli.Example "Show the status of the fleet, without healthy devices:"
+            --arguments="--no-include-healthy",
+        cli.Example "Show the status of the fleet, including devices that have never been seen:"
+            --arguments="--include-never-seen",
       ]
       --run=:: status it config cache ui
   cmd.add status-cmd
@@ -220,6 +261,12 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         OptionUuid "device-id"
             --help="The ID of the device to add."
             --required,
+      ]
+      --examples=[
+        cli.Example """
+            Add device '12345678-1234-1234-1234-123456789abc' to group 'insect' with
+            name 'wasp':"""
+            --arguments="--name=wasp --group=insect 12345678-1234-1234-1234-123456789abc",
       ]
       --run=:: add-device it config cache ui
   cmd.add add-device-cmd
@@ -261,6 +308,14 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             --help="The name of the new group."
             --required,
       ]
+      --examples=[
+        cli.Example "Create a group 'on-battery' using the pod 'battery-pod#11':"
+            --arguments="--pod=battery-pod#11 on-battery",
+        cli.Example """
+            Create a group 'on-battery-inaccessible' using the current pod of
+            group 'on-battery':"""
+            --arguments="--template=on-battery on-battery-inaccessible",
+      ]
       --run=:: group-create it config cache ui
   group-cmd.add group-create-cmd
 
@@ -293,24 +348,33 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             --multi,
       ]
       --examples=[
-        cli.Example "Update groups 'g1' and 'g2' to use pods with tag 'v1.2'."
-            --arguments="--tag=v1.2 g1 g2",
+        cli.Example "Update groups 'on-battery' and 'wired' to use pods with tag 'v1.2':"
+            --arguments="--tag=v1.2 on-battery wired",
         cli.Example "Rename group 'g1' to 'g2'."
             --arguments="--name=g2 g1",
-        cli.Example "Update group 'g1' to use pod 'my-pod#11'."
-            --arguments="--pod=my-pod#11 g1",
-        cli.Example "Update group 'g2' to use pod 'my-pod@latest'."
-            --arguments="--pod=my-pod@latest g2",
+        cli.Example "Update group 'default' to use pod 'my-podv1.0.0':"
+            --arguments="--pod=my-pod@v1.0.0 default"
+            --global-priority=3,
+        cli.Example "Update group 'g2' to use revision 11 of pod 'my-pod':"
+            --arguments="--pod=my-pod#11 g2",
       ]
       --run=:: group-update it config cache ui
   group-cmd.add group-update-cmd
 
   group-remove-cmd := cli.Command "remove"
-      --help="Remove a group from the fleet."
+      --help="""
+      Remove a group from the fleet.
+
+      The group must be unused.
+      """
       --rest=[
         cli.Option "group"
             --help="The name of the group to remove."
             --required,
+      ]
+      --examples=[
+        cli.Example "Remove group 'g1':"
+            --arguments="g1",
       ]
       --run=:: group-remove it config cache ui
   group-cmd.add group-remove-cmd
@@ -329,6 +393,12 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "device"
             --help="The ID, namer or alias of a device to move."
             --multi,
+      ]
+      --examples=[
+        cli.Example "Move all devices from group 'g1' to group 'g2':"
+            --arguments="--to=g2 --group=g1",
+        cli.Example "Move devices 'big-whale' and 12345678-1234-1234-1234-123456789abc to group 'g2':"
+            --arguments="--to=g2 big-whale 12345678-1234-1234-1234-123456789abc",
       ]
       --run=:: group-move it config cache ui
   group-cmd.add group-move-cmd
@@ -391,7 +461,12 @@ roll-out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   diff-bases := parsed["diff-base"]
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    fleet.roll-out --diff-bases=diff-bases
+    pod-diff-bases := diff-bases.map: | file-or-ref/string |
+      if file.is-file file-or-ref:
+        Pod.parse file-or-ref --tmp-directory=fleet.artemis_.tmp-directory --ui=ui
+      else:
+        fleet.download (PodReference.parse file-or-ref --ui=ui)
+    fleet.roll-out --diff-bases=pod-diff-bases
 
 status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   include-healthy := parsed["include-healthy"]

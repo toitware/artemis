@@ -1,6 +1,4 @@
 dependencies:
-  artemis:
-    path: ../..
   cli:
     url: github.com/toitlang/pkg-cli
     version: ^1.7.0

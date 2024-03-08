@@ -18,6 +18,7 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
       --help="Authenticate against the Artemis server."
 
   sign-up-cmd := cli.Command "signup"
+      --aliases=["sign-up"]
       --help="""
         Sign up for an Artemis account with email and password.
 
@@ -37,6 +38,10 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
             --help="The password for the account."
             --required,
       ]
+      --examples=[
+        cli.Example "Sign up for an Artemis account with email and password:"
+            --arguments="--email=test@example.com --password=secret",
+      ]
       --run=:: sign-up it config ui
   auth-cmd.add sign-up-cmd
 
@@ -54,6 +59,19 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
             --default=true
             --help="Automatically open the browser for OAuth authentication.",
       ]
+      --examples=[
+        cli.Example "Log in to the Artemis server using GitHub:"
+            --arguments=""
+            --global-priority=10,
+        cli.Example """
+            Log in to the Artemis server using GitHub without opening the link
+            in a browser:"""
+            --arguments="--no-open-browser",
+        cli.Example "Log in to the Artemis server using Google:"
+            --arguments="--provider=google",
+        cli.Example "Log in to the Artemis server with email and password:"
+            --arguments="--email=test@example.com --password=secret",
+      ]
       --run=:: sign-in it config ui
   auth-cmd.add log-in-cmd
 
@@ -63,6 +81,10 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
         cli.Flag "broker" --hidden --help="Update the broker.",
         cli.Option "email" --help="New email for the account.",
         cli.Option "password" --help="New password for the account.",
+      ]
+      --examples=[
+        cli.Example "Update the password for the currently logged in account:"
+            --arguments="--password=new-secret",
       ]
       --run=:: update it config ui
   auth-cmd.add update-cmd

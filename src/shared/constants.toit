@@ -50,6 +50,8 @@ ARTEMIS-COMMAND-TO-STRING ::= {
 }
 
 /* Broker commands */
+// When updating this list, also update the tools/http_servers/public/broker/constants.toit which
+// contains a copy of this list.
 COMMAND-UPLOAD_ ::= 1
 COMMAND-DOWNLOAD_ ::= 2
 COMMAND-DOWNLOAD-PRIVATE_ ::= 3

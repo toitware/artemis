@@ -13,7 +13,7 @@ endif
 
 TOITRUN ?= toit.run$(EXE_SUFFIX)
 
-LOCAL_DEV_SDK ?= v2.0.0-alpha.134
+LOCAL_DEV_SDK ?= v2.0.0-alpha.142
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 # If the 'DEV_TOIT_REPO_PATH' variable is set, use the toit.run in its bin
@@ -60,10 +60,20 @@ ARTEMIS_HOST := voisfafsfolxhqpkudzd.supabase.co
 ARTEMIS_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvaXNmYWZzZm9seGhxcGt1ZHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQyNDEsImV4cCI6MTk4ODk1MDI0MX0.dmfxNl5WssxnZ8jpvGJeryg4Fd47fOcrlZ8iGrHj2e4
 ARTEMIS_CERTIFICATE := Baltimore CyberTrust Root
 
-# From https://app.supabase.com/project/ghquchonjtjzuuxfmaub/settings/api
-TOITWARE_TESTING_HOST := ghquchonjtjzuuxfmaub.supabase.co
-TOITWARE_TESTING_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdocXVjaG9uanRqenV1eGZtYXViIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQ4ODIsImV4cCI6MTk4ODk1MDg4Mn0.bJB3EdVwFN34yk50JLHv8Pw5IA5gqtEJrXU1MtjEWGc
-TOITWARE_TESTING_CERTIFICATE := Baltimore CyberTrust Root
+# From https://supabase.com/dashboard/project/ezxwpyeoypvnnldpdotx/settings/api
+ARTEMIS_TEST_HOST := ezxwpyeoypvnnldpdotx.supabase.co
+ARTEMIS_TEST_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6eHdweWVveXB2bm5sZHBkb3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDY3MjQxOTcsImV4cCI6MjAyMjMwMDE5N30.lnzyjQAD1QHqKTCnkuXvuwUuMqDKMw7z7cH8vETeCiQ
+ARTEMIS_TEST_CERTIFICATE := Baltimore CyberTrust Root
+
+.PHONY: setup-remote-test-supabase
+setup-remote-test-supabase:
+	@ $(TOITRUN) src/cli/cli.toit config broker add supabase \
+		--certificate "$(ARTEMIS_TEST_CERTIFICATE)" \
+		artemis-remote-test-supabase \
+		$(ARTEMIS_TEST_HOST) \
+		$(ARTEMIS_TEST_ANON)
+	@ $(TOITRUN) src/cli/cli.toit config broker default --artemis artemis-remote-test-supabase
+	@ $(TOITRUN) src/cli/cli.toit config broker default artemis-remote-test-supabase
 
 .PHONY: start-http
 start-http: install-pkgs

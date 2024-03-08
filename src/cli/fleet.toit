@@ -75,6 +75,28 @@ class Status_:
   is-healthy -> bool:
     return is-fully-updated and missed-checkins == 0
 
+class UploadResult:
+  fleet-id/uuid.Uuid
+  id/uuid.Uuid
+  name/string
+  revision/int
+  tags/List
+  tag-errors/List
+
+  constructor --.fleet-id --.id --.name --.revision --.tags --.tag-errors:
+
+  to-json -> Map:
+    result := {
+      "fleet-id": "$fleet-id",
+      "id": "$id",
+      "name": name,
+      "revision": revision,
+      "tags": tags,
+    }
+    if not tag-errors.is-empty:
+      result["tag-errors"] = tag-errors
+    return result
+
 class FleetFile:
   path/string
   id/uuid.Uuid
@@ -247,8 +269,8 @@ class Fleet:
 
   Also uploads the trivial patches.
   */
-  upload --pod/Pod --tags/List --force-tags/bool -> none:
-    artemis_.upload --pod=pod --organization-id=organization-id
+  upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
+    ui_.info "Uploading pod. This may take a while."
 
     broker := artemis_.connected-broker
     pod.split: | manifest/Map parts/Map |
@@ -302,11 +324,13 @@ class Fleet:
     ui_.info "  id: $pod-entry.id"
     ui_.info "  references:"
     sorted-uploaded-tags := pod-entry.tags.sort
-    sorted-uploaded-tags.do: ui_.info "    - $pod.name@$it"
-
-    if not tag-errors.is-empty:
-      tag-errors.do: ui_.error it
-      ui_.abort
+    return UploadResult
+        --fleet-id=this.id
+        --id=pod.id
+        --name=pod.name
+        --revision=pod-entry.revision
+        --tags=sorted-uploaded-tags
+        --tag-errors=tag-errors
 
   download reference/PodReference -> Pod:
     if reference.name and not (reference.tag or reference.revision):
@@ -584,6 +608,12 @@ class FleetWithDevices extends Fleet:
 
     return new-file
 
+  /**
+  Rolls out the local configuration to the broker.
+
+  The $diff-bases is a list of pods to build patches against if
+    a device hasn't set its state yet.
+  */
   roll-out --diff-bases/List:
     broker := artemis_.connected-broker
     detailed-devices := {:}
@@ -596,9 +626,8 @@ class FleetWithDevices extends Fleet:
 
     base-patches := {:}
 
-    base-firmwares := diff-bases.map: | diff-base/string |
-      pod := Pod.parse diff-base --tmp-directory=artemis_.tmp-directory --ui=ui_
-      FirmwareContent.from-envelope pod.envelope-path --cache=cache_
+    base-firmwares := diff-bases.map: | diff-base/Pod |
+      FirmwareContent.from-envelope diff-base.envelope-path --cache=cache_
 
     base-firmwares.do: | content/FirmwareContent |
       trivial-patches := artemis_.extract-trivial-patches content
@@ -661,8 +690,8 @@ class FleetWithDevices extends Fleet:
     else if not goal:
       is-updated = false
     else:
-      is-updated = json-equals firmware-state goal
-    max-offline-s/int? := firmware-state.get "max-offline"
+      is-updated = json-equals (current-state or firmware-state) goal
+    max-offline-s/int? := (current-state or firmware-state).get "max-offline"
     // If the device has no max_offline, we assume it's 20 seconds.
     // TODO(florian): handle this better.
     if not max-offline-s:

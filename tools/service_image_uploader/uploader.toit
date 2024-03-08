@@ -118,6 +118,14 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --help="The optimization level to use."
             --default="2",
       ]
+      --examples=[
+        cli.Example "Upload the checked out code as version v0.5.5.pre.1+fix.foo to organization 3ea5b632-5739-4f40-8446-2fc102a5b338:"
+            --arguments="--sdk-version=v2.0.0-alpha.139 --service-version=v0.5.5.pre.1+fix.foo --organization-id=3ea5b632-5739-4f40-8446-2fc102a5b338",
+        cli.Example "Upload the commit faea5684479957e48b945f7fdf4cbc70c0053225 as version v0.5.5.pre.2+updated to organization 3ea5b632-5739-4f40-8446-2fc102a5b338:"
+            --arguments="--sdk-version=v2.0.0-alpha.139 --service-version=v0.5.5.pre.2+updated --commit=faea5684479957e48b945f7fdf4cbc70c0053225 --organization-id=3ea5b632-5739-4f40-8446-2fc102a5b338",
+        cli.Example "Upload the build v2.0.0-alpha.140/v0.5.5 to the server for everyone:"
+            --arguments="--sdk-version=v2.0.0-alpha.140 --service-version=v0.5.5"
+      ]
       --run=:: build-and-upload config cache ui it
   cmd.add service-cmd
 
@@ -143,50 +151,55 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   root := git.current-repository-root
 
   with-tmp-directory: | tmp-dir/string |
-    full-service-version := ?
-    service-source-path := ?
+    full-service-version/string := ?
+    repo-path/string := ?
+
     if use-local:
       // Build the service from the checked out code.
       // No caching is possible.
       // The full version string is then '<service-version>-<timestamp>',
       // where the timestamp is the time when the build was started.
-      service-source-path = service-path-in-repository root --chip-family=chip-family
 
-      // Since we are reusing an ID, we need to remove the cached version.
+      repo-path = root
       full-service-version = service-version or ARTEMIS-VERSION
-      cache-key := service-image-cache-key
-          --sdk-version=sdk-version
-          --service-version=full-service-version
-          --artemis-config=get-artemis-config parsed config
-      cache.remove cache-key
     else:
       ui.info "Cloning repository and checking out $(commit or service-version)."
-      clone-dir := "$tmp-dir/artemis"
-      git.init clone-dir --origin="file://$(url-encoding.encode root)"
-      git.config --repository-root=clone-dir
+      repo-path = "$tmp-dir/artemis"
+      git.init repo-path --origin="file://$(url-encoding.encode root)"
+      git.config --repository-root=repo-path
           --key="advice.detachedHead"
           --value="false"
       git.fetch
           --checkout
           --depth=1
-          --repository-root=clone-dir
+          --repository-root=repo-path
           --ref=(commit or service-version)
 
-      ui.info "Generating version.toit."
-      exit-status := pipe.run-program ["make", "-C", clone-dir, "rebuild-cmake"]
-      if exit-status != 0: throw "make failed with exit code $(pipe.exit-code exit-status)"
-
       ui.info "Downloading packages."
-      sdk.download-packages clone-dir
-      service-source-path = service-path-in-repository clone-dir --chip-family=chip-family
-      if chip-family == "esp32" and not file.is-file service-source-path:
-        // Older versions of Artemis used 'device.toit' as the entry point
-        // for all ESP32 chips. We preserve compatibility with that by
-        // mapping 'esp32' to 'device' if we can't find it under the new name.
-        service-source-path = service-path-in-repository clone-dir --chip-family="device"
+      sdk.download-packages repo-path
 
       full-service-version = service-version
       if commit: full-service-version += "-$commit"
+
+    // Since we are potentially reusing an ID, we need to remove the cached version.
+    cache-key := service-image-cache-key
+        --sdk-version=sdk-version
+        --service-version=full-service-version
+        --artemis-config=get-artemis-config parsed config
+    cache.remove cache-key
+
+    service-source-path := service-path-in-repository repo-path --chip-family=chip-family
+    if chip-family == "esp32" and not file.is-file service-source-path:
+      // Older versions of Artemis used 'device.toit' as the entry point
+      // for all ESP32 chips. We preserve compatibility with that by
+      // mapping 'esp32' to 'device' if we can't find it under the new name.
+      service-source-path = service-path-in-repository repo-path --chip-family="device"
+
+    ui.info "Generating version.toit."
+    exit-status := pipe.run-program
+        --environment={"ARTEMIS_GIT_VERSION": full-service-version}
+        ["make", "-C", repo-path, "rebuild-cmake"]
+    if exit-status != 0: throw "make failed with exit code $(pipe.exit-code exit-status)"
 
     ar-file := "$tmp-dir/service.ar"
     ui.info "Creating snapshot."

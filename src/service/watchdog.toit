@@ -13,7 +13,7 @@ class WatchdogManager:
 
   static TIMEOUT-STARTUP-S ::= 10
   static TIMEOUT-SCHEDULER-S ::= 10
-  static TIMEOUT-STOP-S ::= 3
+  static TIMEOUT-STOP-S ::= 5
 
   static STATE-DOG-NAMES ::= {
     STATE-BOOT: null,
@@ -28,9 +28,7 @@ class WatchdogManager:
     STATE-STOP: TIMEOUT-STOP-S
   }
 
-
   main-dog_/Watchdog? := null
-
   client_/WatchdogServiceClient ::= (WatchdogServiceClient).open as WatchdogServiceClient
 
   constructor.private_:

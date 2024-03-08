@@ -9,10 +9,16 @@ import artemis.cli.utils.binary-diff show *
 import artemis.shared.utils.patch show *
 
 main:
-  old := file.read-content "benchmarks/old.bin"
-  new := file.read-content "benchmarks/new.bin"
-  old = old[..50000] + old[old.size - 50000..]
-  new = new[..50000] + new[new.size - 50000..]
+  bench "-a" true 50000
+  bench "-a" false 50000
+  bench "-b" true 100000
+  bench "-b" false 100000
+
+bench suffix/string fast/bool size/int:
+  old := file.read-content "benchmarks/old$(suffix).bin"
+  new := file.read-content "benchmarks/new$(suffix).bin"
+  old = old[..size] + old[old.size - size..]
+  new = new[..size] + new[new.size - size..]
   old-data := OldData old 0 0
   writer := Buffer
   diff-time := Duration.of:
@@ -21,12 +27,14 @@ main:
         new
         writer
         new.size
-        --fast=false
+        --fast=fast
         --with-header=true
         --with-footer=true
         --with-checksums=false
   result := writer.bytes
 
+  print ""
+  print "Algorithm: $(fast ? "fast" : "slow")"
   print "Diff size for $(new.size >> 10)kB: $result.size bytes"
 
   test-writer := TestWriter
@@ -39,8 +47,6 @@ main:
 
   print "Diffed  in $diff-time"
   print "Patched in $patch-time"
-
-
 
 class TestWriter implements PatchObserver:
   size /int? := null
