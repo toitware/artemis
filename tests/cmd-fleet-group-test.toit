@@ -143,7 +143,7 @@ run-test test-cli/TestCli fleet-dir/string:
   expect-equals "test-group-5" groups[2]["name"]
 
   // Check that the devices now correctly reference the new group name.
-  devices-file := fleet.Fleet.load-devices-file fleet-dir --ui=TestUi
+  devices-file := fleet.FleetWithDevices.load-devices-file fleet-dir --ui=TestUi
   expect-equals DEVICE-COUNT devices-file.devices.size
   devices-file.devices.do: | device/fleet.DeviceFleet |
     expect-equals "test-group-5" device.group
@@ -155,7 +155,7 @@ run-test test-cli/TestCli fleet-dir/string:
         "--force",
       ]
 
-  devices-file = fleet.Fleet.load-devices-file fleet-dir --ui=TestUi
+  devices-file = fleet.FleetWithDevices.load-devices-file fleet-dir --ui=TestUi
   expect-equals DEVICE-COUNT devices-file.devices.size
   devices-file.devices.do: | device/fleet.DeviceFleet |
     expect-equals "default" device.group
@@ -236,7 +236,7 @@ run-test test-cli/TestCli fleet-dir/string:
           "fleet", "group", "remove", "test-group-2",
       ]
 
-  device-file := fleet.Fleet.load-devices-file fleet-dir --ui=TestUi
+  device-file := fleet.FleetWithDevices.load-devices-file fleet-dir --ui=TestUi
   fleet-devices := device-file.devices
 
   // Move individual devices to group-4.
