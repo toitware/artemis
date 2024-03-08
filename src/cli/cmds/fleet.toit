@@ -418,7 +418,7 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   fleet-root := compute-fleet-root parsed config ui
   with-artemis parsed config cache ui: | artemis/Artemis |
-    Fleet.init fleet-root artemis --organization-id=organization-id --ui=ui
+    FleetWithDevices.init fleet-root artemis --organization-id=organization-id --ui=ui
 
 create-identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output-directory := parsed["output-directory"]
@@ -430,7 +430,7 @@ create-identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   written-count := 0
   try:
-    with-fleet parsed config cache ui: | fleet/Fleet |
+    with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
       count.repeat:
         fleet.create-identity
             --group=group
@@ -447,7 +447,7 @@ create-identity parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   aliases := parsed["alias"]
   id := parsed["id"]
 
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     path := fleet.create-identity
         --id=id
         --name=name
@@ -460,7 +460,7 @@ create-identity parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 roll-out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   diff-bases := parsed["diff-base"]
 
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     pod-diff-bases := diff-bases.map: | file-or-ref/string |
       if file.is-file file-or-ref:
         Pod.parse file-or-ref --tmp-directory=fleet.artemis_.tmp-directory --ui=ui
@@ -472,7 +472,7 @@ status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   include-healthy := parsed["include-healthy"]
   include-never-seen := parsed["include-never-seen"]
 
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     fleet.status --include-healthy=include-healthy --include-never-seen=include-never-seen
 
 add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -481,7 +481,7 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   aliases := parsed["alias"]
   group := parsed["group"]
 
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     if not fleet.has-group group:
       ui.abort "Group '$group' not found."
 
@@ -516,7 +516,7 @@ group-create parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   name := parsed["name"]
   force := parsed["force"]
 
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     pod-reference/PodReference? := null
     if pod:
       pod-reference = PodReference.parse pod --on-error=:
@@ -555,7 +555,7 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   executed-actions/List := []
 
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     fleet-root := fleet.fleet-root_
     fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
 
@@ -586,7 +586,7 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         old-reference := fleet-file.group-pods[group]
         fleet-file.group-pods.remove group
         fleet-file.group-pods[name] = old-reference
-        devices-file := Fleet.load-devices-file fleet-root --ui=ui
+        devices-file := FleetWithDevices.load-devices-file fleet-root --ui=ui
         move-devices_
             --fleet-root=fleet-root
             --ids-to-move={}
@@ -607,7 +607,7 @@ group-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.info "Group '$group' does not exist."
     return
 
-  device-file := Fleet.load-devices-file fleet-root --ui=ui
+  device-file := FleetWithDevices.load-devices-file fleet-root --ui=ui
   used-groups := {}
   device-file.devices.do: | device/DeviceFleet |
     used-groups.add device.group
@@ -631,7 +631,7 @@ group-move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.abort "No devices or groups given."
 
   ids-to-move := {}
-  with-fleet parsed config cache ui: | fleet/Fleet |
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     devices-to-move.do: | device |
       ids-to-move.add (fleet.resolve-alias device).id
 
@@ -656,7 +656,7 @@ move-devices_ -> int
     --groups-to-move/Set
     --to/string
     --ui/Ui:
-  devices-file := Fleet.load-devices-file fleet-root --ui=ui
+  devices-file := FleetWithDevices.load-devices-file fleet-root --ui=ui
   new-devices := []
 
   moved-count := 0

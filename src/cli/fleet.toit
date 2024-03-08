@@ -102,8 +102,9 @@ class FleetFile:
   id/uuid.Uuid
   organization-id/uuid.Uuid
   group-pods/Map
+  is-reference/bool
 
-  constructor --.path --.id --.organization-id --.group-pods:
+  constructor --.path --.id --.organization-id --.group-pods --.is-reference:
 
   static parse path/string --ui/Ui -> FleetFile:
     fleet-content := null
@@ -119,25 +120,34 @@ class FleetFile:
     if not fleet-content.contains "organization":
       ui.abort "Fleet file $path does not contain an organization ID."
 
+    is-reference := fleet-content.get "is-reference" --if-absent=: false
+
     group-entry := fleet-content.get "groups"
-    if not group-entry:
-      ui.abort "Fleet file $path does not contain a 'groups' entry."
-    if group-entry is not Map:
-      ui.abort "Fleet file $path has invalid format for 'groups'."
-    group-pods := (group-entry as Map).map: | group-name/string entry |
-      if entry is not Map:
-        ui.abort "Fleet file $path has invalid format for group '$group-name'."
-      if not entry.contains "pod":
-        ui.abort "Fleet file $path does not contain a 'pod' entry for group '$group-name'."
-      if entry["pod"] is not string:
-        ui.abort "Fleet file $path has invalid format for 'pod' in group '$group-name'."
-      PodReference.parse entry["pod"] --ui=ui
+    group-pods/Map := ?
+    if is-reference:
+      group-pods = {:}
+      if group-entry:
+        ui.abort "Fleet file $path is a reference file and cannot contain a 'groups' entry."
+    else:
+      if not group-entry:
+        ui.abort "Fleet file $path does not contain a 'groups' entry."
+      if group-entry is not Map:
+        ui.abort "Fleet file $path has invalid format for 'groups'."
+      group-pods = (group-entry as Map).map: | group-name/string entry |
+        if entry is not Map:
+          ui.abort "Fleet file $path has invalid format for group '$group-name'."
+        if not entry.contains "pod":
+          ui.abort "Fleet file $path does not contain a 'pod' entry for group '$group-name'."
+        if entry["pod"] is not string:
+          ui.abort "Fleet file $path has invalid format for 'pod' in group '$group-name'."
+        PodReference.parse entry["pod"] --ui=ui
 
     return FleetFile
         --path=path
         --id=uuid.parse fleet-content["id"]
         --organization-id=uuid.parse fleet-content["organization"]
         --group-pods=group-pods
+        --is-reference=is-reference
 
   write -> none:
     groups := {:}
@@ -210,73 +220,38 @@ class DevicesFile:
       encoded-devices["$device.id"] = entry
     write-json-to-file --pretty path encoded-devices
 
+/**
+A fleet.
+
+This class, contrary to $FleetWithDevices, can only manipulate the pods of the fleet.
+In return, it can be instantiated with only a fleet-reference file.
+*/
 class Fleet:
-  static DEVICES-FILE_ ::= "devices.json"
   static FLEET-FILE_ ::= "fleet.json"
-  /** Signal that an alias is ambiguous. */
-  static AMBIGUOUS_ ::= -1
 
   id/uuid.Uuid
   artemis_/Artemis
   ui_/Ui
   cache_/Cache
   fleet-root_/string
-  devices_/List
-  organization-id/uuid.Uuid
-  /** A map from group-name to $PodReference. */
-  group-pods_/Map
-  /** Map from name, device-id, alias to index in $devices_. */
-  aliases_/Map := {:}
 
-  constructor .fleet-root_ .artemis_ --ui/Ui --cache/Cache --config/Config:
+  organization-id/uuid.Uuid
+
+  constructor fleet-root/string artemis/Artemis --ui/Ui --cache/Cache --config/Config:
+    fleet-file := load-fleet-file fleet-root --ui=ui
+    return Fleet fleet-root artemis --ui=ui --cache=cache --config=config --fleet-file=fleet-file
+
+  constructor .fleet-root_ .artemis_ --ui/Ui --cache/Cache --config/Config --fleet-file/FleetFile:
     ui_ = ui
     cache_ = cache
-    fleet-file := load-fleet-file fleet-root_ --ui=ui_
-    devices-file := load-devices-file fleet-root_ --ui=ui_
-    devices-file.check-groups fleet-file --ui=ui_
 
     id = fleet-file.id
     organization-id = fleet-file.organization-id
-    group-pods_ = fleet-file.group-pods
-    devices_ = devices-file.devices
-    aliases_ = build-alias-map_ devices_ ui
 
     // TODO(florian): should we always do this check?
     org := artemis_.connected-artemis-server.get-organization organization-id
     if not org:
       ui.abort "Organization $organization-id does not exist or is not accessible."
-
-  static init fleet-root/string artemis/Artemis --organization-id/uuid.Uuid --ui/Ui:
-    if not file.is-directory fleet-root:
-      ui.abort "Fleet root $fleet-root is not a directory."
-
-    if file.is-file "$fleet-root/$FLEET-FILE_":
-      ui.abort "Fleet root $fleet-root already contains a $FLEET-FILE_ file."
-
-    if file.is-file "$fleet-root/$DEVICES-FILE_":
-      ui.abort "Fleet root $fleet-root already contains a $DEVICES-FILE_ file."
-
-    org := artemis.connected-artemis-server.get-organization organization-id
-    if not org:
-      ui.abort "Organization $organization-id does not exist or is not accessible."
-
-    write-json-to-file --pretty "$fleet-root/$FLEET-FILE_" {
-      "id": "$random-uuid",
-      "organization": "$organization-id",
-      "groups": {
-        DEFAULT-GROUP: {
-          "pod": "$INITIAL-POD-NAME@latest",
-        },
-      }
-    }
-    write-json-to-file --pretty "$fleet-root/$DEVICES-FILE_" {:}
-
-    default-specification-path := "$fleet-root/$(INITIAL-POD-NAME).yaml"
-    if not file.is-file default-specification-path:
-      header := "# yaml-language-server: \$schema=$JSON-SCHEMA\n"
-      write-yaml-to-file default-specification-path INITIAL-POD-SPECIFICATION --header=header
-
-    ui.info "Fleet root $fleet-root initialized."
 
   static load-fleet-file fleet-root/string --ui/Ui -> FleetFile:
     if not file.is-directory fleet-root:
@@ -288,134 +263,6 @@ class Fleet:
       ui.abort
 
     return FleetFile.parse fleet-path --ui=ui
-
-  static load-devices-file fleet-root/string --ui/Ui -> DevicesFile:
-    if not file.is-directory fleet-root:
-      ui.abort "Fleet root $fleet-root is not a directory."
-    devices-path := "$fleet-root/$DEVICES-FILE_"
-    if not file.is-file devices-path:
-      ui.error "Fleet root $fleet-root does not contain a $DEVICES-FILE_ file."
-      ui.error "Use 'init' to initialize a fleet root."
-      ui.abort
-
-    return DevicesFile.parse devices-path --ui=ui
-
-  write-devices_ -> none:
-    file := DevicesFile "$fleet-root_/$DEVICES-FILE_" devices_
-    file.write
-
-  /**
-  Builds an alias map.
-
-  When referring to devices we allow names, device-ids and aliases as
-    designators. This function builds a map for these and warns the
-    user if any of them is ambiguous.
-  */
-  static build-alias-map_ devices/List ui/Ui -> Map:
-    result := {:}
-    ambiguous-ids := {:}
-    devices.size.repeat: | index/int |
-      device/DeviceFleet := devices[index]
-      add-alias := : | id/string |
-        if result.contains id:
-          old := result[id]
-          if old == index:
-            // The name, device-id or alias appears twice for the same
-            // device. Not best practice, but not ambiguous.
-            continue.add-alias
-
-          if old == AMBIGUOUS_:
-            ambiguous-ids[id].add index
-          else:
-            ambiguous-ids[id] = [old, index]
-            result[id] = AMBIGUOUS_
-        else:
-          result[id] = index
-
-      add-alias.call "$device.id"
-      if device.name:
-        add-alias.call device.name
-      device.aliases.do: | alias/string |
-        add-alias.call alias
-    if ambiguous-ids.size > 0:
-      ui.warning "The following names, device-ids or aliases are ambiguous:"
-      ambiguous-ids.do: | id/string index-list/List |
-        uuid-list := index-list.map: devices[it].id
-        ui.warning "  $id maps to $(uuid-list.join ", ")"
-    return result
-
-  /**
-  Creates a new identity file.
-
-  Returns the path to the identity file.
-  */
-  create-identity -> string
-      --id/uuid.Uuid=random-uuid
-      --name/string?=null
-      --aliases/List?=null
-      --group/string
-      --output-directory/string:
-    if not has-group group:
-      ui_.abort "Group '$group' not found."
-
-    old-size := devices_.size
-    new-file := "$output-directory/$(id).identity"
-
-    artemis_.provision
-        --device-id=id
-        --out-path=new-file
-        --organization-id=organization-id
-
-    device := DeviceFleet
-        --id=id
-        --group=group
-        --aliases=aliases
-        --name=name
-    devices_.add device
-    write-devices_
-
-    return new-file
-
-  /**
-  Rolls out the local configuration to the broker.
-
-  The $diff-bases is a list of pods to build patches against if
-    a device hasn't set its state yet.
-  */
-  roll-out --diff-bases/List:
-    broker := artemis_.connected-broker
-    detailed-devices := {:}
-    fleet-devices := devices_
-
-    existing-devices := broker.get-devices --device-ids=(fleet-devices.map: it.id)
-    fleet-devices.do: | fleet-device/DeviceFleet |
-      if not existing-devices.contains fleet-device.id:
-        ui_.abort "Device $fleet-device.id is unknown to the broker."
-
-    base-patches := {:}
-
-    base-firmwares := diff-bases.map: | diff-base/Pod |
-      FirmwareContent.from-envelope diff-base.envelope-path --cache=cache_
-
-    base-firmwares.do: | content/FirmwareContent |
-      trivial-patches := artemis_.extract-trivial-patches content
-      trivial-patches.do: | _ patch/FirmwarePatch |
-        artemis_.upload-patch patch --organization-id=organization-id
-
-    pods := {:}  // From group-name to Pod.
-    fleet-devices.do: | fleet-device/DeviceFleet |
-      group-name := fleet-device.group
-      if pods.contains group-name: continue.do
-      reference := pod-reference-for-group group-name
-      pods[group-name] = download reference
-
-    fleet-devices.do: | fleet-device/DeviceFleet |
-      artemis_.update
-          --device-id=fleet-device.id
-          --pod=pods[fleet-device.group]
-          --base-firmwares=base-firmwares
-
-      ui_.info "Successfully updated device $fleet-device.short-string."
 
   /**
   Uploads the given $pod to the broker.
@@ -554,6 +401,250 @@ class Fleet:
     broker.pod-registry-delete
         --fleet-id=this.id
         --pod-ids=pod-ids
+
+  pod pod-id/uuid.Uuid -> PodFleet:
+    broker := artemis_.connected-broker
+    pod-entry := broker.pod-registry-pods
+        --fleet-id=this.id
+        --pod-ids=[pod-id]
+    if not pod-entry.is-empty:
+      description-id := pod-entry[0].pod-description-id
+      description := broker.pod-registry-descriptions --ids=[description-id]
+      if not description.is-empty:
+        return PodFleet --id=pod-id --name=description[0].name --revision=pod-entry[0].revision --tags=pod-entry[0].tags
+
+    return PodFleet --id=pod-id --name=null --revision=null --tags=null
+
+  get-pod-id reference/PodReference -> uuid.Uuid:
+    return (get-pod-ids [reference])[0]
+
+  get-pod-ids references/List -> List:
+    references.do: | reference/PodReference |
+      if not reference.id:
+        if not reference.name:
+          throw "Either id or name must be specified: $reference"
+        if not reference.tag and not reference.revision:
+          throw "Either tag or revision must be specified: $reference"
+
+    missing-ids := references.filter: | reference/PodReference |
+      not reference.id
+    broker := artemis_.connected-broker
+    pod-ids-response := broker.pod-registry-pod-ids --fleet-id=this.id --references=missing-ids
+
+    has-errors := false
+    result := references.map: | reference/PodReference |
+      if reference.id: continue.map reference.id
+      resolved := pod-ids-response.get reference
+      if not resolved:
+        has-errors = true
+        if reference.tag:
+          ui_.error "No pod with name $reference.name and tag $reference.tag in the fleet."
+        else:
+          ui_.error "No pod with name $reference.name and revision $reference.revision in the fleet."
+      resolved
+    if has-errors: ui_.abort
+    return result
+
+  get-pod-id --name/string --tag/string? --revision/int? -> uuid.Uuid:
+    return get-pod-id (PodReference --name=name --tag=tag --revision=revision)
+
+  pod-exists reference/PodReference -> bool:
+    broker := artemis_.connected-broker
+    pod-id := get-pod-id reference
+    pod-entry := broker.pod-registry-pods
+        --fleet-id=this.id
+        --pod-ids=[pod-id]
+    return not pod-entry.is-empty
+
+/**
+A fleet with devices.
+
+Contrary to the $Fleet class, this class needs access to the devices of a fleet.
+It can only be instantiated with a non-reference fleet file.
+*/
+class FleetWithDevices extends Fleet:
+  static DEVICES-FILE_ ::= "devices.json"
+  static FLEET-FILE_ ::= Fleet.FLEET-FILE_
+
+  /** Signal that an alias is ambiguous. */
+  static AMBIGUOUS_ ::= -1
+
+  devices_/List
+  /** A map from group-name to $PodReference. */
+  group-pods_/Map
+  /** Map from name, device-id, alias to index in $devices_. */
+  aliases_/Map := {:}
+
+  constructor fleet-root/string artemis/Artemis --ui/Ui --cache/Cache --config/Config:
+    fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
+    if fleet-file.is-reference:
+      ui.abort "Fleet root $fleet-root is a reference fleet and cannot be used for device management."
+    devices-file := load-devices-file fleet-root --ui=ui
+    devices-file.check-groups fleet-file --ui=ui
+    group-pods_ = fleet-file.group-pods
+    devices_ = devices-file.devices
+    aliases_ = build-alias-map_ devices_ ui
+    super fleet-root artemis --ui=ui --cache=cache --config=config --fleet-file=fleet-file
+
+  static init fleet-root/string artemis/Artemis --organization-id/uuid.Uuid --ui/Ui:
+    if not file.is-directory fleet-root:
+      ui.abort "Fleet root $fleet-root is not a directory."
+
+    if file.is-file "$fleet-root/$FLEET-FILE_":
+      ui.abort "Fleet root $fleet-root already contains a $FLEET-FILE_ file."
+
+    if file.is-file "$fleet-root/$DEVICES-FILE_":
+      ui.abort "Fleet root $fleet-root already contains a $DEVICES-FILE_ file."
+
+    org := artemis.connected-artemis-server.get-organization organization-id
+    if not org:
+      ui.abort "Organization $organization-id does not exist or is not accessible."
+
+    write-json-to-file --pretty "$fleet-root/$FLEET-FILE_" {
+      "id": "$random-uuid",
+      "organization": "$organization-id",
+      "groups": {
+        DEFAULT-GROUP: {
+          "pod": "$INITIAL-POD-NAME@latest",
+        },
+      }
+    }
+    write-json-to-file --pretty "$fleet-root/$DEVICES-FILE_" {:}
+
+    default-specification-path := "$fleet-root/$(INITIAL-POD-NAME).yaml"
+    if not file.is-file default-specification-path:
+      header := "# yaml-language-server: \$schema=$JSON-SCHEMA\n"
+      write-yaml-to-file default-specification-path INITIAL-POD-SPECIFICATION --header=header
+
+    ui.info "Fleet root $fleet-root initialized."
+
+  static load-devices-file fleet-root/string --ui/Ui -> DevicesFile:
+    if not file.is-directory fleet-root:
+      ui.abort "Fleet root $fleet-root is not a directory."
+    devices-path := "$fleet-root/$DEVICES-FILE_"
+    if not file.is-file devices-path:
+      ui.error "Fleet root $fleet-root does not contain a $DEVICES-FILE_ file."
+      ui.error "Use 'init' to initialize a fleet root."
+      ui.abort
+
+    return DevicesFile.parse devices-path --ui=ui
+
+  write-devices_ -> none:
+    file := DevicesFile "$fleet-root_/$DEVICES-FILE_" devices_
+    file.write
+
+  /**
+  Builds an alias map.
+
+  When referring to devices we allow names, device-ids and aliases as
+    designators. This function builds a map for these and warns the
+    user if any of them is ambiguous.
+  */
+  static build-alias-map_ devices/List ui/Ui -> Map:
+    result := {:}
+    ambiguous-ids := {:}
+    devices.size.repeat: | index/int |
+      device/DeviceFleet := devices[index]
+      add-alias := : | id/string |
+        if result.contains id:
+          old := result[id]
+          if old == index:
+            // The name, device-id or alias appears twice for the same
+            // device. Not best practice, but not ambiguous.
+            continue.add-alias
+
+          if old == AMBIGUOUS_:
+            ambiguous-ids[id].add index
+          else:
+            ambiguous-ids[id] = [old, index]
+            result[id] = AMBIGUOUS_
+        else:
+          result[id] = index
+
+      add-alias.call "$device.id"
+      if device.name:
+        add-alias.call device.name
+      device.aliases.do: | alias/string |
+        add-alias.call alias
+    if ambiguous-ids.size > 0:
+      ui.warning "The following names, device-ids or aliases are ambiguous:"
+      ambiguous-ids.do: | id/string index-list/List |
+        uuid-list := index-list.map: devices[it].id
+        ui.warning "  $id maps to $(uuid-list.join ", ")"
+    return result
+
+  /**
+  Creates a new identity file.
+
+  Returns the path to the identity file.
+  */
+  create-identity -> string
+      --id/uuid.Uuid=random-uuid
+      --name/string?=null
+      --aliases/List?=null
+      --group/string
+      --output-directory/string:
+    if not has-group group:
+      ui_.abort "Group '$group' not found."
+
+    old-size := devices_.size
+    new-file := "$output-directory/$(id).identity"
+
+    artemis_.provision
+        --device-id=id
+        --out-path=new-file
+        --organization-id=organization-id
+
+    device := DeviceFleet
+        --id=id
+        --group=group
+        --aliases=aliases
+        --name=name
+    devices_.add device
+    write-devices_
+
+    return new-file
+
+  /**
+  Rolls out the local configuration to the broker.
+
+  The $diff-bases is a list of pods to build patches against if
+    a device hasn't set its state yet.
+  */
+  roll-out --diff-bases/List:
+    broker := artemis_.connected-broker
+    detailed-devices := {:}
+    fleet-devices := devices_
+
+    existing-devices := broker.get-devices --device-ids=(fleet-devices.map: it.id)
+    fleet-devices.do: | fleet-device/DeviceFleet |
+      if not existing-devices.contains fleet-device.id:
+        ui_.abort "Device $fleet-device.id is unknown to the broker."
+
+    base-patches := {:}
+
+    base-firmwares := diff-bases.map: | diff-base/Pod |
+      FirmwareContent.from-envelope diff-base.envelope-path --cache=cache_
+
+    base-firmwares.do: | content/FirmwareContent |
+      trivial-patches := artemis_.extract-trivial-patches content
+      trivial-patches.do: | _ patch/FirmwarePatch |
+        artemis_.upload-patch patch --organization-id=organization-id
+
+    pods := {:}  // From group-name to Pod.
+    fleet-devices.do: | fleet-device/DeviceFleet |
+      group-name := fleet-device.group
+      if pods.contains group-name: continue.do
+      reference := pod-reference-for-group group-name
+      pods[group-name] = download reference
+
+    fleet-devices.do: | fleet-device/DeviceFleet |
+      artemis_.update
+          --device-id=fleet-device.id
+          --pod=pods[fleet-device.group]
+          --base-firmwares=base-firmwares
+
+      ui_.info "Successfully updated device $fleet-device.short-string."
 
   pod-reference-for-group name/string -> PodReference:
     return group-pods_.get name
@@ -775,57 +866,3 @@ class Fleet:
         return device
     ui_.abort "No device with id $device-id in the fleet."
     unreachable
-
-  pod pod-id/uuid.Uuid -> PodFleet:
-    broker := artemis_.connected-broker
-    pod-entry := broker.pod-registry-pods
-        --fleet-id=this.id
-        --pod-ids=[pod-id]
-    if not pod-entry.is-empty:
-      description-id := pod-entry[0].pod-description-id
-      description := broker.pod-registry-descriptions --ids=[description-id]
-      if not description.is-empty:
-        return PodFleet --id=pod-id --name=description[0].name --revision=pod-entry[0].revision --tags=pod-entry[0].tags
-
-    return PodFleet --id=pod-id --name=null --revision=null --tags=null
-
-  get-pod-id reference/PodReference -> uuid.Uuid:
-    return (get-pod-ids [reference])[0]
-
-  get-pod-ids references/List -> List:
-    references.do: | reference/PodReference |
-      if not reference.id:
-        if not reference.name:
-          throw "Either id or name must be specified: $reference"
-        if not reference.tag and not reference.revision:
-          throw "Either tag or revision must be specified: $reference"
-
-    missing-ids := references.filter: | reference/PodReference |
-      not reference.id
-    broker := artemis_.connected-broker
-    pod-ids-response := broker.pod-registry-pod-ids --fleet-id=this.id --references=missing-ids
-
-    has-errors := false
-    result := references.map: | reference/PodReference |
-      if reference.id: continue.map reference.id
-      resolved := pod-ids-response.get reference
-      if not resolved:
-        has-errors = true
-        if reference.tag:
-          ui_.error "No pod with name $reference.name and tag $reference.tag in the fleet."
-        else:
-          ui_.error "No pod with name $reference.name and revision $reference.revision in the fleet."
-      resolved
-    if has-errors: ui_.abort
-    return result
-
-  get-pod-id --name/string --tag/string? --revision/int? -> uuid.Uuid:
-    return get-pod-id (PodReference --name=name --tag=tag --revision=revision)
-
-  pod-exists reference/PodReference -> bool:
-    broker := artemis_.connected-broker
-    pod-id := get-pod-id reference
-    pod-entry := broker.pod-registry-pods
-        --fleet-id=this.id
-        --pod-ids=[pod-id]
-    return not pod-entry.is-empty
