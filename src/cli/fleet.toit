@@ -271,6 +271,7 @@ class Fleet:
   */
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
     ui_.info "Uploading pod. This may take a while."
+    artemis_.upload --pod=pod --organization-id=organization-id
 
     broker := artemis_.connected-broker
     pod.split: | manifest/Map parts/Map |
