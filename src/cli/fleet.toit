@@ -319,10 +319,6 @@ class Fleet:
     registered-pods := broker.pod-registry-pods --fleet-id=this.id --pod-ids=[pod.id]
     pod-entry/PodRegistryEntry := registered-pods[0]
 
-    prefix := tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
-    ui_.info "$prefix $pod.name#$pod-entry.revision to fleet $this.id."
-    ui_.info "  id: $pod-entry.id"
-    ui_.info "  references:"
     sorted-uploaded-tags := pod-entry.tags.sort
     return UploadResult
         --fleet-id=this.id
