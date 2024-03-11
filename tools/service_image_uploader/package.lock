@@ -50,13 +50,13 @@ packages:
   pkg-host:
     url: github.com/toitlang/pkg-host
     name: host
-    version: 1.13.0
-    hash: 64ee9e7bf1fd0e748e778a61269cd653fd748af8
+    version: 1.14.1
+    hash: da453fb59f7ef3d37f39e4b438495f7c16614733
   pkg-http:
     url: github.com/toitlang/pkg-http
     name: http
-    version: 2.3.4
-    hash: 39fe52083b4c745cc37420649a48277b45728fd2
+    version: 2.4.0
+    hash: 210bf46e145f1c93fbe53f9a098950d81031ab49
   pkg-ntp:
     url: github.com/toitlang/pkg-ntp
     name: ntp
