@@ -152,24 +152,7 @@ If the $target directory does not exist, it is created.
 */
 copy-directory --source/string --target/string:
   directory.mkdir --recursive target
-  with-tmp-directory: | tmp-dir |
-    // We are using `tar` so we keep the permissions.
-    tar := tool-path_ "tar"
-
-    tmp-tar := "$tmp-dir/tmp.tar"
-    extra-args := []
-    if system.platform == system.PLATFORM-WINDOWS:
-      // Tar can't handle backslashes as separators.
-      source = source.replace --all "\\" "/"
-      target = target.replace --all "\\" "/"
-      tmp-tar = tmp-tar.replace --all "\\" "/"
-      extra-args = ["--force-local"]
-
-    // We are using an intermediate file.
-    // Using pipes was too slow on Windows.
-    // See https://github.com/toitlang/toit/issues/1568.
-    pipe.backticks [tar, "c", "-f", tmp-tar, "-C", source, "."] + extra-args
-    pipe.backticks [tar, "x", "-f", tmp-tar, "-C", target] + extra-args
+  file.copy --source=source --target=target --recursive
 
 /**
 Untars the given $path into the $target directory.
@@ -204,16 +187,7 @@ gunzip path/string:
   ]
 
 copy-file --source/string --target/string:
-  in-stream := file.Stream.for-read source
-  out-stream := file.Stream.for-write target
-  try:
-    writer := writer.Writer out-stream
-    writer.write-from in-stream
-    // TODO(florian): we would like to close the writer here, but then
-    // we would get an "already closed" below.
-  finally:
-    in-stream.close
-    out-stream.close
+  file.copy --source=source --target=target
 
 random-uuid --namespace/string="Artemis" -> uuid.Uuid:
   return uuid.uuid5 namespace "$Time.now $Time.monotonic-us $random"
