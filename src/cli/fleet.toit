@@ -556,6 +556,12 @@ class FleetWithDevices extends Fleet:
 
     return DevicesFile.parse devices-path --ui=ui
 
+  /** The root (directory) of this fleet. */
+  root -> string:
+    // Since this is a fleet with devices, we know that the $fleet-root-or-ref_ must be a
+    // directory and not just a ref file.
+    return fleet-root-or-ref_
+
   write-devices_ -> none:
     file := DevicesFile "$fleet-root-or-ref_/$DEVICES-FILE_" devices_
     file.write

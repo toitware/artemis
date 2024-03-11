@@ -39,10 +39,12 @@ default-organization-from-config config/Config -> uuid.Uuid?:
   return uuid.parse organization-id-string
 
 with-devices-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
-  fleet-root-or-ref := compute-fleet-root-or-ref parsed config ui
+  // If the result of the compute-call isn't a root, but a reference, then
+  // the constructor call below will throw.
+  fleet-root := compute-fleet-root-or-ref parsed config ui
 
   with-artemis parsed config cache ui: | artemis/Artemis |
-    fleet := FleetWithDevices fleet-root-or-ref artemis --ui=ui --cache=cache --config=config
+    fleet := FleetWithDevices fleet-root artemis --ui=ui --cache=cache --config=config
     block.call fleet
 
 with-pod-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:

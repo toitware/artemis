@@ -522,7 +522,7 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 group-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    fleet-file := Fleet.load-fleet-file fleet.fleet-root-or-ref_ --ui=ui
+    fleet-file := Fleet.load-fleet-file fleet.root --ui=ui
 
     ui.do --kind=Ui.RESULT: | printer/Printer |
       structured := []
@@ -553,7 +553,7 @@ group-create parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if not fleet.pod-exists pod-reference:
         ui.abort "Pod $pod-reference does not exist."
 
-    fleet-file := Fleet.load-fleet-file fleet.fleet-root-or-ref_ --ui=ui
+    fleet-file := Fleet.load-fleet-file fleet.root --ui=ui
     if fleet-file.group-pods.contains name:
       ui.abort "Group $name already exists."
     fleet-file.group-pods[name] = pod-reference
@@ -579,7 +579,7 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   executed-actions/List := []
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    fleet-root := fleet.fleet-root-or-ref_
+    fleet-root := fleet.root
     fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
 
     pod-reference/PodReference? := null
@@ -624,12 +624,12 @@ group-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   group := parsed["group"]
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    fleet-file := Fleet.load-fleet-file fleet.fleet-root-or-ref_ --ui=ui
+    fleet-file := Fleet.load-fleet-file fleet.root --ui=ui
     if not fleet-file.group-pods.contains group:
       ui.info "Group '$group' does not exist."
       return
 
-    device-file := FleetWithDevices.load-devices-file fleet.fleet-root-or-ref_ --ui=ui
+    device-file := FleetWithDevices.load-devices-file fleet.root --ui=ui
     used-groups := {}
     device-file.devices.do: | device/DeviceFleet |
       used-groups.add device.group
@@ -652,7 +652,7 @@ group-move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     devices-to-move.do: | device |
       ids-to-move.add (fleet.resolve-alias device).id
 
-    fleet-root := fleet.fleet-root-or-ref_
+    fleet-root := fleet.root
 
     if groups-to-move.is-empty and devices-to-move.is-empty:
       ui.abort "No devices or groups given."
