@@ -96,7 +96,11 @@ main args --config/Config --cache/Cache --ui/Ui:
       --options=[
         cli.Option "fleet-root"
             --type="directory"
-            --help="Specify the fleet root. Can also be set with the ARTEMIS_FLEET_ROOT environment variable.",
+            --help="Specify the fleet root. Can also be set with the ARTEMIS_FLEET_ROOT environment variable."
+            --hidden,
+        cli.Option "fleet"
+            --type="directory|reference"
+            --help="Specify the fleet. Can also be set with the ARTEMIS_FLEET environment variable.",
         cli.OptionEnum "output-format"
             ["text", "json"]
             --help="Specify the format used when printing to the console."

@@ -899,7 +899,7 @@ random-uuid -> uuid.Uuid:
 with-fleet --args/List --count/int [block]:
   with-test-cli --args=args: | test-cli/TestCli |
     with-tmp-directory: | fleet-dir |
-      os.env["ARTEMIS_FLEET_ROOT"] = fleet-dir
+      os.env["ARTEMIS_FLEET"] = fleet-dir
 
       test-cli.replacements[fleet-dir] = "<FLEET_ROOT>"
       test-cli.run [

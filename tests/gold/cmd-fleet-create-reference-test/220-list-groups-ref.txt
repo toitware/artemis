@@ -1,0 +1,3 @@
+# Fail when trying to list the groups using the ref
+# [fleet, group, list, --fleet, TMP_DIR/fleet.ref]
+Error: Fleet argument for this operation must be a fleet root (directory) and not a reference file: 'TMP_DIR/fleet.ref'.

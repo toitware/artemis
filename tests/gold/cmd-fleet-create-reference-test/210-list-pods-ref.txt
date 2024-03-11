@@ -1,0 +1,2 @@
+# List the pods using the ref
+# [pod, list, --fleet, TMP_DIR/fleet.ref]
