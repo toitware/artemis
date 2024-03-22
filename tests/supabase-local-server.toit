@@ -34,6 +34,7 @@ get-supabase-config --sub-directory/string -> ServerConfigSupabase:
   if system.platform != system.PLATFORM-WINDOWS:
     lan-ip := get-lan-ip
     host = host.replace "localhost" lan-ip
+    host = host.replace "127.0.0.1" lan-ip
 
   return ServerConfigSupabase name --host=host --anon=anon-key
 

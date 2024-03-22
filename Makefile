@@ -109,12 +109,12 @@ start-http: install-pkgs
 start-supabase-no-config:
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-supabase
 	@ if supabase status --workdir supabase_artemis &> /dev/null; then \
-	    supabase stop --workdir supabase_artemis; \
+	    supabase stop --no-backup --workdir supabase_artemis; \
 	  fi
 	@ supabase start --workdir supabase_artemis;
 	@ rm -rf $$HOME/.cache/artemis/broker-local-supabase
 	@ if supabase status --workdir public/supabase_broker &> /dev/null ; then \
-	    supabase stop --workdir public/supabase_broker; \
+	    supabase stop --no-backup --workdir public/supabase_broker; \
 	  fi
 	@ supabase start --workdir public/supabase_broker;
 	@ $(MAKE) reload-supabase-schemas
