@@ -278,7 +278,7 @@ jobs:
           & tools\windows_installer\build.bat $version $PWD\build\windows\artemis.exe build\windows\artemis_installer_x64.exe
 
       - name: Sign Windows installer
-        if: github.event_name == 'release' || ${{ inputs.sign_windows }}
+        if: github.event_name == 'release' || inputs.sign_windows
         uses: toitlang/action-code-sign@5da128f4fb4f719c1b667867815f6c31e743b111 # v1.1.0
         with:
           certificate: ${{ secrets.DIGICERT_CERTIFICATE }}
