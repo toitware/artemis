@@ -87,12 +87,9 @@ ALTER FUNCTION "public"."toit_artemis.delete_pods"("_fleet_id" "uuid", "_pod_ids
 CREATE OR REPLACE FUNCTION "public"."toit_artemis.get_devices"("_device_ids" "uuid"[]) RETURNS TABLE("device_id" "uuid", "goal" "jsonb", "state" "jsonb")
     LANGUAGE "plpgsql"
     AS $$
-DECLARE filtered_device_ids UUID[];
 BEGIN
-    filtered_device_ids := toit_artemis.filter_permitted_device_ids(_device_ids);
-
     RETURN QUERY
-        SELECT * FROM toit_artemis.get_devices(filtered_device_ids);
+      SELECT * FROM toit_artemis.get_devices(_device_ids);
 END;
 $$;
 
@@ -101,12 +98,9 @@ ALTER FUNCTION "public"."toit_artemis.get_devices"("_device_ids" "uuid"[]) OWNER
 CREATE OR REPLACE FUNCTION "public"."toit_artemis.get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone DEFAULT '1970-01-01 00:00:00+00'::timestamp with time zone) RETURNS TABLE("device_id" "uuid", "type" "text", "ts" timestamp with time zone, "data" "jsonb")
     LANGUAGE "plpgsql"
     AS $$
-DECLARE filtered_device_ids UUID[];
 BEGIN
-    filtered_device_ids := toit_artemis.filter_permitted_device_ids(_device_ids);
-
     RETURN QUERY
-      SELECT * FROM toit_artemis.get_events(filtered_device_ids, _types, _limit, _since);
+      SELECT * FROM toit_artemis.get_events(_device_ids, _types, _limit, _since);
 END;
 $$;
 
@@ -339,32 +333,21 @@ $$;
 
 ALTER FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "toit_artemis"."filter_permitted_device_ids"("_device_ids" "uuid"[]) RETURNS "uuid"[]
+CREATE OR REPLACE FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) RETURNS TABLE("device_id" "uuid", "goal" "jsonb", "state" "jsonb")
     LANGUAGE "plpgsql"
     AS $$
 DECLARE filtered_device_ids UUID[];
 BEGIN
-    -- Filter out device-ids the user doesn't have access to.
-    -- The current function is security invoker, so if the caller doesn't have
-    -- the rights, they will get an empty list.
-    SELECT array_agg(DISTINCT input.id)
+    -- We are using the RLS to filter out device ids the invoker doesn't have
+    -- access to. This is a performance optimization.
+    SELECT array_agg(DISTINCT d.id)
+    INTO filtered_device_ids
     FROM unnest(_device_ids) as input(id)
-    JOIN toit_artemis.devices USING(id)
-    INTO filtered_device_ids;
+    JOIN toit_artemis.devices d ON input.id = d.id;
 
-    RETURN filtered_device_ids;
-END;
-$$;
-
-ALTER FUNCTION "toit_artemis"."filter_permitted_device_ids"("_device_ids" "uuid"[]) OWNER TO "postgres";
-
-CREATE OR REPLACE FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) RETURNS TABLE("device_id" "uuid", "goal" "jsonb", "state" "jsonb")
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
     RETURN QUERY
         SELECT p.device_id, g.goal, d.state
-        FROM unnest(_device_ids) AS p(device_id)
+        FROM unnest(filtered_device_ids) AS p(device_id)
         LEFT JOIN toit_artemis.goals g USING (device_id)
         LEFT JOIN toit_artemis.devices d ON p.device_id = d.id;
 END;
@@ -377,12 +360,20 @@ CREATE OR REPLACE FUNCTION "toit_artemis"."get_events"("_device_ids" "uuid"[], "
     AS $$
 DECLARE
     _type TEXT;
+    filtered_device_ids UUID[];
 BEGIN
+    -- We are using the RLS to filter out device ids the invoker doesn't have
+    -- access to. This is a performance optimization.
+    SELECT array_agg(DISTINCT d.id)
+    INTO filtered_device_ids
+    FROM unnest(_device_ids) as input(id)
+    JOIN toit_artemis.devices d ON input.id = d.id;
+
     IF ARRAY_LENGTH(_types, 1) = 1 THEN
         _type := _types[1];
         RETURN QUERY
             SELECT e.device_id, e.type, e.timestamp, e.data
-            FROM unnest(_device_ids) AS p(device_id)
+            FROM unnest(filtered_device_ids) AS p(device_id)
             CROSS JOIN LATERAL (
                 SELECT e.*
                 FROM toit_artemis.events e
@@ -396,7 +387,7 @@ BEGIN
     ELSEIF ARRAY_LENGTH(_types, 1) > 1 THEN
         RETURN QUERY
             SELECT e.device_id, e.type, e.timestamp, e.data
-            FROM unnest(_device_ids) AS p(device_id)
+            FROM unnest(filtered_device_ids) AS p(device_id)
             CROSS JOIN LATERAL (
                 SELECT e.*
                 FROM toit_artemis.events e
@@ -411,7 +402,7 @@ BEGIN
         -- Note that 'ARRAY_LENGTH' of an empty array does not return 0 but null.
         RETURN QUERY
             SELECT e.device_id, e.type, e.timestamp, e.data
-            FROM unnest(_device_ids) AS p(device_id)
+            FROM unnest(filtered_device_ids) AS p(device_id)
             CROSS JOIN LATERAL (
                 SELECT e.*
                 FROM toit_artemis.events e
@@ -421,7 +412,8 @@ BEGIN
                 LIMIT _limit
             ) AS e
             ORDER BY e.device_id, e.timestamp DESC;
-    END IF;END;
+    END IF;
+END;
 $$;
 
 ALTER FUNCTION "toit_artemis"."get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) OWNER TO "postgres";
@@ -1070,10 +1062,6 @@ GRANT ALL ON FUNCTION "toit_artemis"."delete_pod_tag"("_pod_description_id" bigi
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) TO "service_role";
-
-GRANT ALL ON FUNCTION "toit_artemis"."filter_permitted_device_ids"("_device_ids" "uuid"[]) TO "anon";
-GRANT ALL ON FUNCTION "toit_artemis"."filter_permitted_device_ids"("_device_ids" "uuid"[]) TO "authenticated";
-GRANT ALL ON FUNCTION "toit_artemis"."filter_permitted_device_ids"("_device_ids" "uuid"[]) TO "service_role";
 
 GRANT ALL ON FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) TO "authenticated";
