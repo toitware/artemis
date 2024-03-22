@@ -16,6 +16,8 @@ TOITRUN ?= toit.run$(EXE_SUFFIX)
 LOCAL_DEV_SDK ?= v2.0.0-alpha.142
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
+SUPABASE_DIRS := supabase_artemis public/supabase_broker
+
 # If the 'DEV_TOIT_REPO_PATH' variable is set, use the toit.run in its bin
 # directory.
 ifneq ($(DEV_TOIT_REPO_PATH),)
@@ -108,15 +110,13 @@ start-http: install-pkgs
 # This is useful so that the tests succeed.
 start-supabase-no-config:
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-supabase
-	@ if supabase status --workdir supabase_artemis &> /dev/null; then \
-	    supabase stop --no-backup --workdir supabase_artemis; \
-	  fi
-	@ supabase start --workdir supabase_artemis;
 	@ rm -rf $$HOME/.cache/artemis/broker-local-supabase
-	@ if supabase status --workdir public/supabase_broker &> /dev/null ; then \
-	    supabase stop --no-backup --workdir public/supabase_broker; \
-	  fi
-	@ supabase start --workdir public/supabase_broker;
+	@ for dir in $(SUPABASE_DIRS); do \
+		if supabase status --workdir $$dir &> /dev/null; then \
+			supabase stop --no-backup --workdir $$dir; \
+		fi; \
+		supabase start --workdir $$dir; \
+	done
 	@ $(MAKE) reload-supabase-schemas
 
 reload-supabase-schemas:
@@ -134,8 +134,21 @@ start-supabase: start-supabase-no-config
 	@ echo "Run 'make use-customer-supabase-broker' to use the customer broker."
 
 stop-supabase:
-	@ supabase stop --no-backup --workdir supabase_artemis
-	@ supabase stop --no-backup --workdir public/supabase_broker
+	@ for dir in $(SUPABASE_DIRS); do \
+		supabase stop --no-backup --workdir $$dir; \
+	done
+
+.PHONY: update-sql-quashed
+update-sql-squashed:
+	@ for dir in $(SUPABASE_DIRS); do \
+		TMP_DIR=$$(mktemp -d); \
+		cp -r $$dir/supabase/migrations/* "$$TMP_DIR"; \
+		touch $$dir/supabase/migrations/20990101000000_squashed.sql; \
+		supabase --workdir $$dir migration squash; \
+		mv $$dir/supabase/migrations/20990101000000_squashed.sql $$dir/squashed.sql; \
+		cp -r "$$TMP_DIR/"* $$dir/supabase/migrations/; \
+		rm -rf "$$TMP_DIR"; \
+	done
 
 .PHONY: use-customer-supabase-broker
 use-customer-supabase-broker: start-supabase
