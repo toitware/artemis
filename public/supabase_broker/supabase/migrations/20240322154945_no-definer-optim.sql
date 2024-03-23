@@ -37,7 +37,7 @@ CREATE OR REPLACE FUNCTION toit_artemis.get_events(
         _device_ids UUID[],
         _types TEXT[],
         _limit INTEGER,
-        _since TIMESTAMPTZ)
+        _since TIMESTAMPTZ DEFAULT '1970-01-01')
 RETURNS TABLE (device_id UUID, type TEXT, ts TIMESTAMPTZ, data JSONB)
 SECURITY INVOKER
 LANGUAGE plpgsql
