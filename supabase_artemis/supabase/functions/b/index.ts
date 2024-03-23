@@ -243,10 +243,12 @@ async function handleRequest(req: Request) {
     case COMMAND_POD_REGISTRY_DESCRIPTIONS_: {
       return retrySupabaseRpc("get_pod_descriptions", params);
     }
-    case COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_IDS_:
+    case COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_IDS_: {
       return retrySupabaseRpc("get_pod_descriptions_by_ids", params);
-    case COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_NAMES_:
+    }
+    case COMMAND_POD_REGISTRY_DESCRIPTIONS_BY_NAMES_: {
       return retrySupabaseRpc("get_pod_descriptions_by_names", params);
+    }
     case COMMAND_POD_REGISTRY_PODS_: {
       return retrySupabaseRpc("get_pods", params);
     }
