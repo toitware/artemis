@@ -77,6 +77,9 @@ class Firmware:
   Embeds device-specific information in $device into a firmware given by
     its pod.
 
+  If the $unconfigured-content isn't given, it is extracted from the pod.
+  If it is given, then the pod is only used for its ID.
+
   Computes the "parts" which describes the individual parts of the
     firmware. Most parts consist of a range, and the binary hash of its content.
     Some parts, like the one containing the device-specific information only
@@ -87,9 +90,9 @@ class Firmware:
     may change the size of the part (and thus the ranges of the other parts),
     the process is repeated until the encoded parts do not change anymore.
   */
-  constructor --device/Device --pod/Pod --cache/cli.Cache:
+  constructor --device/Device --pod/Pod --cache/cli.Cache --unconfigured-content/FirmwareContent?=null:
     sdk-version := Sdk.get-sdk-version-from --envelope-path=pod.envelope-path
-    unconfigured := FirmwareContent.from-envelope pod.envelope-path --cache=cache
+    unconfigured := unconfigured-content or FirmwareContent.from-envelope pod.envelope-path --cache=cache
     encoded-parts := unconfigured.encoded-parts
     device-map := {
       "device_id":       "$device.id",

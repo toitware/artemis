@@ -397,32 +397,16 @@ class Artemis:
   */
   upload --pod/Pod --organization-id/uuid.Uuid:
     firmware-content := FirmwareContent.from-envelope pod.envelope-path --cache=cache_
+    upload --firmware-content=firmware-content --organization-id=organization-id
+
+  upload --firmware-content/FirmwareContent --organization-id/uuid.Uuid:
     firmware-content.trivial-patches.do:
       upload-patch it --organization-id=organization-id
-
   /**
   Uploads the given $patch to the server under the given $organization-id.
   */
   upload-patch patch/FirmwarePatch --organization-id/uuid.Uuid:
     diff-and-upload_ patch --organization-id=organization-id
-
-  /**
-  Makes sure the trivial patches for the given $firmware are uploaded for
-    the given $organization-id.
-
-  All missing patches are taken from the $trivial-patches map. If a patch
-    is not found in the map, it is ignored, and assumed to be already uploaded.
-  */
-  ensure-patches-are-uploaded -> none
-      firmware/Firmware
-      trivial-patches/Map
-      --organization-id/uuid.Uuid:
-    firmware.content.parts.do: | part/FirmwarePart |
-      if part is not FirmwarePartPatch: continue.do
-      trivial-patch-id := id_ --to=(part as FirmwarePartPatch).hash
-      trivial-patch := trivial-patches.get trivial-patch-id
-      if trivial-patch:
-        upload-patch trivial-patch --organization-id=organization-id
 
   /**
   Extracts the trivial patches from the given $firmware-content.
@@ -437,65 +421,86 @@ class Artemis:
       result[patch-id] = patch
     return result
 
-  /**
-  Updates the device $device-id with the given $specification.
+  update --device-id/uuid.Uuid --pod/Pod --base-firmwares/List=[]:
+    devices := broker_.get-devices --device-ids=[device-id]
+    if devices.is-empty:
+      ui_.abort "Device '$device-id' not found."
+    device := devices.first
+    update-bulk --devices=[device] --pods=[pod] --base-firmwares=base-firmwares
 
-  If the device has no known current state, then uses the $base-firmwares
+  /**
+  Update the given $devices.
+
+  The lists $devices and $pods must have the same size.
+
+  The $devices list must contain $DeviceDetailed objects.
+  The $pods list must contain $Pod objects.
+
+  Uploads the $pods if they it haven't been uploaded yet.
+  For each device computes upgrade-patches and uploads them if needed.
+
+  If a device has no known current state, then uses the $base-firmwares
     (a list of $FirmwareContent) for diff-based patches. If the list
     is empty, the device must upgrade using trivial patches.
+
+  Trivial patches are always uploaded (as part of the pod upload).
   */
-  update
-      --organization-id/uuid.Uuid
-      --device-id/uuid.Uuid
-      --specification/PodSpecification
-      --base-firmwares/List=[]:
-    pod := Pod.from-specification
-        --organization-id=organization-id
-        --specification=specification
-        --artemis=this
-    update
-        --device-id=device-id
-        --pod=pod
-        --base-firmwares=base-firmwares
+  update-bulk --devices/List --pods/List --base-firmwares/List=[] -> none:
+    unconfigured-cache := {:}
 
-  /**
-  Variant of $(update --organization-id --device-id --specification).
+    goals := []
+    devices.size.repeat: | i |
+      device := devices[i]
+      pod := pods[i]
+      unconfigured := unconfigured-cache.get pod.id --init=:
+        FirmwareContent.from-envelope pod.envelope-path --cache=cache_
 
-  Takes the new firmware from the given $pod.
-  */
-  update --device-id/uuid.Uuid --pod/Pod --base-firmwares/List=[]:
-    update-goal --device-id=device-id: | device/DeviceDetailed |
-      upload --pod=pod --organization-id=device.organization-id
-
-      known-encoded-firmwares := {}
-      [
-        device.goal,
-        device.reported-state-firmware,
-        device.reported-state-current,
-        device.reported-state-goal,
-      ].do: | state/Map? |
-        // The device might be running this firmware.
-        if state: known-encoded-firmwares.add state["firmware"]
-
-      upgrade-from := []
-      if known-encoded-firmwares.is-empty:
-        if base-firmwares.is-empty:
-          ui_.warning "Firmware of device '$device-id' is unknown. Upgrade might not use patches."
-        else:
-          upgrade-from = base-firmwares
-      else:
-        known-encoded-firmwares.do: | encoded/string |
-          old-firmware := Firmware.encoded encoded
-          old-device-map := old-firmware.device-specific "artemis.device"
-          old-device-id := uuid.parse old-device-map["device_id"]
-          if device-id != old-device-id:
-            ui_.abort "The device id of the firmware image ($old-device-id) does not match the given device id ($device-id)."
-          upgrade-from.add old-firmware.content
-
-      compute-updated-goal
+      goal := update-device_
           --device=device
-          --upgrade-from=upgrade-from
           --pod=pod
+          --unconfigured-content=unconfigured
+          --base-firmwares=base-firmwares
+      goals.add goal
+
+    broker_.update-goals
+        --device-ids=devices.map: it.id
+        --goals=goals
+
+  update-device_ --device/DeviceDetailed --pod/Pod --unconfigured-content/FirmwareContent --base-firmwares/List -> Map:
+    device-id := device.id
+    upload --firmware-content=unconfigured-content --organization-id=device.organization-id
+
+    known-encoded-firmwares := {}
+    [
+      device.goal,
+      device.reported-state-firmware,
+      device.reported-state-current,
+      device.reported-state-goal,
+    ].do: | state/Map? |
+      // The device might be running this firmware.
+      if state: known-encoded-firmwares.add state["firmware"]
+
+    upgrade-from := []
+    if known-encoded-firmwares.is-empty:
+      if base-firmwares.is-empty:
+        ui_.warning "Firmware of device '$device-id' is unknown. Upgrade might not use patches."
+      else:
+        upgrade-from = base-firmwares
+    else:
+      known-encoded-firmwares.do: | encoded/string |
+        old-firmware := Firmware.encoded encoded
+        old-device-map := old-firmware.device-specific "artemis.device"
+        old-device-id := uuid.parse old-device-map["device_id"]
+        if device-id != old-device-id:
+          ui_.abort "The device id of the firmware image ($old-device-id) does not match the given device id ($device-id)."
+        upgrade-from.add old-firmware.content
+
+    result := compute-updated-goal
+        --device=device
+        --upgrade-from=upgrade-from
+        --pod=pod
+        --unconfigured-content=unconfigured-content
+    return result
 
   /**
   Computes the goal for the given $device, upgrading from the $upgrade-from
@@ -506,10 +511,10 @@ class Artemis:
   The returned goal state will instruct the device to download the firmware image
     and install it.
   */
-  compute-updated-goal --device/Device --upgrade-from/List --pod/Pod -> Map:
+  compute-updated-goal --device/Device --upgrade-from/List --pod/Pod --unconfigured-content/FirmwareContent -> Map:
     // Compute the patches and upload them.
-    ui_.info "Computing and uploading patches."
-    upgrade-to := Firmware --pod=pod --device=device --cache=cache_
+    ui_.info "Computing and uploading patches for $device.id."
+    upgrade-to := Firmware --pod=pod --device=device --cache=cache_ --unconfigured-content=unconfigured-content
     upgrade-from.do: | old-firmware-content/FirmwareContent |
       patches := upgrade-to.content.patches old-firmware-content
       patches.do: diff-and-upload_ it --organization-id=device.organization-id
