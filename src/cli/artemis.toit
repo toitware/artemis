@@ -422,10 +422,10 @@ class Artemis:
     return result
 
   update --device-id/uuid.Uuid --pod/Pod --base-firmwares/List=[]:
-    devices := broker_.get-devices --device-ids=[device-id]
+    devices := connected-broker.get-devices --device-ids=[device-id]
     if devices.is-empty:
       ui_.abort "Device '$device-id' not found."
-    device := devices.first
+    device := devices[device-id]
     update-bulk --devices=[device] --pods=[pod] --base-firmwares=base-firmwares
 
   /**
@@ -462,7 +462,7 @@ class Artemis:
           --base-firmwares=base-firmwares
       goals.add goal
 
-    broker_.update-goals
+    connected-broker.update-goals
         --device-ids=devices.map: it.id
         --goals=goals
 
