@@ -5,6 +5,7 @@ import log
 import .device
 import .jobs
 import .watchdog
+import .time
 
 class Scheduler:
   static MAX-WAIT-DURATION/Duration ::= Duration --s=(WatchdogManager.TIMEOUT-SCHEDULER-S - 2)
@@ -23,6 +24,7 @@ class Scheduler:
     return runlevel_
 
   run -> JobTime:
+    now "Scheduler started"
     assert: not jobs_.is-empty
     try:
       dog := WatchdogManager.transition-to WatchdogManager.STATE-SCHEDULER
@@ -63,6 +65,7 @@ class Scheduler:
     jobs_.remove job
 
   transition --runlevel/int --timeout=(Duration --s=2) -> none:
+    now "Transition to runlevel $runlevel"
     existing := runlevel_
     runlevel_ = runlevel
     if runlevel > existing:

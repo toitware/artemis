@@ -5,6 +5,8 @@ import log
 import reader show Reader SizedReader
 import uuid
 
+import .time
+
 import system.containers
 
 // --------------------------------------------------------------------------
@@ -319,6 +321,7 @@ class ContainerJob extends Job:
     return { "name": name, "id": id }
 
   schedule now/JobTime last/JobTime? -> JobTime?:
+    now2 "Container.schedule"
     // TODO(kasper): Should the delayed restart take
     // precedence over all other triggers? Also, we
     // should probably think about how we want to access
@@ -381,6 +384,7 @@ class ContainerJob extends Job:
     return Job.schedule-tune-periodic last triggers-armed_.trigger-interval
 
   start -> none:
+    now "Starting container $name"
     if running_: return
 
     arguments := description_.get "arguments"

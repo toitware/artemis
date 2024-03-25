@@ -21,6 +21,7 @@ import artemis-pkg.artemis show Trigger
 
 import ..containers
 import ..scheduler
+import ..time
 
 class Watcher:
   gpio-pin/gpio.Pin
@@ -51,6 +52,7 @@ class PinTriggerManager:
   touch-mutex_ ::= monitor.Mutex
 
   constructor .scheduler_ .logger_:
+    now "PinTriggerManager created"
 
   /**
   Starts the trigger manager.
@@ -359,6 +361,7 @@ class PinTriggerManager:
               tags := job.tags.copy
               tags["pin"] = pin
               tags["level"] = level
+              now "Triggered"
               logger_.info "triggered by pin" --tags=tags
         job.do --trigger-touch-pins: | pin/int |
           if touch-wakeup-pin == pin:

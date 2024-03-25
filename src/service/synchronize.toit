@@ -19,6 +19,7 @@ import .device
 import .firmware-update
 import .jobs
 import .ntp
+import .time
 
 import ..shared.json-diff show Modification json-equals
 
@@ -248,7 +249,9 @@ class SynchronizeJob extends TaskJob:
     return Job.RUNLEVEL-CRITICAL
 
   schedule now/JobTime last/JobTime? -> JobTime?:
+    now2 "Synchronize schedule"
     if firmware-is-validation-pending or not last: return now
+    now2 "Pending check done"
     if control-level-offline_ > 0: return null
     if control-level-online_ > 0: return now
     max-offline := device_.max-offline
@@ -272,6 +275,7 @@ class SynchronizeJob extends TaskJob:
     if now < schedule:
       // If we're not going to schedule the synchronization
       // job now, we allow running all other jobs.
+      now2 "Synchronize transition to normal"
       scheduler_.transition --runlevel=Job.RUNLEVEL-NORMAL
     return schedule
 
@@ -298,6 +302,7 @@ class SynchronizeJob extends TaskJob:
     return null
 
   run -> none:
+    now "Synchronizer run"
     status := determine-status_
     runlevel := Job.RUNLEVEL-NORMAL
     if firmware-is-validation-pending:
@@ -322,6 +327,7 @@ class SynchronizeJob extends TaskJob:
         // really prefer running containers marked critical.
         if status == STATUS-RED and (random 100) < 15:
           runlevel = Job.RUNLEVEL-CRITICAL
+    now "Synchronize transition to $runlevel"
     scheduler_.transition --runlevel=runlevel
     assert: runlevel != Job.RUNLEVEL-STOP  // Stop does not return.
 

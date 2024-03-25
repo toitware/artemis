@@ -9,6 +9,7 @@ import .firmware
 import .utils show deep-copy
 import .periodic-network-request show PeriodicNetworkRequest  // For toitdoc.
 import ..shared.json-diff show json-equals Modification
+import .time
 
 /**
 A representation of the device we are running on.
@@ -97,6 +98,7 @@ class Device:
 
   constructor --.id --.hardware-id --.organization-id --.firmware-state/Map:
     current-state = firmware-state
+    now "Device constructor, after field initializations"
     load_
 
   /**
@@ -272,9 +274,11 @@ class Device:
   */
   load_ -> none:
     stored-current-state := flash-load_ FLASH-CURRENT-STATE_
+    now "Loaded current state from flash"
     if stored-current-state:
       if stored-current-state["firmware"] == firmware-state["firmware"]:
         modification/Modification? := Modification.compute --from=firmware-state --to=stored-current-state
+        now "Computed modification"
         if modification:
           log.debug "current state is changed" --tags={"changes": Modification.stringify modification}
           current-state = stored-current-state
@@ -285,6 +289,7 @@ class Device:
         if not is-validation-pending:
           log.error "current state has different firmware than firmware state"
     report-state-checksum_ = flash-load_ FLASH-REPORT-STATE-CHECKSUM_
+    now "Loaded report state checksum from flash"
 
   /**
   Stores the states into the flash after simplifying them.
