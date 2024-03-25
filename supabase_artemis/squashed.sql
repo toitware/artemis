@@ -666,6 +666,61 @@ SET default_tablespace = '';
 
 SET default_table_access_method = "heap";
 
+CREATE TABLE IF NOT EXISTS "public"."devices" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "alias" "uuid" DEFAULT "extensions"."uuid_generate_v4"(),
+    "organization_id" "uuid"
+);
+
+ALTER TABLE "public"."devices" OWNER TO "postgres";
+
+CREATE TABLE IF NOT EXISTS "public"."events" (
+    "id" bigint NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "device_id" "uuid" NOT NULL,
+    "data" "jsonb" NOT NULL
+);
+
+ALTER TABLE "public"."events" OWNER TO "postgres";
+
+CREATE TABLE IF NOT EXISTS "public"."organizations" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "name" character varying NOT NULL,
+    "owner_id" "uuid" DEFAULT "auth"."uid"()
+);
+
+ALTER TABLE "public"."organizations" OWNER TO "postgres";
+
+CREATE OR REPLACE VIEW "public"."active_devices" WITH ("security_invoker"='on') AS
+ WITH "max_created_events" AS (
+         SELECT "events"."device_id",
+            "max"("events"."created_at") AS "max_created_at"
+           FROM "public"."events"
+          WHERE ("events"."created_at" >= "date_trunc"('month'::"text", (CURRENT_DATE)::timestamp with time zone))
+          GROUP BY "events"."device_id"
+        ), "min_created_events" AS (
+         SELECT "events"."device_id",
+            "min"("events"."created_at") AS "min_created_at"
+           FROM "public"."events"
+          WHERE ("events"."device_id" IN ( SELECT "max_created_events"."device_id"
+                   FROM "max_created_events"))
+          GROUP BY "events"."device_id"
+        )
+ SELECT "o"."name" AS "organization_name",
+    "count"(DISTINCT "e"."device_id") AS "device_count"
+   FROM (((("public"."events" "e"
+     JOIN "max_created_events" "mce" ON ((("e"."device_id" = "mce"."device_id") AND ("e"."created_at" = "mce"."max_created_at"))))
+     JOIN "min_created_events" "mne" ON (("e"."device_id" = "mne"."device_id")))
+     JOIN "public"."devices" "d" ON (("e"."device_id" = "d"."id")))
+     JOIN "public"."organizations" "o" ON (("d"."organization_id" = "o"."id")))
+  WHERE (("mce"."max_created_at" - "mne"."min_created_at") >= '31 days'::interval)
+  GROUP BY "o"."name"
+  ORDER BY "o"."name";
+
+ALTER TABLE "public"."active_devices" OWNER TO "postgres";
+
 CREATE TABLE IF NOT EXISTS "public"."admins" (
     "id" "uuid" NOT NULL
 );
@@ -711,24 +766,6 @@ ALTER TABLE "public"."artemis_services_id_seq" OWNER TO "postgres";
 
 ALTER SEQUENCE "public"."artemis_services_id_seq" OWNED BY "public"."artemis_services"."id";
 
-CREATE TABLE IF NOT EXISTS "public"."devices" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "alias" "uuid" DEFAULT "extensions"."uuid_generate_v4"(),
-    "organization_id" "uuid"
-);
-
-ALTER TABLE "public"."devices" OWNER TO "postgres";
-
-CREATE TABLE IF NOT EXISTS "public"."events" (
-    "id" bigint NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "device_id" "uuid" NOT NULL,
-    "data" "jsonb" NOT NULL
-);
-
-ALTER TABLE "public"."events" OWNER TO "postgres";
-
 CREATE SEQUENCE IF NOT EXISTS "public"."events_id_seq"
     START WITH 1
     INCREMENT BY 1
@@ -739,15 +776,6 @@ CREATE SEQUENCE IF NOT EXISTS "public"."events_id_seq"
 ALTER TABLE "public"."events_id_seq" OWNER TO "postgres";
 
 ALTER SEQUENCE "public"."events_id_seq" OWNED BY "public"."events"."id";
-
-CREATE TABLE IF NOT EXISTS "public"."organizations" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "name" character varying NOT NULL,
-    "owner_id" "uuid" DEFAULT "auth"."uid"()
-);
-
-ALTER TABLE "public"."organizations" OWNER TO "postgres";
 
 CREATE OR REPLACE VIEW "public"."profiles_with_email" WITH ("security_invoker"='on') AS
  SELECT "p"."id",
@@ -768,17 +796,6 @@ CREATE TABLE IF NOT EXISTS "public"."roles" (
 
 ALTER TABLE "public"."roles" OWNER TO "postgres";
 
-CREATE SEQUENCE IF NOT EXISTS "public"."roles_id_seq"
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER TABLE "public"."roles_id_seq" OWNER TO "postgres";
-
-ALTER SEQUENCE "public"."roles_id_seq" OWNED BY "public"."roles"."id";
-
 CREATE OR REPLACE VIEW "public"."roles_with_profile" WITH ("security_invoker"='on') AS
  SELECT "r"."organization_id",
     "o"."name" AS "organization_name",
@@ -793,6 +810,31 @@ CREATE OR REPLACE VIEW "public"."roles_with_profile" WITH ("security_invoker"='o
   WHERE (("r"."user_id" = "p"."id") AND ("r"."organization_id" = "o"."id"));
 
 ALTER TABLE "public"."roles_with_profile" OWNER TO "postgres";
+
+CREATE OR REPLACE VIEW "public"."organization_admins" WITH ("security_invoker"='on') AS
+ SELECT "o"."id",
+    "o"."name",
+    "r"."name" AS "admin",
+    "u"."email"
+   FROM (("public"."organizations" "o"
+     LEFT JOIN "public"."roles_with_profile" "r" ON (("r"."organization_id" = "o"."id")))
+     JOIN "auth"."users" "u" ON (("u"."id" = "r"."id")))
+  WHERE ("r"."role" = 'admin'::"public"."role")
+  GROUP BY "o"."id", "o"."name", "r"."name", "u"."email"
+  ORDER BY "o"."name";
+
+ALTER TABLE "public"."organization_admins" OWNER TO "postgres";
+
+CREATE SEQUENCE IF NOT EXISTS "public"."roles_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER TABLE "public"."roles_id_seq" OWNER TO "postgres";
+
+ALTER SEQUENCE "public"."roles_id_seq" OWNED BY "public"."roles"."id";
 
 CREATE TABLE IF NOT EXISTS "public"."sdks" (
     "id" bigint NOT NULL,
@@ -1023,6 +1065,8 @@ ALTER TABLE ONLY "toit_artemis"."pod_tags"
 
 ALTER TABLE ONLY "toit_artemis"."pods"
     ADD CONSTRAINT "pods_pkey" PRIMARY KEY ("id", "fleet_id");
+
+CREATE INDEX "events_device_id_created_at_idx" ON "public"."events" USING "btree" ("device_id", "created_at" DESC);
 
 CREATE INDEX "events_device_id" ON "toit_artemis"."events" USING "btree" ("device_id");
 
@@ -1331,6 +1375,22 @@ GRANT ALL ON FUNCTION "toit_artemis"."upsert_pod_description"("_fleet_id" "uuid"
 GRANT ALL ON FUNCTION "toit_artemis"."upsert_pod_description"("_fleet_id" "uuid", "_organization_id" "uuid", "_name" "text", "_description" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."upsert_pod_description"("_fleet_id" "uuid", "_organization_id" "uuid", "_name" "text", "_description" "text") TO "service_role";
 
+GRANT ALL ON TABLE "public"."devices" TO "anon";
+GRANT ALL ON TABLE "public"."devices" TO "authenticated";
+GRANT ALL ON TABLE "public"."devices" TO "service_role";
+
+GRANT ALL ON TABLE "public"."events" TO "anon";
+GRANT ALL ON TABLE "public"."events" TO "authenticated";
+GRANT ALL ON TABLE "public"."events" TO "service_role";
+
+GRANT ALL ON TABLE "public"."organizations" TO "anon";
+GRANT ALL ON TABLE "public"."organizations" TO "authenticated";
+GRANT ALL ON TABLE "public"."organizations" TO "service_role";
+
+GRANT ALL ON TABLE "public"."active_devices" TO "anon";
+GRANT ALL ON TABLE "public"."active_devices" TO "authenticated";
+GRANT ALL ON TABLE "public"."active_devices" TO "service_role";
+
 GRANT ALL ON TABLE "public"."admins" TO "anon";
 GRANT ALL ON TABLE "public"."admins" TO "authenticated";
 GRANT ALL ON TABLE "public"."admins" TO "service_role";
@@ -1351,21 +1411,9 @@ GRANT ALL ON SEQUENCE "public"."artemis_services_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "public"."artemis_services_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "public"."artemis_services_id_seq" TO "service_role";
 
-GRANT ALL ON TABLE "public"."devices" TO "anon";
-GRANT ALL ON TABLE "public"."devices" TO "authenticated";
-GRANT ALL ON TABLE "public"."devices" TO "service_role";
-
-GRANT ALL ON TABLE "public"."events" TO "anon";
-GRANT ALL ON TABLE "public"."events" TO "authenticated";
-GRANT ALL ON TABLE "public"."events" TO "service_role";
-
 GRANT ALL ON SEQUENCE "public"."events_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "public"."events_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "public"."events_id_seq" TO "service_role";
-
-GRANT ALL ON TABLE "public"."organizations" TO "anon";
-GRANT ALL ON TABLE "public"."organizations" TO "authenticated";
-GRANT ALL ON TABLE "public"."organizations" TO "service_role";
 
 GRANT ALL ON TABLE "public"."profiles_with_email" TO "anon";
 GRANT ALL ON TABLE "public"."profiles_with_email" TO "authenticated";
@@ -1375,13 +1423,17 @@ GRANT ALL ON TABLE "public"."roles" TO "anon";
 GRANT ALL ON TABLE "public"."roles" TO "authenticated";
 GRANT ALL ON TABLE "public"."roles" TO "service_role";
 
-GRANT ALL ON SEQUENCE "public"."roles_id_seq" TO "anon";
-GRANT ALL ON SEQUENCE "public"."roles_id_seq" TO "authenticated";
-GRANT ALL ON SEQUENCE "public"."roles_id_seq" TO "service_role";
-
 GRANT ALL ON TABLE "public"."roles_with_profile" TO "anon";
 GRANT ALL ON TABLE "public"."roles_with_profile" TO "authenticated";
 GRANT ALL ON TABLE "public"."roles_with_profile" TO "service_role";
+
+GRANT ALL ON TABLE "public"."organization_admins" TO "anon";
+GRANT ALL ON TABLE "public"."organization_admins" TO "authenticated";
+GRANT ALL ON TABLE "public"."organization_admins" TO "service_role";
+
+GRANT ALL ON SEQUENCE "public"."roles_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."roles_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."roles_id_seq" TO "service_role";
 
 GRANT ALL ON TABLE "public"."sdks" TO "anon";
 GRANT ALL ON TABLE "public"."sdks" TO "authenticated";
