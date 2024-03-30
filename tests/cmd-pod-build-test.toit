@@ -45,7 +45,7 @@ run-test test-cli/TestCli fleet-dir/string:
   spec = {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod2",
-      "firmware-envelope": "file://custom.envelope",
+      "envelope": "file://custom.envelope",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "connections": [
         {

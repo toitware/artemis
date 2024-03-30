@@ -1,6 +1,6 @@
 version: 1
 name: my-pod
-firmware-envelope: esp32-qemu
+envelope: esp32-qemu
 connections:
   - type: ethernet
     requires:

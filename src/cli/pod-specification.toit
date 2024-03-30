@@ -291,13 +291,17 @@ class PodSpecification:
     name = get-string_ data "name"
     artemis-version = get-string_ data "artemis-version"
     sdk-version = get-optional-string_ data "sdk-version"
-    envelope = get-optional-string_ data "firmware-envelope"
+    firmware-envelope := get-optional-string_ data "firmware-envelope"
+    envelope = get-optional-string_ data "envelope"
+    if envelope and firmware-envelope:
+      format-error_ "Both 'firmware-envelope' and 'envelope' are present in pod specification."
+    if not envelope: envelope = firmware-envelope
 
     if sdk-version and not semver.is-valid sdk-version:
       format-error_ "Invalid sdk-version: $sdk-version"
 
     if not sdk-version and not envelope:
-      format-error_ "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
+      format-error_ "Neither 'sdk-version' nor 'envelope' are present in pod specification."
 
     chip = get-optional-string_ data "chip"
 

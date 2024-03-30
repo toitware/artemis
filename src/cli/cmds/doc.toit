@@ -27,7 +27,7 @@ SPECIFICATION-FORMAT-HELP ::= """
   'artemis-version': The Artemis service version to use. This is a typically
       a string of the form 'v<major>.<minor>.<patch>'; for example 'v1.2.3'.
       Use 'sdk list' to see all available sdk-artemis combinations.
-  'firmware-envelope': optional. The firmware envelope to use. This can be a
+  'envelope': optional. The firmware envelope to use. This can be a
       variant name available from https://github.com/toitlang/envelopes (for
       example 'esp32-ota-1c0000'), a path URI to a local envelope (for
       example 'file:///path/to/envelope'), or a URI to a remote envelope (for

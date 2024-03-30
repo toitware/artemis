@@ -74,13 +74,13 @@ new-valid -> Map:
 
 test-custom-envelope:
   custom-envelope := new-valid
-  custom-envelope["firmware-envelope"] = "envelope-path"
+  custom-envelope["envelope"] = "envelope-path"
   custom-envelope.remove "sdk-version"
   pod := PodSpecification.from-json custom-envelope --path="ignored"
   expect-equals "envelope-path" pod.envelope
 
   version-and-envelope := new-valid
-  version-and-envelope["firmware-envelope"] = "envelope-path"
+  version-and-envelope["envelope"] = "envelope-path"
   pod = PodSpecification.from-json version-and-envelope --path="ignored"
   expect-equals "envelope-path" pod.envelope
   expect-equals "1.0.0" pod.sdk-version
@@ -113,7 +113,7 @@ test-errors:
   no-sdk-version := new-valid
   no-sdk-version.remove "sdk-version"
   expect-format-error
-      "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
+      "Neither 'sdk-version' nor 'envelope' are present in pod specification."
       no-sdk-version
 
   bad-sdk-version := new-valid

@@ -60,7 +60,7 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
 pod-specification-for_ --sdk-version/string --envelope/string:
   json := INITIAL-POD-SPECIFICATION
   json["sdk-version"] = sdk-version
-  json["firmware-envelope"] = envelope
+  json["envelope"] = envelope
   return PodSpecification.from-json json --path="ignored"
 
 download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
