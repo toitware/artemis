@@ -674,7 +674,7 @@ class FleetWithDevices extends Fleet:
         --pods=pods
         --base-firmwares=base-firmwares
 
-    ui_.info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")"
+    ui_.info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
 
   pod-reference-for-group name/string -> PodReference:
     return group-pods_.get name
