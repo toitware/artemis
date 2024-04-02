@@ -27,61 +27,61 @@ run-shared-test
   // The "toit_artemis.new_provisioned" function is only accessible to
   // authenticated users.
   expect-throws --contains="row-level security":
-    client-anon.rest.rpc "toit_artemis.new_provisioned" {
+    client-anon.rest.rpc --schema="toit_artemis" "new_provisioned" {
       "_device_id": device-id1,
       "_state": {:},
     }
 
-  client1.rest.rpc "toit_artemis.new_provisioned" {
+  client1.rest.rpc --schema="toit_artemis" "new_provisioned" {
     "_device_id": device-id1,
     "_state": { "created": "by user1" },
   }
 
   // The device is now available to the authenticated client.
-  state := client1.rest.rpc "toit_artemis.get_state" {
+  state := client1.rest.rpc --schema="toit_artemis" "get_state" {
     "_device_id": device-id1,
   }
   expect-equals "by user1" state["created"]
 
   // Provisioning a device twice should fail.
   expect-throws --contains="duplicate key":
-    client1.rest.rpc "toit_artemis.new_provisioned" {
+    client1.rest.rpc --schema="toit_artemis" "new_provisioned" {
       "_device_id": device-id1,
       "_state": {:},
     }
 
   // The "update_state" function is available to anonymous users.
   // They need to know an existing device ID.
-  client-anon.rest.rpc "toit_artemis.update_state" {
+  client-anon.rest.rpc --schema="toit_artemis" "update_state" {
     "_device_id": device-id1,
     "_state": { "updated": "by anon" },
   }
 
   // If the device id isn't known (no call to new_provisioned) the call fails.
   expect-throws --contains="foreign key":
-    client-anon.rest.rpc "toit_artemis.update_state" {
+    client-anon.rest.rpc --schema="toit_artemis" "update_state" {
       "_device_id": device-id2,
       "_state": { "updated": "by anon" },
     }
 
   // The "get_state" function is only available to authenticated users.
-  state = client1.rest.rpc "toit_artemis.get_state" {
+  state = client1.rest.rpc --schema="toit_artemis" "get_state" {
     "_device_id": device-id1,
   }
   expect-equals "by anon" state["updated"]
 
-  state = client1.rest.rpc "toit_artemis.get_state" {
+  state = client1.rest.rpc --schema="toit_artemis" "get_state" {
     "_device_id": device-id2,
   }
   expect-null state
 
-  state = client-anon.rest.rpc "toit_artemis.get_state" {
+  state = client-anon.rest.rpc --schema="toit_artemis" "get_state" {
     "_device_id": device-id1,
   }
   expect-null state
 
   // report_event is available to devices (and thus anonymous).
-  client-anon.rest.rpc "toit_artemis.report_event" {
+  client-anon.rest.rpc --schema="toit_artemis" "report_event" {
     "_device_id": device-id1,
     "_type": "test",
     "_data": { "updated": "by anon" },
@@ -89,14 +89,14 @@ run-shared-test
 
   // Only ids in the device-list are valid.
   expect-throws --contains="foreign key":
-    client-anon.rest.rpc "toit_artemis.report_event" {
+    client-anon.rest.rpc --schema="toit_artemis" "report_event" {
       "_device_id": "$random-uuid",
       "_type": "test",
       "_data": { "updated": "by anon" },
     }
 
   // Anon can't get events.
-  events := client-anon.rest.rpc "toit_artemis.get_events" {
+  events := client-anon.rest.rpc --schema="toit_artemis" "get_events" {
       "_device_ids": [device-id1],
       "_types": ["test"],
       "_limit": 1
@@ -104,7 +104,7 @@ run-shared-test
   expect-equals 0 events.size
 
   // The events can be retrieved by authenticated users.
-  events = client1.rest.rpc "toit_artemis.get_events" {
+  events = client1.rest.rpc --schema="toit_artemis" "get_events" {
     "_device_ids": [device-id1],
     "_types": ["test"],
     "_limit": 1
@@ -114,7 +114,7 @@ run-shared-test
   expect-equals device-id1 row["device_id"]
   expect-equals "by anon" row["data"]["updated"]
 
-  all-events := client1.rest.rpc "toit_artemis.get_events" {
+  all-events := client1.rest.rpc --schema="toit_artemis" "get_events" {
     "_device_ids": [device-id1],
     "_types": [],
     "_limit": 10_000,
@@ -123,12 +123,12 @@ run-shared-test
 
   // The "get_goal" function is available to anonymous users.
   // They need to know an existing device ID.
-  goal := client-anon.rest.rpc "toit_artemis.get_goal" {
+  goal := client-anon.rest.rpc --schema="toit_artemis" "get_goal" {
     "_device_id": device-id1,
   }
   expect-null goal  // Hasn't been set yet.
 
-  all-events = client1.rest.rpc "toit_artemis.get_events" {
+  all-events = client1.rest.rpc --schema="toit_artemis" "get_events" {
     "_device_ids": [device-id1],
     "_types": [],
     "_limit": 10_000,
@@ -137,23 +137,23 @@ run-shared-test
 
   // The "set_goal" function is only available to authenticated users.
   expect-throws --contains="row-level security":
-    client-anon.rest.rpc "toit_artemis.set_goal" {
+    client-anon.rest.rpc --schema="toit_artemis" "set_goal" {
       "_device_id": device-id1,
       "_goal": { "updated": "by anon" },
     }
 
-  client1.rest.rpc "toit_artemis.set_goal" {
+  client1.rest.rpc --schema="toit_artemis" "set_goal" {
     "_device_id": device-id1,
     "_goal": { "updated": "by user1" },
   }
 
   // The goal is now available to the anon client.
-  goal = client-anon.rest.rpc "toit_artemis.get_goal" {
+  goal = client-anon.rest.rpc --schema="toit_artemis" "get_goal" {
     "_device_id": device-id1,
   }
   expect-equals "by user1" goal["updated"]
 
-  all-events = client1.rest.rpc "toit_artemis.get_events" {
+  all-events = client1.rest.rpc --schema="toit_artemis" "get_events" {
     "_device_ids": [device-id1],
     "_types": [],
     "_limit": 10_000,
@@ -161,18 +161,18 @@ run-shared-test
   all-events-size = all-events.size
 
   // The get_goal_no_event is only available to the CLI.
-  goal = client-anon.rest.rpc "toit_artemis.get_goal_no_event" {
+  goal = client-anon.rest.rpc --schema="toit_artemis" "get_goal_no_event" {
     "_device_id": device-id1,
   }
   expect-null goal
 
-  goal = client1.rest.rpc "toit_artemis.get_goal_no_event" {
+  goal = client1.rest.rpc --schema="toit_artemis" "get_goal_no_event" {
     "_device_id": device-id1,
   }
   expect-equals "by user1" goal["updated"]
 
   // The no-event version doesn't create an event.
-  all-events = client1.rest.rpc "toit_artemis.get_events" {
+  all-events = client1.rest.rpc --schema="toit_artemis" "get_events" {
     "_device_ids": [device-id1],
     "_types": [],
     "_limit": 10_000,
@@ -180,21 +180,21 @@ run-shared-test
   expect-equals all-events-size all-events.size
 
   // Only authenticated can remove devices.
-  client-anon.rest.rpc "toit_artemis.remove_device" {
+  client-anon.rest.rpc --schema="toit_artemis" "remove_device" {
     "_device_id": device-id1,
   }
   // The device is still there:
-  state = client1.rest.rpc "toit_artemis.get_state" {
+  state = client1.rest.rpc --schema="toit_artemis" "get_state" {
     "_device_id": device-id1,
   }
   expect-equals "by anon" state["updated"]
 
-  client1.rest.rpc "toit_artemis.remove_device" {
+  client1.rest.rpc --schema="toit_artemis" "remove_device" {
     "_device_id": device-id1,
   }
 
   // The device is now gone.
-  state = client1.rest.rpc "toit_artemis.get_state" {
+  state = client1.rest.rpc --schema="toit_artemis" "get_state" {
     "_device_id": device-id1,
   }
   expect-null state
@@ -251,7 +251,7 @@ run-shared-pod-description-test
     // Only authenticated users can do this.
     fleet-id := random-uuid
     pod-desc1 := "pod_desc1"
-    description-id := client1.rest.rpc "toit_artemis.upsert_pod_description" {
+    description-id := client1.rest.rpc --schema="toit_artemis" "upsert_pod_description" {
       "_fleet_id": "$fleet-id",
       "_organization_id": "$organization-id",
       "_name": pod-desc1,
@@ -259,7 +259,7 @@ run-shared-pod-description-test
     }
 
     // Only authenticated users can see the description.
-    descriptions := client1.rest.rpc "toit_artemis.get_pod_descriptions" {
+    descriptions := client1.rest.rpc --schema="toit_artemis" "get_pod_descriptions" {
       "_fleet_id": "$fleet-id",
     }
     expect-equals 1 descriptions.size
@@ -268,20 +268,20 @@ run-shared-pod-description-test
     expect-equals "pod description 1" descriptions[0]["description"]
 
     // Other can't see the description.
-    descriptions = other-client.rest.rpc "toit_artemis.get_pod_descriptions" {
+    descriptions = other-client.rest.rpc --schema="toit_artemis" "get_pod_descriptions" {
       "_fleet_id": "$fleet-id",
     }
     expect descriptions.is-empty
 
     // Calling it again updates the description
-    client1.rest.rpc "toit_artemis.upsert_pod_description" {
+    client1.rest.rpc --schema="toit_artemis" "upsert_pod_description" {
       "_fleet_id": "$fleet-id",
       "_organization_id": "$organization-id",
       "_name": pod-desc1,
       "_description": "pod description 1 - changed",
     }
 
-    descriptions = client1.rest.rpc "toit_artemis.get_pod_descriptions" {
+    descriptions = client1.rest.rpc --schema="toit_artemis" "get_pod_descriptions" {
       "_fleet_id": "$fleet-id",
     }
     expect-equals 1 descriptions.size
@@ -290,7 +290,7 @@ run-shared-pod-description-test
     // Other can't create a description.
     pod-name2 := "pod_name2"
     expect-throws --contains="row-level security":
-      other-client.rest.rpc "toit_artemis.upsert_pod_description" {
+      other-client.rest.rpc --schema="toit_artemis" "upsert_pod_description" {
         "_fleet_id": "$fleet-id",
         "_organization_id": "$organization-id",
         "_name": pod-name2,
@@ -298,7 +298,7 @@ run-shared-pod-description-test
       }
 
     // Get the descriptions by ID.
-    descriptions = client1.rest.rpc "toit_artemis.get_pod_descriptions_by_ids" {
+    descriptions = client1.rest.rpc --schema="toit_artemis" "get_pod_descriptions_by_ids" {
       "_description_ids": [description-id],
     }
     expect-equals 1 descriptions.size
@@ -307,12 +307,12 @@ run-shared-pod-description-test
     expect-equals "pod description 1 - changed" descriptions[0]["description"]
 
     // Other still can't see the description.
-    descriptions = other-client.rest.rpc "toit_artemis.get_pod_descriptions_by_ids" {
+    descriptions = other-client.rest.rpc --schema="toit_artemis" "get_pod_descriptions_by_ids" {
       "_description_ids": [description-id],
     }
     expect descriptions.is-empty
 
-    pods := client1.rest.rpc "toit_artemis.get_pods" {
+    pods := client1.rest.rpc --schema="toit_artemis" "get_pods" {
       "_pod_description_id": "$description-id",
       "_limit": 10_000,
       "_offset": 0,
@@ -322,11 +322,11 @@ run-shared-pod-description-test
     // Add some pods.
     pod-id1 := random-uuid
     pod-id2 := random-uuid
-    client1.rest.rpc "toit_artemis.insert_pod" {
+    client1.rest.rpc --schema="toit_artemis" "insert_pod" {
       "_pod_id": "$pod-id1",
       "_pod_description_id": "$description-id",
     }
-    client1.rest.rpc "toit_artemis.insert_pod" {
+    client1.rest.rpc --schema="toit_artemis" "insert_pod" {
       "_pod_id": "$pod-id2",
       "_pod_description_id": "$description-id",
     }
@@ -334,13 +334,13 @@ run-shared-pod-description-test
     // Other can't do that.
     pod-id3 := random-uuid
     expect-throws --contains="row-level security":
-      other-client.rest.rpc "toit_artemis.insert_pod" {
+      other-client.rest.rpc --schema="toit_artemis" "insert_pod" {
         "_pod_id": "$pod-id3",
         "_pod_description_id": "$description-id",
       }
 
     // The pods now appear for the description.
-    pods = client1.rest.rpc "toit_artemis.get_pods" {
+    pods = client1.rest.rpc --schema="toit_artemis" "get_pods" {
       "_pod_description_id": "$description-id",
       "_limit": 10_000,
       "_offset": 0,
@@ -351,7 +351,7 @@ run-shared-pod-description-test
     expect-equals "$pod-id1" pods[1]["id"]
 
     // Other can't see the pods.
-    pods = other-client.rest.rpc "toit_artemis.get_pods" {
+    pods = other-client.rest.rpc --schema="toit_artemis" "get_pods" {
       "_pod_description_id": "$description-id",
       "_limit": 10_000,
       "_offset": 0,
@@ -359,13 +359,13 @@ run-shared-pod-description-test
     expect pods.is-empty
 
     // Add tags to the pods.
-    client1.rest.rpc "toit_artemis.set_pod_tag" {
+    client1.rest.rpc --schema="toit_artemis" "set_pod_tag" {
       "_pod_id": "$pod-id1",
       "_pod_description_id": "$description-id",
       "_tag": "tag1",
       "_force": false,
     }
-    client1.rest.rpc "toit_artemis.set_pod_tag" {
+    client1.rest.rpc --schema="toit_artemis" "set_pod_tag" {
       "_pod_id": "$pod-id1",
       "_pod_description_id": "$description-id",
       "_tag": "tag2",
@@ -373,7 +373,7 @@ run-shared-pod-description-test
     }
 
     // Other can try, but it won't have any effect.
-    other-client.rest.rpc "toit_artemis.set_pod_tag" {
+    other-client.rest.rpc --schema="toit_artemis" "set_pod_tag" {
       "_pod_id": "$pod-id1",
       "_pod_description_id": "$description-id",
       "_tag": "tag3",
@@ -381,7 +381,7 @@ run-shared-pod-description-test
     }
 
     // Get the pod1 to see its tags.
-    pods = client1.rest.rpc "toit_artemis.get_pods_by_ids" {
+    pods = client1.rest.rpc --schema="toit_artemis" "get_pods_by_ids" {
       "_fleet_id": "$fleet-id",
       "_pod_ids": ["$pod-id1"],
     }
@@ -391,7 +391,7 @@ run-shared-pod-description-test
 
     // Only one pod per description is allowed to have the same tag.
     expect-throws --contains="duplicate key value violates unique constraint":
-      client1.rest.rpc "toit_artemis.set_pod_tag" {
+      client1.rest.rpc --schema="toit_artemis" "set_pod_tag" {
         "_pod_id": "$pod-id2",
         "_pod_description_id": "$description-id",
         "_tag": "tag1",
@@ -399,7 +399,7 @@ run-shared-pod-description-test
       }
 
     // Other doesn't even see that message.
-    other-client.rest.rpc "toit_artemis.set_pod_tag" {
+    other-client.rest.rpc --schema="toit_artemis" "set_pod_tag" {
       "_pod_id": "$pod-id2",
       "_pod_description_id": "$description-id",
       "_tag": "tag1",
@@ -407,19 +407,19 @@ run-shared-pod-description-test
     }
 
     // Client1 can remove the tag.
-    client1.rest.rpc "toit_artemis.delete_pod_tag" {
+    client1.rest.rpc --schema="toit_artemis" "delete_pod_tag" {
       "_pod_description_id": "$description-id",
       "_tag": "tag1",
     }
 
     // Other can try, but it won't do anything.
-    other-client.rest.rpc "toit_artemis.delete_pod_tag" {
+    other-client.rest.rpc --schema="toit_artemis" "delete_pod_tag" {
       "_pod_description_id": "$description-id",
       "_tag": "tag2",
     }
 
     // Get the pod1 to see its tags.
-    pods = client1.rest.rpc "toit_artemis.get_pods_by_ids" {
+    pods = client1.rest.rpc --schema="toit_artemis" "get_pods_by_ids" {
       "_fleet_id": "$fleet-id",
       "_pod_ids": ["$pod-id1"],
     }
@@ -427,7 +427,7 @@ run-shared-pod-description-test
     expect-equals ["tag2"] pods[0]["tags"]
 
     // Get the pods by name.
-    pods = client1.rest.rpc "toit_artemis.get_pod_descriptions_by_names" {
+    pods = client1.rest.rpc --schema="toit_artemis" "get_pod_descriptions_by_names" {
       "_fleet_id": "$fleet-id",
       "_organization_id": "$organization-id",
       "_names": [pod-desc1],
@@ -437,7 +437,7 @@ run-shared-pod-description-test
     expect-equals description-id pods[0]["id"]
 
     // Other doesn't see anything.
-    pods = other-client.rest.rpc "toit_artemis.get_pod_descriptions_by_names" {
+    pods = other-client.rest.rpc --schema="toit_artemis" "get_pod_descriptions_by_names" {
       "_fleet_id": "$fleet-id",
       "_organization_id": "$organization-id",
       "_names": [pod-desc1],
@@ -446,7 +446,7 @@ run-shared-pod-description-test
     expect pods.is-empty
 
     // Get pods by name and tag.
-    response := client1.rest.rpc "toit_artemis.get_pods_by_reference" {
+    response := client1.rest.rpc --schema="toit_artemis" "get_pods_by_reference" {
       "_fleet_id": "$fleet-id",
       "_references": [
         {
@@ -460,7 +460,7 @@ run-shared-pod-description-test
     expect-equals pod-desc1 response[0]["name"]
 
     // Other doesn't see anything.
-    response = other-client.rest.rpc "toit_artemis.get_pods_by_reference" {
+    response = other-client.rest.rpc --schema="toit_artemis" "get_pods_by_reference" {
       "_fleet_id": "$fleet-id",
       "_references": [
         {
@@ -472,43 +472,43 @@ run-shared-pod-description-test
     expect response.is-empty
 
     // Other can't delete a pod.
-    other-client.rest.rpc "toit_artemis.delete_pods" {
+    other-client.rest.rpc --schema="toit_artemis" "delete_pods" {
       "_fleet_id": "$fleet-id",
       "_pod_ids": ["$pod-id1"],
     }
-    pods = client1.rest.rpc "toit_artemis.get_pods_by_ids" {
+    pods = client1.rest.rpc --schema="toit_artemis" "get_pods_by_ids" {
       "_fleet_id": "$fleet-id",
       "_pod_ids": ["$pod-id1"],
     }
     expect-not pods.is-empty
 
     // Client1 can delete a pod.
-    client1.rest.rpc "toit_artemis.delete_pods" {
+    client1.rest.rpc --schema="toit_artemis" "delete_pods" {
       "_fleet_id": "$fleet-id",
       "_pod_ids": ["$pod-id1"],
     }
-    pods = client1.rest.rpc "toit_artemis.get_pods_by_ids" {
+    pods = client1.rest.rpc --schema="toit_artemis" "get_pods_by_ids" {
       "_fleet_id": "$fleet-id",
       "_pod_ids": ["$pod-id1"],
     }
     expect pods.is-empty
 
     // Other can't delete a description.
-    other-client.rest.rpc "toit_artemis.delete_pod_descriptions" {
+    other-client.rest.rpc --schema="toit_artemis" "delete_pod_descriptions" {
       "_fleet_id": "$fleet-id",
       "_description_ids": ["$description-id"],
     }
-    descriptions = client1.rest.rpc "toit_artemis.get_pod_descriptions_by_ids" {
+    descriptions = client1.rest.rpc --schema="toit_artemis" "get_pod_descriptions_by_ids" {
       "_description_ids": [description-id],
     }
     expect-not descriptions.is-empty
 
     // Client1 can delete a description.
-    client1.rest.rpc "toit_artemis.delete_pod_descriptions" {
+    client1.rest.rpc --schema="toit_artemis" "delete_pod_descriptions" {
       "_fleet_id": "$fleet-id",
       "_description_ids": ["$description-id"],
     }
-    descriptions = client1.rest.rpc "toit_artemis.get_pod_descriptions_by_ids" {
+    descriptions = client1.rest.rpc --schema="toit_artemis" "get_pod_descriptions_by_ids" {
       "_description_ids": [description-id],
     }
     expect descriptions.is-empty

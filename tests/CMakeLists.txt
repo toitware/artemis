@@ -27,7 +27,7 @@ add_custom_target(
 
 add_custom_target(
   serial_check
-  COMMAND ${CMAKE_CTEST_COMMAND} -j${NUM_CPU} -T test --output-on-failure -C serial
+  COMMAND ${CMAKE_CTEST_COMMAND} -j1 -T test --output-on-failure -C serial
   USES_TERMINAL
 )
 

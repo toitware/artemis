@@ -455,7 +455,7 @@ class Artemis:
       unconfigured := unconfigured-cache.get pod.id --init=:
         FirmwareContent.from-envelope pod.envelope-path --cache=cache_
 
-      goal := update-device_
+      goal := prepare-update-device_
           --device=device
           --pod=pod
           --unconfigured-content=unconfigured
@@ -466,7 +466,13 @@ class Artemis:
         --device-ids=devices.map: it.id
         --goals=goals
 
-  update-device_ --device/DeviceDetailed --pod/Pod --unconfigured-content/FirmwareContent --base-firmwares/List -> Map:
+  /**
+  Prepares the update for the given $device.
+
+  Computes the patch and uploads it.
+  Returns the new goal state for the device.
+  */
+  prepare-update-device_ --device/DeviceDetailed --pod/Pod --unconfigured-content/FirmwareContent --base-firmwares/List -> Map:
     device-id := device.id
     upload --firmware-content=unconfigured-content --organization-id=device.organization-id
 
