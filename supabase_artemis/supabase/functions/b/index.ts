@@ -204,7 +204,6 @@ async function handleRequest(req: Request) {
       return { error };
     }
     case COMMAND_GET_DEVICES_: {
-      console.log("Getting devices", params);
       return supabaseClient.rpc("get_devices", params);
     }
     case COMMAND_NOTIFY_BROKER_CREATED_: {
