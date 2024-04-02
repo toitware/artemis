@@ -88,6 +88,15 @@ interface BrokerCli implements Authenticatable:
   update-goal --device-id/uuid.Uuid [block] -> none
 
   /**
+  Updates the goal states of the devices with the given $device-ids.
+
+  The two lists $device-ids and $goals must be of the same length.
+  The $device-ids list must be a list of UUIDs.
+  The $goals list must be a list of Maps, where each map is a goal state.
+  */
+  update-goals --device-ids/List --goals/List -> none
+
+  /**
   Uploads an application image with the given $app-id so that a device in
     $organization-id can fetch it.
 

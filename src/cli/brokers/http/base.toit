@@ -166,6 +166,12 @@ class BrokerCliHttp implements BrokerCli:
       "_goal": new-goal
     }
 
+  update-goals --device-ids/List --goals/List -> none:
+    send-request_ COMMAND-UPDATE-GOALS_ {
+      "_device_ids": device-ids.map: "$it",
+      "_goals": goals
+    }
+
   get-devices --device-ids/List -> Map:
     response := send-request_ COMMAND-GET-DEVICES_ {
       "_device_ids": device-ids.map: "$it"

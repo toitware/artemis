@@ -12,6 +12,7 @@ const COMMAND_UPDATE_GOAL_ = 4;
 const COMMAND_GET_DEVICES_ = 5;
 const COMMAND_NOTIFY_BROKER_CREATED_ = 6;
 const COMMAND_GET_EVENTS_ = 7;
+const COMMAND_UPDATE_GOALS_ = 8;
 
 const COMMAND_GET_GOAL_ = 10;
 const COMMAND_REPORT_STATE_ = 11;
@@ -212,6 +213,9 @@ async function handleRequest(req: Request) {
     }
     case COMMAND_GET_EVENTS_: {
       return supabaseClient.rpc("get_events", params);
+    }
+    case COMMAND_UPDATE_GOALS_: {
+      return supabaseClient.rpc("set_goals", params);
     }
     case COMMAND_GET_GOAL_: {
       return supabaseClient.rpc("get_goal", params);

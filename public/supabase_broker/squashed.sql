@@ -472,6 +472,21 @@ $$;
 
 ALTER FUNCTION "toit_artemis"."set_goal"("_device_id" "uuid", "_goal" "jsonb") OWNER TO "postgres";
 
+CREATE OR REPLACE FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    FOR i IN 1..array_length(_device_ids, 1) LOOP
+        INSERT INTO toit_artemis.goals (device_id, goal)
+          VALUES (_device_ids[i], _goals[i])
+          ON CONFLICT (device_id) DO UPDATE
+          SET goal = _goals[i];
+    END LOOP;
+END;
+$$;
+
+ALTER FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) OWNER TO "postgres";
+
 CREATE OR REPLACE FUNCTION "toit_artemis"."set_pod_tag"("_pod_id" "uuid", "_pod_description_id" bigint, "_tag" "text", "_force" boolean) RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -814,6 +829,10 @@ GRANT ALL ON FUNCTION "toit_artemis"."report_event"("_device_id" "uuid", "_type"
 GRANT ALL ON FUNCTION "toit_artemis"."set_goal"("_device_id" "uuid", "_goal" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."set_goal"("_device_id" "uuid", "_goal" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."set_goal"("_device_id" "uuid", "_goal" "jsonb") TO "service_role";
+
+GRANT ALL ON FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) TO "anon";
+GRANT ALL ON FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) TO "authenticated";
+GRANT ALL ON FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) TO "service_role";
 
 GRANT ALL ON FUNCTION "toit_artemis"."set_pod_tag"("_pod_id" "uuid", "_pod_description_id" bigint, "_tag" "text", "_force" boolean) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."set_pod_tag"("_pod_id" "uuid", "_pod_description_id" bigint, "_tag" "text", "_force" boolean) TO "authenticated";

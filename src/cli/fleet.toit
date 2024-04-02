@@ -664,20 +664,17 @@ class FleetWithDevices extends Fleet:
       trivial-patches.do: | _ patch/FirmwarePatch |
         artemis_.upload-patch patch --organization-id=organization-id
 
-    pods := {:}  // From group-name to Pod.
-    fleet-devices.do: | fleet-device/DeviceFleet |
+    pods-per-group := {:}  // From group-name to Pod.
+    pods := fleet-devices.map: | fleet-device/DeviceFleet |
       group-name := fleet-device.group
-      if pods.contains group-name: continue.do
-      reference := pod-reference-for-group group-name
-      pods[group-name] = download reference
+      pods-per-group.get group-name --init=: download (pod-reference-for-group group-name)
 
-    fleet-devices.do: | fleet-device/DeviceFleet |
-      artemis_.update
-          --device-id=fleet-device.id
-          --pod=pods[fleet-device.group]
-          --base-firmwares=base-firmwares
+    artemis_.update-bulk
+        --devices=existing-devices.values
+        --pods=pods
+        --base-firmwares=base-firmwares
 
-      ui_.info "Successfully updated device $fleet-device.short-string."
+    ui_.info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
 
   pod-reference-for-group name/string -> PodReference:
     return group-pods_.get name

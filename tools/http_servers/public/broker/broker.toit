@@ -74,6 +74,7 @@ class HttpBroker extends HttpServer:
     if command == COMMAND-DOWNLOAD_: return download data
     if command == COMMAND-DOWNLOAD-PRIVATE_: return download data
     if command == COMMAND-UPDATE-GOAL_: return update-goal data
+    if command == COMMAND-UPDATE-GOALS_: return update-goals data
     if command == COMMAND-GET-DEVICES_: return get-devices data
     if command == COMMAND-NOTIFY-BROKER-CREATED_: return notify-created data
     if command == COMMAND-GET-EVENTS_: return get-events data
@@ -129,6 +130,15 @@ class HttpBroker extends HttpServer:
     device-id := data["_device_id"]
     device-goals_[device-id] = data["_goal"]
     print "Updating goal state for $device-id to $device-goals_[device-id]."
+
+  update-goals data/Map:
+    device-ids := data["_device_ids"]
+    goals := data["_goals"]
+    device-ids.size.repeat: | i |
+      device-id := device-ids[i]
+      goal := goals[i]
+      device-goals_[device-id] = goal
+      print "Updating goal state for $device-id to $goal."
 
   upload data/Map:
     path := data["path"]
