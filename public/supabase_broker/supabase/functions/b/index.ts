@@ -215,7 +215,7 @@ async function handleRequest(req: Request) {
       return supabaseClient.rpc("get_events", params);
     }
     case COMMAND_UPDATE_GOALS_: {
-      return supabaseClient.rpc("update_goals", params);
+      return supabaseClient.rpc("set_goals", params);
     }
     case COMMAND_GET_GOAL_: {
       return supabaseClient.rpc("get_goal", params);
