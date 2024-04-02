@@ -147,27 +147,27 @@ class SupabaseBackdoor implements BrokerBackdoor:
 
   create-device --device-id/uuid.Uuid --state/Map:
     with-backdoor-client_: | client/supabase.Client |
-      client.rest.rpc "toit_artemis.new_provisioned" {
+      client.rest.rpc --schema="toit_artemis" "new_provisioned" {
         "_device_id": "$device-id",
         "_state": state,
       }
 
   remove-device device-id/uuid.Uuid -> none:
     with-backdoor-client_: | client/supabase.Client |
-      client.rest.rpc "toit_artemis.remove_device" {
+      client.rest.rpc --schema="toit_artemis" "remove_device" {
         "_device_id": "$device-id",
       }
 
   get-state device-id/uuid.Uuid -> Map?:
     with-backdoor-client_: | client/supabase.Client |
-      return client.rest.rpc "toit_artemis.get_state" {
+      return client.rest.rpc --schema="toit_artemis" "get_state" {
         "_device_id": "$device-id",
       }
     unreachable
 
   clear-events -> none:
     with-backdoor-client_: | client/supabase.Client |
-      client.rest.rpc "toit_artemis.clear_events" {:}
+      client.rest.rpc --schema="toit_artemis" "clear_events" {:}
 
   with-backdoor-client_ [block]:
     network := net.open

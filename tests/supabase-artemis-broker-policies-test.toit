@@ -55,7 +55,7 @@ main args:
     non-existent := random-uuid
 
     expect-throws --contains="row-level security":
-      client1.rest.rpc "toit_artemis.new_provisioned" {
+      client1.rest.rpc --schema="toit_artemis" "new_provisioned" {
         "_device_id": "$non-existent",
         "_state": { "created": "by user1"},
       }
@@ -88,13 +88,13 @@ main args:
 
     // client3 can't provision id3 since they aren't in the same organization.
     expect-throws --contains="row-level security":
-      client3.rest.rpc "toit_artemis.new_provisioned" {
+      client3.rest.rpc --schema="toit_artemis" "new_provisioned" {
         "_device_id": device-id3,
         "_state": { "created": "by user3"},
       }
 
     // client2 can provision id3 since they are in the same organization.
-    client2.rest.rpc "toit_artemis.new_provisioned" {
+    client2.rest.rpc --schema="toit_artemis" "new_provisioned" {
       "_device_id": device-id3,
       "_state": { "created": "by user2"},
     }
@@ -137,32 +137,32 @@ main args:
     // Report a state and an event for device3.
     // The "update_state" function is available to anonymous users.
     // They need to know an existing device ID.
-    client-anon.rest.rpc "toit_artemis.update_state" {
+    client-anon.rest.rpc --schema="toit_artemis" "update_state" {
       "_device_id": device-id3,
       "_state": { "updated": "by anon" },
     }
 
     // Client1 and client2 can access device_id3, but client3 can't.
     [client1, client2].do: | client/supabase.Client |
-      state := client1.rest.rpc "toit_artemis.get_state" {
+      state := client1.rest.rpc --schema="toit_artemis" "get_state" {
         "_device_id": device-id3,
       }
       expect-equals "by anon" state["updated"]
 
     // Client3 can't access device_id3.
-    state := client3.rest.rpc "toit_artemis.get_state" {
+    state := client3.rest.rpc --schema="toit_artemis" "get_state" {
         "_device_id": device-id3,
       }
     expect-null state
 
-    client-anon.rest.rpc "toit_artemis.report_event" {
+    client-anon.rest.rpc --schema="toit_artemis" "report_event" {
       "_device_id": device-id3,
       "_type": "test-artemis",
       "_data": { "updated": "by anon" },
     }
 
     [client1, client2].do: | client/supabase.Client |
-      events := client.rest.rpc "toit_artemis.get_events" {
+      events := client.rest.rpc --schema="toit_artemis" "get_events" {
         "_device_ids": [device-id3],
         "_types": ["test-artemis"],
         "_limit": 1
@@ -172,7 +172,7 @@ main args:
       expect-equals "by anon" events[0]["data"]["updated"]
 
     // Client3 can't access device_id3.
-    events := client3.rest.rpc "toit_artemis.get_events" {
+    events := client3.rest.rpc --schema="toit_artemis" "get_events" {
         "_device_ids": [device-id3],
         "_types": ["test-artemis"],
         "_limit": 1
