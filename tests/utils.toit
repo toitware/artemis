@@ -67,7 +67,8 @@ NON-EXISTENT-UUID ::= uuid.uuid5 "non" "existent"
 UPDATE-GOLD-ENV ::= "UPDATE_GOLD"
 
 TEST-SDK-VERSION/string := configured-version.SDK-VERSION
-TEST-ARTEMIS-VERSION ::= "$(configured-version.ARTEMIS-VERSION)-TEST"
+// Only add the '-TEST' suffix if it's not already there.
+TEST-ARTEMIS-VERSION ::= "$(configured-version.ARTEMIS-VERSION.trim --right "-TEST")-TEST"
 
 with-tmp-directory [block]:
   tmp-dir := directory.mkdtemp "/tmp/artemis-test-"
