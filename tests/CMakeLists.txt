@@ -21,7 +21,11 @@ ProcessorCount(NUM_CPU)
 
 add_custom_target(
   check
-  COMMAND ${CMAKE_CTEST_COMMAND} -j${NUM_CPU} -T test --output-on-failure -C default
+  # Disable parallel builds until cmake has been updated.
+  # Version 3.29.0 doesn't respect resource locks:
+  #  https://gitlab.kitware.com/cmake/cmake/-/issues/25843
+  # COMMAND ${CMAKE_CTEST_COMMAND} -j${NUM_CPU} -T test --output-on-failure -C default
+  COMMAND ${CMAKE_CTEST_COMMAND} -j1 -T test --output-on-failure -C default
   USES_TERMINAL
 )
 
