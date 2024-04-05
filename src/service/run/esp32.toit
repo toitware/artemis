@@ -10,6 +10,7 @@ import encoding.ubjson
 import log
 import uuid
 import watchdog.provider as watchdog
+import watchdog show WatchdogServiceClient Watchdog
 
 import ..check-in show check-in-setup
 import ..device
@@ -36,9 +37,9 @@ main arguments:
       --granularity-ms=WATCHDOG-GRANULARITY-MS
   watchdog-provider.install
 
-  // No need to store the returned dog, as we expect to transition out
-  // of startup before it needs to be fed.
-  WatchdogManager.transition-to WatchdogManager.STATE-STARTUP
+  client/WatchdogServiceClient := (WatchdogServiceClient).open as WatchdogServiceClient
+  watchdog := client.create "toit.io/artemis"
+  watchdog.start --s=WATCHDOG-TIMEOUT-S
 
   firmware-description := ubjson.decode (device-specific "parts")
   end := firmware-description.last["to"]
@@ -65,6 +66,7 @@ main arguments:
 
   server-config := decode-server-config "broker" artemis-assets
   sleep-duration := run-artemis device server-config
+      --watchdog=watchdog
       --cause=ESP32-WAKEUP-CAUSES.get esp32.wakeup-cause
   __deep-sleep__ sleep-duration.in-ms
 

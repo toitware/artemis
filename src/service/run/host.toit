@@ -19,6 +19,7 @@ import encoding.hex
 import uuid
 
 import watchdog.provider as watchdog
+import watchdog show Watchdog WatchdogServiceClient
 
 import ..utils show decode-server-config
 import ..service show run-artemis
@@ -71,6 +72,10 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
       --system-watchdog=NullWatchdog
   watchdog-provider.install
 
+  client/WatchdogServiceClient := (WatchdogServiceClient).open as WatchdogServiceClient
+  watchdog := client.create "toit.io/artemis"
+  watchdog.start --s=WATCHDOG-TIMEOUT-S
+
   identity := read-base64-ubjson identity-path
   identity["artemis.broker"] = tison.encode identity["artemis.broker"]
   identity["broker"] = tison.encode identity["broker"]
@@ -110,7 +115,6 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
       // expects to be in `STATE-STARTUP`.
       // We don't use the returned dogs, as we expect to migrate to a
       // different state before they need to be fed.
-      WatchdogManager.transition-to WatchdogManager.STATE-STARTUP
       device := Device
           --id=artemis-device.id
           --hardware-id=artemis-device.hardware-id
@@ -118,7 +122,7 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
           --firmware-state=config
       check-in-setup --assets=identity --device=device
       server-config := decode-server-config "broker" identity
-      sleep-duration := run-artemis device server-config
+      sleep-duration := run-artemis device server-config --watchdog=watchdog
       sleep sleep-duration
       print
 
