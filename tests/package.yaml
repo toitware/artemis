@@ -1,7 +1,7 @@
 dependencies:
   ar:
     url: github.com/toitlang/pkg-ar
-    version: ^1.0.1
+    version: ^1.1.0
   artemis:
     path: ..
   artemis-pkg:
@@ -20,12 +20,12 @@ dependencies:
     version: ^1.14.1
   http:
     url: github.com/toitlang/pkg-http
-    version: ^2.4.0
+    version: ^2.6.0
   snapshot:
     path: ../tools/snapshot
   supabase:
     url: github.com/toitware/toit-supabase
-    version: ^0.2.5
+    version: ^0.2.6
   watchdog:
     url: github.com/toitware/toit-watchdog
     version: ^1.4.0
