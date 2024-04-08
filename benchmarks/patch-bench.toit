@@ -1,9 +1,9 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import binary show LITTLE-ENDIAN
-import bytes show Buffer Reader
 import expect show *
 import host.file
+import io
+import io show LITTLE-ENDIAN
 
 import artemis.cli.utils.binary-diff show *
 import artemis.shared.utils.patch show *
@@ -20,7 +20,7 @@ bench suffix/string fast/bool size/int:
   old = old[..size] + old[old.size - size..]
   new = new[..size] + new[new.size - size..]
   old-data := OldData old 0 0
-  writer := Buffer
+  writer := io.Buffer
   diff-time := Duration.of:
     diff
         old-data
@@ -39,7 +39,7 @@ bench suffix/string fast/bool size/int:
 
   test-writer := TestWriter
   patcher := Patcher
-      Reader result
+      io.Reader result
       old
 
   patch-time := Duration.of:
@@ -50,7 +50,7 @@ bench suffix/string fast/bool size/int:
 
 class TestWriter implements PatchObserver:
   size /int? := null
-  writer /Buffer := Buffer
+  writer /io.Buffer := io.Buffer
 
   on-write data from/int=0 to/int=data.size:
     writer.write data[from..to]

@@ -1,7 +1,7 @@
 dependencies:
   ar:
     url: github.com/toitlang/pkg-ar
-    version: ^1.1.0
+    version: ^1.2.0
   artemis:
     path: ../..
   certificate_roots:
@@ -9,15 +9,15 @@ dependencies:
     version: ^1.6.1
   cli:
     url: github.com/toitlang/pkg-cli
-    version: ^1.7.0
+    version: ^1.8.0
   host:
     url: github.com/toitlang/pkg-host
-    version: ^1.14.1
+    version: ^1.15.1
   http:
     url: github.com/toitlang/pkg-http
-    version: ^2.5.1
+    version: ^2.7.0
   snapshot:
     path: ../snapshot
   supabase:
     url: github.com/toitware/toit-supabase
-    version: ^0.2.6
+    version: ^0.2.7

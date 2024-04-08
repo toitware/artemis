@@ -4,10 +4,9 @@ import ar
 import crypto.sha256
 import host.file
 import host.os
-import bytes
+import io
 import log
 import net
-import writer
 import uuid
 
 import encoding.base64
@@ -733,7 +732,7 @@ class Artemis:
       connected-broker.upload-firmware trivial
           --organization-id=organization-id
           --firmware-id=trivial-id
-      store.save-via-writer: | writer/writer.Writer |
+      store.save-via-writer: | writer/io.Writer |
         trivial.do: writer.write it
 
     if not patch.from_: return
@@ -753,7 +752,7 @@ class Artemis:
         // TODO(florian): we don't have the chunk-size when downloading from the broker.
         store.move "$tmp-dir/patch"
 
-    bitstream := bytes.Reader trivial-old
+    bitstream := io.Reader trivial-old
     patcher := Patcher bitstream null
     patch-writer := PatchWriter
     if not patcher.patch patch-writer: return
@@ -779,7 +778,7 @@ class Artemis:
       connected-broker.upload-firmware diff
           --organization-id=organization-id
           --firmware-id=diff-id
-      store.save-via-writer: | writer/writer.Writer |
+      store.save-via-writer: | writer/io.Writer |
         diff.do: writer.write it
 
   static id_ --from/ByteArray?=null --to/ByteArray -> string:
@@ -789,7 +788,7 @@ class Artemis:
 
   static compute-applied-hash_ diff/List old/ByteArray -> ByteArray?:
     combined := diff.reduce --initial=#[]: | acc chunk | acc + chunk
-    bitstream := bytes.Reader combined
+    bitstream := io.Reader combined
     patcher := Patcher bitstream old
     writer := PatchWriter
     if not patcher.patch writer: return null

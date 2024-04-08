@@ -338,11 +338,10 @@ class FileStore_ implements FileStore:
   save-via-writer [block]:
     store_: | file-path/string |
       stream := file.Stream.for-write file-path
-      w := writer.Writer stream
       try:
-        block.call w
+        block.call stream.out
       finally:
-        w.close
+        stream.close
 
   /**
   Copies the content of $path to the cache under $key.
@@ -465,9 +464,8 @@ atomic-move-directory_ source-path/string target-path/string -> none:
 copy-file_ --source/string --target/string -> none:
   // TODO(florian): we want to keep the permissions of the original file,
   // except that we want to make the file read-only.
-  in := file.Stream.for-read source
-  out := file.Stream.for-write target
-  w := writer.Writer out
-  w.write-from in
-  in.close
-  out.close
+  in-stream := file.Stream.for-read source
+  out-stream := file.Stream.for-write target
+  out-stream.out.write-from in-stream.in
+  in-stream.close
+  out-stream.close

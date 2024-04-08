@@ -2,7 +2,7 @@
 
 import artemis.service.flashlog show FlashLog SN
 
-import binary show LITTLE-ENDIAN
+import io show LITTLE-ENDIAN
 import crypto.crc
 import expect show *
 import system.storage

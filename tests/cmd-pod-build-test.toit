@@ -6,9 +6,9 @@ import artemis.cli.firmware show get-envelope
 import artemis.cli.pod show Pod
 import artemis.cli.pod-specification show PodSpecification
 import artemis.cli.sdk show Sdk
-import bytes
 import expect show *
 import host.file
+import io
 import .utils
 
 main args:
@@ -154,7 +154,7 @@ validate-pod pod-path/string --name/string --containers/List --test-cli/TestCli:
     expect-equals name pod.name
     envelope := pod.envelope
     seen := {}
-    reader := ArReader (bytes.Reader envelope)
+    reader := ArReader (io.Reader envelope)
     while file := reader.next:
       seen.add file.name
     containers.do:

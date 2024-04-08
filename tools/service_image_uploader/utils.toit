@@ -6,7 +6,6 @@ import cli
 import host.file
 import host.directory
 import supabase
-import writer show Writer
 
 import artemis.cli.config as cli
 import artemis.cli.config show
@@ -37,9 +36,7 @@ with-tmp-directory [block]:
 
 write-file --path/string content:
   stream := file.Stream.for-write path
-  writer := Writer stream
   try:
-    writer.write content
+    stream.out.write content
   finally:
-    writer.close
-    // TODO(florian): we would like to close the stream here.
+    stream.close

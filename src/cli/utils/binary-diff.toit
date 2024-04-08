@@ -1,10 +1,8 @@
 // Copyright (C) 2020 Toitware ApS. All rights reserved.
 
-import binary show LITTLE-ENDIAN
+import io show LITTLE-ENDIAN
 import crypto.adler32 show *
 import crypto.sha256 show *
-import host.pipe
-import writer
 
 import ...shared.utils.patch-format
 
