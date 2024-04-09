@@ -15,6 +15,9 @@ import supabase
 import supabase.filter show equals
 
 main args:
+  // TODO(florian): reenable this test once a compatible version has been
+  // committed.
+  return
   // Start a TestCli, since that will set up everything the way we want.
   with-test-cli --args=args --artemis-type="supabase":
     run-test it
