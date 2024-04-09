@@ -226,7 +226,7 @@ jobs:
           runner.os == 'Linux' &&
           matrix.arch == 'amd64' &&
           github.event_name == 'push' &&
-          github.ref == 'refs/heads/main'
+          github.ref == 'refs/heads/v0.17.1'
         shell: bash
         env:
           ARTEMIS_EMAIL: leon@toit.io
