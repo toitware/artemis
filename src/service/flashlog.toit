@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import binary show LITTLE-ENDIAN
 import crypto.crc
+import io show LITTLE-ENDIAN
 import system.storage
 
 import artemis-pkg.api

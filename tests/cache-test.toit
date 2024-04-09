@@ -5,7 +5,6 @@ import host.directory
 import host.file
 import monitor
 import expect show *
-import writer
 
 main:
   test-file-cache
@@ -193,9 +192,8 @@ test-file-cache:
 
 write-content --path/string --content/ByteArray:
   stream := file.Stream.for-write path
-  w := writer.Writer stream
-  w.write content
-  w.close
+  stream.out.write content
+  stream.close
 
 test-dir-cache:
   cache-dir := directory.mkdtemp "/tmp/cache_test-"

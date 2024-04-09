@@ -1,8 +1,8 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import gpio
+import io
 import log
-import reader show Reader SizedReader
 import uuid
 
 import system.containers
@@ -98,11 +98,11 @@ class ContainerManager:
       --id/uuid.Uuid
       --description/Map
       --state/any
-      --reader/Reader?=null:
+      --reader/io.Reader?=null:
     if reader:
       writer/containers.ContainerImageWriter := ?
-      if reader is SizedReader:
-        size := (reader as SizedReader).size
+      size := reader.content-size
+      if size:
         logger_.info "image download" --tags={"id": id, "size": size}
         writer = containers.ContainerImageWriter size
         while data := reader.read: writer.write data

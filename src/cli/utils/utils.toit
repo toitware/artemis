@@ -1,6 +1,5 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import bytes
 import certificate-roots
 import cli
 import encoding.base64
@@ -13,10 +12,10 @@ import host.directory
 import host.file
 import host.os
 import host.pipe
+import io
 import log
 import net
 import system
-import writer
 import uuid
 import ..ui
 import ..pod-specification
@@ -31,8 +30,7 @@ with-tmp-directory [block]:
 write-blob-to-file path/string value -> none:
   stream := file.Stream.for-write path
   try:
-    writer := writer.Writer stream
-    writer.write value
+    stream.out.write value
   finally:
     stream.close
 
@@ -88,7 +86,7 @@ read-file path/string [block] [--on-error] -> any:
   if not stream:
     return on-error.call exception
   try:
-    return block.call stream
+    return block.call stream.in
   finally:
     stream.close
 
@@ -103,8 +101,7 @@ write-file path/string [block] [--on-error] -> none:
     on-error.call exception
     return
   try:
-    writer := writer.Writer stream
-    block.call writer
+    block.call stream.out
   finally:
     stream.close
 
@@ -121,11 +118,8 @@ download-url url/string --out-path/string -> none:
       log.error "Failed to download $url: $response.status-code $response.status-message."
       exit 1
     file := file.Stream.for-write out-path
-    writer := writer.Writer file
-    writer.write-from response.body
-    writer.close
-    // TODO(florian): closing should be idempotent.
-    // file.close
+    file.out.write-from response.body
+    file.close
   finally:
     network.close
 
@@ -193,14 +187,14 @@ random-uuid --namespace/string="Artemis" -> uuid.Uuid:
   return uuid.uuid5 namespace "$Time.now $Time.monotonic-us $random"
 
 json-encode-pretty value/any -> ByteArray:
-  buffer := bytes.Buffer
+  buffer := io.Buffer
   json-encode-pretty_ value buffer --indentation=0
   buffer.write "\n"
   buffer.close
-  return buffer.buffer
+  return buffer.bytes
 
 // TODO(florian): move this into the core library.
-json-encode-pretty_ value/any buffer/bytes.Buffer --indentation/int=0 -> none:
+json-encode-pretty_ value/any buffer/io.Buffer --indentation/int=0 -> none:
   indentation-string/string? := null
   newline := :
     buffer.write "\n"

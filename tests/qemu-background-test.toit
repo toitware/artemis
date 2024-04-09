@@ -44,7 +44,7 @@ start-http-server synchro-done-latch/monitor.Latch -> int:
     server.listen socket:: | request/http.Request writer/http.ResponseWriter |
       print "Got request from device."
       synchro-done-latch.get
-      writer.write "synchro done"
+      writer.out.write "synchro done"
   return port
 
 make-test-code port/int -> string:

@@ -451,13 +451,13 @@ class LocalhostCodeOAuth_ extends OAuth:
             // http://localhost:41055/auth?error=server_error&error_description=Database+error+saving+new+user
             // ```
             token := code-flow.get-token request.path --network=network
-            writer.write "You can close this window now."
+            writer.out.write "You can close this window now."
             session-latch.set token
           else if request.path.starts-with redirect-path_:
             // No query parameters.
             // The information might be in the fragment (hash) data.
             // Send a web-page that changes the fragment to a query string.
-            writer.write """
+            writer.out.write """
             <html>
               <body>
                 <p id="body">
@@ -476,7 +476,7 @@ class LocalhostCodeOAuth_ extends OAuth:
             </html>
             """
           else:
-            writer.write "Invalid request."
+            writer.out.write "Invalid request."
 
       result := session-latch.get
       sleep --ms=1  // Give the server time to respond with the success message.

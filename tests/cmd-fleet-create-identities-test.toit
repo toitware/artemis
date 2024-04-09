@@ -88,5 +88,5 @@ check-and-remove-identity-files fleet-dir tmp-dir count:
   expect-null stream.next
   // Reset the devices.json.
   devices-stream := file.Stream.for-write "$fleet-dir/devices.json"
-  devices-stream.write "{}"
+  devices-stream.out.write "{}"
   devices-stream.close

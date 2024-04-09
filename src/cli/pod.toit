@@ -1,13 +1,11 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar show *
-import bytes
 import crypto.sha256
 import encoding.json
 import encoding.base64
 import host.file
-import writer show Writer
-import reader show Reader
+import io
 import uuid
 
 import .artemis
@@ -87,16 +85,16 @@ class Pod:
     name = manifest[NAME-NAME_]
     chip = (manifest.get "chip") or "esp32"
     parts := manifest["parts"]
-    byte-builder := bytes.Buffer
+    byte-builder := io.Buffer
     writer := ArWriter byte-builder
     parts.do: | name/string part-id/string |
       writer.add name (download.call part-id)
     byte-builder.close
-    envelope = byte-builder.buffer
+    envelope = byte-builder.bytes
     tmp-dir_ = tmp-directory
 
   static parse path/string --tmp-directory/string --ui/Ui -> Pod:
-    read-file path --ui=ui: | reader/Reader |
+    read-file path --ui=ui: | reader/io.Reader |
       id/uuid.Uuid? := null
       name/string? := null
       chip/string? := null
@@ -196,7 +194,7 @@ class Pod:
     return cached
 
   write path/string --ui/Ui:
-    write-file path --ui=ui: | writer/Writer |
+    write-file path --ui=ui: | writer/io.Writer |
       ar-writer := ArWriter writer
       ar-writer.add MAGIC-NAME_ MAGIC-CONTENT_
       ar-writer.add ID-NAME_ id.to-byte-array
@@ -219,7 +217,7 @@ class Pod:
     manifest[CHIP-NAME_] = chip
     part-names := {:}
     parts := {:}
-    reader := bytes.Reader envelope
+    reader := io.Reader envelope
     ar-reader := ArReader reader
     while file := ar-reader.next:
       // TODO(florian): if we wanted to have an easy way to find

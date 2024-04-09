@@ -1,8 +1,8 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import binary show LITTLE-ENDIAN
-import bytes show Buffer Reader
 import expect show *
+import io
+import io show LITTLE-ENDIAN
 
 import artemis.cli.utils.binary-diff show *
 import artemis.shared.utils.patch show *
@@ -44,7 +44,7 @@ main:
 
 one-way --fast/bool -> none:
   zeros := ByteArray 32
-  writer := Buffer
+  writer := io.Buffer
 
   old := OldData zeros 0 0
 
@@ -63,7 +63,7 @@ one-way --fast/bool -> none:
 
   now := "Now is the time for all good men".to-byte-array
   to  := "to come to the aid of the party.".to-byte-array
-  writer = Buffer
+  writer = io.Buffer
   diff
       OldData now 0 0
       to
@@ -77,7 +77,7 @@ one-way --fast/bool -> none:
   result = writer.bytes
   print result.size
 
-  writer = Buffer
+  writer = io.Buffer
   diff
       OldData now 0 0
       to
@@ -96,7 +96,7 @@ one-way --fast/bool -> none:
 
   now = "Welcome to Aarhus, hope you like".to-byte-array
   to  = "Welcome to Copenhagen, hope you ".to-byte-array
-  writer = Buffer
+  writer = io.Buffer
   diff
       OldData now 0 0
       to
@@ -120,7 +120,7 @@ one-way --fast/bool -> none:
 
   ur-sections := Section.get-sections old-data 16
 
-  writer = Buffer
+  writer = io.Buffer
   diff
       OldData now 0 0
       to
@@ -183,7 +183,7 @@ one-way --fast/bool -> none:
 
   old-data = OldData now 0 0
 
-  writer = Buffer
+  writer = io.Buffer
   diff
       OldData now 0 0
       to
@@ -203,7 +203,7 @@ one-way --fast/bool -> none:
   if not fast:
     expect-bytes-equal expected result
 
-  writer = Buffer
+  writer = io.Buffer
   diff
       OldData now 0 0
       to
@@ -232,7 +232,7 @@ one-way --fast/bool -> none:
 
 class TestWriter implements PatchObserver:
   size /int? := null
-  writer /Buffer := Buffer
+  writer /io.Buffer := io.Buffer
 
   on-write data from/int=0 to/int=data.size:
     writer.write data[from..to]
@@ -246,7 +246,7 @@ class TestWriter implements PatchObserver:
 round-trip now/ByteArray to/ByteArray --fast/bool -> none:
   old-data := OldData now 0 0
 
-  writer := Buffer
+  writer := io.Buffer
   diff
       OldData now 0 0
       to
@@ -261,7 +261,7 @@ round-trip now/ByteArray to/ByteArray --fast/bool -> none:
   test-writer := TestWriter
 
   patcher := Patcher
-      Reader result
+      io.Reader result
       now
 
   patcher.patch test-writer
@@ -270,7 +270,7 @@ round-trip now/ByteArray to/ByteArray --fast/bool -> none:
   expect-equals to test-writer.writer.bytes
 
 literal-round-trip now/ByteArray -> none:
-  writer := Buffer
+  writer := io.Buffer
   literal-block now writer --total-new-bytes=now.size --with-footer=true
 
   result := writer.bytes
@@ -278,7 +278,7 @@ literal-round-trip now/ByteArray -> none:
   test-writer := TestWriter
 
   patcher := Patcher
-      Reader result
+      io.Reader result
       #[]
 
   patcher.patch test-writer
@@ -300,7 +300,7 @@ odd-size-test:
 
       [true, false].do: | fast |
         [true, false].do: | checksums |
-          writer := Buffer
+          writer := io.Buffer
           diff
               OldData old 0 0
               new
@@ -315,7 +315,7 @@ odd-size-test:
           test-writer := TestWriter
 
           patcher := Patcher
-              Reader result
+              io.Reader result
               old
 
           patcher.patch test-writer

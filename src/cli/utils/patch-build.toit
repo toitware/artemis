@@ -1,6 +1,6 @@
 // Copyright (C) 2020 Toitware ApS. All rights reserved.
 
-import bytes
+import io
 
 import .binary-diff
 import ...shared.utils.patch
@@ -23,7 +23,7 @@ build-diff-patch old-bytes/ByteArray new-bytes/ByteArray -> List:
   from := 0
   List.chunk-up 0 total-new-size SUBCHUNK-SIZE: | chunk-from chunk-to |
     assert: chunk-from >= from
-    writer := bytes.Buffer
+    writer := io.Buffer
     diff old-data new-bytes[from..chunk-to] writer total-new-size
         --fast
         --with-header=(from == 0)
@@ -38,7 +38,7 @@ build-trivial-patch new-bytes/ByteArray -> List:
   chunks := []
   total-new-size := new-bytes.size
   List.chunk-up 0 total-new-size SUBCHUNK-SIZE: | from to |
-    writer := bytes.Buffer
+    writer := io.Buffer
     literal-block
         new-bytes[from..to]
         writer
