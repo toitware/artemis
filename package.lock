@@ -44,8 +44,8 @@ packages:
   pkg-http:
     url: github.com/toitlang/pkg-http
     name: http
-    version: 2.7.0
-    hash: ba6a3c73462aa8a3baae47881e9b2349725c22c3
+    version: 2.7.1
+    hash: 54a5bb458d9fc9305e839b878e6de3b456f5c4a6
   pkg-ntp:
     url: github.com/toitlang/pkg-ntp
     name: ntp
@@ -76,8 +76,8 @@ packages:
   toit-supabase:
     url: github.com/toitware/toit-supabase
     name: supabase
-    version: 0.2.7
-    hash: c96ab564eddf32e8cfdba0c620177d092be68056
+    version: 0.2.8
+    hash: 168ddb448e71e91431e71121958c32aaf4c1ef02
     prefixes:
       host: pkg-host
       http: pkg-http

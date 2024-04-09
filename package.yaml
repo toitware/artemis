@@ -21,7 +21,7 @@ dependencies:
     version: ^1.15.1
   http:
     url: github.com/toitlang/pkg-http
-    version: ^2.7.0
+    version: ^2.7.1
   ntp:
     url: github.com/toitlang/pkg-ntp
     version: ^1.1.0
@@ -32,7 +32,7 @@ dependencies:
     path: tools/snapshot
   supabase:
     url: github.com/toitware/toit-supabase
-    version: ^0.2.7
+    version: ^0.2.8
   watchdog:
     url: github.com/toitware/toit-watchdog
     version: ^1.4.0
