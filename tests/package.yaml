@@ -20,7 +20,7 @@ dependencies:
     version: ^1.15.1
   http:
     url: github.com/toitlang/pkg-http
-    version: ^2.7.0
+    version: ^2.7.1
   snapshot:
     path: ../tools/snapshot
   supabase:
