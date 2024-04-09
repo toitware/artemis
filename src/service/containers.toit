@@ -288,7 +288,9 @@ class ContainerJob extends Job:
     changed by the user and that must survive deep sleeps.
   */
   set-scheduler-state_ state/any -> none:
-    if not state: return
+    if not state:
+      super state
+      return
     super state[0]
     // Note that $apply-description_ is called after the scheduler state call.
     triggers := state[1]
