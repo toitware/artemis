@@ -6,11 +6,11 @@ import cli
 import artemis.shared.server-config
 import artemis.service.service
 import artemis.service.device as service
-import artemis.service.watchdog show WatchdogManager
 import artemis.cli.utils show OptionUuid
 import artemis.service.run.host show NullWatchdog
 import uuid
 import watchdog.provider as watchdog
+import watchdog show WatchdogServiceClient
 
 main args:
   cmd := cli.Command "root"
@@ -52,8 +52,12 @@ run
       --firmware-state={
         "firmware": encoded-firmware,
       }
+  client/WatchdogServiceClient := (WatchdogServiceClient).open as WatchdogServiceClient
   while true:
-    sleep-duration := service.run-artemis device broker-config --no-start-ntp
-    WatchdogManager.reset
+    watchdog := client.create "toit.io/artemis"
+    watchdog.start --s=10
+    sleep-duration := service.run-artemis device broker-config --no-start-ntp --watchdog=watchdog
     sleep sleep-duration
+    watchdog.stop
+    watchdog.close
 

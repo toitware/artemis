@@ -7,6 +7,7 @@ import encoding.tison
 import expect show *
 import monitor
 import watchdog.provider as watchdog
+import watchdog show WatchdogServiceClient
 
 import .artemis-server
 import .broker show with-http-broker TestBroker
@@ -63,8 +64,12 @@ run-test --insert-device/bool:
       }
       check-in-setup --assets=assets --device=device
 
+      client/WatchdogServiceClient := (WatchdogServiceClient).open as WatchdogServiceClient
+      watchdog := client.create "toit.io/artemis"
+      watchdog.start --s=10
+
       artemis-task := task::
-        service.run-artemis device broker-config --no-start-ntp
+        service.run-artemis device broker-config --watchdog=watchdog --no-start-ntp
 
       checkin-data := checkin-latch.get
       if not insert-device:
