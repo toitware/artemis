@@ -15,16 +15,13 @@ import supabase
 import supabase.filter show equals
 
 main args:
-  // TODO(florian): reenable this test once a compatible version has been
-  // committed.
-  return
   // Start a TestCli, since that will set up everything the way we want.
   with-test-cli --args=args --artemis-type="supabase":
     run-test it
 
 // Just a commit that exists on main.
 // It's safe to update the commit to a newer version.
-TEST-COMMIT ::= "9057219f6f76b9439625d76f66de8328cad6f2d6"
+TEST-COMMIT ::= "9e8038e1f084d3fdce0c548c8a6fb24c63c7e071"
 
 run-main-test
     test-cli/TestCli
