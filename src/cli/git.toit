@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import bytes
 import host.pipe
+import io
 import monitor
 import .ui
 
@@ -177,8 +177,8 @@ class Git:
     return run_ args --description="Git command"
 
   run_ args/List --description -> string:
-    output := bytes.Buffer
-    stdout := bytes.Buffer
+    output := io.Buffer
+    stdout := io.Buffer
     fork-data := pipe.fork
         --environment=git-env_
         true                // use_path

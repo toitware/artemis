@@ -16,7 +16,6 @@ import host.os
 import host.file
 import host.directory
 import encoding.json
-import writer
 import supabase
 import fs.xdg
 import fs
@@ -211,7 +210,6 @@ write-config-file path/string data/Map:
   content := json.encode data
   stream := file.Stream.for-write path
   try:
-    writer := writer.Writer stream
-    writer.write content
+    stream.out.write content
   finally:
     stream.close

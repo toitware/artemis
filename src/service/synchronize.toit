@@ -1,8 +1,8 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import io
 import log
 import net
-import reader show Reader
 import uuid
 
 import crypto.sha256
@@ -716,7 +716,7 @@ class SynchronizeJob extends TaskJob:
     goal.add-pending-step:: | broker-connection/BrokerConnection |
       assert: state_ >= STATE-CONNECTED-TO-BROKER
       transition-to_ STATE-PROCESSING-CONTAINER-IMAGE
-      broker-connection.fetch-image id: | reader/Reader |
+      broker-connection.fetch-image id: | reader/io.Reader |
         job := containers_.create
             --name=name
             --id=id

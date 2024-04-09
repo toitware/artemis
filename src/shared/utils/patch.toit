@@ -1,8 +1,8 @@
 // Copyright (C) 2020 Toitware ApS. All rights reserved.
 
-import binary show LITTLE-ENDIAN
 import crypto.sha256 show *
-import reader show *
+import io
+import io show LITTLE-ENDIAN
 import system show BITS-PER-BYTE
 import system.firmware
 
@@ -35,7 +35,7 @@ class Patcher:
   temp-buffer ::= ByteArray 256
   out-checker ::= Sha256
 
-  constructor reader/Reader old --patch-offset=0:
+  constructor reader/io.Reader old --patch-offset=0:
     bitstream = PatchReader_ reader
     this.old = (old is ByteArray) ? (firmware.FirmwareMapping_ old) : old
     patch-position = patch-offset
@@ -379,7 +379,7 @@ class Patcher:
         argument-offsets[idx] = COMMANDS[i + 3]
 
 class PatchReader_:
-  reader_/Reader
+  reader_/io.Reader
   cursor_/int := 0
   bytes_/ByteArray? := null
 

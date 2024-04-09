@@ -1,12 +1,12 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar
-import bytes
 import crypto.sha256
 import encoding.base64
 import encoding.ubjson
 import host.file
 import host.os
+import io
 import snapshot show cache-snapshot
 import uuid
 import fs
@@ -211,7 +211,7 @@ class FirmwareContent:
     return result
 
 class PatchWriter implements PatchObserver:
-  buffer/bytes.Buffer ::= bytes.Buffer
+  buffer/io.Buffer ::= io.Buffer
   size/int? := null
   on-write data from/int=0 to/int=data.size:
     buffer.write data[from..to]

@@ -3,10 +3,10 @@
 // ARTEMIS_TEST_FLAGS: BROKER
 
 import expect show *
+import io
 import log
 import monitor
 import net
-import reader show Reader
 import artemis.cli.brokers.broker
 import artemis.cli.device show DeviceDetailed
 import artemis.service.device show Device
@@ -174,7 +174,7 @@ test-image broker-cli/broker.BrokerCli broker-service/broker.BrokerService --net
     broker-connection := broker-service.connect --network=network --device=DEVICE1
     try:
       broker-connection.fetch-image APP-ID:
-        | reader/Reader |
+        | reader/io.Reader |
           // TODO(florian): this only tests the download of the current platform. That is, on
           // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
           // also verify that the 32-bit image is correct.
@@ -217,7 +217,7 @@ test-firmware broker-cli/broker.BrokerCli broker-service/broker.BrokerService --
     try:
       data := #[]
       broker-connection.fetch-firmware FIRMWARE-ID:
-        | reader/Reader offset |
+        | reader/io.Reader offset |
           expect-equals data.size offset
           while chunk := reader.read: data += chunk
           data.size  // Continue at data.size.
@@ -228,7 +228,7 @@ test-firmware broker-cli/broker.BrokerCli broker-service/broker.BrokerService --
         // Test that we can fetch the firmware starting at an offset.
         current-offset := 3 * content.size / 4
         broker-connection.fetch-firmware FIRMWARE-ID --offset=current-offset:
-          | reader/Reader offset |
+          | reader/io.Reader offset |
             expect-equals current-offset offset
             partial-data := utils.read-all reader
             expect-bytes-equal content[current-offset..current-offset + partial-data.size] partial-data

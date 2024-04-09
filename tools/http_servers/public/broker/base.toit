@@ -4,11 +4,11 @@
 
 import encoding.json
 import http
+import io
 import log
 import net
 import net.tcp
 import monitor
-import reader show BufferedReader Reader SizedReader
 
 class BinaryResponse:
   bytes/ByteArray
@@ -54,7 +54,7 @@ abstract class HttpServer:
     server := http.Server --max-tasks=64 --logger=(log.default.with-level log.INFO-LEVEL)
     print "Listening on port $socket.local-address.port"
     server.listen socket:: | request/http.Request writer/http.ResponseWriter |
-      bytes := read-all_ request.body
+      bytes := request.body.read-all
       command := bytes[0]
       encoded := bytes[1..]
       user-id := request.headers.single "X-User-Id"
@@ -74,7 +74,7 @@ abstract class HttpServer:
       encoded-response := json.encode exception
       writer.headers.set "Content-Length" "$encoded-response.size"
       writer.write-headers http.STATUS-IM-A-TEAPOT --message="Error"
-      writer.write encoded-response
+      writer.out.write encoded-response
     else:
       listeners.do: it.call "post" command response-data
       if response-data is BinaryResponse:
@@ -85,13 +85,8 @@ abstract class HttpServer:
           status = http.STATUS-PARTIAL-CONTENT
         writer.headers.set "Content-Length" "$binary.bytes.size"
         writer.write-headers status
-        writer.write binary.bytes
+        writer.out.write binary.bytes
       else:
         encoded-response := json.encode response-data
         writer.headers.set "Content-Length" "$encoded-response.size"
-        writer.write encoded-response
-
-  read-all_ reader/Reader -> ByteArray:
-    buffered := BufferedReader reader
-    buffered.buffer-all
-    return buffered.read-bytes buffered.buffered
+        writer.out.write encoded-response
