@@ -86,7 +86,7 @@ read-file path/string [block] [--on-error] -> any:
   if not stream:
     return on-error.call exception
   try:
-    return block.call stream
+    return block.call stream.in
   finally:
     stream.close
 
