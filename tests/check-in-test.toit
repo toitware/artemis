@@ -34,6 +34,8 @@ main args:
 // Note that the service has global state (when to check in, ...).
 // Calling `run_test` twice from the same test will thus not work.
 run-test --insert-device/bool:
+  storage := Storage
+
   device-id := random-uuid
   device := Device
       --id=device-id
@@ -42,7 +44,7 @@ run-test --insert-device/bool:
       --firmware-state={
         "firmware": build-encoded-firmware --device-id=device-id,
       }
-      --storage=Storage
+      --storage=storage
   with-http-broker: | test-broker/TestBroker |
     broker-config := test-broker.server-config
     with-http-artemis-server: | artemis-server/TestArtemisServer |
@@ -71,7 +73,12 @@ run-test --insert-device/bool:
       watchdog.start --s=10
 
       artemis-task := task::
-        service.run-artemis device broker-config --watchdog=watchdog --no-start-ntp
+        service.run-artemis
+            device
+            broker-config
+            --watchdog=watchdog
+            --no-start-ntp
+            --storage=storage
 
       checkin-data := checkin-latch.get
       if not insert-device:

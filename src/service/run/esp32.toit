@@ -72,6 +72,7 @@ main arguments:
   sleep-duration := run-artemis device server-config
       --watchdog=watchdog
       --cause=ESP32-WAKEUP-CAUSES.get esp32.wakeup-cause
+      --storage=storage
   __deep-sleep__ sleep-duration.in-ms
 
 device-specific name/string -> any:

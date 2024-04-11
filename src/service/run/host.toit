@@ -126,7 +126,11 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
           --storage=storage
       check-in-setup --assets=identity --device=device
       server-config := decode-server-config "broker" identity
-      sleep-duration := run-artemis device server-config --watchdog=watchdog
+      sleep-duration := run-artemis
+          device
+          server-config
+          --watchdog=watchdog
+          --storage=storage
       sleep sleep-duration
       print
 

@@ -46,6 +46,7 @@ run
       decoded-broker-config
       --der-deserializer=: unreachable
 
+  storage := Storage
   device := service.Device
       --id=alias-id
       --hardware-id=hardware-id
@@ -53,12 +54,17 @@ run
       --firmware-state={
         "firmware": encoded-firmware,
       }
-      --storage=Storage
+      --storage=storage
   client/WatchdogServiceClient := (WatchdogServiceClient).open as WatchdogServiceClient
   while true:
     watchdog := client.create "toit.io/artemis"
     watchdog.start --s=10
-    sleep-duration := service.run-artemis device broker-config --no-start-ntp --watchdog=watchdog
+    sleep-duration := service.run-artemis
+        device
+        broker-config
+        --no-start-ntp
+        --watchdog=watchdog
+        --storage=storage
     sleep sleep-duration
     watchdog.stop
     watchdog.close
