@@ -6,8 +6,8 @@ class Storage:
   /** UUID used to ensure that the flash's data is actually from us. */
   static FLASH-ENTRY-UUID_ ::= "ccf4efed-6825-44e6-b71d-1aa118d43824"
 
-  flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
-  ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
+  static flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
+  static ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
 
   flash-load key/string -> any:
     entry := flash_.get key
