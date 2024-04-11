@@ -7,6 +7,7 @@ import artemis.shared.server-config
 import artemis.service.service
 import artemis.service.device as service
 import artemis.cli.utils show OptionUuid
+import artemis.service.storage show Storage
 import artemis.service.run.host show NullWatchdog
 import uuid
 import watchdog.provider as watchdog
@@ -52,6 +53,7 @@ run
       --firmware-state={
         "firmware": encoded-firmware,
       }
+      --storage=Storage
   client/WatchdogServiceClient := (WatchdogServiceClient).open as WatchdogServiceClient
   while true:
     watchdog := client.create "toit.io/artemis"

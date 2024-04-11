@@ -25,6 +25,7 @@ import ..utils show decode-server-config
 import ..service show run-artemis
 import ..check-in show check-in-setup
 import ..device
+import ..storage show Storage
 import ..watchdog
 import ...cli.artemis show Artemis
 import ...cli.cache as cli
@@ -110,6 +111,8 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
     service := FirmwareServiceProvider firmware.content.bits
     service.install
 
+    storage := Storage
+
     while true:
       // Reset the watchdog manager. We need to do this, as the scheduler
       // expects to be in `STATE-STARTUP`.
@@ -120,6 +123,7 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
           --hardware-id=artemis-device.hardware-id
           --organization-id=artemis-device.organization-id
           --firmware-state=config
+          --storage=storage
       check-in-setup --assets=identity --device=device
       server-config := decode-server-config "broker" identity
       sleep-duration := run-artemis device server-config --watchdog=watchdog

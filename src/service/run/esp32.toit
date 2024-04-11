@@ -16,6 +16,7 @@ import ..check-in show check-in-setup
 import ..device
 import ..network show NetworkManager
 import ..service show run-artemis
+import ..storage show Storage
 import ..utils show decode-server-config
 import ..watchdog
 
@@ -53,12 +54,15 @@ main arguments:
   config := ubjson.decode (artemis-assets["device-config"])
   config["firmware"] = encoded-firmware-description
 
+  storage := Storage
+
   artemis-device-map := device-specific "artemis.device"
   device := Device
       --id=uuid.parse artemis-device-map["device_id"]
       --hardware-id=uuid.parse artemis-device-map["hardware_id"]
       --organization-id=uuid.parse artemis-device-map["organization_id"]
       --firmware-state=config
+      --storage=storage
   check-in-setup --assets=artemis-assets --device=device
 
   network-manager := NetworkManager log.default device
