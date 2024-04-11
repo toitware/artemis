@@ -23,9 +23,6 @@ import .storage
 
 import ..shared.json-diff show Modification json-equals
 
-// firmware-is-validation-pending/bool := firmware.is-validation-pending
-// firmware-is-upgrade-pending/bool := false
-
 /**
 A class representing the new goal state to achieve.
 Also contains the pending steps to reach the goal state.
