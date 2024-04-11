@@ -1,23 +1,26 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
+import watchdog show Watchdog
 
 import .device
 import .jobs
 import .watchdog
 
 class Scheduler:
-  static MAX-WAIT-DURATION/Duration ::= Duration --s=(WatchdogManager.TIMEOUT-SCHEDULER-S - 2)
+  static MAX-WAIT-DURATION/Duration ::= Duration --s=(WATCHDOG-TIMEOUT-S - 3)
 
   signal_ ::= SchedulerSignal_
   logger_/log.Logger
   device_/Device
   runlevel_/int := Job.RUNLEVEL-CRITICAL
+  watchdog_/Watchdog
 
   jobs_ ::= []
 
-  constructor logger/log.Logger .device_:
+  constructor logger/log.Logger .device_ --watchdog/Watchdog:
     logger_ = logger.with-name "scheduler"
+    watchdog_ = watchdog
 
   runlevel -> int:
     return runlevel_
@@ -25,9 +28,8 @@ class Scheduler:
   run -> JobTime:
     assert: not jobs_.is-empty
     try:
-      dog := WatchdogManager.transition-to WatchdogManager.STATE-SCHEDULER
       while true:
-        dog.feed
+        watchdog_.feed
         now := JobTime.now
         next := start-due-jobs_ now
         if has-running-jobs_:
@@ -41,7 +43,8 @@ class Scheduler:
 
           signal_.wait next
         else:
-          WatchdogManager.transition-to WatchdogManager.STATE_STOP
+          // Feed the dog one last time and then let the system shut down.
+          watchdog_.feed
           return schedule-wakeup_ now
     finally:
       critical-do: transition --runlevel=Job.RUNLEVEL-STOP

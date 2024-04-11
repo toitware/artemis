@@ -2,6 +2,7 @@
 
 import log
 import system.services
+import watchdog show Watchdog
 
 // --------------------------------------------------------------------------
 // The Artemis package has temporarily been copied from the open
@@ -32,6 +33,7 @@ import ..shared.version
 
 run-artemis device/Device server-config/ServerConfig -> Duration
     --start-ntp/bool=true
+    --watchdog/Watchdog
     --cause/string?=null:
   logger := log.default.with-name "artemis"
   tags := {"device": device.id, "version": ARTEMIS-VERSION}
@@ -42,7 +44,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   // provider, we need it to be responsive even under load.
   Process.current.priority = Process.PRIORITY-HIGH
 
-  scheduler ::= Scheduler logger device
+  scheduler ::= Scheduler logger device --watchdog=watchdog
   containers ::= ContainerManager logger scheduler
   broker := BrokerService logger server-config
 
