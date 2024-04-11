@@ -25,6 +25,7 @@ import artemis.shared.version as configured-version
 import artemis.service
 import artemis.service.brokers.broker show BrokerConnection BrokerService
 import artemis.service.device show Device
+import artemis.service.storage show Storage
 import artemis.cli.ui show ConsolePrinter JsonPrinter Ui Printer
 import artemis.cli.utils show write-blob-to-file read-base64-ubjson
 import ..tools.service-image-uploader.uploader as uploader
@@ -468,6 +469,7 @@ class FakeDevice extends TestDevice:
         --hardware-id=hardware-id
         --organization-id=organization-id
         --firmware-state=firmware-state
+        --storage=Storage
     super --broker=broker --hardware-id=hardware-id --alias-id=alias-id --organization-id=organization-id
   close:
     if network_:
@@ -541,6 +543,7 @@ class FakeDevice extends TestDevice:
         --hardware-id=hardware-id
         --organization-id=organization-id
         --firmware-state=pending-state_
+        --storage=Storage
     if pending-state_ == goal-state:
       goal-state = null
     pending-state_ = null

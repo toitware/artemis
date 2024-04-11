@@ -1,7 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import log
-import system.storage
 import system.firmware show is-validation-pending
 import uuid
 
@@ -9,6 +8,7 @@ import .firmware
 import .utils show deep-copy
 import .periodic-network-request show PeriodicNetworkRequest  // For toitdoc.
 import ..shared.json-diff show json-equals Modification
+import .storage
 
 /**
 A representation of the device we are running on.
@@ -17,13 +17,9 @@ This class abstracts away the current state and configuration
   of the device.
 */
 class Device:
-  /** UUID used to ensure that the flash's data is actually from us. */
-  static FLASH-ENTRY-UUID_ ::= "ccf4efed-6825-44e6-b71d-1aa118d43824"
-
   static FLASH-CURRENT-STATE_ ::= "current-state"
   static FLASH-CHECKPOINT_ ::= "checkpoint"
   static FLASH-REPORT-STATE-CHECKSUM_ ::= "report-state-checksum"
-  flash_/storage.Bucket ::= storage.Bucket.open --flash "toit.io/artemis"
 
   // We store the information that contains timestamps in RAM,
   // so it clears when the timestamps are invalidated due to
@@ -33,7 +29,6 @@ class Device:
   static RAM-PERIODIC-NETWORK-REQUEST-LAST_ ::= "pnr-last"
   static RAM-SYNCHRONIZED-LAST_ ::= "synchronized-last"
   static RAM-SCHEDULER-JOB-STATES_ ::= "scheduler-job-states"
-  ram_/storage.Bucket ::= storage.Bucket.open --ram "toit.io/artemis"
 
   /**
   The ID of the device.
@@ -95,7 +90,10 @@ class Device:
   */
   report-state-checksum_/ByteArray? := null
 
-  constructor --.id --.hardware-id --.organization-id --.firmware-state/Map:
+  storage_/Storage
+
+  constructor --.id --.hardware-id --.organization-id --.firmware-state/Map --storage/Storage:
+    storage_ = storage
     current-state = firmware-state
     load_
 
@@ -302,22 +300,13 @@ class Device:
     flash-store_ FLASH-CURRENT-STATE_ current-state
 
   flash-load_ key/string -> any:
-    entry := flash_.get key
-    if entry is not Map: return null
-    if (entry.get "uuid") != FLASH-ENTRY-UUID_: return null
-    return entry["data"]
+    return storage_.flash-load key
 
   flash-store_ key/string value/any -> none:
-    if value == null:
-      flash_.remove key
-    else:
-      flash_[key] = { "uuid": FLASH-ENTRY-UUID_, "data": value }
+    storage_.flash-store key value
 
   ram-load_ key/string -> any:
-    return ram_.get key
+    return storage_.ram-load key
 
   ram-store_ key/string value/any -> none:
-    if value == null:
-      ram_.remove key
-    else:
-      ram_[key] = value
+    storage_.ram-store key value

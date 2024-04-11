@@ -16,6 +16,7 @@ import .utils
 import artemis.service
 import artemis.service.check-in show check-in-setup
 import artemis.service.device show Device
+import artemis.service.storage show Storage
 import artemis.shared.server-config show ServerConfig
 import artemis.shared.constants show COMMAND-CHECK-IN_
 import artemis.service.run.host show NullWatchdog
@@ -41,6 +42,7 @@ run-test --insert-device/bool:
       --firmware-state={
         "firmware": build-encoded-firmware --device-id=device-id,
       }
+      --storage=Storage
   with-http-broker: | test-broker/TestBroker |
     broker-config := test-broker.server-config
     with-http-artemis-server: | artemis-server/TestArtemisServer |
