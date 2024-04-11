@@ -191,7 +191,7 @@ class SynchronizeJob extends TaskJob:
     using stored data from RTC memory, by asking the system, or
     by performing a validation.
   */
-  validation-state_/int := ?
+  _validation-state_/int := VALIDATION-STATE-UNKNOWN
 
   storage_/Storage
 
@@ -209,7 +209,6 @@ class SynchronizeJob extends TaskJob:
     status-limit-us_ = compute-status-limit-us_ max-offline
     watchdog-client_ = null
     watchdog_ = null
-    validation-state_ = (storage.ram-load "validation-state") or VALIDATION-STATE-UNKNOWN
     storage_ = storage
     catch --trace:
       // Creating the watchdog should never fail, but we also don't want this
@@ -227,38 +226,40 @@ class SynchronizeJob extends TaskJob:
         start-watchdog_ watchdog_ max-offline
     super NAME saved-state
 
-  initialize-validation-state_ -> int:
-    validation-state := validation-state_
-    if validation-state == VALIDATION-STATE-UNKNOWN:
-      is-validation-pending := firmware.is-validation-pending
-      if is-validation-pending:
-        validation-state = VALIDATION-STATE-PENDING
-      else:
-        validation-state = VALIDATION-STATE-COMPLETED
-      // Remember the state.
-      storage_.ram-store RAM-VALIDATION-STATE validation-state
-      validation-state_ = validation-state
-    return validation-state
+  validation-state_ -> int:
+    result := _validation-state_
+
+    if result != VALIDATION-STATE-UNKNOWN: return result
+
+    saved-validation-state := storage_.ram-load RAM-VALIDATION-STATE
+    if saved-validation-state:
+      result = saved-validation-state
+      _validation-state_ = result
+      return result
+
+    if firmware.is-validation-pending:
+      result = VALIDATION-STATE-PENDING
+    else:
+      result = VALIDATION-STATE-COMPLETED
+    // Go through the setter which will save the state.
+    validation-state_ = result
+    return result
+
+  validation-state_= value/int -> none:
+    _validation-state_ = value
+    storage_.ram-store RAM-VALIDATION-STATE value
 
   is-firmware-validation-pending_ -> bool:
-    validation-state := validation-state_
-    if validation-state == VALIDATION-STATE-UNKNOWN:
-      validation-state = initialize-validation-state_
-    return validation-state == VALIDATION-STATE-PENDING
+    return validation-state_ == VALIDATION-STATE-PENDING
 
   is-firmware-upgrade-pending_ -> bool:
-    validation-state := validation-state_
-    if validation-state == VALIDATION-STATE-UNKNOWN:
-      validation-state = initialize-validation-state_
-    return validation-state == VALIDATION-STATE-UPGRADE-PENDING
+    return validation-state_ == VALIDATION-STATE-UPGRADE-PENDING
 
   complete-firmware-validation_:
     validation-state_ = VALIDATION-STATE-COMPLETED
-    storage_.ram-store RAM-VALIDATION-STATE VALIDATION-STATE-COMPLETED
 
   mark-firmware-upgrade-pending_:
     validation-state_ = VALIDATION-STATE-UPGRADE-PENDING
-    storage_.ram-store RAM-VALIDATION-STATE VALIDATION-STATE-UPGRADE-PENDING
 
   control --online/bool --close/bool=false -> none:
     if close:
