@@ -19,11 +19,9 @@ import .device
 import .firmware-update
 import .jobs
 import .ntp
+import .storage
 
 import ..shared.json-diff show Modification json-equals
-
-firmware-is-validation-pending/bool := firmware.is-validation-pending
-firmware-is-upgrade-pending/bool := false
 
 /**
 A class representing the new goal state to achieve.
@@ -157,6 +155,18 @@ class SynchronizeJob extends TaskJob:
   // synchronize at the same time over and over again.
   static SCHEDULE-JITTER-MS ::= 8_000
 
+  /** It's unknown whether the firmware has been validated or not. */
+  static VALIDATION-STATE-UNKNOWN ::= 0
+  /** The firmware is pending validation. */
+  static VALIDATION-STATE-PENDING ::= 1
+  /** A new firmware has been installed and a reset to apply the update is pending. */
+  static VALIDATION-STATE-UPGRADE-PENDING ::= 2
+  /** The firmware has been validated. */
+  static VALIDATION-STATE-COMPLETED ::= 3
+
+  /** The RAM key to store and retrieve the validation state. */
+  static RAM-VALIDATION-STATE ::= "validation-state"
+
   logger_/log.Logger
   device_/Device
   containers_/ContainerManager
@@ -174,7 +184,24 @@ class SynchronizeJob extends TaskJob:
   watchdog-client_/WatchdogServiceClient?
   watchdog_/Watchdog?
 
-  constructor logger/log.Logger .device_ .containers_ .broker_ saved-state/any
+  /**
+  The currently known state of validation.
+
+  Initially set to $VALIDATION-STATE-UNKNOWN, it is updated by
+    using stored data from RTC memory, by asking the system, or
+    by performing a validation.
+  */
+  _validation-state_/int := VALIDATION-STATE-UNKNOWN
+
+  storage_/Storage
+
+  constructor
+      logger/log.Logger
+      .device_
+      .containers_
+      .broker_
+      saved-state/any
+      --storage/Storage
       --ntp/NtpRequest?=null:
     logger_ = logger.with-name NAME
     ntp_ = ntp
@@ -182,6 +209,7 @@ class SynchronizeJob extends TaskJob:
     status-limit-us_ = compute-status-limit-us_ max-offline
     watchdog-client_ = null
     watchdog_ = null
+    storage_ = storage
     catch --trace:
       // Creating the watchdog should never fail, but we also don't want this
       // to be the reason we can't recover from a bad state.
@@ -197,6 +225,41 @@ class SynchronizeJob extends TaskJob:
         // without feeding it (thus continuing the countdown).
         start-watchdog_ watchdog_ max-offline
     super NAME saved-state
+
+  validation-state_ -> int:
+    result := _validation-state_
+
+    if result != VALIDATION-STATE-UNKNOWN: return result
+
+    saved-validation-state := storage_.ram-load RAM-VALIDATION-STATE
+    if saved-validation-state:
+      result = saved-validation-state
+      _validation-state_ = result
+      return result
+
+    if firmware.is-validation-pending:
+      result = VALIDATION-STATE-PENDING
+    else:
+      result = VALIDATION-STATE-COMPLETED
+    // Go through the setter which will save the state.
+    validation-state_ = result
+    return result
+
+  validation-state_= value/int -> none:
+    _validation-state_ = value
+    storage_.ram-store RAM-VALIDATION-STATE value
+
+  is-firmware-validation-pending_ -> bool:
+    return validation-state_ == VALIDATION-STATE-PENDING
+
+  is-firmware-upgrade-pending_ -> bool:
+    return validation-state_ == VALIDATION-STATE-UPGRADE-PENDING
+
+  mark-firmware-validation-completed_:
+    validation-state_ = VALIDATION-STATE-COMPLETED
+
+  mark-firmware-upgrade-pending_:
+    validation-state_ = VALIDATION-STATE-UPGRADE-PENDING
 
   control --online/bool --close/bool=false -> none:
     if close:
@@ -248,7 +311,7 @@ class SynchronizeJob extends TaskJob:
     return Job.RUNLEVEL-CRITICAL
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if firmware-is-validation-pending or not last: return now
+    if is-firmware-validation-pending_ or not last: return now
     if control-level-offline_ > 0: return null
     if control-level-online_ > 0: return now
     max-offline := device_.max-offline
@@ -300,7 +363,7 @@ class SynchronizeJob extends TaskJob:
   run -> none:
     status := determine-status_
     runlevel := Job.RUNLEVEL-NORMAL
-    if firmware-is-validation-pending:
+    if is-firmware-validation-pending_:
       runlevel = Job.RUNLEVEL-CRITICAL
     else if status > STATUS-GREEN:
       uptime := Duration --us=Time.monotonic-us
@@ -337,10 +400,10 @@ class SynchronizeJob extends TaskJob:
           critical-do: logger_.warn "ignored cancelation in run loop"
           throw CANCELED-ERROR
     finally:
-      if firmware-is-upgrade-pending:
+      if is-firmware-upgrade-pending_:
         exception := catch: firmware.upgrade
         logger_.error "firmware update: rebooting to apply update failed" --tags={"error": exception}
-      if firmware-is-validation-pending:
+      if is-firmware-validation-pending_:
         logger_.error "firmware update: rejected after failing to connect or validate"
         firmware.rollback
 
@@ -371,7 +434,7 @@ class SynchronizeJob extends TaskJob:
       // state and get the network correctly quarantined and closed.
       critical-do:
         error := (is-exception ? exception.value : null)
-        if firmware-is-upgrade-pending: error = null
+        if is-firmware-upgrade-pending_: error = null
         // We retry if we connected to the network, but failed
         // to actually connect to the broker. This could be an
         // indication that the network doesn't let us connect,
@@ -381,7 +444,7 @@ class SynchronizeJob extends TaskJob:
         // The synchronization may be interrupted by doing a
         // firmware upgrade or by a request to go offline. The
         // latter leads to cancelation.
-        interrupted := firmware-is-upgrade-pending or Task.current.is-canceled
+        interrupted := is-firmware-upgrade-pending_ or Task.current.is-canceled
         if network:
           // If we are planning to retry another network, we
           // quarantine the one we just tried. We don't do
@@ -519,10 +582,10 @@ class SynchronizeJob extends TaskJob:
     // If we've successfully connected to the broker, we consider
     // the current firmware functional. Go ahead and validate the
     // firmware if requested to do so.
-    if firmware-is-validation-pending and state >= STATE-CONNECTED-TO-BROKER:
+    if is-firmware-validation-pending_ and state >= STATE-CONNECTED-TO-BROKER:
       if firmware.validate:
         logger_.info "firmware update: validated after connecting to broker"
-        firmware-is-validation-pending = false
+        mark-firmware-validation-completed_
         device_.firmware-validated
       else:
         logger_.error "firmware update: failed to validate"
@@ -748,7 +811,7 @@ class SynchronizeJob extends TaskJob:
     status-limit-us_ = compute-status-limit-us_ max-offline
 
   handle-firmware-update_ broker-connection/BrokerConnection new/string -> none:
-    if firmware-is-validation-pending: throw "firmware update: cannot update unvalidated"
+    if is-firmware-validation-pending_: throw "firmware update: cannot update unvalidated"
     runlevel := scheduler_.runlevel
     try:
       // TODO(kasper): We should make sure we're not increasing the
@@ -757,7 +820,7 @@ class SynchronizeJob extends TaskJob:
       // change this, we shouldn't increase the runlevel here.
       scheduler_.transition --runlevel=Job.RUNLEVEL-CRITICAL
       firmware-update logger_ broker-connection --device=device_ --new=new
-      firmware-is-upgrade-pending = true
+      mark-firmware-upgrade-pending_
       transition-to_ STATE-CONNECTED-TO-BROKER
       device_.state-firmware-update new
       report-state-if-changed broker-connection
@@ -769,7 +832,7 @@ class SynchronizeJob extends TaskJob:
       // call to firmware.upgrade in $run.
       throw "FIRMWARE_UPGRADE"
     finally:
-      if not firmware-is-upgrade-pending: scheduler_.transition --runlevel=runlevel
+      if not is-firmware-upgrade-pending_: scheduler_.transition --runlevel=runlevel
 
   /**
   Reports the current device state to the broker, but only if we know

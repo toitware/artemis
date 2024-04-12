@@ -26,6 +26,7 @@ import .device
 import .ntp
 import .jobs
 import .scheduler show Scheduler
+import .storage show Storage
 import .synchronize show SynchronizeJob
 
 import ..shared.server-config
@@ -34,6 +35,7 @@ import ..shared.version
 run-artemis device/Device server-config/ServerConfig -> Duration
     --start-ntp/bool=true
     --watchdog/Watchdog
+    --storage/Storage
     --cause/string?=null:
   logger := log.default.with-name "artemis"
   tags := {"device": device.id, "version": ARTEMIS-VERSION}
@@ -66,6 +68,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
       broker
       synchronize-state
       --ntp=ntp
+      --storage=storage
   scheduler.add-job synchronizer
 
   // Add the container jobs based on the current device state.
