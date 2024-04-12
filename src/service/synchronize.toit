@@ -255,7 +255,7 @@ class SynchronizeJob extends TaskJob:
   is-firmware-upgrade-pending_ -> bool:
     return validation-state_ == VALIDATION-STATE-UPGRADE-PENDING
 
-  complete-firmware-validation_:
+  mark-firmware-validation-completed_:
     validation-state_ = VALIDATION-STATE-COMPLETED
 
   mark-firmware-upgrade-pending_:
@@ -585,7 +585,7 @@ class SynchronizeJob extends TaskJob:
     if is-firmware-validation-pending_ and state >= STATE-CONNECTED-TO-BROKER:
       if firmware.validate:
         logger_.info "firmware update: validated after connecting to broker"
-        complete-firmware-validation_
+        mark-firmware-validation-completed_
         device_.firmware-validated
       else:
         logger_.error "firmware update: failed to validate"
