@@ -704,7 +704,7 @@ CREATE OR REPLACE VIEW "public"."active_devices" WITH ("security_invoker"='on') 
          SELECT "events"."device_id",
             "min"("events"."created_at") AS "min_created_at"
            FROM "public"."events"
-          WHERE ("events"."device_id" IN ( SELECT "max_created_events"."device_id"
+          WHERE ("events"."device_id" IN (SELECT "max_created_events"."device_id"
                    FROM "max_created_events"))
           GROUP BY "events"."device_id"
         )
