@@ -154,8 +154,13 @@ has-key_ map/Map key/string -> bool:
 class JsonMap:
   map/Map
   holder/string
+  ui/Ui
 
-  constructor .map --.holder:
+  used/Set := {}
+
+  constructor .map --.holder --.ui --used/Set?=null:
+    // Allow to share the "used" set.
+    if used: this.used = used
 
   check-has-key key/string:
     // We use `map.get` so that specifications can "delete" entries they have
@@ -171,6 +176,7 @@ class JsonMap:
 
   get-int key/string --entry-type/string="Entry" -> int:
     check-has-key key
+    used.add key
     value := map[key]
     if value is not int:
       format-error_ "$entry-type $key in $holder is not an int: $value"
@@ -178,6 +184,7 @@ class JsonMap:
 
   get-string key/string --entry-type/string="Entry" -> string:
     check-has-key key
+    used.add key
     value := map[key]
     if value is not string:
       format-error_ "$entry-type $key in $holder is not a string: $value"
@@ -193,6 +200,7 @@ class JsonMap:
 
   get-optional-list key/string --type/string [--check] --entry-type/string="Entry" -> List?:
     if not has-key key: return null
+    used.add key
     value := map[key]
     if value is not List:
       format-error_ "$entry-type $key in $holder is not a list: $value"
@@ -203,6 +211,7 @@ class JsonMap:
 
   get-map key/string --entry-type/string="Entry" -> Map:
     check-has-key key
+    used.add key
     value := map[key]
     if value is not Map:
       format-error_ "$entry-type $key in $holder is not a map: $value"
@@ -214,16 +223,19 @@ class JsonMap:
 
   get-list key/string --entry-type/string="Entry" -> List:
     check-has-key key
+    used.add key
     value := map[key]
     if value is not List:
       format-error_ "$entry-type $key in $holder is not a list: $value"
     return value
 
+  /**
+  Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
+  Returns 0 if the string is empty.
+  */
   get-duration key/string --entry-type/string="Entry" -> Duration:
-    // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
-    // Returns 0 if the string is empty.
-
     check-has-key key
+    used.add key
 
     entry := map[key]
     if entry is not string:
@@ -246,17 +258,24 @@ class JsonMap:
 
   get-bool key/string --entry-type/string="Entry" -> bool:
     check-has-key key
+    used.add key
     value := map[key]
     if value is not bool:
       format-error_ "$entry-type $key in $holder is not a boolean: $value"
     return value
 
   operator [] key/string -> any:
+    used.add key
     return map[key]
 
   with-holder new-holder/string -> JsonMap:
-    return JsonMap map --holder=new-holder
+    return JsonMap map --holder=new-holder --ui=ui --used=used
 
+  warn-unused -> none:
+    unused := []
+    map.do --keys:
+      if not used.contains it:
+        ui.warning "Unused entry in $holder: $it"
 
 /**
 A specification of a pod.
@@ -281,8 +300,8 @@ class PodSpecification:
   path/string
   chip/string?
 
-  constructor.from-json --.path/string data/Map:
-    json-map := JsonMap data --holder="pod specification"
+  constructor.from-json --.path/string data/Map --ui/Ui:
+    json-map := JsonMap data --holder="pod specification" --ui=ui
     name = json-map.get-string "name"
     artemis-version = json-map.get-string "artemis-version"
     sdk-version = json-map.get-optional-string "sdk-version"
@@ -317,7 +336,7 @@ class PodSpecification:
       copy := json-map.map.copy
       copy["containers"] = json-map.map["apps"]
       copy.remove "apps"
-      json-map = JsonMap copy --holder="pod specification"
+      json-map = JsonMap copy --holder="pod specification" --ui=ui --used=json-map.used
     else if json-map.has-key "containers":
       json-map.check-is-map "containers"
 
@@ -329,7 +348,10 @@ class PodSpecification:
         format-error_ "Container $name in pod specification is not a map: $value"
 
     containers = containers-entry.map: | name container-description |
-      Container.from-json name (JsonMap container-description --holder="container $name")
+      json-container-description := JsonMap container-description --holder="container $name" --ui=ui
+      container := Container.from-json name json-container-description
+      json-container-description.warn-unused
+      container
 
     connections-entry := json-map.get-list "connections"
     connections-entry.do:
@@ -337,16 +359,20 @@ class PodSpecification:
         format-error_ "Connection in pod specification is not a map: $it"
 
     connections = connections-entry.map:
-      ConnectionInfo.from-json (JsonMap it --holder="connection")
+      json-connection-info := JsonMap it --holder="connection" --ui=ui
+      connection := ConnectionInfo.from-json json-connection-info
+      json-connection-info.warn-unused
+      connection
 
     max-offline := json-map.get-optional-duration "max-offline"
     max-offline-seconds = max-offline ? max-offline.in-s : 0
 
+    json-map.warn-unused
     validate_
 
-  static parse path/string -> PodSpecification:
+  static parse path/string --ui/Ui -> PodSpecification:
     json := parse-json-hierarchy path
-    return PodSpecification.from-json --path=path json
+    return PodSpecification.from-json --path=path json --ui=ui
 
   static parse-json-hierarchy path/string --extends-chain/List=[] -> Map:
     path = fs.clean path
@@ -569,7 +595,7 @@ abstract class ContainerBase implements Container:
       if is-critical:
         format-error_ "Critical container $name cannot have triggers"
       triggers = []
-      parsed-triggers := triggers-list.map: Trigger.parse-json name it
+      parsed-triggers := triggers-list.map: Trigger.parse-json name it --ui=json-map.ui
       seen-types := {}
       parsed-triggers.do: | trigger-entry |
         trigger-type/string := ?
@@ -725,16 +751,20 @@ abstract class Trigger:
 
   May either return a single $Trigger or a list of triggers.
   */
-  static parse-json container-name/string data/any -> any:
+  static parse-json container-name/string data/any --ui/Ui -> any:
     known-triggers := {
       "boot": :: BootTrigger,
       "install": :: InstallTrigger,
       "interval": ::
-        interval-map := JsonMap data --holder="trigger in container $container-name"
-        IntervalTrigger.from-json interval-map,
+        interval-map := JsonMap data --holder="trigger in container $container-name" --ui=ui
+        trigger := IntervalTrigger.from-json interval-map
+        interval-map.warn-unused
+        trigger,
       "gpio": ::
-        gpio-map := JsonMap data --holder="container $container-name"
-        GpioTrigger.parse-json container-name gpio-map,
+        gpio-map := JsonMap data --holder="container $container-name" --ui=ui
+        trigger := GpioTrigger.parse-json container-name gpio-map
+        gpio-map.warn-unused
+        trigger,
     }
     map-triggers := { "interval", "gpio" }
 
@@ -806,7 +836,7 @@ abstract class GpioTrigger extends Trigger:
         format-error_ "Entry in gpio trigger list of $json-map.holder is not a map"
 
     pin-triggers := gpio-trigger-list.map: | entry/Map |
-      pin-json-map := JsonMap entry --holder="gpio trigger in container $container-name"
+      pin-json-map := JsonMap entry --holder="gpio trigger in container $container-name" --ui=json-map.ui
       pin := pin-json-map.get-int "pin"
       pin-json-map = pin-json-map.with-holder "gpio trigger for pin $pin in container $container-name"
       on-touch := pin-json-map.get-optional-bool "touch"
@@ -826,6 +856,7 @@ abstract class GpioTrigger extends Trigger:
           format-error_ "Invalid level in $pin-json-map.holder: $level-string"
           unreachable
 
+      pin-json-map.warn-unused
       if on-high: GpioTriggerHigh pin
       else if on-touch: GpioTriggerTouch pin
       else: GpioTriggerLow pin

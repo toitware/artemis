@@ -57,11 +57,11 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
 
   cmd.run args
 
-pod-specification-for_ --sdk-version/string --envelope/string:
+pod-specification-for_ --sdk-version/string --envelope/string --ui/ui.Ui:
   json := INITIAL-POD-SPECIFICATION
   json["sdk-version"] = sdk-version
   json["firmware-envelope"] = envelope
-  return PodSpecification.from-json json --path="ignored"
+  return PodSpecification.from-json json --path="ignored" --ui=ui
 
 download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   sdk-version := parsed["version"]
@@ -69,7 +69,7 @@ download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
   get-sdk --cache=cache sdk-version
   envelopes.do:
-    pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=it
+    pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=it --ui=ui
     get-envelope --specification=pod-specification --cache=cache
 
 print-path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
@@ -80,7 +80,7 @@ print-path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
   path/string := ?
   if envelope:
-    pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=envelope
+    pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=envelope --ui=ui
     path = get-envelope --cache=cache --specification=pod-specification
   else:
     path = (get-sdk --cache=cache sdk-version).sdk-path

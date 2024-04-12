@@ -245,7 +245,7 @@ If there is an error, calls $Ui.abort with an error message.
 */
 parse-pod-specification-file path/string --ui/Ui -> PodSpecification:
   exception := catch --unwind=(: it is not PodSpecificationException):
-    return PodSpecification.parse path
+    return PodSpecification.parse path --ui=ui
   ui.abort "Cannot parse pod specification: $exception."
   unreachable
 

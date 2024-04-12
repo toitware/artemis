@@ -14,14 +14,15 @@ import .utils
 main:
   test-examples
   test-custom-envelope
+  test-warnings
   test-errors
 
 test-examples:
-  PodSpecification.from-json INITIAL-POD-SPECIFICATION --path="ignored"
-  PodSpecification.from-json EXAMPLE-POD-SPECIFICATION --path="ignored"
+  PodSpecification.from-json INITIAL-POD-SPECIFICATION --path="ignored" --ui=TestUi
+  PodSpecification.from-json EXAMPLE-POD-SPECIFICATION --path="ignored" --ui=TestUi
 
 expect-format-error str/string json/Map:
-  exception := catch: PodSpecification.from-json json --path="ignored"
+  exception := catch: PodSpecification.from-json json --path="ignored" --ui=TestUi
   expect exception is PodSpecificationException
   expect-equals str exception.message
   expect-equals str "$exception"
@@ -76,14 +77,39 @@ test-custom-envelope:
   custom-envelope := new-valid
   custom-envelope["firmware-envelope"] = "envelope-path"
   custom-envelope.remove "sdk-version"
-  pod := PodSpecification.from-json custom-envelope --path="ignored"
+  pod := PodSpecification.from-json custom-envelope --path="ignored" --ui=TestUi
   expect-equals "envelope-path" pod.envelope
 
   version-and-envelope := new-valid
   version-and-envelope["firmware-envelope"] = "envelope-path"
-  pod = PodSpecification.from-json version-and-envelope --path="ignored"
+  pod = PodSpecification.from-json version-and-envelope --path="ignored" --ui=TestUi
   expect-equals "envelope-path" pod.envelope
   expect-equals "1.0.0" pod.sdk-version
+
+test-warnings:
+  spec := new-valid
+  test-ui := TestUi
+  spec["foo"] = "bar"
+  PodSpecification.from-json spec --path="ignored" --ui=test-ui
+  expect-equals "Warning: Unused entry in pod specification: foo" test-ui.stdout.trim
+
+  spec = new-valid
+  test-ui = TestUi
+  spec["connections"][0]["connection-foo"] = "bar"
+  PodSpecification.from-json spec --path="ignored" --ui=test-ui
+  expect-equals "Warning: Unused entry in connection: connection-foo" test-ui.stdout.trim
+
+  spec = new-valid
+  test-ui = TestUi
+  spec["containers"]["app1"]["foo"] = "bar"
+  PodSpecification.from-json spec --path="ignored" --ui=test-ui
+  expect-equals "Warning: Unused entry in container app1: foo" test-ui.stdout.trim
+
+  spec = new-valid
+  test-ui = TestUi
+  spec["containers"]["app4"]["triggers"][0]["interval-foo"] = "bar"
+  PodSpecification.from-json spec --path="ignored" --ui=test-ui
+  expect-equals "Warning: Unused entry in trigger in container app4: interval-foo" test-ui.stdout.trim
 
 test-errors:
   no-schema := new-valid
@@ -97,7 +123,7 @@ test-errors:
   version-schema.remove "\$schema"
   version-schema["version"] = 1
   // Parsing should not throw.
-  PodSpecification.from-json version-schema --path="ignored"
+  PodSpecification.from-json version-schema --path="ignored" --ui=TestUi
 
   version-schema["version"] = 2
   expect-format-error
@@ -136,7 +162,7 @@ test-errors:
 
   no-max-offline := new-valid
   no-max-offline.remove "max-offline"
-  no-max-offline-spec := PodSpecification.from-json no-max-offline --path="ignored"
+  no-max-offline-spec := PodSpecification.from-json no-max-offline --path="ignored" --ui=TestUi
   expect-equals 0 no-max-offline-spec.max-offline-seconds
 
   no-connections := new-valid
@@ -148,13 +174,13 @@ test-errors:
   no-containers := new-valid
   no-containers.remove "containers"
   // Should work without error.
-  PodSpecification.from-json no-containers --path="ignored"
+  PodSpecification.from-json no-containers --path="ignored" --ui=TestUi
 
   [ null, "critical", "priority", "normal", 1, 2, 3, 5, 1000 ].do: | runlevel |
     runlevel-app4 := new-valid
     runlevel-app4["containers"]["app4"]["runlevel"] = runlevel
     // Should work without error.
-    PodSpecification.from-json runlevel-app4 --path="ignored"
+    PodSpecification.from-json runlevel-app4 --path="ignored" --ui=TestUi
 
   both-apps-and-containers := new-valid
   both-apps-and-containers["apps"] = both-apps-and-containers["containers"]
