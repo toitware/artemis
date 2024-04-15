@@ -173,17 +173,13 @@ class JsonMap:
     get-map key --entry-type=entry-type
 
   get-int key/string --entry-type/string="Entry" -> int:
-    check-has-key key
-    used.add key
-    value := map[key]
+    value := this[key]
     if value is not int:
       format-error_ "$entry-type $key in $holder is not an int: $value"
     return value
 
   get-string key/string --entry-type/string="Entry" -> string:
-    check-has-key key
-    used.add key
-    value := map[key]
+    value := this[key]
     if value is not string:
       format-error_ "$entry-type $key in $holder is not a string: $value"
     return value
@@ -198,8 +194,7 @@ class JsonMap:
 
   get-optional-list key/string --type/string [--check] --entry-type/string="Entry" -> List?:
     if not has-key key: return null
-    used.add key
-    value := map[key]
+    value := this[key]
     if value is not List:
       format-error_ "$entry-type $key in $holder is not a list: $value"
     value.do:
@@ -208,9 +203,7 @@ class JsonMap:
     return value
 
   get-map key/string --entry-type/string="Entry" -> Map:
-    check-has-key key
-    used.add key
-    value := map[key]
+    value := this[key]
     if value is not Map:
       format-error_ "$entry-type $key in $holder is not a map: $value"
     return value
@@ -220,9 +213,7 @@ class JsonMap:
     return get-map key --entry-type=entry-type
 
   get-list key/string --entry-type/string="Entry" -> List:
-    check-has-key key
-    used.add key
-    value := map[key]
+    value := this[key]
     if value is not List:
       format-error_ "$entry-type $key in $holder is not a list: $value"
     return value
@@ -232,10 +223,7 @@ class JsonMap:
   Returns 0 if the string is empty.
   */
   get-duration key/string --entry-type/string="Entry" -> Duration:
-    check-has-key key
-    used.add key
-
-    entry := map[key]
+    entry := this[key]
     if entry is not string:
       format-error_ "$entry-type $key in $holder is not a string: $entry"
 
@@ -255,14 +243,13 @@ class JsonMap:
     return get-bool key --entry-type=entry-type
 
   get-bool key/string --entry-type/string="Entry" -> bool:
-    check-has-key key
-    used.add key
-    value := map[key]
+    value := this[key]
     if value is not bool:
       format-error_ "$entry-type $key in $holder is not a boolean: $value"
     return value
 
   operator [] key/string -> any:
+    check-has-key key
     used.add key
     return map[key]
 
