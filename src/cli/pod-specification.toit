@@ -93,124 +93,6 @@ format-error_ message/string:
 validation-error_ message/string:
   throw (PodSpecificationException message)
 
-check-has-key_ map/Map --holder/string="pod specification" key/string:
-  // We use `map.get` so that specifications can "delete" entries they have
-  // included by overriding them with 'null'.
-  if (map.get key) == null:
-    format-error_ "Missing $key in $holder."
-
-has-key_ map/Map key/string -> bool:
-  return (map.get key) != null
-
-check-is-map_ map/Map key/string --entry-type/string="Entry":
-  get-map_ map key --entry-type=entry-type
-
-get-int_ map/Map key/string -> int
-    --holder/string="pod specification"
-    --entry-type/string="Entry":
-  check-has-key_ map --holder=holder key
-  value := map[key]
-  if value is not int:
-    format-error_ "$entry-type $key in $holder is not an int: $value"
-  return value
-
-get-string_ map/Map key/string -> string
-    --holder/string="pod specification"
-    --entry-type/string="Entry":
-  check-has-key_ map --holder=holder key
-  value := map[key]
-  if value is not string:
-    format-error_ "$entry-type $key in $holder is not a string: $value"
-  return value
-
-get-optional-int_ map/Map key/string -> int?
-    --holder/string="pod specification"
-    --entry-type/string="Entry":
-  if not has-key_ map key: return null
-  return get-int_ map key --holder=holder --entry-type=entry-type
-
-get-optional-string_ map/Map key/string -> string?
-    --holder/string="pod specification"
-    --entry-type/string="Entry":
-  if not has-key_ map key: return null
-  return get-string_ map key --holder=holder --entry-type=entry-type
-
-get-optional-list_ map/Map key/string --type/string [--check] -> List?
-    --entry-type/string="Entry"
-    --holder/string="pod specification":
-  if not has-key_ map key: return null
-  value := map[key]
-  if value is not List:
-    format-error_ "$entry-type $key in $holder is not a list: $value"
-  value.do:
-    if not check.call it:
-      format-error_ "$entry-type $key in $holder is not a list of $(type)s: $value"
-  return value
-
-get-map_ map/Map key/string -> Map
-    --entry-type/string="Entry"
-    --holder/string="pod specification":
-  check-has-key_ map --holder=holder key
-  value := map[key]
-  if value is not Map:
-    format-error_ "$entry-type $key in $holder is not a map: $value"
-  return value
-
-get-optional-map_ map/Map key/string -> Map?
-    --entry-type/string="Entry"
-    --holder/string="pod specification":
-  if not has-key_ map key: return null
-  return get-map_ map key --entry-type=entry-type --holder=holder
-
-get-list_ map/Map key/string -> List
-    --entry-type/string="Entry"
-    --holder/string="pod specification":
-  check-has-key_ map --holder=holder key
-  value := map[key]
-  if value is not List:
-    format-error_ "$entry-type $key in $holder is not a list: $value"
-  return value
-
-get-duration_ map/Map key/string -> Duration
-    --entry-type/string="Entry"
-    --holder/string="pod specification":
-  // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
-  // Returns 0 if the string is empty.
-
-  check-has-key_ map --holder=holder key
-
-  entry := map[key]
-  if entry is not string:
-    format-error_ "$entry-type $key in $holder is not a string: $entry"
-
-  entry-string := entry as string
-  entry-string = entry-string.trim
-  if entry-string == "": return Duration.ZERO
-
-  return parse-duration entry-string --on-error=:
-    format-error_ "$entry-type $key in $holder is not a valid duration: $entry"
-
-get-optional-duration_ map/Map key/string -> Duration?
-    --entry-type/string="Entry"
-    --holder/string="pod specification":
-  if not has-key_ map key: return null
-  return get-duration_ map key --entry-type=entry-type --holder=holder
-
-get-optional-bool_ map/Map key/string -> bool?
-    --entry-type/string="Entry"
-    --holder/string="pod specification":
-  if not has-key_ map key: return null
-  return get-bool_ map key --entry-type=entry-type --holder=holder
-
-get-bool_ map/Map key/string -> bool
-    --entry-type/string="Entry"
-    --holder/string="pod specification":
-  check-has-key_ map --holder=holder key
-  value := map[key]
-  if value is not bool:
-    format-error_ "$entry-type $key in $holder is not a boolean: $value"
-  return value
-
 /**
 Merges the json object $other into $target.
 
@@ -264,6 +146,116 @@ read-pod-spec-file path/string -> any:
     return read-yaml path
   throw "Unknown file extension: $path"
 
+// We use `map.get` so that specifications can "delete" entries they have
+// included by overriding them with 'null'.
+has-key_ map/Map key/string -> bool:
+  return (map.get key) != null
+
+class JsonMap:
+  map/Map
+  holder/string
+
+  constructor .map --.holder:
+
+  check-has-key key/string:
+    if not has-key_ map key:
+      format-error_ "Missing $key in $holder."
+
+  has-key key/string -> bool:
+    return has-key_ map key
+
+  check-is-map key/string --entry-type/string="Entry":
+    get-map key --entry-type=entry-type
+
+  get-int key/string --entry-type/string="Entry" -> int:
+    check-has-key key
+    value := map[key]
+    if value is not int:
+      format-error_ "$entry-type $key in $holder is not an int: $value"
+    return value
+
+  get-string key/string --entry-type/string="Entry" -> string:
+    check-has-key key
+    value := map[key]
+    if value is not string:
+      format-error_ "$entry-type $key in $holder is not a string: $value"
+    return value
+
+  get-optional-int key/string --entry-type/string="Entry" -> int?:
+    if not has-key key: return null
+    return get-int key --entry-type=entry-type
+
+  get-optional-string key/string --entry-type/string="Entry" -> string?:
+    if not has-key key: return null
+    return get-string key --entry-type=entry-type
+
+  get-optional-list key/string --type/string [--check] --entry-type/string="Entry" -> List?:
+    if not has-key key: return null
+    value := map[key]
+    if value is not List:
+      format-error_ "$entry-type $key in $holder is not a list: $value"
+    value.do:
+      if not check.call it:
+        format-error_ "$entry-type $key in $holder is not a list of $(type)s: $value"
+    return value
+
+  get-map key/string --entry-type/string="Entry" -> Map:
+    check-has-key key
+    value := map[key]
+    if value is not Map:
+      format-error_ "$entry-type $key in $holder is not a map: $value"
+    return value
+
+  get-optional-map key/string --entry-type/string="Entry" -> Map?:
+    if not has-key key: return null
+    return get-map key --entry-type=entry-type
+
+  get-list key/string --entry-type/string="Entry" -> List:
+    check-has-key key
+    value := map[key]
+    if value is not List:
+      format-error_ "$entry-type $key in $holder is not a list: $value"
+    return value
+
+  get-duration key/string --entry-type/string="Entry" -> Duration:
+    // Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
+    // Returns 0 if the string is empty.
+
+    check-has-key key
+
+    entry := map[key]
+    if entry is not string:
+      format-error_ "$entry-type $key in $holder is not a string: $entry"
+
+    entry-string := entry as string
+    entry-string = entry-string.trim
+    if entry-string == "": return Duration.ZERO
+
+    return parse-duration entry-string --on-error=:
+      format-error_ "$entry-type $key in $holder is not a valid duration: $entry"
+
+  get-optional-duration key/string --entry-type/string="Entry" -> Duration?:
+    if not has-key key: return null
+    return get-duration key --entry-type=entry-type
+
+  get-optional-bool key/string --entry-type/string="Entry" -> bool?:
+    if not has-key key: return null
+    return get-bool key --entry-type=entry-type
+
+  get-bool key/string --entry-type/string="Entry" -> bool:
+    check-has-key key
+    value := map[key]
+    if value is not bool:
+      format-error_ "$entry-type $key in $holder is not a boolean: $value"
+    return value
+
+  operator [] key/string -> any:
+    return map[key]
+
+  with-holder new-holder/string -> JsonMap:
+    return JsonMap map --holder=new-holder
+
+
 /**
 A specification of a pod.
 
@@ -288,10 +280,11 @@ class PodSpecification:
   chip/string?
 
   constructor.from-json --.path/string data/Map:
-    name = get-string_ data "name"
-    artemis-version = get-string_ data "artemis-version"
-    sdk-version = get-optional-string_ data "sdk-version"
-    envelope = get-optional-string_ data "firmware-envelope"
+    json-map := JsonMap data --holder="pod specification"
+    name = json-map.get-string "name"
+    artemis-version = json-map.get-string "artemis-version"
+    sdk-version = json-map.get-optional-string "sdk-version"
+    envelope = json-map.get-optional-string "firmware-envelope"
 
     if sdk-version and not semver.is-valid sdk-version:
       format-error_ "Invalid sdk-version: $sdk-version"
@@ -299,16 +292,16 @@ class PodSpecification:
     if not sdk-version and not envelope:
       format-error_ "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
 
-    chip = get-optional-string_ data "chip"
+    chip = json-map.get-optional-string "chip"
 
-    if has-key_ data "apps" and has-key_ data "containers":
+    if json-map.has-key "apps" and json-map.has-key "containers":
       format-error_ "Both 'apps' and 'containers' are present in pod specification."
 
-    version := get-optional-int_ data "version"
-    schema := get-optional-string_ data "\$schema"
+    version := json-map.get-optional-int "version"
+    schema := json-map.get-optional-string "\$schema"
     if not version and not schema:
       // This will yield an error since the entry isn't present.
-      get-string_ data "\$schema"
+      json-map.get-string "\$schema"
     if schema:
       if schema != JSON-SCHEMA:
         format-error_ "Unsupported pod specification schema: $schema"
@@ -317,31 +310,34 @@ class PodSpecification:
         // TODO(florian): recommend to upgrade to a '$schema' entry.
         format-error_ "Unsupported pod specification version $version"
 
-    if has-key_ data "apps" and not has-key_ data "containers":
-      check-is-map_ data "apps"
-      data = data.copy
-      data["containers"] = data["apps"]
-      data.remove "apps"
-    else if has-key_ data "containers":
-      check-is-map_ data "containers"
+    if json-map.has-key "apps" and not json-map.has-key "containers":
+      json-map.check-is-map "apps"
+      copy := json-map.map.copy
+      copy["containers"] = json-map.map["apps"]
+      copy.remove "apps"
+      json-map = JsonMap copy --holder="pod specification"
+    else if json-map.has-key "containers":
+      json-map.check-is-map "containers"
 
-    containers-entry := data.get "containers"
+    containers-entry := json-map.get-optional-map "containers"
     if not containers-entry: containers-entry = {:}
 
-    containers-entry.do --keys:
-      check-is-map_ containers-entry --entry-type="Container" it
+    containers-entry.do: | name/string value |
+      if value is not Map:
+        format-error_ "Container $name in pod specification is not a map: $value"
 
     containers = containers-entry.map: | name container-description |
-      Container.from-json name container-description
+      Container.from-json name (JsonMap container-description --holder="container $name")
 
-    connections-entry := get-list_ data "connections"
+    connections-entry := json-map.get-list "connections"
     connections-entry.do:
       if it is not Map:
         format-error_ "Connection in pod specification is not a map: $it"
 
-    connections = data["connections"].map: ConnectionInfo.from-json it
+    connections = connections-entry.map:
+      ConnectionInfo.from-json (JsonMap it --holder="connection")
 
-    max-offline := get-optional-duration_ data "max-offline"
+    max-offline := json-map.get-optional-duration "max-offline"
     max-offline-seconds = max-offline ? max-offline.in-s : 0
 
     validate_
@@ -410,16 +406,14 @@ class PodSpecification:
             validation-error_ "Connection requires container $required-container-name, but it is not installed."
 
 interface ConnectionInfo:
-  static from-json data/Map -> ConnectionInfo:
-    check-has-key_ data --holder="connection" "type"
-
-    type := data["type"]
+  static from-json json-map/JsonMap -> ConnectionInfo:
+    type := json-map.get-string "type"
     if type == "wifi":
-      return WifiConnectionInfo.from-json data
+      return WifiConnectionInfo.from-json (json-map.with-holder "wifi connection")
     if type == "cellular":
-      return CellularConnectionInfo.from-json data
+      return CellularConnectionInfo.from-json (json-map.with-holder "cellular connection")
     if type == "ethernet":
-      return EthernetConnectionInfo.from-json data
+      return EthernetConnectionInfo.from-json (json-map.with-holder "ethernet connection")
     format-error_ "Unknown connection type: $type"
     unreachable
 
@@ -431,15 +425,15 @@ class WifiConnectionInfo implements ConnectionInfo:
   ssid/string?
   password/string?
 
-  constructor.from-json data/Map:
-    config := get-optional-string_ data "config" --holder="wifi connection"
+  constructor.from-json json-map/JsonMap:
+    config := json-map.get-optional-string "config"
     if config:
       if config != "provisioned": format-error_ "Unknown wifi config: $config"
       ssid = null
       password = null
     else:
-      ssid = get-string_ data "ssid" --holder="wifi connection"
-      password = get-string_ data "password" --holder="wifi connection"
+      ssid = json-map.get-string "ssid"
+      password = json-map.get-string "password"
 
   type -> string:
     return "wifi"
@@ -454,10 +448,9 @@ class CellularConnectionInfo implements ConnectionInfo:
   config/Map
   requires/List?
 
-  constructor.from-json data/Map:
-    config = get-map_ data "config" --holder="cellular connection"
-    requires = get-optional-list_ data "requires"
-        --holder="cellular connection"
+  constructor.from-json json-map/JsonMap:
+    config = json-map.get-map "config"
+    requires = json-map.get-optional-list "requires"
         --type="string"
         --check=: it is string
 
@@ -475,9 +468,8 @@ class CellularConnectionInfo implements ConnectionInfo:
 class EthernetConnectionInfo implements ConnectionInfo:
   requires/List?
 
-  constructor.from-json data/Map:
-    requires = get-optional-list_ data "requires"
-        --holder="ethernet connection"
+  constructor.from-json json-map/JsonMap:
+    requires = json-map.get-optional-list "requires"
         --type="string"
         --check=: it is string
 
@@ -503,16 +495,16 @@ interface Container:
     "normal": RUNLEVEL-NORMAL,
   }
 
-  static from-json name/string data/Map -> Container:
-    if has-key_ data "entrypoint" and has-key_ data "snapshot":
+  static from-json name/string json-map/JsonMap -> Container:
+    if json-map.has-key "entrypoint" and json-map.has-key "snapshot":
       format-error_ "Container $name has both entrypoint and snapshot."
 
-    if has-key_ data "entrypoint":
-      return ContainerPath.from-json name data
-    if has-key_ data "snapshot":
-      return ContainerSnapshot.from-json name data
+    if json-map.has-key "entrypoint":
+      return ContainerPath.from-json name json-map
+    if json-map.has-key "snapshot":
+      return ContainerSnapshot.from-json name json-map
 
-    format-error_ "Unsupported container $name: $data"
+    format-error_ "Unsupported container $name: $json-map.map"
     unreachable
 
   /**
@@ -546,32 +538,29 @@ abstract class ContainerBase implements Container:
   defines/Map?
   name/string
 
-  constructor.from-json .name data/Map:
-    holder := "container $name"
-    arguments = get-optional-list_ data "arguments"
-        --holder=holder
+  constructor.from-json .name json-map/JsonMap:
+    arguments = json-map.get-optional-list "arguments"
         --type="string"
         --check=: it is string
-    is-background = get-optional-bool_ data "background"
-    is-critical = get-optional-bool_ data "critical"
+    is-background = json-map.get-optional-bool "background"
+    is-critical = json-map.get-optional-bool "critical"
 
     runlevel-key := "runlevel"
-    if has-key_ data runlevel-key:
-      value := data[runlevel-key]
+    if json-map.has-key runlevel-key:
+      value := json-map[runlevel-key]
       if value is int:
-        if value <= 0: format_error_ "Entry $runlevel-key in $holder must be positive"
+        if value <= 0: format_error_ "Entry $runlevel-key in $json-map.holder must be positive"
         runlevel = value
       else if value is string:
         runlevel = Container.STRING-TO-RUNLEVEL_.get value
-            --if-absent=: format-error_ "Unknown $runlevel-key in $holder: $value"
+            --if-absent=: format-error_ "Unknown $runlevel-key in $json-map.holder: $value"
       else:
-        format-error_ "Entry $runlevel-key in $holder is not an int or a string: $value"
+        format-error_ "Entry $runlevel-key in $json-map.holder is not an int or a string: $value"
         unreachable
     else:
       runlevel = null
 
-    triggers-list := get-optional-list_ data "triggers"
-        --holder=holder
+    triggers-list := json-map.get-optional-list "triggers"
         --type="map or string"
         --check=: it is Map or it is string
     if triggers-list:
@@ -597,7 +586,7 @@ abstract class ContainerBase implements Container:
     else:
       triggers = null
 
-    defines = get-optional-map_ data "defines"
+    defines = json-map.get-optional-map "defines"
 
   abstract type -> string
   abstract build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
@@ -608,20 +597,19 @@ class ContainerPath extends ContainerBase:
   git-ref/string?
   compile-flags/List?
 
-  constructor.from-json name/string data/Map:
+  constructor.from-json name/string json-map/JsonMap:
     holder := "container $name"
-    git-ref = get-optional-string_ data "branch" --holder=holder
-    git-url = get-optional-string_ data "git" --holder=holder
-    entrypoint = get-string_ data "entrypoint" --holder=holder
-    compile-flags = get-optional-list_ data "compile-flags"
-        --holder=holder
+    git-ref = json-map.get-optional-string "branch"
+    git-url = json-map.get-optional-string "git"
+    entrypoint = json-map.get-string "entrypoint"
+    compile-flags = json-map.get-optional-list "compile-flags"
         --type="string"
         --check=: it is string
     if git-url and not git-ref:
       format-error_ "In container $name, git entry requires a branch/tag: $git-url"
     if git-url and not fs.is-relative entrypoint:
       format-error_"In container $name, git entry requires a relative path: $entrypoint"
-    super.from-json name data
+    super.from-json name json-map
 
   build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
     if not git-url:
@@ -706,10 +694,9 @@ class ContainerPath extends ContainerBase:
 class ContainerSnapshot extends ContainerBase:
   snapshot-path/string
 
-  constructor.from-json name/string data/Map:
-    holder := "container $name"
-    snapshot-path = get-string_ data "snapshot" --holder=holder
-    super.from-json name data
+  constructor.from-json name/string json-map/JsonMap:
+    snapshot-path = json-map.get-string "snapshot"
+    super.from-json name json-map
 
   build-snapshot --relative-to/string --output-path/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
     path := snapshot-path
@@ -740,37 +727,40 @@ abstract class Trigger:
     known-triggers := {
       "boot": :: BootTrigger,
       "install": :: InstallTrigger,
-      "interval": :: IntervalTrigger.from-json container-name it,
-      "gpio": :: GpioTrigger.parse-json container-name it,
+      "interval": ::
+        interval-map := JsonMap data --holder="trigger in container $container-name"
+        IntervalTrigger.from-json interval-map,
+      "gpio": ::
+        gpio-map := JsonMap data --holder="container $container-name"
+        GpioTrigger.parse-json container-name gpio-map,
     }
     map-triggers := { "interval", "gpio" }
 
     seen-types := {}
-    trigger/Lambda? := null
+    trigger-builder/Lambda? := null
     known-triggers.do: | key/string value/Lambda |
       is-map-trigger := map-triggers.contains key
       if is-map-trigger:
         if data is Map and has-key_ data key:
           seen-types.add key
-          trigger = value
+          trigger-builder = value
       else if data is string and data == key:
         seen-types.add key
-        trigger = value
+        trigger-builder = value
     if seen-types.size == 0:
       format-error_ "Unknown trigger in container $container-name: $data"
     if seen-types.size != 1:
       format-error_ "Container $container-name has ambiguous trigger: $data"
 
-    return trigger.call data
+    return trigger-builder.call data
 
 class IntervalTrigger extends Trigger:
   interval/Duration
 
   constructor .interval:
 
-  constructor.from-json container-name/string data/Map:
-    holder := "trigger in container $container-name"
-    interval = get-duration_ data "interval" --holder=holder
+  constructor.from-json json-map/JsonMap:
+    interval = json-map.get-duration "interval"
 
   type -> string:
     return "interval"
@@ -806,24 +796,23 @@ abstract class GpioTrigger extends Trigger:
 
   constructor .pin:
 
-  static parse-json container-name/string data/Map -> List:
-    holder := "container $container-name"
-    gpio-trigger-list := get-list_ data "gpio" --holder=holder
+  static parse-json container-name/string json-map/JsonMap -> List:
+    gpio-trigger-list := json-map.get-list "gpio"
     // Check that all entries are maps.
     gpio-trigger-list.do: | entry |
       if entry is not Map:
-        format-error_ "Entry in gpio trigger list of $holder is not a map"
+        format-error_ "Entry in gpio trigger list of $json-map.holder is not a map"
 
     pin-triggers := gpio-trigger-list.map: | entry/Map |
-      pin-holder := "gpio trigger in container $container-name"
-      pin := get-int_ entry "pin" --holder=pin-holder
-      pin-holder = "gpio trigger for pin $pin in container $container-name"
-      on-touch := get-optional-bool_ entry "touch" --holder=pin-holder
-      level-string := get-optional-string_ entry "level" --holder=pin-holder
+      pin-json-map := JsonMap entry --holder="gpio trigger in container $container-name"
+      pin := pin-json-map.get-int "pin"
+      pin-json-map = pin-json-map.with-holder "gpio trigger for pin $pin in container $container-name"
+      on-touch := pin-json-map.get-optional-bool "touch"
+      level-string := pin-json-map.get-optional-string "level"
       on-high := ?
       if on-touch:
         if level-string != null:
-          format-error_ "Both level $level-string and touch are set in $holder"
+          format-error_ "Both level $level-string and touch are set in $pin-json-map.holder"
           unreachable
         on-high = null
       else:
@@ -832,7 +821,7 @@ abstract class GpioTrigger extends Trigger:
         else if level-string == "low":
           on-high = false
         else:
-          format-error_ "Invalid level in $holder: $level-string"
+          format-error_ "Invalid level in $pin-json-map.holder: $level-string"
           unreachable
 
       if on-high: GpioTriggerHigh pin
@@ -842,7 +831,7 @@ abstract class GpioTrigger extends Trigger:
     seen-pins := {}
     pin-triggers.do: | trigger/GpioTrigger |
       if seen-pins.contains trigger.pin:
-        format-error_ "Duplicate pin in gpio trigger of $holder"
+        format-error_ "Duplicate pin in gpio trigger of $json-map.holder"
       seen-pins.add trigger.pin
 
     return pin-triggers
