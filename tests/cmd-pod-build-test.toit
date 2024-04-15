@@ -174,7 +174,7 @@ get-envelope-for --sdk-version/string --cache -> ByteArray:
         }
       ]
     }
-  pod-specification := PodSpecification.from-json default-spec --path="ignored"
+  pod-specification := PodSpecification.from-json default-spec --path="ignored" --ui=TestUi
 
   default-envelope-path := get-envelope --specification=pod-specification --cache=cache
   return file.read-content default-envelope-path
