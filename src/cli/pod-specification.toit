@@ -163,8 +163,6 @@ class JsonMap:
     if used: this.used = used
 
   check-has-key key/string:
-    // We use `map.get` so that specifications can "delete" entries they have
-    // included by overriding them with 'null'.
     if not has-key_ map key:
       format-error_ "Missing $key in $holder."
 
