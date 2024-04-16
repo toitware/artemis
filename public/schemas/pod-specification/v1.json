@@ -280,6 +280,10 @@
           "items": {
             "$ref": "#/$defs/Trigger"
           }
+        },
+        "defines": {
+          "description": "Defines to pass to the container.",
+          "type": "object"
         }
       }
     },
