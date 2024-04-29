@@ -230,13 +230,7 @@ class SynchronizeJob extends TaskJob:
       status := determine-status_
       if status > STATUS-YELLOW:
         max-offline /= (status == STATUS-RED) ? 4 : 2
-      // Compute the duration of the current offline period by
-      // letting it run to whatever comes first of the scheduled
-      // check-in or hitting the max-offline ceiling, but make
-      // sure to not go below the minimum offline setting.
-      offline := max-offline
-      if check-in: offline = min offline (last.to (check-in.schedule now))
-      schedule = last + (max offline OFFLINE-MINIMUM)
+      schedule = last + (max max-offline OFFLINE-MINIMUM)
     else:
       schedule = last + OFFLINE-MINIMUM
     if now < schedule:
