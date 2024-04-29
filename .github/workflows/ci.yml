@@ -58,7 +58,8 @@ jobs:
 
       - name: Setup Qemu
         # TODO(florian): Enable again when Windows tests work again.
-        if: runner.os != 'Windows'
+        # TODO(florian): Enable again on macOS once qemu is building again.
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir -p downloads
@@ -159,7 +160,8 @@ jobs:
 
       - name: Disable Qemu tests - Windows
         # TODO(florian): Figure out why the qemu tests fail on Windows.
-        if: runner.os == 'Windows'
+        # TODO(florian): Enable qemu tests on macos.
+        if: runner.os != 'Linux'
         shell: bash
         run: |
           make disable-qemu-tests
