@@ -158,7 +158,7 @@ jobs:
         run: |
           make disable-supabase-tests
 
-      - name: Disable Qemu tests - Windows
+      - name: Disable Qemu tests - Windows, macOS
         # TODO(florian): Figure out why the qemu tests fail on Windows.
         # TODO(florian): Enable qemu tests on macos.
         if: runner.os != 'Linux'
