@@ -197,9 +197,11 @@ read-config-file path/string [--init] -> Config:
     data := {:}
     data = init.call data
     return Config path data
-  content := file.read-content path
-  parsed := json.decode content
-  return Config path parsed
+  e := catch:
+    content := file.read-content path
+    parsed := json.decode content
+    return Config path parsed
+  throw "Failed to read configuration file $path: $e"
 
 /**
 Writes the configuration map $data to the given $path.
