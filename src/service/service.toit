@@ -47,7 +47,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   Process.current.priority = Process.PRIORITY-HIGH
 
   scheduler ::= Scheduler logger device --watchdog=watchdog
-  containers ::= ContainerManager logger scheduler
+  containers ::= ContainerManager logger scheduler storage
   broker := BrokerService logger server-config
 
   // Steal the job states, so if we do not shut down

@@ -12,7 +12,7 @@ import artemis.cli.device show DeviceDetailed
 import artemis.service.device show Device
 import artemis.cli.event show Event
 import artemis.service.brokers.broker
-import artemis.service.storage show Storage
+import artemis.service.run.esp32 show StorageEsp32
 import artemis.cli.brokers.http.base as http-broker
 import supabase
 import supabase.auth as supabase
@@ -35,13 +35,13 @@ DEVICE1 ::= Device
     --hardware-id=random-uuid
     --organization-id=TEST-ORGANIZATION-UUID
     --firmware-state={:}
-    --storage=Storage
+    --storage=StorageEsp32
 DEVICE2 ::= Device
     --id=random-uuid
     --hardware-id=random-uuid
     --organization-id=TEST-ORGANIZATION-UUID
     --firmware-state={:}
-    --storage=Storage
+    --storage=StorageEsp32
 
 main args:
   broker-type := broker-type-from-args args

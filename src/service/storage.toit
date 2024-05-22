@@ -1,8 +1,10 @@
 // Copyright (C) 2024 Toitware ApS. All rights reserved.
 
+import io
 import system.storage
+import uuid
 
-class Storage:
+abstract class Storage:
   /** UUID used to ensure that the flash's data is actually from us. */
   static FLASH-ENTRY-UUID_ ::= "ccf4efed-6825-44e6-b71d-1aa118d43824"
 
@@ -29,3 +31,6 @@ class Storage:
       ram_.remove key
     else:
       ram_[key] = value
+
+  abstract container-list-images -> List
+  abstract container-write-image --id/uuid.Uuid --size/int --reader/io.Reader -> uuid.Uuid
