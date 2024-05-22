@@ -1,10 +1,12 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import ar
 import bytes
 import cli
 import crypto.sha256
 import host.pipe
 import host.file
+import host.directory
 import io
 
 import system.assets
@@ -115,10 +117,6 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
     storage := StorageHost
 
     while true:
-      // Reset the watchdog manager. We need to do this, as the scheduler
-      // expects to be in `STATE-STARTUP`.
-      // We don't use the returned dogs, as we expect to migrate to a
-      // different state before they need to be fed.
       device := Device
           --id=artemis-device.id
           --hardware-id=artemis-device.hardware-id
@@ -163,7 +161,9 @@ class FirmwareServiceProvider extends FirmwareServiceProviderBase:
     throw "UNIMPLEMENTED"
 
   upgrade -> none:
-    // TODO(kasper): Ignored for now.
+    // TODO(florian): get the target-location.
+    with-tmp-directory: | dir/string |
+      (Firmware content_).write-into --dir=dir
 
   config-ubjson -> ByteArray:
     return ByteArray 0
@@ -218,3 +218,56 @@ class FirmwareWriter_ extends services.ServiceResource implements FirmwareWriter
   on-closed -> none:
     if not view_: return
     view_ = null
+
+class Firmware:
+  static PART-HEADER_ ::= 0
+  static PART-RUN-IMAGE_ ::= 1
+  static PART-CONFIG_ ::= 2
+  static PART-NAME-TO-UUID-MAPPING_ ::= 3
+  static PART-STARTUP-IMAGES_ ::= 4
+  static PART-BUNDLED-IMAGES_ ::= 5
+
+  bits_/ByteArray
+
+  constructor .bits_:
+
+  part_ part/int -> ByteArray:
+    from := io.LITTLE-ENDIAN.int32 bits_ (part * 8)
+    to := io.LITTLE-ENDIAN.int32 bits_ (part * 8 + 4)
+    return bits_[from..to]
+
+  run-image -> ByteArray:
+    return part_ PART-RUN-IMAGE_
+
+  config -> ByteArray:
+    return part_ PART-CONFIG_
+
+  name-to-uuid-mapping -> Map:
+    return ubjson.decode (part_ PART-NAME-TO-UUID-MAPPING_)
+
+  startup-images -> Map:
+    return read-images_ (part_ PART-STARTUP-IMAGES_)
+
+  bundled-images -> Map:
+    return read-images_ (part_ PART-BUNDLED-IMAGES_)
+
+  read-images_ part/ByteArray -> Map:
+    result := {:}
+    reader := ar.ArReader (io.Reader part)
+    while file/ar.ArFile := reader.next:
+      result[file.name] = file.content
+    return result
+
+  write-into --dir/string:
+    file.write-content --path="$dir/run-image" run-image
+    file.write-content --path="$dir/config.ubjson" config
+    directory.mkdir --recursive "$dir/startup-images"
+    mapping := name-to-uuid-mapping
+    startup-images.do: | name/string content/ByteArray |
+      uuid := mapping[name]
+      file.write-content --path="$dir/startup-images/$uuid" content
+    directory.mkdir --recursive "$dir/bundled-images"
+    bundled-images.do: | name string content/ByteArray |
+      uuid := mapping[name]
+      file.write-content --path="$dir/bundled-images/$uuid" content
+
