@@ -1,10 +1,11 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import bytes
 import cli
+import crypto.sha256
 import host.pipe
 import host.file
-import bytes
-import crypto.sha256
+import io
 
 import system.assets
 import system.services
@@ -111,7 +112,7 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
     service := FirmwareServiceProvider firmware.content.bits
     service.install
 
-    storage := Storage
+    storage := StorageHost
 
     while true:
       // Reset the watchdog manager. We need to do this, as the scheduler
@@ -133,6 +134,13 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
           --storage=storage
       sleep sleep-duration
       print
+
+class StorageHost extends Storage:
+  container-list-images -> List:
+    return []
+
+  container-write-image --id/uuid.Uuid --size/int --reader/io.Reader -> uuid.Uuid:
+    throw "UNIMPLEMENTED"
 
 // --------------------------------------------------------------------------
 
