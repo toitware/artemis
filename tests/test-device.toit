@@ -7,7 +7,7 @@ import artemis.shared.server-config
 import artemis.service.service
 import artemis.service.device as service
 import artemis.cli.utils show OptionUuid
-import artemis.service.storage show Storage
+import artemis.service.run.esp32 show StorageEsp32
 import artemis.service.run.host show NullWatchdog
 import uuid
 import watchdog.provider as watchdog
@@ -46,7 +46,7 @@ run
       decoded-broker-config
       --der-deserializer=: unreachable
 
-  storage := Storage
+  storage := StorageEsp32
   device := service.Device
       --id=alias-id
       --hardware-id=hardware-id

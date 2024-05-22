@@ -16,7 +16,7 @@ import .utils
 import artemis.service
 import artemis.service.check-in show check-in-setup
 import artemis.service.device show Device
-import artemis.service.storage show Storage
+import artemis.service.run.esp32 show StorageEsp32
 import artemis.shared.server-config show ServerConfig
 import artemis.shared.constants show COMMAND-CHECK-IN_
 import artemis.service.run.host show NullWatchdog
@@ -34,7 +34,7 @@ main args:
 // Note that the service has global state (when to check in, ...).
 // Calling `run_test` twice from the same test will thus not work.
 run-test --insert-device/bool:
-  storage := Storage
+  storage := StorageEsp32
 
   device-id := random-uuid
   device := Device
@@ -87,7 +87,5 @@ run-test --insert-device/bool:
         expect-equals "Device not found" checkin-data[1]
       else:
         expect-equals "post" checkin-data[0]
-
-
 
       artemis-task.cancel
