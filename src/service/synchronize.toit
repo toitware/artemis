@@ -399,7 +399,9 @@ class SynchronizeJob extends TaskJob:
         logger_.error "firmware update: rebooting to apply update failed" --tags={"error": exception}
       if is-firmware-validation-pending_:
         logger_.error "firmware update: rejected after failing to connect or validate"
-        firmware.rollback
+        exception := catch: firmware.rollback
+        logger_.error "firmware update: rolling back failed" --tags={"error": exception}
+        scheduler_.transition --runlevel=Job.RUNLEVEL-STOP
 
   /**
   Tries to connect to the network and run the synchronization.
