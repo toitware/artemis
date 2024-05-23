@@ -164,6 +164,8 @@ class FirmwareServiceProvider extends FirmwareServiceProviderBase:
     // TODO(florian): get the target-location.
     with-tmp-directory: | dir/string |
       (Firmware content_).write-into --dir=dir
+    // Exit and tell the outer script that an update is available.
+    exit 17
 
   config-ubjson -> ByteArray:
     return ByteArray 0
