@@ -1,11 +1,9 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import system.assets
-import system.containers
 import system.firmware
 
 import esp32
-import io
 
 import encoding.base64
 import encoding.ubjson
@@ -56,7 +54,7 @@ main arguments:
   config := ubjson.decode (artemis-assets["device-config"])
   config["firmware"] = encoded-firmware-description
 
-  storage := StorageEsp32
+  storage := Storage
 
   artemis-device-map := device-specific "artemis.device"
   device := Device
@@ -86,12 +84,3 @@ checksum end/int -> ByteArray:
     if current: current.copy end (end + bytes.size) --into=bytes
     return bytes
   unreachable
-
-class StorageEsp32 extends Storage:
-  container-list-images -> List:
-    return containers.images
-
-  container-write-image --id/uuid.Uuid --size/int --reader/io.Reader -> uuid.Uuid:
-    writer := containers.ContainerImageWriter size
-    while data := reader.read: writer.write data
-    return writer.commit

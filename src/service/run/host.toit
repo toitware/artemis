@@ -1,15 +1,11 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import bytes
 import cli
-import io
-
-import system.assets
-
 import encoding.json
 import encoding.ubjson
 import encoding.base64
 import encoding.tison
+import system.assets
 import uuid
 
 import watchdog.provider as watchdog
@@ -98,10 +94,10 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
     config-asset := sdk.assets-extract
         --name="device-config"
         --assets-path=asset-path
-    config := json.decode config-asset
 
+    config := json.decode config-asset
     config["firmware"] = encoded-firmware-description
-    storage := StorageHost
+    storage := Storage
 
     while true:
       device := Device
@@ -119,10 +115,3 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
           --storage=storage
       sleep sleep-duration
       print
-
-class StorageHost extends Storage:
-  container-list-images -> List:
-    return []
-
-  container-write-image --id/uuid.Uuid --size/int --reader/io.Reader -> uuid.Uuid:
-    throw "UNIMPLEMENTED"

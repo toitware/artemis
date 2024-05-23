@@ -28,24 +28,21 @@ import artemis-pkg.artemis
 import .jobs
 import .esp32.pin-trigger
 import .scheduler
-import .storage
-
 import ..shared.utils as utils
 
 class ContainerManager:
   logger_/log.Logger
   scheduler_/Scheduler
-  storage_/Storage
 
   jobs_ ::= {:}           // Map<string, ContainerJob>
   images_ ::= {}          // Set<uuid.Uuid>
   images-bundled_ ::= {}  // Set<uuid.Uuid>
   pin-trigger-manager_/PinTriggerManager ::= ?
 
-  constructor logger/log.Logger .scheduler_ .storage_:
+  constructor logger/log.Logger .scheduler_:
     logger_ = logger.with-name "containers"
     pin-trigger-manager_ = PinTriggerManager scheduler_ logger_
-    storage_.container-list-images.do: | image/containers.ContainerImage |
+    containers.images.do: | image/containers.ContainerImage |
       images_.add image.id
       // TODO(kasper): It feels like a bit of a hack to determine
       // if an installed container image is bundled based on
@@ -103,15 +100,18 @@ class ContainerManager:
       --state/any
       --reader/io.Reader?=null:
     if reader:
+      writer/containers.ContainerImageWriter := ?
       size := reader.content-size
       if size:
         logger_.info "image download" --tags={"id": id, "size": size}
+        writer = containers.ContainerImageWriter size
+        while data := reader.read: writer.write data
       else:
         logger_.warn "image download with unknown size" --tags={"id": id}
         data := utils.read-all reader
-        reader = io.Reader data
-        size = data.size
-      image := storage_.container-write-image --id=id --size=size --reader=reader
+        writer = containers.ContainerImageWriter data.size
+        writer.write data
+      image := writer.commit
       logger_.info "image downloaded" --tags={"id": image}
       if image != id: throw "invalid state"
       images_.add id
