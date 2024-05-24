@@ -328,7 +328,12 @@ class Sdk:
   */
   static get-sdk-version-from --envelope/ByteArray -> string:
     reader := ar.ArReader.from-bytes envelope
-    file := reader.find "\$sdk-version"
+    // Newer versions of envelopes have a metadata file.
+    file := reader.find "\$metadata"
+    if file != null:
+      metadata := json.decode file.content
+      return metadata["sdk-version"]
+    file = reader.find "\$sdk-version"
     if file == null: throw "SDK version not found in envelope."
     return file.content.to-string
 
