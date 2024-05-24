@@ -420,12 +420,14 @@ class Artemis:
       result[patch-id] = patch
     return result
 
-  update --device-id/uuid.Uuid --pod/Pod --base-firmwares/List=[]:
-    devices := connected-broker.get-devices --device-ids=[device-id]
+  device-for --id/uuid.Uuid -> DeviceDetailed:
+    devices := connected-broker.get-devices --device-ids=[id]
     if devices.is-empty:
-      ui_.abort "Device '$device-id' not found."
-    device := devices[device-id]
-    update-bulk --devices=[device] --pods=[pod] --base-firmwares=base-firmwares
+      ui_.abort "Device '$id' not found."
+    return devices[id]
+
+  update --device-id/uuid.Uuid --pod/Pod --base-firmwares/List=[]:
+    update-bulk --devices=[device-for --id=device-id] --pods=[pod] --base-firmwares=base-firmwares
 
   /**
   Update the given $devices.
