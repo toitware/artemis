@@ -770,7 +770,7 @@ class SynchronizeJob extends TaskJob:
     status-limit-us_ = compute-status-limit-us_ max-offline
 
   handle-firmware-update_ broker-connection/BrokerConnection new/string -> none:
-    storage_.ram-store RAM-KEY-FIRMWARE-IS-CLEAN null  // Not necessarily clean anymore.
+    storage_.ram-store RAM-FIRMWARE-IS-CLEAN-KEY null  // Not necessarily clean anymore.
     if is-firmware-validation-pending_: throw "firmware update: cannot update unvalidated"
     runlevel := scheduler_.runlevel
     try:
