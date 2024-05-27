@@ -155,17 +155,9 @@ class SynchronizeJob extends TaskJob:
   // synchronize at the same time over and over again.
   static SCHEDULE-JITTER-MS ::= 8_000
 
-  /** It's unknown whether the firmware has been validated or not. */
-  static VALIDATION-STATE-UNKNOWN ::= 0
-  /** The firmware is pending validation. */
-  static VALIDATION-STATE-PENDING ::= 1
-  /** A new firmware has been installed and a reset to apply the update is pending. */
-  static VALIDATION-STATE-UPGRADE-PENDING ::= 2
-  /** The firmware has been validated. */
-  static VALIDATION-STATE-COMPLETED ::= 3
-
-  /** The RAM key to store and retrieve the validation state. */
-  static RAM-VALIDATION-STATE ::= "validation-state"
+  /** The RAM key and value for the firmware clean state. */
+  static RAM-FIRMWARE-IS-CLEAN-KEY ::= "firmware-is-clean"
+  static RAM-FIRMWARE-IS-CLEAN-VALUE ::= 0xc001
 
   logger_/log.Logger
   device_/Device
@@ -174,6 +166,9 @@ class SynchronizeJob extends TaskJob:
   ntp_/NtpRequest?
   state_/int := STATE-DISCONNECTED
 
+  is-firmware-validation-pending_/bool := ?
+  is-firmware-upgrade-pending_/bool := false
+
   // The synchronization job can be controlled from the outside
   // and it supports requesting to go online or offline. Since
   // multiple clients can request both at the same time, we keep
@@ -181,19 +176,9 @@ class SynchronizeJob extends TaskJob:
   control-level-online_/int := 0
   control-level-offline_/int := 0
 
+  storage_/Storage
   watchdog-client_/WatchdogServiceClient?
   watchdog_/Watchdog?
-
-  /**
-  The currently known state of validation.
-
-  Initially set to $VALIDATION-STATE-UNKNOWN, it is updated by
-    using stored data from RTC memory, by asking the system, or
-    by performing a validation.
-  */
-  _validation-state_/int := VALIDATION-STATE-UNKNOWN
-
-  storage_/Storage
 
   constructor
       logger/log.Logger
@@ -207,9 +192,18 @@ class SynchronizeJob extends TaskJob:
     ntp_ = ntp
     max-offline := device_.max-offline
     status-limit-us_ = compute-status-limit-us_ max-offline
+
+    if (storage.ram-load RAM-FIRMWARE-IS-CLEAN-KEY) == RAM-FIRMWARE-IS-CLEAN-VALUE:
+      is-firmware-validation-pending_ = false
+    else:
+      pending := firmware.is-validation-pending
+      is-firmware-validation-pending_ = pending
+      if not pending:
+        storage.ram-store RAM-FIRMWARE-IS-CLEAN-KEY RAM-FIRMWARE-IS-CLEAN-VALUE
+
+    storage_ = storage
     watchdog-client_ = null
     watchdog_ = null
-    storage_ = storage
     catch --trace:
       // Creating the watchdog should never fail, but we also don't want this
       // to be the reason we can't recover from a bad state.
@@ -225,41 +219,6 @@ class SynchronizeJob extends TaskJob:
         // without feeding it (thus continuing the countdown).
         start-watchdog_ watchdog_ max-offline
     super NAME saved-state
-
-  validation-state_ -> int:
-    result := _validation-state_
-
-    if result != VALIDATION-STATE-UNKNOWN: return result
-
-    saved-validation-state := storage_.ram-load RAM-VALIDATION-STATE
-    if saved-validation-state:
-      result = saved-validation-state
-      _validation-state_ = result
-      return result
-
-    if firmware.is-validation-pending:
-      result = VALIDATION-STATE-PENDING
-    else:
-      result = VALIDATION-STATE-COMPLETED
-    // Go through the setter which will save the state.
-    validation-state_ = result
-    return result
-
-  validation-state_= value/int -> none:
-    _validation-state_ = value
-    storage_.ram-store RAM-VALIDATION-STATE value
-
-  is-firmware-validation-pending_ -> bool:
-    return validation-state_ == VALIDATION-STATE-PENDING
-
-  is-firmware-upgrade-pending_ -> bool:
-    return validation-state_ == VALIDATION-STATE-UPGRADE-PENDING
-
-  mark-firmware-validation-completed_:
-    validation-state_ = VALIDATION-STATE-COMPLETED
-
-  mark-firmware-upgrade-pending_:
-    validation-state_ = VALIDATION-STATE-UPGRADE-PENDING
 
   control --online/bool --close/bool=false -> none:
     if close:
@@ -581,7 +540,11 @@ class SynchronizeJob extends TaskJob:
     if is-firmware-validation-pending_ and state >= STATE-CONNECTED-TO-BROKER:
       if firmware.validate:
         device_.firmware-validated
-        mark-firmware-validation-completed_
+        // We avoid marking the firmware as clean here, because we
+        // prefer only doing that when the firmware service has
+        // told us that no validation is pending. This is only done
+        // from the constructor.
+        is-firmware-validation-pending_ = false
         logger_.info "firmware update: validated after connecting to broker"
       else:
         logger_.error "firmware update: failed to validate"
@@ -807,6 +770,7 @@ class SynchronizeJob extends TaskJob:
     status-limit-us_ = compute-status-limit-us_ max-offline
 
   handle-firmware-update_ broker-connection/BrokerConnection new/string -> none:
+    storage_.ram-store RAM-FIRMWARE-IS-CLEAN-KEY null  // Not necessarily clean anymore.
     if is-firmware-validation-pending_: throw "firmware update: cannot update unvalidated"
     runlevel := scheduler_.runlevel
     try:
@@ -816,7 +780,7 @@ class SynchronizeJob extends TaskJob:
       // change this, we shouldn't increase the runlevel here.
       scheduler_.transition --runlevel=Job.RUNLEVEL-CRITICAL
       firmware-update logger_ broker-connection --device=device_ --new=new
-      mark-firmware-upgrade-pending_
+      is-firmware-upgrade-pending_ = true
       transition-to_ STATE-CONNECTED-TO-BROKER
       device_.state-firmware-update new
       report-state-if-changed broker-connection
