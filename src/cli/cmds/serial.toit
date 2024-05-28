@@ -14,7 +14,7 @@ import ..pod-registry
 import ..sdk
 import ..ui
 import ..utils
-import ...service.run.host show run-host
+import ...service.run.simulate show run-host
 
 create-serial-commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "serial"

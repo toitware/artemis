@@ -11,6 +11,7 @@ import uuid
 import watchdog.provider as watchdog
 import watchdog show Watchdog WatchdogServiceClient
 
+import .null-watchdog
 import ..utils show decode-server-config
 import ..service show run-artemis
 import ..check-in show check-in-setup
@@ -48,15 +49,6 @@ run-host --pod-path/string --identity-path/string --cache/cli.Cache -> none:
   with-tmp-directory: | tmp-dir |
     pod := Pod.parse pod-path --tmp-directory=tmp-dir --ui=ui
     run-host --pod=pod --identity-path=identity-path --cache=cache
-
-/**
-A system watchdog that ignores all calls to it.
-*/
-class NullWatchdog implements watchdog.SystemWatchdog:
-  start --ms/int:
-  feed -> none:
-  stop -> none:
-  reboot -> none:
 
 run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
   watchdog-provider := watchdog.WatchdogServiceProvider

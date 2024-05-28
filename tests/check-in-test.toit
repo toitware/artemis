@@ -19,7 +19,7 @@ import artemis.service.device show Device
 import artemis.service.storage show Storage
 import artemis.shared.server-config show ServerConfig
 import artemis.shared.constants show COMMAND-CHECK-IN_
-import artemis.service.run.host show NullWatchdog
+import artemis.service.run.null-watchdog show NullWatchdog
 import ..tools.http-servers.artemis-server
 
 main args:
