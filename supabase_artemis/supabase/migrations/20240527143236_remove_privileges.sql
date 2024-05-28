@@ -9,4 +9,3 @@ REVOKE ALL PRIVILEGES
 REVOKE ALL PRIVILEGES
   ON public.organization_admins
   FROM anon, authenticated;
-
