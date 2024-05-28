@@ -123,6 +123,33 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: show it config cache ui
   cmd.add show-cmd
 
+  write-identity-cmd := cli.Command "write-identity"
+      --aliases=["export-identity"]
+      --help="""
+        Write the identity of a device.
+
+        If no ID is given, writes the identity of the default device.
+        """
+      --options=[
+        cli.Option "output"
+            --short-name="o"
+            --type="file"
+            --help="The file to write the identity to."
+            --required,
+      ]
+      --rest=[
+        cli.Option "device-rest"
+            --help="ID, name or alias of the device.",
+      ]
+      --examples=[
+        cli.Example "Write the identity of the default device (see 'device default'):"
+            --arguments="--output identity.json",
+        cli.Example "Write the identity of the device big-whale:"
+            --arguments="-d big-whale --output identity.json",
+      ]
+      --run=:: write-identity it config cache ui
+  cmd.add write-identity-cmd
+
   max-offline-cmd := cli.Command "set-max-offline"
       --help="Update the max-offline time of a device."
       --rest=[
@@ -270,6 +297,18 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
                 organization
                 events
                 it
+
+write-identity parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  device-reference := parsed["device"]
+  output := parsed["output"]
+
+  with-device parsed config cache ui: | fleet-device/DeviceFleet artemis/Artemis _ |
+    device/DeviceDetailed := artemis.device-for --id=fleet-device.id
+    artemis.write-identity-file
+        --out-path=output
+        --device-id=device.id
+        --organization-id=device.organization-id
+        --hardware-id=device.hardware-id
 
 set-max-offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max-offline := parsed["max-offline"]

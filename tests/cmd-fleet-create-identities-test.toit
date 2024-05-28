@@ -3,6 +3,8 @@
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
 import encoding.json
+import encoding.ubjson
+import encoding.base64
 import host.directory
 import host.file
 import expect show *
@@ -49,6 +51,7 @@ run-test test-cli/TestCli fleet-dir/string:
       "--alias", (aliases.join ","),
       "$id",
     ]
+    test-write-identity test-cli fleet-dir tmp-dir
     check-and-remove-identity-files fleet-dir tmp-dir
         --id=id
         --name="test-name"
@@ -61,7 +64,22 @@ run-test test-cli/TestCli fleet-dir/string:
       "$id",
     ]
 
-check-and-remove-identity-files fleet-dir tmp-dir
+test-write-identity test-cli/TestCli fleet-dir/string tmp-dir/string:
+  devices/Map := json.decode (file.read-content "$fleet-dir/devices.json")
+  expect-equals 1 devices.size
+  id := devices.keys.first
+  device-id-file := "$tmp-dir/device-$(id).identity"
+  test-cli.run [
+    "device",
+    "-d", "$id",
+    "write-identity",
+    "-o", device-id-file,
+  ]
+  check-identity-file device-id-file --id=id
+  file.delete device-id-file
+
+
+check-and-remove-identity-files fleet-dir/string tmp-dir/string
     --id/Uuid?=null
     --name/string?=null
     --aliases/List?=null:
@@ -75,7 +93,7 @@ check-and-remove-identity-files fleet-dir tmp-dir
   expect (file.is-file "$tmp-dir/$(id).identity")
   check-and-remove-identity-files fleet-dir tmp-dir 1
 
-check-and-remove-identity-files fleet-dir tmp-dir count:
+check-and-remove-identity-files fleet-dir/string tmp-dir/string count/int:
   devices := json.decode (file.read-content "$fleet-dir/devices.json")
   expect-equals count devices.size
   stream := directory.DirectoryStream tmp-dir
@@ -84,9 +102,18 @@ check-and-remove-identity-files fleet-dir tmp-dir count:
     expect (identity-file.ends-with "identity")
     without-extension := identity-file[..identity-file.size - 9]
     expect (devices.contains without-extension)
+    check-identity-file "$tmp-dir/$identity-file" --id=without-extension
     file.delete "$tmp-dir/$identity-file"
   expect-null stream.next
   // Reset the devices.json.
   devices-stream := file.Stream.for-write "$fleet-dir/devices.json"
   devices-stream.out.write "{}"
   devices-stream.close
+
+check-identity-file identity-path/string --id/string:
+  identity := ubjson.decode (base64.decode (file.read-content identity-path))
+  expect-equals id identity["artemis.device"]["device_id"]
+  expect-equals "$TEST-ORGANIZATION-UUID" identity["artemis.device"]["organization_id"]
+  expect-not-null identity["artemis.device"]["hardware_id"]
+  expect-not-null identity["artemis.broker"]
+  expect-not-null identity["broker"]
