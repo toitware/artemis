@@ -8,7 +8,7 @@ import artemis.service.service
 import artemis.service.device as service
 import artemis.cli.utils show OptionUuid
 import artemis.service.storage show Storage
-import artemis.service.run.host show NullWatchdog
+import artemis.service.run.null-watchdog show NullWatchdog
 import uuid
 import watchdog.provider as watchdog
 import watchdog show WatchdogServiceClient
