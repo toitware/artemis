@@ -96,7 +96,19 @@ class HttpArtemisServer extends HttpServer:
     super port
 
   run-command command/int encoded/ByteArray user-id/string? -> any:
-    data := json.decode encoded
+    data := ?
+
+    if command == COMMAND-UPLOAD-SERVICE-IMAGE_:
+      meta-end := encoded.index-of '\0'
+      meta := encoded[0..meta-end]
+      content := encoded[meta-end + 1 ..]
+      data = {
+        "meta": meta,
+        "content": content,
+      }
+    else:
+      data = json.decode encoded
+
     print "$Time.now: Artemis request $(ARTEMIS-COMMAND-TO-STRING.get command) ($command) for $user-id with $data."
     if user-id and not users.contains user-id:
       throw "User not found: $user-id"
@@ -348,13 +360,15 @@ class HttpArtemisServer extends HttpServer:
     return sdk-service-versions
 
   upload-service-image data/Map:
-    sdk-version := data["sdk_version"]
-    service-version := data["service_version"]
-    image-id := data["image_id"]
-    organization-id := data.get "organization_id"
-    force := data.get "force"
+    meta := json.decode data["meta"]
+    content := data["content"]
+    sdk-version := meta["sdk_version"]
+    service-version := meta["service_version"]
+    image-id := meta["image_id"]
+    organization-id := meta.get "organization_id"
+    force := meta.get "force"
 
-    image-binaries[image-id] = base64.decode data["image_content"]
+    image-binaries[image-id] = content
     // Update any existing entry if there is already one.
     sdk-service-versions.do: | entry/Map |
       if entry["sdk_version"] == sdk-version and entry["service_version"] == service-version:
@@ -374,9 +388,10 @@ class HttpArtemisServer extends HttpServer:
       new-entry["organization_id"] = organization-id
     sdk-service-versions.add new-entry
 
-  download-service-image data/Map -> string:
-    image := data["image"]
-    return base64.encode image-binaries[image]
+  download-service-image data/Map -> BinaryResponse:
+    image-id := data["image"]
+    image-bin := image-binaries.get image-id
+    return BinaryResponse image-bin image-bin.size
 
   sign-up data/Map:
     email := data["email"]
