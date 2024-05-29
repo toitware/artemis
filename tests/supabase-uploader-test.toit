@@ -39,15 +39,17 @@ run-main-test
     ]
     expect-not available-sdks.is-empty
 
-  // Check that the snapshot was written into the snapshot directory.
+  // Check that the snapshots were written into the snapshot directory.
+  // We have two snapshots since we have two chip-families: esp32 and host.
   files-iterator := directory.DirectoryStream tmp-dir
   files := []
   while file-name := files-iterator.next: files.add file-name
   files-iterator.close
-  expect-equals 1 files.size
+  expect-equals 2 files.size
 
   // Delete the files.
   file.delete "$tmp-dir/$files[0]"
+  file.delete "$tmp-dir/$files[1]"
 
   // Check that the file was deleted.
   files-iterator = directory.DirectoryStream tmp-dir
