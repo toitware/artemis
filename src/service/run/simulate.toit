@@ -11,6 +11,7 @@ import uuid
 import watchdog.provider as watchdog
 import watchdog show Watchdog WatchdogServiceClient
 
+import .null-pin-trigger
 import .null-watchdog
 import ..utils show decode-server-config
 import ..service show run-artemis
@@ -51,8 +52,7 @@ run-host --pod-path/string --identity-path/string --cache/cli.Cache -> none:
     run-host --pod=pod --identity-path=identity-path --cache=cache
 
 run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
-  watchdog-provider := watchdog.WatchdogServiceProvider
-      --system-watchdog=NullWatchdog
+  watchdog-provider := watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog
   watchdog-provider.install
 
   client/WatchdogServiceClient := (WatchdogServiceClient).open as WatchdogServiceClient
@@ -105,5 +105,5 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
           server-config
           --watchdog=watchdog
           --storage=storage
+          --pin-trigger-manager=NullPinTriggerManager
       sleep sleep-duration
-      print

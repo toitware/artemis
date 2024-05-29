@@ -2,6 +2,8 @@
 
 import cli
 import encoding.base64
+import encoding.ubjson
+import host.file
 import uuid
 
 import .utils_
@@ -17,6 +19,7 @@ import ..organization
 import ..pod
 import ..pod-registry
 import ..pod-specification
+import ..sdk
 import ..server-config
 import ..ui
 import ..utils
@@ -166,6 +169,46 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
   cmd.add max-offline-cmd
 
   cmd.add (create-container-command config cache ui)
+
+  build-image-cmd := cli.Command "build-image"
+      --help="""
+        Build a firmware image for this device.
+
+        The firmware can, for example, be used for OTA updates.
+
+        For devices that run on hosts, this command can also produce a tarball
+        with the necessary files to run the device's firmware.
+
+        If no pod is specified, the one specified in the fleet is used.
+        """
+      --options=[
+        cli.Option "output"
+            --short-name="o"
+            --type="file"
+            --help="The output file for the firmware image."
+            --required,
+        cli.Flag "tar"
+            --help="Create a tarball with the necessary files to run the firmware.",
+        cli.Option "local"
+            --help="A local pod file to build the firmware from.",
+        cli.Option "remote"
+            --help="A remote reference to a pod to build the firmware from.",
+      ]
+      --rest=[
+        cli.Option "device-rest"
+            --help="ID, name or alias of the device.",
+      ]
+      --examples=[
+        cli.Example "Build a firmware image for the default device (see 'device default'):"
+            --arguments="--output firmware.ota",
+        cli.Example "Build a firmware image for the device big-whale:"
+            --arguments="--output firmware.ota big-whale",
+        cli.Example "Build a tarball with the necessary files to run the firmware for the default device:"
+            --arguments="--output firmware.tar --tar",
+      ]
+      --run=:: build-image it config cache ui
+  cmd.add build-image-cmd
+
   return [cmd]
 
 with-device
@@ -196,11 +239,12 @@ with-device
 
     block.call device fleet.artemis_ fleet
 
-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device := parsed["device"]
-  local := parsed["local"]
-  remote := parsed["remote"]
-
+pod-for_ -> Pod
+    --local/string?
+    --remote/string?
+    --fleet/FleetWithDevices
+    --ui/Ui
+    [--on-absent]:
   reference/PodReference? := null
   if local:
     if remote:
@@ -208,17 +252,24 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   else if remote:
     reference = PodReference.parse remote --allow-name-only --ui=ui
   else:
-    ui.abort "No pod specified."
+    return on-absent.call
+
+  if reference:
+    return fleet.download reference
+
+  return Pod.from-file local
+      --organization-id=fleet.organization-id
+      --artemis=fleet.artemis_
+      --ui=ui
+
+update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  device := parsed["device"]
+  local := parsed["local"]
+  remote := parsed["remote"]
 
   with-device parsed config cache ui: | device/DeviceFleet artemis/Artemis fleet/FleetWithDevices |
-    pod/Pod := ?
-    if reference:
-      pod = fleet.download reference
-    else:
-      pod = Pod.from-file local
-          --organization-id=fleet.organization-id
-          --artemis=artemis
-          --ui=ui
+    pod := pod-for_ --local=local --remote=remote --fleet=fleet --ui=ui --on-absent=:
+      ui.abort "No pod specified."
     artemis.update --device-id=device.id --pod=pod
 
 default-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -323,6 +374,34 @@ set-max-offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     artemis.config-set-max-offline --device-id=device.id
           --max-offline-seconds=max-offline-seconds
     ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
+
+build-image parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  output := parsed["output"]
+  tar := parsed["tar"]
+  local := parsed["local"]
+  remote := parsed["remote"]
+
+  with-device parsed config cache ui: | fleet-device/DeviceFleet artemis/Artemis fleet/FleetWithDevices |
+    pod := pod-for_
+        --local=local
+        --remote=remote
+        --fleet=fleet
+        --ui=ui
+        --on-absent=(: fleet.pod-for fleet-device)
+
+    device/DeviceDetailed := artemis.device-for --id=fleet-device.id
+    firmware := Firmware --cache=cache --device=device --pod=pod
+    sdk := get-sdk pod.sdk-version --cache=cache
+    with-tmp-directory: | tmp-dir/string |
+      device-specific-path := "$tmp-dir/device-specific"
+      device-specific := firmware.device-specific-data
+      file.write-content --path=device-specific-path device-specific
+      bytes := sdk.firmware-extract
+          --format=(tar ? "tar" : "binary")
+          --envelope-path=pod.envelope-path
+          --device-specific-path=device-specific-path
+      file.write-content --path=output bytes
+      ui.info "Firmware successfully written to '$output'."
 
 device-to-json_
     fleet-device/DeviceFleet

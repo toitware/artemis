@@ -8,6 +8,7 @@ import artemis.service.service
 import artemis.service.device as service
 import artemis.cli.utils show OptionUuid
 import artemis.service.storage show Storage
+import artemis.service.run.null-pin-trigger show NullPinTriggerManager
 import artemis.service.run.null-watchdog show NullWatchdog
 import uuid
 import watchdog.provider as watchdog
@@ -65,6 +66,7 @@ run
         --no-start-ntp
         --watchdog=watchdog
         --storage=storage
+        --pin-trigger-manager=NullPinTriggerManager
     sleep sleep-duration
     watchdog.stop
     watchdog.close

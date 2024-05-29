@@ -29,8 +29,13 @@ ENVELOPE-PATH ::= "envelopes"
 GIT-APP-PATH ::= "git_app"
 POD-MANIFEST-PATH ::= "pod/manifest"
 POD-PARTS-PATH ::= "pod/parts"
-service-image-cache-key --service-version/string --sdk-version/string --artemis-config/ServerConfig -> string:
-  return "$artemis-config.name/service/$service-version/$(sdk-version).image"
+service-image-cache-key -> string
+    --service-version/string
+    --sdk-version/string
+    --artemis-config/ServerConfig
+    --word-size/int:
+  return "$artemis-config.name/service/$service-version/$(sdk-version)-$(word-size).image"
+
 application-image-cache-key id/uuid.Uuid --broker-config/ServerConfig -> string:
   return "$broker-config.name/application/images/$(id).image"
 

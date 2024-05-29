@@ -639,6 +639,12 @@ class FleetWithDevices extends Fleet:
     return new-file
 
   /**
+  Returns the pod for the given $device.
+  */
+  pod-for device/DeviceFleet -> Pod:
+    return download (pod-reference-for-group device.group)
+
+  /**
   Rolls out the local configuration to the broker.
 
   The $diff-bases is a list of pods to build patches against if

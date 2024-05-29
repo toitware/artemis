@@ -1079,9 +1079,10 @@ class NewOldOffsets:
     // The rolling Adler checksum requires that we 'unadd' data that is rolling
     // out of the window.  Special-case the initial area where we are near the
     // start and there is no data to unadd.
-    for i:= 0; i < section-size; i += 4:
-      byte-positions-per-word.repeat:
-        adlers[it].add new-bytes i + 2 + it i + 4 + it
+    if new-bytes.size >= 2 * section-size:
+      for i:= 0; i < section-size; i += 4:
+        byte-positions-per-word.repeat:
+          adlers[it].add new-bytes (i + 2 + it) (i + 4 + it)
 
     for i := 0; i < new-bytes.size - 2 * section-size; i += 4:
       byte-positions-per-word.repeat: | j |

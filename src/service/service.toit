@@ -25,6 +25,7 @@ import .channels
 import .device
 import .ntp
 import .jobs
+import .pin-trigger
 import .scheduler show Scheduler
 import .storage show Storage
 import .synchronize show SynchronizeJob
@@ -36,6 +37,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
     --start-ntp/bool=true
     --watchdog/Watchdog
     --storage/Storage
+    --pin-trigger-manager/PinTriggerManager
     --cause/string?=null:
   logger := log.default.with-name "artemis"
   tags := {"device": device.id, "version": ARTEMIS-VERSION}
@@ -47,7 +49,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   Process.current.priority = Process.PRIORITY-HIGH
 
   scheduler ::= Scheduler logger device --watchdog=watchdog
-  containers ::= ContainerManager logger scheduler
+  containers ::= ContainerManager logger scheduler pin-trigger-manager
   broker := BrokerService logger server-config
 
   // Steal the job states, so if we do not shut down

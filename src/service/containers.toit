@@ -26,7 +26,7 @@ import artemis-pkg.artemis
     TriggerTouch
 
 import .jobs
-import .esp32.pin-trigger
+import .pin-trigger
 import .scheduler
 import ..shared.utils as utils
 
@@ -39,9 +39,8 @@ class ContainerManager:
   images-bundled_ ::= {}  // Set<uuid.Uuid>
   pin-trigger-manager_/PinTriggerManager ::= ?
 
-  constructor logger/log.Logger .scheduler_:
+  constructor logger/log.Logger .scheduler_ .pin-trigger-manager_:
     logger_ = logger.with-name "containers"
-    pin-trigger-manager_ = PinTriggerManager scheduler_ logger_
     containers.images.do: | image/containers.ContainerImage |
       images_.add image.id
       // TODO(kasper): It feels like a bit of a hack to determine
@@ -77,7 +76,7 @@ class ContainerManager:
           job := get --name=required-name
           if job: job.is-required_ = true
 
-    pin-trigger-manager_.start jobs_.values
+    pin-trigger-manager_.start jobs_.values --scheduler=scheduler_ --logger=logger_
 
   setup-deep-sleep-triggers:
     non-delayed-jobs := jobs_.values.filter: | job/Job | job.scheduler-delayed-until_ == null
