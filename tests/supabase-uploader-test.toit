@@ -208,7 +208,8 @@ run-test test-cli/TestCli:
     files := []
     while file-name := files-iterator.next: files.add file-name
     files-iterator.close
-    expect-equals 1 files.size
+    // Two different snapshots due to two different chip families.
+    expect-equals 2 files.size
 
     delete-service-version test-cli service-version
 
