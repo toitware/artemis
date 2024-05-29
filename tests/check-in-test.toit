@@ -19,6 +19,7 @@ import artemis.service.device show Device
 import artemis.service.storage show Storage
 import artemis.shared.server-config show ServerConfig
 import artemis.shared.constants show COMMAND-CHECK-IN_
+import artemis.service.run.null-pin-trigger show NullPinTriggerManager
 import artemis.service.run.null-watchdog show NullWatchdog
 import ..tools.http-servers.artemis-server
 
@@ -79,6 +80,7 @@ run-test --insert-device/bool:
             --watchdog=watchdog
             --no-start-ntp
             --storage=storage
+            --pin-trigger-manager=NullPinTriggerManager
 
       checkin-data := checkin-latch.get
       if not insert-device:

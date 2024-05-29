@@ -23,6 +23,11 @@ import supabase
 import .client
 import .utils
 
+CHIP-FAMILIES ::= [
+  "esp32",
+  "host",
+]
+
 main args:
   // Use the same config as the CLI.
   // This way we get the same server configurations and oauth tokens.
@@ -100,9 +105,6 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --required,
         cli.OptionString "service-version"
             --help="The version of the service to use.",
-        cli.OptionEnum "chip-family" ["esp32"]
-            --default="esp32"
-            --help="The chip family to upload the service for.",
         cli.OptionString "commit"
             --help="The commit to build.",
         cli.Flag "local"
@@ -137,7 +139,6 @@ service-path-in-repository root/string --chip-family/string -> string:
 build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   sdk-version := parsed["sdk-version"]
   service-version := parsed["service-version"]
-  chip-family := parsed["chip-family"]
   commit := parsed["commit"]
   use-local := parsed["local"]
   snapshot-directory := parsed["snapshot-directory"]
@@ -181,19 +182,18 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       full-service-version = service-version
       if commit: full-service-version += "-$commit"
 
-    // Since we are potentially reusing an ID, we need to remove the cached version.
-    cache-key := service-image-cache-key
-        --sdk-version=sdk-version
-        --service-version=full-service-version
-        --artemis-config=get-artemis-config parsed config
-    cache.remove cache-key
+    artemis-config := get-artemis-config parsed config
+    // Since we are potentially reusing an ID, we need to remove the cached versions.
+    [32, 64].do: | word-size |
+      cache-key := service-image-cache-key
+          --sdk-version=sdk-version
+          --service-version=full-service-version
+          --artemis-config=artemis-config
+          --word-size=word-size
+      cache.remove cache-key
 
-    service-source-path := service-path-in-repository repo-path --chip-family=chip-family
-    if chip-family == "esp32" and not file.is-file service-source-path:
-      // Older versions of Artemis used 'device.toit' as the entry point
-      // for all ESP32 chips. We preserve compatibility with that by
-      // mapping 'esp32' to 'device' if we can't find it under the new name.
-      service-source-path = service-path-in-repository repo-path --chip-family="device"
+    service-source-paths := CHIP-FAMILIES.map: | chip-family/string |
+      service-path-in-repository repo-path --chip-family=chip-family
 
     ui.info "Generating version.toit."
     exit-status := pipe.run-program
@@ -204,50 +204,62 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
     ar-file := "$tmp-dir/service.ar"
     ui.info "Creating snapshot."
 
-    snapshot-path := "$tmp-dir/service.snapshot"
-    sdk.compile-to-snapshot service-source-path
-        --out=snapshot-path
-        --flags=["-O$optimization-level"]
+    snapshot-paths := {:}
+    CHIP-FAMILIES.do: | chip-family/string |
+      service-source-path := service-path-in-repository repo-path --chip-family=chip-family
+      if not file.is-file service-source-path:
+        throw "Service source file '$service-source-path' does not exist."
+      snapshot-path := "$tmp-dir/service-$(chip-family).snapshot"
+      sdk.compile-to-snapshot service-source-path
+          --out=snapshot-path
+          --flags=["-O$optimization-level"]
+      snapshot-paths[chip-family] = snapshot-path
 
-    create-image-archive snapshot-path --sdk=sdk --out=ar-file
+    create-image-archive snapshot-paths --sdk=sdk --out=ar-file
 
     with-upload-client parsed config ui: | client/UploadClient |
       image-id := (uuid.uuid5 "artemis"
           "$Time.monotonic-us $sdk-version $full-service-version").stringify
 
       image-content := file.read-content ar-file
-      snapshot-content := file.read-content snapshot-path
+      snapshots := snapshot-paths.map: | _ snapshot-path | file.read-content snapshot-path
       client.upload
           --sdk-version=sdk-version
           --service-version=full-service-version
           --image-id=image-id
           --image-content=image-content
-          --snapshot=snapshot-content
+          --snapshots=snapshots
           --organization-id=organization-id
           --force=force
 
-      cache-snapshot snapshot-content
-          --output-directory=snapshot-directory
+      snapshots.do: | _ snapshot-content/ByteArray |
+        cache-snapshot snapshot-content
+            --output-directory=snapshot-directory
 
-create-image-archive snapshot-path/string --sdk/Sdk --out/string:
+create-image-archive snapshot-paths/Map --sdk/Sdk --out/string:
   ar-stream := file.Stream.for-write out
   ar-writer := ar.ArWriter ar-stream
 
-  ar-writer.add "artemis" """{ "magic": "🐅", "version": 1 }"""
+  ar-writer.add "artemis" """{ "magic": "🐅", "version": 2 }"""
 
   with-tmp-directory: | tmp-dir/string |
-    [32, 64].do: | word-size |
-      // Note that 'ar' file names can only be 15 characters long.
-      image-name := "service-$(word-size).img"
-      image-path := "$tmp-dir/$image-name"
-      sdk.compile-snapshot-to-image
-          --snapshot-path=snapshot-path
-          --out=image-path
-          --word-size=word-size
+    snapshot-paths.do: | chip-family/string snapshot-path/string |
+      [32, 64].do: | word-size |
+        // Note that 'ar' file names can only be 15 characters long.
+        image-name := "$(chip-family)-$(word-size).img"
+        image-path := "$tmp-dir/$image-name"
+        sdk.compile-snapshot-to-image
+            --snapshot-path=snapshot-path
+            --out=image-path
+            --word-size=word-size
 
-      ar-writer.add image-name (file.read-content image-path)
+        ar-writer.add image-name (file.read-content image-path)
+        if chip-family == "esp32":
+          // Add the same image again with the deprecated name.
+          // TODO(florian): remove deprecated image name without chip-family.
+          ar-writer.add "service-$(word-size).img" (file.read-content image-path)
 
-    ar-stream.close
+  ar-stream.close
 
 upload-cli-snapshot config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   snapshot := parsed["snapshot"]

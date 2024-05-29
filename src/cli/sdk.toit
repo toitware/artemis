@@ -144,9 +144,9 @@ class Sdk:
     ]).trim
 
   /**
-  Extracts the firmware from the given $envelope-path.
+  Variant of $(firmware-extract --format --envelope-path).
 
-  If $device-specific-path is given, it is given to the firmware tool.
+  Uses the format "ubjson" and decodes the result.
 
   The returned map has the following structure:
   ```
@@ -168,18 +168,30 @@ class Sdk:
   ```
   */
   firmware-extract --envelope-path/string --device-specific-path/string?=null -> Map:
+    encoded := firmware-extract
+        --format="ubjson"
+        --envelope-path=envelope-path
+        --device-specific-path=device-specific-path
+    return ubjson.decode encoded
+
+  /**
+  Extracts the firmware from the given $envelope-path using the specified $format.
+
+  If $device-specific-path is given, it is given to the firmware tool.
+  */
+  firmware-extract --envelope-path/string --format/string --device-specific-path/string?=null -> ByteArray:
     with-tmp-directory: | tmp-dir |
-      firmware-ubjson-path := "$tmp-dir/firmware.ubjson"
+      out-path := "$tmp-dir/extracted-firmware"
       args := [
         "extract",
         "-e", envelope-path,
-        "--format", "ubjson",
-        "--output", firmware-ubjson-path,
+        "--format", format,
+        "--output", out-path,
       ]
       if device-specific-path: args += [ "--config", device-specific-path ]
 
       run-firmware-tool args
-      return ubjson.decode (file.read-content firmware-ubjson-path)
+      return file.read-content out-path
     unreachable
 
   /**
@@ -338,6 +350,24 @@ class Sdk:
     file = reader.find "\$sdk-version"
     if file == null: throw "SDK version not found in envelope."
     return file.content.to-string
+
+  static get-word-bit-size-from --envelope/ByteArray -> int:
+    reader := ar.ArReader.from-bytes envelope
+    file := reader.find "\$metadata"
+    if file != null:
+      metadata := json.decode file.content
+      return metadata["word-size"] * 8
+    return 32
+
+  static get-chip-family-from --envelope/ByteArray -> string:
+    reader := ar.ArReader.from-bytes envelope
+    file := reader.find "\$metadata"
+    if file != null:
+      metadata := json.decode file.content
+      // Currently the platform and chip-family align.
+      return metadata["platform"]
+    return "esp32"
+
 
 /**
 Builds the URL of a released SDK with the given $version on GitHub.

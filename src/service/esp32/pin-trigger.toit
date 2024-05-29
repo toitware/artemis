@@ -20,6 +20,7 @@ import monitor
 import artemis-pkg.artemis show Trigger
 
 import ..containers
+import ..pin-trigger
 import ..scheduler
 
 class Watcher:
@@ -32,9 +33,9 @@ class Watcher:
 
   constructor.touch .gpio-pin .touch-pin .task:
 
-class PinTriggerManager:
-  scheduler_/Scheduler
-  logger_/log.Logger
+class PinTriggerManagerEsp32 implements PinTriggerManager:
+  scheduler_/Scheduler? := null
+  logger_/log.Logger? := null
   // A list of watchers for each level.
   // watchers[0] watch for level 0.
   // watchers[1] watch for level 1.
@@ -50,8 +51,6 @@ class PinTriggerManager:
   setup-watcher-mutex_ ::= monitor.Mutex
   touch-mutex_ ::= monitor.Mutex
 
-  constructor .scheduler_ .logger_:
-
   /**
   Starts the trigger manager.
 
@@ -60,7 +59,9 @@ class PinTriggerManager:
   - triggers all jobs that were triggered by pins.
   - starts watching pins that are used to trigger jobs.
   */
-  start jobs/List -> none:
+  start jobs/List --scheduler/Scheduler --logger/log.Logger -> none:
+    scheduler_ = scheduler
+    logger_ = logger
     // Handle the triggers first. This way we mark jobs that need to
     // run as triggered before we start watching the pins (thus avoiding
     // setting up watchers).

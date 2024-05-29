@@ -2,7 +2,9 @@
 
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import ar
 import cli
+import io
 // TODO(florian): these should come from the cli package.
 import artemis.cli.config as cli
 import artemis.cli.cache as cli
@@ -13,6 +15,7 @@ import snapshot show cache-snapshot
 import supabase
 import supabase.filter show equals
 
+import .client show AR-SNAPSHOT-HEADER
 import .utils
 
 main args:
@@ -87,8 +90,22 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
           ui.error exception
           ui.abort
 
-      uuid := cache-snapshot snapshot --output-directory=output-directory
-      ui.info "Wrote service snapshot $uuid."
+      ar-reader := ar.ArReader (io.Reader snapshot)
+      artemis-header := ar-reader.find AR-SNAPSHOT-HEADER
+      if not artemis-header:
+        // Deprecated direct snapshot format.
+        uuid := cache-snapshot snapshot --output-directory=output-directory
+        ui.info "Wrote service snapshot $uuid."
+      else:
+        // Reset the reader.
+        // The header should be the first file, but it doesn't cost much to start
+        // from scratch and avoid hard-to-find bugs.
+        ar-reader = ar.ArReader (io.Reader snapshot)
+        while file/ar.ArFile := ar-reader.next:
+          if file.name == "AR-SNAPSHOT-HEADER":
+            continue
+          uuid := cache-snapshot file.content --output-directory=output-directory
+          ui.info "Wrote service snapshot $uuid."
 
     if not sdk-version and not service-version:
       // Download all CLI snapshots.

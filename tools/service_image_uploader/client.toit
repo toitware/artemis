@@ -1,10 +1,12 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import ar
 import certificate-roots
 import cli
 import encoding.base64
 import encoding.json
 import http
+import io
 import net
 import supabase
 import supabase.filter show equals
@@ -22,12 +24,14 @@ import uuid
 
 import .utils
 
+AR-SNAPSHOT-HEADER ::= "<snapshots>"
+
 interface UploadClient:
   close
   upload
       --sdk-version/string --service-version/string
       --image-id/string --image-content/ByteArray
-      --snapshot/ByteArray
+      --snapshots/Map  // From chip-family to ByteArray.
       --organization-id/string?
       --force/bool
 
@@ -58,7 +62,7 @@ class UploadClientSupabase implements UploadClient:
   upload
       --sdk-version/string --service-version/string
       --image-id/string --image-content/ByteArray
-      --snapshot/ByteArray
+      --snapshots/Map  // From chip-family to ByteArray.
       --organization-id/string?
       --force/bool:
     client_.ensure-authenticated: | reason/string |
@@ -136,10 +140,15 @@ class UploadClientSupabase implements UploadClient:
 
     ui_.info "Successfully uploaded $service-version into service-images/$image-id."
 
-    ui_.info "Uploading snapshot."
+    ui_.info "Uploading snapshots."
+    buffer := io.Buffer
+    ar-writer := ar.ArWriter buffer
+    ar-writer.add AR-SNAPSHOT-HEADER "<snapshots>"
+    snapshots.do: | chip-family/string snapshot/ByteArray |
+      ar-writer.add chip-family snapshot
     client_.storage.upload
       --path="service-snapshots/$image-id"
-      --content=snapshot
+      --content=buffer.bytes
     ui_.info "Successfully uploaded the snapshot."
 
   upload --snapshot-uuid/string cli-snapshot/ByteArray:
@@ -174,7 +183,7 @@ class UploadClientHttp implements UploadClient:
   upload
       --sdk-version/string --service-version/string
       --image-id/string --image-content/ByteArray
-      --snapshot/ByteArray
+      --snapshots/Map  // From chip-family to ByteArray.
       --organization-id/string?
       --force/bool:
     // We only upload the image.

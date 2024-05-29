@@ -225,6 +225,7 @@ class Artemis:
     // Extract the sdk version from the envelope.
     envelope := file.read-content envelope-path
     envelope-sdk-version := Sdk.get-sdk-version-from --envelope=envelope
+    envelope-chip-family := Sdk.get-chip-family-from --envelope=envelope
     if sdk-version:
       if sdk-version != envelope-sdk-version:
         if not (is-dev-setup and os.env.get "DEV_TOIT_REPO_PATH"):
@@ -232,6 +233,7 @@ class Artemis:
     else:
       sdk-version = envelope-sdk-version
       check-sdk-service-version.call
+    envelope-word-bit-size := Sdk.get-word-bit-size-from --envelope=envelope
 
     sdk := get-sdk sdk-version --cache=cache_
 
@@ -343,7 +345,8 @@ class Artemis:
       // Get the prebuilt Artemis service.
       artemis-service-image-path := get-service-image-path_
           --organization-id=organization-id
-          --word-size=32  // TODO(florian): we should get the bits from the envelope.
+          --chip-family=envelope-chip-family
+          --word-size=envelope-word-bit-size
           --sdk=sdk-version
           --service=service-version
 
@@ -609,12 +612,14 @@ class Artemis:
       --organization-id/uuid.Uuid
       --sdk/string
       --service/string
+      --chip-family/string
       --word-size/int:
     if word-size != 32 and word-size != 64: throw "INVALID_ARGUMENT"
     service-key := service-image-cache-key
         --service-version=service
         --sdk-version=sdk
         --artemis-config=artemis-config_
+        --word-size=word-size
     return cache_.get-file-path service-key: | store/cache.FileStore |
       server := connected-artemis-server --no-authenticated
       entry := server.list-sdk-service-versions
@@ -626,8 +631,19 @@ class Artemis:
       image-name := entry.first["image"]
       service-image-bytes := server.download-service-image image-name
       ar-reader := ar.ArReader.from-bytes service-image-bytes
-      ar-file := ar-reader.find "service-$(word-size).img"
-      store.save ar-file.content
+      artemis-file := ar-reader.find "artemis"
+      metadata := json.decode artemis-file.content
+      // Reset the reader. The images should be after the metadata, but
+      // doesn't hurt.
+      ar-reader = ar.ArReader.from-bytes service-image-bytes
+      if metadata["version"] == 1:
+        if chip-family != "esp32":
+          ui_.abort "Unsupported chip family '$chip-family' for service $service and SDK $sdk."
+        ar-file := ar-reader.find "service-$(word-size).img"
+        store.save ar-file.content
+      else:
+        ar-file := ar-reader.find "$(chip-family)-$(word-size).img"
+        store.save ar-file.content
 
   /**
   Updates the goal state of the device with the given $device-id.
