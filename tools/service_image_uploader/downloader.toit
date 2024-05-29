@@ -101,8 +101,8 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
         // The header should be the first file, but it doesn't cost much to start
         // from scratch and avoid hard-to-find bugs.
         ar-reader = ar.ArReader (io.Reader snapshot)
-        while file/ar.ArFile := ar-reader.next:
-          if file.name == "AR-SNAPSHOT-HEADER":
+        while file/ar.ArFile? := ar-reader.next:
+          if file.name == AR-SNAPSHOT-HEADER:
             continue
           uuid := cache-snapshot file.content --output-directory=output-directory
           ui.info "Wrote service snapshot $uuid."
