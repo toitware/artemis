@@ -174,10 +174,9 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     }
 
   download-service-image image/string -> ByteArray:
-    encoded-image := send-request_ COMMAND-DOWNLOAD-SERVICE-IMAGE_ {
+    return send-request_ COMMAND-DOWNLOAD-SERVICE-IMAGE_ {
       "image": image,
     }
-    return base64.decode encoded-image
 
   send-request_ command/int data/Map -> any:
     encoded/ByteArray := #[command] + (json.encode data)
@@ -197,6 +196,10 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
 
     if response.status-code != http.STATUS-OK and response.status-code != http.STATUS-IM-A-TEAPOT:
       throw "HTTP error: $response.status-code $response.status-message"
+
+    if (command == COMMAND-DOWNLOAD-SERVICE-IMAGE_)
+        and response.status-code != http.STATUS-IM-A-TEAPOT:
+      return utils.read-all response.body
 
     decoded := json.decode-stream response.body
     if response.status-code == http.STATUS-IM-A-TEAPOT:

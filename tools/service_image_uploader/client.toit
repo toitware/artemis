@@ -178,11 +178,10 @@ class UploadClientHttp implements UploadClient:
       --organization-id/string?
       --force/bool:
     // We only upload the image.
-    send-request_ COMMAND-UPLOAD-SERVICE-IMAGE_ {
+    send-request_ COMMAND-UPLOAD-SERVICE-IMAGE_ --content=image-content {
       "sdk_version": sdk-version,
       "service_version": service-version,
       "image_id": image-id,
-      "image_content": base64.encode image-content,
       "organization_id": organization-id,
       "force": force,
     }
@@ -191,8 +190,9 @@ class UploadClientHttp implements UploadClient:
     throw "UNIMPLEMENTED"
 
   // TODO(florian): share this code with the cli and the service.
-  send-request_ command/int data/Map -> any:
-    encoded := #[command] + (json.encode data)
+  send-request_ command/int meta-data/Map --content/ByteArray -> any:
+    encoded-meta := json.encode meta-data
+    encoded := #[command] + encoded-meta + #[0] + content
 
     headers := null
     if server-config_.admin-headers:
