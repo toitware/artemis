@@ -218,6 +218,10 @@ class JsonMap:
       format-error_ "$entry-type $key in $holder is not a list: $value"
     return value
 
+  get-optional-list key/string --entry-type/string="Entry" -> List?:
+    if not has-key key: return null
+    return get-list key --entry-type=entry-type
+
   /**
   Parses a string like "1h 30m 10s" or "1h30m10s" into seconds.
   Returns 0 if the string is empty.
@@ -338,7 +342,8 @@ class PodSpecification:
       json-container-description.warn-unused
       container
 
-    connections-entry := json-map.get-list "connections"
+    connections-entry := json-map.get-optional-list "connections"
+    if not connections-entry: connections-entry = []
     connections-entry.do:
       if it is not Map:
         format-error_ "Connection in pod specification is not a map: $it"

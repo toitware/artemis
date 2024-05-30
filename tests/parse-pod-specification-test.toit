@@ -167,9 +167,8 @@ test-errors:
 
   no-connections := new-valid
   no-connections.remove "connections"
-  expect-format-error
-      "Missing connections in pod specification."
-      no-connections
+  // Since hosts have an implicit connection, it is not required to have one in the spec.
+  PodSpecification.from-json no-connections --path="ignored" --ui=TestUi
 
   no-containers := new-valid
   no-containers.remove "containers"

@@ -192,6 +192,9 @@ class Artemis:
 
     write-base64-ubjson-to-file out-path identity
 
+  has-implicit-network_ chip-family/string -> bool:
+    return chip-family == "host"
+
   /**
   Customizes a generic Toit envelope with the given $specification.
     Also installs the Artemis service.
@@ -250,8 +253,8 @@ class Artemis:
     max-offline-seconds := specification.max-offline-seconds
     if max-offline-seconds > 0: device-config["max-offline"] = max-offline-seconds
 
-    if specification.connections.is-empty:
-      ui_.abort "No network connections configured."
+    if specification.connections.is-empty and not has-implicit-network_ envelope-chip-family:
+      ui_.warning "No network connections configured."
     connections := specification.connections.map: | connection/ConnectionInfo |
       connection.to-json
     device-config["connections"] = connections
