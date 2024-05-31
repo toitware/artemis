@@ -81,11 +81,6 @@ jobs:
           fi
           ls $QEMU_EXEC
 
-      - name: Install qemu dependency
-        if: runner.os == 'macOS'
-        run: |
-          brew install sdl2 libslirp
-
       - name: Setup environment
         shell: bash
         run: |
@@ -96,13 +91,15 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install ninja-build
+          # sdl2 is needed for the QEMU emulator.
+          sudo apt-get install ninja-build sdl2
           ninja --version
           cmake --version
       - name: Install dependencies - macOS
         if: runner.os == 'macOS'
         run: |
-          brew install ninja
+          # sdl2 and libslirp is needed for the QEMU emulator.
+          brew install ninja sdl2 libslirp
           ninja --version
           cmake --version
       - name: Install dependencies - Windows
