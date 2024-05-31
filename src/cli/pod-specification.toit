@@ -281,28 +281,36 @@ Relevant data includes (but is not limited to):
 class PodSpecification:
   name/string
   sdk-version/string?
-  envelope/string?
+  envelope/string
   artemis-version/string
   max-offline-seconds/int
   connections/List  // Of $ConnectionInfo.
   containers/Map  // Of name -> $Container.
   path/string
-  chip/string?
 
   constructor.from-json --.path/string data/Map --ui/Ui:
     json-map := JsonMap data --holder="pod specification" --ui=ui
     name = json-map.get-string "name"
     artemis-version = json-map.get-string "artemis-version"
     sdk-version = json-map.get-optional-string "sdk-version"
-    envelope = json-map.get-optional-string "firmware-envelope"
+    json-envelope := json-map.get-optional-string "firmware-envelope"
 
     if sdk-version and not semver.is-valid sdk-version:
       format-error_ "Invalid sdk-version: $sdk-version"
 
-    if not sdk-version and not envelope:
-      format-error_ "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
+    if not sdk-version:
+      ui.warning "Implicit 'sdk-version' is deprecated. Please specify 'sdk-version'."
 
-    chip = json-map.get-optional-string "chip"
+    chip := json-map.get-optional-string "chip"
+    if not json-envelope and not chip:
+      ui.warning "Implicit envelope 'esp32' is deprecated. Please specify 'firmware-envelope'."
+      envelope = "esp32"
+    else if not json-envelope and chip:
+      ui.warning "The 'chip' property is deprecated. Use 'firmware-envelope' instead."
+    else if json-envelope and chip:
+      ui.warning "The 'chip' property is deprecated. Only 'firmware-envelope' is used."
+
+    envelope = json-envelope
 
     if json-map.has-key "apps" and json-map.has-key "containers":
       format-error_ "Both 'apps' and 'containers' are present in pod specification."
