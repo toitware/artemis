@@ -33,8 +33,9 @@ service-image-cache-key -> string
     --service-version/string
     --sdk-version/string
     --artemis-config/ServerConfig
+    --chip-family/string
     --word-size/int:
-  return "$artemis-config.name/service/$service-version/$(sdk-version)-$(word-size).image"
+  return "$artemis-config.name/service/$service-version/$(sdk-version)-$(chip-family)-$(word-size).image"
 
 application-image-cache-key id/uuid.Uuid --broker-config/ServerConfig -> string:
   return "$broker-config.name/application/images/$(id).image"
