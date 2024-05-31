@@ -11,6 +11,11 @@ on:
 
 env:
   EXCLUDED_SUPABASE_SERVICES: imgproxy,inbucket,pgadmin-schema-diff,migra,studio,deno-relay
+  # Qemu release page: https://github.com/espressif/qemu/releases/tag/esp-develop-8.2.0-20240122
+  QEMU_LINUX_URL: https://github.com/espressif/qemu/releases/download/esp-develop-8.2.0-20240122/qemu-xtensa-softmmu-esp_develop_8.2.0_20240122-x86_64-linux-gnu.tar.xz
+  QEMU_MACOS_URL: https://github.com/espressif/qemu/releases/download/esp-develop-8.2.0-20240122/qemu-xtensa-softmmu-esp_develop_8.2.0_20240122-aarch64-apple-darwin.tar.xz
+  QEMU_WINDOWS_URL: https://github.com/espressif/qemu/releases/download/esp-develop-8.2.0-20240122/qemu-xtensa-softmmu-esp_develop_8.2.0_20240122-x86_64-w64-mingw32.tar.xz
+
 
 jobs:
   build:
@@ -57,17 +62,29 @@ jobs:
           toit-version: ${{ steps.constants.outputs.toitVersion }}
 
       - name: Setup Qemu
-        # TODO(florian): Enable again when Windows tests work again.
-        # TODO(florian): Enable again on macOS once qemu is building again.
-        if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir -p downloads
           cd downloads
-          curl -L  -o qemu-${{ runner.os }}.tar.gz https://github.com/toitlang/qemu/releases/download/v0.0.3/qemu-${{ runner.os }}.tar.gz
-          tar x -f qemu-${{ runner.os }}.tar.gz
-          echo "QEMU_EXEC=${{ github.workspace }}/downloads/qemu-${{ runner.os }}/qemu-system-xtensa$BIN_EXTENSION" >> $GITHUB_ENV
+          if [[ ${{ runner.os }} == "Linux" ]]; then
+            curl -L -o qemu-linux.tar.xz $QEMU_LINUX_URL
+            tar x -f qemu-linux.tar.xz
+            echo "QEMU_EXEC=$PWD/qemu/bin/qemu-system-xtensa" >> $GITHUB_ENV
+          elif [[ ${{ runner.os }} == "macOS" ]]; then
+            curl -L -o qemu-macos.tar.xz $QEMU_MACOS_URL
+            tar x -f qemu-macos.tar.xz
+            echo "QEMU_EXEC=$PWD/qemu/bin/qemu-system-xtensa" >> $GITHUB_ENV
+          elif [[ ${{ runner.os }} == "Windows" ]]; then
+            curl -L -o qemu-windows.tar.xz $QEMU_WINDOWS_URL
+            tar x -f qemu-windows.tar.xz
+            echo "QEMU_EXEC=$PWD/qemu/bin/qemu-system-xtensa.exe" >> $GITHUB_ENV
+          fi
           ls $QEMU_EXEC
+
+      - name: Install qemu dependency
+        if: runner.os == 'macOS'
+        run: |
+          brew install sdl2 libslirp
 
       - name: Setup environment
         shell: bash
@@ -157,14 +174,6 @@ jobs:
         shell: bash
         run: |
           make disable-supabase-tests
-
-      - name: Disable Qemu tests - Windows, macOS
-        # TODO(florian): Figure out why the qemu tests fail on Windows.
-        # TODO(florian): Enable qemu tests on macos.
-        if: runner.os != 'Linux'
-        shell: bash
-        run: |
-          make disable-qemu-tests
 
       - name: Configure arm64
         if: matrix.arch == 'arm64'
