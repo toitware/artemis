@@ -156,6 +156,14 @@ class Artemis:
         --organization-id=organization-id
         --hardware-id=hardware-id
 
+  static device-from --identity-path/string -> Device:
+    identity := ubjson.decode (base64.decode (file.read-content identity-path))
+    device-map := identity["artemis.device"]
+    return Device
+        --hardware-id=uuid.parse device-map["hardware_id"]
+        --id=uuid.parse device-map["device_id"]
+        --organization-id=uuid.parse device-map["organization_id"]
+
   /**
   Writes an identity file.
 
