@@ -234,7 +234,8 @@ class Sdk:
     if (semver.compare version "v2.0.0-alpha.150") < 0:
       throw "Unsupported for SDK versions older than v2.0.0-alpha.150"
     firmware-tool := tools-executable "firmware"
-    json-output := pipe.backticks [firmware-tool, "show", "--format", "json", "-e", envelope-path]
+    pipe.run-program [firmware-tool, "show", "--output-format", "json", "-e", envelope-path]
+    json-output := pipe.backticks [firmware-tool, "show", "--output-format", "json", "-e", envelope-path]
     decoded := json.parse json-output.trim
     return decoded.get "chip"
 
