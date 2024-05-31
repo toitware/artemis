@@ -4,6 +4,7 @@ import cli
 import host.file
 import uuid
 
+import .device show build-image
 import .utils_
 import ..artemis
 import ..config
@@ -148,6 +149,43 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       ]
       --run=:: create-identity it config cache ui
   cmd.add create-identity-cmd
+
+  create-host-device-cmd := cli.Command "create-host-device"
+      --help="""
+        Create a host device tar file.
+
+        This operation is equivalent to creating a new identity and then using
+        'device extract --tar' of the newly created device.
+
+        The pod, provided by the group, must be a host device pod. That is,
+        the envelope that was used to build the pod must be for Linux, macOS, or
+        Windows.
+        """
+      --options=[
+        cli.Option "output"
+            --short-name="o"
+            --type="file"
+            --help="The file to write the host device tar to.",
+        cli.Option "name"
+            --help="The name of the host device.",
+        cli.Option "alias"
+            --help="The alias of the host device."
+            --multi
+            --split-commas,
+        cli.Option "group"
+            --default=DEFAULT-GROUP
+            --help="Add the device to a group.",
+      ]
+      --rest=[
+        OptionUuid "id"
+            --help="The ID of the host device.",
+      ]
+      --examples=[
+        cli.Example "Create a tar file 'device.tar' for a new host device 'berry' in group 'host-devices':"
+            --arguments="--name=berry --group=host-devices -o device.tar",
+      ]
+      --run=:: create-host-device it config cache ui
+  cmd.add create-host-device-cmd
 
   update-cmd := cli.Command "update"
       --help="Deprecated alias for 'roll-out'."
@@ -478,6 +516,26 @@ create-identity parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --output-directory=output-directory
     ui.info "Created identity file $path."
 
+create-host-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  output := parsed["output"]
+  name := parsed["name"]
+  aliases := parsed["alias"]
+  group := parsed["group"]
+  id := parsed["id"]
+
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    with-tmp-directory: | tmp-dir |
+      identity-path := fleet.create-identity
+          --id=id
+          --name=name
+          --aliases=aliases
+          --group=group
+          --output-directory=tmp-dir
+      device := Artemis.device-from --identity-path=identity-path
+      pod-ref := fleet.pod-reference-for-group group
+      pod := fleet.download pod-ref
+      build-image device pod --tar --output=output --cache=cache --ui=ui
+  ui.info "Firmware successfully written to '$output'."
 
 roll-out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   diff-bases := parsed["diff-base"]
