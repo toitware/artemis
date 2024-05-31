@@ -10,6 +10,7 @@ MINIMAL-SPEC ::= {
   "name": "test-pod-print",
   "sdk-version": "v0.0.0",
   "artemis-version": "v1.0.0",
+  "firmware-envelope": "esp32",
 }
 
 EXTENDED-SPEC ::= {

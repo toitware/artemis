@@ -3,6 +3,7 @@
   "$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
   "sdk-version": "1.0.0",
   "artemis-version": "3.0.0",
+  "firmware-envelope\"": "esp32",
   "connections": [
     {
       "type": "wifi",

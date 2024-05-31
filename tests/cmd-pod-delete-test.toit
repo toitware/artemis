@@ -17,6 +17,7 @@ create-pods name/string test-cli/TestCli fleet-dir/string --count/int -> List:
       "name": "$name",
       "sdk-version": "$test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
+      "firmware-envelope": "esp32",
       "connections": [
         {
           "type": "wifi",
