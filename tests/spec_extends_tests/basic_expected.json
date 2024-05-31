@@ -4,6 +4,7 @@
   "sdk-version": "1.0.0",
   "artemis-version": "1.0.0",
   "max-offline": "1h",
+  "firmware-envelope": "esp32",
   "connections": [
     {
       "type": "wifi",

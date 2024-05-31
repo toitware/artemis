@@ -26,14 +26,12 @@ class Pod:
   static ID-NAME_ ::= "id"
   static NAME-NAME_ ::= "name"
   static CUSTOMIZED-ENVELOPE-NAME_ := "customized.env"
-  static CHIP-NAME_ ::= "chip"
 
   static MAGIC-CONTENT_ ::= "frickin' sharks"
 
   envelope/ByteArray
   id/uuid.Uuid
   name/string
-  chip/string
 
   envelope-path_/string? := null
   sdk-version_/string? := null
@@ -43,7 +41,6 @@ class Pod:
   constructor
       --.id
       --.name
-      --.chip
       --tmp-directory/string
       --.envelope
       --envelope-path/string?=null:
@@ -71,11 +68,9 @@ class Pod:
         --specification=specification
     envelope := file.read-content envelope-path
     id := random-uuid
-    chip := specification.chip or "esp32"
     return Pod
         --id=id
         --name=specification.name
-        --chip=chip
         --tmp-directory=artemis.tmp-directory
         --envelope=envelope
         --envelope-path=envelope-path
@@ -83,7 +78,6 @@ class Pod:
   constructor.from-manifest manifest/Map [--download] --tmp-directory/string:
     id = uuid.parse manifest[ID-NAME_]
     name = manifest[NAME-NAME_]
-    chip = (manifest.get "chip") or "esp32"
     parts := manifest["parts"]
     byte-builder := io.Buffer
     writer := ArWriter byte-builder
@@ -97,7 +91,6 @@ class Pod:
     read-file path --ui=ui: | reader/io.Reader |
       id/uuid.Uuid? := null
       name/string? := null
-      chip/string? := null
       envelope/ByteArray? := null
 
       ar-reader := ArReader reader
@@ -112,10 +105,6 @@ class Pod:
           if id:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple IDs."
           id = uuid.Uuid file.content
-        else if file.name == CHIP-NAME_:
-          if chip:
-            ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple chip entries."
-          chip = file.content.to-string
         else if file.name == NAME-NAME_:
           if name:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple names."
@@ -129,9 +118,7 @@ class Pod:
       if not name:     ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain a name."
       if not envelope: ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain an envelope."
 
-      if not chip: chip = "esp32"
-      return Pod --id=id --chip=chip --name=name --envelope=envelope
-          --tmp-directory=tmp-directory
+      return Pod --id=id --name=name --envelope=envelope --tmp-directory=tmp-directory
     unreachable
 
   constructor.from-file path/string --organization-id/uuid.Uuid --artemis/Artemis --ui/Ui:
@@ -199,7 +186,6 @@ class Pod:
       ar-writer.add MAGIC-NAME_ MAGIC-CONTENT_
       ar-writer.add ID-NAME_ id.to-byte-array
       ar-writer.add NAME-NAME_ name.to-byte-array
-      ar-writer.add CHIP-NAME_ chip.to-byte-array
       ar-writer.add CUSTOMIZED-ENVELOPE-NAME_ envelope
 
   /**
@@ -214,7 +200,6 @@ class Pod:
     manifest := {:}
     manifest[ID-NAME_] = "$id"
     manifest[NAME-NAME_] = name
-    manifest[CHIP-NAME_] = chip
     part-names := {:}
     parts := {:}
     reader := io.Reader envelope

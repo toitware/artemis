@@ -31,6 +31,7 @@ run-test test-cli/TestCli fleet-dir/string:
       "name": "$name",
       "sdk-version": "$test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
+      "firmware-envelope": "esp32",
       "connections": [
         {
           "type": "wifi",

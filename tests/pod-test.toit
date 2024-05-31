@@ -9,7 +9,6 @@ main args:
     id := random-uuid
     pod := Pod
         --id=id
-        --chip="esp32"
         --name="name"
         --envelope="envelope".to-byte-array
         --tmp-directory=tmp-dir
@@ -20,5 +19,4 @@ main args:
     pod2 := Pod.parse out --ui=ui --tmp-directory=tmp-dir
     expect-equals id pod2.id
     expect-equals "name" pod2.name
-    expect-equals "esp32" pod2.chip
     expect-equals "envelope".to-byte-array pod2.envelope

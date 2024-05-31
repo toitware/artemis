@@ -224,7 +224,6 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --port=port
             --baud-rate=baud
             --partitions=partitions
-            --chip=pod.chip
         if should-make-default: make-default_ device-id config ui
         info := "Successfully flashed device $fleet-device.name ($device-id"
         if group: info += " in group '$group'"
@@ -233,14 +232,12 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         else: info += " ($pod.id)."
         ui.info info
       else if qemu-image:
-        if pod.chip != "esp32" and not pod.chip.starts-with "esp32-":
-          ui.abort "Cannot write to QEMU image file for chip '$pod.chip'."
+        check-pod-is-esp32_ --pod=pod --sdk=sdk --ui=ui
         sdk.extract-qemu-image
             --output-path=qemu-image
             --envelope-path=pod.envelope-path
             --config-path=config-path
             --partitions=partitions
-            --chip=pod.chip
         ui.info "Wrote to QEMU image file '$qemu-image'."
       else:
         ui.info "Simulating flash."
@@ -295,17 +292,22 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --port=port
             --baud-rate=baud
             --partitions=partitions
-            --chip=pod.chip
       else:
-        if pod.chip != "esp32" and not pod.chip.starts-with "esp32-":
-          ui.abort "Cannot write to QEMU image file for chip '$pod.chip'."
+        check-pod-is-esp32_ --pod=pod --sdk=sdk --ui=ui
         sdk.extract-qemu-image
             --output-path=qemu-image
             --envelope-path=pod.envelope-path
             --config-path=config-path
             --partitions=partitions
-            --chip=pod.chip
       identity := read-base64-ubjson identity-path
       // TODO(florian): Abstract away the identity format.
       device-id := uuid.parse identity["artemis.device"]["device_id"]
       ui.info "Successfully flashed device $device-id with pod '$pod.name' ($pod.id)."
+
+check-pod-is-esp32_ --pod/Pod --sdk/Sdk --ui/Ui:
+  chip-family := Sdk.get-chip-family-from --envelope=pod.envelope
+  if chip-family != "esp32":
+    ui.abort "Cannot generate QEMU image for chip-family '$chip-family'."
+  chip := sdk.chip-for --envelope-path=pod.envelope-path
+  if chip != "esp32":
+    ui.abort "Cannot generate QEMU image for chip '$chip'."

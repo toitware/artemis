@@ -230,6 +230,15 @@ class Sdk:
     ]
     run-firmware-tool args
 
+  chip-for --envelope-path/string -> string?:
+    if (semver.compare version "v2.0.0-alpha.150") < 0:
+      throw "Unsupported for SDK versions older than v2.0.0-alpha.150"
+    firmware-tool := tools-executable "firmware"
+    pipe.run-program [firmware-tool, "show", "--output-format", "json", "-e", envelope-path]
+    json-output := pipe.backticks [firmware-tool, "show", "--output-format", "json", "-e", envelope-path]
+    decoded := json.parse json-output.trim
+    return decoded.get "chip"
+
   /**
   Flashes the given envelope to the device at $port with the given $baud-rate.
 
@@ -239,16 +248,14 @@ class Sdk:
   flash
       --envelope-path/string
       --config-path/string
-      --chip/string
       --port/string
       --baud-rate/string?
       --partitions/List?:
-    // TODO(kasper): We'd like to get the chip variant from the firmware
-    // envelope, but for now we just treat the prefix leading up to
-    // the first dash as the variant. This works well with the current
-    // naming convention.
-    dash-index := chip.index-of "-"
-    if dash-index > 0: chip = chip[..dash-index]
+    if (semver.compare version "v2.0.0-alpha.150") < 0:
+      throw "Flashing is not supported for SDK versions older than v2.0.0-alpha.150"
+
+    // TODO(florian): we shouldn't need to pass `chip` to the firmware tool.
+    chip := chip-for --envelope-path=envelope-path
 
     arguments := [
       "flash",
@@ -270,15 +277,7 @@ class Sdk:
       --output-path/string
       --envelope-path/string
       --config-path/string
-      --partitions/List?
-      --chip/string:
-    // TODO(kasper): We'd like to get the chip variant from the firmware
-    // envelope, but for now we just treat the prefix leading up to
-    // the first dash as the variant. This works well with the current
-    // naming convention.
-    dash-index := chip.index-of "-"
-    if dash-index > 0: chip = chip[..dash-index]
-
+      --partitions/List?:
     if partitions and not partitions.is-empty:
       throw "Partitions are not supported for QEMU images."
 
@@ -367,7 +366,6 @@ class Sdk:
       // Currently the kind and chip-family align.
       return metadata["kind"]
     return "esp32"
-
 
 /**
 Builds the URL of a released SDK with the given $version on GitHub.
