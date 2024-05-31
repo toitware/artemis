@@ -622,6 +622,7 @@ class Artemis:
         --service-version=service
         --sdk-version=sdk
         --artemis-config=artemis-config_
+        --chip-family=chip-family
         --word-size=word-size
     return cache_.get-file-path service-key: | store/cache.FileStore |
       server := connected-artemis-server --no-authenticated

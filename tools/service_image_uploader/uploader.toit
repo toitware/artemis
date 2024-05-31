@@ -184,13 +184,15 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
     artemis-config := get-artemis-config parsed config
     // Since we are potentially reusing an ID, we need to remove the cached versions.
-    [32, 64].do: | word-size |
-      cache-key := service-image-cache-key
-          --sdk-version=sdk-version
-          --service-version=full-service-version
-          --artemis-config=artemis-config
-          --word-size=word-size
-      cache.remove cache-key
+    CHIP-FAMILIES.do: | chip-family |
+      [32, 64].do: | word-size |
+        cache-key := service-image-cache-key
+            --sdk-version=sdk-version
+            --service-version=full-service-version
+            --artemis-config=artemis-config
+            --chip-family=chip-family
+            --word-size=word-size
+        cache.remove cache-key
 
     service-source-paths := CHIP-FAMILIES.map: | chip-family/string |
       service-path-in-repository repo-path --chip-family=chip-family
