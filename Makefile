@@ -53,9 +53,13 @@ disable-qemu-tests: build/CMakeCache.txt
 test: install-pkgs rebuild-cmake download-sdk
 	(cd build && ninja check)
 
-.PHONY: serial-test
-serial-test: install-pkgs rebuild-cmake download-sdk
-	(cd build && ninja serial_check)
+.PHONY: test-serial
+test-serial: install-pkgs rebuild-cmake download-sdk
+	(cd build && ninja check_serial)
+
+.PHONY: test-supabase
+test-supabase: install-pkgs rebuild-cmake download-sdk
+	(cd build && ninja check_supabase)
 
 # From https://app.supabase.com/project/voisfafsfolxhqpkudzd/settings/auth
 ARTEMIS_HOST := voisfafsfolxhqpkudzd.supabase.co
