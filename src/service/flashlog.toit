@@ -110,7 +110,7 @@ class FlashLog:
 
       encoded-size := encode-next_ buffer bytes
       assert: size == encoded-size
-      region_.write --from=write-offset_ buffer[..size]
+      region_.write --at=write-offset_ buffer[..size]
       write-offset_ += size
 
   /**
@@ -166,7 +166,7 @@ class FlashLog:
 
         // Set the count to zero to mark this as acknowledged.
         if not is-acked:
-          region_.write --from=(read-page_ + HEADER-COUNT-OFFSET_) #[0, 0]
+          region_.write --at=(read-page_ + HEADER-COUNT-OFFSET_) #[0, 0]
 
         advance-read-page_ buffer next-sn
         read-page-validated_ = max 0 (read-page-validated_ - 1)
@@ -250,7 +250,7 @@ class FlashLog:
     assert: HEADER-MARKER-OFFSET_ == 0 and HEADER-SN-OFFSET_ == 4
     LITTLE-ENDIAN.put-uint32 buffer HEADER-MARKER-OFFSET_ MARKER_
     LITTLE-ENDIAN.put-uint32 buffer HEADER-SN-OFFSET_ sn
-    region_.write --from=(next + HEADER-MARKER-OFFSET_) buffer[.. HEADER-SN-OFFSET_ + 4]
+    region_.write --at=(next + HEADER-MARKER-OFFSET_) buffer[.. HEADER-SN-OFFSET_ + 4]
     write-page_ = next
     write-offset_ = next + HEADER-SIZE_
     return true
@@ -268,7 +268,7 @@ class FlashLog:
     LITTLE-ENDIAN.put-uint32 buffer HEADER-CHECKSUM-OFFSET_ crc32.get-as-int
     LITTLE-ENDIAN.put-uint16 buffer HEADER-COUNT-OFFSET_ count
     region_.write
-        --from=(page + HEADER-CHECKSUM-OFFSET_)
+        --at=(page + HEADER-CHECKSUM-OFFSET_)
         buffer[HEADER-CHECKSUM-OFFSET_..HEADER-SIZE_]
     return count
 
@@ -553,7 +553,7 @@ class FlashLog:
     crc32.add buffer
     LITTLE-ENDIAN.put-uint32 buffer HEADER-CHECKSUM-OFFSET_ crc32.get-as-int
     LITTLE-ENDIAN.put-uint16 buffer HEADER-COUNT-OFFSET_ 0
-    region_.write --from=write-page_ buffer[..HEADER-SIZE_]
+    region_.write --at=write-page_ buffer[..HEADER-SIZE_]
     write-offset_ = write-page_ + HEADER-SIZE_
     advance-read-page_ buffer initial-sn
 

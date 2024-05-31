@@ -1254,7 +1254,7 @@ class TestFlashLog extends FlashLog:
       assert: FlashLog.HEADER-MARKER-OFFSET_ == 0 and FlashLog.HEADER-SN-OFFSET_ == 4
       LITTLE-ENDIAN.put-uint32 buffer FlashLog.HEADER-MARKER-OFFSET_ FlashLog.MARKER_
       LITTLE-ENDIAN.put-uint32 buffer FlashLog.HEADER-SN-OFFSET_ sn
-      region.write --from=(index * page-size + FlashLog.HEADER-MARKER-OFFSET_)
+      region.write --at=(index * page-size + FlashLog.HEADER-MARKER-OFFSET_)
           buffer[.. FlashLog.HEADER-SN-OFFSET_ + 4]
 
       state := page.get "state"
@@ -1266,7 +1266,7 @@ class TestFlashLog extends FlashLog:
       if page.contains "bytes":
         if page.contains "entries": throw "cannot have both bytes and entries"
         bytes := page["bytes"]
-        region.write --from=(index * page-size + write-cursor) bytes
+        region.write --at=(index * page-size + write-cursor) bytes
         write-cursor += bytes.size
         // Compute a correct write count based on the bytes.
         region.read --from=(index * page-size) buffer
@@ -1276,7 +1276,7 @@ class TestFlashLog extends FlashLog:
         write-count = 0
         entries.do: | bytes/ByteArray |
           size := log.encode-next_ buffer bytes
-          region.write --from=(index * page-size + write-cursor) buffer[..size]
+          region.write --at=(index * page-size + write-cursor) buffer[..size]
           write-cursor += size
           write-count++
       if write-cursor > page-size: throw "page overflow"
@@ -1288,7 +1288,7 @@ class TestFlashLog extends FlashLog:
           buffer[..remaining].fill fill
         else:
           remaining.repeat: buffer[it] = random 0x100
-        region.write --from=(index * page-size + write-cursor) buffer[..remaining]
+        region.write --at=(index * page-size + write-cursor) buffer[..remaining]
 
       count := page.get "count"
       if count:
@@ -1301,7 +1301,7 @@ class TestFlashLog extends FlashLog:
         count = write-count or (random 0x10000)
 
       LITTLE-ENDIAN.put-uint16 buffer 0 count
-      region.write --from=(index * page-size + FlashLog.HEADER-COUNT-OFFSET_) buffer[..2]
+      region.write --at=(index * page-size + FlashLog.HEADER-COUNT-OFFSET_) buffer[..2]
 
       checksum := page.get "checksum"
       if checksum:
@@ -1317,7 +1317,7 @@ class TestFlashLog extends FlashLog:
         checksum = crc32.get-as-int
 
       LITTLE-ENDIAN.put-uint32 buffer 0 checksum
-      region.write --from=(index * page-size + FlashLog.HEADER-CHECKSUM-OFFSET_) buffer[..4]
+      region.write --at=(index * page-size + FlashLog.HEADER-CHECKSUM-OFFSET_) buffer[..4]
 
     if reset:
       assert: not (read-page or write-page or write-offset)
