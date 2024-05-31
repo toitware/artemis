@@ -55,6 +55,7 @@ flash-serial -> uuid.Uuid
   if not pod-spec.contains "name": pod-spec["name"] = "my-pod"
   if not pod-spec.contains "artemis-version": pod-spec["artemis-version"] = TEST-ARTEMIS-VERSION
   if not pod-spec.contains "sdk-version": pod-spec["sdk-version"] = test-cli.sdk-version
+  if not pod-spec.contains "firmware-envelope": pod-spec["firmware-envelope"] = "esp32"
 
   pod-name := pod-spec["name"]
 

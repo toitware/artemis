@@ -23,6 +23,7 @@ run-test test-cli/TestCli fleet-dir/string:
       "name": "test-pod",
       "sdk-version": "$test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
+      "firmware-envelope": "esp32",
       "connections": [
         {
           "type": "wifi",
@@ -45,6 +46,7 @@ run-test test-cli/TestCli fleet-dir/string:
   spec = {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod2",
+      "sdk-version": "$test-cli.sdk-version",
       "firmware-envelope": "file://custom.envelope",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "connections": [
@@ -91,6 +93,7 @@ run-test test-cli/TestCli fleet-dir/string:
       "name": "test-pod3",
       "sdk-version": "$test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
+      "firmware-envelope": "esp32",
       "connections": [
         {
           "type": "wifi",
@@ -126,6 +129,7 @@ run-test test-cli/TestCli fleet-dir/string:
       "name": "test-pod4",
       "sdk-version": "$test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
+      "firmware-envelope": "esp32",
       "connections": [
         {
           "type": "wifi",
@@ -166,6 +170,7 @@ get-envelope-for --sdk-version/string --cache -> ByteArray:
       "name": "test-pod2",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "sdk-version": "$sdk-version",
+      "firmware-envelope": "esp32",
       "connections": [
         {
           "type": "wifi",

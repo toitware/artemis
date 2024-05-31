@@ -36,15 +36,6 @@
           "description": "Firmware envelope to use. May be a short identifier or a URL. The string '$sdk-version' is replaced by the actual sdk-version.",
           "type": "string"
         },
-        "chip": {
-          "description": "The ESP32 chip that is used.",
-          "enum": [
-            "esp32",
-            "esp32s2",
-            "esp32c3",
-            "esp32s3"
-          ]
-        },
         "max-offline": {
           "description": "Maximum duration before Artemis should attempt to synchronize. For example '30m'.",
           "type": "string"

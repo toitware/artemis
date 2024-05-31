@@ -389,7 +389,11 @@ build-image parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --ui=ui
         --on-absent=(: fleet.pod-for fleet-device)
 
-    device/DeviceDetailed := artemis.device-for --id=fleet-device.id
+    device := artemis.device-for --id=fleet-device.id
+    build-image device pod --tar=tar --output=output --cache=cache --ui=ui
+    ui.info "Firmware successfully written to '$output'."
+
+build-image device/Device pod/Pod --tar/bool --output/string --cache/Cache --ui/Ui:
     firmware := Firmware --cache=cache --device=device --pod=pod
     sdk := get-sdk pod.sdk-version --cache=cache
     with-tmp-directory: | tmp-dir/string |
@@ -401,7 +405,6 @@ build-image parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --envelope-path=pod.envelope-path
           --device-specific-path=device-specific-path
       file.write-content --path=output bytes
-      ui.info "Firmware successfully written to '$output'."
 
 device-to-json_
     fleet-device/DeviceFleet

@@ -50,6 +50,7 @@ build-qemu-image -> Map
     pod-spec["sdk-version"] = test-cli.sdk-version
   if not pod-spec.contains "extends":
     pod-spec["extends"] = ["$qemu-base/base.yaml"]
+  // The base contains the firmware-envelope entry.
 
   spec-path := "$tmp-dir/$pod-spec-filename"
   if spec-path.ends-with ".json":
