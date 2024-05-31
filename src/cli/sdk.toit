@@ -364,8 +364,8 @@ class Sdk:
     file := reader.find "\$metadata"
     if file != null:
       metadata := json.decode file.content
-      // Currently the platform and chip-family align.
-      return metadata["platform"]
+      // Currently the kind and chip-family align.
+      return metadata["kind"]
     return "esp32"
 
 
