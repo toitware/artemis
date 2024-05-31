@@ -27,6 +27,7 @@ INITIAL-POD-SPECIFICATION -> Map:
     "sdk-version": SDK-VERSION,
     "artemis-version": ARTEMIS-VERSION,
     "max-offline": "0s",
+    "firmware-envelope": "esp32",
     "connections": [
       {
         "type": "wifi",
@@ -44,6 +45,7 @@ EXAMPLE-POD-SPECIFICATION -> Map:
     "sdk-version": SDK-VERSION,
     "artemis-version": ARTEMIS-VERSION,
     "max-offline": "30s",
+    "firmware-envelope": "esp32",
     "connections": [
       {
         "type": "wifi",
@@ -304,11 +306,12 @@ class PodSpecification:
     chip := json-map.get-optional-string "chip"
     if not json-envelope and not chip:
       ui.warning "Implicit envelope 'esp32' is deprecated. Please specify 'firmware-envelope'."
-      envelope = "esp32"
+      json-envelope = "esp32"
     else if not json-envelope and chip:
       ui.warning "The 'chip' property is deprecated. Use 'firmware-envelope' instead."
+      json-envelope = chip
     else if json-envelope and chip:
-      ui.warning "The 'chip' property is deprecated. Only 'firmware-envelope' is used."
+      ui.warning "The 'chip' property is deprecated and ignored. Only 'firmware-envelope' is used."
 
     envelope = json-envelope
 

@@ -33,6 +33,7 @@ VALID-SPECIFICATION ::= {
   "sdk-version": "1.0.0",
   "artemis-version": "1.0.0",
   "max-offline": "1h",
+  "firmware-envelope": "esp32",
   "connections": [
     {
       "type": "wifi",
@@ -138,9 +139,36 @@ test-errors:
 
   no-sdk-version := new-valid
   no-sdk-version.remove "sdk-version"
-  expect-format-error
-      "Neither 'sdk-version' nor 'firmware-envelope' are present in pod specification."
-      no-sdk-version
+  ui := TestUi
+  PodSpecification.from-json no-sdk-version --path="ignored" --ui=ui
+  expect-equals
+      "Warning: Implicit 'sdk-version' is deprecated. Please specify 'sdk-version'."
+      ui.stdout.trim
+
+  no-envelope := new-valid
+  no-envelope.remove "firmware-envelope"
+  ui = TestUi
+  PodSpecification.from-json no-envelope --path="ignored" --ui=ui
+  expect-equals
+      "Warning: Implicit envelope 'esp32' is deprecated. Please specify 'firmware-envelope'."
+      ui.stdout.trim
+
+  no-envelope-chip := new-valid
+  no-envelope-chip.remove "firmware-envelope"
+  no-envelope-chip["chip"] = "esp32"
+  ui = TestUi
+  PodSpecification.from-json no-envelope-chip --path="ignored" --ui=ui
+  expect-equals
+      "Warning: The 'chip' property is deprecated. Use 'firmware-envelope' instead."
+      ui.stdout.trim
+
+  envelope-and-chip := new-valid
+  envelope-and-chip["chip"] = "esp32"
+  ui = TestUi
+  PodSpecification.from-json envelope-and-chip --path="ignored" --ui=ui
+  expect-equals
+      "Warning: The 'chip' property is deprecated and ignored. Only 'firmware-envelope' is used."
+      ui.stdout.trim
 
   bad-sdk-version := new-valid
   bad-sdk-version["sdk-version"] = 2

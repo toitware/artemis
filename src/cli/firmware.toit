@@ -332,10 +332,10 @@ get-envelope -> string
     --cache/cli.Cache
     --cache-snapshots/bool=true:
   if is-dev-setup:
-    chip := specification.envelope
+    envelope := specification.envelope
     local-sdk := os.env.get "DEV_TOIT_REPO_PATH"
     if local-sdk:
-      envelope-path := "$local-sdk/build/$chip/firmware.envelope"
+      envelope-path := "$local-sdk/build/$envelope/firmware.envelope"
       if not reported-local-envelope-use_:
         print-on-stderr_ "Using envelope from local SDK: '$envelope-path'"
         reported-local-envelope-use_ = true
