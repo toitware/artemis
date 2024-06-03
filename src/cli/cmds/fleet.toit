@@ -271,7 +271,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: status it config cache ui
   cmd.add status-cmd
 
-  add-device-cmd := cli.Command "add-device"
+  add-existing-device-cmd := cli.Command "add-existing-device"
       --help="""
         Add an existing device to the fleet.
 
@@ -306,8 +306,8 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             name 'wasp':"""
             --arguments="--name=wasp --group=insect 12345678-1234-1234-1234-123456789abc",
       ]
-      --run=:: add-device it config cache ui
-  cmd.add add-device-cmd
+      --run=:: add-existing-device it config cache ui
+  cmd.add add-existing-device-cmd
 
   group-cmd := cli.Command "group"
       --help="""
@@ -555,7 +555,7 @@ status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     fleet.status --include-healthy=include-healthy --include-never-seen=include-never-seen
 
-add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+add-existing-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device-id := parsed["device-id"]
   name := parsed["name"]
   aliases := parsed["alias"]
