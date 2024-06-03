@@ -133,6 +133,5 @@ monitor SchedulerSignal_:
     awakened_ = true
 
   wait deadline/JobTime -> none:
-    deadline-monotonic := deadline.to-monotonic-us
-    try-await --deadline=deadline-monotonic: awakened_
+    try-await --deadline=deadline.us: awakened_
     awakened_ = false

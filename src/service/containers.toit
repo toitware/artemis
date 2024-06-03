@@ -357,7 +357,7 @@ class ContainerJob extends Job:
   encoded-armed-triggers -> List:
     if scheduler-delayed-until_:
       // If the job is delayed, then no other trigger is active.
-      remaining-time-ms := (scheduler-delayed-until_.to-monotonic-us - Time.monotonic-us) / 1000
+      remaining-time-ms := (scheduler-delayed-until_.us - Time.monotonic-us) / 1000
       return [Trigger.encode-delayed remaining-time-ms]
 
     return triggers-armed_.to-encoded-list
