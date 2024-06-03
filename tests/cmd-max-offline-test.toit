@@ -31,7 +31,7 @@ main args:
         "--fleet-root", test-cli.tmp-dir,
         "--organization-id", "$device.organization-id",
     ]
-    test-cli.run ["fleet", "add-device", "--fleet-root", test-cli.tmp-dir, "$device.alias-id"]
+    test-cli.run ["fleet", "add-existing-device", "--fleet-root", test-cli.tmp-dir, "$device.alias-id"]
 
     test-cli.run [
       "--fleet-root", test-cli.tmp-dir,
