@@ -1,3 +1,0 @@
-# Can't add a device to a group that doesn't exist
-# [fleet, add-device, --group, does-not-exist, eb45c662-356c-4bea-ad8c-ede37688fddf]
-Error: Group 'does-not-exist' not found.

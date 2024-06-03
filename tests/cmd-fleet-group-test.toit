@@ -290,18 +290,18 @@ run-test test-cli/TestCli fleet-dir/string:
           "--group", "test-group-5"
       ]
 
-  test-cli.run-gold "180-no-add-device"
+  test-cli.run-gold "180-no-add-existing-device"
       "Can't add a device to a group that doesn't exist"
       --expect-exit-1
       [
-          "fleet", "add-device", "--group", "does-not-exist", "$TEST-DEVICE-UUID",
+          "fleet", "add-existing-device", "--group", "does-not-exist", "$TEST-DEVICE-UUID",
       ]
 
-  test-cli.run-gold "181-no-add-device-default"
+  test-cli.run-gold "181-no-add-existing-device-default"
       "Can't add a device to default group that doesn't exist"
       --expect-exit-1
       [
-          "fleet", "add-device", "$TEST-DEVICE-UUID",
+          "fleet", "add-existing-device", "$TEST-DEVICE-UUID",
       ]
 
   test-cli.run-gold "182-no-create-identity"
