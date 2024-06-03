@@ -324,9 +324,10 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: group-list it config cache ui
   group-cmd.add group-list-cmd
 
-  group-create-cmd := cli.Command "create"
+  group-add-cmd := cli.Command "add"
+      --aliases=["create"]
       --help="""
-        Create a group in the fleet.
+        Add a group in the fleet.
 
         If a pod reference is given, uses it for the new group.
         If a template is given, uses its pod reference for the new group.
@@ -354,8 +355,8 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             group 'on-battery':"""
             --arguments="--template=on-battery on-battery-inaccessible",
       ]
-      --run=:: group-create it config cache ui
-  group-cmd.add group-create-cmd
+      --run=:: group-add it config cache ui
+  group-cmd.add group-add-cmd
 
   group-update-cmd := cli.Command "update"
       --help="""
@@ -591,7 +592,7 @@ group-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         }
       printer.emit structured --header={"name": "Group", "pod": "Pod"}
 
-group-create parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+group-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   pod := parsed["pod"]
   template := parsed["template"]
   name := parsed["name"]
@@ -616,7 +617,7 @@ group-create parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.abort "Group $name already exists."
     fleet-file.group-pods[name] = pod-reference
     fleet-file.write
-    ui.info "Created group $name."
+    ui.info "Added group $name."
 
 group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   pod := parsed["pod"]

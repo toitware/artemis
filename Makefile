@@ -173,7 +173,7 @@ setup-local-dev:
 	    $(TOITRUN) src/cli/cli.toit auth login --broker --email test@example.com --password password; \
 	  fi
 
-	@ $(TOITRUN) src/cli/cli.toit org create "Test Org"
+	@ $(TOITRUN) src/cli/cli.toit org add "Test Org"
 
 	@ $(MAKE) upload-service
 

@@ -61,7 +61,7 @@ run-test test-cli/TestCli:
             id = entry["id"]
             test-cli.replacements[id] = pad-replacement-id "NEW-ORG-ID"
         trim-old-ids.call output
-      [ "org", "create", "Testy" ]
+      [ "org", "add", "Testy" ]
   expect-not-null id
 
   test-cli.run-gold "120-after-create"
@@ -136,7 +136,7 @@ run-test test-cli/TestCli:
             id2 = entry["id"]
             test-cli.replacements[id2] = pad-replacement-id "ORG-ID2"
         trim-old-ids.call output
-      ["org", "create", "Testy2", "--no-default"]
+      ["org", "add", "Testy2", "--no-default"]
 
   expect-equals id (test-cli.run --json ["org", "default", "--id-only"])
 

@@ -1,3 +1,3 @@
 # Add a group from a group
-# [fleet, group, create, test-group-2, --template, test-group, --force]
-Created group test-group-2.
+# [fleet, group, add, test-group-2, --template, test-group, --force]
+Added group test-group-2.
