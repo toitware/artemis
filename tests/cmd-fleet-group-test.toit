@@ -23,14 +23,14 @@ run-test test-cli/TestCli fleet-dir/string:
       "Add a group without force"
       --expect-exit-1
       [
-          "fleet", "group", "create", "test-group",
+          "fleet", "group", "add", "test-group",
           "--template", "default",
       ]
 
   test-cli.run-gold "121-add-group"
       "Add a group"
       [
-          "fleet", "group", "create", "test-group",
+          "fleet", "group", "add", "test-group",
           "--template", "default",
           "--force",  // Force, since the pod doesn't actually exist.
       ]
@@ -52,7 +52,7 @@ run-test test-cli/TestCli fleet-dir/string:
   test-cli.run-gold "122-add-group-with-pod"
       "Add a group with a pod"
       [
-          "fleet", "group", "create", "test-group",
+          "fleet", "group", "add", "test-group",
           "--pod", "unknown@pod",
           "--force",
       ]
@@ -65,7 +65,7 @@ run-test test-cli/TestCli fleet-dir/string:
   test-cli.run-gold "123-add-group-from-group"
       "Add a group from a group"
       [
-          "fleet", "group", "create", "test-group-2",
+          "fleet", "group", "add", "test-group-2",
           "--template", "test-group",
           "--force",
       ]
@@ -82,7 +82,7 @@ run-test test-cli/TestCli fleet-dir/string:
       "Add a group that already exists"
       --expect-exit-1
       [
-          "fleet", "group", "create", "test-group",
+          "fleet", "group", "add", "test-group",
           "--template", "default",
           "--force",
       ]
@@ -271,7 +271,7 @@ run-test test-cli/TestCli fleet-dir/string:
       ]
 
   // Create a new group and move all devices to it, so we can test removing the default group.
-  test-cli.run ["fleet", "group", "create", "test-group-5", "--force"]
+  test-cli.run ["fleet", "group", "add", "test-group-5", "--force"]
   test-cli.run ["fleet", "group", "move", "--to", "test-group-5", "--group", "default"]
 
   test-cli.run-gold "156-remove-default-group"

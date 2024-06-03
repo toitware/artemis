@@ -137,7 +137,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         org-id = output[space-index + 1 .. end-index]
         test-cli.replacements[org-id] = "-={| UUID-FOR-TEST-ORGANIZATION |}=-"
         output
-      ["org", "create", test-org-name]
+      ["org", "add", test-org-name]
 
   test-cli.run-gold "BCD-organizations-after"
       "List organizations after creating a new one."
