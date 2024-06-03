@@ -26,8 +26,14 @@ add_custom_target(
 )
 
 add_custom_target(
-  serial_check
+  check_serial
   COMMAND ${CMAKE_CTEST_COMMAND} -j1 -T test --output-on-failure -C serial
+  USES_TERMINAL
+)
+
+add_custom_target(
+  check_supabase
+  COMMAND ${CMAKE_CTEST_COMMAND} -j1 -T test --output-on-failure -C supabase
   USES_TERMINAL
 )
 
@@ -174,27 +180,35 @@ foreach(file ${TESTS})
     # Split the flags at " ".
     string(REPLACE " " ";" flag "${flag}")
 
+    set(IS_SUPABASE_TEST FALSE)
+
     set(RESOURCE_LOCKS)
     if (${test_name} IN_LIST SUPABASE_ARTEMIS_TESTS)
       list(APPEND RESOURCE_LOCKS "artemis_server")
+      set(IS_SUPABASE_TEST TRUE)
     endif()
     if (${test_name} IN_LIST SUPABASE_ARTEMIS_BROKER_TESTS)
       list(APPEND RESOURCE_LOCKS "artemis_broker")
+      set(IS_SUPABASE_TEST TRUE)
     endif()
     if (${test_name} IN_LIST SUPABASE_BROKER_TESTS)
       list(APPEND RESOURCE_LOCKS "broker")
+      set(IS_SUPABASE_TEST TRUE)
     endif()
     if (SUPABASE_ARTEMIS_FLAG IN_LIST flag)
       list(APPEND RESOURCE_LOCKS "artemis_server")
+      set(IS_SUPABASE_TEST TRUE)
     endif()
     if (SUPABASE_BROKER_FLAG IN_LIST flag)
       list(APPEND RESOURCE_LOCKS "broker")
+      set(IS_SUPABASE_TEST TRUE)
     endif()
     if (SUPABASE_ARTEMIS_BROKER_FLAG IN_LIST flag)
       list(APPEND RESOURCE_LOCKS "artemis_broker")
       # Some broker tests need to modify the Artemis server to ensure that
       # devices exist. Make sure that the server is locked as well.
       list(APPEND RESOURCE_LOCKS "artemis_server")
+      set(IS_SUPABASE_TEST TRUE)
     endif()
 
     if (${IS_SERIAL_TEST})
@@ -206,6 +220,9 @@ foreach(file ${TESTS})
       set(TEST_CONFIGURATIONS "serial")
     else()
       set(TEST_CONFIGURATIONS "default")
+    endif()
+    if (${IS_SUPABASE_TEST} AND NOT ${IS_SERIAL_TEST})
+      list(APPEND TEST_CONFIGURATIONS "supabase")
     endif()
 
     set(QEMU_FLAG "")

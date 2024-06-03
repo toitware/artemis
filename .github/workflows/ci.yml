@@ -22,13 +22,10 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        arch: [ amd64 ]
+        run_supabase_tests: [ false ]
         include:
           - os: ubuntu-latest
-            arch: amd64
             run_supabase_tests: true
-          - os: ubuntu-latest
-            arch: arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -40,7 +37,7 @@ jobs:
           # As such we need to fetch all history.
           fetch-depth: 0
 
-      - name: Setup Toit
+      - name: Setup environment variables and Toit version
         id: constants
         shell: bash
         run: |
@@ -50,7 +47,6 @@ jobs:
           echo "BIN_EXTENSION=$BIN_EXTENSION" >> $GITHUB_ENV
 
           export TOIT_VERSION=$(make dev-sdk-version)
-          echo "TOIT_VERSION=$TOIT_VERSION" >> $GITHUB_ENV
           echo "toitVersion=$TOIT_VERSION" >> $GITHUB_OUTPUT
 
           # For upload at the end.
@@ -166,73 +162,28 @@ jobs:
               -DQEMU_PATH="$QEMU_EXEC" \
               build
 
-      - name: Disable Supabase tests - Windows and macOS
-        if: runner.os != 'Linux' || matrix.arch != 'amd64'
-        shell: bash
-        run: |
-          make disable-supabase-tests
-
-      - name: Configure arm64
-        if: matrix.arch == 'arm64'
-        shell: bash
-        run: |
-          cmake -B build -DARTEMIS_ARCH=arm64 -DARTEMIS_OS=linux
-
       - name: Build binaries
         shell: bash
         run: |
           make
 
-      - name: Force schema reload
+      - name: Test supabase
         if: matrix.run_supabase_tests
         shell: bash
         run: |
-            make reload-supabase-schemas
+          make reload-supabase-schemas
+          make test-supabase
 
       - name: Test
-        if: matrix.arch != 'arm64'
+        if: (!matrix.run_supabase_tests)
         shell: bash
         run: |
+          make disable-supabase-tests
           make test
-
-      - name: Start http-servers - arm64
-        if: matrix.arch == 'arm64'
-        shell: bash
-        run: |
-          make start-http &
-          echo "HTTP_PID=$!" >> $GITHUB_ENV
-          sleep 10
-          make setup-local-dev
-          mkdir -p $HOME/.config/artemis
-          cp $HOME/.config/artemis-dev/config config
-
-      - name: Test executables 64-bit
-        if: matrix.arch == 'arm64'
-        uses: pguyot/arm-runner-action@v2
-        with:
-          cpu: cortex-a7
-          base_image: "raspios_lite_arm64:2022-01-28"
-          image_additional_mb: 500
-          commands: |
-              uname -m
-              export HOME=$(pwd)
-              export ARTEMIS_CONFIG=$HOME/config
-              build/bin/artemis --version
-              mkdir fleet
-              export ARTEMIS_FLEET_ROOT=$PWD/fleet
-              build/bin/artemis fleet init
-              build/bin/artemis pod build -o test.pod fleet/my-pod.yaml
-
-      - name: Kill http-servers
-        if: matrix.arch == 'arm64'
-        shell: bash
-        run: |
-          kill $HTTP_PID
 
       - name: Upload service for Testing org
         if: |
           runner.os == 'Linux' &&
-          matrix.arch == 'amd64' &&
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main'
         shell: bash
@@ -261,7 +212,7 @@ jobs:
               --local
 
       - name: Upload binary artifacts
-        if: matrix.arch != 'arm64'
+        if: (!matrix.run_supabase_tests)
         uses: actions/upload-artifact@v4
         with:
           name: binaries-${{ runner.os }}
@@ -269,7 +220,7 @@ jobs:
 
       - name: Upload snapshot artifacts
         # Use 'always()' to upload them even if an earlier step failed.
-        if: matrix.arch != 'arm64' && always()
+        if: (!matrix.run_supabase_tests) && always()
         uses: actions/upload-artifact@v4
         with:
           name: snapshots-${{ runner.os }}
@@ -277,11 +228,90 @@ jobs:
 
       - name: Upload other snapshots
         # Use 'always()' to upload them even if an earlier step failed.
-        if: (matrix.arch != 'arm64') && (runner.os != 'Windows') && always()
+        if: (!matrix.run_supabase_tests) && (runner.os != 'Windows') && always()
         uses: actions/upload-artifact@v4
         with:
           name: other-snapshots-${{ runner.os }}
           path: ${{ env.SNAPSHOTS_DIR }}
+
+  arm64:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          # We have a test that wants to tag a specific commit.
+          # As such we need to fetch all history.
+          fetch-depth: 0
+
+      - name: Setup Toit version
+        id: constants
+        shell: bash
+        run: |
+          export TOIT_VERSION=$(make dev-sdk-version)
+          echo "toitVersion=$TOIT_VERSION" >> $GITHUB_OUTPUT
+
+      - uses: toitlang/action-setup@v1
+        with:
+          toit-version: ${{ steps.constants.outputs.toitVersion }}
+
+      - name: Setup environment
+        shell: bash
+        run: |
+          echo "ARTEMIS_CONFIG=${{ github.workspace }}/test_config" >> $GITHUB_ENV
+
+      - name: Install dependencies - Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -y -q
+          sudo apt-get install -y -q --no-install-recommends ninja-build
+          ninja --version
+          cmake --version
+
+      - name: Configure
+        shell: bash
+        run: |
+          make rebuild-cmake
+          cmake -B build -DARTEMIS_ARCH=arm64 -DARTEMIS_OS=linux
+          make disable-supabase-tests
+          make disable-qemu-tests
+
+      - name: Build binaries
+        shell: bash
+        run: |
+          make
+
+      - name: Start http-servers
+        shell: bash
+        run: |
+          make start-http &
+          echo "HTTP_PID=$!" >> $GITHUB_ENV
+          sleep 10
+          make setup-local-dev
+          mkdir -p $HOME/.config/artemis
+          cp $HOME/.config/artemis-dev/config config
+
+      - name: Test executables
+        uses: pguyot/arm-runner-action@v2
+        with:
+          cpu: cortex-a7
+          base_image: "raspios_lite_arm64:2022-01-28"
+          image_additional_mb: 500
+          commands: |
+              uname -m
+              export HOME=$(pwd)
+              export ARTEMIS_CONFIG=$HOME/config
+              build/bin/artemis --version
+              mkdir fleet
+              export ARTEMIS_FLEET_ROOT=$PWD/fleet
+              build/bin/artemis fleet init
+              build/bin/artemis pod build -o test.pod fleet/my-pod.yaml
+
+      - name: Kill http-servers
+        shell: bash
+        run: |
+          kill $HTTP_PID
 
   serial:
     runs-on: self-linux
@@ -347,7 +377,7 @@ jobs:
           export ARTEMIS_TEST_SERIAL_PORT=/dev/ttyUSB0
           export ARTEMIS_TEST_WIFI_SSID=jaguar
           export ARTEMIS_TEST_WIFI_PASSWORD=toittoit
-          make TOITRUN=$TOIT_EXEC serial-test
+          make TOITRUN=$TOIT_EXEC test-serial
 
       # Erase the flash of the device.
       # We don't want it to behave erratically against the WiFi hotspot,
