@@ -251,8 +251,8 @@ class Sdk:
       --port/string
       --baud-rate/string?
       --partitions/List?:
-    if (semver.compare version "v2.0.0-alpha.150") < 0:
-      throw "Flashing is not supported for SDK versions older than v2.0.0-alpha.150"
+    if (semver.compare version "v2.0.0-alpha.152") < 0:
+      throw "Flashing is not supported for SDK versions older than v2.0.0-alpha.152"
 
     // TODO(florian): we shouldn't need to pass `chip` to the firmware tool.
     chip := chip-for --envelope-path=envelope-path
@@ -262,7 +262,6 @@ class Sdk:
       "-e", envelope-path,
       "--config", config-path,
       "--port", port,
-      "--chip", chip,
     ]
     if baud-rate:
       arguments += [ "--baud", baud-rate ]
