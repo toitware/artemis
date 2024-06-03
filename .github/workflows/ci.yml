@@ -282,7 +282,7 @@ jobs:
         run: |
           make
 
-      - name: Start http-servers - arm64
+      - name: Start http-servers
         shell: bash
         run: |
           make start-http &
@@ -292,7 +292,7 @@ jobs:
           mkdir -p $HOME/.config/artemis
           cp $HOME/.config/artemis-dev/config config
 
-      - name: Test executables 64-bit
+      - name: Test executables
         uses: pguyot/arm-runner-action@v2
         with:
           cpu: cortex-a7
