@@ -56,6 +56,8 @@ main arguments:
       --storage=storage
       --pin-trigger-manager=NullPinTriggerManager
   watchdog.stop
+  print
+  print
   __deep-sleep__ sleep-duration.in-ms
 
 device-specific name/string -> any:
