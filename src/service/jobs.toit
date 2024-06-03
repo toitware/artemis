@@ -145,7 +145,7 @@ class JobTime implements Comparable:
   constructor .us:
 
   constructor.now:
-    us = time-now-us_
+    us = Time.monotonic-us
 
   operator <= other/JobTime -> bool:
     return us <= other.us
@@ -168,16 +168,8 @@ class JobTime implements Comparable:
   to other/JobTime -> Duration:
     return Duration --us=other.us - us
 
-  to-monotonic-us -> int:
-    return Time.monotonic-us + (us - time-now-us_)
-
   compare-to other/JobTime -> int:
     return us.compare-to other.us
 
   compare-to other/JobTime [--if-equal] -> int:
     return us.compare-to other.us --if-equal=if-equal
-
-// --------------------------------------------------------------------------
-
-time-now-us_ -> int:
-  #primitive.core.get-system-time
