@@ -130,7 +130,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   test-cli.run-gold "BCC-create-org"
       "Create an organization."
       --before-gold=: | output/string |
-        // Something like "Created organization cce84fa4-b3cc-5ed8-a7cc-96b2d76bfd37 - foobar"
+        // Something like "Added organization cce84fa4-b3cc-5ed8-a7cc-96b2d76bfd37 - foobar"
         space-index := 0
         2.repeat: space-index = output.index-of " " (space-index + 1)
         end-index := output.index-of " " (space-index + 1)

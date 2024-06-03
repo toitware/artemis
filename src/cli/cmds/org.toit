@@ -253,7 +253,7 @@ create-org parsed/cli.Parsed config/Config ui/Ui -> none:
   should-make-default := parsed["default"]
   with-org-server parsed config ui: | server/ArtemisServerCli |
     org := server.create-organization parsed["name"]
-    ui.info "Created organization $org.id - $org.name."
+    ui.info "Added organization $org.id - $org.name."
     if should-make-default: make-default_ org config ui
 
 show-org parsed/cli.Parsed config/Config ui/Ui -> none:

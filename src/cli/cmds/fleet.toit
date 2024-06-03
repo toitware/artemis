@@ -327,7 +327,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
   group-add-cmd := cli.Command "add"
       --aliases=["create"]
       --help="""
-        Create a group in the fleet.
+        Add a group in the fleet.
 
         If a pod reference is given, uses it for the new group.
         If a template is given, uses its pod reference for the new group.
@@ -617,7 +617,7 @@ group-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.abort "Group $name already exists."
     fleet-file.group-pods[name] = pod-reference
     fleet-file.write
-    ui.info "Created group $name."
+    ui.info "Added group $name."
 
 group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   pod := parsed["pod"]
