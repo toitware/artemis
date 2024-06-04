@@ -27,7 +27,7 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
 
   add-cmd := cli.Command "add"
       --aliases=["create"]
-      --help="Add a new organization."
+      --help="Create a new organization."
       --options=[
         cli.Flag "default"
             --default=true
@@ -39,11 +39,11 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --examples=[
-        cli.Example "Add a new organization called 'in-the-sea', and make it the default:"
+        cli.Example "Create a new organization called 'in-the-sea', and make it the default:"
             --arguments="in-the-sea"
             --global-priority=9,
       ]
-      --run=:: create-org it config ui
+      --run=:: add-org it config ui
   org-cmd.add add-cmd
 
   show-cmd := cli.Command "show"
@@ -249,7 +249,7 @@ list-orgs parsed/cli.Parsed config/Config ui/Ui -> none:
             "name": org.name,
           }
 
-create-org parsed/cli.Parsed config/Config ui/Ui -> none:
+add-org parsed/cli.Parsed config/Config ui/Ui -> none:
   should-make-default := parsed["default"]
   with-org-server parsed config ui: | server/ArtemisServerCli |
     org := server.create-organization parsed["name"]

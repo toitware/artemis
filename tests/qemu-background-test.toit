@@ -9,7 +9,7 @@ import http
 import monitor
 import net
 
-import .qemu
+import .cli-device-extract
 import .utils
 import ..tools.lan-ip.lan-ip
 
@@ -59,7 +59,8 @@ main args/List:
     test-content := make-test-code port
 
 
-    qemu-data := build-qemu-image
+    qemu-data := create-extract-device
+        --format="qemu"
         --test-cli=test-cli
         --args=args
         --fleet-dir=fleet-dir
@@ -76,12 +77,11 @@ main args/List:
         }
     run-test test-cli synchro-done-latch qemu-data
 
-run-test test-cli/TestCli synchro-done-latch/monitor.Latch qemu-data/Map:
+run-test test-cli/TestCli synchro-done-latch/monitor.Latch qemu-data/TestDeviceConfig:
   tmp-dir := test-cli.tmp-dir
   ui := TestUi --no-quiet
 
-  image-path := qemu-data["image-path"]
-  device-id := qemu-data["device-id"]
+  device-id := qemu-data.device-id
 
   lan-ip := get-lan-ip
 
@@ -90,10 +90,11 @@ run-test test-cli/TestCli synchro-done-latch/monitor.Latch qemu-data/Map:
       // We don't know the actual hardware-id.
       // Cheat by reusing the alias id.
       --hardware-id=device-id
-      --qemu-image=image-path
+      --device-config=qemu-data
 
   print "Starting to look for 'INFO: synchronized'."
   pos := test-device.wait-for-synchronized --start-at=0
   synchro-done-latch.set "synchronized"
   test-device.wait-for "entering deep sleep for" --start-at=pos
   print "Found."
+  test-device.close

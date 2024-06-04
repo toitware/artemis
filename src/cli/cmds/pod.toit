@@ -32,7 +32,7 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
 
         The generated pod can later be used to flash or update devices.
         When flashing, it needs to be combined with an identity file first. See
-        'fleet create-identities' for more information.
+        'fleet add-devices' for more information.
         """
       --options=[
         cli.Option "output"

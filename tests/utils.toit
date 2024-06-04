@@ -19,7 +19,7 @@ import artemis.cli.server-config as cli-server-config
 import artemis.cli.cache as cli
 import artemis.cli.config as cli
 import artemis.cli.cache as artemis-cache
-import artemis.cli.utils show read-json write-json-to-file
+import artemis.cli.utils show read-json write-json-to-file untar
 import artemis.shared.server-config
 import artemis.shared.version as configured-version
 import artemis.service
@@ -32,6 +32,7 @@ import ..tools.service-image-uploader.uploader as uploader
 import monitor
 import .artemis-server
 import .broker
+import .cli-device-extract show TestDeviceConfig
 import .supabase-local-server
 
 export Device
@@ -284,16 +285,27 @@ class TestCli:
   start-device -> TestDevice
       --alias-id/uuid.Uuid
       --hardware-id/uuid.Uuid
-      --qemu-image
+      --device-config/TestDeviceConfig
       --organization-id=TEST-ORGANIZATION-UUID:
-    result := TestDevicePipe.qemu
-        --broker=broker
-        --alias-id=alias-id
-        --hardware-id=hardware-id
-        --organization-id=TEST-ORGANIZATION-UUID
-        --image-path=qemu-image
-        --toit-run=toit-run-path_
-        --qemu-path=qemu-path_
+    result/TestDevice := ?
+    if device-config.format == "qemu":
+      result = TestDevicePipe.qemu
+          --broker=broker
+          --alias-id=alias-id
+          --hardware-id=hardware-id
+          --organization-id=TEST-ORGANIZATION-UUID
+          --image-path=device-config.path
+          --qemu-path=qemu-path_
+    else if device-config.format == "tar":
+      result = TestDevicePipe.host
+          --broker=broker
+          --alias-id=alias-id
+          --hardware-id=hardware-id
+          --organization-id=TEST-ORGANIZATION-UUID
+          --tar-path=device-config.path
+    else:
+      throw "Unknown format"
+
     test-devices_.add result
     return result
 
@@ -555,6 +567,7 @@ class TestDevicePipe extends TestDevice:
   signal_ := monitor.Signal
   stdout-task_/Task? := null
   stderr-task_/Task? := null
+  tmp-dir/string? := null
 
   constructor.fake-host
       --broker/TestBroker
@@ -608,7 +621,6 @@ class TestDevicePipe extends TestDevice:
         --alias-id/uuid.Uuid
         --organization-id/uuid.Uuid
         --image-path/string
-        --toit-run/string
         --qemu-path/string:
     super
         --broker=broker
@@ -624,6 +636,23 @@ class TestDevicePipe extends TestDevice:
       "-nic", "user,model=open_eth",
     ]
     fork_ qemu-path flags
+
+  constructor.host
+        --broker/TestBroker
+        --hardware-id/uuid.Uuid
+        --alias-id/uuid.Uuid
+        --organization-id/uuid.Uuid
+        --tar-path/string:
+    tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
+    untar tar-path --target=tmp-dir
+    boot-sh := "$tmp-dir/boot.sh"
+    super
+        --broker=broker
+        --hardware-id=hardware-id
+        --alias-id=alias-id
+        --organization-id=organization-id
+
+    fork_ "bash" [boot-sh]
 
   fork_ exe flags:
     fork-data := pipe.fork
@@ -679,6 +708,9 @@ class TestDevicePipe extends TestDevice:
         SIGKILL ::= 9
         pipe.kill_ child-process_ SIGKILL
         child-process_ = null
+      if tmp-dir:
+        directory.rmdir --recursive tmp-dir
+        tmp-dir = null
 
   output -> string:
     return output_.to-string-non-throwing
@@ -780,11 +812,13 @@ with-test-cli
     SDK-PATH-OPTION ::= "--sdk-path="
     ENVELOPE-PATH-ESP32-OPTION ::= "--envelope-esp32-path="
     ENVELOPE-PATH-ESP32-QEMU-OPTION ::= "--envelope-esp32-qemu-path="
+    ENVELOPE-PATH-HOST-OPTION ::= "--envelope-host-path="
 
     sdk-version := "v0.0.0"
     sdk-path/string? := null
     envelope-esp32-path/string? := null
     envelope-esp32-qemu-path/string? := null
+    envelope-host-path/string? := null
     args.do: | arg/string |
       if arg.starts-with SDK-VERSION-OPTION:
         sdk-version = arg[SDK-VERSION-OPTION.size ..]
@@ -794,8 +828,14 @@ with-test-cli
         envelope-esp32-path = arg[ENVELOPE-PATH-ESP32-OPTION.size ..]
       else if arg.starts-with ENVELOPE-PATH-ESP32-QEMU-OPTION:
         envelope-esp32-qemu-path = arg[ENVELOPE-PATH-ESP32-QEMU-OPTION.size ..]
+      else if arg.starts-with ENVELOPE-PATH-HOST-OPTION:
+        envelope-host-path = arg[ENVELOPE-PATH-HOST-OPTION.size ..]
 
-    if sdk-version == "" or not sdk-path or not envelope-esp32-path or not envelope-esp32-qemu-path:
+    if sdk-version == ""
+        or not sdk-path
+        or not envelope-esp32-path
+        or not envelope-esp32-qemu-path
+        or not envelope-host-path:
       print "Missing SDK version, SDK path or envelope path."
       exit 1
     TEST-SDK-VERSION = sdk-version
@@ -806,14 +846,19 @@ with-test-cli
       store.copy sdk-path
 
     ENVELOPES-URL ::= "github.com/toitlang/envelopes/releases/download/$sdk-version"
-    envelope-key := "$artemis-cache.ENVELOPE-PATH/$ENVELOPES-URL/firmware-esp32.envelope.gz/firmware.envelope"
-    cache.get-file-path envelope-key: | store/cli.FileStore |
-      print "Caching envelope: $envelope-esp32-path"
-      store.copy envelope-esp32-path
-    envelope-key = "$artemis-cache.ENVELOPE-PATH/$ENVELOPES-URL/firmware-esp32-qemu.envelope.gz/firmware.envelope"
-    cache.get-file-path envelope-key: | store/cli.FileStore |
-      print "Caching envelope: $envelope-esp32-qemu-path"
-      store.copy envelope-esp32-qemu-path
+    ENVELOPE-ARCHITECTURES ::= {
+      "esp32": envelope-esp32-path,
+      "esp32-qemu": envelope-esp32-qemu-path,
+      // We are using "host" as envelope name for the current platform.
+      // The github release page does not have any "host" envelope, but this way
+      // we don't need to change the tests depending on which platform they run.
+      "host": envelope-host-path,
+     }
+    ENVELOPE-ARCHITECTURES.do: | envelope-arch/string cached-path/string |
+      envelope-key := "$artemis-cache.ENVELOPE-PATH/$ENVELOPES-URL/firmware-$(envelope-arch).envelope.gz/firmware.envelope"
+      cache.get-file-path envelope-key: | store/cli.FileStore |
+        print "Caching envelope: $cached-path for $envelope-arch"
+        store.copy cached-path
 
     artemis-config := artemis-server.server-config
     broker-config := broker.server-config

@@ -4,7 +4,11 @@ import cli
 import host.file
 import uuid
 
-import .device show build-image
+import .device show
+    extract-device
+    build-extract-format-options
+    EXTRACT-FORMATS-COMMAND-HELP
+import .serial show PARTITION-OPTION
 import .utils_
 import ..artemis
 import ..config
@@ -31,13 +35,13 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
 
         The remaining commands are designed to be used in a workflow, where
         multiple devices are flashed with the same pod. Frequently, flash stations
-        are not connected to the Internet, so the 'fleet create-identities' and
-        'pod create' commands are used to create the necessary files, which are
+        are not connected to the Internet, so the 'fleet add-devices' and
+        'pod build' commands are used to create the necessary files, which are
         then transferred to the flash station.
 
         A typical flashing workflow consists of:
-        1. Create an Artemis pod using 'pod create'.
-        2. Create identity files using 'fleet create-identities'.
+        1. Create an Artemis pod using 'pod build'.
+        2. Create identity files using 'fleet add-devices'.
         3. Transfer the pod and the identity files to the flash station.
         4. Flash the devices using 'serial flash'.
         """
@@ -68,7 +72,8 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: init it config cache ui
   cmd.add init-cmd
 
-  create-identities-cmd := cli.Command "create-identities"
+  add-devices-cmd := cli.Command "add-devices"
+      --aliases=["create-identities", "provision"]
       --help="""
         Create a specified number of identity files.
 
@@ -91,9 +96,6 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             --default=DEFAULT-GROUP
             --help="Add the devices to a group.",
       ]
-      --aliases=[
-        "provision",
-      ]
       --rest=[
         cli.OptionInt "count"
             --help="Number of identity files to create."
@@ -105,100 +107,56 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         cli.Example "Create 10 identity files in the directory 'identities' and add them to group 'g1':"
             --arguments="--output-directory=identities --group=g1 10",
       ]
-      --run=:: create-identities it config cache ui
-  cmd.add create-identities-cmd
+      --run=:: add-devices it config cache ui
+  cmd.add add-devices-cmd
 
-  create-identity-cmd := cli.Command "create-identity"
+  add-device-cmd := cli.Command "add-device"
+      --aliases=["create-device"]
       --help="""
-        Create a single identity file.
+        Add a new device to the fleet.
 
-        An identity file describe a device, containing their ID and organization.
-        For each written identity file, a device is provisioned in the Toit
-        cloud.
+        If no output file is given, the device is just added to the fleet. In that
+        case you can use the 'device' command to extract an image, or you can
+        use 'flash' to flash it.
 
-        Use 'flash-station flash' to flash a device with an identity file and a
-        specification or firmware image.
+        $EXTRACT-FORMATS-COMMAND-HELP
 
-        If no ID is given, a new random ID is generated.
+        If no id is given, a new random ID is generated.
+        if no name is given, a random name is generated.
 
         This command requires the broker to be configured.
         This command requires Internet access.
         """
-      --options=[
-        cli.Option "output-directory"
-            --type="directory"
-            --help="Directory to write the identity file to."
-            --default=".",
-        cli.Option "group"
-            --default=DEFAULT-GROUP
-            --help="Add the devices to a group.",
+      --options=(build-extract-format-options --no-required) + [
+        cli.Option "output"
+            --short-name="o"
+            --type="file"
+            --help="The file to write the output to.",
         cli.Option "name"
             --help="The name of the device.",
         cli.Option "alias"
             --help="The alias of the device."
             --multi
             --split-commas,
-      ]
-      --rest=[
-        OptionUuid "id"
-            --help="The ID of the device.",
-      ]
-      --examples=[
-        cli.Example "Create an identity file 'shark.toit' in directory 'identities' and add it to group 'fish':"
-            --arguments="--output-directory=./identities --group=fish --name=shark.toit",
-      ]
-      --run=:: create-identity it config cache ui
-  cmd.add create-identity-cmd
-
-  create-host-device-cmd := cli.Command "create-host-device"
-      --help="""
-        Create a host device tar file.
-
-        This operation is equivalent to creating a new identity and then using
-        'device extract --tar' of the newly created device.
-
-        The pod, provided by the group, must be a host device pod. That is,
-        the envelope that was used to build the pod must be for Linux, macOS, or
-        Windows.
-        """
-      --options=[
-        cli.Option "output"
-            --short-name="o"
-            --type="file"
-            --help="The file to write the host device tar to.",
-        cli.Option "name"
-            --help="The name of the host device.",
-        cli.Option "alias"
-            --help="The alias of the host device."
-            --multi
-            --split-commas,
         cli.Option "group"
             --default=DEFAULT-GROUP
-            --help="Add the device to a group.",
-      ]
-      --rest=[
-        OptionUuid "id"
-            --help="The ID of the host device.",
+            --help="The group of the new device.",
+        cli.OptionUuid "id"
+            --help="The id of the device.",
+        cli.Flag "default"
+            --default=true
+            --help="Make this device the default device.",
       ]
       --examples=[
+        cli.Example "Add a new device in group 'roof-solar':"
+            --arguments="--group=roof-solar",
+        cli.Example "Add a new device and write the identity file to 'device.identity':"
+            --arguments="-o device.identity",
         cli.Example "Create a tar file 'device.tar' for a new host device 'berry' in group 'host-devices':"
-            --arguments="--name=berry --group=host-devices -o device.tar",
+            --arguments="--name=berry --group=host-devices --format=tar -o device.tar",
       ]
-      --run=:: create-host-device it config cache ui
-  cmd.add create-host-device-cmd
-
-  update-cmd := cli.Command "update"
-      --help="Deprecated alias for 'roll-out'."
-      --options=[
-        cli.Option "diff-base"
-            --type="pod-file"
-            --help="The base pod to use for diff-based updates."
-            --multi,
-      ]
-      --run=::
-        ui.warning "The 'fleet update' command is deprecated. Use 'fleet roll-out' instead."
-        roll-out it config cache ui
-  cmd.add update-cmd
+      --run=:: add-device it config cache ui
+  cmd.add add-device-cmd
 
   roll-out-cmd := cli.Command "roll-out"
       --aliases=[
@@ -481,7 +439,7 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-artemis parsed config cache ui: | artemis/Artemis |
     FleetWithDevices.init fleet-root artemis --organization-id=organization-id --ui=ui
 
-create-identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+add-devices parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output-directory := parsed["output-directory"]
   count := parsed["count"]
   group := parsed["group"]
@@ -501,28 +459,18 @@ create-identities parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     if count == written-count or written-count > 0:
       ui.info "Created $written-count identity file(s)."
 
-create-identity parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  output-directory := parsed["output-directory"]
-  group := parsed["group"]
-  name := parsed["name"]
-  aliases := parsed["alias"]
-  id := parsed["id"]
-
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    path := fleet.create-identity
-        --id=id
-        --name=name
-        --aliases=aliases
-        --group=group
-        --output-directory=output-directory
-    ui.info "Created identity file $path."
-
-create-host-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output := parsed["output"]
+  format := parsed["format"]
   name := parsed["name"]
   aliases := parsed["alias"]
   group := parsed["group"]
   id := parsed["id"]
+  partitions := parsed["partition"]
+  should-make-default := parsed["default"]
+
+  if output and not format:
+    ui.abort "Output file given without format."
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     with-tmp-directory: | tmp-dir |
@@ -532,11 +480,30 @@ create-host-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --aliases=aliases
           --group=group
           --output-directory=tmp-dir
-      device := Artemis.device-from --identity-path=identity-path
-      pod-ref := fleet.pod-reference-for-group group
-      pod := fleet.download pod-ref
-      build-image device pod --tar --output=output --cache=cache --ui=ui
-  ui.info "Firmware successfully written to '$output'."
+
+      identity := read-base64-ubjson identity-path
+      device-id := uuid.parse identity["artemis.device"]["device_id"]
+      fleet-device := fleet.device device-id
+      if output:
+        extract-device fleet-device
+            --fleet=fleet
+            --format=format
+            --partitions=partitions
+            --output=output
+            --cache=cache
+            --ui=ui
+
+      if should-make-default: make-default_ --device-id=device-id --config=config --ui=ui
+      ui.do --kind=Ui.RESULT: | printer/Printer |
+        printer.emit-structured
+          --json=: {
+            "name": fleet-device.name,
+            "id": "$fleet-device.id",
+            "group": fleet-device.group,
+            "fleet-id": "$fleet.id",
+          }
+          --stdout=: | printer/Printer |
+            printer.emit "Successfully added device $fleet-device.name ($device-id) in group $fleet-device.group."
 
 roll-out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   diff-bases := parsed["diff-base"]

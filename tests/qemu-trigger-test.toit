@@ -4,7 +4,7 @@
 
 import expect show *
 
-import .qemu
+import .cli-device-extract
 import .utils
 
 TEST-CODE ::= """
@@ -28,7 +28,8 @@ main:
 
 main args/List:
   with-fleet --args=args --count=0: | test-cli/TestCli _ fleet-dir/string |
-    qemu-data := build-qemu-image
+    qemu-data := create-extract-device
+        --format="qemu"
         --test-cli=test-cli
         --args=args
         --fleet-dir=fleet-dir
@@ -48,19 +49,18 @@ main args/List:
         }
     run-test test-cli qemu-data
 
-run-test test-cli/TestCli qemu-data/Map:
+run-test test-cli/TestCli qemu-data/TestDeviceConfig:
   tmp-dir := test-cli.tmp-dir
   ui := TestUi --no-quiet
 
-  image-path := qemu-data["image-path"]
-  device-id := qemu-data["device-id"]
+  device-id := qemu-data.device-id
 
   test-device := test-cli.start-device
       --alias-id=device-id
       // We don't know the actual hardware-id.
       // Cheat by reusing the alias id.
       --hardware-id=device-id
-      --qemu-image=image-path
+      --device-config=qemu-data
 
   print "Starting to look for 'hello world'."
   pos := test-device.wait-for "hello world" --start-at=0
@@ -69,3 +69,4 @@ run-test test-cli/TestCli qemu-data/Map:
   pos = test-device.wait-for "wakeup reason: Trigger - interval 1s" --start-at=pos
   // The triggers have been reset.
   pos = test-device.wait-for "triggers: [Trigger - boot]" --start-at=pos
+  test-device.close

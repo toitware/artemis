@@ -308,12 +308,12 @@ run-test test-cli/TestCli fleet-dir/string:
       "Can't create an identity for a group that doesn't exist"
       --expect-exit-1
       [
-          "fleet", "create-identities", "--group", "does-not-exist", "1",
+          "fleet", "add-devices", "--group", "does-not-exist", "1",
       ]
 
   test-cli.run-gold "183-no-create-identity-default"
       "Can't create an identity for default group that doesn't exist"
       --expect-exit-1
       [
-          "fleet", "create-identities", "1",
+          "fleet", "add-devices", "1",
       ]
