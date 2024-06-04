@@ -269,6 +269,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
       ]
 
   device-id/string? := null
+  FLASH-DEVICE-NAME ::= "test-device"
   // Flash it.
   test-cli.run-gold "DAF-flash"
       "Flash the firmware to the device."
@@ -286,12 +287,14 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         device-start-index := name-end-index + 2
         device-end-index := output.index-of ")" device-start-index
         device-name := output[name-start-index..name-end-index]
+        expect-equals FLASH-DEVICE-NAME device-name
         device-id = output[device-start-index..device-end-index]
         test-cli.replacements[device-name] = "DEVICE_NAME"
         test-cli.replacements[device-id] = "-={|    UUID-FOR-TEST-DEVICE    |}=-"
         output
       [
         "serial", "flash",
+        "--name", FLASH-DEVICE-NAME,
         "--fleet-root", fleet-dir,
         "--port", serial-port,
       ]

@@ -1,5 +1,5 @@
 # Flash the firmware to the device.
-# [serial, flash, --fleet-root, TMP_DIR/fleet, --port, SERIAL-PORT]
+# [serial, flash, --name, test-device, --fleet-root, TMP_DIR/fleet, --port, SERIAL-PORT]
 Successfully provisioned device DEVICE_NAME (-={|    UUID-FOR-TEST-DEVICE    |}=-).
 Default device set to -={|    UUID-FOR-TEST-DEVICE    |}=-.
 Successfully flashed device DEVICE_NAME (-={|    UUID-FOR-TEST-DEVICE    |}=- in group 'default') with pod 'my-pod@latest' (-={|      UUID-FOR-MY-POD#2     |}=-).
