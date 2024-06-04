@@ -561,7 +561,7 @@ class SynchronizeJob extends TaskJob:
     transition-to_ STATE-SYNCHRONIZED
 
     // Keep track of the last time we succesfully synchronized.
-    device_.synchronized-last-us-update JobTime.now.us
+    device_.synchronized-last-us-update Time.monotonic-us
 
     // Go back to being connected to the broker. Having just
     // synchronized gives us confidence to run more jobs, so let
@@ -578,9 +578,16 @@ class SynchronizeJob extends TaskJob:
     logger_.info STATE-SUCCESS[STATE-DISCONNECTED]
 
   determine-status_ -> int:
+    now := Time.monotonic-us
     last := device_.synchronized-last-us
-    elapsed := JobTime.now.us
-    if last: elapsed -= last
+    if not last:
+      // The very first time after powering on, we set the last
+      // synchronized timestamp to make it look like we just
+      // synchronized. This allows our devices to always power
+      // on into a green state.
+      device_.synchronized-last-us-update now
+      last = now
+    elapsed := now - last
     limit := status-limit-us_
     if elapsed < limit:
       return STATUS-GREEN
