@@ -46,6 +46,8 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
         cli.Flag "default"
             --default=true
             --help="Make this device the default device.",
+        cli.Option "name"
+            --help="The name of the device.",
         cli.Option "group"
             --default=DEFAULT-GROUP
             --help="Add this device to a group.",
@@ -165,6 +167,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   baud := parsed["baud"]
   simulate := parsed["simulate"]
   should-make-default := parsed["default"]
+  name := parsed["name"]
   group := parsed["group"]
   local := parsed["local"]
   remote := parsed["remote"]
@@ -179,6 +182,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
     with-tmp-directory: | tmp-dir/string |
       identity-path := fleet.create-identity
+          --name=name
           --group=group
           --output-directory=tmp-dir
       identity := read-base64-ubjson identity-path
