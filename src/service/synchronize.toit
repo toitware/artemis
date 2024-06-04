@@ -319,7 +319,7 @@ class SynchronizeJob extends TaskJob:
     if is-firmware-validation-pending_:
       runlevel = Job.RUNLEVEL-CRITICAL
     else if status > STATUS-GREEN:
-      uptime := Duration --us=Time.monotonic-us
+      uptime := Duration --us=(Time.monotonic-us --since-wakeup)
       if uptime >= STATUS-NON-GREEN-MAX-UPTIME:
         // If we're experiencing problems connecting, the most
         // unjarring thing we can do is to force occassional
