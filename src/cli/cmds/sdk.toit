@@ -20,6 +20,7 @@ create-sdk-commands config/Config cache/Cache ui/Ui -> List:
       ]
 
   list-cmd := cli.Command "list"
+      --aliases=["ls"]
       --help="List supported SDKs."
       --options=[
         cli.Option "sdk-version" --help="The SDK version to list.",
