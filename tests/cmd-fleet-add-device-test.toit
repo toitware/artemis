@@ -74,7 +74,7 @@ run-test args/List test-cli/TestCli fleet-dir/string:
 
     pos := test-device.wait-for "$tar-device-id" --start-at=0
     test-device.wait-for-synchronized --start-at=pos
-    // test-device.close
+    test-device.close
 
     // Get the device info as json.
     result := test-cli.run --json [
@@ -94,4 +94,4 @@ run-test args/List test-cli/TestCli fleet-dir/string:
 
     pos = test-device.wait-for "$new-id" --start-at=0
     test-device.wait-for-synchronized --start-at=pos
-    // test-device.close
+    test-device.close
