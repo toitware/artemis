@@ -62,4 +62,4 @@ run-test args/List test-cli/TestCli fleet-dir/string:
 
     pos := test-device.wait-for "$device-id" --start-at=0
     test-device.wait-for-synchronized --start-at=pos
-    test-device.close
+    // test-device.close

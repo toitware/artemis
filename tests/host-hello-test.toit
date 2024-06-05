@@ -48,4 +48,4 @@ run-test test-cli/TestCli config/TestDeviceConfig:
   print "Found 'hello world'."
   test-device.wait-for-synchronized --start-at=pos
   print "Found 'INFO: synchronized'."
-  test-device.close
+  // test-device.close
