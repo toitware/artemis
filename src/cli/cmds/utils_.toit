@@ -73,4 +73,3 @@ make-default_ --device-id/uuid.Uuid --config/Config --ui/Ui:
   config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
   config.write
   ui.info "Default device set to $device-id."
-

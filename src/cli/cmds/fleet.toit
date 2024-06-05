@@ -116,8 +116,8 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         Add a new device to the fleet.
 
         If no output file is given, the device is just added to the fleet. In that
-        case you can use the 'device' command to extract an image, or you can
-        use 'flash' to flash it.
+        case you can use the 'device extract' command to extract an image, or you can
+        use 'serial flash' to flash it.
 
         $EXTRACT-FORMATS-COMMAND-HELP
 
@@ -151,7 +151,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         cli.Example "Add a new device in group 'roof-solar':"
             --arguments="--group=roof-solar",
         cli.Example "Add a new device and write the identity file to 'device.identity':"
-            --arguments="-o device.identity",
+            --arguments="--format=identity -o device.identity",
         cli.Example "Create a tar file 'device.tar' for a new host device 'berry' in group 'host-devices':"
             --arguments="--name=berry --group=host-devices --format=tar -o device.tar",
       ]

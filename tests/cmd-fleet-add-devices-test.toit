@@ -58,9 +58,11 @@ run-test test-cli/TestCli fleet-dir/string:
         --name="test-name"
         --aliases=aliases
 
+    // We can't create the same device twice.
     test-cli.run --expect-exit-1 --allow-exception [
       "fleet",
       "add-device",
+      "--format", "identity",
       "--output", "$tmp-dir/other.identity",
       "--id", "$id",
     ]

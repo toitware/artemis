@@ -381,14 +381,6 @@ extract-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --ui=ui
     ui.info "Firmware successfully written to '$output'."
 
-check-pod-is-esp32_ --pod/Pod --sdk/Sdk --ui/Ui:
-  chip-family := Sdk.get-chip-family-from --envelope=pod.envelope
-  if chip-family != "esp32":
-    ui.abort "Cannot generate QEMU image for chip-family '$chip-family'."
-  chip := sdk.chip-for --envelope-path=pod.envelope-path
-  if chip != "esp32":
-    ui.abort "Cannot generate QEMU image for chip '$chip'."
-
 extract-device fleet-device/DeviceFleet
     --fleet/FleetWithDevices
     --pod/Pod?=null
@@ -437,6 +429,13 @@ extract-device fleet-device/DeviceFleet
       else:
         ui.info "Wrote binary firmware to '$output'."
     else if format == "qemu":
+      chip-family := Sdk.get-chip-family-from --envelope=pod.envelope
+      if chip-family != "esp32":
+        ui.abort "Cannot generate QEMU image for chip-family '$chip-family'."
+      chip := sdk.chip-for --envelope-path=pod.envelope-path
+      if chip != "esp32":
+        ui.abort "Cannot generate QEMU image for chip '$chip'."
+
       sdk.extract-qemu-image
           --output-path=output
           --envelope-path=pod.envelope-path
