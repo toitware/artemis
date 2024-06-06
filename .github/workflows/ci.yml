@@ -98,7 +98,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           # sdl2 and libslirp are needed for Qemu.
-          brew install ninja sdl2 libslirp
+          brew install ninja sdl2 libslirp util-linux
           ninja --version
           cmake --version
       - name: Install dependencies - Windows

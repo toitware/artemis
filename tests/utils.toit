@@ -579,6 +579,7 @@ if [ "\$#" -eq 0 ]; then
   touch \$PID_FILE
   # Wait for the subshell to write the PID file.
   PID=\$(tail -F \$PID_FILE | head -n 1)
+  rm \$PID_FILE
   # Forward any SIGTERM signal to the newly spawned process.
   trap "kill -TERM \$PID" SIGTERM;
   wait \$SETSID_PID
@@ -590,7 +591,12 @@ fi
 PID_FILE=\$1
 # Write the PID of the current process to the PID file, so that the
 # parent process has a way to communicate with us.
-echo \$\$ > \$PID_FILE
+echo \$\$ >> \$PID_FILE
+echo >> \$PID_FILE
+# On macos we need to change the file to get the tail | head above to terminate.
+while [ -e \$PID_FILE ]; do
+  echo -n " " >> \$PID_FILE
+done
 
 ALREADY_CLEANING_UP=0
 
