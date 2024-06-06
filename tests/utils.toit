@@ -561,6 +561,59 @@ class FakeDevice extends TestDevice:
       goal-state = null
     pending-state_ = null
 
+KILLABLE-BOOT-SCRIPT ::= """
+#!/bin/bash
+
+# When receiving the SIGINT signal, kills all children.
+# It uses the process group id to kill all children.
+# Since the process group id might include the parent process, we
+# use 'setsid' to create a new process group, when we are started.
+# When called without any argument we assume that we are started from
+# the outside and we use setsid to start ourselves again.
+
+# If there is no argument, we need to call ourselves again with setsid.
+if [ "\$#" -eq 0 ]; then
+  PID_FILE=\$(mktemp)
+  setsid --wait --fork /bin/bash "\$0" \$PID_FILE &
+  SETSID_PID=\$!
+  touch \$PID_FILE
+  # Wait for the subshell to write the PID file.
+  PID=\$(tail -F \$PID_FILE | head -n 1)
+  # Forward any SIGTERM signal to the newly spawned process.
+  trap "kill -TERM \$PID" SIGTERM;
+  wait \$SETSID_PID
+  echo "WAITING DONE"
+  exit
+fi
+
+# If there is an argument, we assume that we are the child process.
+PID_FILE=\$1
+# Write the PID of the current process to the PID file, so that the
+# parent process has a way to communicate with us.
+echo \$\$ > \$PID_FILE
+
+ALREADY_CLEANING_UP=0
+
+function cleanup() {
+  if [ \$ALREADY_CLEANING_UP -eq 1 ]; then
+    return
+  fi
+  ALREADY_CLEANING_UP=1
+  # First kill with SIGTERM, then with SIGKILL.
+  kill -TERM 0
+  # This will also kill the current process.
+  kill -KILL 0
+}
+
+trap cleanup SIGTERM;
+
+# It's critical to run the script as a background process, as we would
+# otherwise not be able to execute any registered trap.
+\${BASH_SOURCE%/*}/boot.sh &
+BOOT_PID=\$!
+wait \$BOOT_PID
+"""
+
 class TestDevicePipe extends TestDevice:
   output_/ByteArray := #[]
   child-process_/any := null
@@ -646,13 +699,15 @@ class TestDevicePipe extends TestDevice:
     tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
     untar tar-path --target=tmp-dir
     boot-sh := "$tmp-dir/boot.sh"
+    killable-boot-sh := "$tmp-dir/killable-boot.sh"
+    file.write-content --path=killable-boot-sh KILLABLE-BOOT-SCRIPT
     super
         --broker=broker
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
 
-    fork_ "bash" [boot-sh]
+    fork_ "bash" [killable-boot-sh]
 
   fork_ exe flags:
     fork-data := pipe.fork
@@ -696,18 +751,26 @@ class TestDevicePipe extends TestDevice:
       finally:
         stderr.close
 
+  kill-subprocess_:
+    SIGTERM ::= 15
+    SIGKILL ::= 9
+    [SIGTERM, SIGKILL].do: | signal |
+      catch:
+        with-timeout --ms=50:
+          pipe.kill_ child-process_ signal
+        return
+
   close:
     critical-do:
+      if child-process_:
+        kill-subprocess_
+        child-process_ = null
       if stdout-task_:
         stdout-task_.cancel
         stdout-task_ = null
       if stderr-task_:
         stderr-task_.cancel
         stderr-task_ = null
-      if child-process_:
-        SIGKILL ::= 9
-        pipe.kill_ child-process_ SIGKILL
-        child-process_ = null
       if tmp-dir:
         directory.rmdir --recursive tmp-dir
         tmp-dir = null
