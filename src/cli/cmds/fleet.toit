@@ -320,6 +320,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
   cmd.add group-cmd
 
   group-list-cmd := cli.Command "list"
+      --aliases=["ls"]
       --help="List the groups in the fleet."
       --run=:: group-list it config cache ui
   group-cmd.add group-list-cmd

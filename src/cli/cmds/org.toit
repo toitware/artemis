@@ -21,6 +21,7 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
       ]
 
   list-cmd := cli.Command "list"
+      --aliases=["ls"]
       --help="List organizations."
       --run=:: list-orgs it config ui
   org-cmd.add list-cmd
