@@ -476,6 +476,9 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   partitions := parsed["partition"]
   should-make-default := parsed["default"]
 
+  // If no id is given, just create one randomly.
+  id = id or random-uuid
+
   if output and not format:
     ui.abort "Output file given without format."
 
@@ -488,9 +491,7 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --group=group
           --output-directory=tmp-dir
 
-      identity := read-base64-ubjson identity-path
-      device-id := uuid.parse identity["artemis.device"]["device_id"]
-      fleet-device := fleet.device device-id
+      fleet-device := fleet.device id
       if output:
         extract-device fleet-device
             --fleet=fleet
@@ -500,7 +501,7 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --cache=cache
             --ui=ui
 
-      if should-make-default: make-default_ --device-id=device-id --config=config --ui=ui
+      if should-make-default: make-default_ --device-id=id --config=config --ui=ui
       ui.do --kind=Ui.RESULT: | printer/Printer |
         printer.emit-structured
           --json=: {
@@ -510,7 +511,7 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             "fleet-id": "$fleet.id",
           }
           --stdout=: | printer/Printer |
-            printer.emit "Successfully added device $fleet-device.name ($device-id) in group $fleet-device.group."
+            printer.emit "Successfully added device $fleet-device.name ($id) in group $fleet-device.group."
 
 roll-out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   diff-bases := parsed["diff-base"]
