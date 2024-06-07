@@ -656,7 +656,7 @@ class TestDevicePipe extends TestDevice:
         --organization-id=organization-id
     if system.platform == system.PLATFORM-WINDOWS:
       throw "Host devices are not supported on Windows."
-    fork_ "bash" boot-sh
+    fork_ "bash" [boot-sh]
 
   fork_ exe flags:
     fork-data := pipe.fork
