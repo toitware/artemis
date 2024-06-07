@@ -34,7 +34,6 @@ import .artemis-server
 import .broker
 import .cli-device-extract show TestDeviceConfig
 import .supabase-local-server
-import .run-image-boot-sh as run-image-boot-sh
 
 export Device
 
@@ -647,8 +646,6 @@ class TestDevicePipe extends TestDevice:
     tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
     untar tar-path --target=tmp-dir
     boot-sh := "$tmp-dir/boot.sh"
-    // TODO(florian): remove this work-around once we have a more recent SDK.
-    file.write-content --path=boot-sh run-image-boot-sh.BOOT-SH
     super
         --broker=broker
         --hardware-id=hardware-id
