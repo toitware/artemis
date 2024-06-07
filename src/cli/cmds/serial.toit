@@ -16,6 +16,12 @@ import ..ui
 import ..utils
 import ...service.run.simulate show run-host
 
+PARTITION-OPTION ::= OptionPatterns "partition"
+    ["file:<name>=<path>", "empty:<name>=<size>"]
+    --help="Add a custom partition to the device."
+    --split-commas
+    --multi
+
 create-serial-commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "serial"
       --help="Serial port commands."
@@ -25,11 +31,7 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
         --short-name="p"
         --required,
     cli.Option "baud",
-    OptionPatterns "partition"
-        ["file:<name>=<path>", "empty:<name>=<size>"]
-        --help="Add a custom partition to the device."
-        --split-commas
-        --multi,
+    PARTITION-OPTION,
   ]
 
   flash-cmd := cli.Command "flash"
@@ -54,10 +56,6 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
         cli.Option "local"
             --type="file"
             --help="A local pod file to flash.",
-        cli.Option "qemu-image"
-            --type="file"
-            --help="Write to a QEMU image file instead of flashing."
-            --hidden,
         cli.Flag "simulate"
             --hidden
             --default=false,
@@ -102,7 +100,7 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
         Flash a device on a flash station.
 
         Does not require Internet access, but uses identity files that have
-        been prebuilt using 'fleet create-identities'.
+        been prebuilt using 'fleet add-devices'.
 
         The 'port' argument is used to select the serial port to use.
         """
@@ -116,10 +114,6 @@ create-serial-commands config/Config cache/Cache ui/Ui -> List:
             --short-name="i"
             --help="The identity file to use."
             --required,
-        cli.Option "qemu-image"
-            --type="file"
-            --help="Write to a QEMU image file instead of flashing."
-            --hidden,
       ]
       --examples=[
         cli.Example """
@@ -172,7 +166,6 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   local := parsed["local"]
   remote := parsed["remote"]
   partitions := build-partitions-table_ parsed["partition"] --ui=ui
-  qemu-image := parsed["qemu-image"]
 
   if local and remote:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
@@ -215,7 +208,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       write-blob-to-file config-path config-bytes
 
       sdk := get-sdk pod.sdk-version --cache=cache
-      if not simulate and not qemu-image:
+      if not simulate:
         ui.do --kind=Ui.VERBOSE: | printer/Printer|
           debug-line := "Flashing the device with pod $reference"
           if reference.id: debug-line += "."
@@ -228,26 +221,18 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --port=port
             --baud-rate=baud
             --partitions=partitions
-        if should-make-default: make-default_ device-id config ui
+        if should-make-default: make-default_ --device-id=device-id --config=config --ui=ui
         info := "Successfully flashed device $fleet-device.name ($device-id"
         if group: info += " in group '$group'"
         info += ") with pod '$reference'"
         if reference.id: info += "."
         else: info += " ($pod.id)."
         ui.info info
-      else if qemu-image:
-        check-pod-is-esp32_ --pod=pod --sdk=sdk --ui=ui
-        sdk.extract-qemu-image
-            --output-path=qemu-image
-            --envelope-path=pod.envelope-path
-            --config-path=config-path
-            --partitions=partitions
-        ui.info "Wrote to QEMU image file '$qemu-image'."
       else:
         ui.info "Simulating flash."
         ui.info "Using the local Artemis service and not the one specified in the specification."
         old-default := config.get CONFIG-ARTEMIS-DEFAULT-KEY
-        if should-make-default: make-default_ device-id config ui
+        if should-make-default: make-default_ --device-id=device-id --config=config --ui=ui
         run-host
             --pod=pod
             --identity-path=identity-path
@@ -261,11 +246,6 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
               "group": "$group",
             }
 
-make-default_ device-id/uuid.Uuid config/Config ui/Ui:
-  config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
-  config.write
-  ui.info "Default device set to $device-id."
-
 flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if not station: throw "INVALID_ARGUMENT"
   identity-path := parsed["identity"]
@@ -273,7 +253,6 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   port := parsed["port"]
   baud := parsed["baud"]
   partitions := build-partitions-table_ parsed["partition"] --ui=ui
-  qemu-image := parsed["qemu-image"]
 
   with-artemis parsed config cache ui: | artemis/Artemis |
     pod := Pod.parse pod-path --tmp-directory=artemis.tmp-directory --ui=ui
@@ -288,30 +267,13 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
       // Flash.
       sdk := get-sdk pod.sdk-version --cache=cache
-      if not qemu-image:
-        // TODO(florian): don't print anything if ui is quiet/silent.
-        sdk.flash
-            --envelope-path=pod.envelope-path
-            --config-path=config-path
-            --port=port
-            --baud-rate=baud
-            --partitions=partitions
-      else:
-        check-pod-is-esp32_ --pod=pod --sdk=sdk --ui=ui
-        sdk.extract-qemu-image
-            --output-path=qemu-image
-            --envelope-path=pod.envelope-path
-            --config-path=config-path
-            --partitions=partitions
+      sdk.flash
+          --envelope-path=pod.envelope-path
+          --config-path=config-path
+          --port=port
+          --baud-rate=baud
+          --partitions=partitions
       identity := read-base64-ubjson identity-path
       // TODO(florian): Abstract away the identity format.
       device-id := uuid.parse identity["artemis.device"]["device_id"]
       ui.info "Successfully flashed device $device-id with pod '$pod.name' ($pod.id)."
-
-check-pod-is-esp32_ --pod/Pod --sdk/Sdk --ui/Ui:
-  chip-family := Sdk.get-chip-family-from --envelope=pod.envelope
-  if chip-family != "esp32":
-    ui.abort "Cannot generate QEMU image for chip-family '$chip-family'."
-  chip := sdk.chip-for --envelope-path=pod.envelope-path
-  if chip != "esp32":
-    ui.abort "Cannot generate QEMU image for chip '$chip'."

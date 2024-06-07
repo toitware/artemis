@@ -33,7 +33,7 @@ run-test test-cli/TestCli fleet-dir/string:
     count := 3
     test-cli.run [
       "fleet",
-      "create-identities",
+      "add-devices",
       "--output-directory", tmp-dir,
       "$count",
     ]
@@ -45,26 +45,29 @@ run-test test-cli/TestCli fleet-dir/string:
     aliases := [alias1, alias2]
     test-cli.run [
       "fleet",
-      "create-identity",
-      "--output-directory", tmp-dir,
+      "add-device",
+      "--format", "identity",
+      "--output", "$tmp-dir/$(id).identity",
       "--name", "test-name",
       "--alias", (aliases.join ","),
-      "$id",
+      "--id", "$id",
     ]
-    test-write-identity test-cli fleet-dir tmp-dir
+    test-extract-identity test-cli fleet-dir tmp-dir
     check-and-remove-identity-files fleet-dir tmp-dir
         --id=id
         --name="test-name"
         --aliases=aliases
 
+    // We can't create the same device twice.
     test-cli.run --expect-exit-1 --allow-exception [
       "fleet",
-      "create-identity",
-      "--output-directory", tmp-dir,
-      "$id",
+      "add-device",
+      "--format", "identity",
+      "--output", "$tmp-dir/other.identity",
+      "--id", "$id",
     ]
 
-test-write-identity test-cli/TestCli fleet-dir/string tmp-dir/string:
+test-extract-identity test-cli/TestCli fleet-dir/string tmp-dir/string:
   devices/Map := json.decode (file.read-content "$fleet-dir/devices.json")
   expect-equals 1 devices.size
   id := devices.keys.first
@@ -72,12 +75,12 @@ test-write-identity test-cli/TestCli fleet-dir/string tmp-dir/string:
   test-cli.run [
     "device",
     "-d", "$id",
-    "write-identity",
+    "extract",
+    "--format", "identity",
     "-o", device-id-file,
   ]
   check-identity-file device-id-file --id=id
   file.delete device-id-file
-
 
 check-and-remove-identity-files fleet-dir/string tmp-dir/string
     --id/Uuid?=null

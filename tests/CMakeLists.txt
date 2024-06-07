@@ -11,6 +11,7 @@ set(DEV_SDK_VERSION "" CACHE STRING "Version of the dev sdk")
 set(DEV_SDK_PATH "" CACHE STRING "Path to the dev sdk")
 set(DEV_ENVELOPE_ESP32_PATH "" CACHE STRING "Path to the dev esp32 envelope")
 set(DEV_ENVELOPE_ESP32_QEMU_PATH "" CACHE STRING "Path to the dev esp32-qemu envelope")
+set(DEV_ENVELOPE_HOST_PATH "" CACHE STRING "Path to the dev host envelope")
 
 set(QEMU_PATH "qemu-system-xtensa" CACHE STRING "Path to the qemu binary")
 
@@ -240,8 +241,9 @@ foreach(file ${TESTS})
             "--sdk-path=${DEV_SDK_PATH}"
             "--envelope-esp32-path=${DEV_ENVELOPE_ESP32_PATH}"
             "--envelope-esp32-qemu-path=${DEV_ENVELOPE_ESP32_QEMU_PATH}"
+            "--envelope-host-path=${DEV_ENVELOPE_HOST_PATH}"
             "--resource-locks=${RESOURCE_LOCKS}"
-            "--qemu-base=${CMAKE_CURRENT_SOURCE_DIR}/qemu-base"
+            "--base-root=${CMAKE_CURRENT_SOURCE_DIR}"
             ${QEMU_FLAG}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       CONFIGURATIONS ${TEST_CONFIGURATIONS}

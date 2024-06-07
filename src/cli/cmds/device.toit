@@ -8,6 +8,7 @@ import uuid
 
 import .utils_
 import .device-container
+import .serial show PARTITION-OPTION
 import ..artemis
 import ..cache
 import ..config
@@ -24,6 +25,29 @@ import ..server-config
 import ..ui
 import ..utils
 import ...shared.json-diff show Modification
+
+EXTRACT-FORMATS-COMMAND-HELP ::= """
+  This command supports the following output formats:
+    - 'identity': an identity file.
+    - 'binary': a binary image suitable for OTA updates.
+    - 'tar': a tar file with the device firmware. Only available for host devices.
+      That is, devices that use an envelope built for Linux, macOS, or Windows.
+    - 'qemu': a QEMU image. Only available for ESP32 devices.
+
+  The type of device (host, ESP32, etc.) is determined by the pod of the group
+  the device is in.
+
+  The '--partition' option is only used for formats that emit a full
+  image, like "qemu".
+  """
+
+build-extract-format-options --required/bool -> List:
+  return [
+    cli.OptionEnum "format" ["identity", "binary", "tar", "qemu"]
+        --help="The format of the output file."
+        --required=required,
+    PARTITION-OPTION
+  ]
 
 create-device-commands config/Config cache/Cache ui/Ui -> List:
   cmd := cli.Command "device"
@@ -126,33 +150,6 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: show it config cache ui
   cmd.add show-cmd
 
-  write-identity-cmd := cli.Command "write-identity"
-      --aliases=["export-identity"]
-      --help="""
-        Write the identity of a device.
-
-        If no ID is given, writes the identity of the default device.
-        """
-      --options=[
-        cli.Option "output"
-            --short-name="o"
-            --type="file"
-            --help="The file to write the identity to."
-            --required,
-      ]
-      --rest=[
-        cli.Option "device-rest"
-            --help="ID, name or alias of the device.",
-      ]
-      --examples=[
-        cli.Example "Write the identity of the default device (see 'device default'):"
-            --arguments="--output identity.json",
-        cli.Example "Write the identity of the device big-whale:"
-            --arguments="-d big-whale --output identity.json",
-      ]
-      --run=:: write-identity it config cache ui
-  cmd.add write-identity-cmd
-
   max-offline-cmd := cli.Command "set-max-offline"
       --help="Update the max-offline time of a device."
       --rest=[
@@ -170,25 +167,20 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
 
   cmd.add (create-container-command config cache ui)
 
-  build-image-cmd := cli.Command "build-image"
+  extract-cmd := cli.Command "extract"
       --help="""
-        Build a firmware image for this device.
+        Extracts a representation of this device.
 
-        The firmware can, for example, be used for OTA updates.
-
-        For devices that run on hosts, this command can also produce a tarball
-        with the necessary files to run the device's firmware.
+        $EXTRACT-FORMATS-COMMAND-HELP
 
         If no pod is specified, the one specified in the fleet is used.
         """
-      --options=[
+      --options= (build-extract-format-options --required) + [
         cli.Option "output"
             --short-name="o"
             --type="file"
-            --help="The output file for the firmware image."
+            --help="The output file."
             --required,
-        cli.Flag "tar"
-            --help="Create a tarball with the necessary files to run the firmware.",
         cli.Option "local"
             --help="A local pod file to build the firmware from.",
         cli.Option "remote"
@@ -204,10 +196,10 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
         cli.Example "Build a firmware image for the device big-whale:"
             --arguments="--output firmware.ota big-whale",
         cli.Example "Build a tarball with the necessary files to run the firmware for the default device:"
-            --arguments="--output firmware.tar --tar",
+            --arguments="--output firmware.tar --format=tar",
       ]
-      --run=:: build-image it config cache ui
-  cmd.add build-image-cmd
+      --run=:: extract-device it config cache ui
+  cmd.add extract-cmd
 
   return [cmd]
 
@@ -239,7 +231,7 @@ with-device
 
     block.call device fleet.artemis_ fleet
 
-pod-for_ -> Pod
+pod-for_ -> Pod?
     --local/string?
     --remote/string?
     --fleet/FleetWithDevices
@@ -349,18 +341,6 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
                 events
                 it
 
-write-identity parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device-reference := parsed["device"]
-  output := parsed["output"]
-
-  with-device parsed config cache ui: | fleet-device/DeviceFleet artemis/Artemis _ |
-    device/DeviceDetailed := artemis.device-for --id=fleet-device.id
-    artemis.write-identity-file
-        --out-path=output
-        --device-id=device.id
-        --organization-id=device.organization-id
-        --hardware-id=device.hardware-id
-
 set-max-offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max-offline := parsed["max-offline"]
 
@@ -375,36 +355,95 @@ set-max-offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --max-offline-seconds=max-offline-seconds
     ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
 
-build-image parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+extract-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output := parsed["output"]
-  tar := parsed["tar"]
+  format := parsed["format"]
   local := parsed["local"]
   remote := parsed["remote"]
+  partitions := parsed["partition"]
 
   with-device parsed config cache ui: | fleet-device/DeviceFleet artemis/Artemis fleet/FleetWithDevices |
-    pod := pod-for_
-        --local=local
-        --remote=remote
+    pod/Pod? := null
+    if local or remote:
+      pod = pod-for_
+          --local=local
+          --remote=remote
+          --fleet=fleet
+          --ui=ui
+          --on-absent=: unreachable
+    extract-device fleet-device
         --fleet=fleet
+        --pod=pod
+        --format=format
+        --output=output
+        --partitions=partitions
+        --cache=cache
         --ui=ui
-        --on-absent=(: fleet.pod-for fleet-device)
-
-    device := artemis.device-for --id=fleet-device.id
-    build-image device pod --tar=tar --output=output --cache=cache --ui=ui
     ui.info "Firmware successfully written to '$output'."
 
-build-image device/Device pod/Pod --tar/bool --output/string --cache/Cache --ui/Ui:
-    firmware := Firmware --cache=cache --device=device --pod=pod
-    sdk := get-sdk pod.sdk-version --cache=cache
-    with-tmp-directory: | tmp-dir/string |
-      device-specific-path := "$tmp-dir/device-specific"
-      device-specific := firmware.device-specific-data
-      file.write-content --path=device-specific-path device-specific
+extract-device fleet-device/DeviceFleet
+    --fleet/FleetWithDevices
+    --pod/Pod?=null
+    --identity-path/string?=null
+    --format/string
+    --output/string
+    --partitions/List
+    --cache/Cache
+    --ui/Ui:
+
+  artemis := fleet.artemis_
+
+  device/Device := identity-path
+      ? Artemis.device-from --identity-path=identity-path
+      : artemis.device-for --id=fleet-device.id
+
+  if format == "identity":
+    if not identity-path:
+      fleet.artemis_.write-identity-file
+          --out-path=output
+          --device-id=device.id
+          --organization-id=device.organization-id
+          --hardware-id=device.hardware-id
+    else:
+      file.copy --source=identity-path --target=output
+    ui.info "Wrote identity to '$output'."
+    return
+
+  if not pod: pod = fleet.pod-for fleet-device
+
+  firmware := Firmware --cache=cache --device=device --pod=pod
+  sdk := get-sdk pod.sdk-version --cache=cache
+  with-tmp-directory: | tmp-dir/string |
+    device-specific-path := "$tmp-dir/device-specific"
+    device-specific := firmware.device-specific-data
+    file.write-content --path=device-specific-path device-specific
+
+    if format == "tar" or format == "binary":
       bytes := sdk.firmware-extract
-          --format=(tar ? "tar" : "binary")
+          --format=format
           --envelope-path=pod.envelope-path
           --device-specific-path=device-specific-path
       file.write-content --path=output bytes
+      if format == "tar":
+        ui.info "Wrote tarball to '$output'."
+      else:
+        ui.info "Wrote binary firmware to '$output'."
+    else if format == "qemu":
+      chip-family := Sdk.get-chip-family-from --envelope=pod.envelope
+      if chip-family != "esp32":
+        ui.abort "Cannot generate QEMU image for chip-family '$chip-family'."
+      chip := sdk.chip-for --envelope-path=pod.envelope-path
+      if chip != "esp32":
+        ui.abort "Cannot generate QEMU image for chip '$chip'."
+
+      sdk.extract-qemu-image
+          --output-path=output
+          --envelope-path=pod.envelope-path
+          --config-path=device-specific-path
+          --partitions=partitions
+      ui.info "Wrote QEMU image to '$output'."
+    else:
+      ui.abort "Unknown format: $format."
 
 device-to-json_
     fleet-device/DeviceFleet
