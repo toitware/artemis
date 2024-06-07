@@ -444,7 +444,7 @@ abstract class TestDevice:
   abstract wait-for needle/string --start-at/int --not-followed-by/string?=null -> int
 
   wait-for-synchronized --start-at/int -> int:
-    return wait-for "INFO: synchronized" --start-at=start-at --not-followed-by=" state"
+    return wait-for "[artemis.synchronize] INFO: synchronized" --start-at=start-at --not-followed-by=" state"
 
   /**
   Waits until the device has connected to the broker.
