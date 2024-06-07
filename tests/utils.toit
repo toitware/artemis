@@ -654,25 +654,9 @@ class TestDevicePipe extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
-
-    fork-bash_ boot-sh
-
-  fork-bash_ script-path/string -> none:
-    bash := "bash"
     if system.platform == system.PLATFORM-WINDOWS:
-      // Running on Windows is tricky...
-      // - We want Git's bash and not any other. The path to the git-bash must
-      //   be in Windows format.
-      // - We provide a shell script as argument. That script must be in Unix
-      //   (cygwin) format.
-      // Example: `C:/Program Files/Git/usr/bin/bash.exe /tmp/envelope-test-...`.
-      script-path = (pipe.backticks ["cygpath", "-u", script-path]).trim
-      program-files-path := os.env.get "ProgramFiles"
-      if not program-files-path:
-        // This is brittle, as Windows localizes the name of the folder.
-        program-files-path = "C:/Program Files"
-      bash = "$program-files-path/Git/usr/bin/bash.exe"
-    fork_ bash [script-path]
+      throw "Host devices are not supported on Windows."
+    fork_ "bash" boot-sh
 
   fork_ exe flags:
     fork-data := pipe.fork
@@ -723,6 +707,7 @@ class TestDevicePipe extends TestDevice:
       catch:
         with-timeout --ms=250:
           pipe.kill_ child-process_ signal
+          pipe.wait-for child-process_
         return
 
   close:
