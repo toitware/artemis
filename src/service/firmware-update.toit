@@ -2,6 +2,7 @@
 
 import log
 import system.firmware
+import system.trace show send-trace-message
 
 import io
 import io show LITTLE-ENDIAN
@@ -55,6 +56,13 @@ firmware-update logger/log.Logger broker-connection/BrokerConnection -> none
             // checkpoint information and let the exception continue
             // unwinding the stack.
             device.checkpoint-update null
+            // Use the low-level tracing support to help diagnose
+            // the cause of the non-network exceptions we get. We
+            // do not clear the trace in the exception, like we
+            // do in the catch: implementation, so we may get into
+            // a situation where it is reported more than once.
+            trace := exception.trace
+            if trace: send-trace-message trace
             logger.warn "firmware update: abandoned due to non-network error"
   logger.info "firmware update: 100%" --tags={"elapsed": elapsed}
 

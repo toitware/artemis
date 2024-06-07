@@ -14,6 +14,7 @@ import artemis.cli.ui as ui
 import host.file
 import snapshot show cache-snapshot
 import supabase
+import system
 
 import .utils
 
@@ -39,6 +40,8 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
             --help="The envelope to download."
             --multi
             --split-commas,
+        cli.Flag "host-envelope"
+            --help="Compute the envelope for this host and add it as 'envelope' option.",
       ]
 
   download-cmd := cli.Command "download"
@@ -47,10 +50,16 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
   cmd.add download-cmd
 
   print-cmd := cli.Command "print"
-      --help="Prints the path to the SDK or envelope."
+      --help="""
+        Prints the path to the SDK or envelope.
+
+        If necessary, downloads it first.
+        """
       --options=[
         cli.Option "envelope"
             --help="Prints the path to the envelope.",
+        cli.Flag "host-envelope"
+            --help="Prints the path to the envelope that runs on the current host.",
       ]
       --run=:: print-path config cache ui it
   cmd.add print-cmd
@@ -63,9 +72,24 @@ pod-specification-for_ --sdk-version/string --envelope/string --ui/ui.Ui:
   json["firmware-envelope"] = envelope
   return PodSpecification.from-json json --path="ignored" --ui=ui
 
+compute-host-envelope -> string:
+  arch := system.architecture
+  platform := system.platform
+  if platform == system.PLATFORM-WINDOWS:
+    if arch == system.ARCHITECTURE-X86-64: return "x64-windows"
+  else if platform == system.PLATFORM-LINUX:
+    if arch == system.ARCHITECTURE-X86-64: return "x64-linux"
+  else if platform == system.PLATFORM-MACOS:
+    if arch == system.ARCHITECTURE-X86-64: return "x64-macos"
+    if arch == system.ARCHITECTURE-ARM64: return "aarch64-macos"
+  throw "Unsupported architecture: $arch - $platform"
+
 download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   sdk-version := parsed["version"]
   envelopes := parsed["envelope"]
+  needs-host-envelope := parsed["host-envelope"]
+  if needs-host-envelope:
+    envelopes += [compute-host-envelope]
 
   get-sdk --cache=cache sdk-version
   envelopes.do:
@@ -77,6 +101,10 @@ print-path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   log.set-default (log.default.with-level log.FATAL-LEVEL)
   sdk-version := parsed["version"]
   envelope := parsed["envelope"]
+  needs-host-envelope := parsed["host-envelope"]
+  if needs-host-envelope:
+    if envelope: ui.abort "The options 'envelope' and '--host-envelope' are exclusive"
+    envelope = compute-host-envelope
 
   path/string := ?
   if envelope:

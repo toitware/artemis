@@ -1,0 +1,5 @@
+$schema: https://toit.io/schemas/artemis/pod-specification/v1.json
+name: my-pod
+# The "host" envelope is valid only in tests, because we cache
+# the system-compatible firmware under this name when preparing CLI tests.
+firmware-envelope: host

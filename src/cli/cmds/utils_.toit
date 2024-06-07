@@ -68,3 +68,8 @@ compute-fleet-root-or-ref parsed/cli.Parsed config/Config ui/Ui -> string:
       printer.emit "Using fleet-root '$fleet-env' provided by environment variable."
     return fleet-env
   return "."
+
+make-default_ --device-id/uuid.Uuid --config/Config --ui/Ui:
+  config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
+  config.write
+  ui.info "Default device set to $device-id."

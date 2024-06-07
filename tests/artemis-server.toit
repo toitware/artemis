@@ -130,9 +130,8 @@ with-http-artemis-server [block]:
   server-task := task:: server.start port-latch
 
   host := "localhost"
-  if system.platform != system.PLATFORM-WINDOWS:
-    lan-ip := get-lan-ip
-    host = host.replace "localhost" lan-ip
+  lan-ip := get-lan-ip
+  host = host.replace "localhost" lan-ip
 
   server-config := ServerConfigHttp "test-artemis-server"
       --host=host

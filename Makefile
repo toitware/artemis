@@ -13,7 +13,7 @@ endif
 
 TOITRUN ?= toit.run$(EXE_SUFFIX)
 
-LOCAL_DEV_SDK ?= v2.0.0-alpha.152
+LOCAL_DEV_SDK ?= v2.0.0-alpha.153
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 SUPABASE_DIRS := supabase_artemis public/supabase_broker
@@ -200,6 +200,7 @@ download-sdk: install-pkgs
 		-DDEV_SDK_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print)" \
 		-DDEV_ENVELOPE_ESP32_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope="esp32")" \
 		-DDEV_ENVELOPE_ESP32_QEMU_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope="esp32-qemu")" \
+		-DDEV_ENVELOPE_HOST_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --host-envelope)" \
 		build
 
 # We rebuild the cmake file all the time.
