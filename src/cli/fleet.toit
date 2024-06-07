@@ -610,9 +610,11 @@ class FleetWithDevices extends Fleet:
   Creates a new identity file.
 
   Returns the path to the identity file.
+
+  It's safe to call this method with a $random-uuid.
   */
   create-identity -> string
-      --id/uuid.Uuid=random-uuid
+      --id/uuid.Uuid
       --name/string?=null
       --aliases/List?=null
       --group/string

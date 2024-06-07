@@ -448,17 +448,23 @@ add-devices parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if count < 0:
     ui.abort "Count can't be negative."
 
-  written-count := 0
+  written-ids := {:}
   try:
     with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
       count.repeat:
-        fleet.create-identity
+        id := random-uuid
+        path := fleet.create-identity
+            --id=id
             --group=group
             --output-directory=output-directory
-        written-count++
+        written-ids["$id"] = path
   finally:
-    if count == written-count or written-count > 0:
-      ui.info "Created $written-count identity file(s)."
+      ui.do --kind=Ui.RESULT: | printer/Printer |
+        printer.emit-structured
+          --json=: written-ids
+          --stdout=: | printer/Printer |
+              if count == written-ids.size or written-ids.size > 0:
+                ui.info "Created $written-ids.size identity file(s)."
 
 add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output := parsed["output"]

@@ -174,13 +174,12 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     artemis := fleet.artemis_
 
     with-tmp-directory: | tmp-dir/string |
+      device-id := random-uuid
       identity-path := fleet.create-identity
+          --id=device-id
           --name=name
           --group=group
           --output-directory=tmp-dir
-      identity := read-base64-ubjson identity-path
-      // TODO(florian): Abstract away the identity format.
-      device-id := uuid.parse identity["artemis.device"]["device_id"]
       fleet-device := fleet.device device-id
       ui.info "Successfully provisioned device $fleet-device.name ($device-id)."
 
