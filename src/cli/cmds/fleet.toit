@@ -463,7 +463,9 @@ add-devices parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         printer.emit-structured
           --json=: written-ids
           --stdout=: | printer/Printer |
-              if count == written-ids.size or written-ids.size > 0:
+              // Unless we didn't manage to create any identity (and more than 0 was requested),
+              // report the number of created identity files.
+              if written-ids.size > 0 or count == 0:
                 ui.info "Created $written-ids.size identity file(s)."
 
 add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
