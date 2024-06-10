@@ -332,12 +332,13 @@ class Channel extends ServiceResourceProxy:
   /**
   Sends an $element of bytes to the channel.
 
-  Variant of $(send element [--if-full]).
+  Variant of $(send element --copy [--if-full]).
 
   The channel must not be full.
   */
   send element/ByteArray --copy/bool=true -> none:
-    send element --if-full=: throw "OUT_OF_BOUNDS"
+    send element --copy=copy --if-full=:
+      throw "OUT_OF_BOUNDS"
 
   /**
   Sends an $element of bytes to the channel.
@@ -346,12 +347,17 @@ class Channel extends ServiceResourceProxy:
     the channel, so it will be returned from $receive
     only after those elements have been received.
 
+  If $copy is false, the implementation is allowed to
+    assume ownership of the bytes in the $element and
+    optionally neuter the $element. Such neutering turns
+    the $element into an empty byte array.
+
   If the channel is full, the $if-full block is invoked
     with the $element.
   */
-  send element/ByteArray [--if-full] -> none:
+  send element/ByteArray --copy/bool=true [--if-full] -> none:
     sent := element
-    if element is not ByteArraySlice_:
+    if copy and element is not ByteArraySlice_:
       // Even small external byte arrays are neutered
       // as part of sending them across the RPC boundary.
       // We avoid that behaviour by wrapping them in
