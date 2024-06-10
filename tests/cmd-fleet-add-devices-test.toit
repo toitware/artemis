@@ -9,6 +9,7 @@ import host.directory
 import host.file
 import expect show *
 import uuid show Uuid
+import uuid
 import .utils
 
 main args:
@@ -37,6 +38,21 @@ run-test test-cli/TestCli fleet-dir/string:
       "--output-directory", tmp-dir,
       "$count",
     ]
+    check-and-remove-identity-files fleet-dir tmp-dir count
+
+    // Test the json output.
+    count = 3
+    added-devices/Map := test-cli.run --json [
+      "fleet",
+      "add-devices",
+      "--output-directory", tmp-dir,
+      "$count",
+    ]
+    expect-equals count added-devices.size
+    added-devices.do: | uuid-string/string path/string |
+      // Make sure the uuid-string is actually a uuid.
+      uuid.parse uuid-string
+      expect (file.is-file path)
     check-and-remove-identity-files fleet-dir tmp-dir count
 
     id := random-uuid
