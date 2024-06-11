@@ -828,9 +828,10 @@ class FleetWithDevices extends Fleet:
           pod-name = description.name
           pod-revision = entry.revision
           pod-tags = entry.tags
+          pod-tags = pod-tags.sort
           pod-description = "$description.name#$entry.revision"
           if not entry.tags.is-empty:
-            pod-description += " $(entry.tags.join ",")"
+            pod-description += " $(pod-tags.join ",")"
 
       cross := "x"
       // TODO(florian): when the UI wants structured output we shouldn't change the last
