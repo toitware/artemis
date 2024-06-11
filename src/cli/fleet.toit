@@ -827,8 +827,7 @@ class FleetWithDevices extends Fleet:
           description/PodRegistryDescription := description-map.get entry.pod-description-id
           pod-name = description.name
           pod-revision = entry.revision
-          pod-tags = entry.tags
-          pod-tags = pod-tags.sort
+          pod-tags = entry.tags.sort
           pod-description = "$description.name#$entry.revision"
           if not entry.tags.is-empty:
             pod-description += " $(pod-tags.join ",")"
