@@ -829,7 +829,7 @@ class FleetWithDevices extends Fleet:
           pod-revision = entry.revision
           pod-tags = entry.tags.sort
           pod-description = "$description.name#$entry.revision"
-          if not entry.tags.is-empty:
+          if not pod-tags.is-empty:
             pod-description += " $(pod-tags.join ",")"
 
       cross := "x"
