@@ -827,10 +827,10 @@ class FleetWithDevices extends Fleet:
           description/PodRegistryDescription := description-map.get entry.pod-description-id
           pod-name = description.name
           pod-revision = entry.revision
-          pod-tags = entry.tags
+          pod-tags = entry.tags.sort
           pod-description = "$description.name#$entry.revision"
-          if not entry.tags.is-empty:
-            pod-description += " $(entry.tags.join ",")"
+          if not pod-tags.is-empty:
+            pod-description += " $(pod-tags.join ",")"
 
       cross := "x"
       // TODO(florian): when the UI wants structured output we shouldn't change the last
