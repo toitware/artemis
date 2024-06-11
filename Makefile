@@ -13,7 +13,7 @@ endif
 
 TOITRUN ?= toit.run$(EXE_SUFFIX)
 
-LOCAL_DEV_SDK ?= v2.0.0-alpha.153
+LOCAL_DEV_SDK ?= v2.0.0-alpha.154
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 SUPABASE_DIRS := supabase_artemis public/supabase_broker
