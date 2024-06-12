@@ -18,6 +18,7 @@ import ..firmware
 import ..fleet
 import ..pod
 import ..pod-registry
+import ..server-config show get-server-from-config
 import ..ui
 import ..utils
 
@@ -436,9 +437,13 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
     organization-id = default-organization-id
 
+  default-broker-config := get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
   fleet-root := compute-fleet-root-or-ref parsed config ui
   with-artemis parsed config cache ui: | artemis/Artemis |
-    FleetWithDevices.init fleet-root artemis --organization-id=organization-id --ui=ui
+    FleetWithDevices.init fleet-root artemis
+        --organization-id=organization-id
+        --default-broker-config=default-broker-config
+        --ui=ui
 
 add-devices parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output-directory := parsed["output-directory"]
@@ -557,7 +562,7 @@ add-existing-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
 group-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    fleet-file := Fleet.load-fleet-file fleet.root --ui=ui
+    fleet-file := fleet.fleet-file_
 
     ui.do --kind=Ui.RESULT: | printer/Printer |
       structured := []
@@ -588,7 +593,7 @@ group-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if not fleet.pod-exists pod-reference:
         ui.abort "Pod $pod-reference does not exist."
 
-    fleet-file := Fleet.load-fleet-file fleet.root --ui=ui
+    fleet-file := fleet.fleet-file_
     if fleet-file.group-pods.contains name:
       ui.abort "Group $name already exists."
     fleet-file.group-pods[name] = pod-reference
@@ -615,7 +620,7 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     fleet-root := fleet.root
-    fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
+    fleet-file := fleet.fleet-file_
 
     pod-reference/PodReference? := null
     if pod:
@@ -659,7 +664,7 @@ group-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   group := parsed["group"]
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    fleet-file := Fleet.load-fleet-file fleet.root --ui=ui
+    fleet-file := fleet.fleet-file_
     if not fleet-file.group-pods.contains group:
       ui.info "Group '$group' does not exist."
       return
@@ -692,7 +697,7 @@ group-move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     if groups-to-move.is-empty and devices-to-move.is-empty:
       ui.abort "No devices or groups given."
 
-    fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
+    fleet-file := fleet.fleet-file_
     if not fleet-file.group-pods.contains to:
       ui.abort "Group '$to' does not exist."
 
@@ -734,6 +739,5 @@ create-reference parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output := parsed["output"]
 
   with-pod-fleet parsed config cache ui: | fleet/Fleet |
-    reference := fleet.create-reference
-    write-json-to-file --pretty output reference
+    fleet.write-reference --path=output
     ui.info "Created reference file $output."

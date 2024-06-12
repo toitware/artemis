@@ -42,9 +42,9 @@ with-devices-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
   fleet-root := compute-fleet-root-or-ref parsed config ui
 
   with-artemis parsed config cache ui: | artemis/Artemis |
-    broker-config := get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
+    default-broker-config := get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
     fleet := FleetWithDevices fleet-root artemis
-        --broker-config=broker-config
+        --default-broker-config=default-broker-config
         --ui=ui
         --cache=cache
         --config=config
@@ -54,9 +54,9 @@ with-pod-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
   fleet-root-or-ref := compute-fleet-root-or-ref parsed config ui
 
   with-artemis parsed config cache ui: | artemis/Artemis |
-    broker-config := get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
+    default-broker-config := get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
     fleet := Fleet fleet-root-or-ref artemis
-        --broker-config=broker-config
+        --default-broker-config=default-broker-config
         --ui=ui
         --cache=cache
         --config=config
