@@ -286,7 +286,6 @@ class Pod:
 
     return firmware.device-specific-data
 
-
   static is-same-broker broker/string identity/Map tmp/string assets-path/string sdk/Sdk -> bool:
     broker-path := "$tmp/broker.json"
     sdk.run-assets-tool [
