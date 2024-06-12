@@ -521,7 +521,7 @@ roll-out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     pod-diff-bases := diff-bases.map: | file-or-ref/string |
       if file.is-file file-or-ref:
-        Pod.parse file-or-ref --tmp-directory=fleet.artemis_.tmp-directory --ui=ui
+        Pod.parse file-or-ref --tmp-directory=fleet.artemis.tmp-directory --ui=ui
       else:
         fleet.download (PodReference.parse file-or-ref --ui=ui)
     fleet.roll-out --diff-bases=pod-diff-bases
@@ -543,18 +543,17 @@ add-existing-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     if not fleet.has-group group:
       ui.abort "Group '$group' not found."
 
-    with-artemis parsed config cache ui: | artemis/Artemis |
-      broker := artemis.connected-broker
-      devices := broker.get-devices --device-ids=[device-id]
-      if devices.is-empty:
-        ui.abort "Device $device-id not found."
+    broker := fleet.broker
+    devices := broker.get-devices --device-ids=[device-id]
+    if devices.is-empty:
+      ui.abort "Device $device-id not found."
 
-      device/DeviceDetailed := devices[device-id]
-      if device.organization-id != fleet.organization-id:
-        ui.abort "Device $device-id is not in the same organization as the fleet."
+    device/DeviceDetailed := devices[device-id]
+    if device.organization-id != fleet.organization-id:
+      ui.abort "Device $device-id is not in the same organization as the fleet."
 
-      fleet.add-device --device-id=device.id --group=group --name=name --aliases=aliases
-      ui.info "Added device $device-id to fleet."
+    fleet.add-device --device-id=device.id --group=group --name=name --aliases=aliases
+    ui.info "Added device $device-id to fleet."
 
 group-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |

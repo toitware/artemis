@@ -229,7 +229,7 @@ with-device
     else:
       device = fleet.resolve-alias device-reference
 
-    block.call device fleet.artemis_ fleet
+    block.call device fleet
 
 pod-for_ -> Pod?
     --local/string?
@@ -251,7 +251,8 @@ pod-for_ -> Pod?
 
   return Pod.from-file local
       --organization-id=fleet.organization-id
-      --artemis=fleet.artemis_
+      --artemis=fleet.artemis
+      --broker=fleet.broker
       --ui=ui
 
 update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -259,10 +260,10 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   local := parsed["local"]
   remote := parsed["remote"]
 
-  with-device parsed config cache ui: | device/DeviceFleet artemis/Artemis fleet/FleetWithDevices |
+  with-device parsed config cache ui: | device/DeviceFleet fleet/FleetWithDevices |
     pod := pod-for_ --local=local --remote=remote --fleet=fleet --ui=ui --on-absent=:
       ui.abort "No pod specified."
-    artemis.update --device-id=device.id --pod=pod
+    fleet.broker.update --device-id=device.id --pod=pod
 
 default-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device-reference := parsed["device"]
@@ -311,15 +312,13 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if max-events < 0:
     ui.abort "max-events must be >= 0."
 
-  with-device parsed config cache ui --allow-rest-device:
-    | fleet-device/DeviceFleet artemis/Artemis fleet/FleetWithDevices |
-      broker := artemis.connected-broker
-      artemis-server := artemis.connected-artemis-server
+  with-device parsed config cache ui --allow-rest-device: | fleet-device/DeviceFleet fleet/FleetWithDevices |
+      broker := fleet.broker
       devices := broker.get-devices --device-ids=[fleet-device.id]
       if devices.is-empty:
         ui.abort "Device $device-reference does not exist on the broker."
       broker-device := devices[fleet-device.id]
-      organization := artemis-server.get-organization broker-device.organization-id
+      organization := fleet.artemis.get-organization --id=broker-device.organization-id
       events/List? := null
       if max-events != 0:
         events-map := broker.get-events
@@ -344,14 +343,14 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 set-max-offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   max-offline := parsed["max-offline"]
 
-  with-device parsed config cache ui: | device/DeviceFleet artemis/Artemis _ |
+  with-device parsed config cache ui: | device/DeviceFleet fleet/FleetWithDevices |
     max-offline-seconds := int.parse max-offline --on-error=:
       // Assume it's a duration with units, like "5s".
       duration := parse-duration max-offline --on-error=:
         ui.abort "Invalid max-offline duration: $max-offline."
       duration.in-s
 
-    artemis.config-set-max-offline --device-id=device.id
+    fleet.broker.config-set-max-offline --device-id=device.id
           --max-offline-seconds=max-offline-seconds
     ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
 
@@ -362,7 +361,7 @@ extract-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   remote := parsed["remote"]
   partitions := parsed["partition"]
 
-  with-device parsed config cache ui: | fleet-device/DeviceFleet artemis/Artemis fleet/FleetWithDevices |
+  with-device parsed config cache ui: | fleet-device/DeviceFleet fleet/FleetWithDevices |
     pod/Pod? := null
     if local or remote:
       pod = pod-for_
@@ -391,18 +390,17 @@ extract-device fleet-device/DeviceFleet
     --cache/Cache
     --ui/Ui:
 
-  artemis := fleet.artemis_
+  artemis := fleet.artemis
 
   device/Device := identity-path
-      ? Artemis.device-from --identity-path=identity-path
-      : artemis.device-for --id=fleet-device.id
+      ? FleetWithDevices.device-from --identity-path=identity-path
+      : fleet.broker.device-for --id=fleet-device.id
 
   if format == "identity":
     if not identity-path:
-      fleet.artemis_.write-identity-file
+      fleet.write-identity-file
           --out-path=output
           --device-id=device.id
-          --organization-id=device.organization-id
           --hardware-id=device.hardware-id
     else:
       file.copy --source=identity-path --target=output

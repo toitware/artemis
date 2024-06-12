@@ -44,8 +44,8 @@ list-sdks parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   service-version := parsed["service-version"]
 
   with-pod-fleet parsed config cache ui: | fleet/Fleet |
-    artemis := fleet.artemis_
-    versions/List := artemis.connected-artemis-server.list-sdk-service-versions
+    artemis := fleet.artemis
+    versions/List := artemis.list-sdk-service-versions
         --organization-id=fleet.organization-id
         --sdk-version=sdk-version
         --service-version=service-version

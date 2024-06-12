@@ -4,14 +4,19 @@ import ar show *
 import crypto.sha256
 import encoding.json
 import encoding.base64
+import encoding.ubjson
 import host.file
 import io
 import uuid
 
 import .artemis
+import .broker
 import .cache
+import .device
+import .firmware show Firmware
 import .pod-specification
 import .sdk
+import .server-config
 import .ui
 import .utils
 
@@ -50,21 +55,25 @@ class Pod:
       --organization-id/uuid.Uuid
       --path/string
       --artemis/Artemis
+      --broker/Broker
       --ui/Ui:
     specification := parse-pod-specification-file path --ui=ui
     return Pod.from-specification
         --organization-id=organization-id
         --specification=specification
         --artemis=artemis
+        --broker=broker
 
   constructor.from-specification
       --organization-id/uuid.Uuid
       --specification/PodSpecification
+      --broker/Broker
       --artemis/Artemis:
     envelope-path := generate-envelope-path_ --tmp-directory=artemis.tmp-directory
-    artemis.customize-envelope
+    broker.customize-envelope
         --organization-id=organization-id
         --output-path=envelope-path
+        --artemis=artemis
         --specification=specification
     envelope := file.read-content envelope-path
     id := random-uuid
@@ -121,7 +130,12 @@ class Pod:
       return Pod --id=id --name=name --envelope=envelope --tmp-directory=tmp-directory
     unreachable
 
-  constructor.from-file path/string --organization-id/uuid.Uuid --artemis/Artemis --ui/Ui:
+  constructor.from-file
+      path/string
+      --organization-id/uuid.Uuid
+      --artemis/Artemis
+      --broker/Broker
+      --ui/Ui:
     if not file.is-file path:
       ui.abort "The file '$path' does not exist or is not a regular file."
 
@@ -141,6 +155,7 @@ class Pod:
           --organization-id=organization-id
           --path=path
           --artemis=artemis
+          --broker=broker
           --ui=ui
 
   static envelope-count_/int := 0
@@ -213,3 +228,74 @@ class Pod:
       parts[part-name] = file.content
     manifest["parts"] = part-names
     block.call manifest parts
+
+  /**
+  Computes the device-specific data of the given envelope.
+
+  Combines this pod and identity ($identity-path) into a single firmware image
+    and computes the configuration which depends on the checksums of the
+    individual parts.
+
+  In this context the configuration consists of the checksums of the individual
+    parts of the firmware image, combined with the configuration that was
+    stored in the envelope.
+  */
+  compute-device-specific-data -> ByteArray
+      --identity-path/string
+      --cache/Cache
+      --ui/Ui:
+    // Use the SDK from the pod.
+    sdk := get-sdk sdk-version --cache=cache
+
+    // Extract the device ID from the identity file.
+    // TODO(florian): abstract the identity management.
+    identity-raw := file.read-content identity-path
+
+    identity := ubjson.decode (base64.decode identity-raw)
+
+    // Since we already have the identity content, check that the artemis server
+    // is the same.
+    // This is primarily a sanity check, and we might remove the broker from the
+    // identity file in the future. Since users are not supposed to be able to
+    // change the Artemis server, there wouldn't be much left of the check.
+    // TODO(florian): remove this check?
+    with-tmp-directory: | tmp/string |
+      artemis-assets-path := "$tmp/artemis.assets"
+      sdk.run-firmware-tool [
+        "-e", envelope-path,
+        "container", "extract",
+        "-o", artemis-assets-path,
+        "--part", "assets",
+        "artemis"
+      ]
+
+      if not is-same-broker "broker" identity tmp artemis-assets-path sdk:
+        ui.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
+      if not is-same-broker "artemis.broker" identity tmp artemis-assets-path sdk:
+        ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
+
+    device-map := identity["artemis.device"]
+    device := Device
+        --hardware-id=uuid.parse device-map["hardware_id"]
+        --id=uuid.parse device-map["device_id"]
+        --organization-id=uuid.parse device-map["organization_id"]
+
+    // We don't really need the full firmware and just the device-specific data,
+    // but by cooking the firmware we get the checksums correct.
+    firmware := Firmware --pod=this --device=device --cache=cache
+
+    return firmware.device-specific-data
+
+
+  static is-same-broker broker/string identity/Map tmp/string assets-path/string sdk/Sdk -> bool:
+    broker-path := "$tmp/broker.json"
+    sdk.run-assets-tool [
+      "-e", assets-path,
+      "get", "--format=tison",
+      "-o", broker-path,
+      "broker"
+    ]
+    // TODO(kasper): This is pretty crappy.
+    x := ((json.stringify identity["broker"]) + "\n").to-byte-array
+    y := (file.read-content broker-path)
+    return x == y

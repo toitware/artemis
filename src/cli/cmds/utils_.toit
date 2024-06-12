@@ -12,7 +12,6 @@ import ..server-config
 import ..utils
 
 with-artemis parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
-  broker-config := get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
   artemis-config := get-server-from-config config CONFIG-ARTEMIS-DEFAULT-KEY
 
   with-tmp-directory: | tmp-directory/string |
@@ -21,8 +20,7 @@ with-artemis parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
         --cache=cache
         --ui=ui
         --tmp-directory=tmp-directory
-        --broker-config=broker-config
-        --artemis-config=artemis-config
+        --server-config=artemis-config
     try:
       block.call artemis
     finally:
@@ -44,14 +42,24 @@ with-devices-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
   fleet-root := compute-fleet-root-or-ref parsed config ui
 
   with-artemis parsed config cache ui: | artemis/Artemis |
-    fleet := FleetWithDevices fleet-root artemis --ui=ui --cache=cache --config=config
+    broker-config := get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
+    fleet := FleetWithDevices fleet-root artemis
+        --broker-config=broker-config
+        --ui=ui
+        --cache=cache
+        --config=config
     block.call fleet
 
 with-pod-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
   fleet-root-or-ref := compute-fleet-root-or-ref parsed config ui
 
   with-artemis parsed config cache ui: | artemis/Artemis |
-    fleet := Fleet fleet-root-or-ref artemis --ui=ui --cache=cache --config=config
+    broker-config := get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
+    fleet := Fleet fleet-root-or-ref artemis
+        --broker-config=broker-config
+        --ui=ui
+        --cache=cache
+        --config=config
     block.call fleet
 
 compute-fleet-root-or-ref parsed/cli.Parsed config/Config ui/Ui -> string:

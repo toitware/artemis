@@ -6,6 +6,7 @@ import uuid
 
 import .utils_
 import ..artemis
+import ..broker
 import ..cache
 import ..config
 import ..fleet
@@ -171,7 +172,8 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    artemis := fleet.artemis_
+    artemis := fleet.artemis
+    broker := fleet.broker
 
     with-tmp-directory: | tmp-dir/string |
       device-id := random-uuid
@@ -189,6 +191,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         pod = Pod.from-file local
             --organization-id=fleet.organization-id
             --artemis=artemis
+            --broker=broker
             --ui=ui
         reference = PodReference --id=pod.id
       else:
@@ -199,9 +202,10 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         pod = fleet.download reference
 
       // Make unique for the given device.
-      config-bytes := artemis.compute-device-specific-data
-          --pod=pod
+      config-bytes := pod.compute-device-specific-data
           --identity-path=identity-path
+          --cache=cache
+          --ui=ui
 
       config-path := "$tmp-dir/$(device-id).config"
       write-blob-to-file config-path config-bytes
@@ -257,9 +261,10 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     pod := Pod.parse pod-path --tmp-directory=artemis.tmp-directory --ui=ui
     with-tmp-directory: | tmp-dir/string |
       // Make unique for the given device.
-      config-bytes := artemis.compute-device-specific-data
-          --pod=pod
+      config-bytes := pod.compute-device-specific-data
           --identity-path=identity-path
+          --cache=cache
+          --ui=ui
 
       config-path := "$tmp-dir/config"
       write-blob-to-file config-path config-bytes

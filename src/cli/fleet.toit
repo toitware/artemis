@@ -6,6 +6,7 @@ import host.file
 import uuid
 
 import .artemis
+import .broker
 import .cache
 import .config
 import .device
@@ -17,6 +18,7 @@ import .pod-registry
 import .ui
 import .utils
 import .utils.names
+import .server-config
 import ..shared.json-diff
 
 DEFAULT-GROUP ::= "default"
@@ -52,14 +54,6 @@ class DeviceFleet:
       if bytes1[i] > bytes2[i]: return 1
     return 0
 
-class PodFleet:
-  id/uuid.Uuid
-  name/string?
-  revision/int?
-  tags/List?
-
-  constructor --.id --.name --.revision --.tags:
-
 class Status_:
   static CHECKIN-VERIFICATION-COUNT ::= 5
   static UNKNOWN-MISSED-CHECKINS ::= -1
@@ -74,28 +68,6 @@ class Status_:
 
   is-healthy -> bool:
     return is-fully-updated and missed-checkins == 0
-
-class UploadResult:
-  fleet-id/uuid.Uuid
-  id/uuid.Uuid
-  name/string
-  revision/int
-  tags/List
-  tag-errors/List
-
-  constructor --.fleet-id --.id --.name --.revision --.tags --.tag-errors:
-
-  to-json -> Map:
-    result := {
-      "fleet-id": "$fleet-id",
-      "id": "$id",
-      "name": name,
-      "revision": revision,
-      "tags": tags,
-    }
-    if not tag-errors.is-empty:
-      result["tag-errors"] = tag-errors
-    return result
 
 class FleetFile:
   path/string
@@ -230,26 +202,49 @@ class Fleet:
   static FLEET-FILE_ ::= "fleet.json"
 
   id/uuid.Uuid
-  artemis_/Artemis
+  artemis/Artemis
+  broker/Broker
   ui_/Ui
   cache_/Cache
   fleet-root-or-ref_/string
 
   organization-id/uuid.Uuid
 
-  constructor fleet-root-or-ref/string artemis/Artemis --ui/Ui --cache/Cache --config/Config:
+  constructor fleet-root-or-ref/string
+      artemis/Artemis
+      --broker-config/ServerConfig
+      --ui/Ui
+      --cache/Cache
+      --config/Config:
     fleet-file := load-fleet-file fleet-root-or-ref --ui=ui
-    return Fleet fleet-root-or-ref artemis --ui=ui --cache=cache --config=config --fleet-file=fleet-file
+    return Fleet fleet-root-or-ref artemis
+        --broker-config=broker-config
+        --fleet-file=fleet-file
+        --ui=ui
+        --cache=cache
+        --config=config
 
-  constructor .fleet-root-or-ref_ .artemis_ --ui/Ui --cache/Cache --config/Config --fleet-file/FleetFile:
-    ui_ = ui
-    cache_ = cache
-
+  constructor .fleet-root-or-ref_ .artemis
+      --broker-config/ServerConfig
+      --fleet-file/FleetFile
+      --ui/Ui
+      --cache/Cache
+      --config/Config:
     id = fleet-file.id
     organization-id = fleet-file.organization-id
+    ui_ = ui
+    cache_ = cache
+    broker = Broker
+        --server-config=broker-config
+        --cache=cache
+        --config=config
+        --ui=ui
+        --fleet-id=id
+        --organization-id=organization-id
+        --tmp-directory=artemis.tmp-directory
 
     // TODO(florian): should we always do this check?
-    org := artemis_.connected-artemis-server.get-organization organization-id
+    org := artemis.get-organization --id=organization-id
     if not org:
       ui.abort "Organization $organization-id does not exist or is not accessible."
 
@@ -295,63 +290,10 @@ class Fleet:
   */
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
     ui_.info "Uploading pod. This may take a while."
-    artemis_.upload --pod=pod --organization-id=organization-id
-
-    broker := artemis_.connected-broker
-    pod.split: | manifest/Map parts/Map |
-      parts.do: | id/string content/ByteArray |
-        // Only upload if we don't have it in our cache.
-        key := "$POD-PARTS-PATH/$organization-id/$id"
-        cache_.get-file-path key: | store/FileStore |
-          broker.pod-registry-upload-pod-part content --part-id=id
-              --organization-id=organization-id
-          store.save content
-      key := "$POD-MANIFEST-PATH/$organization-id/$pod.id"
-      cache_.get-file-path key: | store/FileStore |
-        encoded := ubjson.encode manifest
-        broker.pod-registry-upload-pod-manifest encoded --pod-id=pod.id
-            --organization-id=organization-id
-        store.save encoded
-
-    description-ids := broker.pod-registry-descriptions
-        --fleet-id=this.id
-        --organization-id=this.organization-id
-        --names=[pod.name]
-        --create-if-absent
-
-    description-id := (description-ids[0] as PodRegistryDescription).id
-
-    broker.pod-registry-add
-        --pod-description-id=description-id
-        --pod-id=pod.id
-
-    is-existing-tag-error := : | error |
-      error is string and
-        (error.contains "duplicate key value" or error.contains "already exists")
-
-    tag-errors := []
-    tags.do: | tag/string |
-      force := force-tags or (tag == "latest")
-      exception := catch --unwind=(: not is-existing-tag-error.call it):
-        broker.pod-registry-tag-set
-            --pod-description-id=description-id
-            --pod-id=pod.id
-            --tag=tag
-            --force=force
-      if exception:
-        tag-errors.add "Tag '$tag' already exists for pod $pod.name."
-
-    registered-pods := broker.pod-registry-pods --fleet-id=this.id --pod-ids=[pod.id]
-    pod-entry/PodRegistryEntry := registered-pods[0]
-
-    sorted-uploaded-tags := pod-entry.tags.sort
-    return UploadResult
-        --fleet-id=this.id
-        --id=pod.id
-        --name=pod.name
-        --revision=pod-entry.revision
-        --tags=sorted-uploaded-tags
-        --tag-errors=tag-errors
+    return broker.upload
+        --pod=pod
+        --tags=tags
+        --force-tags=force-tags
 
   download reference/PodReference -> Pod:
     if reference.name and not (reference.tag or reference.revision):
@@ -362,123 +304,28 @@ class Fleet:
     return download --pod-id=pod-id
 
   download --pod-id/uuid.Uuid -> Pod:
-    broker := artemis_.connected-broker
-    manifest-key := "$POD-MANIFEST-PATH/$organization-id/$pod-id"
-    encoded-manifest := cache_.get manifest-key: | store/FileStore |
-      bytes := broker.pod-registry-download-pod-manifest
-        --pod-id=pod-id
-        --organization-id=this.organization-id
-      store.save bytes
-    manifest := ubjson.decode encoded-manifest
-    return Pod.from-manifest
-        manifest
-        --tmp-directory=artemis_.tmp-directory
-        --download=: | part-id/string |
-          key := "$POD-PARTS-PATH/$organization-id/$part-id"
-          cache_.get key: | store/FileStore |
-            bytes := broker.pod-registry-download-pod-part
-                part-id
-                --organization-id=this.organization-id
-            store.save bytes
+    return broker.download --pod-id=pod-id
 
   list-pods --names/List -> Map:
-    broker := artemis_.connected-broker
-    descriptions := ?
-    if names.is-empty:
-      descriptions = broker.pod-registry-descriptions --fleet-id=this.id
-    else:
-      descriptions = broker.pod-registry-descriptions
-          --fleet-id=this.id
-          --organization-id=this.organization-id
-          --names=names
-          --no-create-if-absent
-    result := {:}
-    descriptions.do: | description/PodRegistryDescription |
-      pods := broker.pod-registry-pods --pod-description-id=description.id
-      result[description] = pods
-    return result
+    return broker.list-pods --names=names
 
   delete --description-names/List:
-    broker := artemis_.connected-broker
-    descriptions := broker.pod-registry-descriptions
-        --fleet-id=this.id
-        --organization-id=this.organization-id
-        --names=description-names
-        --no-create-if-absent
-    unknown-pod-descriptions := []
-    description-names.do: | name/string |
-      was-found := descriptions.any: | description/PodRegistryDescription |
-        description.name == name
-      if not was-found: unknown-pod-descriptions.add name
-    if not unknown-pod-descriptions.is-empty:
-      if unknown-pod-descriptions.size == 1:
-        ui_.abort "Unknown pod $(unknown-pod-descriptions[0])."
-      else:
-        ui_.abort "Unknown pods $(unknown-pod-descriptions.join ", ")."
-    broker.pod-registry-descriptions-delete
-        --fleet-id=this.id
-        --description-ids=descriptions.map: it.id
+    broker.delete --description-names=description-names
 
   delete --pod-references/List:
-    broker := artemis_.connected-broker
-    pod-ids := get-pod-ids pod-references
-    broker.pod-registry-delete
-        --fleet-id=this.id
-        --pod-ids=pod-ids
+    broker.delete --pod-references=pod-references
 
-  pod pod-id/uuid.Uuid -> PodFleet:
-    broker := artemis_.connected-broker
-    pod-entry := broker.pod-registry-pods
-        --fleet-id=this.id
-        --pod-ids=[pod-id]
-    if not pod-entry.is-empty:
-      description-id := pod-entry[0].pod-description-id
-      description := broker.pod-registry-descriptions --ids=[description-id]
-      if not description.is-empty:
-        return PodFleet --id=pod-id --name=description[0].name --revision=pod-entry[0].revision --tags=pod-entry[0].tags
-
-    return PodFleet --id=pod-id --name=null --revision=null --tags=null
+  pod pod-id/uuid.Uuid -> PodBroker:
+    return broker.pod pod-id
 
   get-pod-id reference/PodReference -> uuid.Uuid:
-    return (get-pod-ids [reference])[0]
-
-  get-pod-ids references/List -> List:
-    references.do: | reference/PodReference |
-      if not reference.id:
-        if not reference.name:
-          throw "Either id or name must be specified: $reference"
-        if not reference.tag and not reference.revision:
-          throw "Either tag or revision must be specified: $reference"
-
-    missing-ids := references.filter: | reference/PodReference |
-      not reference.id
-    broker := artemis_.connected-broker
-    pod-ids-response := broker.pod-registry-pod-ids --fleet-id=this.id --references=missing-ids
-
-    has-errors := false
-    result := references.map: | reference/PodReference |
-      if reference.id: continue.map reference.id
-      resolved := pod-ids-response.get reference
-      if not resolved:
-        has-errors = true
-        if reference.tag:
-          ui_.error "No pod with name $reference.name and tag $reference.tag in the fleet."
-        else:
-          ui_.error "No pod with name $reference.name and revision $reference.revision in the fleet."
-      resolved
-    if has-errors: ui_.abort
-    return result
+    return broker.get-pod-id reference
 
   get-pod-id --name/string --tag/string? --revision/int? -> uuid.Uuid:
-    return get-pod-id (PodReference --name=name --tag=tag --revision=revision)
+    return broker.get-pod-id --name=name --tag=tag --revision=revision
 
   pod-exists reference/PodReference -> bool:
-    broker := artemis_.connected-broker
-    pod-id := get-pod-id reference
-    pod-entry := broker.pod-registry-pods
-        --fleet-id=this.id
-        --pod-ids=[pod-id]
-    return not pod-entry.is-empty
+    return broker.pod-exists reference
 
 /**
 A fleet with devices.
@@ -499,7 +346,11 @@ class FleetWithDevices extends Fleet:
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
-  constructor fleet-root/string artemis/Artemis --ui/Ui --cache/Cache --config/Config:
+  constructor fleet-root/string artemis/Artemis
+      --broker-config/ServerConfig
+      --ui/Ui
+      --cache/Cache
+      --config/Config:
     if not file.is-directory fleet-root and file.is-file fleet-root:
       ui.abort "Fleet argument for this operation must be a fleet root (directory) and not a reference file: '$fleet-root'."
 
@@ -511,7 +362,12 @@ class FleetWithDevices extends Fleet:
     group-pods_ = fleet-file.group-pods
     devices_ = devices-file.devices
     aliases_ = build-alias-map_ devices_ ui
-    super fleet-root artemis --ui=ui --cache=cache --config=config --fleet-file=fleet-file
+    super fleet-root artemis
+        --broker-config=broker-config
+        --fleet-file=fleet-file
+        --ui=ui
+        --cache=cache
+        --config=config
 
   static init fleet-root/string artemis/Artemis --organization-id/uuid.Uuid --ui/Ui:
     if not file.is-directory fleet-root:
@@ -523,7 +379,7 @@ class FleetWithDevices extends Fleet:
     if file.is-file "$fleet-root/$DEVICES-FILE_":
       ui.abort "Fleet root $fleet-root already contains a $DEVICES-FILE_ file."
 
-    org := artemis.connected-artemis-server.get-organization organization-id
+    org := artemis.get-organization --id=organization-id
     if not org:
       ui.abort "Organization $organization-id does not exist or is not accessible."
 
@@ -625,10 +481,7 @@ class FleetWithDevices extends Fleet:
     old-size := devices_.size
     new-file := "$output-directory/$(id).identity"
 
-    artemis_.provision
-        --device-id=id
-        --out-path=new-file
-        --organization-id=organization-id
+    provision --device-id=id --out-path=new-file
 
     device := DeviceFleet
         --id=id
@@ -653,7 +506,6 @@ class FleetWithDevices extends Fleet:
     a device hasn't set its state yet.
   */
   roll-out --diff-bases/List:
-    broker := artemis_.connected-broker
     detailed-devices := {:}
     fleet-devices := devices_
 
@@ -662,25 +514,12 @@ class FleetWithDevices extends Fleet:
       if not existing-devices.contains fleet-device.id:
         ui_.abort "Device $fleet-device.id is unknown to the broker."
 
-    base-patches := {:}
-
-    base-firmwares := diff-bases.map: | diff-base/Pod |
-      FirmwareContent.from-envelope diff-base.envelope-path --cache=cache_
-
-    base-firmwares.do: | content/FirmwareContent |
-      trivial-patches := artemis_.extract-trivial-patches content
-      trivial-patches.do: | _ patch/FirmwarePatch |
-        artemis_.upload-patch patch --organization-id=organization-id
-
     pods-per-group := {:}  // From group-name to Pod.
     pods := fleet-devices.map: | fleet-device/DeviceFleet |
       group-name := fleet-device.group
       pods-per-group.get group-name --init=: download (pod-reference-for-group group-name)
 
-    artemis_.update-bulk
-        --devices=existing-devices.values
-        --pods=pods
-        --base-firmwares=base-firmwares
+    broker.roll-out --devices=existing-devices.values --pods=pods --diff-bases=diff-bases
 
     ui_.info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
 
@@ -762,14 +601,12 @@ class FleetWithDevices extends Fleet:
         --is-modified=device.reported-state-current != null
 
   status --include-healthy/bool --include-never-seen/bool:
-    broker := artemis_.connected-broker
     device-ids := devices_.map: it.id
     detailed-devices := broker.get-devices --device-ids=device-ids
-    get-state-events := broker.get-events
+    goal-request-events := broker.get-goal-request-events
         --device-ids=device-ids
         --limit=Status_.CHECKIN-VERIFICATION-COUNT
-        --types=["get-goal"]
-    last-events := broker.get-events --device-ids=device-ids --limit=1
+    last-events := broker.get-last-events --device-ids=device-ids
 
     pod-ids := []
     devices_.do: | fleet-device/DeviceFleet |
@@ -780,21 +617,9 @@ class FleetWithDevices extends Fleet:
       // Add nulls as well.
       pod-ids.add pod-id
 
-    pod-id-entries := broker.pod-registry-pods
-        --fleet-id=this.id
-        --pod-ids=(pod-ids.filter: it != null)
-    pod-entry-map := {:}
-    pod-id-entries.do: | entry/PodRegistryEntry |
-      pod-entry-map[entry.id] = entry
-    description-set := {}
-    description-set.add-all
-        (pod-id-entries.map: | entry/PodRegistryEntry | entry.pod-description-id)
-    description-ids := []
-    description-ids.add-all description-set
-    descriptions := broker.pod-registry-descriptions --ids=description-ids
-    description-map := {:}
-    descriptions.do: | description/PodRegistryDescription |
-      description-map[description.id] = description
+    existing-pod-ids := pod-ids.filter: it != null
+    pod-entry-map := broker.get-pod-registry-entry-map --pod-ids=existing-pod-ids
+    description-map := broker.get-pod-descriptions --pod-registry-entries=pod-entry-map.values
 
     now := Time.now
     statuses := devices_.map: | fleet-device/DeviceFleet |
@@ -805,7 +630,7 @@ class FleetWithDevices extends Fleet:
       last-event := last-events-of-device and not last-events-of-device.is-empty
           ? last-events-of-device[0]
           : null
-      build-status_ device (get-state-events.get fleet-device.id) last-event
+      build-status_ device (goal-request-events.get fleet-device.id) last-event
 
     rows := []
     for i := 0; i < devices_.size; i++:
@@ -904,3 +729,86 @@ class FleetWithDevices extends Fleet:
         return device
     ui_.abort "No device with id $device-id in the fleet."
     unreachable
+
+  /**
+  Provisions a device.
+
+  Contacts the Artemis server and creates a new device entry with the
+    given $device-id (used as "alias" on the server side) in the
+    organization with the given $organization-id.
+
+  Writes the identity file to $out-path.
+  */
+  provision --device-id/uuid.Uuid? --out-path/string:
+    // Ensure that we are authenticated with both the Artemis server and the broker.
+    // We don't want to create a device on Artemis and then have an error with the broker.
+    artemis.ensure-authenticated
+    broker.ensure-authenticated
+
+    device := artemis.create-device
+        --device-id=device-id
+        --organization-id=organization-id
+    assert: device.id == device-id
+    hardware-id := device.hardware-id
+
+    // Insert an initial event mostly for testing purposes.
+    artemis.notify-created --hardware-id=hardware-id
+
+    identity := {
+      "device_id": "$device-id",
+      "organization_id": "$organization-id",
+      "hardware_id": "$hardware-id",
+    }
+    state := {
+      "identity": identity,
+    }
+    broker.notify-created --device-id=device-id --state=state
+
+    write-identity-file
+        --out-path=out-path
+        --device-id=device-id
+        --hardware-id=hardware-id
+
+  /**
+  Writes an identity file.
+
+  This file is used to build a device image and needs to be given to
+    $Pod.compute-device-specific-data.
+  */
+  write-identity-file -> none
+      --out-path/string
+      --device-id/uuid.Uuid
+      --hardware-id/uuid.Uuid:
+    // A map from id to DER certificates.
+    der-certificates := {:}
+
+    broker-json := server-config-to-service-json broker.server-config der-certificates
+    artemis-json := server-config-to-service-json artemis.server-config der-certificates
+
+    identity ::= {
+      "artemis.device": {
+        "device_id"       : "$device-id",
+        "organization_id" : "$organization-id",
+        "hardware_id"     : "$hardware-id",
+      },
+      "artemis.broker": artemis-json,
+      "broker": broker-json,
+    }
+
+    // Add the necessary certificates to the identity.
+    der-certificates.do: | name/string content/ByteArray |
+      // The 'server_config_to_service_json' function puts the certificates
+      // into their own namespace.
+      assert: name.starts-with "certificate-"
+      identity[name] = content
+
+    write-base64-ubjson-to-file out-path identity
+
+  static device-from --identity-path/string -> Device:
+    identity := read-base64-ubjson identity-path
+    device-map := identity["artemis.device"]
+    return Device
+        --hardware-id=uuid.parse device-map["hardware_id"]
+        --id=uuid.parse device-map["device_id"]
+        --organization-id=uuid.parse device-map["organization_id"]
+
