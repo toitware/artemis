@@ -15,7 +15,7 @@ import artemis.cli.config show
 import artemis.cli.server-config show *
 
 with-supabase-client parsed/cli.Parsed config/cli.Config [block]:
-  server-config := get-server-from-config config CONFIG-ARTEMIS-DEFAULT-KEY
+  server-config := get-server-from-config config --key=CONFIG-ARTEMIS-DEFAULT-KEY
   local-storage := ConfigLocalStorage config --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
   supabase-config := server-config as supabase.ServerConfig
   client := supabase.Client

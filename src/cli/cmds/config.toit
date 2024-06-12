@@ -98,7 +98,6 @@ create-server-config-commands config/Config ui/Ui -> List:
 
   add-cmd.add
       cli.Command "http"
-          --hidden
           --help="Add an HTTP broker."
           --options=[
             cli.OptionInt "port"
