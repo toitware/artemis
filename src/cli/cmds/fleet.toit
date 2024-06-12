@@ -442,7 +442,7 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-artemis parsed config cache ui: | artemis/Artemis |
     FleetWithDevices.init fleet-root artemis
         --organization-id=organization-id
-        --default-broker-config=default-broker-config
+        --broker-config=default-broker-config
         --ui=ui
 
 add-devices parsed/cli.Parsed config/Config cache/Cache ui/Ui:

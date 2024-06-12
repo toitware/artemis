@@ -420,7 +420,7 @@ class FleetWithDevices extends Fleet:
 
   static init fleet-root/string artemis/Artemis
       --organization-id/uuid.Uuid
-      --default-broker-config/ServerConfig
+      --broker-config/ServerConfig
       --ui/Ui:
     if not file.is-directory fleet-root:
       ui.abort "Fleet root $fleet-root is not a directory."
@@ -443,7 +443,7 @@ class FleetWithDevices extends Fleet:
           DEFAULT-GROUP: PodReference.parse "$INITIAL-POD-NAME@latest" --ui=ui,
         }
         --is-reference=false
-        --broker-config=default-broker-config
+        --broker-config=broker-config
     fleet-file.write
 
     devices-file := DevicesFile "$fleet-root/$DEVICES-FILE_" []
