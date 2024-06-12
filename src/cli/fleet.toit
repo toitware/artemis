@@ -123,12 +123,17 @@ class FleetFile:
         PodReference.parse entry["pod"] --ui=ui
 
     broker-config := default-broker-config
+
+    broker-name := fleet-content.get "broker"
     servers-entry := fleet-content.get "servers"
-    if servers-entry:
-      if servers-entry is not Map or servers-entry.size != 1 or not servers-entry.contains "broker":
+    if broker-name and not servers-entry or not broker-name and servers-entry:
+      ui.abort "Fleet file $path has invalid format for 'broker' and 'servers'."
+    if broker-name:
+      if servers-entry is not Map:
         ui.abort "Fleet file $path has invalid format for 'servers'."
-      broker-entry := servers-entry["broker"]
-      broker-name := broker-entry["name"]
+      broker-entry := servers-entry.get broker-name
+      if not broker-entry:
+        ui.abort "Fleet file $path does not contain a server entry for broker '$broker-name'."
       broker-config = ServerConfig.from-json broker-name broker-entry
           --der-deserializer=: base64.decode it
 
@@ -149,17 +154,6 @@ class FleetFile:
     write-json-to-file --pretty path payload
 
   to-json_ --reference/bool=false -> Map:
-    servers := {:}
-    // We want the "name" to be on top, so we create a new map and then add
-    // the encoded server-configuration fields afterwards.
-    broker-entry := {
-      "name": broker-config.name
-    }
-    encoded-server := broker-config.to-json --der-serializer=: base64.encode it
-    encoded-server.do: | key/string value |
-      broker-entry[key] = value
-    servers["broker"] = broker-entry
-
     result := {
       "id": "$id",
       "organization": "$organization-id",
@@ -183,6 +177,11 @@ class FleetFile:
       result["groups"] = groups
 
     // Add the servers last, so that the file is easier to read.
+    servers := {:}
+    encoded-server := broker-config.to-json --der-serializer=: base64.encode it
+    broker-name := broker-config.name
+    servers[broker-name] = encoded-server
+    result["broker"] = broker-name
     result["servers"] = servers
     return result
 

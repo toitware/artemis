@@ -39,7 +39,8 @@ run-test test-cli/TestCli:
 
     fleet-json := json.decode (file.read-content "$fleet-tmp-dir/fleet.json")
     // Check that we have a broker entry.
-    broker-entry := fleet-json["servers"]["broker"]
+    broker-name := fleet-json["broker"]
+    broker-entry := fleet-json["servers"][broker-name]
 
     // We are not allowed to initialize a folder twice.
     already-initialized-message := test-cli.run --expect-exit-1 [
