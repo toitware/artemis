@@ -218,12 +218,14 @@ create-pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output := parsed["output"]
 
   with-pod-fleet parsed config cache ui: | fleet/Fleet |
-    artemis := fleet.artemis_
+    artemis := fleet.artemis
+    broker := fleet.broker
     pod := Pod.from-specification
         --organization-id=fleet.organization-id
         --path=specification-path
         --ui=ui
         --artemis=artemis
+        --broker=broker
     pod.write output --ui=ui
 
 upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -243,11 +245,13 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     tags.add "latest"
 
   with-pod-fleet parsed config cache ui: | fleet/Fleet |
-    artemis := fleet.artemis_
+    artemis := fleet.artemis
+    broker := fleet.broker
     pod-paths.do: | pod-path/string |
       pod := Pod.from-file pod-path
           --organization-id=fleet.organization-id
           --artemis=artemis
+          --broker=broker
           --ui=ui
       upload-result := fleet.upload --pod=pod --tags=tags --force-tags=force
       if ui.wants-structured-result:
