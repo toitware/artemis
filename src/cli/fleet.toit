@@ -808,16 +808,7 @@ class FleetWithDevices extends Fleet:
 
     // Insert an initial event mostly for testing purposes.
     artemis.notify-created --hardware-id=hardware-id
-
-    identity := {
-      "device_id": "$device-id",
-      "organization_id": "$organization-id",
-      "hardware_id": "$hardware-id",
-    }
-    state := {
-      "identity": identity,
-    }
-    broker.notify-created --device-id=device-id --state=state
+    broker.notify-created device
 
     write-identity-file
         --out-path=out-path
