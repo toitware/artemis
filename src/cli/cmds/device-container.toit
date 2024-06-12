@@ -128,7 +128,7 @@ install-container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     // Non-critical containers get a boot and an install trigger by default.
     triggers = [pod-specification.BootTrigger, pod-specification.InstallTrigger]
 
-  with-device parsed config cache ui: | device/DeviceFleet _ fleet/FleetWithDevices |
+  with-device parsed config cache ui: | device/DeviceFleet fleet/FleetWithDevices |
     fleet.broker.container-install
         --device-id=device.id
         --app-name=container-name
@@ -143,6 +143,6 @@ uninstall-container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   container-name := parsed["name"]
   force := parsed["force"]
 
-  with-device parsed config cache ui: | device/DeviceFleet _ fleet/FleetWithDevices |
+  with-device parsed config cache ui: | device/DeviceFleet fleet/FleetWithDevices |
     fleet.broker.container-uninstall --device-id=device.id --app-name=container-name --force=force
     ui.info "Request sent to broker. Container will be uninstalled when device synchronizes."
