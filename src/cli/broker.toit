@@ -125,6 +125,8 @@ class Broker:
   Also uploads the trivial patches.
   */
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
+    upload-trivial-patches_ --pod=pod
+
     pod.split: | manifest/Map parts/Map |
       parts.do: | id/string content/ByteArray |
         // Only upload if we don't have it in our cache.
@@ -180,11 +182,11 @@ class Broker:
         --tags=sorted-uploaded-tags
         --tag-errors=tag-errors
 
-  upload_ --firmware-content/FirmwareContent:
-    firmware-content.trivial-patches.do:
-      upload-patch_ it
+  upload-trivial-patches_ --pod/Pod -> none:
+    firmware-content := FirmwareContent.from-envelope pod.envelope-path --cache=cache_
+    upload_ --firmware-content=firmware-content
 
-  upload_ --firmware-content/FirmwareContent --organization-id/uuid.Uuid:
+  upload_ --firmware-content/FirmwareContent:
     firmware-content.trivial-patches.do:
       upload-patch_ it
 
@@ -406,7 +408,6 @@ class Broker:
       --pods/List
       --diff-bases/List  // Of Pod
   :
-
     base-patches := {:}
 
     base-firmwares := diff-bases.map: | diff-base/Pod |
@@ -529,75 +530,13 @@ class Broker:
     upgrade-to := Firmware --pod=pod --device=device --cache=cache_ --unconfigured-content=unconfigured-content
     upgrade-from.do: | old-firmware-content/FirmwareContent |
       patches := upgrade-to.content.patches old-firmware-content
-      patches.do: diff-and-upload_ it --organization-id=device.organization-id
+      patches.do: diff-and-upload_ it
 
     // Build the updated goal and return it.
     sdk := get-sdk pod.sdk-version --cache=cache_
     goal := (pod.device-config --sdk=sdk).copy
     goal["firmware"] = upgrade-to.encoded
     return goal
-
-  /**
-  Computes patches and uploads them to the broker.
-  */
-  diff-and-upload_ patch/FirmwarePatch --organization-id/uuid.Uuid -> none:
-    trivial-id := id_ --to=patch.to_
-    cache-key := "$broker-connection_.id/$organization-id/patches/$trivial-id"
-
-    // Unless it is already cached, always create/upload the trivial one.
-    cache_.get cache-key: | store/FileStore |
-      trivial := build-trivial-patch patch.bits_
-      broker-connection_.upload-firmware trivial
-          --organization-id=organization-id
-          --firmware-id=trivial-id
-      store.save-via-writer: | writer/io.Writer |
-        trivial.do: writer.write it
-
-    if not patch.from_: return
-
-    // Attempt to fetch the old trivial patch and use it to construct
-    // the old bits so we can compute a diff from them.
-    old-id := id_ --to=patch.from_
-    cache-key = "$broker-connection_.id/$organization-id/patches/$old-id"
-    trivial-old := cache_.get cache-key: | store/FileStore |
-      downloaded := null
-      catch: downloaded = broker-connection_.download-firmware
-          --organization-id=organization-id
-          --id=old-id
-      if not downloaded: return
-      store.with-tmp-directory: | tmp-dir |
-        file.write-content downloaded --path="$tmp-dir/patch"
-        // TODO(florian): we don't have the chunk-size when downloading from the broker.
-        store.move "$tmp-dir/patch"
-
-    bitstream := io.Reader trivial-old
-    patcher := Patcher bitstream null
-    patch-writer := PatchWriter
-    if not patcher.patch patch-writer: return
-    // Build the old bits and check that we get the correct hash.
-    old := patch-writer.buffer.bytes
-    if old.size < patch-writer.size: old += ByteArray (patch-writer.size - old.size)
-    sha := sha256.Sha256
-    sha.add old
-    if patch.from_ != sha.get: return
-
-    diff-id := id_ --from=patch.from_ --to=patch.to_
-    cache-key = "$broker-connection_.id/$organization-id/patches/$diff-id"
-    cache_.get cache-key: | store/FileStore |
-      // Build the diff and verify that we can apply it and get the
-      // correct hash out before uploading it.
-      diff := build-diff-patch old patch.bits_
-      if patch.to_ != (compute-applied-hash_ diff old): return
-      diff-size-bytes := diff.reduce --initial=0: | size chunk | size + chunk.size
-      diff-size := diff-size-bytes > 4096
-          ? "$((diff-size-bytes + 1023) / 1024) KB"
-          : "$diff-size-bytes B"
-      ui_.info "Uploading patch $(base64.encode patch.to_ --url-mode) ($diff-size)."
-      broker-connection_.upload-firmware diff
-          --organization-id=organization-id
-          --firmware-id=diff-id
-      store.save-via-writer: | writer/io.Writer |
-        diff.do: writer.write it
 
   get-goal-request-events --device-ids/List --limit/int -> Map:
     return broker-connection_.get-events

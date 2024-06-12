@@ -290,6 +290,7 @@ class Fleet:
   */
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
     ui_.info "Uploading pod. This may take a while."
+
     return broker.upload
         --pod=pod
         --tags=tags
