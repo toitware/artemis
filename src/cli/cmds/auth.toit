@@ -121,11 +121,15 @@ with-authenticatable parsed/cli.Parsed config/Config ui/Ui [block]:
   broker := parsed["broker"]
   server-config/ServerConfig := ?
   if broker:
-    server-config = get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
+    server-config = get-server-from-config config --key=CONFIG-BROKER-DEFAULT-KEY
+    if not server-config:
+      ui.abort "Default broker is not configured correctly."
     with-broker server-config config: | broker/BrokerCli |
       block.call broker
   else:
-    server-config = get-server-from-config config CONFIG-ARTEMIS-DEFAULT-KEY
+    server-config = get-server-from-config config --key=CONFIG-ARTEMIS-DEFAULT-KEY
+    if not server-config:
+      ui.abort "Default server is not configured correctly."
     with-server server-config config: | server/ArtemisServerCli |
       block.call server
 

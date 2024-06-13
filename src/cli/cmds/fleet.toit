@@ -58,10 +58,15 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
 
         The fleet will be in the given organization id. If no organization id
         is given, the default organization is used.
+
+        If a broker is given, it must match the name of one that has been added using
+        the 'config broker add' command. If no broker is given, the default broker is used.
         """
       --options=[
         OptionUuid "organization-id"
-            --help="The organization to use."
+            --help="The organization to use.",
+        cli.Option "broker"
+            --help="The broker to use.",
       ]
       --examples=[
         cli.Example "Initialize a fleet root in the current directory with the default organization:"
@@ -429,6 +434,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   fleet-root-flag := parsed["fleet-root"]
   organization-id := parsed["organization-id"]
+  broker-name := parsed["broker"]
 
   if not organization-id:
     default-organization-id := default-organization-from-config config
@@ -437,12 +443,20 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
     organization-id = default-organization-id
 
-  default-broker-config := get-server-from-config config CONFIG-BROKER-DEFAULT-KEY
+  broker-config := ?
+  if broker-name:
+    broker-config = get-server-from-config config --name=broker-name
+    if not broker-config:
+      ui.abort "Could not find broker '$broker-name' in the configuration."
+  else:
+    broker-config = get-server-from-config config --key=CONFIG-BROKER-DEFAULT-KEY
+    if not broker-config:
+      ui.abort "Default broker is not configured correctly."
   fleet-root := compute-fleet-root-or-ref parsed config ui
   with-artemis parsed config cache ui: | artemis/Artemis |
     FleetWithDevices.init fleet-root artemis
         --organization-id=organization-id
-        --broker-config=default-broker-config
+        --broker-config=broker-config
         --ui=ui
 
 add-devices parsed/cli.Parsed config/Config cache/Cache ui/Ui:

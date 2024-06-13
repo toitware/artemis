@@ -17,19 +17,26 @@ DEFAULT-ARTEMIS-SERVER-CONFIG ::= ServerConfigSupabase
 /**
 Reads the server configuration with the given $key from the $config.
 */
-get-server-from-config config/Config key/string -> ServerConfig:
-  servers := config.get CONFIG-SERVERS-KEY
-  if not servers: return DEFAULT-ARTEMIS-SERVER-CONFIG
-
+get-server-from-config config/Config --key/string -> ServerConfig?:
   server-name := config.get key
   if not server-name:
     if key == CONFIG-ARTEMIS-DEFAULT-KEY:
       return DEFAULT-ARTEMIS-SERVER-CONFIG
-    throw "No default broker configured $key"
-  json-map := servers.get server-name
-  if not json-map: throw "No broker named $server-name"
+    return null
 
-  return ServerConfig.from-json server-name json-map
+  return get-server-from-config config --name=server-name
+
+/**
+Reads the server configuration with the given $name from the $config.
+*/
+get-server-from-config config/Config --name/string -> ServerConfig?:
+  servers := config.get CONFIG-SERVERS-KEY
+  if not servers: return DEFAULT-ARTEMIS-SERVER-CONFIG
+
+  json-map := servers.get name
+  if not json-map: return null
+
+  return ServerConfig.from-json name json-map
       --der-deserializer=: base64.decode it
 
 has-server-in-config config/Config server-name/string -> bool:

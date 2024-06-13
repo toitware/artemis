@@ -63,7 +63,7 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
   service-version := parsed["service-version"]
   output-directory := parsed["output-directory"]
 
-  with-supabase-client parsed config: | client/supabase.Client |
+  with-supabase-client parsed config ui: | client/supabase.Client |
     client.ensure-authenticated: it.sign-in --provider="github" --ui=ui
 
     // Get a list of snapshots to download.

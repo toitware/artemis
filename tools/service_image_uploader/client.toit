@@ -37,11 +37,15 @@ interface UploadClient:
 
   upload --snapshot-uuid/string cli-snapshot/ByteArray
 
-get-artemis-config parsed/cli.Parsed config/cli.Config -> ServerConfig:
-  return get-server-from-config config CONFIG-ARTEMIS-DEFAULT-KEY
+get-artemis-config parsed/cli.Parsed config/cli.Config ui/ui.Ui -> ServerConfig:
+  result := get-server-from-config config --key=CONFIG-ARTEMIS-DEFAULT-KEY
+  if not result:
+    ui.abort "Default server not configured correctly."
+  return result
+
 
 with-upload-client parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
-  server-config := get-artemis-config parsed config
+  server-config := get-artemis-config parsed config ui
   if server-config is ServerConfigSupabase:
     with-upload-client-supabase parsed config ui block
   else if server-config is ServerConfigHttp:
@@ -158,7 +162,7 @@ class UploadClientSupabase implements UploadClient:
       --content=cli-snapshot
 
 with-upload-client-supabase parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
-  with-supabase-client parsed config: | client/supabase.Client |
+  with-supabase-client parsed config ui: | client/supabase.Client |
     upload-client := UploadClientSupabase client --ui=ui
     try:
       block.call upload-client

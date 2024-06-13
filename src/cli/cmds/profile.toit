@@ -37,7 +37,9 @@ create-profile-commands config/Config cache/Cache ui/Ui -> List:
   return [profile-cmd]
 
 with-profile-server parsed/cli.Parsed config/Config ui/Ui [block]:
-  server-config := get-server-from-config config CONFIG-ARTEMIS-DEFAULT-KEY
+  server-config := get-server-from-config config --key=CONFIG-ARTEMIS-DEFAULT-KEY
+  if not server-config:
+    ui.abort "Default server is not configured correctly."
 
   with-server server-config config: | server/ArtemisServerCli |
     server.ensure-authenticated: | error-message |

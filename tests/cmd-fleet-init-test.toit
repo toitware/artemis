@@ -59,3 +59,27 @@ run-test test-cli/TestCli:
       "--organization-id", "$NON-EXISTENT-UUID",
     ]
     expect (bad-org-id-message.contains "does not exist or")
+
+  with-tmp-directory: | fleet-tmp-dir |
+    // Get the current default broker.
+    default-broker := test-cli.run --json ["config", "broker", "default"]
+    test-cli.run [
+      // Add a non-existing broker, and make it the default.
+      "config", "broker", "add", "http", "--port", "1235", "testy",
+    ]
+    expect-equals "testy" (test-cli.run --json ["config", "broker", "default"])
+
+    // Initialize a new fleet with the old broker.
+    test-cli.run [
+      "fleet",
+      "--fleet-root", fleet-tmp-dir,
+      "init",
+      "--organization-id", "$TEST-ORGANIZATION-UUID",
+      "--broker", default-broker,
+    ]
+
+    // Test that we can talk to the broker.
+    test-cli.run [
+      "pod", "list",
+      "--fleet-root", fleet-tmp-dir,
+    ]
