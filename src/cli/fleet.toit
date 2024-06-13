@@ -2,6 +2,7 @@
 
 import encoding.json
 import encoding.ubjson
+import encoding.base64
 import host.file
 import uuid
 
@@ -74,11 +75,18 @@ class FleetFile:
   id/uuid.Uuid
   organization-id/uuid.Uuid
   group-pods/Map
+  broker-config/ServerConfig
   is-reference/bool
 
-  constructor --.path --.id --.organization-id --.group-pods --.is-reference:
+  constructor
+      --.path
+      --.id
+      --.organization-id
+      --.group-pods
+      --.is-reference
+      --.broker-config:
 
-  static parse path/string --ui/Ui -> FleetFile:
+  static parse path/string --default-broker-config/ServerConfig --ui/Ui -> FleetFile:
     fleet-content := null
     exception := catch: fleet-content = read-json path
     if exception:
@@ -114,32 +122,68 @@ class FleetFile:
           ui.abort "Fleet file $path has invalid format for 'pod' in group '$group-name'."
         PodReference.parse entry["pod"] --ui=ui
 
+    broker-config := default-broker-config
+
+    broker-name := fleet-content.get "broker"
+    servers-entry := fleet-content.get "servers"
+    if broker-name and not servers-entry or not broker-name and servers-entry:
+      ui.abort "Fleet file $path has invalid format for 'broker' and 'servers'."
+    if broker-name:
+      if servers-entry is not Map:
+        ui.abort "Fleet file $path has invalid format for 'servers'."
+      broker-entry := servers-entry.get broker-name
+      if not broker-entry:
+        ui.abort "Fleet file $path does not contain a server entry for broker '$broker-name'."
+      broker-config = ServerConfig.from-json broker-name broker-entry
+          --der-deserializer=: base64.decode it
+
     return FleetFile
         --path=path
         --id=uuid.parse fleet-content["id"]
         --organization-id=uuid.parse fleet-content["organization"]
         --group-pods=group-pods
         --is-reference=is-reference
+        --broker-config=broker-config
 
   write -> none:
-    groups := {:}
-    sorted-keys := group-pods.keys.sort
+    payload := to-json_
+    write-json-to-file --pretty path payload
 
-    // Write the default group at the top.
-    if group-pods.contains DEFAULT-GROUP:
-      groups[DEFAULT-GROUP] = {
-        "pod": group-pods[DEFAULT-GROUP].to-string
-      }
-    sorted-keys.do: | group-name |
-      if group-name == DEFAULT-GROUP: continue.do
-      groups[group-name] = {
-        "pod": group-pods[group-name].to-string
-      }
-    write-json-to-file --pretty path {
+  write-reference --path/string -> none:
+    payload := to-json_ --reference
+    write-json-to-file --pretty path payload
+
+  to-json_ --reference/bool=false -> Map:
+    result := {
       "id": "$id",
       "organization": "$organization-id",
-      "groups": groups,
     }
+    if reference:
+      result["is-reference"] = true
+    else:
+      groups := {:}
+      sorted-keys := group-pods.keys.sort
+
+      // Write the default group at the top.
+      if group-pods.contains DEFAULT-GROUP:
+        groups[DEFAULT-GROUP] = {
+          "pod": group-pods[DEFAULT-GROUP].to-string
+        }
+      sorted-keys.do: | group-name |
+        if group-name == DEFAULT-GROUP: continue.do
+        groups[group-name] = {
+          "pod": group-pods[group-name].to-string
+        }
+      result["groups"] = groups
+
+    // Add the servers last, so that the file is easier to read.
+    servers := {:}
+    encoded-server := broker-config.to-json --der-serializer=: base64.encode it
+    broker-name := broker-config.name
+    servers[broker-name] = encoded-server
+    result["broker"] = broker-name
+    result["servers"] = servers
+    return result
 
 class DevicesFile:
   path/string
@@ -202,40 +246,41 @@ class Fleet:
   static FLEET-FILE_ ::= "fleet.json"
 
   id/uuid.Uuid
+  organization-id/uuid.Uuid
   artemis/Artemis
   broker/Broker
   ui_/Ui
   cache_/Cache
   fleet-root-or-ref_/string
-
-  organization-id/uuid.Uuid
+  fleet-file_/FleetFile
 
   constructor fleet-root-or-ref/string
       artemis/Artemis
-      --broker-config/ServerConfig
+      --default-broker-config/ServerConfig
       --ui/Ui
       --cache/Cache
       --config/Config:
-    fleet-file := load-fleet-file fleet-root-or-ref --ui=ui
+    fleet-file := load-fleet-file fleet-root-or-ref
+        --default-broker-config=default-broker-config
+        --ui=ui
     return Fleet fleet-root-or-ref artemis
-        --broker-config=broker-config
         --fleet-file=fleet-file
         --ui=ui
         --cache=cache
         --config=config
 
   constructor .fleet-root-or-ref_ .artemis
-      --broker-config/ServerConfig
       --fleet-file/FleetFile
       --ui/Ui
       --cache/Cache
       --config/Config:
+    fleet-file_ = fleet-file
     id = fleet-file.id
     organization-id = fleet-file.organization-id
     ui_ = ui
     cache_ = cache
     broker = Broker
-        --server-config=broker-config
+        --server-config=fleet-file.broker-config
         --cache=cache
         --config=config
         --ui=ui
@@ -248,7 +293,10 @@ class Fleet:
     if not org:
       ui.abort "Organization $organization-id does not exist or is not accessible."
 
-  static load-fleet-file fleet-root-or-ref/string --ui/Ui -> FleetFile:
+  static load-fleet-file -> FleetFile
+      fleet-root-or-ref/string
+      --default-broker-config/ServerConfig
+      --ui/Ui:
     fleet-path/string := ?
     must-be-reference/bool := ?
     if file.is-file fleet-root-or-ref:
@@ -268,7 +316,9 @@ class Fleet:
       ui.error "Use 'init' to initialize a fleet root."
       ui.abort
 
-    result := FleetFile.parse fleet-path --ui=ui
+    result := FleetFile.parse fleet-path
+        --default-broker-config=default-broker-config
+        --ui=ui
     if must-be-reference and not result.is-reference:
       ui.abort "Provided fleet-file is not a reference."
     else if not must-be-reference and result.is-reference:
@@ -276,12 +326,8 @@ class Fleet:
 
     return result
 
-  create-reference -> Map:
-    return {
-      "id": "$id",
-      "organization": "$organization-id",
-      "is-reference": true,
-    }
+  write-reference --path/string -> none:
+    fleet-file_.write-reference --path=path
 
   /**
   Uploads the given $pod to the broker.
@@ -348,14 +394,16 @@ class FleetWithDevices extends Fleet:
   aliases_/Map := {:}
 
   constructor fleet-root/string artemis/Artemis
-      --broker-config/ServerConfig
+      --default-broker-config/ServerConfig
       --ui/Ui
       --cache/Cache
       --config/Config:
     if not file.is-directory fleet-root and file.is-file fleet-root:
       ui.abort "Fleet argument for this operation must be a fleet root (directory) and not a reference file: '$fleet-root'."
 
-    fleet-file := Fleet.load-fleet-file fleet-root --ui=ui
+    fleet-file := Fleet.load-fleet-file fleet-root
+        --default-broker-config=default-broker-config
+        --ui=ui
     if fleet-file.is-reference:
       ui.abort "Fleet root $fleet-root is a reference fleet and cannot be used for device management."
     devices-file := load-devices-file fleet-root --ui=ui
@@ -364,13 +412,15 @@ class FleetWithDevices extends Fleet:
     devices_ = devices-file.devices
     aliases_ = build-alias-map_ devices_ ui
     super fleet-root artemis
-        --broker-config=broker-config
         --fleet-file=fleet-file
         --ui=ui
         --cache=cache
         --config=config
 
-  static init fleet-root/string artemis/Artemis --organization-id/uuid.Uuid --ui/Ui:
+  static init fleet-root/string artemis/Artemis
+      --organization-id/uuid.Uuid
+      --broker-config/ServerConfig
+      --ui/Ui:
     if not file.is-directory fleet-root:
       ui.abort "Fleet root $fleet-root is not a directory."
 
@@ -384,16 +434,19 @@ class FleetWithDevices extends Fleet:
     if not org:
       ui.abort "Organization $organization-id does not exist or is not accessible."
 
-    write-json-to-file --pretty "$fleet-root/$FLEET-FILE_" {
-      "id": "$random-uuid",
-      "organization": "$organization-id",
-      "groups": {
-        DEFAULT-GROUP: {
-          "pod": "$INITIAL-POD-NAME@latest",
-        },
-      }
-    }
-    write-json-to-file --pretty "$fleet-root/$DEVICES-FILE_" {:}
+    fleet-file := FleetFile
+        --path="$fleet-root/$FLEET-FILE_"
+        --id=random-uuid
+        --organization-id=organization-id
+        --group-pods={
+          DEFAULT-GROUP: PodReference.parse "$INITIAL-POD-NAME@latest" --ui=ui,
+        }
+        --is-reference=false
+        --broker-config=broker-config
+    fleet-file.write
+
+    devices-file := DevicesFile "$fleet-root/$DEVICES-FILE_" []
+    devices-file.write
 
     default-specification-path := "$fleet-root/$(INITIAL-POD-NAME).yaml"
     if not file.is-file default-specification-path:

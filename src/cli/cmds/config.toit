@@ -38,6 +38,8 @@ create-server-config-commands config/Config ui/Ui -> List:
           --help="""
             Show or set the default broker.
 
+            The default broker is used when initializing a new fleet directory.
+
             If no broker is specified, the current default broker is shown.
             If a broker is specified, it is set as the default broker.
 

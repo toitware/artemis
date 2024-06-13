@@ -2,6 +2,7 @@
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
+import encoding.json
 import host.file
 import expect show *
 import .utils
@@ -35,6 +36,11 @@ run-test test-cli/TestCli:
     expect (file.is-file "$fleet-tmp-dir/fleet.json")
     expect (file.is-file "$fleet-tmp-dir/devices.json")
     expect (file.is-file "$fleet-tmp-dir/my-pod.yaml")
+
+    fleet-json := json.decode (file.read-content "$fleet-tmp-dir/fleet.json")
+    // Check that we have a broker entry.
+    broker-name := fleet-json["broker"]
+    broker-entry := fleet-json["servers"][broker-name]
 
     // We are not allowed to initialize a folder twice.
     already-initialized-message := test-cli.run --expect-exit-1 [

@@ -31,6 +31,11 @@ run-test test-cli/TestCli fleet-dir/string:
         "fleet", "create-reference", "-o", ref-file
       ]
 
+  fleet-json := json.decode (file.read-content ref-file)
+  // Check that we have a broker entry.
+  broker-name := fleet-json["broker"]
+  broker-entry := fleet-json["servers"][broker-name]
+
   // We can still use the ref file to list pods.
   test-cli.run-gold "210-list-pods-ref"
       "List the pods using the ref"
