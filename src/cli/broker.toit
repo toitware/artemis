@@ -130,12 +130,18 @@ class Broker:
     pod.split: | manifest/Map parts/Map |
       parts.do: | id/string content/ByteArray |
         // Only upload if we don't have it in our cache.
-        key := "$POD-PARTS-PATH/$organization-id/$id"
+        key := cache-key-pod-parts
+            --broker-config=server-config
+            --organization-id=organization-id
+            --part-id=id
         cache_.get-file-path key: | store/FileStore |
           broker-connection_.pod-registry-upload-pod-part content --part-id=id
               --organization-id=organization-id
           store.save content
-      key := "$POD-MANIFEST-PATH/$organization-id/$pod.id"
+      key := cache-key-pod-manifest
+          --broker-config=server-config
+          --organization-id=organization-id
+          --pod-id=pod.id
       cache_.get-file-path key: | store/FileStore |
         encoded := ubjson.encode manifest
         broker-connection_.pod-registry-upload-pod-manifest encoded --pod-id=pod.id
@@ -200,10 +206,12 @@ class Broker:
   Computes patches and uploads them to the broker.
   */
   diff-and-upload_ patch/FirmwarePatch -> none:
-    trivial-id := id_ --to=patch.to_
-    cache-key := "$broker-connection_.id/$organization-id/patches/$trivial-id"
-
     // Unless it is already cached, always create/upload the trivial one.
+    trivial-id := id_ --to=patch.to_
+    cache-key := cache-key-patch
+        --broker-config=server-config
+        --organization-id=organization-id
+        --patch-id=trivial-id
     cache_.get cache-key: | store/FileStore |
       trivial := build-trivial-patch patch.bits_
       broker-connection_.upload-firmware trivial
@@ -217,7 +225,10 @@ class Broker:
     // Attempt to fetch the old trivial patch and use it to construct
     // the old bits so we can compute a diff from them.
     old-id := id_ --to=patch.from_
-    cache-key = "$broker-connection_.id/$organization-id/patches/$old-id"
+    cache-key = cache-key-patch
+        --broker-config=server-config
+        --organization-id=organization-id
+        --patch-id=old-id
     trivial-old := cache_.get cache-key: | store/FileStore |
       downloaded := null
       catch: downloaded = broker-connection_.download-firmware
@@ -241,7 +252,10 @@ class Broker:
     if patch.from_ != sha.get: return
 
     diff-id := id_ --from=patch.from_ --to=patch.to_
-    cache-key = "$broker-connection_.id/$organization-id/patches/$diff-id"
+    cache-key = cache-key-patch
+        --broker-config=server-config
+        --organization-id=organization-id
+        --patch-id=diff-id
     cache_.get cache-key: | store/FileStore |
       // Build the diff and verify that we can apply it and get the
       // correct hash out before uploading it.
@@ -274,7 +288,10 @@ class Broker:
     return sha.get
 
   download --pod-id/uuid.Uuid -> Pod:
-    manifest-key := "$POD-MANIFEST-PATH/$organization-id/$pod-id"
+    manifest-key := cache-key-pod-manifest
+        --broker-config=server-config
+        --organization-id=organization-id
+        --pod-id=pod-id
     encoded-manifest := cache_.get manifest-key: | store/FileStore |
       bytes := broker-connection_.pod-registry-download-pod-manifest
         --pod-id=pod-id
@@ -285,7 +302,10 @@ class Broker:
         manifest
         --tmp-directory=tmp-directory_
         --download=: | part-id/string |
-          key := "$POD-PARTS-PATH/$organization-id/$part-id"
+          key := cache-key-pod-parts
+              --broker-config=server-config
+              --organization-id=organization-id
+              --part-id=part-id
           cache_.get key: | store/FileStore |
             bytes := broker-connection_.pod-registry-download-pod-part
                 part-id
@@ -629,8 +649,8 @@ class Broker:
       program := CompiledProgram.application application-path --sdk=sdk
       id := program.id
 
-      cache-id := application-image-cache-key id --broker-config=server-config
-      cache_.get-directory-path cache-id: | store/DirectoryStore |
+      cache-key := cache-key-application-image id --broker-config=server-config
+      cache_.get-directory-path cache-key: | store/DirectoryStore |
         store.with-tmp-directory: | tmp-dir |
           // TODO(florian): do we want to rely on the cache, or should we
           // do a check to see if the files are really uploaded?

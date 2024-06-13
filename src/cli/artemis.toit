@@ -10,7 +10,7 @@ import encoding.ubjson
 import encoding.json
 
 import .cache as cache
-import .cache show service-image-cache-key
+import .cache show cache-key-service-image
 import .config
 import .device
 
@@ -111,7 +111,7 @@ class Artemis:
       --chip-family/string
       --word-size/int:
     if word-size != 32 and word-size != 64: throw "INVALID_ARGUMENT"
-    service-key := service-image-cache-key
+    service-key := cache-key-service-image
         --service-version=service
         --sdk-version=sdk
         --artemis-config=server-config

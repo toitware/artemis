@@ -9,7 +9,7 @@ import encoding.url as url-encoding
 // TODO(florian): these should come from the cli package.
 import artemis.cli.config as cli
 import artemis.cli.cache as cli
-import artemis.cli.cache show service-image-cache-key
+import artemis.cli.cache show cache-key-service-image
 import artemis.cli.git show Git
 import artemis.cli.sdk show *
 import artemis.cli.ui as ui
@@ -186,7 +186,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
     // Since we are potentially reusing an ID, we need to remove the cached versions.
     CHIP-FAMILIES.do: | chip-family |
       [32, 64].do: | word-size |
-        cache-key := service-image-cache-key
+        cache-key := cache-key-service-image
             --sdk-version=sdk-version
             --service-version=full-service-version
             --artemis-config=artemis-config
