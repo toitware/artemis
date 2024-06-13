@@ -13,6 +13,8 @@ import ..utils
 
 with-artemis parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
   artemis-config := get-server-from-config config --key=CONFIG-ARTEMIS-DEFAULT-KEY
+  if not artemis-config:
+    ui.abort "Default Artemis server is not configured correctly."
 
   with-tmp-directory: | tmp-directory/string |
     artemis := Artemis
@@ -43,6 +45,8 @@ with-devices-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
 
   with-artemis parsed config cache ui: | artemis/Artemis |
     default-broker-config := get-server-from-config config --key=CONFIG-BROKER-DEFAULT-KEY
+    if not default-broker-config:
+      ui.abort "Default broker is not configured correctly."
     fleet := FleetWithDevices fleet-root artemis
         --default-broker-config=default-broker-config
         --ui=ui
@@ -55,6 +59,8 @@ with-pod-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
 
   with-artemis parsed config cache ui: | artemis/Artemis |
     default-broker-config := get-server-from-config config --key=CONFIG-BROKER-DEFAULT-KEY
+    if not default-broker-config:
+      ui.abort "Default broker is not configured correctly."
     fleet := Fleet fleet-root-or-ref artemis
         --default-broker-config=default-broker-config
         --ui=ui

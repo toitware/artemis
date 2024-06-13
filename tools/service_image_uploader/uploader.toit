@@ -182,7 +182,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       full-service-version = service-version
       if commit: full-service-version += "-$commit"
 
-    artemis-config := get-artemis-config parsed config
+    artemis-config := get-artemis-config parsed config ui
     // Since we are potentially reusing an ID, we need to remove the cached versions.
     CHIP-FAMILIES.do: | chip-family |
       [32, 64].do: | word-size |
