@@ -12,9 +12,7 @@ import ..server-config
 import ..utils
 
 with-artemis parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
-  artemis-config := get-server-from-config config --key=CONFIG-ARTEMIS-DEFAULT-KEY
-  if not artemis-config:
-    ui.abort "Default Artemis server is not configured correctly."
+  artemis-config := get-server-from-config config ui --key=CONFIG-ARTEMIS-DEFAULT-KEY
 
   with-tmp-directory: | tmp-directory/string |
     artemis := Artemis
@@ -44,9 +42,7 @@ with-devices-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
   fleet-root := compute-fleet-root-or-ref parsed config ui
 
   with-artemis parsed config cache ui: | artemis/Artemis |
-    default-broker-config := get-server-from-config config --key=CONFIG-BROKER-DEFAULT-KEY
-    if not default-broker-config:
-      ui.abort "Default broker is not configured correctly."
+    default-broker-config := get-server-from-config config ui --key=CONFIG-BROKER-DEFAULT-KEY
     fleet := FleetWithDevices fleet-root artemis
         --default-broker-config=default-broker-config
         --ui=ui
@@ -58,9 +54,7 @@ with-pod-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
   fleet-root-or-ref := compute-fleet-root-or-ref parsed config ui
 
   with-artemis parsed config cache ui: | artemis/Artemis |
-    default-broker-config := get-server-from-config config --key=CONFIG-BROKER-DEFAULT-KEY
-    if not default-broker-config:
-      ui.abort "Default broker is not configured correctly."
+    default-broker-config := get-server-from-config config ui --key=CONFIG-BROKER-DEFAULT-KEY
     fleet := Fleet fleet-root-or-ref artemis
         --default-broker-config=default-broker-config
         --ui=ui
