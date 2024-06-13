@@ -586,8 +586,16 @@ class Broker:
       description-map[description.id] = description
     return description-map
 
-  notify-created --device-id/uuid.Uuid --state/Map -> none:
-    broker-connection_.notify-created --device-id=device-id --state=state
+  notify-created device/Device -> none:
+    identity := {
+      "device_id": "$device.id",
+      "organization_id": "$device.organization-id",
+      "hardware_id": "$device.hardware-id",
+    }
+    state := {
+      "identity": identity,
+    }
+    broker-connection_.notify-created --device-id=device.id --state=state
 
   device-for --id/uuid.Uuid -> DeviceDetailed:
     devices := broker-connection_.get-devices --device-ids=[id]
