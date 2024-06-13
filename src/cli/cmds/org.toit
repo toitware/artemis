@@ -222,9 +222,7 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
 
 with-org-server parsed/cli.Parsed config/Config ui/Ui [block]:
   server-config/ServerConfig := ?
-  server-config = get-server-from-config config --key=CONFIG-ARTEMIS-DEFAULT-KEY
-  if not server-config:
-    ui.abort "Default server is not configured correctly."
+  server-config = get-server-from-config config ui --key=CONFIG-ARTEMIS-DEFAULT-KEY
 
   with-server server-config config: | server/ArtemisServerCli |
     server.ensure-authenticated: | error-message |

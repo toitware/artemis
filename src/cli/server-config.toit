@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import .config
+import .ui
 import ..shared.server-config
 import certificate-roots
 import crypto.sha256
@@ -17,24 +18,33 @@ DEFAULT-ARTEMIS-SERVER-CONFIG ::= ServerConfigSupabase
 /**
 Reads the server configuration with the given $key from the $config.
 */
-get-server-from-config config/Config --key/string -> ServerConfig?:
+get-server-from-config config/Config ui/Ui --key/string -> ServerConfig?:
+  servers := config.get CONFIG-SERVERS-KEY
   server-name := config.get key
+
+  if not servers:
+    if server-name:
+      ui.abort "No server entry for '$server-name' in the config."
+
+    // No server information in the config. Return the default server.
+    return DEFAULT-ARTEMIS-SERVER-CONFIG
+
   if not server-name:
     if key == CONFIG-ARTEMIS-DEFAULT-KEY:
       return DEFAULT-ARTEMIS-SERVER-CONFIG
     return null
 
-  return get-server-from-config config --name=server-name
+  return get-server-from-config config ui --name=server-name
 
 /**
 Reads the server configuration with the given $name from the $config.
 */
-get-server-from-config config/Config --name/string -> ServerConfig?:
+get-server-from-config config/Config ui/Ui --name/string -> ServerConfig?:
   servers := config.get CONFIG-SERVERS-KEY
-  if not servers: return DEFAULT-ARTEMIS-SERVER-CONFIG
+  if not servers or not servers.contains name:
+    ui.abort "No server entry for '$name' in the config"
 
-  json-map := servers.get name
-  if not json-map: return null
+  json-map := servers[name]
 
   return ServerConfig.from-json name json-map
       --der-deserializer=: base64.decode it
