@@ -38,9 +38,7 @@ interface UploadClient:
   upload --snapshot-uuid/string cli-snapshot/ByteArray
 
 get-artemis-config parsed/cli.Parsed config/cli.Config ui/ui.Ui -> ServerConfig:
-  result := get-server-from-config config --key=CONFIG-ARTEMIS-DEFAULT-KEY
-  if not result:
-    ui.abort "Default server not configured correctly."
+  result := get-server-from-config config ui --key=CONFIG-ARTEMIS-DEFAULT-KEY
   return result
 
 

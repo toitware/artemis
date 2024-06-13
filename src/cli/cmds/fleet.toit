@@ -445,13 +445,9 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   broker-config := ?
   if broker-name:
-    broker-config = get-server-from-config config --name=broker-name
-    if not broker-config:
-      ui.abort "Could not find broker '$broker-name' in the configuration."
+    broker-config = get-server-from-config --name=broker-name config ui
   else:
-    broker-config = get-server-from-config config --key=CONFIG-BROKER-DEFAULT-KEY
-    if not broker-config:
-      ui.abort "Default broker is not configured correctly."
+    broker-config = get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY config ui
   fleet-root := compute-fleet-root-or-ref parsed config ui
   with-artemis parsed config cache ui: | artemis/Artemis |
     FleetWithDevices.init fleet-root artemis
