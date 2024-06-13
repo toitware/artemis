@@ -115,7 +115,7 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
       available-snapshots.do: | file-description/Map |
         name := file-description["name"]
         cache-key := "snapshot-downloader/$name"
-        snapshot := cache.get cache-key: | store/cli.FileStore |
+        cache.get cache-key: | store/cli.FileStore |
           ui.info "Downloading $name."
           snapshot := client.storage.download --path="cli-snapshots/$name"
           uuid := cache-snapshot snapshot --output-directory=output-directory
