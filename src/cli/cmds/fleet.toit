@@ -429,6 +429,74 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: create-reference it config cache ui
   cmd.add create-reference-cmd
 
+  migration-cmd := cli.Command "migration"
+      --aliases=["migrate"]
+      --help="""
+        Migrate a fleet to a new broker.
+
+        - Add a new broker to your configuration. Use 'config broker add ...'.
+        - Start the migration with 'migration start --broker=<broker>'.
+        - Upload a new pod, and roll it out to the fleet with 'fleet roll-out'.
+        - Check the status of the migration with the 'status' command.
+        - Finish the migration with 'migration finish', once all devices have migrated.
+
+        It is safe to roll out new pods to the fleet while a migration is in progress. As
+        long as the migration is not finished, new pods will be rolled out to all brokers.
+        """
+
+  migration-start-cmd := cli.Command "start"
+      --help="""
+        Start the migration to a new broker.
+
+        Use 'status' to check the status of the migration.
+        Use 'finish' to finish the migration.
+
+        It is legal to start a migration even if one is already in progress.
+        """
+      --options=[
+        cli.Option "broker"
+            --help="The broker to migrate to."
+            --required,
+      ]
+      --examples=[
+        cli.Example "Migrate the fleet to the broker 'my-broker':"
+            --arguments="--broker=my-broker",
+      ]
+      --run=:: migration-start it config cache ui
+  migration-cmd.add migration-start-cmd
+
+  migration-finish-cmd := cli.Command "finish"
+      --help="""
+          Finish the migration.
+
+          Removes the old broker(s) from the fleet. From that point on,
+          devices that still contact the old broker(s) will not be updated.
+
+          If no broker is given, all old brokers are removed.
+          Otherwise, only the given brokers are removed.
+
+          Unless a migration was started while another one was still in progress,
+          there should be only one old broker in the fleet.
+          """
+      --options=[
+        cli.Option "broker"
+            --help="The broker to remove."
+            --multi,
+      ]
+      --examples=[
+        cli.Example """
+            Finish the migration.
+            All old brokers are removed, and devices can only b
+            """
+            --arguments="",
+        cli.Example "Finish the migration and remove the brokers 'old-broker1', 'old-broker2':"
+            --arguments="--broker=my-broker1 --broker=my-broker2",
+      ]
+      --run=:: migration-finish it config cache ui
+  migration-cmd.add migration-finish-cmd
+
+  cmd.add migration-cmd
+
   return [cmd]
 
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -751,3 +819,18 @@ create-reference parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-pod-fleet parsed config cache ui: | fleet/Fleet |
     fleet.write-reference --path=output
     ui.info "Created reference file $output."
+
+migration-start parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  broker-name := parsed["broker"]
+
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    new-broker := get-server-from-config config ui --name=broker-name
+    fleet.migration-start --broker-config=new-broker
+    ui.info "Started migration to broker $broker-name."
+
+migration-finish parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  brokers := parsed["broker"]
+
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    fleet.migration-finish brokers
+    ui.info "Finished migration."
