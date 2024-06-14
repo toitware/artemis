@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import crypto.md5
+import crypto.sha1
 import encoding.ubjson
 import encoding.base64
 import supabase
@@ -64,8 +64,8 @@ abstract class ServerConfig:
   */
   cache-key -> string:
     if not cache-key_:
-      hash := md5.md5 (ubjson.encode (to-json --der-serializer=: it))
-      cache-key_ = "$name-$(base64.encode hash)"
+      hash := sha1.sha1 (ubjson.encode (to-json --der-serializer=: it))
+      cache-key_ = "$(base64.encode --url-mode hash)-$name"
     return cache-key_
 
 class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
