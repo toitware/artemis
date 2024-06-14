@@ -24,6 +24,8 @@ get-server-from-config config/Config ui/Ui --key/string -> ServerConfig?:
 
   if not servers:
     if server-name:
+      if server-name == DEFAULT-ARTEMIS-SERVER-CONFIG.name:
+        return DEFAULT-ARTEMIS-SERVER-CONFIG
       ui.abort "No server entry for '$server-name' in the config."
 
     // No server information in the config. Return the default server.
@@ -42,12 +44,25 @@ Reads the server configuration with the given $name from the $config.
 get-server-from-config config/Config ui/Ui --name/string -> ServerConfig?:
   servers := config.get CONFIG-SERVERS-KEY
   if not servers or not servers.contains name:
+    if name == DEFAULT-ARTEMIS-SERVER-CONFIG.name:
+      return DEFAULT-ARTEMIS-SERVER-CONFIG
     ui.abort "No server entry for '$name' in the config"
 
   json-map := servers[name]
 
   return ServerConfig.from-json name json-map
       --der-deserializer=: base64.decode it
+
+get-servers-from-config config/Config -> List:
+  default-name := DEFAULT-ARTEMIS-SERVER-CONFIG.name
+  servers := config.get CONFIG-SERVERS-KEY
+  if not servers:
+    return [default-name]
+  result := []
+  if not servers.contains default-name:
+    result.add default-name
+  result.add-all servers.keys
+  return result
 
 has-server-in-config config/Config server-name/string -> bool:
   servers := config.get CONFIG-SERVERS-KEY
