@@ -320,6 +320,7 @@ class TestCli:
         --organization-id=TEST-ORGANIZATION-UUID
         --serial-port=serial-port
         --toit-run=toit-run-path_
+    result.start
     test-devices_.add result
     return result
 
@@ -337,6 +338,7 @@ class TestCli:
         --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
         --encoded-firmware=encoded-firmware
+    result.start
     test-devices_.add result
     return result
 
@@ -358,6 +360,7 @@ class TestCli:
         --hardware-id=hardware-id
         --organization-id=organization-id
         --encoded-firmware=encoded-firmware
+    result.start
     test-devices_.add result
     return result
 
