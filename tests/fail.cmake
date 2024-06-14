@@ -13,6 +13,7 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows" OR "${CMAKE_SYSTEM_NAME}" STREQUAL
     "/tests/cmd-device-extract-test.toit --http-server --http-toit-broker"
     "/tests/cmd-fleet-add-device-test.toit --http-server --http-toit-broker"
     "/tests/cmd-fleet-migration-test.toit --http-server --http-toit-broker"
+    "/tests/cmd-fleet-migration2-test.toit --http-server --http-toit-broker"
     "/tests/host-hello-test.toit --http-server --http-toit-broker"
   )
 endif()
