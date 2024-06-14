@@ -80,7 +80,12 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
     service-images.do: | row |
       image := row["image"]
       cache-key := "snapshot-downloader/$image"
-      cache.get cache-key: | store/cli.FileStore |
+      // We only download a snapshot if we don't have it in our Artemis cache.
+      // This means that it is possible to remove a snapshot from the snapshot-directory
+      // and not get it back by calling this function (since the Artemis cache
+      // would still be there).
+      // In that case, one would need to remove the Artemis cache.
+      snapshot := cache.get cache-key: | store/cli.FileStore |
         ui.info "Downloading $row["sdk_version"]-$row["service_version"]."
         snapshot/ByteArray? := null
         exception := catch:
@@ -99,8 +104,9 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
           ui.info "Wrote service snapshot $uuid."
         else:
           // Reset the reader.
-          // The header should be the first file, but it doesn't cost much to start
-          // from scratch and avoid hard-to-find bugs.
+          // We are right after the header, which should be the first file.
+          // Since we don't need the header anymore (and we will in fact skip it),
+          // we could just continue reading, but by resetting we avoid hard-to-find bugs.
           ar-reader = ar.ArReader (io.Reader snapshot)
           while file/ar.ArFile? := ar-reader.next:
             if file.name == AR-SNAPSHOT-HEADER:
@@ -115,6 +121,9 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
       available-snapshots.do: | file-description/Map |
         name := file-description["name"]
         cache-key := "snapshot-downloader/$name"
+        // Same as above: we only download/write snapshots if we don't have any
+        // entry in the Artemis cache. If the snapshot files have been deleted,
+        // then one might need to remove the Artemis cache.
         cache.get cache-key: | store/cli.FileStore |
           ui.info "Downloading $name."
           snapshot := client.storage.download --path="cli-snapshots/$name"

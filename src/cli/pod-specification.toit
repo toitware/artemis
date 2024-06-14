@@ -2,6 +2,7 @@
 
 import encoding.base64
 import encoding.url as url-encoding
+import host.directory
 import host.file
 import fs
 import semver
@@ -658,6 +659,7 @@ class ContainerPath extends ContainerBase:
     cached-git := cache.get-directory-path cache-key: | store/cli.DirectoryStore |
       store.with-tmp-directory: | tmp-dir/string |
         clone-dir := "$tmp-dir/checkout"
+        directory.mkdir clone-dir
         git.init clone-dir --origin=git-url --quiet
         git.config --repository-root=clone-dir
             --key="advice.detachedHead"
@@ -669,7 +671,7 @@ class ContainerPath extends ContainerBase:
             --quiet
         // Write the url, so it's easier to understand what is in there.
         file.write-content --path="$tmp-dir/URL" git-url
-        store.move clone-dir
+        store.move tmp-dir
     cached-checkout := "$cached-git/checkout"
 
     // Make sure we have the ref we need in the cache.

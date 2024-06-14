@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import crypto.md5
+import crypto.sha1
 import crypto.sha256
 import encoding.base64
 import encoding.json
@@ -61,9 +61,14 @@ cache-key-envelope --url/string -> string:
   return "envelopes/$url_without_prefix/firmware.envelope"
 
 cache-key-git-app --url/string -> string:
-  hash64 := base64.encode (md5.md5 url)
+  // The URL might have weird characters or might be very long, so hash it.
+  // Any hash function would do.
+  hash64 := base64.encode --url-mode (sha1.sha1 url)
   url = url.trim --right ".git"
-  // Not really necessary, but makes it nicer to understand what's in the cache.
+  // For the most common URLs, add the organization and name.
+  // This isn't really necessary, but makes it nicer to understand what's in the cache.
+  // For example: https://github.com/toitware/cellular.git
+  //     becomes: hSGHt2yVMnTuWlP8z6GtRHc0_l8-toitware-cellular
   GIT-PROVIDERS ::= [
     "https://github.com/",
     "git@github.com:",
@@ -74,7 +79,7 @@ cache-key-git-app --url/string -> string:
     if url.starts-with provider:
       url = url.trim --left provider
       human := url.replace --all "/" "-"
-      return "git-app/$human-$hash64"
+      return "git-app/$hash64-$human"
   return hash64
 
 cache-key-sdk --version/string -> string:
