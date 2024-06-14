@@ -12,6 +12,7 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows" OR "${CMAKE_SYSTEM_NAME}" STREQUAL
     # Don't run tests that use the host-envelope.
     "/tests/cmd-device-extract-test.toit --http-server --http-toit-broker"
     "/tests/cmd-fleet-add-device-test.toit --http-server --http-toit-broker"
+    "/tests/cmd-fleet-migration-test.toit --http-server --http-toit-broker"
     "/tests/host-hello-test.toit --http-server --http-toit-broker"
   )
 endif()

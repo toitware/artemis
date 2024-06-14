@@ -1055,7 +1055,8 @@ class FleetWithDevices extends Fleet:
             --organization-id=organization-id
             --tmp-directory=artemis.tmp-directory
         current-detailed-devices := current-broker.get-devices --device-ids=device-ids
-        current-last-events := current-broker.get-last-events --device-ids=device-ids
+        current-ids := current-detailed-devices.keys
+        current-last-events := current-broker.get-last-events --device-ids=current-ids
         current-last-events.do: | device-id/uuid.Uuid event/Event |
           if not last-events.contains device-id or last-events[device-id].timestamp < event.timestamp:
             devices_.do: | fleet-device/DeviceFleet |

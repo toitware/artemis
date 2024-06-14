@@ -264,7 +264,7 @@ class TestCli:
   The $firmware-token is used to build the encoded firmware.
   By default a random token is used.
   */
-  start-device -> TestDevice
+  create-device -> TestDevice
       --organization-id/uuid.Uuid=TEST-ORGANIZATION-UUID
       --firmware-token/ByteArray?=null:
     device-description := create-device_ organization-id firmware-token
@@ -282,7 +282,7 @@ class TestCli:
     test-devices_.add result
     return result
 
-  start-device -> TestDevice
+  create-device -> TestDevice
       --alias-id/uuid.Uuid
       --hardware-id/uuid.Uuid
       --device-config/TestDeviceConfig
@@ -420,6 +420,13 @@ abstract class TestDevice:
   constructor --.broker --.hardware-id --.alias-id --.organization-id:
 
   /**
+  Starts the device.
+
+  Typically, the device is automatically started when it is created.
+  */
+  abstract start -> none
+
+  /**
   Closes the test device and releases all broker connections.
   */
   abstract close -> none
@@ -484,6 +491,10 @@ class FakeDevice extends TestDevice:
         --firmware-state=firmware-state
         --storage=Storage
     super --broker=broker --hardware-id=hardware-id --alias-id=alias-id --organization-id=organization-id
+
+  start:
+    // Do nothing.
+
   close:
     if network_:
       network_.close
@@ -568,6 +579,7 @@ class TestDevicePipe extends TestDevice:
   stdout-task_/Task? := null
   stderr-task_/Task? := null
   tmp-dir/string? := null
+  command_/List := ?
 
   constructor.fake-host
       --broker/TestBroker
@@ -580,13 +592,8 @@ class TestDevicePipe extends TestDevice:
     broker-config-json := broker.server-config.to-json --der-serializer=: unreachable
     encoded-broker-config := json.stringify broker-config-json
 
-    super
-        --broker=broker
-        --hardware-id=hardware-id
-        --alias-id=alias-id
-        --organization-id=organization-id
-
-    flags := [
+    command_ = [
+      toit-run,
       "test-device.toit",
       "--hardware-id=$hardware-id",
       "--alias-id=$alias-id",
@@ -594,7 +601,11 @@ class TestDevicePipe extends TestDevice:
       "--encoded-firmware=$encoded-firmware",
       "--broker-config-json=$encoded-broker-config",
     ]
-    fork_ toit-run flags
+    super
+        --broker=broker
+        --hardware-id=hardware-id
+        --alias-id=alias-id
+        --organization-id=organization-id
 
   constructor.serial
       --broker/TestBroker
@@ -603,17 +614,16 @@ class TestDevicePipe extends TestDevice:
       --organization-id/uuid.Uuid
       --serial-port/string
       --toit-run/string:
+    command_ = [
+      toit-run,
+      "test-device-serial.toit",
+      "--port", serial-port
+    ]
     super
         --broker=broker
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
-
-    flags := [
-      "test-device-serial.toit",
-      "--port", serial-port
-    ]
-    fork_ toit-run flags
 
   constructor.qemu
         --broker/TestBroker
@@ -622,40 +632,51 @@ class TestDevicePipe extends TestDevice:
         --organization-id/uuid.Uuid
         --image-path/string
         --qemu-path/string:
-    super
-        --broker=broker
-        --hardware-id=hardware-id
-        --alias-id=alias-id
-        --organization-id=organization-id
-
-    flags := [
+    command_ = [
+      qemu-path,
       "-L", (fs.dirname qemu-path),
       "-M", "esp32",
       "-nographic",
       "-drive", "file=$image-path,format=raw,if=mtd",
       "-nic", "user,model=open_eth",
     ]
-    fork_ qemu-path flags
-
-  constructor.host
-        --broker/TestBroker
-        --hardware-id/uuid.Uuid
-        --alias-id/uuid.Uuid
-        --organization-id/uuid.Uuid
-        --tar-path/string:
-    tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
-    untar tar-path --target=tmp-dir
-    boot-sh := "$tmp-dir/boot.sh"
     super
         --broker=broker
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
-    if system.platform == system.PLATFORM-WINDOWS:
-      throw "Host devices are not supported on Windows."
-    fork_ "bash" [boot-sh]
 
-  fork_ exe flags:
+  constructor.host
+      --broker/TestBroker
+      --hardware-id/uuid.Uuid
+      --alias-id/uuid.Uuid
+      --organization-id/uuid.Uuid
+      --tar-path/string:
+    tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
+    untar tar-path --target=tmp-dir
+    boot-sh := "$tmp-dir/boot.sh"
+    command_ = ["bash", boot-sh]
+    super
+        --broker=broker
+        --hardware-id=hardware-id
+        --alias-id=alias-id
+        --organization-id=organization-id
+
+  start:
+    if child-process_: throw "Already started"
+    fork_
+
+  stop:
+    if child-process_:
+      kill-subprocess_
+    if stdout-task_:
+      stdout-task_.cancel
+      stdout-task_ = null
+    if stderr-task_:
+      stderr-task_.cancel
+      stderr-task_ = null
+
+  fork_:
     fork-data := pipe.fork
         true                // use_path
         // We create a stdin pipe, so that qemu can't interfere with
@@ -663,8 +684,8 @@ class TestDevicePipe extends TestDevice:
         pipe.PIPE-CREATED   // stdin.
         pipe.PIPE-CREATED   // stdout
         pipe.PIPE-CREATED   // stderr
-        exe
-        [exe] + flags
+        command_.first
+        command_
     stdin := fork-data[0]
     stdout := fork-data[1]
     stderr := fork-data[2]
@@ -705,19 +726,12 @@ class TestDevicePipe extends TestDevice:
         with-timeout --ms=250:
           pipe.kill_ child-process_ signal
           pipe.wait-for child-process_
+          child-process_ = null
         return
 
   close:
     critical-do:
-      if child-process_:
-        kill-subprocess_
-        child-process_ = null
-      if stdout-task_:
-        stdout-task_.cancel
-        stdout-task_ = null
-      if stderr-task_:
-        stderr-task_.cancel
-        stderr-task_ = null
+      stop
       if tmp-dir:
         directory.rmdir --recursive tmp-dir
         tmp-dir = null

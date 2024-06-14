@@ -85,12 +85,13 @@ run-test test-cli/TestCli synchro-done-latch/monitor.Latch qemu-data/TestDeviceC
 
   lan-ip := get-lan-ip
 
-  test-device := test-cli.start-device
+  test-device := test-cli.create-device
       --alias-id=device-id
       // We don't know the actual hardware-id.
       // Cheat by reusing the alias id.
       --hardware-id=device-id
       --device-config=qemu-data
+  test-device.start
 
   print "Starting to look for 'INFO: synchronized'."
   pos := test-device.wait-for-synchronized --start-at=0

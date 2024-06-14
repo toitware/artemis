@@ -15,17 +15,20 @@ class TestDeviceConfig:
 
   constructor --.format --.path --.device-id:
 
+tmp-dir-counter := 0
+
 /**
 Uploads a pod to the fleet.
 
 The $format is needed to determine which base pod-specification should be used.
 */
-upload-pod
+upload-pod -> uuid.Uuid
+    --gold-name/string?=null
     --format/string
     --test-cli/TestCli
     --fleet-dir/string
     --args/List
-    --tmp-dir/string="$test-cli.tmp-dir/td-$format"
+    --tmp-dir/string="$test-cli.tmp-dir/td-$format-$(tmp-dir-counter++)"
     --files/Map={:}
     --pod-spec/Map={:}
     --pod-spec-filename/string="my-pod.yaml":
@@ -77,11 +80,20 @@ upload-pod
     spec-path,
   ]
 
-  test-cli.run [
+  upload-result := test-cli.run --json [
     "--fleet-root", fleet-dir,
     "pod", "upload",
     pod-file,
   ]
+
+  if gold-name:
+    test-cli.replacements[upload-result["id"]] = pad-replacement-id gold-name
+    test-cli.replacements[upload-result["name"]] = gold-name
+    upload-result["tags"].do: | tag/string |
+      if tag != "latest":
+        test-cli.replacements[tag] = "auto-tag"
+
+  return uuid.parse upload-result["id"]
 
 /**
 Library to create a new device and extract the image for it.

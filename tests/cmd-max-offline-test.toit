@@ -20,7 +20,8 @@ main args:
       "--password", TEST-EXAMPLE-COM-PASSWORD,
     ]
 
-    device := test-cli.start-device
+    device := test-cli.create-device
+    device.start
 
     // Transient commands only work if we know the firmware the device
     // is actually running.

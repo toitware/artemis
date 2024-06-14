@@ -52,10 +52,14 @@ class HttpBroker extends HttpServer:
   pod-description-ids_ := 0
   pod-registry_/Map ::= {:}  // Map from pod-description ID to $PodDescription object.
 
+  is-stopped_/bool := false
+
   constructor port/int:
     super port
 
   run-command command/int encoded/ByteArray _ -> any:
+    if is-stopped_: throw "Broker is stopped."
+
     data := ?
     if command == COMMAND-UPLOAD_:
       path-end := encoded.index-of '\0'
@@ -109,6 +113,9 @@ class HttpBroker extends HttpServer:
 
     print "Unknown command: $command"
     throw "BAD COMMAND $command"
+
+  stop -> none:
+    is-stopped_ = true
 
   notify-created data/Map:
     device-id := data["_device_id"]

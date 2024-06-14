@@ -106,7 +106,10 @@ class ToitHttpBackdoor implements BrokerBackdoor:
   clear-events -> none:
     server.clear-events
 
-with-http-broker [block]:
+  stop -> none:
+    server.stop
+
+with-http-broker --name="test-broker" [block]:
   server := HttpBroker 0
   port-latch := monitor.Latch
   server-task := task:: server.start port-latch
@@ -115,7 +118,7 @@ with-http-broker [block]:
   lan-ip := get-lan-ip
   host = host.replace "localhost" lan-ip
 
-  server-config := ServerConfigHttp "test-broker"
+  server-config := ServerConfigHttp name
       --host=host
       --port=port-latch.get
       --path="/"
