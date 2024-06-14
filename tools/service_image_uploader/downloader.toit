@@ -80,32 +80,40 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
     service-images.do: | row |
       image := row["image"]
       cache-key := "snapshot-downloader/$image"
+      // We only download a snapshot if we don't have it in our Artemis cache.
+      // This means that it is possible to remove a snapshot from the snapshot-directory
+      // and not get it back by calling this function (since the Artemis cache
+      // would still be there).
+      // In that case, one would need to remove the Artemis cache.
       snapshot := cache.get cache-key: | store/cli.FileStore |
         ui.info "Downloading $row["sdk_version"]-$row["service_version"]."
+        snapshot/ByteArray? := null
         exception := catch:
-          store.save (client.storage.download --path="service-snapshots/$image")
+          snapshot = client.storage.download --path="service-snapshots/$image"
         if exception:
           ui.error "Failed to download $row["sdk_version"]-$row["service_version"]."
           ui.error "Are you logged in as an admin?"
           ui.error exception
           ui.abort
 
-      ar-reader := ar.ArReader (io.Reader snapshot)
-      artemis-header := ar-reader.find AR-SNAPSHOT-HEADER
-      if not artemis-header:
-        // Deprecated direct snapshot format.
-        uuid := cache-snapshot snapshot --output-directory=output-directory
-        ui.info "Wrote service snapshot $uuid."
-      else:
-        // Reset the reader.
-        // The header should be the first file, but it doesn't cost much to start
-        // from scratch and avoid hard-to-find bugs.
-        ar-reader = ar.ArReader (io.Reader snapshot)
-        while file/ar.ArFile? := ar-reader.next:
-          if file.name == AR-SNAPSHOT-HEADER:
-            continue
-          uuid := cache-snapshot file.content --output-directory=output-directory
+        ar-reader := ar.ArReader (io.Reader snapshot)
+        artemis-header := ar-reader.find AR-SNAPSHOT-HEADER
+        if not artemis-header:
+          // Deprecated direct snapshot format.
+          uuid := cache-snapshot snapshot --output-directory=output-directory
           ui.info "Wrote service snapshot $uuid."
+        else:
+          // Reset the reader.
+          // We are right after the header, which should be the first file.
+          // Since we don't need the header anymore (and we will in fact skip it),
+          // we could just continue reading, but by resetting we avoid hard-to-find bugs.
+          ar-reader = ar.ArReader (io.Reader snapshot)
+          while file/ar.ArFile? := ar-reader.next:
+            if file.name == AR-SNAPSHOT-HEADER:
+              continue
+            uuid := cache-snapshot file.content --output-directory=output-directory
+            ui.info "Wrote service snapshot $uuid."
+        store.save snapshot
 
     if not sdk-version and not service-version:
       // Download all CLI snapshots.
@@ -113,9 +121,12 @@ download config/cli.Config cache/cli.Cache ui/Ui parsed/cli.Parsed:
       available-snapshots.do: | file-description/Map |
         name := file-description["name"]
         cache-key := "snapshot-downloader/$name"
-        snapshot := cache.get cache-key: | store/cli.FileStore |
+        // Same as above: we only download/write snapshots if we don't have any
+        // entry in the Artemis cache. If the snapshot files have been deleted,
+        // then one might need to remove the Artemis cache.
+        cache.get cache-key: | store/cli.FileStore |
           ui.info "Downloading $name."
-          store.save (client.storage.download --path="cli-snapshots/$name")
-
-        uuid := cache-snapshot snapshot --output-directory=output-directory
-        ui.info "Wrote CLI snapshot $uuid."
+          snapshot := client.storage.download --path="cli-snapshots/$name"
+          uuid := cache-snapshot snapshot --output-directory=output-directory
+          ui.info "Wrote CLI snapshot $uuid."
+          store.save snapshot

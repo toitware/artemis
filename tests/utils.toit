@@ -851,11 +851,11 @@ with-test-cli
     TEST-SDK-VERSION = sdk-version
 
     // Prefill the cache with the Dev SDK from the Makefile.
-    sdk-key := "$artemis-cache.SDK-PATH/$sdk-version"
+    sdk-key := artemis-cache.cache-key-sdk --version=sdk-version
     cache.get-directory-path sdk-key: | store/cli.DirectoryStore |
       store.copy sdk-path
 
-    ENVELOPES-URL ::= "github.com/toitlang/envelopes/releases/download/$sdk-version"
+    ENVELOPES-URL-PREFIX ::= "github.com/toitlang/envelopes/releases/download/$sdk-version"
     ENVELOPE-ARCHITECTURES ::= {
       "esp32": envelope-esp32-path,
       "esp32-qemu": envelope-esp32-qemu-path,
@@ -865,7 +865,8 @@ with-test-cli
       "host": envelope-host-path,
      }
     ENVELOPE-ARCHITECTURES.do: | envelope-arch/string cached-path/string |
-      envelope-key := "$artemis-cache.ENVELOPE-PATH/$ENVELOPES-URL/firmware-$(envelope-arch).envelope.gz/firmware.envelope"
+      envelope-url := "$ENVELOPES-URL-PREFIX/firmware-$(envelope-arch).envelope.gz"
+      envelope-key := artemis-cache.cache-key-envelope --url=envelope-url
       cache.get-file-path envelope-key: | store/cli.FileStore |
         print "Caching envelope: $cached-path for $envelope-arch"
         store.copy cached-path

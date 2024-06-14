@@ -13,7 +13,7 @@ import fs
 import semver
 
 import .sdk
-import .cache show ENVELOPE-PATH
+import .cache show cache-key-envelope
 import .cache as cli
 import .device
 import .pod
@@ -358,9 +358,8 @@ get-envelope -> string
   if not url.starts-with HTTP-URL-PREFIX and not url.starts-with HTTPS-URL-PREFIX:
     throw "Invalid envelope URL: $url"
 
-  url_without_prefix := (url.trim --left HTTP-URL-PREFIX).trim --left HTTPS-URL-PREFIX
-  envelope-key := "$ENVELOPE-PATH/$url_without_prefix/firmware.envelope"
-  return cache.get-file-path envelope-key: | store/cli.FileStore |
+  cache-key := cache-key-envelope --url=url
+  return cache.get-file-path cache-key: | store/cli.FileStore |
     store.with-tmp-directory: | tmp-dir |
       out-path := "$tmp-dir/fw.envelope"
       is-gz-file := url.ends-with ".gz"

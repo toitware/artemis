@@ -1,9 +1,14 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import crypto.sha1
+import encoding.ubjson
+import encoding.base64
 import supabase
 
 abstract class ServerConfig:
   name/string
+
+  cache-key_/string? := null
 
   constructor.from-sub_ .name:
 
@@ -53,6 +58,15 @@ abstract class ServerConfig:
   See $to-json for a description of the $der-serializer block.
   */
   abstract to-service-json [--der-serializer] -> Map
+
+  /**
+  A unique key that can be used for caching.
+  */
+  cache-key -> string:
+    if not cache-key_:
+      hash := sha1.sha1 (ubjson.encode (to-json --der-serializer=: it))
+      cache-key_ = "$(base64.encode --url-mode hash)-$name"
+    return cache-key_
 
 class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
   static DEFAULT-POLL-INTERVAL ::= Duration --s=20

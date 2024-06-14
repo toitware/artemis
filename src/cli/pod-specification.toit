@@ -2,12 +2,13 @@
 
 import encoding.base64
 import encoding.url as url-encoding
+import host.directory
 import host.file
 import fs
 import semver
 
 import .cache as cli
-import .cache show GIT-APP-PATH
+import .cache show cache-key-git-app
 import .firmware
 import .sdk
 import .server-config
@@ -653,11 +654,12 @@ class ContainerPath extends ContainerBase:
       return
 
     git := Git --ui=ui
-    git-key := "$GIT-APP-PATH/$git-url"
+    cache-key := cache-key-git-app --url=git-url
     ui.info "Fetching $git-url."
-    cached-checkout := cache.get-directory-path git-key: | store/cli.DirectoryStore |
+    cached-git := cache.get-directory-path cache-key: | store/cli.DirectoryStore |
       store.with-tmp-directory: | tmp-dir/string |
-        clone-dir := "$tmp-dir/clone"
+        clone-dir := "$tmp-dir/checkout"
+        directory.mkdir clone-dir
         git.init clone-dir --origin=git-url --quiet
         git.config --repository-root=clone-dir
             --key="advice.detachedHead"
@@ -667,7 +669,11 @@ class ContainerPath extends ContainerBase:
             --depth=1
             --ref=git-ref
             --quiet
-        store.move clone-dir
+        // Write the url, so it's easier to understand what is in there.
+        file.write-content --path="$tmp-dir/URL" git-url
+        store.move tmp-dir
+    cached-checkout := "$cached-git/checkout"
+
     // Make sure we have the ref we need in the cache.
     git.fetch --force --depth=1 --ref=git-ref --repository-root=cached-checkout
     // In case the remote updated the ref, update the local tag.

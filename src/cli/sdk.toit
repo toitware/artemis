@@ -15,7 +15,7 @@ import system
 import writer show Writer
 
 import .cache as cli
-import .cache show SDK-PATH
+import .cache show cache-key-sdk
 import .utils
 
 class Sdk:
@@ -403,8 +403,8 @@ get-sdk version/string --cache/cli.Cache -> Sdk:
       return Sdk "$local-sdk/build/host/sdk" version
 
   url := sdk-url version
-  sdk-key := "$SDK-PATH/$version"
-  path := cache.get-directory-path sdk-key: | store/cli.DirectoryStore |
+  cache-key := cache-key-sdk --version=version
+  path := cache.get-directory-path cache-key: | store/cli.DirectoryStore |
     with-tmp-directory: | tmp-dir |
       gzip-path := "$tmp-dir/toit.tar.gz"
       tar-path := "$tmp-dir/toit.tar"
