@@ -77,7 +77,7 @@ class FleetFile:
   group-pods/Map
   is-reference/bool
   broker-name/string
-  migrated-from/List
+  migrating-from/List
   servers/Map  // From broker-name to ServerConfig.
 
   constructor
@@ -87,7 +87,7 @@ class FleetFile:
       --.group-pods
       --.is-reference
       --.broker-name
-      --.migrated-from
+      --.migrating-from
       --.servers:
 
   static parse path/string --default-broker-config/ServerConfig --ui/Ui -> FleetFile:
@@ -127,10 +127,10 @@ class FleetFile:
         PodReference.parse entry["pod"] --ui=ui
 
     broker-name := fleet-content.get "broker"
-    migrated-from-entry := fleet-content.get "migrated-from"
+    migrating-from-entry := fleet-content.get "migrating-from"
     servers-entry := fleet-content.get "servers"
 
-    migrated-from/List := []
+    migrating-from/List := []
     servers/Map := ?
     if broker-name:
       if not servers-entry:
@@ -147,18 +147,18 @@ class FleetFile:
         ServerConfig.from-json server-name encoded-server
           --der-deserializer=: base64.decode it
 
-      if migrated-from-entry:
-        if migrated-from-entry is not List:
-          ui.abort "Fleet file $path has invalid format for 'migrated-from'."
-        migrated-from-entry.do: | server-name |
+      if migrating-from-entry:
+        if migrating-from-entry is not List:
+          ui.abort "Fleet file $path has invalid format for 'migrating-from'."
+        migrating-from-entry.do: | server-name |
           if server-name is not string:
-            ui.abort "Fleet file $path has invalid format for 'migrated-from'."
+            ui.abort "Fleet file $path has invalid format for 'migrating-from'."
           if not servers.contains server-name:
-            ui.abort "Fleet file $path does not contain a server entry for migrated-from server '$server-name'."
-        migrated-from = migrated-from-entry
+            ui.abort "Fleet file $path does not contain a server entry for migrating-from server '$server-name'."
+        migrating-from = migrating-from-entry
     else:
-      if migrated-from-entry or servers-entry:
-        ui.abort "Fleet file $path has invalid format for 'broker', 'migrated-from' and 'servers'."
+      if migrating-from-entry or servers-entry:
+        ui.abort "Fleet file $path has invalid format for 'broker', 'migrating-from' and 'servers'."
       broker-name = default-broker-config.name
       servers = {
         default-broker-config.name: default-broker-config,
@@ -171,7 +171,7 @@ class FleetFile:
         --group-pods=group-pods
         --is-reference=is-reference
         --broker-name=broker-name
-        --migrated-from=migrated-from
+        --migrating-from=migrating-from
         --servers=servers
 
   broker-config -> ServerConfig:
@@ -182,7 +182,7 @@ class FleetFile:
 
   Mutable objects are *not* copied. Do not modify directly group-pods or servers.
 
-  In order to clear the $migrated-from list, pass an empty list.
+  In order to clear the $migrating-from list, pass an empty list.
   */
   with -> FleetFile
       --path/string?=null
@@ -191,7 +191,7 @@ class FleetFile:
       --group-pods/Map?=null
       --is-reference/bool?=null
       --broker-name/string?=null
-      --migrated-from/List?=null
+      --migrating-from/List?=null
       --servers/Map?=null:
     return FleetFile
         --path=(path or this.path)
@@ -200,7 +200,7 @@ class FleetFile:
         --group-pods=(group-pods or this.group-pods)
         --is-reference=(is-reference or this.is-reference)
         --broker-name=(broker-name or this.broker-name)
-        --migrated-from=(migrated-from or this.migrated-from)
+        --migrating-from=(migrating-from or this.migrating-from)
         --servers=(servers or this.servers)
 
   write -> none:
@@ -236,8 +236,8 @@ class FleetFile:
 
     // Add the servers last, so that the file is easier to read.
     result["broker"] = broker-name
-    if migrated-from and not migrated-from.is-empty:
-      result["migrated-from"] = migrated-from
+    if migrating-from and not migrating-from.is-empty:
+      result["migrating-from"] = migrating-from
     result["servers"] = servers.map: | server-name/string server-config/ServerConfig |
       server-config.to-json --der-serializer=: base64.encode it
     return result
@@ -504,7 +504,7 @@ class FleetWithDevices extends Fleet:
         }
         --is-reference=false
         --broker-name=broker-name
-        --migrated-from=[]
+        --migrating-from=[]
         --servers={broker-name: broker-config}
     fleet-file.write
 
@@ -640,9 +640,9 @@ class FleetWithDevices extends Fleet:
 
     ui_.info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
 
-    // We need to notify the migrated-from brokers.
-    fleet-file_.migrated-from.do: | server-name |
-      ui_.info "Rolling out on migrated-from broker $server-name."
+    // We need to notify the migrating-from brokers.
+    fleet-file_.migrating-from.do: | server-name |
+      ui_.info "Rolling out to $server-name broker (migration in progress)."
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
@@ -657,7 +657,7 @@ class FleetWithDevices extends Fleet:
       // This also makes it possible to move forward and backward between two brokers.
       detailed-devices = old-broker.get-devices --device-ids=device-ids
       old-broker.roll-out --devices=detailed-devices.values --pods=pods --diff-bases=diff-bases
-      ui_.info "Successfully rolled out on migrated-from broker $server-name."
+      ui_.info "Successfully rolled out to $server-name broker (migration in progress)."
 
   pod-reference-for-group name/string -> PodReference:
     return group-pods_.get name
@@ -738,7 +738,7 @@ class FleetWithDevices extends Fleet:
 
   status --include-healthy/bool --include-never-seen/bool:
     fleet-file := fleet-file_
-    migrated-from-brokers := fleet-file.migrated-from.map: | name/string |
+    migrating-from-brokers := fleet-file.migrating-from.map: | name/string |
       config := fleet-file.servers[name]
       Broker
           --server-config=config
@@ -749,7 +749,7 @@ class FleetWithDevices extends Fleet:
           --ui=ui_
           --tmp-directory=artemis.tmp-directory
 
-    all-brokers := [broker] + migrated-from-brokers
+    all-brokers := [broker] + migrating-from-brokers
 
     device-ids := devices_.map: it.id
     id-to-fleet-device := {:}
@@ -1020,37 +1020,60 @@ class FleetWithDevices extends Fleet:
       new-servers = old-servers.copy
       new-servers[new-broker-config.name] = new-broker-config
 
-    old-migrated-from := fleet-file_.migrated-from
-    new-migrated-from := old-migrated-from
-    if not old-migrated-from:
-      new-migrated-from = [broker.server-config.name]
-    else if not old-migrated-from.contains broker.server-config.name:
-      new-migrated-from = old-migrated-from.copy
-      new-migrated-from.add broker.server-config.name
+    old-migrating-from := fleet-file_.migrating-from
+    new-migrating-from := old-migrating-from
+    if not old-migrating-from:
+      new-migrating-from = [broker.server-config.name]
+    else if not old-migrating-from.contains broker.server-config.name:
+      new-migrating-from = old-migrating-from.copy
+      new-migrating-from.add broker.server-config.name
 
     modified-fleet-file := fleet-file_.with
         --broker-name=new-broker-config.name
-        --migrated-from=new-migrated-from
+        --migrating-from=new-migrating-from
         --servers=new-servers
     modified-fleet-file.write
 
-  migration-finish brokers/List:
+  migration-stop broker-names/List --force/bool:
     fleet-file := fleet-file_
 
-    brokers-set := {}
-    new-migrated-from := ?
-    if brokers.is-empty:
-      new-migrated-from = []
-    else:
-      brokers-set.add-all brokers
-      new-migrated-from = fleet-file.migrated-from.filter: not brokers-set.contains it
+    if broker-names.is-empty: broker-names = fleet-file.migrating-from
+
+    if not force:
+      // Check that all devices have migrated.
+      device-ids := devices_.map: it.id
+      detailed-devices := broker.get-devices --device-ids=device-ids
+      last-events := broker.get-last-events --device-ids=device-ids
+
+      broker-names.do: | name/string |
+        current-broker := Broker
+            --server-config=fleet-file.servers[name]
+            --cache=cache_
+            --config=config_
+            --ui=ui_
+            --fleet-id=id
+            --organization-id=organization-id
+            --tmp-directory=artemis.tmp-directory
+        current-detailed-devices := current-broker.get-devices --device-ids=device-ids
+        current-last-events := current-broker.get-last-events --device-ids=device-ids
+        current-last-events.do: | device-id/uuid.Uuid event/Event |
+          if not last-events.contains device-id or last-events[device-id].timestamp < event.timestamp:
+            devices_.do: | fleet-device/DeviceFleet |
+              if fleet-device.id == device-id:
+                ui_.abort "Device $fleet-device.short-string has not migrated yet."
+            unreachable
+
+    brokers-set := Set
+    new-migrating-from := ?
+    brokers-set.add-all broker-names
+    new-migrating-from = fleet-file.migrating-from.filter: not brokers-set.contains it
 
     main-broker := fleet-file.broker-name
     new-servers := fleet-file.servers.filter: | name/string _ |
       name == main-broker or not brokers-set.contains name
 
     modified-fleet-file := fleet-file_.with
-        --migrated-from=new-migrated-from
+        --migrating-from=new-migrating-from
         --servers=new-servers
     modified-fleet-file.write
 

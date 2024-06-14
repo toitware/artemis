@@ -437,8 +437,8 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         - Add a new broker to your configuration. Use 'config broker add ...'.
         - Start the migration with 'migration start --broker=<broker>'.
         - Upload a new pod, and roll it out to the fleet with 'fleet roll-out'.
-        - Check the status of the migration with the 'status' command.
-        - Finish the migration with 'migration finish', once all devices have migrated.
+        - Check the status of the migration with the fleet's 'status' command.
+        - Finish the migration with 'migration stop', once all devices have migrated.
 
         It is safe to roll out new pods to the fleet while a migration is in progress. As
         long as the migration is not finished, new pods will be rolled out to all brokers.
@@ -448,8 +448,8 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --help="""
         Start the migration to a new broker.
 
-        Use 'status' to check the status of the migration.
-        Use 'finish' to finish the migration.
+        Use the fleet's 'status' to check the status of the migration.
+        Use 'stop' to stop the migration.
 
         It is legal to start a migration even if one is already in progress.
         """
@@ -465,9 +465,9 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: migration-start it config cache ui
   migration-cmd.add migration-start-cmd
 
-  migration-finish-cmd := cli.Command "finish"
+  migration-stop-cmd := cli.Command "stop"
       --help="""
-          Finish the migration.
+          Stops the migration.
 
           Removes the old broker(s) from the fleet. From that point on,
           devices that still contact the old broker(s) will not be updated.
@@ -477,23 +477,31 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
 
           Unless a migration was started while another one was still in progress,
           there should be only one old broker in the fleet.
+
+          Without the '--force' flag, the command will abort if devices have not
+          yet migrated to the new broker. If there are devices that have never
+          been seen, then the command will *not* abort; even without this flag.
           """
       --options=[
+        cli.Flag "force"
+            --short-name="f"
+            --help="Remove the old broker(s) even if devices are still using them."
+            --default=false,
         cli.Option "broker"
             --help="The broker to remove."
             --multi,
       ]
       --examples=[
-        cli.Example """
-            Finish the migration.
-            All old brokers are removed, and devices can only b
-            """
+        cli.Example "Finish the migration:"
             --arguments="",
-        cli.Example "Finish the migration and remove the brokers 'old-broker1', 'old-broker2':"
+        cli.Example """
+            Stop the migration for brokers 'old-broker1', 'old-broker2'.
+            These will not be updated anymore:
+            """
             --arguments="--broker=my-broker1 --broker=my-broker2",
       ]
-      --run=:: migration-finish it config cache ui
-  migration-cmd.add migration-finish-cmd
+      --run=:: migration-stop it config cache ui
+  migration-cmd.add migration-stop-cmd
 
   cmd.add migration-cmd
 
@@ -826,11 +834,15 @@ migration-start parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     new-broker := get-server-from-config config ui --name=broker-name
     fleet.migration-start --broker-config=new-broker
-    ui.info "Started migration to broker $broker-name."
+    ui.info "Started migration to broker $broker-name. Use 'fleet status' to monitor the migration."
 
-migration-finish parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+migration-stop parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  force := parsed["force"]
   brokers := parsed["broker"]
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    fleet.migration-finish brokers
-    ui.info "Finished migration."
+    fleet.migration-stop brokers --force=force
+    if brokers.is-empty:
+      ui.info "Stopped all migration."
+    else:
+      ui.info "Stopped migration for brokers $(brokers.join ", ")."
