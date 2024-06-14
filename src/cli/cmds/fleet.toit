@@ -8,9 +8,12 @@ import .device show
     extract-device
     build-extract-format-options
     EXTRACT-FORMATS-COMMAND-HELP
+
+import .auth as auth-cmd
 import .serial show PARTITION-OPTION
 import .utils_
 import ..artemis
+import ..brokers.broker show BrokerCli
 import ..config
 import ..cache
 import ..device
@@ -77,6 +80,18 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       ]
       --run=:: init it config cache ui
   cmd.add init-cmd
+
+  login-cmd := cli.Command "login"
+      --aliases=["signin", "sign-in", "log-in"]
+      --help="""
+        Log in to the fleet's broker.
+
+        This is a convenience command that extracts the broker server from the
+        fleet configuration.
+        """
+      --options=auth-cmd.SIGNIN-OPTIONS
+      --run=:: login it config cache ui
+  cmd.add login-cmd
 
   add-devices-cmd := cli.Command "add-devices"
       --aliases=["create-identities", "provision"]
@@ -454,6 +469,14 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --organization-id=organization-id
         --broker-config=broker-config
         --ui=ui
+
+login parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+    broker := fleet.broker
+    broker-name := broker.server-config.name
+    ui.info "Logging in to broker '$broker-name'."
+    broker-authenticatable := BrokerCli broker.server-config config
+    auth-cmd.sign-in parsed --name=broker-name --authenticatable=broker-authenticatable --ui=ui
 
 add-devices parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   output-directory := parsed["output-directory"]
