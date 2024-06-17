@@ -147,7 +147,10 @@ class Device:
   */
   state-container-uninstall name/string:
     state := current-state-modifiable_
-    state["apps"].remove name
+    apps := state["apps"]
+    // Mutate the apps map that is in the state.
+    apps.remove name
+    if apps.is-empty: state.remove "apps"
     simplify-and-store_
 
   /**
@@ -156,6 +159,7 @@ class Device:
   state-container-install-or-update name/string description/Map:
     state := current-state-modifiable_
     apps := state.get "apps" --init=: {:}
+    // Mutate the apps map that is in the state.
     apps[name] = description
     simplify-and-store_
 
