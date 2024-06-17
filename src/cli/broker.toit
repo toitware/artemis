@@ -290,6 +290,13 @@ class Broker:
     sha.add writer.buffer.bytes
     return sha.get
 
+  is-cached --pod-id/uuid.Uuid -> bool:
+    manifest-key := cache-key-pod-manifest
+        --broker-config=server-config
+        --organization-id=organization-id
+        --pod-id=pod-id
+    return cache_.contains manifest-key
+
   download --pod-id/uuid.Uuid -> Pod:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
