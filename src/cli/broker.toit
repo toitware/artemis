@@ -723,7 +723,7 @@ class Broker:
           is-required = true
       if is-required and not force:
         ui_.abort "Container '$app-name' is required by a connection."
-      apps := new-goal.get "apps"
+      apps := new-goal.get "apps" or {:}
       if apps:
         if not apps.contains app-name and not force:
           ui_.abort "Container '$app-name' is not installed."
