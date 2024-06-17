@@ -407,6 +407,8 @@ class Fleet:
     pod-id := reference.id
     if not pod-id:
       pod-id = get-pod-id reference
+    if not broker.is-cached --pod-id=pod-id:
+      ui_.info "Downloading pod '$reference'."
     return download --pod-id=pod-id
 
   download --pod-id/uuid.Uuid -> Pod:
