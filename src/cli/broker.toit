@@ -72,6 +72,12 @@ class Broker:
   ui_/Ui
   network_/net.Client? := null
   tmp-directory_/string
+  /**
+  A mapping from device-id to a representative short string.
+
+  This field is only set if the fleet has devices.
+  */
+  device-short-strings_/Map?
 
   broker-connection__/BrokerCli? := null
 
@@ -82,12 +88,13 @@ class Broker:
       --config/Config
       --cache/Cache
       --ui/Ui
-      --tmp-directory/string:
+      --tmp-directory/string
+      --short-strings/Map?:
     config_ = config
     cache_ = cache
     ui_ = ui
     tmp-directory_ = tmp-directory
-
+    device-short-strings_ = short-strings
 
   /** Opens the network. */
   connect-network_:
@@ -100,6 +107,10 @@ class Broker:
       broker-connection__.ensure-authenticated: | error-message |
         ui_.abort "$error-message (broker)."
     return broker-connection__
+
+  short-string-for_ --device-id/uuid.Uuid -> string:
+    if not device-short-strings_: throw "Access to device in non-device fleet."
+    return device-short-strings_[device-id]
 
   /**
   Ensures that the broker is authenticated.
@@ -527,7 +538,8 @@ class Broker:
     upgrade-from := []
     if known-encoded-firmwares.is-empty:
       if base-firmwares.is-empty:
-        ui_.warning "Firmware of device '$device-id' is unknown. Upgrade might not use patches."
+        short := short-string-for_ --device-id=device-id
+        ui_.warning "Firmware of device $short is unknown. Upgrade might not use patches."
       else:
         upgrade-from = base-firmwares
     else:
@@ -557,7 +569,8 @@ class Broker:
   */
   compute-updated-goal_ --device/Device --upgrade-from/List --pod/Pod --unconfigured-content/FirmwareContent -> Map:
     // Compute the patches and upload them.
-    ui_.info "Computing and uploading patches for $device.id."
+    short := short-string-for_ --device-id=device.id
+    ui_.info "Computing and uploading patches for $short."
     upgrade-to := Firmware
         --pod=pod
         --device=device
@@ -649,7 +662,8 @@ class Broker:
   device-for --id/uuid.Uuid -> DeviceDetailed:
     devices := broker-connection_.get-devices --device-ids=[id]
     if devices.is-empty:
-      ui_.abort "Device $id not found."
+      short := short-string-for_ --device-id=id
+      ui_.abort "Device $short does not exist on server."
     return devices[id]
 
   /**

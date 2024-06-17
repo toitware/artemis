@@ -329,6 +329,7 @@ class Fleet:
 
   constructor .fleet-root-or-ref_ .artemis
       --fleet-file/FleetFile
+      --short-strings/Map?=null
       --ui/Ui
       --cache/Cache
       --config/Config:
@@ -346,6 +347,7 @@ class Fleet:
         --fleet-id=id
         --organization-id=organization-id
         --tmp-directory=artemis.tmp-directory
+        --short-strings=short-strings
 
     // TODO(florian): should we always do this check?
     org := artemis.get-organization --id=organization-id
@@ -450,8 +452,17 @@ class FleetWithDevices extends Fleet:
 
   /** List of $DeviceFleet objects. */
   devices_/List
+
+  /**
+  Mapping from device-id to short-name.
+  This information is redundant with $devices_, as the $DeviceFleet objects
+  contain the same information.
+  */
+  device-short-strings_/Map
+
   /** A map from group-name to $PodReference. */
   group-pods_/Map
+
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
@@ -472,9 +483,13 @@ class FleetWithDevices extends Fleet:
     devices-file.check-groups fleet-file --ui=ui
     group-pods_ = fleet-file.group-pods
     devices_ = devices-file.devices
+    device-short-strings_ = {:}
+    devices_.do: | device/DeviceFleet |
+      device-short-strings_[device.id] = device.short-string
     aliases_ = build-alias-map_ devices_ ui
     super fleet-root artemis
         --fleet-file=fleet-file
+        --short-strings=device-short-strings_
         --ui=ui
         --cache=cache
         --config=config
@@ -648,6 +663,7 @@ class FleetWithDevices extends Fleet:
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
+          --short-strings=device-short-strings_
           --cache=cache_
           --config=config_
           --ui=ui_
@@ -746,6 +762,7 @@ class FleetWithDevices extends Fleet:
           --server-config=config
           --fleet-id=id
           --organization-id=organization-id
+          --short-strings=device-short-strings_
           --cache=cache_
           --config=config_
           --ui=ui_
@@ -1001,12 +1018,13 @@ class FleetWithDevices extends Fleet:
   migration-start_ new-broker-config/ServerConfig:
     new-broker := Broker
         --server-config=new-broker-config
-        --cache=cache_
-        --config=config_
-        --ui=ui_
+        --short-strings=device-short-strings_
         --fleet-id=id
         --organization-id=organization-id
         --tmp-directory=artemis.tmp-directory
+        --cache=cache_
+        --config=config_
+        --ui=ui_
 
     detailed-devices := broker.get-devices --device-ids=(devices_.map: it.id)
     new-devices := new-broker.get-devices --device-ids=(devices_.map: it.id)
@@ -1050,6 +1068,7 @@ class FleetWithDevices extends Fleet:
       broker-names.do: | name/string |
         current-broker := Broker
             --server-config=fleet-file.servers[name]
+            --short-strings=device-short-strings_
             --cache=cache_
             --config=config_
             --ui=ui_
