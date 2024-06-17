@@ -146,14 +146,14 @@ build-partitions-table_ partition-list/List --ui/Ui -> List:
     value := description[delimiter-index + 1 ..]
     if type == "file":
       if not file.is-file value:
-        ui.error "Partition $type:$name refers to invalid file."
+        ui.error "Partition '$type:$name' refers to invalid file."
         ui.error "No such file: $value."
         ui.abort
     else:
       size := int.parse value --on-error=:
-        ui.abort "Partition $type:$name has illegal size: '$it'."
+        ui.abort "Partition '$type:$name' has illegal size: '$it'."
       if size <= 0:
-        ui.abort "Partition $type:$name has illegal size: $size."
+        ui.abort "Partition '$type:$name' has illegal size: $size."
     result.add "$type:$description"
   return result
 

@@ -215,7 +215,7 @@ with-device
   if allow-rest-device:
     device-rest-reference := parsed["device-rest"]
     if device-reference and device-rest-reference:
-      ui.abort "Cannot specify a device both with '-d' and without it: $device-reference, $device-rest-reference."
+      ui.abort "Cannot specify a device both with '-d' and without it: '$device-reference', '$device-rest-reference'."
 
     if device-rest-reference: device-reference = device-rest-reference
 
@@ -276,7 +276,7 @@ default-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     return
 
   if device-reference and device-rest-reference:
-    ui.abort "Cannot specify a device both with '-d' and without it: $device-reference, $device-rest-reference."
+    ui.abort "Cannot specify a device both with '-d' and without it: '$device-reference', '$device-rest-reference'."
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     // We allow to set the default with `-d` or by giving it as rest argument.
@@ -316,7 +316,7 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       broker := fleet.broker
       devices := broker.get-devices --device-ids=[fleet-device.id]
       if devices.is-empty:
-        ui.abort "Device $device-reference does not exist on the broker."
+        ui.abort "Device '$device-reference' does not exist on the broker."
       broker-device := devices[fleet-device.id]
       organization := fleet.artemis.get-organization --id=broker-device.organization-id
       events/List? := null

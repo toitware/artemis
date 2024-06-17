@@ -1,4 +1,4 @@
 # Can't delete non-existing many
 # [pod, delete, pod1#2, pod2@latest]
-Error: No pod with name pod1 and revision 2 in the fleet.
-Error: No pod with name pod2 and tag latest in the fleet.
+Error: No pod with name 'pod1' and revision 2 in the fleet.
+Error: No pod with name 'pod2' and tag 'latest' in the fleet.

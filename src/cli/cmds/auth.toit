@@ -154,7 +154,7 @@ update parsed/cli.Parsed config/Config ui/Ui:
       ui.abort error-message
     exception := catch:
       authenticatable.update --email=email --password=password
-      ui.info "Successfully updated authentication for $name."
+      ui.info "Successfully updated account on server '$name'."
       if password:
         ui.info "Check your email for a verification link. It might be in your spam folder."
     if exception: ui.abort exception
@@ -203,7 +203,7 @@ sign-in parsed/cli.Parsed --name/string --authenticatable/Authenticatable --ui/U
               --ui=ui
               --open-browser=parsed["open-browser"]
         if exception: ui.abort exception
-      ui.info "Successfully authenticated with $name."
+      ui.info "Successfully authenticated on server '$name'."
 
 list-servers parsed/cli.Parsed config/Config ui/Ui:
   servers := get-servers-from-config config
@@ -217,7 +217,7 @@ sign-up parsed/cli.Parsed config/Config ui/Ui:
       exception := catch:
         authenticatable.sign-up --email=email --password=password
       if exception: ui.abort exception
-      ui.info "Successfully signed up for $name. Check your email for a verification link."
+      ui.info "Successfully signed up on server '$name'. Check your email for a verification link."
 
 logout parsed/cli.Parsed config/Config ui/Ui:
   with-authenticatable parsed config ui: | name/string authenticatable/Authenticatable |
@@ -226,4 +226,4 @@ logout parsed/cli.Parsed config/Config ui/Ui:
       ui.abort error-message
     exception := catch: authenticatable.logout
     if exception: ui.abort exception
-    ui.info "Successfully logged out of $name."
+    ui.info "Successfully logged out of server '$name'."

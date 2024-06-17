@@ -700,14 +700,14 @@ group-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
     if not force:
       if not fleet.pod-exists pod-reference:
-        ui.abort "Pod $pod-reference does not exist."
+        ui.abort "Pod '$pod-reference' does not exist."
 
     fleet-file := fleet.fleet-file_
     if fleet-file.group-pods.contains name:
-      ui.abort "Group $name already exists."
+      ui.abort "Group '$name' already exists."
     fleet-file.group-pods[name] = pod-reference
     fleet-file.write
-    ui.info "Added group $name."
+    ui.info "Added group '$name'."
 
 group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   pod := parsed["pod"]
@@ -748,7 +748,7 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
       if not force:
         if not fleet.pod-exists pod-reference:
-          ui.abort "Pod $pod-reference does not exist."
+          ui.abort "Pod '$pod-reference' does not exist."
 
       if pod-reference:
         fleet-file.group-pods[group] = pod-reference
@@ -789,7 +789,7 @@ group-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     fleet-file.group-pods.remove group
     fleet-file.write
 
-    ui.info "Removed group $group."
+    ui.info "Removed group '$group'."
 
 group-move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   to := parsed["to"]
@@ -849,7 +849,7 @@ create-reference parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   with-pod-fleet parsed config cache ui: | fleet/Fleet |
     fleet.write-reference --path=output
-    ui.info "Created reference file $output."
+    ui.info "Created reference file '$output'."
 
 migration-start parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   broker-name := parsed["broker"]
@@ -857,7 +857,7 @@ migration-start parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     new-broker := get-server-from-config config ui --name=broker-name
     fleet.migration-start --broker-config=new-broker
-    ui.info "Started migration to broker $broker-name. Use 'fleet status' to monitor the migration."
+    ui.info "Started migration to broker '$broker-name'. Use 'fleet status' to monitor the migration."
 
 migration-stop parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   force := parsed["force"]
@@ -868,4 +868,6 @@ migration-stop parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     if brokers.is-empty:
       ui.info "Stopped all migration."
     else:
-      ui.info "Stopped migration for brokers $(brokers.join ", ")."
+      quoted := brokers.map: "'$it'"
+      joined := quoted.join ", "
+      ui.info "Stopped migration for broker(s) $joined."
