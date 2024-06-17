@@ -190,7 +190,7 @@ class Broker:
         --tag-errors=tag-errors
 
   upload-trivial-patches_ --pod/Pod -> none:
-    firmware-content := FirmwareContent.from-envelope pod.envelope-path --cache=cache_
+    firmware-content := FirmwareContent.from-envelope pod.envelope-path --cache=cache_ --ui=ui_
     upload_ --firmware-content=firmware-content
 
   upload_ --firmware-content/FirmwareContent:
@@ -442,7 +442,7 @@ class Broker:
     base-patches := {:}
 
     base-firmwares := diff-bases.map: | diff-base/Pod |
-      FirmwareContent.from-envelope diff-base.envelope-path --cache=cache_
+      FirmwareContent.from-envelope diff-base.envelope-path --cache=cache_ --ui=ui_
 
     base-firmwares.do: | content/FirmwareContent |
       trivial-patches := extract-trivial-patches_ content
@@ -491,7 +491,7 @@ class Broker:
       device := devices[i]
       pod := pods[i]
       unconfigured := unconfigured-cache.get pod.id --init=:
-        FirmwareContent.from-envelope pod.envelope-path --cache=cache_
+        FirmwareContent.from-envelope pod.envelope-path --cache=cache_ --ui=ui_
 
       goal := prepare-update-device_
           --device=device
@@ -558,13 +558,18 @@ class Broker:
   compute-updated-goal_ --device/Device --upgrade-from/List --pod/Pod --unconfigured-content/FirmwareContent -> Map:
     // Compute the patches and upload them.
     ui_.info "Computing and uploading patches for $device.id."
-    upgrade-to := Firmware --pod=pod --device=device --cache=cache_ --unconfigured-content=unconfigured-content
+    upgrade-to := Firmware
+        --pod=pod
+        --device=device
+        --cache=cache_
+        --unconfigured-content=unconfigured-content
+        --ui=ui_
     upgrade-from.do: | old-firmware-content/FirmwareContent |
       patches := upgrade-to.content.patches old-firmware-content
       patches.do: diff-and-upload_ it
 
     // Build the updated goal and return it.
-    sdk := get-sdk pod.sdk-version --cache=cache_
+    sdk := get-sdk pod.sdk-version --cache=cache_ --ui=ui_
     goal := (pod.device-config --sdk=sdk).copy
     goal["firmware"] = upgrade-to.encoded
     return goal
@@ -669,7 +674,7 @@ class Broker:
         ui_.abort "Unknown device state."
       firmware := Firmware.encoded current-state["firmware"]
       sdk-version := firmware.sdk-version
-      sdk := get-sdk sdk-version --cache=cache_
+      sdk := get-sdk sdk-version --cache=cache_ --ui=ui_
       program := CompiledProgram.application application-path --sdk=sdk
       id := program.id
 
@@ -772,6 +777,7 @@ class Broker:
     envelope-path := get-envelope
         --specification=specification
         --cache=cache_
+        --ui=ui_
 
     // Extract the sdk version from the envelope.
     envelope := file.read-content envelope-path
@@ -786,7 +792,7 @@ class Broker:
       check-sdk-service-version.call
     envelope-word-bit-size := Sdk.get-word-bit-size-from --envelope=envelope
 
-    sdk := get-sdk sdk-version --cache=cache_
+    sdk := get-sdk sdk-version --cache=cache_ --ui=ui_
 
     copy-file --source=envelope-path --target=output-path
 
@@ -909,7 +915,7 @@ class Broker:
           --critical
 
     // For convenience save all snapshots in the user's cache.
-    cache-snapshots --envelope-path=output-path --cache=cache_
+    cache-snapshots --envelope-path=output-path --cache=cache_ --ui=ui_
 
   /**
   Builds a container description as needed for a "container" entry in the device state.

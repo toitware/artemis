@@ -245,7 +245,7 @@ class Pod:
       --cache/Cache
       --ui/Ui:
     // Use the SDK from the pod.
-    sdk := get-sdk sdk-version --cache=cache
+    sdk := get-sdk sdk-version --cache=cache --ui=ui
 
     // Extract the device ID from the identity file.
     // TODO(florian): abstract the identity management.
@@ -282,7 +282,7 @@ class Pod:
 
     // We don't really need the full firmware and just the device-specific data,
     // but by cooking the firmware we get the checksums correct.
-    firmware := Firmware --pod=this --device=device --cache=cache
+    firmware := Firmware --pod=this --device=device --cache=cache --ui=ui
 
     return firmware.device-specific-data
 

@@ -16,6 +16,7 @@ main args:
     run-test test-cli fleet-dir
 
 run-test test-cli/TestCli fleet-dir/string:
+  ui := TestUi
   test-cli.ensure-available-artemis-service
 
   spec := {
@@ -62,11 +63,11 @@ run-test test-cli/TestCli fleet-dir/string:
 
   custom-path := "$fleet-dir/custom.envelope"
 
-  default-envelope := get-envelope-for --sdk-version=test-cli.sdk-version --cache=test-cli.cache
+  default-envelope := get-envelope-for --sdk-version=test-cli.sdk-version --cache=test-cli.cache --ui=ui
   write-blob-to-file custom-path default-envelope
 
   print "custom-path: $custom-path"
-  sdk := Sdk --envelope-path=custom-path --cache=test-cli.cache
+  sdk := Sdk --envelope-path=custom-path --cache=test-cli.cache --ui=ui
   custom-program := """
   main: print "custom"
   """
@@ -164,7 +165,7 @@ validate-pod pod-path/string --name/string --containers/List --test-cli/TestCli:
     containers.do:
       expect (seen.contains it)
 
-get-envelope-for --sdk-version/string --cache -> ByteArray:
+get-envelope-for --sdk-version/string --cache --ui -> ByteArray:
   default-spec := {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod2",
@@ -181,5 +182,5 @@ get-envelope-for --sdk-version/string --cache -> ByteArray:
     }
   pod-specification := PodSpecification.from-json default-spec --path="ignored" --ui=TestUi
 
-  default-envelope-path := get-envelope --specification=pod-specification --cache=cache
+  default-envelope-path := get-envelope --specification=pod-specification --cache=cache --ui=ui
   return file.read-content default-envelope-path

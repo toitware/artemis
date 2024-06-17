@@ -210,7 +210,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       config-path := "$tmp-dir/$(device-id).config"
       write-blob-to-file config-path config-bytes
 
-      sdk := get-sdk pod.sdk-version --cache=cache
+      sdk := get-sdk pod.sdk-version --cache=cache --ui=ui
       if not simulate:
         ui.do --kind=Ui.VERBOSE: | printer/Printer|
           debug-line := "Flashing the device with pod $reference"
@@ -240,6 +240,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --pod=pod
             --identity-path=identity-path
             --cache=cache
+            --ui=ui
 
       if ui.wants-structured-result:
         ui.result {
@@ -270,7 +271,7 @@ flash --station/bool parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       write-blob-to-file config-path config-bytes
 
       // Flash.
-      sdk := get-sdk pod.sdk-version --cache=cache
+      sdk := get-sdk pod.sdk-version --cache=cache --ui=ui
       sdk.flash
           --envelope-path=pod.envelope-path
           --config-path=config-path

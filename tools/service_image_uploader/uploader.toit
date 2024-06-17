@@ -148,7 +148,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
   git := Git --ui=ui
   // Get the SDK.
-  sdk := get-sdk sdk-version --cache=cache
+  sdk := get-sdk sdk-version --cache=cache --ui=ui
   root := git.current-repository-root
 
   with-tmp-directory: | tmp-dir/string |

@@ -16,6 +16,7 @@ import writer show Writer
 
 import .cache as cli
 import .cache show cache-key-sdk
+import .ui show Ui
 import .utils
 
 class Sdk:
@@ -24,9 +25,9 @@ class Sdk:
 
   constructor .sdk-path .version:
 
-  constructor --envelope-path/string --cache/cli.Cache:
+  constructor --envelope-path/string --cache/cli.Cache --ui/Ui:
     sdk-version := get-sdk-version-from --envelope-path=envelope-path
-    return get-sdk sdk-version --cache=cache
+    return get-sdk sdk-version --cache=cache --ui=ui
 
   is-source-build -> bool:
     return sdk-path.ends-with "build/host"
@@ -393,7 +394,7 @@ sdk-url version/string -> string:
 
 reported-local-sdk-use_/bool := false
 
-get-sdk version/string --cache/cli.Cache -> Sdk:
+get-sdk version/string --cache/cli.Cache --ui/Ui -> Sdk:
   if is-dev-setup:
     local-sdk := os.env.get "DEV_TOIT_REPO_PATH"
     if local-sdk:
@@ -408,7 +409,7 @@ get-sdk version/string --cache/cli.Cache -> Sdk:
     with-tmp-directory: | tmp-dir |
       gzip-path := "$tmp-dir/toit.tar.gz"
       tar-path := "$tmp-dir/toit.tar"
-      download-url url --out-path=gzip-path
+      download-url url --out-path=gzip-path --ui=ui
       store.with-tmp-directory: | final-out-dir/string |
         // We don't use 'tar' to extract the archive, because that
         // doesn't work with the git-tar. It would fail to find the

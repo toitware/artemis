@@ -13,7 +13,6 @@ import host.file
 import host.os
 import host.pipe
 import io
-import log
 import net
 import system
 import uuid
@@ -105,8 +104,8 @@ write-file path/string [block] [--on-error] -> none:
   finally:
     stream.close
 
-download-url url/string --out-path/string -> none:
-  log.info "Downloading $url."
+download-url url/string --out-path/string --ui/Ui -> none:
+  ui.info "Downloading $url."
 
   network := net.open
   try:
@@ -115,8 +114,7 @@ download-url url/string --out-path/string -> none:
 
     response := client.get --uri=url
     if response.status-code != http.STATUS-OK:
-      log.error "Failed to download $url: $response.status-code $response.status-message."
-      exit 1
+      ui.abort "Failed to download '$url': $response.status-code $response.status-message."
     file := file.Stream.for-write out-path
     file.out.write-from response.body
     file.close
