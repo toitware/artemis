@@ -730,6 +730,7 @@ class Broker:
         else:
           ui_.info "Uninstalling container '$app-name'."
           apps.remove app-name
+          if apps.is-empty: new-goal.remove "apps"
       new-goal
 
   config-set-max-offline --device-id/uuid.Uuid --max-offline-seconds/int:

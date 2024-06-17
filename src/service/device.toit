@@ -148,6 +148,7 @@ class Device:
   state-container-uninstall name/string:
     state := current-state-modifiable_
     state["apps"].remove name
+    if state["apps"].is-empty: state.remove "apps"
     simplify-and-store_
 
   /**
