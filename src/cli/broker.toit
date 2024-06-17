@@ -110,7 +110,7 @@ class Broker:
 
   short-string-for_ --device-id/uuid.Uuid -> string:
     if not device-short-strings_: throw "Access to device in non-device fleet."
-    return device-id.to-string
+    return device-short-strings_[device-id]
 
   /**
   Ensures that the broker is authenticated.
