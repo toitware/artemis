@@ -108,6 +108,10 @@ class Broker:
         ui_.abort "$error-message (broker)."
     return broker-connection__
 
+  short-string-for_ --device-id/uuid.Uuid -> string:
+    if not device-short-strings_: throw "Access to device in non-device fleet."
+    return device-id.to-string
+
   /**
   Ensures that the broker is authenticated.
   */
@@ -534,7 +538,7 @@ class Broker:
     upgrade-from := []
     if known-encoded-firmwares.is-empty:
       if base-firmwares.is-empty:
-        short := device-short-strings_[device-id]
+        short := short-string-for_ --device-id=device-id
         ui_.warning "Firmware of device $short is unknown. Upgrade might not use patches."
       else:
         upgrade-from = base-firmwares
@@ -565,7 +569,7 @@ class Broker:
   */
   compute-updated-goal_ --device/Device --upgrade-from/List --pod/Pod --unconfigured-content/FirmwareContent -> Map:
     // Compute the patches and upload them.
-    short := device-short-strings_[device.id]
+    short := short-string-for_ --device-id=device.id
     ui_.info "Computing and uploading patches for $short."
     upgrade-to := Firmware
         --pod=pod
@@ -658,8 +662,8 @@ class Broker:
   device-for --id/uuid.Uuid -> DeviceDetailed:
     devices := broker-connection_.get-devices --device-ids=[id]
     if devices.is-empty:
-      short := device-short-strings_[id]
-      ui_.abort "Device $short not found."
+      short := short-string-for_ --device-id=id
+      ui_.abort "Device $short does not exist on server."
     return devices[id]
 
   /**
