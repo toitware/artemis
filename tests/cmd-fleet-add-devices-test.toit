@@ -13,26 +13,14 @@ import uuid
 import .utils
 
 main args:
-  with-fleet --count=0 --args=args: | test-cli/TestCli _ fleet-dir/string |
-    run-test test-cli fleet-dir
+  with-fleet --count=0 --args=args: | fleet/TestFleet |
+    run-test fleet
 
-run-test test-cli/TestCli fleet-dir/string:
+run-test fleet/TestFleet:
+  fleet-dir := fleet.fleet-dir
   with-tmp-directory: | tmp-dir |
-    test-cli.run [
-      "auth", "login",
-      "--email", TEST-EXAMPLE-COM-EMAIL,
-      "--password", TEST-EXAMPLE-COM-PASSWORD,
-    ]
-
-    test-cli.run [
-      "auth", "login",
-      "--broker",
-      "--email", TEST-EXAMPLE-COM-EMAIL,
-      "--password", TEST-EXAMPLE-COM-PASSWORD,
-    ]
-
     count := 3
-    test-cli.run [
+    fleet.run [
       "fleet",
       "add-devices",
       "--output-directory", tmp-dir,
@@ -42,7 +30,7 @@ run-test test-cli/TestCli fleet-dir/string:
 
     // Test the json output.
     count = 3
-    added-devices/Map := test-cli.run --json [
+    added-devices/Map := fleet.run --json [
       "fleet",
       "add-devices",
       "--output-directory", tmp-dir,
@@ -59,7 +47,7 @@ run-test test-cli/TestCli fleet-dir/string:
     alias1 := "$random-uuid"
     alias2 := "$random-uuid"
     aliases := [alias1, alias2]
-    test-cli.run [
+    fleet.run [
       "fleet",
       "add-device",
       "--format", "identity",
@@ -68,14 +56,14 @@ run-test test-cli/TestCli fleet-dir/string:
       "--alias", (aliases.join ","),
       "--id", "$id",
     ]
-    test-extract-identity test-cli fleet-dir tmp-dir
+    test-extract-identity fleet tmp-dir
     check-and-remove-identity-files fleet-dir tmp-dir
         --id=id
         --name="test-name"
         --aliases=aliases
 
     // We can't create the same device twice.
-    test-cli.run --expect-exit-1 --allow-exception [
+    fleet.run --expect-exit-1 --allow-exception [
       "fleet",
       "add-device",
       "--format", "identity",
@@ -83,12 +71,12 @@ run-test test-cli/TestCli fleet-dir/string:
       "--id", "$id",
     ]
 
-test-extract-identity test-cli/TestCli fleet-dir/string tmp-dir/string:
-  devices/Map := json.decode (file.read-content "$fleet-dir/devices.json")
+test-extract-identity fleet/TestFleet tmp-dir/string:
+  devices/Map := json.decode (file.read-content "$fleet.fleet-dir/devices.json")
   expect-equals 1 devices.size
   id := devices.keys.first
   device-id-file := "$tmp-dir/device-$(id).identity"
-  test-cli.run [
+  fleet.run [
     "device",
     "-d", "$id",
     "extract",

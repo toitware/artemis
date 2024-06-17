@@ -6,8 +6,8 @@ import expect show *
 import .utils
 
 main args:
-  with-fleet --count=0 --args=args: | test-cli/TestCli _ _ |
-    run-test test-cli
+  with-fleet --count=0 --args=args: | fleet/TestFleet |
+    run-test fleet.test-cli
 
 run-test test-cli/TestCli:
   test-start := Time.now

@@ -32,7 +32,9 @@ import ..tools.service-image-uploader.uploader as uploader
 import monitor
 import .artemis-server
 import .broker
+import .broker as broker-lib
 import .cli-device-extract show TestDeviceConfig
+import .cli-device-extract as device-extract
 import .supabase-local-server
 
 export Device
@@ -163,6 +165,20 @@ class TestCli:
       device.close
       artemis.backdoor.remove-device device.hardware-id
 
+  login:
+    run [
+      "auth", "login",
+      "--email", TEST-EXAMPLE-COM-EMAIL,
+      "--password", TEST-EXAMPLE-COM-PASSWORD,
+    ]
+
+    run [
+      "auth", "login",
+      "--broker",
+      "--email", TEST-EXAMPLE-COM-EMAIL,
+      "--password", TEST-EXAMPLE-COM-PASSWORD,
+    ]
+
   run args/List --expect-exit-1/bool=false --allow-exception/bool=false --quiet/bool=true -> string:
     return run args --expect-exit-1=expect-exit-1 --allow-exception=allow-exception --quiet=quiet --no-json
 
@@ -279,6 +295,7 @@ class TestCli:
         --organization-id=TEST-ORGANIZATION-UUID
         --toit-run=toit-run-path_
         --encoded-firmware=encoded-firmware
+        --test-cli=this
     test-devices_.add result
     return result
 
@@ -296,6 +313,7 @@ class TestCli:
           --organization-id=TEST-ORGANIZATION-UUID
           --image-path=device-config.path
           --qemu-path=qemu-path_
+          --test-cli=this
     else if device-config.format == "tar":
       result = TestDevicePipe.host
           --broker=broker
@@ -303,6 +321,7 @@ class TestCli:
           --hardware-id=hardware-id
           --organization-id=TEST-ORGANIZATION-UUID
           --tar-path=device-config.path
+          --test-cli=this
     else:
       throw "Unknown format"
 
@@ -320,6 +339,7 @@ class TestCli:
         --organization-id=TEST-ORGANIZATION-UUID
         --serial-port=serial-port
         --toit-run=toit-run-path_
+        --test-cli=this
     result.start
     test-devices_.add result
     return result
@@ -338,6 +358,7 @@ class TestCli:
         --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
         --encoded-firmware=encoded-firmware
+        --test-cli=this
     result.start
     test-devices_.add result
     return result
@@ -360,6 +381,7 @@ class TestCli:
         --hardware-id=hardware-id
         --organization-id=organization-id
         --encoded-firmware=encoded-firmware
+        --test-cli=this
     result.start
     test-devices_.add result
     return result
@@ -414,13 +436,24 @@ class TestCli:
             "--local"
           ]
 
+
+  /**
+  Stops the main broker.
+
+  This is only possible with the HTTP broker.
+  */
+  stop-main-broker -> none:
+    (broker.backdoor as broker-lib.ToitHttpBackdoor).stop
+
 abstract class TestDevice:
   hardware-id/uuid.Uuid
   alias-id/uuid.Uuid
   organization-id/uuid.Uuid
   broker/TestBroker
+  test-cli/TestCli
+  pos_/int := 0
 
-  constructor --.broker --.hardware-id --.alias-id --.organization-id:
+  constructor --.broker --.hardware-id --.alias-id --.organization-id --.test-cli:
 
   /**
   Starts the device.
@@ -428,6 +461,13 @@ abstract class TestDevice:
   Typically, the device is automatically started when it is created.
   */
   abstract start -> none
+
+  /**
+  Stops the device.
+
+  Not all test devices support stopping (and resuming).
+  */
+  abstract stop -> none
 
   /**
   Closes the test device and releases all broker connections.
@@ -451,10 +491,69 @@ abstract class TestDevice:
   Starts searching at $start-at.
   Returns the index *after* the needle.
   */
-  abstract wait-for needle/string --start-at/int --not-followed-by/string?=null -> int
+  abstract wait-for needle/string --start-at/int=pos_ --not-followed-by/string?=null --update-pos/bool=true -> int
 
-  wait-for-synchronized --start-at/int -> int:
-    return wait-for "[artemis.synchronize] INFO: synchronized" --start-at=start-at --not-followed-by=" state"
+  /**
+  Updates the position in the output stream to the current size of the output.
+  Any further $wait-for call will start from this position.
+  */
+  abstract update-output-pos -> none
+
+  id -> uuid.Uuid: return alias-id
+
+  wait-for-synchronized --start-at/int=pos_ --update-pos/bool=true -> int:
+    new-pos := wait-for "[artemis.synchronize] INFO: synchronized"
+        --start-at=start-at
+        --not-followed-by=" state"
+    if update-pos: pos_ = new-pos
+    return new-pos
+
+
+  /**
+  Waits until this device is on the new broker.
+  Returns the last status line.
+  */
+  wait-to-be-on-broker broker/MigrationBroker --status/List?=null -> List:
+    wait-for "[artemis] INFO: starting"
+    if not status: status = get-status_
+    while true:
+      for i := 0; i < status.size; i++:
+        status-line := status[i]
+        if status-line["device-id"] != "$id":
+          continue
+        if status-line["broker"] == broker.name:
+          return status
+      sleep --ms=300
+      status = test-cli.run --json ["fleet", "status"]
+
+  /**
+  Waits until this device is on the given pod.
+  Returns the last status line.
+  */
+  wait-to-be-on-pod pod-id/uuid.Uuid --status/List?=null -> List:
+    wait-for "[artemis.synchronize] INFO: firmware update: validated"
+    if not status: status = get-status_
+    while true:
+      for i := 0; i < status.size; i++:
+        status-line := status[i]
+        if status-line["device-id"] != "$id":
+          continue
+        if status-line["pod-id"] == "$pod-id":
+          return status
+      sleep --ms=300
+      status = test-cli.run --json ["fleet", "status"]
+
+
+  get-current-broker --status=get-status_:
+    for i := 0; i < status.size; i++:
+      status-line := status[i]
+      if status-line["device-id"] != "$id":
+        continue
+      return status-line["broker"]
+    unreachable
+
+  get-status_ -> List:
+    return test-cli.run --json ["fleet", "status"]
 
   /**
   Waits until the device has connected to the broker.
@@ -482,7 +581,8 @@ class FakeDevice extends TestDevice:
       --hardware-id/uuid.Uuid
       --alias-id/uuid.Uuid
       --organization-id/uuid.Uuid
-      --encoded-firmware/string:
+      --encoded-firmware/string
+      --test-cli/TestCli:
     network_ = net.open
     firmware-state := {
       "firmware": encoded-firmware
@@ -493,9 +593,17 @@ class FakeDevice extends TestDevice:
         --organization-id=organization-id
         --firmware-state=firmware-state
         --storage=Storage
-    super --broker=broker --hardware-id=hardware-id --alias-id=alias-id --organization-id=organization-id
+    super
+        --broker=broker
+        --hardware-id=hardware-id
+        --alias-id=alias-id
+        --organization-id=organization-id
+        --test-cli=test-cli
 
   start:
+    // Do nothing.
+
+  stop:
     // Do nothing.
 
   close:
@@ -509,11 +617,14 @@ class FakeDevice extends TestDevice:
   clear-output -> none:
     throw "UNIMPLEMENTED"
 
-  wait-for needle/string --start-at/int --not-followed-by/string?=null -> int:
+  wait-for needle/string --start-at/int=pos_ --not-followed-by/string?=null --update-pos/bool=true -> int:
     throw "UNIMPLEMENTED"
 
   wait-until-connected --timeout=(Duration --ms=5_000) -> none:
-    return
+    // Do nothing.
+
+  update-output-pos -> none:
+    // Do nothing.
 
   with-broker-connection_ [block]:
     broker.with-service: | service/BrokerService |
@@ -590,7 +701,8 @@ class TestDevicePipe extends TestDevice:
       --alias-id/uuid.Uuid
       --organization-id/uuid.Uuid
       --encoded-firmware/string
-      --toit-run/string:
+      --toit-run/string
+      --test-cli/TestCli:
 
     broker-config-json := broker.server-config.to-json --der-serializer=: unreachable
     encoded-broker-config := json.stringify broker-config-json
@@ -609,6 +721,7 @@ class TestDevicePipe extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
+        --test-cli=test-cli
 
   constructor.serial
       --broker/TestBroker
@@ -616,7 +729,8 @@ class TestDevicePipe extends TestDevice:
       --alias-id/uuid.Uuid
       --organization-id/uuid.Uuid
       --serial-port/string
-      --toit-run/string:
+      --toit-run/string
+      --test-cli/TestCli:
     command_ = [
       toit-run,
       "test-device-serial.toit",
@@ -627,6 +741,7 @@ class TestDevicePipe extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
+        --test-cli=test-cli
 
   constructor.qemu
         --broker/TestBroker
@@ -634,7 +749,8 @@ class TestDevicePipe extends TestDevice:
         --alias-id/uuid.Uuid
         --organization-id/uuid.Uuid
         --image-path/string
-        --qemu-path/string:
+        --qemu-path/string
+        --test-cli/TestCli:
     command_ = [
       qemu-path,
       "-L", (fs.dirname qemu-path),
@@ -648,13 +764,15 @@ class TestDevicePipe extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
+        --test-cli=test-cli
 
   constructor.host
       --broker/TestBroker
       --hardware-id/uuid.Uuid
       --alias-id/uuid.Uuid
       --organization-id/uuid.Uuid
-      --tar-path/string:
+      --tar-path/string
+      --test-cli/TestCli:
     tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
     untar tar-path --target=tmp-dir
     boot-sh := "$tmp-dir/boot.sh"
@@ -664,6 +782,7 @@ class TestDevicePipe extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
+        --test-cli=test-cli
 
   start:
     if child-process_: throw "Already started"
@@ -743,9 +862,13 @@ class TestDevicePipe extends TestDevice:
     return output_.to-string-non-throwing
 
   clear-output -> none:
+    pos_ = 0
     output_ = #[]
 
-  wait-for needle/string --start-at/int --not-followed-by/string?=null -> int:
+  update-output-pos -> none:
+    pos_ = output_.size
+
+  wait-for needle/string --start-at/int=pos_ --not-followed-by/string?=null --update-pos/bool=true -> int:
     not-followed-size := not-followed-by ? not-followed-by.size : 0
     start := start-at
     signal_.wait:
@@ -760,6 +883,7 @@ class TestDevicePipe extends TestDevice:
           // Try again starting at the next character.
           start = index + 1
           continue
+        if update-pos: pos_ = index + needle.size
         return index + needle.size
     unreachable
 
@@ -973,24 +1097,120 @@ broker-type-from-args args/List:
 random-uuid -> uuid.Uuid:
   return uuid.uuid5 "random" "uuid $Time.now.ns-since-epoch $random"
 
-with-fleet --args/List --count/int [block]:
+
+class MigrationBroker:
+  name/string
+  test-broker/TestBroker
+  done-latch/monitor.Latch
+
+  constructor .name .test-broker .done-latch:
+
+  close:
+    done-latch.set true
+
+class TestFleet:
+  test-cli/TestCli
+  fleet-dir/string
+  args/List
+  devices/Map := {:}
+
+  /**
+  Creates a new test fleet.
+
+  The $devices can be a list of $FakeDevice s.
+  It is not recommended to mix these devices with other types of
+    test devices (like host devices).
+  */
+  constructor --.test-cli --.fleet-dir --.args --devices/List:
+    devices.do: | device/FakeDevice |
+      this.devices[device.alias-id] = device
+
+  get-status -> List:
+    return test-cli.run --json ["fleet", "status"]
+
+  check-no-migration-stop:
+    run --expect-exit-1 ["fleet", "migration", "stop"]
+
+  upload-pod gold-name/string --format/string -> uuid.Uuid:
+    return device-extract.upload-pod
+        --fleet=this
+        --gold-name=gold-name
+        --format=format
+
+  create-host-device name/string --start/bool -> TestDevice:
+    tar-file := "$test-cli.tmp-dir/dev-$(name).tar"
+    added-device := test-cli.run --json [
+      "fleet", "add-device", "--format", "tar", "-o", tar-file, "--name", name
+    ]
+    device-id := uuid.parse added-device["id"]
+    device-config := device-extract.TestDeviceConfig
+        --device-id=device-id
+        --format="tar"
+        --path=tar-file
+
+    test-device := test-cli.create-device
+        --alias-id=device-id
+        --hardware-id=device-id  // Not really used anyway.
+        --device-config=device-config
+
+    test-cli.replacements["$device-id"] = pad-replacement-id name
+
+    if start:
+      test-device.start
+      test-device.wait-for-synchronized
+
+    devices[device-id] = test-device
+    return test-device
+
+  listen-to-serial-device -> TestDevice
+      --alias-id/uuid.Uuid
+      --hardware-id/uuid.Uuid
+      --serial-port/string:
+    return test-cli.listen-to-serial-device
+        --alias-id=alias-id
+        --hardware-id=hardware-id
+        --serial-port=serial-port
+
+  /**
+  Updates the parse position of all devices to be at the end
+    of their current output.
+  */
+  update-device-output-positions -> none:
+    devices.do --values: | device/TestDevice |
+      device.update-output-pos
+
+  /**
+  Creates a new broker with the given name.
+  */
+  start-broker name/string -> MigrationBroker:
+    started := monitor.Latch
+    task::
+      with-http-broker --name=name: | broker/TestBroker |
+        cli-server-config.add-server-to-config test-cli.config broker.server-config
+        done := monitor.Latch
+        result := MigrationBroker name broker done
+        started.set result
+        // Keep the server running until we are done.
+        done.get
+    return started.get
+
+  run command/List --expect-exit-1/bool=false --allow-exception/bool=false --quiet/bool=true -> string:
+    return test-cli.run --expect-exit-1=expect-exit-1 --allow-exception=allow-exception --quiet=quiet command
+
+  run args/List --expect-exit-1/bool=false --allow-exception/bool=false --quiet/bool=true --json/bool -> any:
+    return test-cli.run --expect-exit-1=expect-exit-1 --allow-exception=allow-exception --quiet=quiet --json=json args
+
+  run-gold --expect-exit-1/bool=false --ignore-spacing/bool=false name/string description/string command/List -> none:
+    test-cli.run-gold --expect-exit-1=expect-exit-1 --ignore-spacing=ignore-spacing name description command
+
+
+with-fleet --args/List --count/int=0 [block]:
   with-test-cli --args=args: | test-cli/TestCli |
     with-tmp-directory: | fleet-dir |
       os.env["ARTEMIS_FLEET"] = fleet-dir
 
       test-cli.replacements[fleet-dir] = "<FLEET_ROOT>"
-      test-cli.run [
-        "auth", "login",
-        "--email", TEST-EXAMPLE-COM-EMAIL,
-        "--password", TEST-EXAMPLE-COM-PASSWORD,
-      ]
-
-      test-cli.run [
-        "auth", "login",
-        "--broker",
-        "--email", TEST-EXAMPLE-COM-EMAIL,
-        "--password", TEST-EXAMPLE-COM-PASSWORD,
-      ]
+      test-cli.login
 
       test-cli.run [
         "fleet",
@@ -1029,7 +1249,12 @@ with-fleet --args/List --count/int [block]:
         test-cli.replacements[id] = "-={| UUID-FOR-FAKE-DEVICE $(%05d fake-devices.size) |}=-"
         fake-devices.add fake-device
 
-      block.call test-cli fake-devices fleet-dir
+      fleet := TestFleet
+          --test-cli=test-cli
+          --fleet-dir=fleet-dir
+          --args=args
+          --devices=fake-devices
+      block.call fleet
 
 expect-throws [--check-exception] [block]:
   exception := catch: block.call

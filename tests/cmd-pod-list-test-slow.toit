@@ -7,18 +7,18 @@ import expect show *
 import .utils
 
 main args:
-  with-fleet --count=0 --args=args: | test-cli/TestCli _ fleet-dir/string |
-    run-test test-cli fleet-dir
+  with-fleet --count=0 --args=args: | fleet/TestFleet |
+    run-test fleet
 
-run-test test-cli/TestCli fleet-dir/string:
-  test-cli.ensure-available-artemis-service
+run-test fleet:
+  fleet.test-cli.ensure-available-artemis-service
 
   name := "test-pod"
 
   spec := {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "$name",
-      "sdk-version": "$test-cli.sdk-version",
+      "sdk-version": "$fleet.test-cli.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "firmware-envelope": "esp32",
       "connections": [
@@ -29,13 +29,13 @@ run-test test-cli/TestCli fleet-dir/string:
         }
       ]
     }
-  spec-path := "$fleet-dir/$(name).yaml"
+  spec-path := "$fleet.fleet-dir/$(name).yaml"
   write-yaml-to-file spec-path spec
-  test-cli.run [
+  fleet.run [
     "pod", "upload", spec-path
   ]
 
-  pods := test-cli.run --json [
+  pods := fleet.run --json [
     "pod", "list", "--name", name
   ]
   expect-equals 1 pods.size

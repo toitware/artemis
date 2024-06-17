@@ -9,14 +9,16 @@ import encoding.json
 import .utils
 
 main args:
-  with-fleet --count=0 --args=args: | test-cli/TestCli _ fleet-dir/string |
-    run-test test-cli fleet-dir
+  with-fleet --count=0 --args=args: | fleet/TestFleet |
+    run-test fleet
 
-run-test test-cli/TestCli fleet-dir/string:
+run-test fleet/TestFleet:
+  fleet-dir := fleet.fleet-dir
+  test-cli := fleet.test-cli
   pod-name := "test-pod"
 
   add-pod-replacements := : | output/string |
-    pods := test-cli.run --json [
+    pods := fleet.run --json [
       "pod", "list", "--name", pod-name
     ]
     pods.do:

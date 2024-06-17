@@ -12,12 +12,10 @@ main: print "hello world"
 """
 
 main args/List:
-  with-fleet --args=args --count=0: | test-cli/TestCli _ fleet-dir/string |
+  with-fleet --args=args --count=0: | fleet/TestFleet |
     host-config := create-extract-device
         --format="tar"
-        --test-cli=test-cli
-        --args=args
-        --fleet-dir=fleet-dir
+        --fleet=fleet
         --files={
           "hello.toit": HELLO-WORLD-CODE,
         }
@@ -28,7 +26,7 @@ main args/List:
             },
           },
         }
-    run-test test-cli host-config
+    run-test fleet.test-cli host-config
 
 run-test test-cli/TestCli config/TestDeviceConfig:
   tmp-dir := test-cli.tmp-dir

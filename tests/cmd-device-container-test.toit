@@ -7,13 +7,13 @@ import artemis.cli.utils show write-json-to-file write-blob-to-file
 import .utils
 
 main args:
-  with-fleet --args=args --count=1: | test-cli/TestCli fake-devices/List fleet-dir/string |
-    run-test test-cli fake-devices fleet-dir
+  with-fleet --args=args --count=1: | fleet/TestFleet |
+    run-test fleet
 
-run-test test-cli/TestCli fake-devices/List fleet-dir/string:
-  tmp-dir := test-cli.tmp-dir
+run-test fleet/TestFleet:
+  tmp-dir := fleet.test-cli.tmp-dir
 
-  device/FakeDevice := fake-devices[0]
+  device/FakeDevice := fleet.devices.values[0]
   device.report-state
 
   hello-path := "$tmp-dir/hello.toit"
@@ -21,23 +21,23 @@ run-test test-cli/TestCli fake-devices/List fleet-dir/string:
       main: print "hello world"
       """
 
-  test-cli.run [
+  fleet.run [
     "device", "default", "$device.alias-id"
   ]
 
-  test-cli.run-gold "200_install"
+  fleet.run-gold "200_install"
       "Install a container"
       [
         "device", "container", "install", "hello", hello-path
       ]
 
-  test-cli.run-gold "220_uninstall"
+  fleet.run-gold "220_uninstall"
       "Uninstall a container"
       [
         "device", "container", "uninstall", "hello"
       ]
 
-  test-cli.run-gold "230_uninstall_non_existing"
+  fleet.run-gold "230_uninstall_non_existing"
       --expect-exit-1
       "Uninstall a non-existing container"
       [
@@ -45,13 +45,13 @@ run-test test-cli/TestCli fake-devices/List fleet-dir/string:
       ]
 
   // Force allows uninstalling a container that is not installed.
-  test-cli.run-gold "240_uninstall_non_existing_force"
+  fleet.run-gold "240_uninstall_non_existing_force"
       "Uninstall a non-existing container with force"
       [
         "device", "container", "uninstall", "hello", "--force"
       ]
 
-  test-cli.ensure-available-artemis-service
+  fleet.test-cli.ensure-available-artemis-service
       --sdk-version=TEST-SDK-VERSION
       --artemis-version=TEST-ARTEMIS-VERSION
 
@@ -82,11 +82,11 @@ run-test test-cli/TestCli fake-devices/List fleet-dir/string:
   pod-file := "$tmp-dir/test.pod"
   write-json-to-file spec-file pod-spec
 
-  test-cli.run [
+  fleet.run [
     "pod", "create", spec-file, "-o", pod-file
   ]
 
-  test-cli.run [
+  fleet.run [
     "device", "update", "--local", pod-file
   ]
 
@@ -96,7 +96,7 @@ run-test test-cli/TestCli fake-devices/List fleet-dir/string:
   device.report-state
 
   // Hello is now a required container.
-  test-cli.run-gold "300_uninstall_required"
+  fleet.run-gold "300_uninstall_required"
       "Can't uninstall required container without force"
       --expect-exit-1
       [
@@ -104,7 +104,7 @@ run-test test-cli/TestCli fake-devices/List fleet-dir/string:
       ]
 
   // Works with force.
-  test-cli.run-gold "310_uninstall_required_force"
+  fleet.run-gold "310_uninstall_required_force"
       "Can uninstall required container with force"
       [
         "device", "container", "uninstall", "hello", "--force"

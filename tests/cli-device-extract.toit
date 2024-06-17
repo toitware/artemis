@@ -25,19 +25,17 @@ The $format is needed to determine which base pod-specification should be used.
 upload-pod -> uuid.Uuid
     --gold-name/string?=null
     --format/string
-    --test-cli/TestCli
-    --fleet-dir/string
-    --args/List
-    --tmp-dir/string="$test-cli.tmp-dir/td-$format-$(tmp-dir-counter++)"
+    --fleet/TestFleet
+    --tmp-dir/string="$fleet.test-cli.tmp-dir/td-$format-$(tmp-dir-counter++)"
     --files/Map={:}
     --pod-spec/Map={:}
     --pod-spec-filename/string="my-pod.yaml":
 
-  test-cli.ensure-available-artemis-service
+  fleet.test-cli.ensure-available-artemis-service
 
   prefix := "--base-root="
   base-root/string? := null
-  args.do:
+  fleet.args.do:
     if it.starts-with prefix:
       if base-root:
         throw "Multiple $prefix arguments."
@@ -59,7 +57,7 @@ upload-pod -> uuid.Uuid
   if not pod-spec.contains "artemis-version":
     pod-spec["artemis-version"] = TEST-ARTEMIS-VERSION
   if not pod-spec.contains "sdk-version":
-    pod-spec["sdk-version"] = test-cli.sdk-version
+    pod-spec["sdk-version"] = fleet.test-cli.sdk-version
   if not pod-spec.contains "extends":
     pod-spec["extends"] = ["base.yaml"]
   // The base contains the firmware-envelope entry.
@@ -73,25 +71,25 @@ upload-pod -> uuid.Uuid
     throw "Unknown pod spec file extension: $pod-spec-filename"
   pod-file := "$tmp-dir/$(pod-spec-filename).pod"
 
-  test-cli.run [
-    "--fleet-root", fleet-dir,
+  fleet.run [
+    "--fleet-root", fleet.fleet-dir,
     "pod", "build",
     "-o", pod-file,
     spec-path,
   ]
 
-  upload-result := test-cli.run --json [
-    "--fleet-root", fleet-dir,
+  upload-result := fleet.run --json [
+    "--fleet-root", fleet.fleet-dir,
     "pod", "upload",
     pod-file,
   ]
 
   if gold-name:
-    test-cli.replacements[upload-result["id"]] = pad-replacement-id gold-name
-    test-cli.replacements[upload-result["name"]] = gold-name
+    fleet.test-cli.replacements[upload-result["id"]] = pad-replacement-id gold-name
+    fleet.test-cli.replacements[upload-result["name"]] = gold-name
     upload-result["tags"].do: | tag/string |
       if tag != "latest":
-        test-cli.replacements[tag] = "auto-tag"
+        fleet.test-cli.replacements[tag] = "auto-tag"
 
   return uuid.parse upload-result["id"]
 
@@ -107,13 +105,11 @@ The $format should be one supported by the `device extract` command. For
 */
 create-extract-device -> TestDeviceConfig
     --format/string
-    --test-cli/TestCli
-    --fleet-dir/string
-    --args/List
+    --fleet/TestFleet
     --files/Map
     --pod-spec/Map
     --pod-spec-filename/string="my-pod.yaml"
-    --tmp-dir/string="$test-cli.tmp-dir/td-$format"
+    --tmp-dir/string="$fleet.test-cli.tmp-dir/td-$format"
     --user-email/string=TEST-EXAMPLE-COM-EMAIL
     --user-password/string=TEST-EXAMPLE-COM-PASSWORD
     --org-id/uuid.Uuid=TEST-ORGANIZATION-UUID
@@ -121,9 +117,7 @@ create-extract-device -> TestDeviceConfig
 
   upload-pod
       --format=format
-      --test-cli=test-cli
-      --fleet-dir=fleet-dir
-      --args=args
+      --fleet=fleet
       --files=files
       --pod-spec=pod-spec
       --pod-spec-filename=pod-spec-filename
@@ -131,9 +125,9 @@ create-extract-device -> TestDeviceConfig
 
   extension := format == "tar" ? "tar" : "bin"
   path := "$tmp-dir/$(pod-spec-filename).$extension"
-  result := test-cli.run --json [
+  result := fleet.run --json [
     "fleet", "add-device",
-    "--fleet-root", fleet-dir,
+    "--fleet-root", fleet.fleet-dir,
     "--format", format,
     "--output", path,
   ]
