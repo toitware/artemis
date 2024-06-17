@@ -433,7 +433,7 @@ class PodSpecification:
       if connection.requires:
         connection.requires.do: | required-container-name/string |
           if (containers.get required-container-name) == null:
-            validation-error_ "Connection requires container $required-container-name, but it is not installed."
+            validation-error_ "Connection requires container '$required-container-name', but it is not installed."
 
 interface ConnectionInfo:
   static from-json json-map/JsonMap -> ConnectionInfo:
@@ -655,7 +655,7 @@ class ContainerPath extends ContainerBase:
 
     git := Git --ui=ui
     cache-key := cache-key-git-app --url=git-url
-    ui.info "Fetching $git-url."
+    ui.info "Fetching '$git-url'."
     cached-git := cache.get-directory-path cache-key: | store/cli.DirectoryStore |
       store.with-tmp-directory: | tmp-dir/string |
         clone-dir := "$tmp-dir/checkout"
@@ -699,15 +699,15 @@ class ContainerPath extends ContainerBase:
           --repository-root=clone-dir
           --ref=git-ref
           --quiet
-      ui.info "Compiling $git-url."
+      ui.info "Compiling '$git-url'."
       entrypoint-path := "$clone-dir/$entrypoint"
       if not file.is-file entrypoint-path:
-        ui.abort "Entry point $entrypoint-path does not exist."
+        ui.abort "Entry point '$entrypoint-path' does not exist."
 
       package-yaml-path := "$clone-dir/package.yaml"
       if not file.is-file package-yaml-path:
         if file.is-directory package-yaml-path:
-          ui.abort "package.yaml is a directory in $git-url."
+          ui.abort "package.yaml is a directory in '$git-url'."
         // Create an empty package.yaml file, so that we can safely call
         // toit.pkg without worrying that we use some file from a folder
         // above our tmp directory.
@@ -721,7 +721,7 @@ class ContainerPath extends ContainerBase:
         sdk.compile-to-snapshot entrypoint-path
             --flags=compile-flags
             --out=output-path
-      if exception: ui.abort "Compilation of container $name failed: $exception."
+      if exception: ui.abort "Compilation of container '$name' failed: $exception."
 
   type -> string:
     return "path"

@@ -94,15 +94,15 @@ class FleetFile:
     fleet-content := null
     exception := catch: fleet-content = read-json path
     if exception:
-      ui.error "Fleet file $path is not a valid JSON."
+      ui.error "Fleet file '$path' is not a valid JSON."
       ui.error exception.message
       ui.abort
     if fleet-content is not Map:
-      ui.abort "Fleet file $path has invalid format."
+      ui.abort "Fleet file '$path' has invalid format."
     if not fleet-content.contains "id":
-      ui.abort "Fleet file $path does not contain an ID."
+      ui.abort "Fleet file '$path' does not contain an ID."
     if not fleet-content.contains "organization":
-      ui.abort "Fleet file $path does not contain an organization ID."
+      ui.abort "Fleet file '$path' does not contain an organization ID."
 
     is-reference := fleet-content.get "is-reference" --if-absent=: false
 
@@ -111,19 +111,19 @@ class FleetFile:
     if is-reference:
       group-pods = {:}
       if group-entry:
-        ui.abort "Fleet file $path is a reference file and cannot contain a 'groups' entry."
+        ui.abort "Fleet file '$path' is a reference file and cannot contain a 'groups' entry."
     else:
       if not group-entry:
-        ui.abort "Fleet file $path does not contain a 'groups' entry."
+        ui.abort "Fleet file '$path' does not contain a 'groups' entry."
       if group-entry is not Map:
-        ui.abort "Fleet file $path has invalid format for 'groups'."
+        ui.abort "Fleet file '$path' has invalid format for 'groups'."
       group-pods = (group-entry as Map).map: | group-name/string entry |
         if entry is not Map:
-          ui.abort "Fleet file $path has invalid format for group '$group-name'."
+          ui.abort "Fleet file '$path' has invalid format for group '$group-name'."
         if not entry.contains "pod":
-          ui.abort "Fleet file $path does not contain a 'pod' entry for group '$group-name'."
+          ui.abort "Fleet file '$path' does not contain a 'pod' entry for group '$group-name'."
         if entry["pod"] is not string:
-          ui.abort "Fleet file $path has invalid format for 'pod' in group '$group-name'."
+          ui.abort "Fleet file '$path' has invalid format for 'pod' in group '$group-name'."
         PodReference.parse entry["pod"] --ui=ui
 
     broker-name := fleet-content.get "broker"
@@ -134,31 +134,31 @@ class FleetFile:
     servers/Map := ?
     if broker-name:
       if not servers-entry:
-        ui.abort "Fleet file $path has invalid format for 'broker' and 'servers'."
+        ui.abort "Fleet file '$path' has invalid format for 'broker' and 'servers'."
       if servers-entry is not Map:
-        ui.abort "Fleet file $path has invalid format for 'servers'."
+        ui.abort "Fleet file '$path' has invalid format for 'servers'."
       broker-entry := servers-entry.get broker-name
       if not broker-entry:
-        ui.abort "Fleet file $path does not contain a server entry for broker '$broker-name'."
+        ui.abort "Fleet file '$path' does not contain a server entry for broker '$broker-name'."
 
       servers = servers-entry.map: | server-name/string encoded-server |
         if encoded-server is not Map:
-          ui.abort "Fleet file $path has invalid format for server '$server-name'."
+          ui.abort "Fleet file '$path' has invalid format for server '$server-name'."
         ServerConfig.from-json server-name encoded-server
           --der-deserializer=: base64.decode it
 
       if migrating-from-entry:
         if migrating-from-entry is not List:
-          ui.abort "Fleet file $path has invalid format for 'migrating-from'."
+          ui.abort "Fleet file '$path' has invalid format for 'migrating-from'."
         migrating-from-entry.do: | server-name |
           if server-name is not string:
-            ui.abort "Fleet file $path has invalid format for 'migrating-from'."
+            ui.abort "Fleet file '$path' has invalid format for 'migrating-from'."
           if not servers.contains server-name:
-            ui.abort "Fleet file $path does not contain a server entry for migrating-from server '$server-name'."
+            ui.abort "Fleet file '$path' does not contain a server entry for migrating-from server '$server-name'."
         migrating-from = migrating-from-entry
     else:
       if migrating-from-entry or servers-entry:
-        ui.abort "Fleet file $path has invalid format for 'broker', 'migrating-from' and 'servers'."
+        ui.abort "Fleet file '$path' has invalid format for 'broker', 'migrating-from' and 'servers'."
       broker-name = default-broker-config.name
       servers = {
         default-broker-config.name: default-broker-config,
@@ -252,16 +252,16 @@ class DevicesFile:
     encoded-devices := null
     exception := catch: encoded-devices = read-json path
     if exception:
-      ui.error "Fleet file $path is not a valid JSON."
+      ui.error "Fleet file '$path' is not a valid JSON."
       ui.error exception.message
       ui.abort
     if encoded-devices is not Map:
-      ui.abort "Fleet file $path has invalid format."
+      ui.abort "Fleet file '$path' has invalid format."
 
     devices := []
     encoded-devices.do: | device-id encoded-device |
       if encoded-device is not Map:
-        ui.abort "Fleet file $path has invalid format for device ID $device-id."
+        ui.abort "Fleet file '$path' has invalid format for device ID $device-id."
       exception = catch:
         device := DeviceFleet
             --id=uuid.parse device-id
@@ -270,7 +270,7 @@ class DevicesFile:
             --group=(encoded-device.get "group") or DEFAULT-GROUP
         devices.add device
       if exception:
-        ui.error "Fleet file $path has invalid format for device ID $device-id."
+        ui.error "Fleet file '$path' has invalid format for device ID $device-id."
         ui.error exception.message
         ui.abort
 
@@ -366,12 +366,12 @@ class Fleet:
       fleet-path = "$fleet-root-or-ref/$FLEET-FILE_"
       must-be-reference = false
     else:
-      ui.abort "Fleet root $fleet-root-or-ref is not a directory or a file."
+      ui.abort "Fleet root '$fleet-root-or-ref' is not a directory or a file."
       unreachable
 
     if not file.is-file fleet-path:
       // Can only happen if the fleet-root-or-ref was a directory.
-      ui.error "Fleet root $fleet-root-or-ref does not contain a $FLEET-FILE_ file."
+      ui.error "Fleet root '$fleet-root-or-ref' does not contain a $FLEET-FILE_ file."
       ui.error "Use 'init' to initialize a fleet root."
       ui.abort
 
@@ -465,7 +465,7 @@ class FleetWithDevices extends Fleet:
         --default-broker-config=default-broker-config
         --ui=ui
     if fleet-file.is-reference:
-      ui.abort "Fleet root $fleet-root is a reference fleet and cannot be used for device management."
+      ui.abort "Fleet root '$fleet-root' is a reference fleet and cannot be used for device management."
     devices-file := load-devices-file fleet-root --ui=ui
     devices-file.check-groups fleet-file --ui=ui
     group-pods_ = fleet-file.group-pods
@@ -482,13 +482,13 @@ class FleetWithDevices extends Fleet:
       --broker-config/ServerConfig
       --ui/Ui:
     if not file.is-directory fleet-root:
-      ui.abort "Fleet root $fleet-root is not a directory."
+      ui.abort "Fleet root '$fleet-root' is not a directory."
 
     if file.is-file "$fleet-root/$FLEET-FILE_":
-      ui.abort "Fleet root $fleet-root already contains a $FLEET-FILE_ file."
+      ui.abort "Fleet root '$fleet-root' already contains a $FLEET-FILE_ file."
 
     if file.is-file "$fleet-root/$DEVICES-FILE_":
-      ui.abort "Fleet root $fleet-root already contains a $DEVICES-FILE_ file."
+      ui.abort "Fleet root '$fleet-root' already contains a $DEVICES-FILE_ file."
 
     org := artemis.get-organization --id=organization-id
     if not org:
@@ -516,14 +516,14 @@ class FleetWithDevices extends Fleet:
       header := "# yaml-language-server: \$schema=$JSON-SCHEMA\n"
       write-yaml-to-file default-specification-path INITIAL-POD-SPECIFICATION --header=header
 
-    ui.info "Fleet root $fleet-root initialized."
+    ui.info "Fleet root '$fleet-root' initialized."
 
   static load-devices-file fleet-root/string --ui/Ui -> DevicesFile:
     if not file.is-directory fleet-root:
-      ui.abort "Fleet root $fleet-root is not a directory."
+      ui.abort "Fleet root '$fleet-root' is not a directory."
     devices-path := "$fleet-root/$DEVICES-FILE_"
     if not file.is-file devices-path:
-      ui.error "Fleet root $fleet-root does not contain a $DEVICES-FILE_ file."
+      ui.error "Fleet root '$fleet-root' does not contain a $DEVICES-FILE_ file."
       ui.error "Use 'init' to initialize a fleet root."
       ui.abort
 
@@ -642,7 +642,7 @@ class FleetWithDevices extends Fleet:
 
     // We need to notify the migrating-from brokers.
     fleet-file_.migrating-from.do: | server-name |
-      ui_.info "Rolling out to $server-name broker (migration in progress)."
+      ui_.info "Rolling out to '$server-name' broker (migration in progress)."
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
@@ -657,11 +657,11 @@ class FleetWithDevices extends Fleet:
       // This also makes it possible to move forward and backward between two brokers.
       detailed-devices = old-broker.get-devices --device-ids=device-ids
       old-broker.roll-out --devices=detailed-devices.values --pods=pods --diff-bases=diff-bases
-      ui_.info "Successfully rolled out to $server-name broker (migration in progress)."
+      ui_.info "Successfully rolled out to '$server-name' broker (migration in progress)."
 
   pod-reference-for-group name/string -> PodReference:
     return group-pods_.get name
-        --if-absent=: ui_.abort "Unknown group $name"
+        --if-absent=: ui_.abort "Unknown group '$name'"
 
   has-group group/string -> bool:
     return group-pods_.contains group
@@ -914,10 +914,10 @@ class FleetWithDevices extends Fleet:
 
   resolve-alias alias/string -> DeviceFleet:
     if not aliases_.contains alias:
-      ui_.abort "No device with name, device-id, or alias $alias in the fleet."
+      ui_.abort "No device with name, device-id, or alias '$alias' in the fleet."
     device-index := aliases_[alias]
     if device-index == AMBIGUOUS_:
-      ui_.abort "The name, device-id, or alias $alias is ambiguous."
+      ui_.abort "The name, device-id, or alias '$alias' is ambiguous."
     return devices_[device-index]
 
   device device-id/uuid.Uuid ->  DeviceFleet:

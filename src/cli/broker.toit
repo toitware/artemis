@@ -266,7 +266,9 @@ class Broker:
       diff-size := diff-size-bytes > 4096
           ? "$((diff-size-bytes + 1023) / 1024) KB"
           : "$diff-size-bytes B"
-      ui_.info "Uploading patch $(base64.encode patch.to_ --url-mode) ($diff-size)."
+      from64 := base64.encode patch.from_ --url-mode
+      to64 := base64.encode patch.to_ --url-mode
+      ui_.info "Uploading patch $from64 -> $to64 ($diff-size)."
       broker-connection_.upload-firmware diff
           --organization-id=organization-id
           --firmware-id=diff-id
@@ -342,9 +344,11 @@ class Broker:
       if not was-found: unknown-pod-descriptions.add name
     if not unknown-pod-descriptions.is-empty:
       if unknown-pod-descriptions.size == 1:
-        ui_.abort "Unknown pod $(unknown-pod-descriptions[0])."
+        ui_.abort "Unknown pod '$unknown-pod-descriptions[0]'."
       else:
-        ui_.abort "Unknown pods $(unknown-pod-descriptions.join ", ")."
+        quoted := unknown-pod-descriptions.map: "'$it'"
+        joined := quoted.join ", "
+        ui_.abort "Unknown pods $joined."
     broker-connection_.pod-registry-descriptions-delete
         --fleet-id=fleet-id
         --description-ids=descriptions.map: it.id
@@ -379,9 +383,9 @@ class Broker:
       if not resolved:
         has-errors = true
         if reference.tag:
-          ui_.error "No pod with name $reference.name and tag $reference.tag in the fleet."
+          ui_.error "No pod with name '$reference.name' and tag '$reference.tag' in the fleet."
         else:
-          ui_.error "No pod with name $reference.name and revision $reference.revision in the fleet."
+          ui_.error "No pod with name '$reference.name' and revision $reference.revision in the fleet."
       resolved
     if has-errors: ui_.abort
     return result
@@ -633,7 +637,7 @@ class Broker:
   device-for --id/uuid.Uuid -> DeviceDetailed:
     devices := broker-connection_.get-devices --device-ids=[id]
     if devices.is-empty:
-      ui_.abort "Device '$id' not found."
+      ui_.abort "Device $id not found."
     return devices[id]
 
   /**
@@ -769,7 +773,7 @@ class Broker:
     if sdk-version:
       if sdk-version != envelope-sdk-version:
         if not (is-dev-setup and os.env.get "DEV_TOIT_REPO_PATH"):
-          ui_.abort "The envelope uses SDK version '$envelope-sdk-version', but '$sdk-version' was requested."
+          ui_.abort "The envelope uses SDK version $envelope-sdk-version, but $sdk-version was requested."
     else:
       sdk-version = envelope-sdk-version
       check-sdk-service-version.call

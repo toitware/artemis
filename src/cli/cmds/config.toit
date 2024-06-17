@@ -199,7 +199,7 @@ default-server parsed/cli.Parsed config/Config ui/Ui:
     return
 
   if not has-server-in-config config name:
-    ui.abort "Unknown broker $name."
+    ui.abort "Unknown broker '$name'."
 
   config[config-key] = name
   config.write
@@ -233,7 +233,7 @@ add-supabase parsed/cli.Parsed config/Config ui/Ui:
     config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
-  ui.info "Added broker $name."
+  ui.info "Added broker '$name'."
 
 add-http parsed/cli.Parsed config/Config ui/Ui:
   name := parsed["name"]
@@ -280,4 +280,4 @@ add-http parsed/cli.Parsed config/Config ui/Ui:
     config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
-  ui.info "Added broker $name."
+  ui.info "Added broker '$name'."

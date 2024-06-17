@@ -1,3 +1,3 @@
 # Log in to the newly created account in the broker.
 # [auth, login, --broker, --email, USER@EMAIL, --password, USER-PASSWORD]
-Successfully authenticated with test-broker.
+Successfully authenticated on server 'test-broker'.
