@@ -23,6 +23,7 @@ import .utils.patch-build show build-diff-patch build-trivial-patch
 import ..shared.utils.patch show Patcher PatchObserver
 
 import .brokers.broker
+import .event
 import .firmware
 import .pod-registry
 import .program
@@ -426,8 +427,7 @@ class Broker:
   roll-out -> none
       --devices/List  // Of DeviceDetailed.
       --pods/List
-      --diff-bases/List  // Of Pod
-  :
+      --diff-bases/List:  // Of Pod.
     base-patches := {:}
 
     base-firmwares := diff-bases.map: | diff-base/Pod |
@@ -564,11 +564,24 @@ class Broker:
         --limit=limit
         --types=["get-goal"]
 
+  /**
+  For each device in the given $device-ids, fetches the last event the
+    device sent.
+  Returns a map from device-id to $Event.
+  */
   get-last-events --device-ids/List -> Map:
-    return broker-connection_.get-events
+    result := broker-connection_.get-events
         --device-ids=device-ids
         --limit=1
+    result.map --in-place: | _ events/List | events[0]
+    return result
 
+  /**
+  For each device in the given $device-ids, fetches $limit events of the given
+    $types. If $types is null, all events are returned.
+
+  Returns a map from device-id to List of $Event.
+  */
   get-events --device-ids/List --limit/int --types/List? -> Map:
     return broker-connection_.get-events
         --device-ids=device-ids

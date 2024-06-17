@@ -135,6 +135,7 @@ interface BrokerCli implements Authenticatable:
   Returns a mapping from device-id to list of $Event s.
   At most $limit events per device are returned.
   If $since is not null, only events that are newer than $since are returned.
+  If there are no events for a device, the device is not included in the map.
   */
   get-events -> Map
       --types/List?=null

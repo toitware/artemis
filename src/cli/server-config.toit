@@ -46,7 +46,7 @@ get-server-from-config config/Config ui/Ui --name/string -> ServerConfig?:
   if not servers or not servers.contains name:
     if name == DEFAULT-ARTEMIS-SERVER-CONFIG.name:
       return DEFAULT-ARTEMIS-SERVER-CONFIG
-    ui.abort "No server entry for '$name' in the config"
+    ui.abort "No server entry for '$name' in the config."
 
   json-map := servers[name]
 

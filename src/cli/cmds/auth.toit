@@ -105,9 +105,10 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
       --help="""
           Updates the email or password for an account.
 
-          If '--broker' is provided, authenticates with the default broker.
-          If a server is provided with '--server', authenticates with that server.
-          If neither is provided, authenticates with the Artemis server.
+          If '--broker' is provided, updates the account on the default broker.
+          If a server is provided with '--server', updates the account on
+          that server.
+          If neither is provided, updates the account on the Artemis server.
           See 'list' for available servers.
           """
       --options=[
