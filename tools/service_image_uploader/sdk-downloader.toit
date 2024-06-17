@@ -96,21 +96,36 @@ download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
     pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=it --ui=ui
     get-envelope --specification=pod-specification --cache=cache --ui=ui
 
-print-path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
-  // Make sure we don't print anything while downloading.
-  log.set-default (log.default.with-level log.FATAL-LEVEL)
+class SilentUi extends ui.Ui:
+  result-ui/ui.Ui
+
+  constructor .result-ui:
+    super --level=ui.Ui.SILENT-LEVEL
+
+  create-printer_ prefix/string? kind/int -> ui.Printer:
+    return result-ui.create-printer_ prefix kind
+
+  wants-structured-result -> bool:
+    return result-ui.wants-structured-result
+
+print-path config/cli.Config cache/cli.Cache result-ui/ui.Ui parsed/cli.Parsed:
   sdk-version := parsed["version"]
   envelope := parsed["envelope"]
   needs-host-envelope := parsed["host-envelope"]
   if needs-host-envelope:
-    if envelope: ui.abort "The options 'envelope' and '--host-envelope' are exclusive"
+    if envelope: result-ui.abort "The options 'envelope' and '--host-envelope' are exclusive"
     envelope = compute-host-envelope
 
+  // Use a different ui, to avoid printing anything.
+  silent-ui := SilentUi result-ui
   path/string := ?
   if envelope:
-    pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=envelope --ui=ui
-    path = get-envelope --cache=cache --specification=pod-specification --ui=ui
+    pod-specification := pod-specification-for_
+        --sdk-version=sdk-version
+        --envelope=envelope
+        --ui=silent-ui
+    path = get-envelope --cache=cache --specification=pod-specification --ui=silent-ui
   else:
-    path = (get-sdk --cache=cache sdk-version --ui=ui).sdk-path
+    path = (get-sdk --cache=cache sdk-version --ui=silent-ui).sdk-path
 
-  ui.result path
+  result-ui.result path
