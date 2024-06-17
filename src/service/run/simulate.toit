@@ -49,9 +49,9 @@ run-host --pod-path/string --identity-path/string --cache/cli.Cache -> none:
   ui := ConsoleUi
   with-tmp-directory: | tmp-dir |
     pod := Pod.parse pod-path --tmp-directory=tmp-dir --ui=ui
-    run-host --pod=pod --identity-path=identity-path --cache=cache
+    run-host --pod=pod --identity-path=identity-path --cache=cache --ui=ui
 
-run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
+run-host --pod/Pod --identity-path/string --cache/cli.Cache --ui/Ui -> none:
   watchdog-provider := watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog
   watchdog-provider.install
 
@@ -73,10 +73,11 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache -> none:
       --pod=pod
       --device=artemis-device
       --cache=cache
+      --ui=ui
   encoded-firmware-description := firmware.encoded
 
   sdk-version := pod.sdk-version
-  sdk := get-sdk sdk-version --cache=cache
+  sdk := get-sdk sdk-version --cache=cache --ui=ui
   with-tmp-directory: | tmp-dir/string |
     asset-path := "$tmp-dir/artemis_asset"
     sdk.firmware-extract-container --assets

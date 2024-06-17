@@ -409,8 +409,8 @@ extract-device fleet-device/DeviceFleet
 
   if not pod: pod = fleet.pod-for fleet-device
 
-  firmware := Firmware --cache=cache --device=device --pod=pod
-  sdk := get-sdk pod.sdk-version --cache=cache
+  firmware := Firmware --cache=cache --device=device --pod=pod --ui=ui
+  sdk := get-sdk pod.sdk-version --cache=cache --ui=ui
   with-tmp-directory: | tmp-dir/string |
     device-specific-path := "$tmp-dir/device-specific"
     device-specific := firmware.device-specific-data

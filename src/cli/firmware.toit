@@ -18,6 +18,7 @@ import .cache as cli
 import .device
 import .pod
 import .pod-specification
+import .ui
 import .utils
 import ..shared.utils.patch
 
@@ -90,9 +91,10 @@ class Firmware:
     may change the size of the part (and thus the ranges of the other parts),
     the process is repeated until the encoded parts do not change anymore.
   */
-  constructor --device/Device --pod/Pod --cache/cli.Cache --unconfigured-content/FirmwareContent?=null:
+  constructor --device/Device --pod/Pod --cache/cli.Cache --ui/Ui --unconfigured-content/FirmwareContent?=null:
     sdk-version := Sdk.get-sdk-version-from --envelope-path=pod.envelope-path
-    unconfigured := unconfigured-content or FirmwareContent.from-envelope pod.envelope-path --cache=cache
+    unconfigured := unconfigured-content or
+        FirmwareContent.from-envelope pod.envelope-path --cache=cache --ui=ui
     encoded-parts := unconfigured.encoded-parts
     device-map := {
       "device_id":       "$device.id",
@@ -111,6 +113,7 @@ class Firmware:
       configured := FirmwareContent.from-envelope pod.envelope-path
           --device-specific=device-specific
           --cache=cache
+          --ui=ui
       if configured.encoded-parts == encoded-parts:
         return Firmware configured device-specific
       encoded-parts = configured.encoded-parts
@@ -153,9 +156,9 @@ class FirmwareContent:
     list := ubjson.decode encoded-parts
     parts = list.map: FirmwarePart.encoded it
 
-  constructor.from-envelope envelope-path/string --device-specific/ByteArray?=null --cache/cli.Cache:
+  constructor.from-envelope envelope-path/string --device-specific/ByteArray?=null --cache/cli.Cache --ui/Ui:
     sdk-version := Sdk.get-sdk-version-from --envelope-path=envelope-path
-    sdk := get-sdk sdk-version --cache=cache
+    sdk := get-sdk sdk-version --cache=cache --ui=ui
     firmware-description/Map := {:}
     if device-specific:
       with-tmp-directory: | tmp-dir/string |
@@ -276,9 +279,9 @@ class FirmwarePartConfig extends FirmwarePart:
 /**
 Stores the snapshots inside the envelope in the user's snapshot directory.
 */
-cache-snapshots --envelope-path/string --output-directory/string?=null --cache/cli.Cache:
+cache-snapshots --envelope-path/string --output-directory/string?=null --cache/cli.Cache --ui/Ui:
   sdk-version := Sdk.get-sdk-version-from --envelope-path=envelope-path
-  sdk := get-sdk sdk-version --cache=cache
+  sdk := get-sdk sdk-version --cache=cache --ui=ui
   containers := sdk.firmware-list-containers --envelope-path=envelope-path
   with-tmp-directory: | tmp-dir/string |
     containers.do: | name/string description/Map |
@@ -293,8 +296,8 @@ cache-snapshots --envelope-path/string --output-directory/string?=null --cache/c
         cache-snapshot snapshot-content --output-directory=output-directory
 
 // A forwarding function to work around the shadowing in 'get_envelope'.
-cache-snapshots_ --envelope-path/string --cache/cli.Cache:
-  cache-snapshots --envelope-path=envelope-path --cache=cache
+cache-snapshots_ --envelope-path/string --cache/cli.Cache --ui/Ui:
+  cache-snapshots --envelope-path=envelope-path --cache=cache --ui=ui
 
 /**
 Builds the URL for the firmware envelope for the given $sdk-version and $envelope.
@@ -330,7 +333,8 @@ If $cache-snapshots is true, then copies the contained snapshots
 get-envelope -> string
     --specification/PodSpecification
     --cache/cli.Cache
-    --cache-snapshots/bool=true:
+    --cache-snapshots/bool=true
+    --ui/Ui:
   if is-dev-setup:
     envelope := specification.envelope
     local-sdk := os.env.get "DEV_TOIT_REPO_PATH"
@@ -364,10 +368,10 @@ get-envelope -> string
       out-path := "$tmp-dir/fw.envelope"
       is-gz-file := url.ends-with ".gz"
       if is-gz-file: out-path += ".gz"
-      download-url url --out-path=out-path
+      download-url url --out-path=out-path --ui=ui
       if is-gz-file:
         gunzip out-path
       envelope-path := "$tmp-dir/fw.envelope"
       if cache-snapshots:
-        cache-snapshots_ --envelope-path=envelope-path --cache=cache
+        cache-snapshots_ --envelope-path=envelope-path --cache=cache --ui=ui
       store.move envelope-path

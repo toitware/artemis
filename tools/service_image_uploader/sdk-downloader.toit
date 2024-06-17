@@ -91,10 +91,10 @@ download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   if needs-host-envelope:
     envelopes += [compute-host-envelope]
 
-  get-sdk --cache=cache sdk-version
+  get-sdk --cache=cache sdk-version --ui=ui
   envelopes.do:
     pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=it --ui=ui
-    get-envelope --specification=pod-specification --cache=cache
+    get-envelope --specification=pod-specification --cache=cache --ui=ui
 
 print-path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   // Make sure we don't print anything while downloading.
@@ -109,8 +109,8 @@ print-path config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
   path/string := ?
   if envelope:
     pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=envelope --ui=ui
-    path = get-envelope --cache=cache --specification=pod-specification
+    path = get-envelope --cache=cache --specification=pod-specification --ui=ui
   else:
-    path = (get-sdk --cache=cache sdk-version).sdk-path
+    path = (get-sdk --cache=cache sdk-version --ui=ui).sdk-path
 
   ui.result path
