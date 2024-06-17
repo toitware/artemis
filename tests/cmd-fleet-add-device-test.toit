@@ -2,18 +2,18 @@
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
-import artemis.cli.utils show read-json write-json-to-file
-import encoding.json
-import encoding.ubjson
-import encoding.base64
-import host.directory
+import artemis.cli.utils show read-json
 import host.file
 import expect show *
+import system
 import uuid
-import .cli-device-extract show TestDeviceConfig upload-pod
+import .cli-device-extract show TestDeviceConfig
 import .utils
 
 main args:
+  // We can't create host-devices on Windows.
+  if system.platform == system.PLATFORM-WINDOWS: return
+
   with-fleet --count=0 --args=args: | fleet/TestFleet |
     run-test fleet --args=args
 

@@ -1,17 +1,14 @@
 // Copyright (C) 2024 Toitware ApS.
 
-import artemis.cli.utils show read-json write-json-to-file
-import encoding.json
-import encoding.ubjson
-import encoding.base64
-import host.directory
 import host.file
 import expect show *
-import uuid
-import .cli-device-extract show TestDeviceConfig upload-pod
+import system
 import .utils
 
 main args:
+  // We can't create host-devices on Windows.
+  if system.platform == system.PLATFORM-WINDOWS: return
+
   with-fleet --count=0 --args=args: | fleet/TestFleet |
     run-test fleet
 
