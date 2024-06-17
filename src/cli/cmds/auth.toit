@@ -12,6 +12,16 @@ import ..ui
 import ..artemis-servers.artemis-server show with-server ArtemisServerCli
 import ..brokers.broker show with-broker BrokerCli
 
+SIGNIN-OPTIONS ::= [
+  cli.OptionEnum "provider" ["github", "google"]
+      --help="The OAuth2 provider to use."
+      --default="github",
+  cli.OptionString "email" --help="The email for a password-based login.",
+  cli.OptionString "password" --help="The password for a password-based login.",
+  cli.Flag "open-browser"
+      --default=true
+      --help="Automatically open the browser for OAuth authentication.",
+]
 
 create-auth-commands config/Config cache/Cache ui/Ui -> List:
   auth-cmd := cli.Command "auth"
@@ -52,7 +62,7 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
   auth-cmd.add sign-up-cmd
 
   login-cmd := cli.Command "login"
-      --aliases=["signin"]
+      --aliases=["signin", "log-in", "sign-in"]
       --help="""
           Log in to the Artemis server or a broker.
 
@@ -64,15 +74,7 @@ create-auth-commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         cli.Flag "broker" --help="Log into the default broker.",
         cli.OptionString "server" --help="Log into a specific server.",
-        cli.OptionEnum "provider" ["github", "google"]
-            --help="The OAuth2 provider to use."
-            --default="github",
-        cli.OptionString "email" --help="The email for a password-based login.",
-        cli.OptionString "password" --help="The password for a password-based login.",
-        cli.Flag "open-browser"
-            --default=true
-            --help="Automatically open the browser for OAuth authentication.",
-      ]
+      ] + SIGNIN-OPTIONS
       --examples=[
         cli.Example "Log in to the Artemis server using GitHub:"
             --arguments=""
@@ -179,6 +181,9 @@ with-authenticatable parsed/cli.Parsed config/Config ui/Ui [block]:
 
 sign-in parsed/cli.Parsed config/Config ui/Ui:
   with-authenticatable parsed config ui: | name/string authenticatable/Authenticatable |
+    sign-in parsed --name=name --authenticatable=authenticatable --ui=ui
+
+sign-in parsed/cli.Parsed --name/string --authenticatable/Authenticatable --ui/Ui:
       if parsed.was-provided "email" or parsed.was-provided "password":
         email := parsed["email"]
         password := parsed["password"]
