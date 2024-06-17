@@ -67,10 +67,11 @@ run-test args/List test-cli/TestCli fleet-dir/string:
         --format="tar"
         --path=tar-file
 
-    test-device := test-cli.start-device
+    test-device := test-cli.create-device
         --alias-id=tar-device-id
         --hardware-id=tar-device-id  // Not really used anyway.
         --device-config=device-config
+    test-device.start
 
     pos := test-device.wait-for "$tar-device-id" --start-at=0
     test-device.wait-for-synchronized --start-at=pos
@@ -87,10 +88,11 @@ run-test args/List test-cli/TestCli fleet-dir/string:
         --format="tar"
         --path=tar-file
 
-    test-device = test-cli.start-device
+    test-device = test-cli.create-device
         --alias-id=new-id
         --hardware-id=new-id  // Not really used anyway.
         --device-config=device-config
+    test-device.start
 
     pos = test-device.wait-for "$new-id" --start-at=0
     test-device.wait-for-synchronized --start-at=pos

@@ -55,12 +55,13 @@ run-test test-cli/TestCli qemu-data/TestDeviceConfig:
 
   device-id := qemu-data.device-id
 
-  test-device := test-cli.start-device
+  test-device := test-cli.create-device
       --alias-id=device-id
       // We don't know the actual hardware-id.
       // Cheat by reusing the alias id.
       --hardware-id=device-id
       --device-config=qemu-data
+  test-device.start
 
   print "Starting to look for 'hello world'."
   pos := test-device.wait-for "hello world" --start-at=0

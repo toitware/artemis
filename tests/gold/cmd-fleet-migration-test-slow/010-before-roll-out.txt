@@ -1,0 +1,10 @@
+# initial1-2 still on old; never-started (never seen) assumed to be on new1
+# [fleet, status, --include-never-seen]
+┌──────────────────────────────────────┬───────────────┬───────────────────────────────────────────────┬──────────┬──────────┬─────────────────┬───────────┬─────────┬─────────────┐
+│ Device ID                              Name            Pod                                             Outdated   Modified   Missed Checkins   Last Seen   Aliases   Broker      │
+├──────────────────────────────────────┼───────────────┼───────────────────────────────────────────────┼──────────┼──────────┼─────────────────┼───────────┼─────────┼─────────────┤
+│ -={|~~~~~~~never-started~~~~~~~~|}=-   never-started                                                   x                     ?                 never                 new1        │
+│ -={|~~~~~~~~device-new1~~~~~~~~~|}=-   device-new1     new1-pod#1 auto-tag,latest                                           now                   new1        │
+│ -={|~~~~~~~~~~initial1~~~~~~~~~~|}=-   initial1        new1-pod#1 auto-tag,latest                                           now                   test-broker │
+│ -={|~~~~~~~~~~initial2~~~~~~~~~~|}=-   initial2        new1-pod#1 auto-tag,latest                                           now                   test-broker │
+└──────────────────────────────────────┴───────────────┴───────────────────────────────────────────────┴──────────┴──────────┴─────────────────┴───────────┴─────────┴─────────────┘
