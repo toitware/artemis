@@ -9,18 +9,18 @@ import artemis.cli.utils show read-json write-json-to-file write-blob-to-file co
 import .utils
 
 flash-serial -> uuid.Uuid
-    --test-cli/TestCli
+    --fleet/TestFleet
     --port/string
-    --fleet-dir/string
     --files/Map
     --wifi-ssid/string?=null
     --wifi-password/string?=null
     --pod-spec/Map?=null
     --pod-spec-filename/string="my-pod.json"
-    --tmp-dir/string="$test-cli.tmp-dir/serial"
+    --tmp-dir/string="$fleet.test-cli.tmp-dir/serial"
     --ui/Ui=TestUi:
 
-  test-cli.ensure-available-artemis-service
+  fleet-dir := fleet.fleet-dir
+  fleet.test-cli.ensure-available-artemis-service
 
   directory.mkdir --recursive tmp-dir
   files.do: | filename/string blob |
@@ -54,7 +54,7 @@ flash-serial -> uuid.Uuid
   if not pod-spec.contains "\$schema": pod-spec["\$schema"] = "https://toit.io/schemas/artemis/pod-specification/v1.json"
   if not pod-spec.contains "name": pod-spec["name"] = "my-pod"
   if not pod-spec.contains "artemis-version": pod-spec["artemis-version"] = TEST-ARTEMIS-VERSION
-  if not pod-spec.contains "sdk-version": pod-spec["sdk-version"] = test-cli.sdk-version
+  if not pod-spec.contains "sdk-version": pod-spec["sdk-version"] = fleet.test-cli.sdk-version
   if not pod-spec.contains "firmware-envelope": pod-spec["firmware-envelope"] = "esp32"
 
   pod-name := pod-spec["name"]
@@ -63,20 +63,20 @@ flash-serial -> uuid.Uuid
   write-json-to-file spec-path pod-spec
   pod-file := "$tmp-dir/$(pod-spec-filename).pod"
 
-  test-cli.run [
+  fleet.run [
     "--fleet-root", fleet-dir,
     "pod", "build",
     "-o", pod-file,
     spec-path,
   ]
 
-  test-cli.run [
+  fleet.run [
     "--fleet-root", fleet-dir,
     "pod", "upload",
     pod-file,
   ]
 
-  output := test-cli.run [
+  output := fleet.run [
     "serial", "flash",
     "--fleet-root", fleet-dir,
     "--port", port,

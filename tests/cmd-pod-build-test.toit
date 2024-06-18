@@ -12,12 +12,14 @@ import io
 import .utils
 
 main args:
-  with-fleet --count=0 --args=args: | test-cli/TestCli _ fleet-dir/string |
-    run-test test-cli fleet-dir
+  with-fleet --count=0 --args=args: | fleet/TestFleet |
+    run-test fleet
 
-run-test test-cli/TestCli fleet-dir/string:
+run-test fleet/TestFleet:
+  fleet-dir := fleet.fleet-dir
+  test-cli := fleet.test-cli
   ui := TestUi
-  test-cli.ensure-available-artemis-service
+  fleet.test-cli.ensure-available-artemis-service
 
   spec := {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
@@ -35,7 +37,7 @@ run-test test-cli/TestCli fleet-dir/string:
   }
   spec-path := "$fleet-dir/test-pod.yaml"
   write-yaml-to-file spec-path spec
-  test-cli.run [
+  fleet.run [
     "pod", "build", spec-path, "-o", "$fleet-dir/test-pod.pod"
   ]
   validate-pod "$fleet-dir/test-pod.pod"
@@ -80,7 +82,7 @@ run-test test-cli/TestCli fleet-dir/string:
       --program-path=custom-snapshot
       --trigger="none"
 
-  test-cli.run [
+  fleet.run [
     "pod", "build", spec-path, "-o", "$fleet-dir/test-pod2.pod"
   ]
   validate-pod "$fleet-dir/test-pod2.pod"
@@ -115,7 +117,7 @@ run-test test-cli/TestCli fleet-dir/string:
     main: print "hello"
     """
 
-  test-cli.run [
+  fleet.run [
     "pod", "build", spec-path, "-o", "$fleet-dir/test-pod3.pod"
   ]
   validate-pod "$fleet-dir/test-pod3.pod"
@@ -148,7 +150,7 @@ run-test test-cli/TestCli fleet-dir/string:
   spec-path = "$fleet-dir/test-pod4.yaml"
   write-yaml-to-file spec-path spec
 
-  test-cli.run --expect-exit-1 --no-quiet [
+  fleet.run --expect-exit-1 --no-quiet [
     "pod", "build", spec-path, "-o", "$fleet-dir/test-pod4.pod"
   ]
 

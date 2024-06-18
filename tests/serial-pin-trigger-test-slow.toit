@@ -70,22 +70,21 @@ main args/List:
     print "Missing ARTEMIS_TEST_WIFI_PASSWORD environment variable."
     exit 1
 
-  with-fleet --args=args --count=0: | test-cli/TestCli _ fleet-dir/string |
-    run-test test-cli fleet-dir serial-port wifi-ssid wifi-password
+  with-fleet --args=args --count=0: | fleet/TestFleet |
+    run-test fleet serial-port wifi-ssid wifi-password
 
-run-test test-cli/TestCli fleet-dir/string serial-port/string wifi-ssid/string wifi-password/string:
+run-test fleet/TestFleet serial-port/string wifi-ssid/string wifi-password/string:
   device-id := flash-serial
       --wifi-ssid=wifi-ssid
       --wifi-password=wifi-password
       --port=serial-port
-      --test-cli=test-cli
-      --fleet-dir=fleet-dir
+      --fleet=fleet
       --files={
         "test.toit": TEST-CODE,
         "trigger-pin-32.toit": TRIGGER-PIN-32-CODE,
       }
 
-  test-device := test-cli.listen-to-serial-device
+  test-device := fleet.listen-to-serial-device
       --serial-port=serial-port
       --alias-id=device-id
       // We don't know the actual hardware-id.

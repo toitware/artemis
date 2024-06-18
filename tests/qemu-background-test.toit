@@ -52,7 +52,7 @@ make-test-code port/int -> string:
   return test-content.replace "PORT" "$port"
 
 main args/List:
-  with-fleet --args=args --count=0: | test-cli/TestCli _ fleet-dir/string |
+  with-fleet --args=args --count=0: | fleet/TestFleet |
     synchro-done-latch := monitor.Latch
     port := start-http-server synchro-done-latch
     test-file := "test.toit"
@@ -60,10 +60,8 @@ main args/List:
 
 
     qemu-data := create-extract-device
+        --fleet=fleet
         --format="qemu"
-        --test-cli=test-cli
-        --args=args
-        --fleet-dir=fleet-dir
         --files={
           test-file: test-content,
         }
@@ -75,7 +73,7 @@ main args/List:
             },
           },
         }
-    run-test test-cli synchro-done-latch qemu-data
+    run-test fleet.test-cli synchro-done-latch qemu-data
 
 run-test test-cli/TestCli synchro-done-latch/monitor.Latch qemu-data/TestDeviceConfig:
   tmp-dir := test-cli.tmp-dir
