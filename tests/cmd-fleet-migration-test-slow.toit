@@ -1,9 +1,13 @@
 // Copyright (C) 2024 Toitware ApS.
 
 import expect show *
+import system
 import .utils
 
 main args:
+  // We can't create host-devices on Windows.
+  if system.platform == system.PLATFORM-WINDOWS: return
+
   with-fleet --args=args: | fleet/TestFleet |
     // To create a device we need to have an uploaded pod.
     fleet.upload-pod "initial" --format="tar"
