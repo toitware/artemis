@@ -102,6 +102,10 @@ migrate your data to your own Supabase broker.
 artemis fleet migration start --broker my_own_broker
 ```
 
+Then build and upload new pods. Typically these are using the same
+pod specifications as before. If you then do a `fleet roll-out` the
+devices will start migrating to the new broker.
+
 Once all devices have moved to the new broker:
 
 ```
