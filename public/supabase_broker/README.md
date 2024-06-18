@@ -34,7 +34,10 @@ is sent to and from your devices via the broker.
     ```
     supabase db push
     ```
-7. Push the edge functions:
+7. Make the `toit_artemis` schema public: Go to your project settings -> API
+   and add `toit_artemis` to the "Exposed schemas" list.
+   https://supabase.com/dashboard/project/YOUR-PROJECT-ID/settings/api
+8. Push the edge functions:
     ```
     supabase functions deploy --no-verify-jwt b
     ```
