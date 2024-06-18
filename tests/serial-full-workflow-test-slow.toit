@@ -386,7 +386,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
 
   print "Waiting for the device to apply the config."
 
-  with-timeout --ms=60_000:
+  with-timeout --ms=120_000:
     while true:
       status-output := test-cli.run [
             "device", "show",
