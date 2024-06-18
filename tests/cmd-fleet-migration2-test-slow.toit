@@ -1,9 +1,13 @@
 // Copyright (C) 2024 Toitware ApS.
 
 import expect show *
+import system
 import .utils
 
 main args:
+  // We can't create host-devices on Windows.
+  if system.platform == system.PLATFORM-WINDOWS: return
+
   with-fleet --args=args: | fleet/TestFleet |
     // Spin up a few more brokers.
     migration-brokers := List 3: | i/int |

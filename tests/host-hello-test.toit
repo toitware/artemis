@@ -3,6 +3,7 @@
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
 import expect show *
+import system
 
 import .cli-device-extract
 import .utils
@@ -12,6 +13,9 @@ main: print "hello world"
 """
 
 main args/List:
+  // We can't create host-devices on Windows.
+  if system.platform == system.PLATFORM-WINDOWS: return
+
   with-fleet --args=args --count=0: | fleet/TestFleet |
     host-config := create-extract-device
         --format="tar"
