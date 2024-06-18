@@ -61,6 +61,8 @@ Feel free to contact us on Discord if you need help.
 Once the broker is set up, you can configure the Artemis CLI to use it
 for all communication with the devices.
 
+*Make sure to use a recent version of the Artemis CLI.*
+
 Get the anon key from the API section of the settings.
 
 Configure the Artemis CLI to use your broker:
@@ -102,7 +104,10 @@ migrate your data to your own Supabase broker.
 artemis fleet migration start --broker my_own_broker
 ```
 
-Then build and upload new pods. Typically these are using the same
+Note: from now on you can use `artemis fleet login` to authenticate with
+your broker. This may be convenient if fleets have different brokers.
+
+Build and upload new pods. Typically these are using the same
 pod specifications as before. If you then do a `fleet roll-out` the
 devices will start migrating to the new broker.
 
