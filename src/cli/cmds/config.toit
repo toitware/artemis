@@ -90,7 +90,7 @@ create-server-config-commands config/Config ui/Ui -> List:
           ]
           --examples=[
             cli.Example "Add a local Supabase broker (anon-token is truncated):"
-                --arguments="my-local-supabase -127.0.0.1:54321 eyJhb...6XHc",
+                --arguments="my-local-supabase 127.0.0.1:54321 eyJhb...6XHc",
             cli.Example "Add a Supabase broker with a certificate (anon-token is truncated):"
                 --arguments="my-remote-broker --certificate=\"Baltimore CyberTrust Root\" voisfafsfolxhqpkudzd.subabase.co eyJh...j2e4",
           ]
