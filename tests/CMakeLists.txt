@@ -4,6 +4,7 @@ file(GLOB TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-test.toit" "*-test-slow.
 
 set(TEST_TIMEOUT 200 CACHE STRING "The maximal amount of time each test is allowed to run")
 set(SLOW_TEST_TIMEOUT 300 CACHE STRING "The maximal amount of time each slow test is allowed to run")
+set(SERIAL_TEST_TIMEOUT 500 CACHE STRING "The maximal amount of time each serial test is allowed to run")
 set(WITH_LOCAL_SUPABASE TRUE CACHE BOOL "Whether the local supabase tests should be run")
 set(WITH_QEMU TRUE CACHE BOOL "Whether the Qemu tests should run")
 
@@ -258,7 +259,7 @@ foreach(file ${TESTS})
     elseif ("${file}" MATCHES "^qemu-")
       set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
     elseif (${IS_SERIAL_TEST})
-      set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SLOW_TEST_TIMEOUT})
+      set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${SERIAL_TEST_TIMEOUT})
     else()
       set_tests_properties("${test_name}" PROPERTIES TIMEOUT ${TEST_TIMEOUT})
     endif()
