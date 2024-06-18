@@ -68,10 +68,15 @@ Get the anon key from the API section of the settings.
 Configure the Artemis CLI to use your broker:
 ```shell
 artemis config broker add supabase "my_own_broker" \
+    --no-default \
     --certificate "Baltimore CyberTrust Root" \
     "<project-ref>.supabase.co" \
     "<anon-key>"
 ```
+
+If you use the `migration` command below you don't need to set the
+broker as default broker (flag `--no-default`). If you do, then all
+new fleets will use this broker by default.
 
 If you have enabled OAuth log into your broker as follows:
 ```shell
