@@ -557,7 +557,7 @@ ALTER FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_i
 CREATE OR REPLACE FUNCTION "toit_artemis"."max_events"() RETURNS integer
     LANGUAGE "sql" IMMUTABLE
     AS $$
-    SELECT 100;
+    SELECT 128;
 $$;
 
 ALTER FUNCTION "toit_artemis"."max_events"() OWNER TO "postgres";
@@ -565,7 +565,7 @@ ALTER FUNCTION "toit_artemis"."max_events"() OWNER TO "postgres";
 CREATE OR REPLACE FUNCTION "toit_artemis"."min_event_age"() RETURNS interval
     LANGUAGE "sql" IMMUTABLE
     AS $$
-    SELECT INTERVAL '1 day';
+    SELECT INTERVAL '3 days';
 $$;
 
 ALTER FUNCTION "toit_artemis"."min_event_age"() OWNER TO "postgres";
