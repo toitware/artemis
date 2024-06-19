@@ -1113,6 +1113,7 @@ class TestFleet:
   fleet-dir/string
   args/List
   devices/Map := {:}
+  brokers_/List ::= []
 
   /**
   Creates a new test fleet.
@@ -1124,6 +1125,12 @@ class TestFleet:
   constructor --.test-cli --.fleet-dir --.args --devices/List:
     devices.do: | device/FakeDevice |
       this.devices[device.alias-id] = device
+
+  close:
+    devices.do: | _ device/TestDevice |
+      device.close
+    brokers_.do: | broker/MigrationBroker |
+      broker.close
 
   get-status -> List:
     return test-cli.run --json ["fleet", "status"]
@@ -1192,7 +1199,9 @@ class TestFleet:
         started.set result
         // Keep the server running until we are done.
         done.get
-    return started.get
+    result := started.get
+    brokers_.add result
+    return result
 
   run command/List --expect-exit-1/bool=false --allow-exception/bool=false --quiet/bool=true -> string:
     return test-cli.run --expect-exit-1=expect-exit-1 --allow-exception=allow-exception --quiet=quiet command
@@ -1254,7 +1263,10 @@ with-fleet --args/List --count/int=0 [block]:
           --fleet-dir=fleet-dir
           --args=args
           --devices=fake-devices
-      block.call fleet
+      try:
+        block.call fleet
+      finally:
+        fleet.close
 
 expect-throws [--check-exception] [block]:
   exception := catch: block.call
