@@ -9,18 +9,14 @@ main args:
   if system.platform == system.PLATFORM-WINDOWS: return
 
   with-fleet --args=args: | fleet/TestFleet |
-    // Spin up a few more brokers.
-    migration-brokers := List 3: | i/int |
-      broker-name := "broker-$i"
-      fleet.start-broker broker-name
-
     counter := 0
     stopped-devices := []
     running-devices := []
-    last-broker/MigrationBroker? := null
 
     fleet.upload-pod "pod-$(counter++)" --format="tar"
-    migration-brokers.do: | broker/MigrationBroker |
+
+    migration-brokers := []
+    3.repeat: | i/int |
       // ---  On the *old* broker  ---.
       // Create two devices. One that is running and one that will be
       // stopped after synchronization.
@@ -32,8 +28,17 @@ main args:
       running-devices.add running
       stopped-devices.add stopped
 
+      // Spin up a new broker.
+      broker := fleet.start-broker "broker-$i"
+      migration-brokers.add broker
+
       // Migrate to this broker.
       fleet.run ["fleet", "migration", "start", "--broker", broker.name]
+
+      // Test that we don't accidentally create cycles.
+      // After running through the brokers we are back at the newest broker.
+      migration-brokers.do: | other-broker/MigrationBroker |
+        fleet.run ["fleet", "migration", "start", "--broker", other-broker.name]
 
       // ---  On the new broker  ---.
       fleet.upload-pod "pod-$(counter++)" --format="tar"
@@ -47,12 +52,11 @@ main args:
         expect-not-equals broker.name (device.get-current-broker --status=status)
 
       fleet.check-no-migration-stop
-      last-broker = broker
 
     // Start the stopped devices and bring them to the new broker.
     stopped-devices.do: | device/TestDevice |
       device.start
-      device.wait-to-be-on-broker last-broker
+      device.wait-to-be-on-broker migration-brokers.last
 
     // Check that we can update all devices.
     pod-id := fleet.upload-pod "almost-final-pod" --format="tar"
