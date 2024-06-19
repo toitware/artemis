@@ -263,7 +263,17 @@ update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-device parsed config cache ui: | device/DeviceFleet fleet/FleetWithDevices |
     pod := pod-for_ --local=local --remote=remote --fleet=fleet --ui=ui --on-absent=:
       ui.abort "No pod specified."
-    fleet.broker.update --device-id=device.id --pod=pod
+    fleet.update --device-id=device.id --pod=pod
+    ui.info "Update request sent to broker. The device will update when it synchronizes."
+    ui.do --kind=Ui.RESULT: | printer/Printer |
+      printer.emit-structured
+        --json=: {
+          "device-id": "$device.id",
+          "pod-id": "$pod.id",
+        }
+        --stdout=: | printer/Printer |
+          // Do nothing.
+          null
 
 default-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   device-reference := parsed["device"]

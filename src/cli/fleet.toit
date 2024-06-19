@@ -633,6 +633,24 @@ class FleetWithDevices extends Fleet:
   pod-for device/DeviceFleet -> Pod:
     return download (pod-reference-for-group device.group)
 
+  update --device-id/uuid.Uuid --pod/Pod:
+    broker.update --device-id=device-id --pod=pod
+
+    // We need to notify the migrating-from brokers.
+    fleet-file_.migrating-from.do: | server-name |
+      ui_.info "Updating on '$server-name' broker (migration in progress)."
+      server-config := fleet-file_.servers.get server-name
+      old-broker := Broker
+          --server-config=server-config
+          --short-strings=device-short-strings_
+          --cache=cache_
+          --config=config_
+          --ui=ui_
+          --fleet-id=id
+          --organization-id=organization-id
+          --tmp-directory=artemis.tmp-directory
+      old-broker.update --device-id=device-id --pod=pod
+
   /**
   Rolls out the local configuration to the broker.
 
