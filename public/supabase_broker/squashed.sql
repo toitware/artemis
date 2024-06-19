@@ -16,9 +16,7 @@ CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
 
 CREATE EXTENSION IF NOT EXISTS "pgsodium" WITH SCHEMA "pgsodium";
 
-CREATE SCHEMA IF NOT EXISTS "supabase_migrations";
-
-ALTER SCHEMA "supabase_migrations" OWNER TO "postgres";
+COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 CREATE SCHEMA IF NOT EXISTS "toit_artemis";
 
@@ -57,11 +55,29 @@ ALTER TYPE "toit_artemis"."poddescription" OWNER TO "postgres";
 CREATE OR REPLACE FUNCTION "toit_artemis"."delete_old_events"() RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
+DECLARE
+  device RECORD;
+  oldest_timestamp TIMESTAMP;
 BEGIN
-    DELETE FROM toit_artemis.events
-    WHERE timestamp < NOW() - toit_artemis.max_event_age();
-END;
-$$;
+  -- Loop through each unique device_id in the events table.
+  FOR device IN SELECT DISTINCT device_id FROM toit_artemis.events LOOP
+    -- Find the timestamp of the max-events()'th most recent event for this device_id.
+    SELECT timestamp INTO oldest_timestamp
+    FROM toit_artemis.events
+    WHERE device_id = device.device_id
+    ORDER BY timestamp DESC
+    OFFSET toit_artemis.max_events() LIMIT 1;
+
+    -- If there aren't enough items, skip deletion.
+    IF FOUND THEN
+      -- Delete all events for this device_id older than the found timestamp
+      -- but keep events that are younger than the min_event_age().
+      DELETE FROM toit_artemis.events
+        WHERE device_id = device.device_id
+        AND timestamp < LEAST(oldest_timestamp, NOW() - toit_artemis.min_event_age());
+    END IF;
+  END LOOP;
+END $$;
 
 ALTER FUNCTION "toit_artemis"."delete_old_events"() OWNER TO "postgres";
 
@@ -419,13 +435,21 @@ $$;
 
 ALTER FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "toit_artemis"."max_event_age"() RETURNS interval
+CREATE OR REPLACE FUNCTION "toit_artemis"."max_events"() RETURNS integer
     LANGUAGE "sql" IMMUTABLE
     AS $$
-    SELECT INTERVAL '30 days';
+    SELECT 128;
 $$;
 
-ALTER FUNCTION "toit_artemis"."max_event_age"() OWNER TO "postgres";
+ALTER FUNCTION "toit_artemis"."max_events"() OWNER TO "postgres";
+
+CREATE OR REPLACE FUNCTION "toit_artemis"."min_event_age"() RETURNS interval
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+    SELECT INTERVAL '3 days';
+$$;
+
+ALTER FUNCTION "toit_artemis"."min_event_age"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") RETURNS "void"
     LANGUAGE "plpgsql"
@@ -547,14 +571,6 @@ SET default_tablespace = '';
 
 SET default_table_access_method = "heap";
 
-CREATE TABLE IF NOT EXISTS "supabase_migrations"."schema_migrations" (
-    "version" "text" NOT NULL,
-    "statements" "text"[],
-    "name" "text"
-);
-
-ALTER TABLE "supabase_migrations"."schema_migrations" OWNER TO "postgres";
-
 CREATE TABLE IF NOT EXISTS "toit_artemis"."devices" (
     "id" "uuid" NOT NULL,
     "state" "jsonb" NOT NULL
@@ -651,9 +667,6 @@ ALTER TABLE ONLY "toit_artemis"."pod_descriptions" ALTER COLUMN "id" SET DEFAULT
 
 ALTER TABLE ONLY "toit_artemis"."pod_tags" ALTER COLUMN "id" SET DEFAULT "nextval"('"toit_artemis"."pod_tags_id_seq"'::"regclass");
 
-ALTER TABLE ONLY "supabase_migrations"."schema_migrations"
-    ADD CONSTRAINT "schema_migrations_pkey" PRIMARY KEY ("version");
-
 ALTER TABLE ONLY "toit_artemis"."devices"
     ADD CONSTRAINT "devices_pkey" PRIMARY KEY ("id");
 
@@ -737,6 +750,8 @@ ALTER TABLE "toit_artemis"."pod_tags" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "toit_artemis"."pods" ENABLE ROW LEVEL SECURITY;
 
+ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
@@ -810,9 +825,13 @@ GRANT ALL ON FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_descri
 GRANT ALL ON FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) TO "service_role";
 
-GRANT ALL ON FUNCTION "toit_artemis"."max_event_age"() TO "anon";
-GRANT ALL ON FUNCTION "toit_artemis"."max_event_age"() TO "authenticated";
-GRANT ALL ON FUNCTION "toit_artemis"."max_event_age"() TO "service_role";
+GRANT ALL ON FUNCTION "toit_artemis"."max_events"() TO "anon";
+GRANT ALL ON FUNCTION "toit_artemis"."max_events"() TO "authenticated";
+GRANT ALL ON FUNCTION "toit_artemis"."max_events"() TO "service_role";
+
+GRANT ALL ON FUNCTION "toit_artemis"."min_event_age"() TO "anon";
+GRANT ALL ON FUNCTION "toit_artemis"."min_event_age"() TO "authenticated";
+GRANT ALL ON FUNCTION "toit_artemis"."min_event_age"() TO "service_role";
 
 GRANT ALL ON FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") TO "authenticated";
@@ -913,3 +932,12 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON TABLES  TO "service_role";
 
 RESET ALL;
+
+--
+-- Dumped schema changes for auth and storage
+--
+
+CREATE POLICY "Authenticated have full access to pod storage" ON "storage"."objects" TO "authenticated" USING (("bucket_id" = 'toit-artemis-pods'::"text")) WITH CHECK (("bucket_id" = 'toit-artemis-pods'::"text"));
+
+CREATE POLICY "Authenticated have full access to storage" ON "storage"."objects" TO "authenticated" USING (("bucket_id" = 'toit-artemis-assets'::"text")) WITH CHECK (("bucket_id" = 'toit-artemis-assets'::"text"));
+

@@ -16,9 +16,7 @@ CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
 
 CREATE EXTENSION IF NOT EXISTS "pgsodium" WITH SCHEMA "pgsodium";
 
-CREATE SCHEMA IF NOT EXISTS "supabase_migrations";
-
-ALTER SCHEMA "supabase_migrations" OWNER TO "postgres";
+COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 CREATE SCHEMA IF NOT EXISTS "toit_artemis";
 
@@ -176,11 +174,29 @@ ALTER FUNCTION "public"."is_auth_member_of_org"("_organization_id" "uuid") OWNER
 CREATE OR REPLACE FUNCTION "toit_artemis"."delete_old_events"() RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
+DECLARE
+  device RECORD;
+  oldest_timestamp TIMESTAMP;
 BEGIN
-    DELETE FROM toit_artemis.events
-    WHERE timestamp < NOW() - toit_artemis.max_event_age();
-END;
-$$;
+  -- Loop through each unique device_id in the events table.
+  FOR device IN SELECT DISTINCT device_id FROM toit_artemis.events LOOP
+    -- Find the timestamp of the max-events()'th most recent event for this device_id.
+    SELECT timestamp INTO oldest_timestamp
+    FROM toit_artemis.events
+    WHERE device_id = device.device_id
+    ORDER BY timestamp DESC
+    OFFSET toit_artemis.max_events() LIMIT 1;
+
+    -- If there aren't enough items, skip deletion.
+    IF FOUND THEN
+      -- Delete all events for this device_id older than the found timestamp
+      -- but keep events that are younger than the min_event_age().
+      DELETE FROM toit_artemis.events
+        WHERE device_id = device.device_id
+        AND timestamp < LEAST(oldest_timestamp, NOW() - toit_artemis.min_event_age());
+    END IF;
+  END LOOP;
+END $$;
 
 ALTER FUNCTION "toit_artemis"."delete_old_events"() OWNER TO "postgres";
 
@@ -538,13 +554,21 @@ $$;
 
 ALTER FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "toit_artemis"."max_event_age"() RETURNS interval
+CREATE OR REPLACE FUNCTION "toit_artemis"."max_events"() RETURNS integer
     LANGUAGE "sql" IMMUTABLE
     AS $$
-    SELECT INTERVAL '30 days';
+    SELECT 128;
 $$;
 
-ALTER FUNCTION "toit_artemis"."max_event_age"() OWNER TO "postgres";
+ALTER FUNCTION "toit_artemis"."max_events"() OWNER TO "postgres";
+
+CREATE OR REPLACE FUNCTION "toit_artemis"."min_event_age"() RETURNS interval
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+    SELECT INTERVAL '3 days';
+$$;
+
+ALTER FUNCTION "toit_artemis"."min_event_age"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") RETURNS "void"
     LANGUAGE "plpgsql"
@@ -704,7 +728,7 @@ CREATE OR REPLACE VIEW "public"."active_devices" WITH ("security_invoker"='on') 
          SELECT "events"."device_id",
             "min"("events"."created_at") AS "min_created_at"
            FROM "public"."events"
-          WHERE ("events"."device_id" IN (SELECT "max_created_events"."device_id"
+          WHERE ("events"."device_id" IN ( SELECT "max_created_events"."device_id"
                    FROM "max_created_events"))
           GROUP BY "events"."device_id"
         )
@@ -889,14 +913,6 @@ ALTER TABLE "public"."service_images_id_seq" OWNER TO "postgres";
 
 ALTER SEQUENCE "public"."service_images_id_seq" OWNED BY "public"."service_images"."id";
 
-CREATE TABLE IF NOT EXISTS "supabase_migrations"."schema_migrations" (
-    "version" "text" NOT NULL,
-    "statements" "text"[],
-    "name" "text"
-);
-
-ALTER TABLE "supabase_migrations"."schema_migrations" OWNER TO "postgres";
-
 CREATE TABLE IF NOT EXISTS "toit_artemis"."devices" (
     "id" "uuid" NOT NULL,
     "state" "jsonb" NOT NULL
@@ -1044,9 +1060,6 @@ ALTER TABLE ONLY "public"."service_images"
 
 ALTER TABLE ONLY "public"."service_images"
     ADD CONSTRAINT "service_images_sdk_id_service_id_key" UNIQUE ("sdk_id", "service_id");
-
-ALTER TABLE ONLY "supabase_migrations"."schema_migrations"
-    ADD CONSTRAINT "schema_migrations_pkey" PRIMARY KEY ("version");
 
 ALTER TABLE ONLY "toit_artemis"."devices"
     ADD CONSTRAINT "devices_pkey" PRIMARY KEY ("id");
@@ -1234,6 +1247,8 @@ ALTER TABLE "toit_artemis"."pod_tags" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "toit_artemis"."pods" ENABLE ROW LEVEL SECURITY;
 
+ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
@@ -1339,9 +1354,13 @@ GRANT ALL ON FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_descri
 GRANT ALL ON FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) TO "service_role";
 
-GRANT ALL ON FUNCTION "toit_artemis"."max_event_age"() TO "anon";
-GRANT ALL ON FUNCTION "toit_artemis"."max_event_age"() TO "authenticated";
-GRANT ALL ON FUNCTION "toit_artemis"."max_event_age"() TO "service_role";
+GRANT ALL ON FUNCTION "toit_artemis"."max_events"() TO "anon";
+GRANT ALL ON FUNCTION "toit_artemis"."max_events"() TO "authenticated";
+GRANT ALL ON FUNCTION "toit_artemis"."max_events"() TO "service_role";
+
+GRANT ALL ON FUNCTION "toit_artemis"."min_event_age"() TO "anon";
+GRANT ALL ON FUNCTION "toit_artemis"."min_event_age"() TO "authenticated";
+GRANT ALL ON FUNCTION "toit_artemis"."min_event_age"() TO "service_role";
 
 GRANT ALL ON FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") TO "authenticated";
@@ -1399,8 +1418,6 @@ GRANT ALL ON TABLE "public"."profiles" TO "anon";
 GRANT ALL ON TABLE "public"."profiles" TO "authenticated";
 GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 
-GRANT ALL ON TABLE "public"."admin_with_profile" TO "anon";
-GRANT ALL ON TABLE "public"."admin_with_profile" TO "authenticated";
 GRANT ALL ON TABLE "public"."admin_with_profile" TO "service_role";
 
 GRANT ALL ON TABLE "public"."artemis_services" TO "anon";
@@ -1427,8 +1444,6 @@ GRANT ALL ON TABLE "public"."roles_with_profile" TO "anon";
 GRANT ALL ON TABLE "public"."roles_with_profile" TO "authenticated";
 GRANT ALL ON TABLE "public"."roles_with_profile" TO "service_role";
 
-GRANT ALL ON TABLE "public"."organization_admins" TO "anon";
-GRANT ALL ON TABLE "public"."organization_admins" TO "authenticated";
 GRANT ALL ON TABLE "public"."organization_admins" TO "service_role";
 
 GRANT ALL ON SEQUENCE "public"."roles_id_seq" TO "anon";
@@ -1522,3 +1537,22 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON TABLES  TO "service_role";
 
 RESET ALL;
+
+--
+-- Dumped schema changes for auth and storage
+--
+
+CREATE OR REPLACE TRIGGER "create_profile_after_new_user" AFTER INSERT ON "auth"."users" FOR EACH ROW EXECUTE FUNCTION "public"."create_profile_for_new_user"();
+
+CREATE POLICY "Admins can change service images" ON "storage"."objects" TO "authenticated" USING ((("bucket_id" = 'service-images'::"text") AND "public"."is_artemis_admin"())) WITH CHECK ((("bucket_id" = 'service-images'::"text") AND "public"."is_artemis_admin"()));
+
+CREATE POLICY "Admins have access to CLI snapshots" ON "storage"."objects" TO "authenticated" USING ((("bucket_id" = 'cli-snapshots'::"text") AND "public"."is_artemis_admin"())) WITH CHECK ((("bucket_id" = 'cli-snapshots'::"text") AND "public"."is_artemis_admin"()));
+
+CREATE POLICY "Admins have access to service snapshots" ON "storage"."objects" TO "authenticated" USING ((("bucket_id" = 'service-snapshots'::"text") AND "public"."is_artemis_admin"())) WITH CHECK ((("bucket_id" = 'service-snapshots'::"text") AND "public"."is_artemis_admin"()));
+
+CREATE POLICY "All users can read service images" ON "storage"."objects" FOR SELECT TO "authenticated", "anon" USING (("bucket_id" = 'service-images'::"text"));
+
+CREATE POLICY "Authenticated have full access to pod storage in their orgs" ON "storage"."objects" TO "authenticated" USING ((("bucket_id" = 'toit-artemis-pods'::"text") AND "public"."is_auth_member_of_org"((("storage"."foldername"("name"))[1])::"uuid"))) WITH CHECK ((("bucket_id" = 'toit-artemis-pods'::"text") AND "public"."is_auth_member_of_org"((("storage"."foldername"("name"))[1])::"uuid")));
+
+CREATE POLICY "Authenticated have full access to storage in their orgs" ON "storage"."objects" TO "authenticated" USING ((("bucket_id" = 'toit-artemis-assets'::"text") AND "public"."is_auth_member_of_org"((("storage"."foldername"("name"))[1])::"uuid"))) WITH CHECK ((("bucket_id" = 'toit-artemis-assets'::"text") AND "public"."is_auth_member_of_org"((("storage"."foldername"("name"))[1])::"uuid")));
+
