@@ -17,6 +17,15 @@ import uuid
 import watchdog.provider as watchdog
 import watchdog show WatchdogServiceClient
 
+BACKDOOR-PREFIX ::= "Backdoor server **"
+BACKDOOR-FOOTER ::= "-- BACKDOOR END --"
+
+extract-backdoor-url bytes/ByteArray -> string:
+  lines := bytes.to-string.split "\n"
+  lines.filter --in-place: it.starts-with BACKDOOR-PREFIX
+  if lines.size != 1: throw "Expected exactly one backdoor server line"
+  return (lines[0].split "**")[1].trim
+
 main args:
   cmd := cli.Command "root"
     --options=[
@@ -40,8 +49,8 @@ start-backdoor:
   network := net.open
   // Listen on a free port.
   tcp_socket := network.tcp_listen 0
-  print "Backdoor server ** http://localhost:$tcp_socket.local_address.port"
-  print "-- BACKDOOR END --"
+  print "$BACKDOOR-PREFIX http://localhost:$tcp_socket.local_address.port"
+  print BACKDOOR-FOOTER
   server := http.Server
   task::
     server.listen tcp_socket:: | request/http.RequestIncoming writer/http.ResponseWriter |

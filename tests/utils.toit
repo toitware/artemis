@@ -36,6 +36,7 @@ import .broker
 import .broker as broker-lib
 import .cli-device-extract show TestDeviceConfig
 import .cli-device-extract as device-extract
+import .test-device show BACKDOOR-FOOTER extract-backdoor-url
 import .supabase-local-server
 
 export Device
@@ -818,14 +819,9 @@ class TestDevicePipe extends TestDevice:
     if child-process_: throw "Already started"
     fork_
     if has-backdoor:
-      wait-for "-- BACKDOOR END --\n"
-      lines := output_[..pos_].to-string.split "\n"
-      lines.filter --in-place: it.starts-with "Backdoor server"
-      if lines.size != 1: throw "Expected exactly one backdoor server line"
-      backdoor-address := (lines[0].split "**")[1].trim
+      wait-for BACKDOOR-FOOTER
+      backdoor-address := extract-backdoor-url output_[..pos_]
       backdoor = TestDeviceBackdoor backdoor-address
-      output_ = output_[pos_..]
-      pos_ = 0
 
   stop:
     if child-process_:
