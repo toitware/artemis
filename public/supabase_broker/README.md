@@ -41,7 +41,7 @@ is sent to and from your devices via the broker.
     ```
     supabase functions deploy --no-verify-jwt b
     ```
-9. Disable user sign-up and enable enable OAuth2. (See below).
+9. Disable user sign-up and enable OAuth2. (See below).
 
 At this point your Supabase project is ready to be used by Artemis.
 
