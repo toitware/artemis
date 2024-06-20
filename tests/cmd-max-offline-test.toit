@@ -7,18 +7,7 @@ import artemis.service.synchronize show SynchronizeJob
 
 main args:
   with-test-cli --args=args: | test-cli/TestCli |
-    test-cli.run [
-      "auth", "login",
-      "--email", TEST-EXAMPLE-COM-EMAIL,
-      "--password", TEST-EXAMPLE-COM-PASSWORD,
-    ]
-
-    test-cli.run [
-      "auth", "login",
-      "--broker",
-      "--email", TEST-EXAMPLE-COM-EMAIL,
-      "--password", TEST-EXAMPLE-COM-PASSWORD,
-    ]
+    test-cli.login
 
     device := test-cli.create-device
     device.start

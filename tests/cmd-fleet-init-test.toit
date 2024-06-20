@@ -12,18 +12,7 @@ main args:
     run-test test-cli
 
 run-test test-cli/TestCli:
-  test-cli.run [
-    "auth", "login",
-    "--email", TEST-EXAMPLE-COM-EMAIL,
-    "--password", TEST-EXAMPLE-COM-PASSWORD,
-  ]
-
-  test-cli.run [
-    "auth", "login",
-    "--broker",
-    "--email", TEST-EXAMPLE-COM-EMAIL,
-    "--password", TEST-EXAMPLE-COM-PASSWORD,
-  ]
+  test-cli.login
 
   with-tmp-directory: | fleet-tmp-dir |
     test-cli.run [
