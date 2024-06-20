@@ -11,6 +11,7 @@ import host.pipe
 import host.file
 import host.os
 import fs
+import http
 import net
 import system
 import uuid
@@ -686,6 +687,32 @@ class FakeDevice extends TestDevice:
       goal-state = null
     pending-state_ = null
 
+class TestDeviceBackdoor:
+  network_/net.Client? := ?
+  client_/http.Client? := ?
+  address_/string
+
+  constructor .address_:
+    network_ = net.open
+    client_ = http.Client network_
+
+  foo:
+    return post_ "foo"
+
+  post_ path/string payload/any=null -> any:
+    uri := "$address_/$path"
+    print "URI: $uri"
+    response := client_.post-json --uri=uri payload
+    return json.decode-stream response.body
+
+  close:
+    if client_:
+      client_.close
+      client_ = null
+    if network_:
+      network_.close
+      network_ = null
+
 class TestDevicePipe extends TestDevice:
   output_/ByteArray := #[]
   child-process_/any := null
@@ -694,6 +721,8 @@ class TestDevicePipe extends TestDevice:
   stderr-task_/Task? := null
   tmp-dir/string? := null
   command_/List := ?
+  has-backdoor/bool ::= false
+  backdoor/TestDeviceBackdoor? := null
 
   constructor.fake-host
       --broker/TestBroker
@@ -716,6 +745,7 @@ class TestDevicePipe extends TestDevice:
       "--encoded-firmware=$encoded-firmware",
       "--broker-config-json=$encoded-broker-config",
     ]
+    has-backdoor = true
     super
         --broker=broker
         --hardware-id=hardware-id
@@ -787,6 +817,15 @@ class TestDevicePipe extends TestDevice:
   start:
     if child-process_: throw "Already started"
     fork_
+    if has-backdoor:
+      wait-for "-- BACKDOOR END --\n"
+      lines := output_[..pos_].to-string.split "\n"
+      lines.filter --in-place: it.starts-with "Backdoor server"
+      if lines.size != 1: throw "Expected exactly one backdoor server line"
+      backdoor-address := (lines[0].split "**")[1].trim
+      backdoor = TestDeviceBackdoor backdoor-address
+      output_ = output_[pos_..]
+      pos_ = 0
 
   stop:
     if child-process_:
@@ -857,6 +896,9 @@ class TestDevicePipe extends TestDevice:
       if tmp-dir:
         directory.rmdir --recursive tmp-dir
         tmp-dir = null
+    if backdoor:
+      backdoor.close
+      backdoor = null
 
   output -> string:
     return output_.to-string-non-throwing

@@ -2,7 +2,6 @@
 
 import encoding.json
 
-import cli
 import artemis.shared.server-config
 import artemis.service.service
 import artemis.service.device as service
@@ -10,6 +9,10 @@ import artemis.cli.utils show OptionUuid
 import artemis.service.storage show Storage
 import artemis.service.run.null-pin-trigger show NullPinTriggerManager
 import artemis.service.run.null-watchdog show NullWatchdog
+import cli
+import encoding.json
+import http
+import net
 import uuid
 import watchdog.provider as watchdog
 import watchdog show WatchdogServiceClient
@@ -33,6 +36,20 @@ main args:
 
   cmd.run args
 
+start-backdoor:
+  network := net.open
+  // Listen on a free port.
+  tcp_socket := network.tcp_listen 0
+  print "Backdoor server ** http://localhost:$tcp_socket.local_address.port"
+  print "-- BACKDOOR END --"
+  server := http.Server
+  task::
+    server.listen tcp_socket:: | request/http.RequestIncoming writer/http.ResponseWriter |
+      resource := request.query.resource
+      if resource == "/foo":
+        writer.out.write (json.encode "bar")
+        writer.close
+
 run
     --alias-id/uuid.Uuid
     --hardware-id/uuid.Uuid
@@ -40,6 +57,8 @@ run
     --encoded-firmware/string
     --broker-config-json/string:
   (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install
+
+  start-backdoor
 
   decoded-broker-config := json.parse broker-config-json
   broker-config := server-config.ServerConfig.from-json
