@@ -41,20 +41,36 @@ is sent to and from your devices via the broker.
     ```
     supabase functions deploy --no-verify-jwt b
     ```
+9. Disable user sign-up and enable OAuth2. (See below).
 
 At this point your Supabase project is ready to be used by Artemis.
 
 Note that Artemis uses a separate schema (`toit_artemis`) for its tables. You
 can use the main database schema for your own data.
 
+### Authentication
+
+By default Supabase allows any user to sign up at newly configured servers.
+This would give them access to the Artemis data, allowing them to control
+the firmware on your devices.
+
+To disable sign-up, go to your project settings -> Authentication and disable
+"User Signups": https://supabase.com/dashboard/project/YOUR-PROJECT-ID/settings/auth.
+
+You can always add new users manually in the authentication section:
+https://supabase.com/dashboard/project/YOUR-PROJECT-ID/auth/users.
+
+#### OAuth2
+
 You can optionally enable OAuth2 for your broker. Follow the instructions
 on https://supabase.com/docs/guides/auth/social-login.
 
-### Self-hosted Supabase
+You can stop the instructions once the OAuth2 provider is set up. You don't
+need to do any of the "login code" steps.
 
-You can use a self-hosted Supabase (locally or in the cloud). The steps
-might differ from the above, but the general idea is the same.
-Feel free to contact us on Discord if you need help.
+If you have disabled user sign-ups (as recommended above), you can still use
+OAuth2 to log in. Simply add a user with the same email address as your OAuth2
+account.
 
 ## CLI configuration
 
