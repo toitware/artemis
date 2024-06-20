@@ -1044,6 +1044,10 @@ class FleetWithDevices extends Fleet:
         --config=config_
         --ui=ui_
 
+    if new-broker.server-config.name == broker.server-config.name:
+      // Do nothing. We are already running on this broker.
+      return
+
     detailed-devices := broker.get-devices --device-ids=(devices_.map: it.id)
     new-devices := new-broker.get-devices --device-ids=(devices_.map: it.id)
 
@@ -1065,6 +1069,9 @@ class FleetWithDevices extends Fleet:
     else if not old-migrating-from.contains broker.server-config.name:
       new-migrating-from = old-migrating-from.copy
       new-migrating-from.add broker.server-config.name
+
+    new-migrating-from.filter --in-place: | name/string |
+      name != new-broker-config.name
 
     modified-fleet-file := fleet-file_.with
         --broker-name=new-broker-config.name

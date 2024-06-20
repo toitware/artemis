@@ -28,6 +28,9 @@ main args:
     // We will need to roll out a new version of the pod.
     fleet.run ["fleet", "migration", "start", "--broker", new1.name]
 
+    // Migrating to the same broker again does nothing.
+    fleet.run ["fleet", "migration", "start", "--broker", new1.name]
+
     // Make sure that our check for finished migrations work.
     fleet.check-no-migration-stop
 
