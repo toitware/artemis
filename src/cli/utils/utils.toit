@@ -108,9 +108,9 @@ download-url url/string --out-path/string --ui/Ui -> none:
   ui.info "Downloading $url."
 
   network := net.open
+  certificate-roots.install-all-trusted-roots
   try:
     client := http.Client.tls network
-        --root-certificates=certificate-roots.ALL
 
     response := client.get --uri=url
     if response.status-code != http.STATUS-OK:

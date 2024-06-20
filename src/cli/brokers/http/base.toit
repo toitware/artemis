@@ -28,6 +28,8 @@ class BrokerCliHttp implements BrokerCli:
   client_/http.Client? := null
 
   constructor .server-config_ --.id:
+    // We are on the host. Just install all certificate roots.
+    certificate-roots.install-all-trusted-roots
     network_ = net.open
     add-finalizer this:: close
 
@@ -125,13 +127,8 @@ class BrokerCliHttp implements BrokerCli:
 
   send-request_ encoded/ByteArray -> http.Response:
     if not client_:
-      root-names := server-config_.root-certificate-names
-      if root-names:
-        root-certificates := root-names.map:
-          der/tls.RootCertificate := certificate-roots.MAP[it]
-          x509.Certificate.parse der.raw
+      if server-config_.root-certificate-names:
         client_ = http.Client.tls network_
-            --root-certificates=root-certificates
       else:
         client_ = http.Client network_
 

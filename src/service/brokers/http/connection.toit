@@ -4,7 +4,7 @@ import encoding.json
 import encoding.base64
 import http
 import net
-import net.x509
+import tls
 import reader show Reader
 import system.storage
 import certificate-roots
@@ -18,8 +18,9 @@ class HttpConnection_:
 
   constructor .network_ .config_:
     if config_.root-certificate-ders:
-      root-certificates_ = config_.root-certificate-ders.map:
-        x509.Certificate.parse it
+      config_.root-certificate-ders.do:
+        certificate := tls.RootCertificate it
+        certificate.install
     create-fresh-client_
 
   create-fresh-client_ -> none:
@@ -28,9 +29,7 @@ class HttpConnection_:
       client_ = null
 
     if config_.root-certificate-ders:
-      client_ = http.Client.tls network_
-          --root-certificates=root-certificates_
-          --security-store=HttpSecurityStore_
+      client_ = http.Client.tls network_ --security-store=HttpSecurityStore_
     else:
       client_ = http.Client network_
 
