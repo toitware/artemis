@@ -13,18 +13,7 @@ main args:
 run-test test-cli/TestCli:
   test-start := Time.now
 
-  test-cli.run [
-    "auth", "login",
-    "--email", TEST-EXAMPLE-COM-EMAIL,
-    "--password", TEST-EXAMPLE-COM-PASSWORD,
-  ]
-
-  test-cli.run [
-    "auth", "login",
-    "--broker",
-    "--email", TEST-EXAMPLE-COM-EMAIL,
-    "--password", TEST-EXAMPLE-COM-PASSWORD,
-  ]
+  test-cli.login
 
   // We might have orgs from earlier runs.
   // We also always have the Test Organization.
