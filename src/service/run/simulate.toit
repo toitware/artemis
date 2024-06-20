@@ -100,10 +100,9 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache --ui/Ui -> none:
           --firmware-state=config
           --storage=storage
       check-in-setup --assets=identity --device=device
-      server-config := decode-server-config "broker" identity
       sleep-duration := run-artemis
           device
-          server-config
+          identity
           --watchdog=watchdog
           --storage=storage
           --pin-trigger-manager=NullPinTriggerManager
