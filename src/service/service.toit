@@ -29,11 +29,12 @@ import .pin-trigger
 import .scheduler show Scheduler
 import .storage show Storage
 import .synchronize show SynchronizeJob
+import .utils show decode-server-config
 
 import ..shared.server-config
 import ..shared.version
 
-run-artemis device/Device server-config/ServerConfig -> Duration
+run-artemis device/Device artemis-assets/Map -> Duration
     --start-ntp/bool=true
     --watchdog/Watchdog
     --storage/Storage
@@ -50,7 +51,10 @@ run-artemis device/Device server-config/ServerConfig -> Duration
 
   scheduler ::= Scheduler logger device --watchdog=watchdog
   containers ::= ContainerManager logger scheduler pin-trigger-manager
-  broker := BrokerService logger server-config
+
+  // TODO(kasper): Add support for backup brokers in the assets.
+  broker-server-config := decode-server-config "broker" artemis-assets
+  brokers := [BrokerService logger broker-server-config]
 
   // Steal the job states, so if we do not shut down
   // cleanly, we start in a fresh state.
@@ -67,7 +71,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
       logger
       device
       containers
-      broker
+      brokers
       synchronize-state
       --ntp=ntp
       --storage=storage

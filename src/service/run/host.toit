@@ -16,7 +16,6 @@ import ..check-in show check-in-setup
 import ..device
 import ..service show run-artemis
 import ..storage show Storage
-import ..utils show decode-server-config
 import ..watchdog
 
 main arguments:
@@ -50,8 +49,7 @@ main arguments:
       --storage=storage
   check-in-setup --assets=artemis-assets --device=device
 
-  server-config := decode-server-config "broker" artemis-assets
-  sleep-duration := run-artemis device server-config
+  sleep-duration := run-artemis device artemis-assets
       --watchdog=watchdog
       --storage=storage
       --pin-trigger-manager=NullPinTriggerManager

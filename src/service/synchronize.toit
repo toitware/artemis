@@ -162,7 +162,7 @@ class SynchronizeJob extends TaskJob:
   logger_/log.Logger
   device_/Device
   containers_/ContainerManager
-  broker_/BrokerService
+  brokers_/List
   ntp_/NtpRequest?
   state_/int := STATE-DISCONNECTED
 
@@ -184,7 +184,7 @@ class SynchronizeJob extends TaskJob:
       logger/log.Logger
       .device_
       .containers_
-      .broker_
+      .brokers_
       saved-state/any
       --storage/Storage
       --ntp/NtpRequest?=null:
@@ -376,7 +376,7 @@ class SynchronizeJob extends TaskJob:
       with-timeout TIMEOUT-NETWORK-OPEN: network = net.open
       while true:
         transition-to_ STATE-CONNECTED-TO-NETWORK
-        done := connect-broker_ network
+        done := connect-broker_ --network=network
         if check-in:
           with-timeout TIMEOUT-CHECK-IN: check-in.run network logger_
         if done: return true
@@ -416,16 +416,36 @@ class SynchronizeJob extends TaskJob:
         if not interrupted: return done
 
   /**
-  Tries to connect to the broker and step through the
+  Tries to connect to a broker and step through the
     necessary synchronization.
 
   Returns whether we are done synchronizing (true) or if we
     need another attempt using the already established network
     connection (false).
   */
-  connect-broker_ network/net.Client -> bool:
+  connect-broker_ --network/net.Client -> bool:
+    brokers_.do: | broker/BrokerService |
+      done := connect-broker_ --broker=broker --network=network
+      // If we're done synchronizing, we're happy.
+      if done: return true
+      // If we're having trouble connecting for a longer period
+      // of time, as indicated by our status, we try the next
+      // broker in the list.
+      status := determine-status_
+      if status < STATUS-ORANGE: return false
+    return false
+
+  /**
+  Tries to connect to the specific $broker and step through the
+    necessary synchronization.
+
+  Returns whether we are done synchronizing (true) or if we
+    need another attempt using the already established network
+    connection (false).
+  */
+  connect-broker_ --broker/BrokerService --network/net.Client -> bool:
     // TODO(kasper): Add timeout for connect.
-    broker-connection := broker_.connect --network=network --device=device_
+    broker-connection := broker.connect --network=network --device=device_
     try:
       goal/Goal? := null
       while true:
