@@ -17,6 +17,7 @@ class HttpConnection_:
   root-certificates_/List? := null
 
   constructor .network_ .config_:
+    certificate-roots.install-common-trusted-roots
     if config_.root-certificate-ders:
       config_.root-certificate-ders.do:
         certificate := tls.RootCertificate it
