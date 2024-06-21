@@ -52,37 +52,65 @@ main args:
 
   cmd.run args
 
-start-backdoor --storage/Storage --device/service.Device:
-  network := net.open
-  // Listen on a free port.
-  tcp-socket := network.tcp-listen 0
-  print "$BACKDOOR-PREFIX http://localhost:$tcp-socket.local-address.port"
-  print BACKDOOR-FOOTER
-  server := http.Server
-  task::
-    server.listen tcp-socket:: | request/http.RequestIncoming writer/http.ResponseWriter |
-      resource := request.query.resource
-      if resource == "/device-id":
-        writer.out.write (json.encode "$device.id")
-      else if resource.starts-with "/storage/":
-        segments := resource.split "/"
-        if segments.size != 4: throw "invalid resource"
-        scheme := segments[2]
-        key := segments[3]
-        if request.method == "GET":
-          writer.headers.add "Content-Type" "application/json"
-          value := scheme == "ram" ? storage.ram-load key : storage.flash-load key
-          writer.out.write (json.encode value)
-        else if request.method == "POST":
-          value := json.decode-stream request.body
-          if scheme == "ram":
-            storage.ram-store key value
-          else:
-            storage.flash-store key value
-          writer.out.write (json.encode "ok")
+/**
+A backdoor that lets the test reach into the device.
+*/
+class Backdoor:
+  network_/net.Client? := null
+  storage_/Storage
+  device_/service.Device
+  server-task_/Task? := null
+
+  constructor --storage/Storage --device/service.Device:
+    storage_ = storage
+    device_ = device
+
+  close:
+    if server-task_:
+      server-task_.cancel
+      server-task_ = null
+    if network_:
+      network_.close
+      network_ = null
+
+  start:
+    if network_: throw "Backdoor already started"
+    network_ = net.open
+    // Listen on a free port.
+    tcp-socket := network_.tcp-listen 0
+    print "$BACKDOOR-PREFIX http://localhost:$tcp-socket.local-address.port"
+    print BACKDOOR-FOOTER
+    server := http.Server
+    server-task_ = task::
+      server.listen tcp-socket:: | request/http.RequestIncoming writer/http.ResponseWriter |
+        resource := request.query.resource
+        if resource == "/device-id":
+          handle-device-id-request_ resource request writer
+        else if resource.starts-with "/storage/":
+          handle-storage-request_ resource request writer
+        else:
+          throw "unknown resource"
+        writer.close
+
+  handle-device-id-request_ resource/string request/http.RequestIncoming writer/http.ResponseWriter:
+    writer.out.write (json.encode "$device_.id")
+
+  handle-storage-request_ resource/string request/http.RequestIncoming writer/http.ResponseWriter:
+    segments := resource.split "/"
+    if segments.size != 4: throw "invalid resource"
+    scheme := segments[2]
+    key := segments[3]
+    if request.method == "GET":
+      writer.headers.add "Content-Type" "application/json"
+      value := scheme == "ram" ? storage_.ram-load key : storage_.flash-load key
+      writer.out.write (json.encode value)
+    else if request.method == "POST":
+      value := json.decode-stream request.body
+      if scheme == "ram":
+        storage_.ram-store key value
       else:
-        throw "unknown resource"
-      writer.close
+        storage_.flash-store key value
+      writer.out.write (json.encode "ok")
 
 run
     --alias-id/uuid.Uuid
@@ -109,7 +137,8 @@ run
       --storage=storage
   client/WatchdogServiceClient := (WatchdogServiceClient).open as WatchdogServiceClient
 
-  start-backdoor --storage=storage --device=device
+  backdoor := Backdoor --storage=storage --device=device
+  backdoor.start
   while true:
     watchdog := client.create "toit.io/artemis"
     watchdog.start --s=10
