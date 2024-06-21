@@ -1,6 +1,5 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import certificate-roots
 import cli
 import encoding.base64
 import encoding.json
@@ -108,7 +107,6 @@ download-url url/string --out-path/string --ui/Ui -> none:
   ui.info "Downloading $url."
 
   network := net.open
-  certificate-roots.install-all-trusted-roots
   try:
     client := http.Client.tls network
 

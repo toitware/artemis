@@ -28,8 +28,7 @@ class BrokerCliHttp implements BrokerCli:
   client_/http.Client? := null
 
   constructor .server-config_ --.id:
-    // We are on the host. Just install all certificate roots.
-    certificate-roots.install-all-trusted-roots
+    server-config_.install-root-certificates
     network_ = net.open
     add-finalizer this:: close
 
