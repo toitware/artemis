@@ -697,8 +697,29 @@ class TestDeviceBackdoor:
     network_ = net.open
     client_ = http.Client network_
 
-  foo:
-    return post_ "foo"
+  device-id -> uuid.Uuid:
+    return uuid.parse (get_ "device-id")
+
+  get-storage --ram/bool=false --flash/bool=false key/string:
+    if not ram and not flash:
+      throw "At least one of --ram or --flash must be true"
+    if ram and flash:
+      throw "Only one of --ram or --flash can be true"
+    scheme := ram ? "ram" : "flash"
+    return get_ "storage/$scheme/$key"
+
+  set-storage --ram/bool=false --flash/bool=false key/string value/any:
+    if not ram and not flash:
+      throw "At least one of --ram or --flash must be true"
+    if ram and flash:
+      throw "Only one of --ram or --flash can be true"
+    scheme := ram ? "ram" : "flash"
+    return post_ "storage/$scheme/$key" value
+
+  get_ path/string -> any:
+    uri := "$address_/$path"
+    response := client_.get --uri=uri
+    return json.decode-stream response.body
 
   post_ path/string payload/any=null -> any:
     uri := "$address_/$path"

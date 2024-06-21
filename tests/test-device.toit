@@ -17,6 +17,13 @@ import uuid
 import watchdog.provider as watchdog
 import watchdog show WatchdogServiceClient
 
+/**
+A test device.
+
+This part of the code runs in a spawned process.
+It reflects the forked part of the util's TestDevice.
+*/
+
 BACKDOOR-PREFIX ::= "Backdoor server **"
 BACKDOOR-FOOTER ::= "-- BACKDOOR END --"
 
@@ -45,19 +52,37 @@ main args:
 
   cmd.run args
 
-start-backdoor:
+start-backdoor --storage/Storage --device/service.Device:
   network := net.open
   // Listen on a free port.
-  tcp_socket := network.tcp_listen 0
-  print "$BACKDOOR-PREFIX http://localhost:$tcp_socket.local_address.port"
+  tcp-socket := network.tcp-listen 0
+  print "$BACKDOOR-PREFIX http://localhost:$tcp-socket.local-address.port"
   print BACKDOOR-FOOTER
   server := http.Server
   task::
-    server.listen tcp_socket:: | request/http.RequestIncoming writer/http.ResponseWriter |
+    server.listen tcp-socket:: | request/http.RequestIncoming writer/http.ResponseWriter |
       resource := request.query.resource
-      if resource == "/foo":
-        writer.out.write (json.encode "bar")
-        writer.close
+      if resource == "/device-id":
+        writer.out.write (json.encode "$device.id")
+      else if resource.starts-with "/storage/":
+        segments := resource.split "/"
+        if segments.size != 4: throw "invalid resource"
+        scheme := segments[2]
+        key := segments[3]
+        if request.method == "GET":
+          writer.headers.add "Content-Type" "application/json"
+          value := scheme == "ram" ? storage.ram-load key : storage.flash-load key
+          writer.out.write (json.encode value)
+        else if request.method == "POST":
+          value := json.decode-stream request.body
+          if scheme == "ram":
+            storage.ram-store key value
+          else:
+            storage.flash-store key value
+          writer.out.write (json.encode "ok")
+      else:
+        throw "unknown resource"
+      writer.close
 
 run
     --alias-id/uuid.Uuid
@@ -66,8 +91,6 @@ run
     --encoded-firmware/string
     --broker-config-json/string:
   (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install
-
-  start-backdoor
 
   decoded-broker-config := json.parse broker-config-json
   broker-config := server-config.ServerConfig.from-json
@@ -85,6 +108,8 @@ run
       }
       --storage=storage
   client/WatchdogServiceClient := (WatchdogServiceClient).open as WatchdogServiceClient
+
+  start-backdoor --storage=storage --device=device
   while true:
     watchdog := client.create "toit.io/artemis"
     watchdog.start --s=10
