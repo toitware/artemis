@@ -913,7 +913,7 @@ class Broker:
       }
 
       artemis-assets["recovery-urls"] = {
-        "format": "json",
+        "format": "tison",
         "json": recovery-urls,
       }
 
