@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import certificate-roots
 import cli
 
 import .cache
@@ -75,6 +76,8 @@ main args:
   main args --config=config --cache=cache --ui=ui
 
 main args --config/Config --cache/Cache --ui/Ui:
+  certificate-roots.install-all-trusted-roots
+
   // We don't want to add a `--version` option to the root command,
   // as that would make the option available to all subcommands.
   // Fundamentally, getting the version isn't really an option, but a

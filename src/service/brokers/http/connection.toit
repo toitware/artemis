@@ -1,10 +1,10 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import certificate-roots
 import encoding.json
 import encoding.base64
 import http
 import net
-import tls
 import reader show Reader
 import system.storage
 import certificate-roots
@@ -14,14 +14,13 @@ class HttpConnection_:
   client_/http.Client? := null
   config_/ServerConfigHttp
   network_/net.Interface
-  root-certificates_/List? := null
+  static certificates-are-installed_/bool := false
 
   constructor .network_ .config_:
-    certificate-roots.install-common-trusted-roots
-    if config_.root-certificate-ders:
-      config_.root-certificate-ders.do:
-        certificate := tls.RootCertificate it
-        certificate.install
+    if not certificates-are-installed_:
+      certificates-are-installed_ = true
+      certificate-roots.install-common-trusted-roots
+    config_.install-root-certificates
     create-fresh-client_
 
   create-fresh-client_ -> none:
