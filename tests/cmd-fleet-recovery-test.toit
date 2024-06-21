@@ -30,9 +30,12 @@ run-test fleet/TestFleet:
       "List the recovery servers"
       ["fleet", "recovery", "list"]
 
-  fleet.run-gold "050-export"
+  fleet.test-cli.run-gold "050-export"
       "Export the recovery information"
       ["fleet", "recovery", "export", "--directory", fleet.test-cli.tmp-dir]
+      --before-gold=: | output |
+        // In case we are on Windows, change the backslash in the path to a slash.
+        output.replace --all "\\" "/"
 
   // Just make sure that the file is there and is a valid JSON file with
   // some entries.
