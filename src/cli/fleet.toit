@@ -1,5 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import certificate-roots
 import encoding.json
 import encoding.ubjson
 import encoding.base64
@@ -470,6 +471,11 @@ class Fleet:
   recovery-urls-remove-all -> none:
     new-file := fleet-file_.with --recovery-urls=[]
     new-file.write
+
+  recovery-info -> ByteArray:
+    broker.server-config.fill-certificate-ders: certificate-roots.MAP[it].raw
+    json-config := broker.server-config.to-json --der-serializer=: base64.encode it
+    return json.encode json-config
 
 /**
 A fleet with devices.

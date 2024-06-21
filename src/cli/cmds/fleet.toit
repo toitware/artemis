@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli
+import fs
 import host.file
 import uuid
 
@@ -597,6 +598,23 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: recovery-list it config cache ui
   recovery-cmd.add recovery-list-cmd
 
+  recovery-export-cmd := cli.Command "export"
+      --help="""
+          Export the recovery information for this fleet.
+
+          The written JSON file should be served on the recovery server(s).
+          """
+      --options=[
+        cli.Option "directory"
+            --help="The directory to write the recovery information to.",
+      ]
+      --examples=[
+        cli.Example "Export the recovery servers to the current directory:"
+            --arguments="--directory=.",
+      ]
+      --run=:: recovery-export it config cache ui
+  recovery-cmd.add recovery-export-cmd
+
   return [cmd]
 
 init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -953,6 +971,9 @@ migration-stop parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       joined := quoted.join ", "
       ui.info "Stopped migration for broker(s) $joined."
 
+recovery-file-name fleet-id/uuid.Uuid -> string:
+  return "recover-$(fleet-id).json"
+
 recovery-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   url := parsed["url"]
 
@@ -962,7 +983,7 @@ recovery-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     fleet.recovery-url-add url
 
-    full-url := "$url/$(fleet.id).json"
+    full-url := "$url/$(recovery-file-name fleet.id)"
 
     ui.info "Added recovery server '$url'."
     ui.info "Devices will contact '$full-url' for updated broker information."
@@ -1002,3 +1023,29 @@ recovery-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     recovery-urls := fleet.recovery-urls
     ui.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit --title="Recovery servers" recovery-urls
+
+recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  directory := parsed["directory"]
+
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    recovery-info := fleet.recovery-info
+    path := fs.join directory (recovery-file-name fleet.id)
+    file.write-content --path=path recovery-info
+    ui.info "Exported recovery information to '$path'."
+    recovery-urls := fleet.recovery-urls
+    full-urls := recovery-urls.map: | url/string |
+      "$url/$(recovery-file-name fleet.id)"
+    if not recovery-urls.is-empty:
+      ui.info "Devices with the current recovery-servers configuration will try to"
+      ui.info "  download it from one of the following URLs:"
+      full-urls.do: | url/string |
+        ui.info "- $url"
+
+      ui.do --kind=Ui.RESULT: | printer/Printer |
+        printer.emit-structured
+          --json=: {
+            "path": path,
+            "recovery-urls": full-urls,
+          }
+          --stdout=:
+            // Do nothing.

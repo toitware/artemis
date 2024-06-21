@@ -2,6 +2,8 @@
 
 import artemis.cli.fleet as fleet-lib
 import expect show *
+import encoding.json
+import host.file
 import .utils
 
 DEVICE-COUNT ::= 3
@@ -18,15 +20,25 @@ run-test fleet/TestFleet:
       "An empty list of recovery servers"
       ["fleet", "recovery", "list"]
 
-  fleet.run-gold "020_add"
+  fleet.run-gold "020-add"
       "Add a recovery server"
       ["fleet", "recovery", "add", URL1]
 
   fleet.run ["fleet", "recovery", "add", URL2]
 
-  fleet.run-gold "040_show"
+  fleet.run-gold "040-show"
       "List the recovery servers"
       ["fleet", "recovery", "list"]
+
+  fleet.run-gold "050-export"
+      "Export the recovery information"
+      ["fleet", "recovery", "export", "--directory", fleet.test-cli.tmp-dir]
+
+  // Just make sure that the file is there and is a valid JSON file with
+  // some entries.
+  exported := json.decode (file.read-content "$fleet.test-cli.tmp-dir/recover-$(fleet.id).json")
+  expect (exported is Map)
+  expect (exported.size > 0)
 
   fleet.run ["fleet", "recovery", "remove", URL1]
 
