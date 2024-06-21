@@ -54,17 +54,67 @@ run-test fleet/TestFleet:
     "org", "default", "$fake-device.organization-id",
   ]
 
+  RECOVERY-SERVERS ::= [
+    "https://example.com",
+    "http://example.com",
+  ]
+
+  RECOVERY-SERVERS.do: | url/string |
+    fleet.run [
+      "config", "recovery", "add", "$url",
+    ]
+
+  stored-servers := fleet.run --json [
+    "config", "recovery", "list"
+  ]
+  expect-list-equals RECOVERY-SERVERS stored-servers
+
   json-config = fleet.run --json [
     "config", "show"
   ]
   expect-equals "$fake-device.alias-id" json-config["default-device"]
   expect-equals "$fake-device.organization-id" json-config["default-org"]
+  expect-list-equals RECOVERY-SERVERS json-config["recovery-servers"]
 
   fleet.run-gold "BBA-config-show-default-values-set"
       "Print the test config with default values set"
       [
         "config", "show"
       ]
+
+  fleet.run [
+    "config", "recovery", "remove", RECOVERY-SERVERS.first,
+  ]
+
+  stored-servers = fleet.run --json [
+    "config", "recovery", "list"
+  ]
+
+  expect-list-equals RECOVERY-SERVERS[1..] stored-servers
+
+  fleet.run --expect-exit-1 [
+    "config", "recovery", "remove", RECOVERY-SERVERS.first,
+  ]
+
+  fleet.run [
+    "config", "recovery", "remove", "--force", RECOVERY-SERVERS.first,
+  ]
+
+  stored-servers = fleet.run --json [
+    "config", "recovery", "list"
+  ]
+
+  expect-list-equals RECOVERY-SERVERS[1..] stored-servers
+
+  fleet.run [
+    "config", "recovery", "remove", "--all",
+  ]
+
+  stored-servers = fleet.run --json [
+    "config", "recovery", "list"
+  ]
+
+  expect-list-equals [] stored-servers
 
   fleet.run-gold "DAA-config-broker-default-non-existing"
       "Try to set the default broker to a non-existing broker"

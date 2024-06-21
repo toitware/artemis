@@ -1,0 +1,3 @@
+# An empty list of recovery servers
+# [fleet, recovery, list]
+Recovery servers:

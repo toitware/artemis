@@ -251,6 +251,7 @@ pod-for_ -> Pod?
 
   return Pod.from-file local
       --organization-id=fleet.organization-id
+      --recovery-urls=fleet.recovery-urls
       --artemis=fleet.artemis
       --broker=fleet.broker
       --ui=ui

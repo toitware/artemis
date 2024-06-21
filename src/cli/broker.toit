@@ -771,6 +771,7 @@ class Broker:
   customize-envelope
       --organization-id/uuid.Uuid
       --specification/PodSpecification
+      --recovery-urls/List
       --artemis/Artemis
       --output-path/string:
     service-version := specification.artemis-version
@@ -909,6 +910,11 @@ class Broker:
       artemis-assets["device-config"] = {
         "format": "ubjson",
         "json": device-config,
+      }
+
+      artemis-assets["recovery-urls"] = {
+        "format": "json",
+        "json": recovery-urls,
       }
 
       artemis-assets-path := "$tmp-dir/artemis.assets"

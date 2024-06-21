@@ -222,6 +222,7 @@ create-pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     broker := fleet.broker
     pod := Pod.from-specification
         --organization-id=fleet.organization-id
+        --recovery-urls=fleet.recovery-urls
         --path=specification-path
         --ui=ui
         --artemis=artemis
@@ -250,6 +251,7 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     pod-paths.do: | pod-path/string |
       pod := Pod.from-file pod-path
           --organization-id=fleet.organization-id
+          --recovery-urls=fleet.recovery-urls
           --artemis=artemis
           --broker=broker
           --ui=ui

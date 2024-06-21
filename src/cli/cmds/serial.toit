@@ -190,6 +190,7 @@ flash parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       if local:
         pod = Pod.from-file local
             --organization-id=fleet.organization-id
+            --recovery-urls=fleet.recovery-urls
             --artemis=artemis
             --broker=broker
             --ui=ui

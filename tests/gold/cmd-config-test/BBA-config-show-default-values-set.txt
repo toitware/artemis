@@ -26,3 +26,6 @@ Servers:
       X-Artemis-Header: true
     admin_headers:
       X-Artemis-Header: true
+Recovery servers:
+  https://example.com
+  http://example.com

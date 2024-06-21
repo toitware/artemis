@@ -1,0 +1,4 @@
+# Add a recovery server
+# [fleet, recovery, add, http://example.com:1234]
+Added recovery server 'http://example.com:1234'.
+Devices will contact 'http://example.com:1234/-={|~~~~~~~~~~FLEET_ID~~~~~~~~~~|}=-.json' for updated broker information.

@@ -29,6 +29,7 @@ CONFIG-BROKER-DEFAULT-KEY ::= "server.broker.default"
 CONFIG-ARTEMIS-DEFAULT-KEY ::= "server.artemis.default"
 CONFIG-SERVERS-KEY ::= "servers"
 CONFIG-SERVER-AUTHS-KEY ::= "auths"
+CONFIG-RECOVERY-SERVERS-KEY ::= "recovery"
 CONFIG-ORGANIZATION-DEFAULT-KEY ::= "organization.default"
 // When adding a new config don't forget to update the 'config show' command.
 
