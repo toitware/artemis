@@ -1040,7 +1040,7 @@ recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     full-urls := recovery-urls.map: | url/string |
       "$url/$(recovery-file-name --fleet-id=fleet.id)"
     if not recovery-urls.is-empty:
-      ui.info "Devices with the current recovery-servers configuration will try to"
+      ui.info "Devices with the current recovery servers configuration will try to"
       ui.info "  download it from one of the following URLs:"
       full-urls.do: | url/string |
         ui.info "- $url"
