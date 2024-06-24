@@ -61,6 +61,10 @@ class HttpConnection_:
 
     MAX-ATTEMPTS ::= 3
     for i := 0; i < MAX-ATTEMPTS; i++:
+      if i != 0:
+        // We are retrying. Create a fresh client.
+        create-fresh-client_
+
       response = client_.post encoded
           --host=config_.host
           --port=config_.port
@@ -69,15 +73,11 @@ class HttpConnection_:
       body = response.body
       status = response.status-code
 
-      if status == http.STATUS-BAD-GATEWAY or status == 520 or status == 546:
-        // Cloudflare frequently rejects our requests with a 502, 520 or 546.
-        // If this wasn't our last attempt, create a new client, and try again.
-        if i != MAX-ATTEMPTS - 1:
-          create-fresh-client_
-          continue
-
-      // Otherwise, we encountered a different error, or we succeeded.
-      break
+      // Cloudflare frequently rejects our requests with a 502, 520 or 546, which
+      // we retry a few times to see if it was a temporary issue.
+      // If it's not one of these, we are done.
+      if status != http.STATUS-BAD-GATEWAY and status != 520 and status != 546:
+        break
 
     if status == http.STATUS-IM-A-TEAPOT:
       decoded := json.decode-stream body
