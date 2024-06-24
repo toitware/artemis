@@ -113,9 +113,11 @@ class BrokerCliHttp implements BrokerCli:
     MAX-ATTEMPTS ::= 3
     MAX-ATTEMPTS.repeat: | attempt/int |
       response := send-request_ encoded
-      // Cloudflare frequently rejects our requests with a 502.
+      // Cloudflare frequently rejects our requests with a 502 or 546.
       // Just try again.
-      if response.status-code == http.STATUS-BAD-GATEWAY and attempt != MAX-ATTEMPTS - 1:
+      status-code := response.status-code
+      if (status-code == http.STATUS-BAD-GATEWAY or status-code == 546)
+          and attempt != MAX-ATTEMPTS - 1:
         // Try again with a different client.
         client_.close
         client_ = null
