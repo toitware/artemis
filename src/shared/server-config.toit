@@ -59,9 +59,16 @@ abstract class ServerConfig:
   abstract to-service-json [--der-serializer] -> Map
 
   /**
+  Computes a unique key that can be used for caching.
+  */
+  abstract compute-cache-key_ -> string
+
+  /**
   A unique key that can be used for caching.
   */
-  abstract cache-key -> string
+  cache-key -> string:
+    if not cache-key_: cache-key_ = compute-cache-key_
+    return cache-key_
 
 class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
   static DEFAULT-POLL-INTERVAL ::= Duration --s=20
@@ -145,7 +152,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   to-service-json [--der-serializer] -> Map:
     return to-json --der-serializer=der-serializer
 
-  cache-key -> string:
+  compute-cache-key_ -> string:
     return base64.encode (sha1.sha1 host)
 
 /**
@@ -224,5 +231,5 @@ class ServerConfigHttp extends ServerConfig:
     result.remove "admin_headers"
     return result
 
-  cache-key -> string:
+  compute-cache-key_ -> string:
     return base64.encode (sha1.sha1 "$host:$port:$path")
