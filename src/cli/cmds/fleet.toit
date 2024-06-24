@@ -976,7 +976,7 @@ recovery-file-name --fleet-string/string -> string:
   return "recover-$(fleet-string).json"
 
 recovery-file-name --fleet-id/uuid.Uuid -> string:
-  return recovery-filename --fleet-string="$fleet-id"
+  return recovery-file-name --fleet-string="$fleet-id"
 
 recovery-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   url := parsed["url"]
