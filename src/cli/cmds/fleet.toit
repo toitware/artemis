@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli
+import fs
 import host.file
 import uuid
 
@@ -519,6 +520,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: migration-stop it config cache ui
   migration-cmd.add migration-stop-cmd
 
+  recovery-path := recovery-file-name --fleet-string="<FLEET-ID>"
   recovery-cmd := cli.Command "recovery"
       --help="""
         Manage recovery servers for the fleet.
@@ -535,9 +537,9 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         to contact the recovery servers for updated broker information.
 
         The configured recovery servers are prefixes. The full path consists of
-        the prefix, followed by '/<FLEET-ID>.json'. For example, if the prefix
+        the prefix, followed by '/$recovery-path'. For example, if the prefix
         is 'https://recovery.toit.io', then the full path is
-        'https://recovery.toit.io/<FLEET-ID>.json'.
+        'https://recovery.toit.io/$recovery-path'.
 
         Recovery servers can be set up on demand. In fact, it is recommended to
         point recovery addresses to servers that refuse connections, so that
@@ -596,6 +598,23 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
           """
       --run=:: recovery-list it config cache ui
   recovery-cmd.add recovery-list-cmd
+
+  recovery-export-cmd := cli.Command "export"
+      --help="""
+          Export the recovery information for this fleet.
+
+          The written JSON file should be served on the recovery server(s).
+          """
+      --options=[
+        cli.Option "directory"
+            --help="The directory to write the recovery information to.",
+      ]
+      --examples=[
+        cli.Example "Export the recovery servers to the current directory:"
+            --arguments="--directory=.",
+      ]
+      --run=:: recovery-export it config cache ui
+  recovery-cmd.add recovery-export-cmd
 
   return [cmd]
 
@@ -953,6 +972,12 @@ migration-stop parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       joined := quoted.join ", "
       ui.info "Stopped migration for broker(s) $joined."
 
+recovery-file-name --fleet-string/string -> string:
+  return "recover-$(fleet-string).json"
+
+recovery-file-name --fleet-id/uuid.Uuid -> string:
+  return recovery-file-name --fleet-string="$fleet-id"
+
 recovery-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   url := parsed["url"]
 
@@ -962,7 +987,7 @@ recovery-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     fleet.recovery-url-add url
 
-    full-url := "$url/$(fleet.id).json"
+    full-url := "$url/$(recovery-file-name --fleet-id=fleet.id)"
 
     ui.info "Added recovery server '$url'."
     ui.info "Devices will contact '$full-url' for updated broker information."
@@ -1002,3 +1027,29 @@ recovery-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     recovery-urls := fleet.recovery-urls
     ui.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit --title="Recovery servers" recovery-urls
+
+recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  directory := parsed["directory"]
+
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    recovery-info := fleet.recovery-info
+    path := fs.join directory (recovery-file-name --fleet-id=fleet.id)
+    file.write-content --path=path recovery-info
+    ui.info "Exported recovery information to '$path'."
+    recovery-urls := fleet.recovery-urls
+    full-urls := recovery-urls.map: | url/string |
+      "$url/$(recovery-file-name --fleet-id=fleet.id)"
+    if not recovery-urls.is-empty:
+      ui.info "Devices with the current recovery servers configuration will try to"
+      ui.info "  download it from one of the following URLs:"
+      full-urls.do: | url/string |
+        ui.info "- $url"
+
+      ui.do --kind=Ui.RESULT: | printer/Printer |
+        printer.emit-structured
+          --json=: {
+            "path": path,
+            "recovery-urls": full-urls,
+          }
+          --stdout=:
+            // Do nothing.
