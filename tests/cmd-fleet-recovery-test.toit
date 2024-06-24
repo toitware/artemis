@@ -35,7 +35,7 @@ run-test fleet/TestFleet:
       ["fleet", "recovery", "export", "--directory", fleet.test-cli.tmp-dir]
       --before-gold=: | output |
         // In case we are on Windows, change the backslash in the path to a slash.
-        output.replace --all "\\" "/"
+        output.replace --all "\\recover-" "/recover-"
 
   // Just make sure that the file is there and is a valid JSON file with
   // some entries.
