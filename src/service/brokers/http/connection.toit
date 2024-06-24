@@ -69,12 +69,14 @@ class HttpConnection_:
       body = response.body
       status = response.status-code
 
-      // Cloudflare frequently rejects our requests with a 502, 520 or 546.
-      // Just try again with a fresh client.
       if status == http.STATUS-BAD-GATEWAY or status == 520 or status == 546:
-        if i != MAX-ATTEMPTS - 1: create-fresh-client_
-        continue
+        // Cloudflare frequently rejects our requests with a 502, 520 or 546.
+        // If this wasn't our last attempt, create a new client, and try again.
+        if i != MAX-ATTEMPTS - 1:
+          create-fresh-client_
+          continue
 
+      // Otherwise, we encountered a different error, or we succeeded.
       break
 
     if status == http.STATUS-IM-A-TEAPOT:
