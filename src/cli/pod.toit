@@ -53,6 +53,7 @@ class Pod:
 
   constructor.from-specification
       --organization-id/uuid.Uuid
+      --recovery-urls/List
       --path/string
       --artemis/Artemis
       --broker/Broker
@@ -60,18 +61,21 @@ class Pod:
     specification := parse-pod-specification-file path --ui=ui
     return Pod.from-specification
         --organization-id=organization-id
+        --recovery-urls=recovery-urls
         --specification=specification
         --artemis=artemis
         --broker=broker
 
   constructor.from-specification
       --organization-id/uuid.Uuid
+      --recovery-urls/List
       --specification/PodSpecification
       --broker/Broker
       --artemis/Artemis:
     envelope-path := generate-envelope-path_ --tmp-directory=artemis.tmp-directory
     broker.customize-envelope
         --organization-id=organization-id
+        --recovery-urls=recovery-urls
         --output-path=envelope-path
         --artemis=artemis
         --specification=specification
@@ -133,6 +137,7 @@ class Pod:
   constructor.from-file
       path/string
       --organization-id/uuid.Uuid
+      --recovery-urls/List
       --artemis/Artemis
       --broker/Broker
       --ui/Ui:
@@ -153,6 +158,7 @@ class Pod:
     else:
       return Pod.from-specification
           --organization-id=organization-id
+          --recovery-urls=recovery-urls
           --path=path
           --artemis=artemis
           --broker=broker

@@ -69,6 +69,9 @@ abstract class PrinterBase implements Printer:
       if value is Map:
         print_ "$indentation$key:"
         emit-map_ value --indentation="$indentation  "
+      else if value is List:
+        print_ "$indentation$key:"
+        emit-list_ value --indentation="$indentation  "
       else:
         // TODO(florian): should the entries handle lists as well.
         print_ "$indentation$key: $value"
