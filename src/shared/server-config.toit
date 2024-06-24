@@ -184,10 +184,10 @@ class ServerConfigHttp extends ServerConfig:
 
   constructor.from-json name/string config/Map [--der-deserializer]:
     root-certificates-ders/List? := null
-    if config.get "root_certificate_ders":
-      root-certificates-ders = config["root_certificate_ders"].map: der-deserializer.call it
-    else if encode-ders64 := config.get "root_certificate_ders64":
+    if encode-ders64 := config.get "root_certificate_ders64":
       root-certificates-ders = encode-ders64.map: base64-lib.decode it
+    else if config.get "root_certificate_ders":
+      root-certificates-ders = config["root_certificate_ders"].map: der-deserializer.call it
     return ServerConfigHttp name
         --host=config["host"]
         --port=config.get "port"
