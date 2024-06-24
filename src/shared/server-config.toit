@@ -1,7 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import crypto.sha1
-import encoding.ubjson
 import encoding.base64
 import supabase
 
@@ -60,12 +59,16 @@ abstract class ServerConfig:
   abstract to-service-json [--der-serializer] -> Map
 
   /**
+  Computes a unique key that can be used for caching.
+  */
+  abstract compute-cache-key_ -> string
+
+  /**
   A unique key that can be used for caching.
   */
   cache-key -> string:
     if not cache-key_:
-      hash := sha1.sha1 (ubjson.encode (to-json --der-serializer=: it))
-      cache-key_ = "$(base64.encode --url-mode hash)-$name"
+      cache-key_ = base64.encode --url-mode (sha1.sha1 compute-cache-key_)
     return cache-key_
 
 class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
@@ -150,6 +153,9 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   to-service-json [--der-serializer] -> Map:
     return to-json --der-serializer=der-serializer
 
+  compute-cache-key_ -> string:
+    return host
+
 /**
 A broker configuration for an HTTP-based broker.
 
@@ -225,3 +231,6 @@ class ServerConfigHttp extends ServerConfig:
     result := to-json --der-serializer=der-serializer
     result.remove "admin_headers"
     return result
+
+  compute-cache-key_ -> string:
+    return "$host:$port:$path"
