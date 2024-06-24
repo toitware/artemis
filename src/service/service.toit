@@ -135,6 +135,8 @@ class ArtemisServiceProvider extends ChannelServiceProvider
       return controller-open --client=client --mode=arguments
     if index == api.ArtemisService.DEVICE-ID-INDEX:
       return device-id
+    if index == api.ArtemisService.SYNCHRONIZED-LAST-US:
+      return synchronized-last-us
     return super index arguments --gid=gid --client=client
 
   version -> string:
@@ -142,6 +144,9 @@ class ArtemisServiceProvider extends ChannelServiceProvider
 
   device-id -> ByteArray:
     return device_.id.to-byte-array
+
+  synchronized-last-us -> int?:
+    return device_.synchronized-last-us
 
   container-current-restart --gid/int --wakeup-us/int? -> none:
     job := containers_.get --gid=gid
