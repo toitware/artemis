@@ -349,9 +349,6 @@ class SynchronizeJob extends TaskJob:
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
         logger_.info "connecting to broker failed - retrying"
-        if Task.current.is-canceled:
-          critical-do: logger_.warn "ignored cancelation in run loop"
-          throw CANCELED-ERROR
     finally:
       if is-firmware-upgrade-pending_:
         exception := catch: firmware.upgrade
@@ -376,20 +373,19 @@ class SynchronizeJob extends TaskJob:
       with-timeout TIMEOUT-NETWORK-OPEN: network = net.open
       while true:
         transition-to_ STATE-CONNECTED-TO-NETWORK
-        done := connect-broker_ network
+        broker := determine-broker_ --network=network
+        done := connect-broker_ --broker=broker --network=network
         if check-in:
           with-timeout TIMEOUT-CHECK-IN: check-in.run network logger_
         if done: return true
-        if Task.current.is-canceled:
-          critical-do: logger_.warn "ignored cancelation in connect-network loop"
-          throw CANCELED-ERROR
     finally: | is-exception exception |
       // We get canceled in tests and when forced offline through calls
       // to $(control --online --close), so we need to maintain the proper
       // state and get the network correctly quarantined and closed.
       critical-do:
-        error := (is-exception ? exception.value : null)
-        if is-firmware-upgrade-pending_: error = null
+        error := is-exception and not is-firmware-upgrade-pending_
+            ? exception.value
+            : null
         // We retry if we connected to the network, but failed
         // to actually connect to the broker. This could be an
         // indication that the network doesn't let us connect,
@@ -416,16 +412,16 @@ class SynchronizeJob extends TaskJob:
         if not interrupted: return done
 
   /**
-  Tries to connect to the broker and step through the
+  Tries to connect to the $broker and step through the
     necessary synchronization.
 
   Returns whether we are done synchronizing (true) or if we
     need another attempt using the already established network
     connection (false).
   */
-  connect-broker_ network/net.Client -> bool:
+  connect-broker_ --broker/BrokerService --network/net.Client -> bool:
     // TODO(kasper): Add timeout for connect.
-    broker-connection := broker_.connect --network=network --device=device_
+    broker-connection := broker.connect --network=network --device=device_
     try:
       goal/Goal? := null
       while true:
@@ -436,15 +432,9 @@ class SynchronizeJob extends TaskJob:
           goal = synchronize-step_ broker-connection goal
           if goal:
             assert: goal.has-pending-steps
-            if Task.current.is-canceled:
-              critical-do: logger_.warn "ignored cancelation in connect-broker loop (goal)"
-              throw CANCELED-ERROR
             continue
           if device_.max-offline and control-level-online_ == 0: return true
           if check-in and check-in.schedule-now: return false
-        if Task.current.is-canceled:
-          critical-do: logger_.warn "ignored cancelation in connect-broker loop"
-          throw CANCELED-ERROR
     finally:
       with-timeout TIMEOUT-BROKER-CLOSE: broker-connection.close
 
@@ -576,6 +566,12 @@ class SynchronizeJob extends TaskJob:
     state_ = STATE-DISCONNECTED
     if error: logger_.warn STATE-FAILURE[previous] --tags={"error": error}
     logger_.info STATE-SUCCESS[STATE-DISCONNECTED]
+
+  determine-broker_ --network/net.Client -> BrokerService:
+    // TODO(kasper): Find a good way to download an alternative server
+    // configuration if we've been unable to connect to the default
+    // broker for a while.
+    return broker_
 
   determine-status_ -> int:
     now := Time.monotonic-us

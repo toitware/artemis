@@ -55,6 +55,19 @@ run --offline/bool [block] -> none
         --mode=api.ArtemisService.CONTROLLER-MODE-OFFLINE
 
 /**
+Returns how long it has been since Artemis last synchronized
+  with the cloud.
+
+Returns null if Artemis does not know if it has synchronized
+  with the cloud yet. This can happen after a loss of power.
+*/
+synchronization-gap -> Duration?:
+  client := artemis-client_
+  if not client: throw "Artemis unavailable"
+  last := client.synchronized-last-us
+  return last and (Duration --us=Time.monotonic-us - last)
+
+/**
 The $device is a local representation of the present physical
   or logical device running the Artemis service.
 */
