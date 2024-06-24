@@ -18,8 +18,8 @@ class HttpConnection_:
 
   constructor .network_ .config_:
     if not certificates-are-installed_:
-      certificates-are-installed_ = true
       certificate-roots.install-common-trusted-roots
+      certificates-are-installed_ = true
     config_.install-root-certificates
     create-fresh-client_
 
