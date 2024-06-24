@@ -91,8 +91,11 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   root-certificate-der/ByteArray? := ?
 
   constructor.from-json name/string json/Map [--der-deserializer]:
-    root-der-id := json.get "root_certificate_der_id"
-    root-der/ByteArray? := root-der-id and (der-deserializer.call root-der-id)
+    root-der-base64/string? := json.get "root_certificate_der"
+    root-der/ByteArray? := root-der-base64 and (base64.decode root-der-base64)
+    if not root-der:
+      root-der-id := json.get "root_certificate_der_id"
+      root-der = root-der-id and (der-deserializer.call root-der-id)
     return ServerConfigSupabase name
         --host=json["host"]
         --anon=json["anon"]
