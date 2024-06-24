@@ -3,6 +3,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar
+import certificate-roots
 import cli
 import io
 // TODO(florian): these should come from the cli package.
@@ -30,6 +31,8 @@ main args:
   main --config=config --cache=cache --ui=ui args
 
 main --config/cli.Config --cache/cli.Cache --ui/Ui args:
+  certificate-roots.install-all-trusted-roots
+
   cmd := cli.Command "downloader"
       --help="""
         Downloads snapshots from the Artemis server and stores them in the Jaguar cache.

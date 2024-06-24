@@ -75,13 +75,12 @@ interface BrokerService:
       if colon-pos >= 0:
         port = int.parse host[colon-pos + 1..]
         host = host[..colon-pos]
-      // TODO(florian): get the path from the config.
       der := supabase-config.root-certificate-der
       http-config := ServerConfigHttp
           server-config.name
           --host=host
           --port=port
-          --path="/functions/v1/b"
+          --path="/functions/v1/b"  // TODO(florian): get the path from the config.
           --poll-interval=supabase-config.poll-interval
           --root-certificate-names=null
           --root-certificate-ders=der ? [der] : null

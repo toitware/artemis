@@ -2,6 +2,7 @@
 
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import certificate-roots
 import cli
 import log
 // TODO(florian): these should come from the cli package.
@@ -30,6 +31,8 @@ main args:
   main --config=config --cache=cache --ui=ui args
 
 main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
+  certificate-roots.install-all-trusted-roots
+
   cmd := cli.Command "sdk downloader"
       --help="Downloads SDKs and envelopes into the cache."
       --options=[

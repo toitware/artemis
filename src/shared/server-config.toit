@@ -3,11 +3,13 @@
 import crypto.sha1
 import encoding.base64
 import supabase
+import tls
 
 abstract class ServerConfig:
   name/string
 
   cache-key_/string? := null
+  ders-already-installed_/bool := false
 
   constructor.from-sub_ .name:
 
@@ -59,6 +61,11 @@ abstract class ServerConfig:
   abstract to-service-json [--der-serializer] -> Map
 
   /**
+  A list of DER certificates that are required for this broker to work.
+  */
+  abstract root-certificate-ders -> List?
+
+  /**
   Computes a unique key that can be used for caching.
   */
   abstract compute-cache-key_ -> string
@@ -70,6 +77,18 @@ abstract class ServerConfig:
     if not cache-key_:
       cache-key_ = base64.encode --url-mode (sha1.sha1 compute-cache-key_)
     return cache-key_
+
+  /**
+  Installs the DER certificates if they exist and if they aren't already installed.
+  */
+  install-root-certificates -> none:
+    if ders-already-installed_: return
+    ders-already-installed_ = true
+    ders := root-certificate-ders
+    if ders:
+      ders.do: | der/ByteArray |
+        certificate := tls.RootCertificate der
+        certificate.install
 
 class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
   static DEFAULT-POLL-INTERVAL ::= Duration --s=20
@@ -152,6 +171,9 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
 
   to-service-json [--der-serializer] -> Map:
     return to-json --der-serializer=der-serializer
+
+  root-certificate-ders -> List?:
+    return root-certificate-der and [root-certificate-der]
 
   compute-cache-key_ -> string:
     return host
