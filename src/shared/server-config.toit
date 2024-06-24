@@ -67,7 +67,8 @@ abstract class ServerConfig:
   A unique key that can be used for caching.
   */
   cache-key -> string:
-    if not cache-key_: cache-key_ = compute-cache-key_
+    if not cache-key_:
+      cache-key_ = base64.encode --url-mode (sha1.sha1 compute-cache-key_)
     return cache-key_
 
 class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
@@ -153,7 +154,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     return to-json --der-serializer=der-serializer
 
   compute-cache-key_ -> string:
-    return base64.encode (sha1.sha1 host)
+    return host
 
 /**
 A broker configuration for an HTTP-based broker.
@@ -232,4 +233,4 @@ class ServerConfigHttp extends ServerConfig:
     return result
 
   compute-cache-key_ -> string:
-    return base64.encode (sha1.sha1 "$host:$port:$path")
+    return "$host:$port:$path"
