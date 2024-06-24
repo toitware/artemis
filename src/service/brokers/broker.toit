@@ -11,11 +11,6 @@ import .http show BrokerServiceHttp
 import ..device
 import ...shared.server-config
 
-/**
-The resource manager is used to exchange data with the broker.
-
-TODO(kasper): Rename to BrokerConnection.
-*/
 interface BrokerConnection:
   /**
   Fetches the goal from the broker.
