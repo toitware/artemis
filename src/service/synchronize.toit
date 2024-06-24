@@ -220,7 +220,7 @@ class SynchronizeJob extends TaskJob:
         start-watchdog_ watchdog_ max-offline
     super NAME saved-state
 
-  control --online/bool --close/bool=false -> none:
+  control --online/bool --close/bool=false --force-recovery-contact/bool=false -> none:
     if close:
       if online:
         // If we're no longer force to stay online, we let the

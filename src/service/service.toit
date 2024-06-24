@@ -133,6 +133,11 @@ class ArtemisServiceProvider extends ChannelServiceProvider
       return null
     if index == api.ArtemisService.CONTROLLER-OPEN-INDEX:
       return controller-open --client=client --mode=arguments
+    if index == api.ArtemisService.CONTROLLER-OPEN-RECOVERY-INDEX:
+      return controller-open
+          --client=client
+          --mode=arguments[0]
+          --force-recovery-contact=arguments[1]
     if index == api.ArtemisService.DEVICE-ID-INDEX:
       return device-id
     if index == api.ArtemisService.SYNCHRONIZED-LAST-US:
@@ -172,7 +177,7 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     container_job := job as ContainerJob
     container_job.set-override-triggers new-triggers
 
-  controller-open --client/int --mode/int -> ControllerResource:
+  controller-open --client/int --mode/int --force-recovery-contact/bool=false -> ControllerResource:
     online := false
     if mode == api.ArtemisService.CONTROLLER-MODE-ONLINE:
       online = true
@@ -181,6 +186,7 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     return ControllerResource this client
         --synchronizer=synchronizer_
         --online=online
+        --force-recovery-contact=force-recovery-contact
 
   container-current-restart --wakeup-us/int? -> none:
     unreachable  // Here to satisfy the checker.
@@ -194,16 +200,20 @@ class ArtemisServiceProvider extends ChannelServiceProvider
   container-current-set-triggers new-triggers/List -> none:
     unreachable  // Here to satisfy the checker.
 
-  controller-open --mode/int -> int:
+  controller-open --mode/int --force-recovery-contact/bool=false -> int:
     unreachable  // Here to satisfy the checker.
 
 class ControllerResource extends services.ServiceResource:
   synchronizer/SynchronizeJob
   online/bool
+  force-recovery-contact/bool
 
-  constructor provider/ArtemisServiceProvider client/int --.synchronizer --.online:
+  constructor provider/ArtemisServiceProvider client/int
+      --.synchronizer
+      --.online
+      --.force-recovery-contact:
     super provider client
-    synchronizer.control --online=online
+    synchronizer.control --online=online --force-recovery-contact=force-recovery-contact
 
   on-closed -> none:
     synchronizer.control --online=online --close

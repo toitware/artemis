@@ -9,7 +9,7 @@ interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=1
-      --minor=1
+      --minor=2
 
   /** The mode used by controllers that want to go online. */
   static CONTROLLER-MODE-ONLINE ::= 0
@@ -59,6 +59,9 @@ interface ArtemisService:
   controller-open --mode/int -> int
   static CONTROLLER-OPEN-INDEX /int ::= 6
 
+  controller-open --mode/int --force-recovery-contact/bool -> int
+  static CONTROLLER-OPEN-RECOVERY-INDEX /int ::= 14
+
   channel-open --topic/string --receive/bool -> int?
   static CHANNEL-OPEN-INDEX /int ::= 2
 
@@ -107,6 +110,9 @@ class ArtemisClient extends ServiceClient
 
   controller-open --mode/int -> int:
     return invoke_ ArtemisService.CONTROLLER-OPEN-INDEX mode
+
+  controller-open --mode/int --force-recovery-contact/bool -> int:
+    return invoke_ ArtemisService.CONTROLLER-OPEN-RECOVERY-INDEX [mode, force-recovery-contact]
 
   channel-open --topic/string --receive/bool -> int?:
     return invoke_ ArtemisService.CHANNEL-OPEN-INDEX [topic, receive]

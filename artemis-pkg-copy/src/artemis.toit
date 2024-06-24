@@ -35,11 +35,17 @@ Runs the $block while forcing Artemis to try go online
 
 The Artemis service will attempt to stay connected as
   long as the $block is still executing.
+
+If $force-recovery-contact is set to true, Artemis will try to contact the
+  recovery server for new broker information. Without this flag,
+  Artemis will eventually contact the recovery server, but only
+  after a longer period of time.
 */
-run --online/bool [block] -> none:
+run --online/bool --force-recovery-contact/bool=false [block] -> none:
   if not online: throw "Bad Argument"
   implementation.Controller.run artemis-client_ block
       --mode=api.ArtemisService.CONTROLLER-MODE-ONLINE
+      --force-recovery-contact=force-recovery-contact
 
 /**
 Runs the $block while forcing Artemis to stay offline.
