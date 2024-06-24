@@ -1,7 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import crypto.sha1
-import encoding.ubjson
 import encoding.base64
 import supabase
 import tls
@@ -67,12 +66,16 @@ abstract class ServerConfig:
   abstract root-certificate-ders -> List?
 
   /**
+  Computes a unique key that can be used for caching.
+  */
+  abstract compute-cache-key_ -> string
+
+  /**
   A unique key that can be used for caching.
   */
   cache-key -> string:
     if not cache-key_:
-      hash := sha1.sha1 (ubjson.encode (to-json --der-serializer=: it))
-      cache-key_ = "$(base64.encode --url-mode hash)-$name"
+      cache-key_ = base64.encode --url-mode (sha1.sha1 compute-cache-key_)
     return cache-key_
 
   /**
@@ -110,8 +113,11 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   root-certificate-der/ByteArray? := ?
 
   constructor.from-json name/string json/Map [--der-deserializer]:
-    root-der-id := json.get "root_certificate_der_id"
-    root-der/ByteArray? := root-der-id and (der-deserializer.call root-der-id)
+    root-der-base64/string? := json.get "root_certificate_der"
+    root-der/ByteArray? := root-der-base64 and (base64.decode root-der-base64)
+    if not root-der:
+      root-der-id := json.get "root_certificate_der_id"
+      root-der = root-der-id and (der-deserializer.call root-der-id)
     return ServerConfigSupabase name
         --host=json["host"]
         --anon=json["anon"]
@@ -168,6 +174,9 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
 
   root-certificate-ders -> List?:
     return root-certificate-der and [root-certificate-der]
+
+  compute-cache-key_ -> string:
+    return host
 
 /**
 A broker configuration for an HTTP-based broker.
@@ -244,3 +253,6 @@ class ServerConfigHttp extends ServerConfig:
     result := to-json --der-serializer=der-serializer
     result.remove "admin_headers"
     return result
+
+  compute-cache-key_ -> string:
+    return "$host:$port:$path"

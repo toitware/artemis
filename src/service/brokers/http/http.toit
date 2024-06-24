@@ -23,7 +23,6 @@ class BrokerServiceHttp implements BrokerService:
     connection := HttpConnection_ network server-config_
     return BrokerConnectionHttp logger_ device connection server-config_.poll-interval
 
-
 class BrokerConnectionHttp implements BrokerConnection:
   device_/Device
   connection_/HttpConnection_
