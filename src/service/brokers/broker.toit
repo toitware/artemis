@@ -67,27 +67,7 @@ An interface to communicate with the CLI through a broker.
 */
 interface BrokerService:
   constructor logger/log.Logger server-config/ServerConfig:
-    if server-config is ServerConfigSupabase:
-      supabase-config := server-config as ServerConfigSupabase
-      host := supabase-config.host
-      port := null
-      colon-pos := host.index-of ":"
-      if colon-pos >= 0:
-        port = int.parse host[colon-pos + 1..]
-        host = host[..colon-pos]
-      der := supabase-config.root-certificate-der
-      http-config := ServerConfigHttp
-          server-config.name
-          --host=host
-          --port=port
-          --path="/functions/v1/b"  // TODO(florian): get the path from the config.
-          --poll-interval=supabase-config.poll-interval
-          --root-certificate-names=null
-          --root-certificate-ders=der ? [der] : null
-          --admin-headers=null
-          --device-headers=null
-      return BrokerServiceHttp logger http-config
-    else if server-config is ServerConfigHttp:
+    if server-config is ServerConfigHttp:
       return BrokerServiceHttp logger (server-config as ServerConfigHttp)
     else:
       throw "unknown broker $server-config"
