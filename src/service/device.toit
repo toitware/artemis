@@ -28,6 +28,7 @@ class Device:
   // monotonic clock phase starts.
   static RAM-PERIODIC-NETWORK-REQUEST-LAST_ ::= "pnr-last"
   static RAM-SYNCHRONIZED-LAST_ ::= "synchronized-last"
+  static RAM-RECOVERY-LAST_ ::= "recovery-last"
   static RAM-SCHEDULER-JOB-STATES_ ::= "scheduler-job-states"
 
   /**
@@ -224,6 +225,19 @@ class Device:
   */
   synchronized-last-us-update value/int -> none:
     ram-store_ RAM-SYNCHRONIZED-LAST_ value
+
+  /**
+  Get the time of the last recovery attempt (if any).
+  */
+  recovery-last-us -> int?:
+    return ram-load_ RAM-RECOVERY-LAST_
+
+  /**
+  Stores the time of the last recovery attempt in
+    memory that is preserved across deep sleeping.
+  */
+  recovery-last-us-update value/int -> none:
+    ram-store_ RAM-RECOVERY-LAST_ value
 
   /**
   Gets the last checkpoint (if any) for the firmware update

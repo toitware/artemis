@@ -4,6 +4,15 @@ import cli
 import uart
 import host.pipe
 
+/**
+A test device.
+
+This part of the code runs in a spawned process and watches a real
+  device through a serial port.
+
+It reflects the forked part of the util's TestDevice.
+*/
+
 main args:
   cmd := cli.Command "root"
     --options=[

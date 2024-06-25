@@ -136,7 +136,9 @@ create-recovery-config-commands config/Config cache/Cache ui/Ui -> List:
       --help="""
           Configure default recovery servers.
 
-          Default recovery servers are automatically set when creating a  new fleet.
+          Default recovery servers are automatically set when creating a new fleet. The
+            URLs in the configuration are used as a prefix, with 'recover-<FLEET-ID>.json'
+            appended to the URL to create the full recovery URL.
 
           See the 'fleet recovery' documentation for more information.
           """
