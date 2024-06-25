@@ -76,6 +76,28 @@ run-test fleet/TestFleet:
   expect-equals "$fake-device.organization-id" json-config["default-org"]
   expect-list-equals RECOVERY-SERVERS json-config["recovery-servers"]
 
+  with-tmp-directory: | fleet-tmp-dir/string |
+    init-data := fleet.run --json [
+      "fleet", "init", "--fleet", fleet-tmp-dir,
+    ]
+    fleet-id := init-data["id"]
+    recovery-urls := init-data["recovery-urls"]
+    mapped := RECOVERY-SERVERS.map: "$it/recover-$(fleet-id).json"
+    expect-list-equals mapped recovery-urls
+
+  with-tmp-directory: | fleet-tmp-dir/string |
+    fleet.test-cli.replacements["$fleet-tmp-dir"] = "<FLEET-TMP-DIR>"
+    fleet.test-cli.run-gold "BAC-init-recovery"
+        "Show the recovery servers"
+        ["fleet", "init", "--fleet", fleet-tmp-dir]
+        --before-gold=: | output/string |
+          recover-prefix := "/recover-"
+          recover-index := output.index-of recover-prefix
+          json-index := output.index-of ".json" recover-index
+          fleet-id := output[recover-index + recover-prefix.size .. json-index]
+          output.replace --all fleet-id "<FLEET-ID>"
+
+
   fleet.run-gold "BBA-config-show-default-values-set"
       "Print the test config with default values set"
       [

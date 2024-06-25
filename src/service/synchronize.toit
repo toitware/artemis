@@ -6,7 +6,9 @@ import net
 import uuid
 
 import crypto.sha256
+import encoding.json
 import encoding.tison
+import http
 
 import system.containers
 import system.firmware
@@ -21,6 +23,7 @@ import .jobs
 import .ntp
 import .storage
 
+import ..shared.server-config show ServerConfig
 import ..shared.json-diff show Modification json-equals
 
 /**
@@ -154,6 +157,10 @@ class SynchronizeJob extends TaskJob:
   // random to avoid pathological cases where lots of devices
   // synchronize at the same time over and over again.
   static SCHEDULE-JITTER-MS ::= 8_000
+
+  // We avoid querying the recovery servers too often.
+  static TIME-BETWEEN-RECOVERY-MINIMUM-US :=
+      1 * Duration.MICROSECONDS-PER-HOUR
 
   /** The RAM key and value for the firmware clean state. */
   static RAM-FIRMWARE-IS-CLEAN-KEY ::= "firmware-is-clean"
@@ -568,10 +575,58 @@ class SynchronizeJob extends TaskJob:
     logger_.info STATE-SUCCESS[STATE-DISCONNECTED]
 
   determine-broker_ --network/net.Client -> BrokerService:
-    // TODO(kasper): Find a good way to download an alternative server
-    // configuration if we've been unable to connect to the default
-    // broker for a while.
-    return broker_
+    status := determine-status_
+    broker := broker_
+
+    // If we're not experiencing any trouble connecting, we don't want
+    // to spend time contacting the recovery servers.
+    if status == STATUS-GREEN: return broker
+
+    // In the odd case where contacting a recovery server is making
+    // things worse, we skip it occassionally. This only makes a
+    // difference if the time between connect attempts is larger
+    // than the time between recovery attempts.
+    if status == STATUS-RED and (random 100) < 20: return broker
+
+    // If we've already contacted the recovery servers within a short
+    // window, we avoid doing it again.
+    last := device_.recovery-last-us
+    now := Time.monotonic-us
+    if last and (now - last) < TIME-BETWEEN-RECOVERY-MINIMUM-US:
+      // TODO(kasper): Find a good way to make sure we always query
+      // the recovery servers when in safe mode. This can be done
+      // either through an explicit check here or by resetting the
+      // last recovery attempt timestamp when we enter safe mode.
+      return broker
+
+    // TODO(kasper): Pick a random recovery server and try to
+    // connect to it. In safe mode, we may want to try them all.
+    recovery-service := query-recovery-server
+        --network=network
+        --uri="https://foo.bar/recover-xxx.json"
+    if recovery-service: broker = recovery-service
+
+    // Update the recovery attempt timestamp late, so we get
+    // more frequent retries if we failed in an unexpected way.
+    device_.recovery-last-us-update now
+    return broker
+
+  query-recovery-server --network/net.Client --uri/string -> BrokerService?:
+    exception := catch:
+      client := http.Client network
+      try:
+        response := client.get --uri=uri
+        status := response.status-code
+        if status != http.STATUS-OK:
+          logger_.warn "recovery server query failed" --tags={"uri": uri, "status": status}
+          return null
+        config := ServerConfig.from-json "broker" (json.decode-stream response.body)
+            --der-deserializer=: unreachable
+        return BrokerService logger_ config
+      finally:
+        client.close
+    logger_.warn "recovery server query failed" --tags={"uri": uri, "error": exception}
+    return null
 
   determine-status_ -> int:
     now := Time.monotonic-us
