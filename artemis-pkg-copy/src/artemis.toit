@@ -30,22 +30,28 @@ version -> string:
   return client.version
 
 /**
+Reboots the device.
+
+If $safe-mode is true, reboots into safe mode, where non-critical
+  applications are not started, and where the recovery servers are
+  contacted.
+*/
+reboot --safe-mode/bool=false -> none:
+  client := artemis-client_
+  if not client: throw "Artemis unavailable"
+  client.reboot --safe-mode=safe-mode
+
+/**
 Runs the $block while forcing Artemis to try go online
   even if it is not scheduled to do so yet.
 
 The Artemis service will attempt to stay connected as
   long as the $block is still executing.
-
-If $force-recovery-contact is set to true, Artemis will try to contact the
-  recovery server for new broker information. Without this flag,
-  Artemis will eventually contact the recovery server, but only
-  after a longer period of time.
 */
-run --online/bool --force-recovery-contact/bool=false [block] -> none:
+run --online/bool [block] -> none:
   if not online: throw "Bad Argument"
   implementation.Controller.run artemis-client_ block
       --mode=api.ArtemisService.CONTROLLER-MODE-ONLINE
-      --force-recovery-contact=force-recovery-contact
 
 /**
 Runs the $block while forcing Artemis to stay offline.

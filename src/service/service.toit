@@ -122,6 +122,9 @@ class ArtemisServiceProvider extends ChannelServiceProvider
   handle index/int arguments/any --gid/int --client/int -> any:
     if index == api.ArtemisService.VERSION-INDEX:
       return version
+    if index == api.ArtemisService.REBOOT-INDEX:
+      reboot --safe-mode=arguments
+      return null
     if index == api.ArtemisService.CONTAINER-CURRENT-RESTART-INDEX:
       return container-current-restart --gid=gid --wakeup-us=arguments
     if index == api.ArtemisService.CONTAINER-CURRENT-TRIGGER-INDEX:
@@ -133,11 +136,6 @@ class ArtemisServiceProvider extends ChannelServiceProvider
       return null
     if index == api.ArtemisService.CONTROLLER-OPEN-INDEX:
       return controller-open --client=client --mode=arguments
-    if index == api.ArtemisService.CONTROLLER-OPEN-RECOVERY-INDEX:
-      return controller-open
-          --client=client
-          --mode=arguments[0]
-          --force-recovery-contact=arguments[1]
     if index == api.ArtemisService.DEVICE-ID-INDEX:
       return device-id
     if index == api.ArtemisService.SYNCHRONIZED-LAST-US:
@@ -149,6 +147,9 @@ class ArtemisServiceProvider extends ChannelServiceProvider
 
   device-id -> ByteArray:
     return device_.id.to-byte-array
+
+  reboot --safe-mode/bool -> none:
+    // TODO(florian): implement this.
 
   synchronized-last-us -> int?:
     return device_.synchronized-last-us
@@ -177,7 +178,7 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     container_job := job as ContainerJob
     container_job.set-override-triggers new-triggers
 
-  controller-open --client/int --mode/int --force-recovery-contact/bool=false -> ControllerResource:
+  controller-open --client/int --mode/int -> ControllerResource:
     online := false
     if mode == api.ArtemisService.CONTROLLER-MODE-ONLINE:
       online = true
@@ -186,7 +187,6 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     return ControllerResource this client
         --synchronizer=synchronizer_
         --online=online
-        --force-recovery-contact=force-recovery-contact
 
   container-current-restart --wakeup-us/int? -> none:
     unreachable  // Here to satisfy the checker.
@@ -206,14 +206,12 @@ class ArtemisServiceProvider extends ChannelServiceProvider
 class ControllerResource extends services.ServiceResource:
   synchronizer/SynchronizeJob
   online/bool
-  force-recovery-contact/bool
 
   constructor provider/ArtemisServiceProvider client/int
       --.synchronizer
-      --.online
-      --.force-recovery-contact:
+      --.online:
     super provider client
-    synchronizer.control --online=online --force-recovery-contact=force-recovery-contact
+    synchronizer.control --online=online
 
   on-closed -> none:
     synchronizer.control --online=online --close

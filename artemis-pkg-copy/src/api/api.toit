@@ -44,6 +44,9 @@ interface ArtemisService:
   synchronized-last-us -> int?
   static SYNCHRONIZED-LAST-US /int ::= 13
 
+  reboot --safe-mode/bool -> none
+  static REBOOT-INDEX /int ::= 14
+
   container-current-restart --wakeup-us/int? -> none
   static CONTAINER-CURRENT-RESTART-INDEX /int ::= 1
 
@@ -58,9 +61,6 @@ interface ArtemisService:
 
   controller-open --mode/int -> int
   static CONTROLLER-OPEN-INDEX /int ::= 6
-
-  controller-open --mode/int --force-recovery-contact/bool -> int
-  static CONTROLLER-OPEN-RECOVERY-INDEX /int ::= 14
 
   channel-open --topic/string --receive/bool -> int?
   static CHANNEL-OPEN-INDEX /int ::= 2
@@ -96,6 +96,9 @@ class ArtemisClient extends ServiceClient
   synchronized-last-us -> int?:
     return invoke_ ArtemisService.SYNCHRONIZED-LAST-US null
 
+  reboot --safe-mode/bool -> none:
+    invoke_ ArtemisService.REBOOT-INDEX safe-mode
+
   container-current-restart --wakeup-us/int? -> none:
     invoke_ ArtemisService.CONTAINER-CURRENT-RESTART-INDEX wakeup-us
 
@@ -110,9 +113,6 @@ class ArtemisClient extends ServiceClient
 
   controller-open --mode/int -> int:
     return invoke_ ArtemisService.CONTROLLER-OPEN-INDEX mode
-
-  controller-open --mode/int --force-recovery-contact/bool -> int:
-    return invoke_ ArtemisService.CONTROLLER-OPEN-RECOVERY-INDEX [mode, force-recovery-contact]
 
   channel-open --topic/string --receive/bool -> int?:
     return invoke_ ArtemisService.CHANNEL-OPEN-INDEX [topic, receive]

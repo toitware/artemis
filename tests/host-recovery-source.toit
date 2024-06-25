@@ -13,5 +13,4 @@ main:
   test-url := os.env[TEST-URL-ENV]
   client.get --uri=test-url
 
-  artemis.run --online --force-recovery-contact:
-    sleep --ms=2000
+  artemis.reboot --safe-mode
