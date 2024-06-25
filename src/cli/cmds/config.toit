@@ -21,6 +21,7 @@ create-config-commands config/Config cache/Cache ui/Ui -> List:
   config-cmd.add show-cmd
 
   (create-server-config-commands config ui).do: config-cmd.add it
+  (create-recovery-config-commands config cache ui).do: config-cmd.add it
 
   return [config-cmd]
 
@@ -130,12 +131,68 @@ create-server-config-commands config/Config ui/Ui -> List:
 
   return [config-broker-cmd]
 
+create-recovery-config-commands config/Config cache/Cache ui/Ui -> List:
+  recovery-cmd := cli.Command "recovery"
+      --help="""
+          Configure default recovery servers.
+
+          Default recovery servers are automatically set when creating a  new fleet.
+
+          See the 'fleet recovery' documentation for more information.
+          """
+
+  recovery-add-cmd := cli.Command "add"
+      --help="""
+          Add a default recovery server.
+          """
+      --rest=[
+        cli.OptionString "url"
+            --help="The URL of the server."
+            --required,
+      ]
+      --examples=[
+        cli.Example "Add a recovery server:"
+            --arguments="https://recovery.example.com",
+      ]
+      --run=:: add-recovery-server it config ui
+  recovery-cmd.add recovery-add-cmd
+
+  recovery-list-cmd := cli.Command "list"
+      --aliases=["ls"]
+      --help="List the recovery servers."
+      --run=:: list-recovery-servers config ui
+  recovery-cmd.add recovery-list-cmd
+
+  recovery-remove-cmd := cli.Command "remove"
+      --help="Remove a default recovery server."
+      --options=[
+        cli.Flag "all"
+            --help="Remove all servers.",
+        cli.Flag "force"
+            --short-name="f"
+            --help="Do not error if the server doesn't exist.",
+      ]
+      --rest=[
+        cli.OptionString "url"
+            --help="The URL of the server."
+            --multi,
+      ]
+      --examples=[
+        cli.Example "Remove a recovery server:"
+            --arguments="https://recovery.example.com",
+      ]
+      --run=:: remove-recovery-servers it config ui
+  recovery-cmd.add recovery-remove-cmd
+
+  return [recovery-cmd]
+
 show-config config/Config ui/Ui:
   default-device := config.get CONFIG-DEVICE-DEFAULT-KEY
   default-broker := config.get CONFIG-BROKER-DEFAULT-KEY
   default-org := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
   servers := config.get CONFIG-SERVERS-KEY
   auths := config.get CONFIG-SERVER-AUTHS-KEY
+  recovery-urls := config.get CONFIG-RECOVERY-SERVERS-KEY
 
   json-output := :
     result := {
@@ -156,6 +213,7 @@ show-config config/Config ui/Ui:
             if auth.contains token-name and auth[token-name].size > 35:
               auth[token-name] = auth[token-name][0..30] + "..."
         server["auth"] = auth
+    if recovery-urls: result["recovery-servers"] = recovery-urls
     result
 
   human-output := : | printer/Printer |
@@ -174,6 +232,7 @@ show-config config/Config ui/Ui:
       auths.do: | server-name auth |
         server := result-servers.get server-name --init=: {:}
         server["auth"] = auth
+    if recovery-urls: result["Recovery servers"] = recovery-urls
     printer.emit result
 
   ui.do --kind=Ui.RESULT: | printer/Printer |
@@ -281,3 +340,49 @@ add-http parsed/cli.Parsed config/Config ui/Ui:
   config.write
 
   ui.info "Added broker '$name'."
+
+add-recovery-server parsed/cli.Parsed config/Config ui/Ui:
+  url := parsed["url"]
+
+  config-key := CONFIG-RECOVERY-SERVERS-KEY
+  recovery-servers := config.get config-key --init=: []
+  if recovery-servers.contains url:
+    ui.abort "Recovery server already exists."
+  recovery-servers.add url
+  config[config-key] = recovery-servers
+  config.write
+
+  ui.info "Added recovery server '$url'."
+
+list-recovery-servers config/Config ui/Ui:
+  config-key := CONFIG-RECOVERY-SERVERS-KEY
+  recovery-servers := config.get config-key or []
+
+  ui.do --kind=Ui.RESULT: | printer/Printer |
+    printer.emit --title="Recovery servers:"
+      recovery-servers
+
+remove-recovery-servers parsed/cli.Parsed config/Config ui/Ui:
+  all := parsed["all"]
+  urls := parsed["url"]
+  force := parsed["force"]
+
+  config-key := CONFIG-RECOVERY-SERVERS-KEY
+  recovery-servers := config.get config-key --init=: []
+
+  if all:
+    recovery-servers.clear
+    config[config-key] = recovery-servers
+    config.write
+    ui.info "Removed all recovery servers."
+    return
+
+  urls.do: | url |
+    if not force and not recovery-servers.contains url:
+      ui.abort "Recovery server not found."
+    recovery-servers.remove url
+
+  config[config-key] = recovery-servers
+  config.write
+
+  ui.info "Removed recovery server(s)."

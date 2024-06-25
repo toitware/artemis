@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli
+import fs
 import host.file
 import uuid
 
@@ -458,6 +459,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         It is safe to roll out new pods to the fleet while a migration is in progress. As
         long as the migration is not finished, new pods will be rolled out to all brokers.
         """
+  cmd.add migration-cmd
 
   migration-start-cmd := cli.Command "start"
       --help="""
@@ -518,7 +520,101 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --run=:: migration-stop it config cache ui
   migration-cmd.add migration-stop-cmd
 
-  cmd.add migration-cmd
+  recovery-path := recovery-file-name --fleet-string="<FLEET-ID>"
+  recovery-cmd := cli.Command "recovery"
+      --help="""
+        Manage recovery servers for the fleet.
+
+        Recovery servers are used when a broker is unreachable and can't
+        be restored. For example, if a domain name is lost.
+
+        When devices are unable to reach their configured broker they periodically
+        contact their recovery servers to receive updated broker information.
+
+        For example, say a device is configured to use
+        'https://hxtyuwtaqffnqagvoxok.supabase.co', but that server is accidentally
+        deleted. Since that address is not valid anymore, the devices will start
+        to contact the recovery servers for updated broker information.
+
+        The configured recovery servers are prefixes. The full path consists of
+        the prefix, followed by '/$recovery-path'. For example, if the prefix
+        is 'https://recovery.toit.io', then the full path is
+        'https://recovery.toit.io/$recovery-path'.
+
+        Recovery servers can be set up on demand. In fact, it is recommended to
+        point recovery addresses to servers that refuse connections, so that
+        the devices don't establish TLS connections when they are not needed.
+        If the main broker is lost, the recovery server can be updated to
+        accept connections and return the new broker information.
+
+        Recovery servers must be reachable with one of the common
+        root certificates of the certificate_roots package.
+        """
+  cmd.add recovery-cmd
+
+  recovery-add-cmd := cli.Command "add"
+      --help="""
+          Add a recovery server to this fleet.
+          """
+      --rest=[
+        cli.Option "url"
+            --help="The URL of the recovery server."
+            --required,
+      ]
+      --examples=[
+        cli.Example "Add a recovery server 'https://recovery.toit.io':"
+            --arguments="https://recovery.toit.io",
+      ]
+      --run=:: recovery-add it config cache ui
+  recovery-cmd.add recovery-add-cmd
+
+  recovery-remove-cmd := cli.Command "remove"
+      --help="""
+          Remove a recovery server from this fleet.
+          """
+      --options=[
+        cli.Flag "all"
+            --help="Remove all recovery servers.",
+        cli.Flag "force"
+            --short-name="f"
+            --help="Don't error if the recovery server doesn't exist.",
+      ]
+      --rest=[
+        cli.Option "url"
+            --help="The URL of the recovery server."
+            --multi,
+      ]
+      --examples=[
+        cli.Example "Remove the recovery server 'https://recovery.toit.io':"
+            --arguments="https://recovery.toit.io",
+      ]
+      --run=:: recovery-remove it config cache ui
+  recovery-cmd.add recovery-remove-cmd
+
+  recovery-list-cmd := cli.Command "list"
+      --aliases=["ls"]
+      --help="""
+          List the recovery servers for this fleet.
+          """
+      --run=:: recovery-list it config cache ui
+  recovery-cmd.add recovery-list-cmd
+
+  recovery-export-cmd := cli.Command "export"
+      --help="""
+          Export the recovery information for this fleet.
+
+          The written JSON file should be served on the recovery server(s).
+          """
+      --options=[
+        cli.Option "directory"
+            --help="The directory to write the recovery information to.",
+      ]
+      --examples=[
+        cli.Example "Export the recovery servers to the current directory:"
+            --arguments="--directory=.",
+      ]
+      --run=:: recovery-export it config cache ui
+  recovery-cmd.add recovery-export-cmd
 
   return [cmd]
 
@@ -539,11 +635,15 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     broker-config = get-server-from-config --name=broker-name config ui
   else:
     broker-config = get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY config ui
+
+  default-recovery-urls := (config.get CONFIG-RECOVERY-SERVERS-KEY) or []
+
   fleet-root := compute-fleet-root-or-ref parsed config ui
   with-artemis parsed config cache ui: | artemis/Artemis |
     FleetWithDevices.init fleet-root artemis
         --organization-id=organization-id
         --broker-config=broker-config
+        --recovery-urls=default-recovery-urls
         --ui=ui
 
 login parsed/cli.Parsed config/Config cache/Cache ui/Ui:
@@ -871,3 +971,85 @@ migration-stop parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       quoted := brokers.map: "'$it'"
       joined := quoted.join ", "
       ui.info "Stopped migration for broker(s) $joined."
+
+recovery-file-name --fleet-string/string -> string:
+  return "recover-$(fleet-string).json"
+
+recovery-file-name --fleet-id/uuid.Uuid -> string:
+  return recovery-file-name --fleet-string="$fleet-id"
+
+recovery-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  url := parsed["url"]
+
+  if url.ends-with "/":
+    url = url[..url.size - 1]
+
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    fleet.recovery-url-add url
+
+    full-url := "$url/$(recovery-file-name --fleet-id=fleet.id)"
+
+    ui.info "Added recovery server '$url'."
+    ui.info "Devices will contact '$full-url' for updated broker information."
+
+    ui.do --kind=Ui.RESULT: | printer/Printer |
+      printer.emit-structured
+        --json=: {
+            "url-prefix": url,
+            "url": full-url,
+          }
+        --stdout=:
+          // Do nothing.
+
+recovery-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  all := parsed["all"]
+  force := parsed["force"]
+  urls := parsed["url"]
+
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    if all:
+      fleet.recovery-urls-remove-all
+      ui.info "Removed all recovery servers."
+    else:
+      urls.do: | url |
+        if not fleet.recovery-url-remove url:
+          if not force:
+            ui.abort "Recovery server '$url' not found."
+          else:
+            ui.info "Recovery server '$url' not found."
+
+      quoted := urls.map: "'$it'"
+      joined := quoted.join ", "
+      ui.info "Removed recovery server(s) $joined."
+
+recovery-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    recovery-urls := fleet.recovery-urls
+    ui.do --kind=Ui.RESULT: | printer/Printer |
+      printer.emit --title="Recovery servers" recovery-urls
+
+recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
+  directory := parsed["directory"]
+
+  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    recovery-info := fleet.recovery-info
+    path := fs.join directory (recovery-file-name --fleet-id=fleet.id)
+    file.write-content --path=path recovery-info
+    ui.info "Exported recovery information to '$path'."
+    recovery-urls := fleet.recovery-urls
+    full-urls := recovery-urls.map: | url/string |
+      "$url/$(recovery-file-name --fleet-id=fleet.id)"
+    if not recovery-urls.is-empty:
+      ui.info "Devices with the current recovery servers configuration will try to"
+      ui.info "  download it from one of the following URLs:"
+      full-urls.do: | url/string |
+        ui.info "- $url"
+
+      ui.do --kind=Ui.RESULT: | printer/Printer |
+        printer.emit-structured
+          --json=: {
+            "path": path,
+            "recovery-urls": full-urls,
+          }
+          --stdout=:
+            // Do nothing.

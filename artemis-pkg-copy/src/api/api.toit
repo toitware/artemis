@@ -9,7 +9,7 @@ interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=1
-      --minor=0
+      --minor=1
 
   /** The mode used by controllers that want to go online. */
   static CONTROLLER-MODE-ONLINE ::= 0
@@ -40,6 +40,9 @@ interface ArtemisService:
 
   device-id -> ByteArray
   static DEVICE-ID-INDEX /int ::= 7
+
+  synchronized-last-us -> int?
+  static SYNCHRONIZED-LAST-US /int ::= 13
 
   container-current-restart --wakeup-us/int? -> none
   static CONTAINER-CURRENT-RESTART-INDEX /int ::= 1
@@ -86,6 +89,9 @@ class ArtemisClient extends ServiceClient
 
   device-id -> ByteArray:
     return invoke_ ArtemisService.DEVICE-ID-INDEX null
+
+  synchronized-last-us -> int?:
+    return invoke_ ArtemisService.SYNCHRONIZED-LAST-US null
 
   container-current-restart --wakeup-us/int? -> none:
     invoke_ ArtemisService.CONTAINER-CURRENT-RESTART-INDEX wakeup-us

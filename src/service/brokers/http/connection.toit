@@ -1,10 +1,10 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import certificate-roots
 import encoding.json
 import encoding.base64
 import http
 import net
-import net.x509
 import reader show Reader
 import system.storage
 import certificate-roots
@@ -14,12 +14,13 @@ class HttpConnection_:
   client_/http.Client? := null
   config_/ServerConfigHttp
   network_/net.Interface
-  root-certificates_/List? := null
+  static certificates-are-installed_/bool := false
 
   constructor .network_ .config_:
-    if config_.root-certificate-ders:
-      root-certificates_ = config_.root-certificate-ders.map:
-        x509.Certificate.parse it
+    if not certificates-are-installed_:
+      certificate-roots.install-common-trusted-roots
+      certificates-are-installed_ = true
+    config_.install-root-certificates
     create-fresh-client_
 
   create-fresh-client_ -> none:
@@ -28,9 +29,7 @@ class HttpConnection_:
       client_ = null
 
     if config_.root-certificate-ders:
-      client_ = http.Client.tls network_
-          --root-certificates=root-certificates_
-          --security-store=HttpSecurityStore_
+      client_ = http.Client.tls network_ --security-store=HttpSecurityStore_
     else:
       client_ = http.Client network_
 
@@ -61,6 +60,10 @@ class HttpConnection_:
 
     MAX-ATTEMPTS ::= 3
     for i := 0; i < MAX-ATTEMPTS; i++:
+      if i != 0:
+        // We are retrying. Create a fresh client.
+        create-fresh-client_
+
       response = client_.post encoded
           --host=config_.host
           --port=config_.port
@@ -69,12 +72,11 @@ class HttpConnection_:
       body = response.body
       status = response.status-code
 
-      if status != http.STATUS-BAD-GATEWAY or i == MAX-ATTEMPTS - 1:
+      // Cloudflare frequently rejects our requests with a 502, 520 or 546, which
+      // we retry a few times to see if it was a temporary issue.
+      // If it's not one of these, we are done.
+      if status != http.STATUS-BAD-GATEWAY and status != 520 and status != 546:
         break
-
-      // Cloudflare frequently returns with a 502.
-      // Close the client and try again.
-      create-fresh-client_
 
     if status == http.STATUS-IM-A-TEAPOT:
       decoded := json.decode-stream body

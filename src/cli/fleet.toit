@@ -1,5 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import certificate-roots
 import encoding.json
 import encoding.ubjson
 import encoding.base64
@@ -79,6 +80,7 @@ class FleetFile:
   broker-name/string
   migrating-from/List
   servers/Map  // From broker-name to ServerConfig.
+  recovery-urls/List
 
   constructor
       --.path
@@ -88,7 +90,8 @@ class FleetFile:
       --.is-reference
       --.broker-name
       --.migrating-from
-      --.servers:
+      --.servers
+      --.recovery-urls:
 
   static parse path/string --default-broker-config/ServerConfig --ui/Ui -> FleetFile:
     fleet-content := null
@@ -164,6 +167,8 @@ class FleetFile:
         default-broker-config.name: default-broker-config,
       }
 
+    recovery-urls := fleet-content.get "recovery-urls" --if-absent=: []
+
     return FleetFile
         --path=path
         --id=uuid.parse fleet-content["id"]
@@ -173,6 +178,7 @@ class FleetFile:
         --broker-name=broker-name
         --migrating-from=migrating-from
         --servers=servers
+        --recovery-urls=recovery-urls
 
   broker-config -> ServerConfig:
     return servers[broker-name]
@@ -192,7 +198,8 @@ class FleetFile:
       --is-reference/bool?=null
       --broker-name/string?=null
       --migrating-from/List?=null
-      --servers/Map?=null:
+      --servers/Map?=null
+      --recovery-urls/List?=null:
     return FleetFile
         --path=(path or this.path)
         --id=(id or this.id)
@@ -202,6 +209,7 @@ class FleetFile:
         --broker-name=(broker-name or this.broker-name)
         --migrating-from=(migrating-from or this.migrating-from)
         --servers=(servers or this.servers)
+        --recovery-urls=(recovery-urls or this.recovery-urls)
 
   write -> none:
     payload := to-json_
@@ -240,6 +248,7 @@ class FleetFile:
       result["migrating-from"] = migrating-from
     result["servers"] = servers.map: | server-name/string server-config/ServerConfig |
       server-config.to-json --der-serializer=: base64.encode it
+    result["recovery-urls"] = recovery-urls
     return result
 
 class DevicesFile:
@@ -437,6 +446,39 @@ class Fleet:
   pod-exists reference/PodReference -> bool:
     return broker.pod-exists reference
 
+  recovery-urls -> List:
+    return fleet-file_.recovery-urls
+
+  recovery-url-add url/string -> none:
+    old-urls := fleet-file_.recovery-urls
+    if old-urls.contains url:
+      ui_.info "Recovery URL '$url' already exists."
+      return
+    new-urls := old-urls + [url]
+    new-file := fleet-file_.with --recovery-urls=new-urls
+    new-file.write
+
+  recovery-url-remove url/string -> bool:
+    old-urls := fleet-file_.recovery-urls
+    new-urls := old-urls.filter: it != url
+    if old-urls.size == new-urls.size:
+      return false
+
+    new-file := fleet-file_.with --recovery-urls=new-urls
+    new-file.write
+    return true
+
+  recovery-urls-remove-all -> none:
+    new-file := fleet-file_.with --recovery-urls=[]
+    new-file.write
+
+  recovery-info -> ByteArray:
+    broker.server-config.fill-certificate-ders: certificate-roots.MAP[it].raw
+    json-config := broker.server-config.to-json
+        --base64
+        --der-serializer=: unreachable
+    return json.encode json-config
+
 /**
 A fleet with devices.
 
@@ -497,6 +539,7 @@ class FleetWithDevices extends Fleet:
   static init fleet-root/string artemis/Artemis
       --organization-id/uuid.Uuid
       --broker-config/ServerConfig
+      --recovery-urls/List
       --ui/Ui:
     if not file.is-directory fleet-root:
       ui.abort "Fleet root '$fleet-root' is not a directory."
@@ -523,6 +566,7 @@ class FleetWithDevices extends Fleet:
         --broker-name=broker-name
         --migrating-from=[]
         --servers={broker-name: broker-config}
+        --recovery-urls=recovery-urls
     fleet-file.write
 
     devices-file := DevicesFile "$fleet-root/$DEVICES-FILE_" []

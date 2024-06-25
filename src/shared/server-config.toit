@@ -1,14 +1,15 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import crypto.sha1
-import encoding.ubjson
-import encoding.base64
+import encoding.base64 as base64-lib
 import supabase
+import tls
 
 abstract class ServerConfig:
   name/string
 
   cache-key_/string? := null
+  ders-already-installed_/bool := false
 
   constructor.from-sub_ .name:
 
@@ -27,6 +28,7 @@ abstract class ServerConfig:
           --der-deserializer=der-deserializer
     else if json-map["type"] == "toit-http":
       config = ServerConfigHttp.from-json name json-map
+          --der-deserializer=der-deserializer
     else:
       throw "Unknown broker type: $json-map"
     return config
@@ -46,11 +48,14 @@ abstract class ServerConfig:
   The $der-serializer is called with a certificate DER, and must
     return a unique identifier for the certificate.
 
+  If $base64 is true, then any DERs will be base64 encoded without calling
+    the $der-serializer.
+
   # Inheritance
   The returned map must include a field "type" with the value returned by
     $type.
   */
-  abstract to-json [--der-serializer] -> Map
+  abstract to-json [--der-serializer] --base64/bool=false -> Map
 
   /**
   Serializes this configuration to a JSON map that can be used on the device.
@@ -60,13 +65,34 @@ abstract class ServerConfig:
   abstract to-service-json [--der-serializer] -> Map
 
   /**
+  A list of DER certificates that are required for this broker to work.
+  */
+  abstract root-certificate-ders -> List?
+
+  /**
+  Computes a unique key that can be used for caching.
+  */
+  abstract compute-cache-key_ -> string
+
+  /**
   A unique key that can be used for caching.
   */
   cache-key -> string:
     if not cache-key_:
-      hash := sha1.sha1 (ubjson.encode (to-json --der-serializer=: it))
-      cache-key_ = "$(base64.encode --url-mode hash)-$name"
+      cache-key_ = base64-lib.encode --url-mode (sha1.sha1 compute-cache-key_)
     return cache-key_
+
+  /**
+  Installs the DER certificates if they exist and if they aren't already installed.
+  */
+  install-root-certificates -> none:
+    if ders-already-installed_: return
+    ders-already-installed_ = true
+    ders := root-certificate-ders
+    if ders:
+      ders.do: | der/ByteArray |
+        certificate := tls.RootCertificate der
+        certificate.install
 
 class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig:
   static DEFAULT-POLL-INTERVAL ::= Duration --s=20
@@ -91,8 +117,11 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   root-certificate-der/ByteArray? := ?
 
   constructor.from-json name/string json/Map [--der-deserializer]:
-    root-der-id := json.get "root_certificate_der_id"
-    root-der/ByteArray? := root-der-id and (der-deserializer.call root-der-id)
+    root-der-base64/string? := json.get "root_certificate_der64"
+    root-der/ByteArray? := root-der-base64 and (base64-lib.decode root-der-base64)
+    if not root-der:
+      root-der-id := json.get "root_certificate_der_id"
+      root-der = root-der-id and (der-deserializer.call root-der-id)
     return ServerConfigSupabase name
         --host=json["host"]
         --anon=json["anon"]
@@ -131,7 +160,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     if root-certificate-name and not root-certificate-der:
       root-certificate-der = certificate-getter.call root-certificate-name
 
-  to-json  [--der-serializer] -> Map:
+  to-json  [--der-serializer] --base64/bool=false -> Map:
     result := {
       "type": type,
       "host": host,
@@ -141,11 +170,22 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     if root-certificate-name:
       result["root_certificate_name"] = root-certificate-name
     if root-certificate-der:
-      result["root_certificate_der_id"] = der-serializer.call root-certificate-der
+      if base64:
+        result["root_certificate_der64"] = base64-lib.encode root-certificate-der
+      else:
+        serialized := der-serializer.call root-certificate-der
+        if serialized:
+          result["root_certificate_der_id"] = serialized
     return result
 
   to-service-json [--der-serializer] -> Map:
     return to-json --der-serializer=der-serializer
+
+  root-certificate-ders -> List?:
+    return root-certificate-der and [root-certificate-der]
+
+  compute-cache-key_ -> string:
+    return host
 
 /**
 A broker configuration for an HTTP-based broker.
@@ -164,15 +204,18 @@ class ServerConfigHttp extends ServerConfig:
   admin-headers/Map?
   poll-interval/Duration := ?
 
-  constructor.from-json name/string config/Map:
-    if config.get "root_certificate_ders":
-      throw "json config for http broker must not contain root_certificate_ders"
+  constructor.from-json name/string config/Map [--der-deserializer]:
+    root-certificates-ders/List? := null
+    if encode-ders64 := config.get "root_certificate_ders64":
+      root-certificates-ders = encode-ders64.map: base64-lib.decode it
+    else if config.get "root_certificate_ders":
+      root-certificates-ders = config["root_certificate_ders"].map: der-deserializer.call it
     return ServerConfigHttp name
         --host=config["host"]
         --port=config.get "port"
         --path=config["path"]
         --root-certificate-names=config.get "root_certificate_names"
-        --root-certificate-ders=null
+        --root-certificate-ders=root-certificates-ders
         --device-headers=config.get "device_headers"
         --admin-headers=config.get "admin_headers"
         --poll-interval=Duration --us=config["poll_interval"]
@@ -199,7 +242,7 @@ class ServerConfigHttp extends ServerConfig:
     if root-certificate-names and not root-certificate-ders:
       root-certificate-ders = root-certificate-names.map: certificate-getter.call it
 
-  to-json [--der-serializer] -> Map:
+  to-json [--der-serializer] --base64/bool=false -> Map:
     result := {
       "type": type,
       "host": host,
@@ -211,7 +254,10 @@ class ServerConfigHttp extends ServerConfig:
     if root-certificate-names:
       result["root_certificate_names"] = root-certificate-names
     if root-certificate-ders:
-      result["root_certificate_ders"] = root-certificate-ders.map: der-serializer.call it
+      if base64:
+        result["root_certificate_ders64"] = root-certificate-ders.map: base64-lib.encode it
+      else:
+        result["root_certificate_ders"] = root-certificate-ders.map: der-serializer.call it
     if device-headers:
       result["device_headers"] = device-headers
     if admin-headers:
@@ -222,3 +268,6 @@ class ServerConfigHttp extends ServerConfig:
     result := to-json --der-serializer=der-serializer
     result.remove "admin_headers"
     return result
+
+  compute-cache-key_ -> string:
+    return "$host:$port:$path"

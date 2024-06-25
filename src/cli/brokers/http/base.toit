@@ -28,6 +28,7 @@ class BrokerCliHttp implements BrokerCli:
   client_/http.Client? := null
 
   constructor .server-config_ --.id:
+    server-config_.install-root-certificates
     network_ = net.open
     add-finalizer this:: close
 
@@ -113,9 +114,11 @@ class BrokerCliHttp implements BrokerCli:
     MAX-ATTEMPTS ::= 3
     MAX-ATTEMPTS.repeat: | attempt/int |
       response := send-request_ encoded
-      // Cloudflare frequently rejects our requests with a 502.
+      // Cloudflare frequently rejects our requests with a 502, 520 or 546.
       // Just try again.
-      if response.status-code == http.STATUS-BAD-GATEWAY and attempt != MAX-ATTEMPTS - 1:
+      status-code := response.status-code
+      if (status-code == http.STATUS-BAD-GATEWAY or status-code == 520 or status-code == 546)
+          and attempt != MAX-ATTEMPTS - 1:
         // Try again with a different client.
         client_.close
         client_ = null
@@ -125,13 +128,8 @@ class BrokerCliHttp implements BrokerCli:
 
   send-request_ encoded/ByteArray -> http.Response:
     if not client_:
-      root-names := server-config_.root-certificate-names
-      if root-names:
-        root-certificates := root-names.map:
-          der/tls.RootCertificate := certificate-roots.MAP[it]
-          x509.Certificate.parse der.raw
+      if server-config_.root-certificate-names:
         client_ = http.Client.tls network_
-            --root-certificates=root-certificates
       else:
         client_ = http.Client network_
 

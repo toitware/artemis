@@ -1168,6 +1168,7 @@ class MigrationBroker:
     done-latch.set true
 
 class TestFleet:
+  id/uuid.Uuid
   test-cli/TestCli
   fleet-dir/string
   args/List
@@ -1181,7 +1182,7 @@ class TestFleet:
   It is not recommended to mix these devices with other types of
     test devices (like host devices).
   */
-  constructor --.test-cli --.fleet-dir --.args --devices/List:
+  constructor --.id --.test-cli --.fleet-dir --.args --devices/List:
     devices.do: | device/FakeDevice |
       this.devices[device.alias-id] = device
 
@@ -1287,7 +1288,8 @@ with-fleet --args/List --count/int=0 [block]:
       ]
 
       fleet-file := read-json "$fleet-dir/fleet.json"
-      test-cli.replacements[fleet-file["id"]] = pad-replacement-id "FLEET_ID"
+      fleet-id := fleet-file["id"]
+      test-cli.replacements[fleet-id] = pad-replacement-id "FLEET_ID"
 
       identity-dir := "$fleet-dir/identities"
       directory.mkdir --recursive identity-dir
@@ -1318,6 +1320,7 @@ with-fleet --args/List --count/int=0 [block]:
         fake-devices.add fake-device
 
       fleet := TestFleet
+          --id=(uuid.parse fleet-id)
           --test-cli=test-cli
           --fleet-dir=fleet-dir
           --args=args

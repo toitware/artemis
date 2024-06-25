@@ -3,6 +3,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar
+import certificate-roots
 import cli
 import encoding.url as url-encoding
 
@@ -40,6 +41,8 @@ main args:
   main --config=config --cache=cache --ui=ui args
 
 main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
+  certificate-roots.install-all-trusted-roots
+
   cmd := cli.Command "uploader"
       --help="""
         Administrative tool to upload CLI snapshots and Artemis service

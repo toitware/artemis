@@ -15,11 +15,7 @@ run-test test-cli/TestCli:
   backdoor := test-cli.artemis.backdoor
   backdoor.install-service-images []
 
-  test-cli.run [
-    "auth", "login",
-    "--email", TEST-EXAMPLE-COM-EMAIL,
-    "--password", TEST-EXAMPLE-COM-PASSWORD,
-  ]
+  test-cli.login
 
   output := test-cli.run [ "sdk", "list" ]
   /*
