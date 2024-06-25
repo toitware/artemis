@@ -536,10 +536,10 @@ class FleetWithDevices extends Fleet:
         --cache=cache
         --config=config
 
-  static init fleet-root/string artemis/Artemis
+  static init fleet-root/string artemis/Artemis -> FleetFile
       --organization-id/uuid.Uuid
       --broker-config/ServerConfig
-      --recovery-urls/List
+      --recovery-url-prefixes/List
       --ui/Ui:
     if not file.is-directory fleet-root:
       ui.abort "Fleet root '$fleet-root' is not a directory."
@@ -555,9 +555,12 @@ class FleetWithDevices extends Fleet:
       ui.abort "Organization $organization-id does not exist or is not accessible."
 
     broker-name := broker-config.name
+    fleet-id := random-uuid
+    recovery-urls := recovery-url-prefixes.map: | prefix |
+      "$prefix/recover-$(fleet-id).json"
     fleet-file := FleetFile
         --path="$fleet-root/$FLEET-FILE_"
-        --id=random-uuid
+        --id=fleet-id
         --organization-id=organization-id
         --group-pods={
           DEFAULT-GROUP: PodReference.parse "$INITIAL-POD-NAME@latest" --ui=ui,
@@ -577,7 +580,7 @@ class FleetWithDevices extends Fleet:
       header := "# yaml-language-server: \$schema=$JSON-SCHEMA\n"
       write-yaml-to-file default-specification-path INITIAL-POD-SPECIFICATION --header=header
 
-    ui.info "Fleet root '$fleet-root' initialized."
+    return fleet-file
 
   static load-devices-file fleet-root/string --ui/Ui -> DevicesFile:
     if not file.is-directory fleet-root:
