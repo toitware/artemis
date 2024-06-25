@@ -19,13 +19,13 @@ class RecoveryServer:
   recovery-info/io.Data? := null
   device-made-contact/monitor.Latch := monitor.Latch
   recover-latch/monitor.Latch := monitor.Latch
-  server-url_/string? := null
+  recovery-url/string? := null
 
   start --fleet-id/uuid.Uuid -> none:
     network := net.open
     // Listen on a free port.
     tcp-socket := network.tcp-listen 0
-    server-url_ = "http://localhost:$tcp-socket.local-address.port"
+    recovery-url = "http://localhost:$tcp-socket.local-address.port"
     server := http.Server
     task_ = task::
       server.listen tcp-socket:: | request/http.RequestIncoming writer/http.ResponseWriter |
@@ -44,11 +44,8 @@ class RecoveryServer:
         writer.close
     return
 
-  recovery-url -> string:
-    return "$server-url_"
-
   ready-to-recover-url -> string:
-    return "$server-url_/ready-to-recover"
+    return "$recovery-url$READY-TO-RECOVER-PATH"
 
   close:
     if task_:
