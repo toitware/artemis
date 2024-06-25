@@ -194,11 +194,10 @@ class FirmwarePatcher_ implements PatchObserver:
         // This should only happen if we to get the wrong bits
         // served to us. It is unlikely, but we log it and throw
         // an exception so we can try to recover.
-        logger_.error "firmware update: failed to apply patch"
         throw "INVALID_FORMAT"
     finally: | is-exception _ |
       if is-exception:
-        logger_.info "failed after $reader.processed bytes"
+        logger_.error "firmware update: failed to apply patch" --tags={"offset": reader.processed}
 
   pad_ padding/int -> none:
     write_ 0 padding: | x y | writer_.pad (y - x)
