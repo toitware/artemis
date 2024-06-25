@@ -150,6 +150,7 @@ class ArtemisServiceProvider extends ChannelServiceProvider
 
   reboot --safe-mode/bool -> none:
     // TODO(florian): implement this.
+    throw "UNIMPLEMENTED"
 
   synchronized-last-us -> int?:
     return device_.synchronized-last-us
@@ -198,9 +199,6 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     unreachable  // Here to satisfy the checker.
 
   container-current-set-triggers new-triggers/List -> none:
-    unreachable  // Here to satisfy the checker.
-
-  controller-open --mode/int --force-recovery-contact/bool=false -> int:
     unreachable  // Here to satisfy the checker.
 
 class ControllerResource extends services.ServiceResource:

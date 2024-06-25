@@ -34,7 +34,7 @@ Reboots the device.
 
 If $safe-mode is true, reboots into safe mode, where non-critical
   applications are not started, and where the recovery servers are
-  contacted.
+  queried.
 */
 reboot --safe-mode/bool=false -> none:
   client := artemis-client_
