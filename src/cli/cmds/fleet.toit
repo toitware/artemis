@@ -536,11 +536,6 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         deleted. Since that address is not valid anymore, the devices will start
         to contact the recovery servers for updated broker information.
 
-        The configured recovery servers are prefixes. The full path consists of
-        the prefix, followed by '/$recovery-path'. For example, if the prefix
-        is 'https://recovery.toit.io', then the full path is
-        'https://recovery.toit.io/$recovery-path'.
-
         Recovery servers can be set up on demand. In fact, it is recommended to
         point recovery addresses to servers that refuse connections, so that
         the devices don't establish TLS connections when they are not needed.
@@ -640,11 +635,24 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   fleet-root := compute-fleet-root-or-ref parsed config ui
   with-artemis parsed config cache ui: | artemis/Artemis |
-    FleetWithDevices.init fleet-root artemis
+    fleet-file := FleetWithDevices.init fleet-root artemis
         --organization-id=organization-id
         --broker-config=broker-config
-        --recovery-urls=default-recovery-urls
+        --recovery-url-prefixes=default-recovery-urls
         --ui=ui
+
+    fleet-file.recovery-urls.do: | url/string |
+      ui.info "Added recovery server: $url"
+    ui.info "Fleet root '$fleet-root' initialized."
+    ui.do --kind=Ui.RESULT: | printer/Printer |
+      printer.emit-structured
+        --json=: {
+          "id": "$fleet-file.id",
+          "broker": fleet-file.broker-config.to-json --base64 --der-serializer=: unreachable,
+          "recovery-urls": fleet-file.recovery-urls,
+        }
+        --stdout=: | printer/Printer |
+          // Do nothing.
 
 login parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-pod-fleet parsed config cache ui: | fleet/Fleet |
@@ -987,19 +995,7 @@ recovery-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     fleet.recovery-url-add url
 
-    full-url := "$url/$(recovery-file-name --fleet-id=fleet.id)"
-
     ui.info "Added recovery server '$url'."
-    ui.info "Devices will contact '$full-url' for updated broker information."
-
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit-structured
-        --json=: {
-            "url-prefix": url,
-            "url": full-url,
-          }
-        --stdout=:
-          // Do nothing.
 
 recovery-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   all := parsed["all"]
