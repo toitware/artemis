@@ -11,6 +11,7 @@ import host.pipe
 import host.file
 import host.os
 import fs
+import http
 import net
 import system
 import uuid
@@ -35,6 +36,7 @@ import .broker
 import .broker as broker-lib
 import .cli-device-extract show TestDeviceConfig
 import .cli-device-extract as device-extract
+import .test-device show BACKDOOR-FOOTER extract-backdoor-url
 import .supabase-local-server
 
 export Device
@@ -686,6 +688,53 @@ class FakeDevice extends TestDevice:
       goal-state = null
     pending-state_ = null
 
+class TestDeviceBackdoor:
+  network_/net.Client? := ?
+  client_/http.Client? := ?
+  address_/string
+
+  constructor .address_:
+    network_ = net.open
+    client_ = http.Client network_
+
+  device-id -> uuid.Uuid:
+    return uuid.parse (get_ "device-id")
+
+  get-storage --ram/bool=false --flash/bool=false key/string:
+    if not ram and not flash:
+      throw "At least one of --ram or --flash must be true"
+    if ram and flash:
+      throw "Only one of --ram or --flash can be true"
+    scheme := ram ? "ram" : "flash"
+    return get_ "storage/$scheme/$key"
+
+  set-storage --ram/bool=false --flash/bool=false key/string value/any:
+    if not ram and not flash:
+      throw "At least one of --ram or --flash must be true"
+    if ram and flash:
+      throw "Only one of --ram or --flash can be true"
+    scheme := ram ? "ram" : "flash"
+    return post_ "storage/$scheme/$key" value
+
+  get_ path/string -> any:
+    uri := "$address_/$path"
+    response := client_.get --uri=uri
+    return json.decode-stream response.body
+
+  post_ path/string payload/any=null -> any:
+    uri := "$address_/$path"
+    print "URI: $uri"
+    response := client_.post-json --uri=uri payload
+    return json.decode-stream response.body
+
+  close:
+    if client_:
+      client_.close
+      client_ = null
+    if network_:
+      network_.close
+      network_ = null
+
 class TestDevicePipe extends TestDevice:
   output_/ByteArray := #[]
   child-process_/any := null
@@ -694,6 +743,8 @@ class TestDevicePipe extends TestDevice:
   stderr-task_/Task? := null
   tmp-dir/string? := null
   command_/List := ?
+  has-backdoor/bool ::= false
+  backdoor/TestDeviceBackdoor? := null
 
   constructor.fake-host
       --broker/TestBroker
@@ -716,6 +767,7 @@ class TestDevicePipe extends TestDevice:
       "--encoded-firmware=$encoded-firmware",
       "--broker-config-json=$encoded-broker-config",
     ]
+    has-backdoor = true
     super
         --broker=broker
         --hardware-id=hardware-id
@@ -787,6 +839,10 @@ class TestDevicePipe extends TestDevice:
   start:
     if child-process_: throw "Already started"
     fork_
+    if has-backdoor:
+      wait-for BACKDOOR-FOOTER
+      backdoor-address := extract-backdoor-url output_[..pos_]
+      backdoor = TestDeviceBackdoor backdoor-address
 
   stop:
     if child-process_:
@@ -857,6 +913,9 @@ class TestDevicePipe extends TestDevice:
       if tmp-dir:
         directory.rmdir --recursive tmp-dir
         tmp-dir = null
+    if backdoor:
+      backdoor.close
+      backdoor = null
 
   output -> string:
     return output_.to-string-non-throwing
