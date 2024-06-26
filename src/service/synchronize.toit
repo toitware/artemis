@@ -601,27 +601,24 @@ class SynchronizeJob extends TaskJob:
     recovery-urls := recovery-urls_
     if recovery-urls.is-empty: return broker
 
-    // If we're not experiencing any trouble connecting, we don't want
-    // to spend time contacting the recovery servers.
-    status := determine-status_
-    if status == STATUS-GREEN: return broker
-
-    // In the odd case where contacting a recovery server is making
-    // things worse, we skip it occassionally. This only makes a
-    // difference if the time between connect attempts is larger
-    // than the time between recovery attempts.
-    if status == STATUS-RED and (random 100) < 20: return broker
-
-    // If we've already contacted the recovery servers within a short
-    // window, we avoid doing it again.
-    last := device_.recovery-last-us
     now := Time.monotonic-us
-    if last and (now - last) < TIME-BETWEEN-RECOVERY-MINIMUM-US:
-      // TODO(kasper): Find a good way to make sure we always query
-      // the recovery servers when in safe mode. This can be done
-      // either through an explicit check here or by resetting the
-      // last recovery attempt timestamp when we enter safe mode.
-      return broker
+    if not safe-mode_:
+      // If we're not experiencing any trouble connecting, we don't want
+      // to spend time contacting the recovery servers.
+      status := determine-status_
+      if status == STATUS-GREEN: return broker
+
+      // In the odd case where contacting a recovery server is making
+      // things worse, we skip it occassionally. This only makes a
+      // difference if the time between connect attempts is larger
+      // than the time between recovery attempts.
+      if status == STATUS-RED and (random 100) < 20: return broker
+
+      // If we've already contacted the recovery servers within a short
+      // window, we avoid doing it again.
+      last := device_.recovery-last-us
+      if last and (now - last) < TIME-BETWEEN-RECOVERY-MINIMUM-US:
+        return broker
 
     // Pick a random recovery url and try to query it.
     // TODO(kasper): In safe mode, we may want to try them all.
