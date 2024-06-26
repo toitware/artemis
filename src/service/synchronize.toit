@@ -171,6 +171,8 @@ class SynchronizeJob extends TaskJob:
   containers_/ContainerManager
   broker_/BrokerService
   ntp_/NtpRequest?
+
+  safe-mode_/bool
   state_/int := STATE-DISCONNECTED
 
   is-firmware-validation-pending_/bool := ?
@@ -199,6 +201,9 @@ class SynchronizeJob extends TaskJob:
     ntp_ = ntp
     max-offline := device_.max-offline
     status-limit-us_ = compute-status-limit-us_ max-offline
+
+    safe-mode_ = device_.safe-mode
+    device_.safe-mode-update false
 
     if (storage.ram-load RAM-FIRMWARE-IS-CLEAN-KEY) == RAM-FIRMWARE-IS-CLEAN-VALUE:
       is-firmware-validation-pending_ = false
@@ -277,7 +282,7 @@ class SynchronizeJob extends TaskJob:
     return Job.RUNLEVEL-CRITICAL
 
   schedule now/JobTime last/JobTime? -> JobTime?:
-    if is-firmware-validation-pending_ or not last: return now
+    if is-firmware-validation-pending_ or safe-mode_ or not last: return now
     if control-level-offline_ > 0: return null
     if control-level-online_ > 0: return now
     max-offline := device_.max-offline
@@ -323,7 +328,7 @@ class SynchronizeJob extends TaskJob:
   run -> none:
     status := determine-status_
     runlevel := Job.RUNLEVEL-NORMAL
-    if is-firmware-validation-pending_:
+    if is-firmware-validation-pending_ or safe-mode_:
       runlevel = Job.RUNLEVEL-CRITICAL
     else if status > STATUS-GREEN:
       uptime := Duration --us=(Time.monotonic-us --since-wakeup)
@@ -350,6 +355,7 @@ class SynchronizeJob extends TaskJob:
 
     try:
       start := Time.monotonic-us
+      // TODO(kasper): Should the limit be higher in safe mode?
       limit := start + TIMEOUT-BROKER-CONNECT.in-us
       while not connect-network_ and Time.monotonic-us < limit:
         // If we didn't manage to connect to the broker, we
@@ -364,6 +370,10 @@ class SynchronizeJob extends TaskJob:
         logger_.error "firmware update: rejected after failing to connect or validate"
         exception := catch: firmware.rollback
         logger_.error "firmware update: rolling back failed" --tags={"error": exception}
+        scheduler_.transition --runlevel=Job.RUNLEVEL-STOP
+      if safe-mode_:
+        // Reboot to get out of safe mode again after failing to synchronize.
+        logger_.info "safe mode: synchronization failed; rebooting"
         scheduler_.transition --runlevel=Job.RUNLEVEL-STOP
 
   /**
@@ -441,7 +451,7 @@ class SynchronizeJob extends TaskJob:
             assert: goal.has-pending-steps
             continue
           if device_.max-offline and control-level-online_ == 0: return true
-          if check-in and check-in.schedule-now: return false
+          if safe-mode_ or (check-in and check-in.schedule-now): return false
     finally:
       with-timeout TIMEOUT-BROKER-CLOSE: broker-connection.close
 
@@ -525,10 +535,13 @@ class SynchronizeJob extends TaskJob:
     // connected to broker state.
     if state > previous:
       tags/Map? := null
+      if safe-mode_:
+        tags = {"safe-mode": true}
       if state == STATE-SYNCHRONIZED:
         max-offline := device_.max-offline
         if max-offline and control-level-online_ == 0:
-          tags = {"max-offline": max-offline}
+          tags = tags or {:}
+          tags["max-offline"] = max-offline
       logger_.info STATE-SUCCESS[state] --tags=tags
 
     // If we've successfully connected to the broker, we consider
@@ -559,14 +572,18 @@ class SynchronizeJob extends TaskJob:
 
     // Keep track of the last time we succesfully synchronized.
     device_.synchronized-last-us-update Time.monotonic-us
+    watchdog_.feed
 
     // Go back to being connected to the broker. Having just
     // synchronized gives us confidence to run more jobs, so let
-    // the scheduler know that we're in a good state.
+    // the scheduler know that we're in a good state. If we are
+    // in safe-mode, now is a great time to reboot out of that.
     transition-to_ STATE-CONNECTED-TO-BROKER
-    scheduler_.transition --runlevel=Job.RUNLEVEL-NORMAL
-
-    watchdog_.feed
+    runlevel := Job.RUNLEVEL-NORMAL
+    if safe-mode_:
+      logger_.info "safe mode: synchronization succeeded; rebooting"
+      runlevel = Job.RUNLEVEL-STOP
+    scheduler_.transition --runlevel=runlevel
 
   transition-to-disconnected_ --error/Object? -> none:
     previous := state_
@@ -629,6 +646,7 @@ class SynchronizeJob extends TaskJob:
     return null
 
   determine-status_ -> int:
+    if safe-mode_: return STATUS-RED
     now := Time.monotonic-us
     last := device_.synchronized-last-us
     if not last:

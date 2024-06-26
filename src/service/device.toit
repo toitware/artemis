@@ -21,6 +21,8 @@ class Device:
   static FLASH-CHECKPOINT_ ::= "checkpoint"
   static FLASH-REPORT-STATE-CHECKSUM_ ::= "report-state-checksum"
 
+  static RAM-SAFE-MODE_ ::= "safe-mode"
+
   // We store the information that contains timestamps in RAM,
   // so it clears when the timestamps are invalidated due to
   // loss of power. If we ever want to store these in flash
@@ -185,6 +187,19 @@ class Device:
   report-state-checksum= value/ByteArray -> none:
     flash-store_ FLASH-REPORT-STATE-CHECKSUM_ value
     report-state-checksum_ = value
+
+  /**
+  Returns if we're currently in safe mode.
+  */
+  safe-mode -> bool:
+    return (ram-load_ RAM-SAFE-MODE_) == true
+
+  /**
+  Updates the safe mode state stored in memory that is
+    preserve across deep sleeping.
+  */
+  safe-mode-update value/bool -> none:
+    ram-store_ RAM-SAFE-MODE_ (value ? true : null)
 
   /**
   Gets the last $PeriodicNetworkRequest state (if any).
