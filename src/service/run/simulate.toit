@@ -104,6 +104,7 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache --ui/Ui -> none:
       sleep-duration := run-artemis
           device
           server-config
+          --recovery-urls=null
           --watchdog=watchdog
           --storage=storage
           --pin-trigger-manager=NullPinTriggerManager
