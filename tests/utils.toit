@@ -755,7 +755,7 @@ class TestDevicePipe extends TestDevice:
       --toit-run/string
       --test-cli/TestCli:
 
-    broker-config-json := broker.server-config.to-json --der-serializer=: unreachable
+    broker-config-json := broker.server-config.to-service-json --der-serializer=: unreachable
     encoded-broker-config := json.stringify broker-config-json
 
     command_ = [
