@@ -557,8 +557,8 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --examples=[
-        cli.Example "Add a recovery URL 'https://recovery.toit.io':"
-            --arguments="https://recovery.toit.io",
+        cli.Example "Add a recovery URL 'https://recovery.toit.io/recover.json':"
+            --arguments="https://recovery.toit.io/recover.json",
       ]
       --run=:: recovery-add it config cache ui
   recovery-cmd.add recovery-add-cmd
@@ -580,8 +580,8 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             --multi,
       ]
       --examples=[
-        cli.Example "Remove the recovery URL 'https://recovery.toit.io':"
-            --arguments="https://recovery.toit.io",
+        cli.Example "Remove the recovery URL 'https://recovery.toit.io/recover.json':"
+            --arguments="https://recovery.toit.io/recover.json",
       ]
       --run=:: recovery-remove it config cache ui
   recovery-cmd.add recovery-remove-cmd

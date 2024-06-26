@@ -3,5 +3,5 @@
 Exported recovery information to 'TMP_DIR/recover--={|~~~~~~~~~~FLEET_ID~~~~~~~~~~|}=-.json'.
 Devices with the current recovery configuration will try to
   download it from one of the following URLs:
-- http://example.com:1234
-- https://example.com:1234
+- http://example.com:1234/recover.json
+- https://example.com:1234/recover.json

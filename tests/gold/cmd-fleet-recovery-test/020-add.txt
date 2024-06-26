@@ -1,3 +1,3 @@
 # Add a recovery server
-# [fleet, recovery, add, http://example.com:1234]
-Added recovery URL 'http://example.com:1234'.
+# [fleet, recovery, add, http://example.com:1234/recover.json]
+Added recovery URL 'http://example.com:1234/recover.json'.
