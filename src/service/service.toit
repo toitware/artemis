@@ -84,7 +84,11 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   // the Artemis API so user code can interact with us
   // at runtime and not just through the broker.
   wakeup/JobTime? := null
-  provider := ArtemisServiceProvider device containers synchronizer
+  provider := ArtemisServiceProvider
+      scheduler
+      device
+      containers
+      synchronizer
   try:
     provider.install
     wakeup = scheduler.run
@@ -111,11 +115,12 @@ run-artemis device/Device server-config/ServerConfig -> Duration
 
 class ArtemisServiceProvider extends ChannelServiceProvider
     implements api.ArtemisService:
+  scheduler_/Scheduler
   device_/Device
   containers_/ContainerManager
   synchronizer_/SynchronizeJob
 
-  constructor .device_ .containers_ .synchronizer_:
+  constructor .scheduler_ .device_ .containers_ .synchronizer_:
     super "toit.io/artemis"
         --major=ARTEMIS-VERSION-MAJOR
         --minor=ARTEMIS-VERSION-MINOR
@@ -151,8 +156,8 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     return device_.id.to-byte-array
 
   reboot --safe-mode/bool -> none:
-    // TODO(florian): implement this.
-    throw "UNIMPLEMENTED"
+    if safe-mode: device_.safe-mode-update true
+    scheduler_.transition --runlevel=Job.RUNLEVEL-STOP
 
   synchronized-last-us -> int?:
     return device_.synchronized-last-us
@@ -201,6 +206,9 @@ class ArtemisServiceProvider extends ChannelServiceProvider
     unreachable  // Here to satisfy the checker.
 
   container-current-set-triggers new-triggers/List -> none:
+    unreachable  // Here to satisfy the checker.
+
+  controller-open --mode/int -> int:
     unreachable  // Here to satisfy the checker.
 
 class ControllerResource extends services.ServiceResource:
