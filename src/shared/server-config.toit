@@ -179,7 +179,26 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     return result
 
   to-service-json [--der-serializer] -> Map:
-    return to-json --der-serializer=der-serializer
+    // The device only knows about HTTP-configs. Convert this Supabase config into
+    // an HTTP one.
+    http-host := host
+    http-port := null
+    colon-pos := http-host.index-of ":"
+    if colon-pos >= 0:
+      http-port = int.parse http-host[colon-pos + 1..]
+      http-host = http-host[..colon-pos]
+    der := root-certificate-der
+    http-config := ServerConfigHttp
+        name
+        --host=http-host
+        --port=http-port
+        --path="/functions/v1/b"  // TODO(florian): get the path from the config.
+        --poll-interval=poll-interval
+        --root-certificate-names=null
+        --root-certificate-ders=der ? [der] : null
+        --admin-headers=null
+        --device-headers=null
+    return http-config.to-service-json --der-serializer=der-serializer
 
   root-certificate-ders -> List?:
     return root-certificate-der and [root-certificate-der]
