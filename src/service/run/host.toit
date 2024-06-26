@@ -4,7 +4,9 @@ import system.assets
 import system.firmware
 
 import encoding.base64
+import encoding.tison
 import encoding.ubjson
+
 import log
 import uuid
 import watchdog.provider as watchdog
@@ -50,8 +52,13 @@ main arguments:
       --storage=storage
   check-in-setup --assets=artemis-assets --device=device
 
+  recovery-urls-encoded := artemis-assets.get "recovery-urls"
+  recovery-urls/List? :=
+      recovery-urls-encoded and (tison.decode recovery-urls-encoded)
+
   server-config := decode-server-config "broker" artemis-assets
   sleep-duration := run-artemis device server-config
+      --recovery-urls=recovery-urls
       --watchdog=watchdog
       --storage=storage
       --pin-trigger-manager=NullPinTriggerManager
