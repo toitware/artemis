@@ -1,7 +1,7 @@
 # Export the recovery information
 # [fleet, recovery, export, --directory, TMP_DIR]
 Exported recovery information to 'TMP_DIR/recover--={|~~~~~~~~~~FLEET_ID~~~~~~~~~~|}=-.json'.
-Devices with the current recovery servers configuration will try to
+Devices with the current recovery configuration will try to
   download it from one of the following URLs:
-- http://example.com:1234/recover--={|~~~~~~~~~~FLEET_ID~~~~~~~~~~|}=-.json
-- https://example.com:1234/recover--={|~~~~~~~~~~FLEET_ID~~~~~~~~~~|}=-.json
+- http://example.com:1234/recover.json
+- https://example.com:1234/recover.json

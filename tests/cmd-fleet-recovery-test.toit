@@ -13,8 +13,8 @@ main args:
     run-test fleet
 
 run-test fleet/TestFleet:
-  URL1 ::= "http://example.com:1234"
-  URL2 ::= "https://example.com:1234"
+  URL1 ::= "http://example.com:1234/recover.json"
+  URL2 ::= "https://example.com:1234/recover.json"
 
   fleet.run-gold "010-show"
       "An empty list of recovery servers"
