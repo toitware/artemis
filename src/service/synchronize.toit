@@ -451,7 +451,7 @@ class SynchronizeJob extends TaskJob:
             assert: goal.has-pending-steps
             continue
           if device_.max-offline and control-level-online_ == 0: return true
-          if safe-mode_ or (check-in and check-in.schedule-now): return false
+          if check-in and check-in.schedule-now: return false
     finally:
       with-timeout TIMEOUT-BROKER-CLOSE: broker-connection.close
 
