@@ -9,7 +9,7 @@ interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=1
-      --minor=1
+      --minor=2
 
   /** The mode used by controllers that want to go online. */
   static CONTROLLER-MODE-ONLINE ::= 0
@@ -43,6 +43,9 @@ interface ArtemisService:
 
   synchronized-last-us -> int?
   static SYNCHRONIZED-LAST-US /int ::= 13
+
+  reboot --safe-mode/bool -> none
+  static REBOOT-INDEX /int ::= 14
 
   container-current-restart --wakeup-us/int? -> none
   static CONTAINER-CURRENT-RESTART-INDEX /int ::= 1
@@ -92,6 +95,9 @@ class ArtemisClient extends ServiceClient
 
   synchronized-last-us -> int?:
     return invoke_ ArtemisService.SYNCHRONIZED-LAST-US null
+
+  reboot --safe-mode/bool -> none:
+    invoke_ ArtemisService.REBOOT-INDEX safe-mode
 
   container-current-restart --wakeup-us/int? -> none:
     invoke_ ArtemisService.CONTAINER-CURRENT-RESTART-INDEX wakeup-us

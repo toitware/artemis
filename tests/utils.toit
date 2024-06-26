@@ -330,7 +330,7 @@ class TestCli:
     test-devices_.add result
     return result
 
-  listen-to-serial-device -> TestDevice
+  listen-to-serial-device -> TestDevicePipe
       --alias-id/uuid.Uuid
       --hardware-id/uuid.Uuid
       --serial-port/string:
@@ -836,9 +836,9 @@ class TestDevicePipe extends TestDevice:
         --organization-id=organization-id
         --test-cli=test-cli
 
-  start:
+  start --env/Map?=null:
     if child-process_: throw "Already started"
-    fork_
+    fork_ --env=env
     if has-backdoor:
       wait-for BACKDOOR-FOOTER
       backdoor-address := extract-backdoor-url output_[..pos_]
@@ -854,8 +854,9 @@ class TestDevicePipe extends TestDevice:
       stderr-task_.cancel
       stderr-task_ = null
 
-  fork_:
+  fork_ --env/Map?=null:
     fork-data := pipe.fork
+        --environment=env
         true                // use_path
         // We create a stdin pipe, so that qemu can't interfere with
         // our terminal.
@@ -1204,7 +1205,7 @@ class TestFleet:
         --gold-name=gold-name
         --format=format
 
-  create-host-device name/string --start/bool -> TestDevice:
+  create-host-device name/string --start/bool -> TestDevicePipe:
     tar-file := "$test-cli.tmp-dir/dev-$(name).tar"
     added-device := test-cli.run --json [
       "fleet", "add-device", "--format", "tar", "-o", tar-file, "--name", name
@@ -1227,9 +1228,9 @@ class TestFleet:
       test-device.wait-for-synchronized
 
     devices[device-id] = test-device
-    return test-device
+    return test-device as TestDevicePipe
 
-  listen-to-serial-device -> TestDevice
+  listen-to-serial-device -> TestDevicePipe
       --alias-id/uuid.Uuid
       --hardware-id/uuid.Uuid
       --serial-port/string:

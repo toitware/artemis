@@ -84,7 +84,11 @@ run-artemis device/Device server-config/ServerConfig -> Duration
   // the Artemis API so user code can interact with us
   // at runtime and not just through the broker.
   wakeup/JobTime? := null
-  provider := ArtemisServiceProvider device containers synchronizer
+  provider := ArtemisServiceProvider
+      scheduler
+      device
+      containers
+      synchronizer
   try:
     provider.install
     wakeup = scheduler.run
@@ -111,11 +115,12 @@ run-artemis device/Device server-config/ServerConfig -> Duration
 
 class ArtemisServiceProvider extends ChannelServiceProvider
     implements api.ArtemisService:
+  scheduler_/Scheduler
   device_/Device
   containers_/ContainerManager
   synchronizer_/SynchronizeJob
 
-  constructor .device_ .containers_ .synchronizer_:
+  constructor .scheduler_ .device_ .containers_ .synchronizer_:
     super "toit.io/artemis"
         --major=ARTEMIS-VERSION-MAJOR
         --minor=ARTEMIS-VERSION-MINOR
@@ -124,6 +129,9 @@ class ArtemisServiceProvider extends ChannelServiceProvider
   handle index/int arguments/any --gid/int --client/int -> any:
     if index == api.ArtemisService.VERSION-INDEX:
       return version
+    if index == api.ArtemisService.REBOOT-INDEX:
+      reboot --safe-mode=arguments
+      return null
     if index == api.ArtemisService.CONTAINER-CURRENT-RESTART-INDEX:
       return container-current-restart --gid=gid --wakeup-us=arguments
     if index == api.ArtemisService.CONTAINER-CURRENT-TRIGGER-INDEX:
@@ -146,6 +154,10 @@ class ArtemisServiceProvider extends ChannelServiceProvider
 
   device-id -> ByteArray:
     return device_.id.to-byte-array
+
+  reboot --safe-mode/bool -> none:
+    if safe-mode: device_.safe-mode-update true
+    scheduler_.transition --runlevel=Job.RUNLEVEL-STOP
 
   synchronized-last-us -> int?:
     return device_.synchronized-last-us
@@ -203,7 +215,9 @@ class ControllerResource extends services.ServiceResource:
   synchronizer/SynchronizeJob
   online/bool
 
-  constructor provider/ArtemisServiceProvider client/int --.synchronizer --.online:
+  constructor provider/ArtemisServiceProvider client/int
+      --.synchronizer
+      --.online:
     super provider client
     synchronizer.control --online=online
 

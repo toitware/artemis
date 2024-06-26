@@ -30,6 +30,18 @@ version -> string:
   return client.version
 
 /**
+Reboots the device.
+
+If $safe-mode is true, reboots into safe mode, where non-critical
+  applications are not started, and where the recovery servers are
+  queried.
+*/
+reboot --safe-mode/bool=false -> none:
+  client := artemis-client_
+  if not client: throw "Artemis unavailable"
+  client.reboot --safe-mode=safe-mode
+
+/**
 Runs the $block while forcing Artemis to try go online
   even if it is not scheduled to do so yet.
 
