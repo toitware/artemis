@@ -40,7 +40,11 @@ class TestBroker:
 
   with-service [block]:
     logger := log.default.with-name "testing-service"
-    broker-service := BrokerService logger server-config
+    service-config := ServerConfig.from-json
+        server-config.name
+        server-config.to-service-json --der-serializer=: unreachable
+        --der-deserializer=: unreachable
+    broker-service := BrokerService logger service-config
     block.call broker-service
 
 interface BrokerBackdoor:
