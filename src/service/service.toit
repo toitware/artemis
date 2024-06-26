@@ -34,6 +34,7 @@ import ..shared.server-config
 import ..shared.version
 
 run-artemis device/Device server-config/ServerConfig -> Duration
+    --recovery-urls/List?
     --start-ntp/bool=true
     --watchdog/Watchdog
     --storage/Storage
@@ -68,6 +69,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
       device
       containers
       broker
+      recovery-urls or []
       synchronize-state
       --ntp=ntp
       --storage=storage

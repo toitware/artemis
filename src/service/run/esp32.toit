@@ -6,7 +6,9 @@ import system.firmware
 import esp32
 
 import encoding.base64
+import encoding.tison
 import encoding.ubjson
+
 import log
 import uuid
 import watchdog.provider as watchdog
@@ -66,11 +68,16 @@ main arguments:
       --storage=storage
   check-in-setup --assets=artemis-assets --device=device
 
+  recovery-urls-encoded := artemis-assets.get "recovery-urls"
+  recovery-urls/List? :=
+      recovery-urls-encoded and (tison.decode recovery-urls-encoded)
+
   network-manager := NetworkManager log.default device
   network-manager.install
 
   server-config := decode-server-config "broker" artemis-assets
   sleep-duration := run-artemis device server-config
+      --recovery-urls=recovery-urls
       --watchdog=watchdog
       --cause=ESP32-WAKEUP-CAUSES.get esp32.wakeup-cause
       --storage=storage

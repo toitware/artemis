@@ -170,6 +170,7 @@ class SynchronizeJob extends TaskJob:
   device_/Device
   containers_/ContainerManager
   broker_/BrokerService
+  recovery-urls_/List
   ntp_/NtpRequest?
   state_/int := STATE-DISCONNECTED
 
@@ -192,6 +193,7 @@ class SynchronizeJob extends TaskJob:
       .device_
       .containers_
       .broker_
+      .recovery-urls_
       saved-state/any
       --storage/Storage
       --ntp/NtpRequest?=null:
@@ -575,11 +577,13 @@ class SynchronizeJob extends TaskJob:
     logger_.info STATE-SUCCESS[STATE-DISCONNECTED]
 
   determine-broker_ --network/net.Client -> BrokerService:
-    status := determine-status_
     broker := broker_
+    recovery-urls := recovery-urls_
+    if recovery-urls.is-empty: return broker
 
     // If we're not experiencing any trouble connecting, we don't want
     // to spend time contacting the recovery servers.
+    status := determine-status_
     if status == STATUS-GREEN: return broker
 
     // In the odd case where contacting a recovery server is making
@@ -599,11 +603,12 @@ class SynchronizeJob extends TaskJob:
       // last recovery attempt timestamp when we enter safe mode.
       return broker
 
-    // TODO(kasper): Pick a random recovery server and try to
-    // connect to it. In safe mode, we may want to try them all.
-    recovery-service := query-recovery-server
+    // Pick a random recovery url and try to query it.
+    // TODO(kasper): In safe mode, we may want to try them all.
+    recovery-url := recovery-urls[random recovery-urls.size]
+    recovery-service := query-recovery-url
         --network=network
-        --uri="https://foo.bar/recover-xxx.json"
+        --url=recovery-url
     if recovery-service: broker = recovery-service
 
     // Update the recovery attempt timestamp late, so we get
@@ -611,21 +616,21 @@ class SynchronizeJob extends TaskJob:
     device_.recovery-last-us-update now
     return broker
 
-  query-recovery-server --network/net.Client --uri/string -> BrokerService?:
+  query-recovery-url --network/net.Client --url/string -> BrokerService?:
     exception := catch:
       client := http.Client network
       try:
-        response := client.get --uri=uri
+        response := client.get --uri=url
         status := response.status-code
         if status != http.STATUS-OK:
-          logger_.warn "recovery server query failed" --tags={"uri": uri, "status": status}
+          logger_.warn "recovery query failed" --tags={"url": url, "status": status}
           return null
         config := ServerConfig.from-json "broker" (json.decode-stream response.body)
             --der-deserializer=: unreachable
         return BrokerService logger_ config
       finally:
         client.close
-    logger_.warn "recovery server query failed" --tags={"uri": uri, "error": exception}
+    logger_.warn "recovery query failed" --tags={"url": url, "error": exception}
     return null
 
   determine-status_ -> int:

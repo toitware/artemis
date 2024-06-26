@@ -77,6 +77,7 @@ run-test --insert-device/bool:
         service.run-artemis
             device
             broker-config
+            --recovery-urls=null
             --watchdog=watchdog
             --no-start-ntp
             --storage=storage

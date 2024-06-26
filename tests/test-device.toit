@@ -145,6 +145,7 @@ run
     sleep-duration := service.run-artemis
         device
         broker-config
+        --recovery-urls=null
         --no-start-ntp
         --watchdog=watchdog
         --storage=storage
