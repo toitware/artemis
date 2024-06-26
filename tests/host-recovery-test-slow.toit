@@ -19,14 +19,18 @@ class RecoveryServer:
   recovery-info/io.Data? := null
   device-made-contact/monitor.Latch := monitor.Latch
   recover-latch/monitor.Latch := monitor.Latch
+  recovery-url-prefix_/string? := null
   recovery-url/string? := null
 
   start --fleet-id/uuid.Uuid -> none:
     network := net.open
     // Listen on a free port.
     tcp-socket := network.tcp-listen 0
-    recovery-url = "http://localhost:$tcp-socket.local-address.port"
+    recovery-url-prefix_ = "http://localhost:$tcp-socket.local-address.port"
     server := http.Server
+    recovery-path := "/recover-$(fleet-id).json"
+    recovery-url = "$recovery-url-prefix_$recovery-path"
+
     task_ = task::
       server.listen tcp-socket:: | request/http.RequestIncoming writer/http.ResponseWriter |
         resource := request.query.resource
@@ -36,7 +40,7 @@ class RecoveryServer:
           device-made-contact.set true
           recover-latch.get
           writer.out.write "Do it\n"
-        else if recovery-info and resource == "/recover-$(fleet-id).json":
+        else if recovery-info and resource == recovery-path:
           writer.out.write recovery-info
         else:
           writer.write-headers 404
@@ -45,7 +49,7 @@ class RecoveryServer:
     return
 
   ready-to-recover-url -> string:
-    return "$recovery-url$READY-TO-RECOVER-PATH"
+    return "$recovery-url-prefix_$READY-TO-RECOVER-PATH"
 
   close:
     if task_:
@@ -103,3 +107,5 @@ main args:
     recovery-server.recover-latch.set true  // Let the HTTP server respond.
 
     test-device.wait-to-be-on-pod new-pod-id
+
+    recovery-server.close
