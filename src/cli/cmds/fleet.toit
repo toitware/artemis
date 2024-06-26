@@ -523,13 +523,13 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
   recovery-path := recovery-file-name --fleet-string="<FLEET-ID>"
   recovery-cmd := cli.Command "recovery"
       --help="""
-        Manage recovery servers for the fleet.
+        Manage recovery URLs for the fleet.
 
         Recovery servers are used when a broker is unreachable and can't
         be restored. For example, if a domain name is lost.
 
         When devices are unable to reach their configured broker they periodically
-        contact their recovery servers to receive updated broker information.
+        contact their recovery URLs to receive updated broker information.
 
         For example, say a device is configured to use
         'https://hxtyuwtaqffnqagvoxok.supabase.co', but that server is accidentally
@@ -549,7 +549,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
 
   recovery-add-cmd := cli.Command "add"
       --help="""
-          Add a recovery server to this fleet.
+          Add a recovery URL to this fleet.
           """
       --rest=[
         cli.Option "url"
@@ -557,7 +557,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --examples=[
-        cli.Example "Add a recovery server 'https://recovery.toit.io':"
+        cli.Example "Add a recovery URL 'https://recovery.toit.io':"
             --arguments="https://recovery.toit.io",
       ]
       --run=:: recovery-add it config cache ui
@@ -565,7 +565,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
 
   recovery-remove-cmd := cli.Command "remove"
       --help="""
-          Remove a recovery server from this fleet.
+          Remove a recovery URL from this fleet.
           """
       --options=[
         cli.Flag "all"
@@ -580,7 +580,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             --multi,
       ]
       --examples=[
-        cli.Example "Remove the recovery server 'https://recovery.toit.io':"
+        cli.Example "Remove the recovery URL 'https://recovery.toit.io':"
             --arguments="https://recovery.toit.io",
       ]
       --run=:: recovery-remove it config cache ui
@@ -589,7 +589,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
   recovery-list-cmd := cli.Command "list"
       --aliases=["ls"]
       --help="""
-          List the recovery servers for this fleet.
+          List the recovery URLs for this fleet.
           """
       --run=:: recovery-list it config cache ui
   recovery-cmd.add recovery-list-cmd
@@ -642,7 +642,7 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --ui=ui
 
     fleet-file.recovery-urls.do: | url/string |
-      ui.info "Added recovery server: $url"
+      ui.info "Added recovery URL: $url"
     ui.info "Fleet root '$fleet-root' initialized."
     ui.do --kind=Ui.RESULT: | printer/Printer |
       printer.emit-structured
@@ -995,7 +995,7 @@ recovery-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     fleet.recovery-url-add url
 
-    ui.info "Added recovery server '$url'."
+    ui.info "Added recovery URL '$url'."
 
 recovery-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   all := parsed["all"]
@@ -1005,24 +1005,30 @@ recovery-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     if all:
       fleet.recovery-urls-remove-all
-      ui.info "Removed all recovery servers."
+      ui.info "Removed all recovery URLs."
     else:
       urls.do: | url |
         if not fleet.recovery-url-remove url:
           if not force:
-            ui.abort "Recovery server '$url' not found."
+            ui.abort "Recovery URL '$url' not found."
           else:
-            ui.info "Recovery server '$url' not found."
+            ui.info "Recovery URL '$url' not found."
 
       quoted := urls.map: "'$it'"
       joined := quoted.join ", "
-      ui.info "Removed recovery server(s) $joined."
+      ui.info "Removed recovery URL(s) $joined."
 
 recovery-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     recovery-urls := fleet.recovery-urls
     ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit --title="Recovery servers" recovery-urls
+      printer.emit-structured
+          --json=: recovery-urls
+          --stdout=:
+            if recovery-urls.is-empty:
+              printer.emit "No recovery URLs configured."
+            else:
+              printer.emit --title="Recovery urls" recovery-urls
 
 recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   directory := parsed["directory"]
@@ -1033,19 +1039,17 @@ recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     file.write-content --path=path recovery-info
     ui.info "Exported recovery information to '$path'."
     recovery-urls := fleet.recovery-urls
-    full-urls := recovery-urls.map: | url/string |
-      "$url/$(recovery-file-name --fleet-id=fleet.id)"
     if not recovery-urls.is-empty:
-      ui.info "Devices with the current recovery servers configuration will try to"
+      ui.info "Devices with the current recovery configuration will try to"
       ui.info "  download it from one of the following URLs:"
-      full-urls.do: | url/string |
+      recovery-urls.do: | url/string |
         ui.info "- $url"
 
       ui.do --kind=Ui.RESULT: | printer/Printer |
         printer.emit-structured
           --json=: {
             "path": path,
-            "recovery-urls": full-urls,
+            "recovery-urls": recovery-urls,
           }
           --stdout=:
             // Do nothing.

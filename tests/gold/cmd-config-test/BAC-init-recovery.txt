@@ -1,5 +1,5 @@
 # Show the recovery servers
 # [fleet, init, --fleet, <FLEET-TMP-DIR>]
-Added recovery server: https://example.com/recover-<FLEET-ID>.json
-Added recovery server: http://example.com/recover-<FLEET-ID>.json
+Added recovery URL: https://example.com/recover-<FLEET-ID>.json
+Added recovery URL: http://example.com/recover-<FLEET-ID>.json
 Fleet root '<FLEET-TMP-DIR>' initialized.
