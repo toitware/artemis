@@ -22,6 +22,7 @@ class RecoveryServer:
   recovery-url-prefix_/string? := null
   recovery-url/string? := null
 
+  attempt := 0
   start --fleet-id/uuid.Uuid -> none:
     network := net.open
     // Listen on a free port.
@@ -36,15 +37,26 @@ class RecoveryServer:
         resource := request.query.resource
         writer.headers.set "Content-Type" "text/plain"
         if resource == READY-TO-RECOVER-PATH:
-          print "---- Device made contact ---"
           device-made-contact.set true
           recover-latch.get
           writer.out.write "Do it\n"
-        else if recovery-info and resource == recovery-path:
-          writer.out.write recovery-info
         else:
-          writer.write-headers 404
-          writer.out.write "Not found\n"
+          attempt++
+          if attempt == 1:
+            writer.write-headers http.STATUS-NOT-FOUND
+            writer.out.write "Not found\n"
+          else if attempt == 2:
+            // Blank page.
+            writer.write-headers http.STATUS-OK
+          else if attempt == 3:
+            // Bad json.
+            writer.write-headers http.STATUS-OK
+            writer.out.write "Not json"
+          else if recovery-info and resource == recovery-path:
+            writer.out.write recovery-info
+          else:
+            writer.write-headers http.STATUS-BAD-REQUEST
+            writer.out.write "Not found\n"
         writer.close
     return
 
@@ -57,6 +69,9 @@ class RecoveryServer:
       task_ = null
 
 main args:
+    // We can't create host-devices on Windows.
+  if system.platform == system.PLATFORM-WINDOWS: return
+
   source-dir := fs.dirname system.program-path
   source := file.read-content "$source-dir/host-recovery-source.toit"
 
@@ -105,6 +120,14 @@ main args:
     recovery-server.device-made-contact.get
     fleet.test-cli.stop-main-broker
     recovery-server.recover-latch.set true  // Let the HTTP server respond.
+
+    test-device.wait-for "connecting {safe-mode: true}"
+    test-device.wait-for "recovery query failed" // Followed by the URL and the 404.
+    test-device.wait-for "status: 404"
+    test-device.wait-for "recovery query failed" // Followed by the URL and the error below.
+    test-device.wait-for "error: EMPTY_READER"
+    test-device.wait-for "recovery query failed" // Followed by the URL and the error below.
+    test-device.wait-for "error: INVALID_JSON_CHARACTER"
 
     test-device.wait-to-be-on-pod new-pod-id
 
