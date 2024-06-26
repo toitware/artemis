@@ -450,6 +450,9 @@ class SynchronizeJob extends TaskJob:
           if goal:
             assert: goal.has-pending-steps
             continue
+          // We are now synchronized. We cannot get here in safe mode, because
+          // we reboot just after synchronizing in that case.
+          assert: not safe-mode_
           if device_.max-offline and control-level-online_ == 0: return true
           if check-in and check-in.schedule-now: return false
     finally:
