@@ -39,7 +39,6 @@ class RecoveryServer:
         if resource == READY-TO-RECOVER-PATH:
           device-made-contact.set true
           recover-latch.get
-          writer.out.write "Do it\n"
         else:
           attempt++
           if attempt == 1:
@@ -51,7 +50,7 @@ class RecoveryServer:
           else if attempt == 3:
             // Bad json.
             writer.write-headers http.STATUS-OK
-            writer.out.write "Not json"
+            writer.out.write "Not json\n"
           else if recovery-info and resource == recovery-path:
             writer.out.write recovery-info
           else:
