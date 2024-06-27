@@ -356,14 +356,21 @@ class SynchronizeJob extends TaskJob:
     assert: runlevel != Job.RUNLEVEL-STOP  // Stop does not return.
 
     try:
-      start := Time.monotonic-us
+      start-us := Time.monotonic-us
       // TODO(kasper): Should the limit be higher in safe mode?
-      limit := start + TIMEOUT-BROKER-CONNECT.in-us
-      while not connect-network_ and Time.monotonic-us < limit:
+      limit-us := start-us + TIMEOUT-BROKER-CONNECT.in-us
+      backoff-us := 0
+      while not connect-network_:
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
-        logger_.info "connecting to broker failed - retrying"
+        if Time.monotonic-us + backoff-us >= limit-us: break
+        backoff := Duration --us=backoff-us
+        logger_.info "connecting to broker failed - retrying" --tags={"backoff": backoff}
+        sleep backoff
+        // Increase the backoff time to avoid aggressively
+        // connecting to the broker in a busy loop.
+        backoff-us += Duration.MICROSECONDS-PER-SECOND
     finally:
       if is-firmware-upgrade-pending_:
         exception := catch: firmware.upgrade
