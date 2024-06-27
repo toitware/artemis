@@ -46,7 +46,12 @@ main args:
 
     initial2.stop
 
-    fleet.run ["fleet", "roll-out"]
+    output := fleet.run ["fleet", "roll-out"]
+
+    // Expect only one warning for the never-started device.
+    expect (output.contains " (never-started) is unknown. Upgrade might not use patches.")
+    patches-index := output.index-of "Upgrade might not use patches."
+    expect-equals -1 (output.index-of "Upgrade might not use patches." patches-index + 1)
 
     status := initial1.wait-to-be-on-broker new1
     expect-not-equals new1.name (initial2.get-current-broker --status=status)

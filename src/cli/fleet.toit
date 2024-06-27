@@ -718,7 +718,12 @@ class FleetWithDevices extends Fleet:
       group-name := fleet-device.group
       pods-per-group.get group-name --init=: download (pod-reference-for-group group-name)
 
-    broker.roll-out --devices=detailed-devices.values --pods=pods --diff-bases=diff-bases
+    is-migrating := not fleet-file_.migrating-from.is-empty
+    broker.roll-out
+        --devices=detailed-devices.values
+        --pods=pods
+        --diff-bases=diff-bases
+        --warn-only-trivial=not is-migrating
 
     ui_.info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
 
