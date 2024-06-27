@@ -246,7 +246,9 @@ class Broker:
       catch: downloaded = broker-connection_.download-firmware
           --organization-id=organization-id
           --id=old-id
-      if not downloaded: return
+      if not downloaded:
+        ui_.warning "Failed to download old firmware for patch $old-id -> $trivial-id."
+        return
       store.with-tmp-directory: | tmp-dir |
         file.write-content downloaded --path="$tmp-dir/patch"
         // TODO(florian): we don't have the chunk-size when downloading from the broker.
