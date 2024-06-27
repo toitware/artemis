@@ -445,11 +445,16 @@ class Broker:
 
   /**
   Rolls out.
+
+  If $warn-only-trivial is true, then emits a warning if the device has no known
+    current state and the base-firmwares list is empty. In this case, the device
+    must upgrade using trivial patches.
   */
   roll-out -> none
       --devices/List  // Of DeviceDetailed.
       --pods/List
-      --diff-bases/List:  // Of Pod.
+      --diff-bases/List  // Of Pod.
+      --warn-only-trivial/bool=true:
     base-patches := {:}
 
     base-firmwares := diff-bases.map: | diff-base/Pod |
@@ -464,6 +469,7 @@ class Broker:
         --devices=devices
         --pods=pods
         --base-firmwares=base-firmwares
+        --warn-only-trivial=warn-only-trivial
   /**
   Extracts the trivial patches from the given $firmware-content.
 
@@ -494,7 +500,11 @@ class Broker:
 
   Trivial patches are always uploaded (as part of the pod upload).
   */
-  update-bulk_ --devices/List --pods/List --base-firmwares/List=[] -> none:
+  update-bulk_ -> none
+      --devices/List
+      --pods/List
+      --base-firmwares/List=[]
+      --warn-only-trivial/bool=true:
     unconfigured-cache := {:}
 
     goals := []
@@ -509,6 +519,7 @@ class Broker:
           --pod=pod
           --unconfigured-content=unconfigured
           --base-firmwares=base-firmwares
+          --warn-only-trivial=warn-only-trivial
       goals.add goal
 
     broker-connection_.update-goals
@@ -521,7 +532,12 @@ class Broker:
   Computes the patch and uploads it.
   Returns the new goal state for the device.
   */
-  prepare-update-device_ --device/DeviceDetailed --pod/Pod --unconfigured-content/FirmwareContent --base-firmwares/List -> Map:
+  prepare-update-device_ -> Map
+      --device/DeviceDetailed
+      --pod/Pod
+      --unconfigured-content/FirmwareContent
+      --base-firmwares/List
+      --warn-only-trivial/bool=true:
     device-id := device.id
     upload_ --firmware-content=unconfigured-content
 
@@ -539,7 +555,8 @@ class Broker:
     if known-encoded-firmwares.is-empty:
       if base-firmwares.is-empty:
         short := short-string-for_ --device-id=device-id
-        ui_.warning "Firmware of device $short is unknown. Upgrade might not use patches."
+        if warn-only-trivial:
+          ui_.warning "Firmware of device $short is unknown. Upgrade might not use patches."
       else:
         upgrade-from = base-firmwares
     else:
