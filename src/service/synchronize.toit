@@ -5,6 +5,7 @@ import log
 import net
 import uuid
 
+import certificate-roots
 import crypto.sha256
 import encoding.json
 import encoding.tison
@@ -171,6 +172,7 @@ class SynchronizeJob extends TaskJob:
   device_/Device
   containers_/ContainerManager
   broker_/BrokerService
+  certificates-are-installed_/bool := false
   recovery-urls_/List
   ntp_/NtpRequest?
 
@@ -362,8 +364,13 @@ class SynchronizeJob extends TaskJob:
     assert: runlevel != Job.RUNLEVEL-STOP  // Stop does not return.
 
     try:
-      start-us := Time.monotonic-us
+      // If we haven't already installed the common certificates,
+      // we do it now before we start doing network operations.
+      if not certificates-are-installed_:
+        certificate-roots.install-common-trusted-roots
+        certificates-are-installed_ = true
       // TODO(kasper): Should the limit be higher in safe mode?
+      start-us := Time.monotonic-us
       limit-us := start-us + TIMEOUT-BROKER-CONNECT.in-us
       backoff-us := 0
       while not connect-network_:

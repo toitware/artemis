@@ -1,25 +1,19 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import certificate-roots
 import encoding.json
 import encoding.base64
 import http
 import net
 import reader show Reader
 import system.storage
-import certificate-roots
 import ....shared.server-config show ServerConfigHttp
 
 class HttpConnection_:
   client_/http.Client? := null
   config_/ServerConfigHttp
   network_/net.Interface
-  static certificates-are-installed_/bool := false
 
   constructor .network_ .config_:
-    if not certificates-are-installed_:
-      certificate-roots.install-common-trusted-roots
-      certificates-are-installed_ = true
     config_.install-root-certificates
     create-fresh-client_
 
