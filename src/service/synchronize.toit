@@ -103,13 +103,7 @@ class SynchronizeJob extends TaskJob:
   static STATUS-ORANGE ::= 102
   static STATUS-RED    ::= 103
   static STATUS-CHANGES-AFTER-ATTEMPTS ::= 8
-
-  static STATUS-NAMES ::= {
-    STATUS-GREEN:  "green",
-    STATUS-YELLOW: "yellow",
-    STATUS-ORANGE: "orange",
-    STATUS-RED:    "red",
-  }
+  static STATUS-NAMES ::= ["green", "yellow", "orange", "red"]
 
   // The status limit unit controls how we round when
   // we compute the number of missed synchronization
@@ -338,7 +332,7 @@ class SynchronizeJob extends TaskJob:
     last := device_.synchronized-last-us
     status := determine-status_
     logger_.info "starting" --tags={
-      "status": STATUS-NAMES.get status,
+      "status": STATUS-NAMES[status - STATUS-GREEN],
       "synchronized": last ? "$(Duration --us=Time.monotonic-us - last) ago" : "never",
     }
     runlevel := Job.RUNLEVEL-NORMAL
