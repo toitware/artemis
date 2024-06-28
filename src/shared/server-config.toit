@@ -48,17 +48,17 @@ abstract class ServerConfig:
   The $der-serializer is called with a certificate DER, and must
     return a unique identifier for the certificate.
 
+  If $base64 is true, then any DERs is base64-encoded without calling
+    the $der-serializer.
+
   # Inheritance
   The returned map must include a field "type" with the value returned by
     $type.
   */
-  abstract to-json [--der-serializer] -> Map
+  abstract to-json [--der-serializer] --base64/bool=false -> Map
 
   /**
   Serializes this configuration to a JSON map that can be used on the device.
-
-  If $base64 is true, then any DERs are base64 encoded without calling
-    the $der-serializer.
 
   See $to-json for a description of the $der-serializer block.
   */
@@ -160,7 +160,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     if root-certificate-name and not root-certificate-der:
       root-certificate-der = certificate-getter.call root-certificate-name
 
-  to-json  [--der-serializer] -> Map:
+  to-json  [--der-serializer] --base64/bool=false -> Map:
     result := {
       "type": type,
       "host": host,
@@ -170,9 +170,12 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     if root-certificate-name:
       result["root_certificate_name"] = root-certificate-name
     if root-certificate-der:
-      serialized := der-serializer.call root-certificate-der
-      if serialized:
-        result["root_certificate_der_id"] = serialized
+      if base64:
+        result["root_certificate_der64"] = base64-lib.encode root-certificate-der
+      else:
+        serialized := der-serializer.call root-certificate-der
+        if serialized:
+          result["root_certificate_der_id"] = serialized
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
