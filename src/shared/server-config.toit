@@ -48,7 +48,7 @@ abstract class ServerConfig:
   The $der-serializer is called with a certificate DER, and must
     return a unique identifier for the certificate.
 
-  If $base64 is true, then any DERs will be base64 encoded without calling
+  If $base64 is true, then any DERs is base64-encoded without calling
     the $der-serializer.
 
   # Inheritance
@@ -62,7 +62,7 @@ abstract class ServerConfig:
 
   See $to-json for a description of the $der-serializer block.
   */
-  abstract to-service-json [--der-serializer] -> Map
+  abstract to-service-json [--der-serializer] --base64/bool=false -> Map
 
   /**
   A list of DER certificates that are required for this broker to work.
@@ -178,7 +178,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
           result["root_certificate_der_id"] = serialized
     return result
 
-  to-service-json [--der-serializer] -> Map:
+  to-service-json [--der-serializer] --base64/bool=false -> Map:
     // The device only knows about HTTP-configs. Convert this Supabase config into
     // an HTTP one.
     http-host := host
@@ -198,7 +198,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         --root-certificate-ders=der ? [der] : null
         --admin-headers=null
         --device-headers=null
-    return http-config.to-service-json --der-serializer=der-serializer
+    return http-config.to-service-json --der-serializer=der-serializer --base64=base64
 
   root-certificate-ders -> List?:
     return root-certificate-der and [root-certificate-der]
@@ -283,8 +283,8 @@ class ServerConfigHttp extends ServerConfig:
       result["admin_headers"] = admin-headers
     return result
 
-  to-service-json [--der-serializer] -> Map:
-    result := to-json --der-serializer=der-serializer
+  to-service-json [--der-serializer] --base64/bool=false -> Map:
+    result := to-json --der-serializer=der-serializer --base64=base64
     result.remove "admin_headers"
     return result
 
