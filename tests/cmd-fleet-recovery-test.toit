@@ -30,16 +30,14 @@ run-test fleet/TestFleet:
       "List the recovery servers"
       ["fleet", "recovery", "list"]
 
+  recovery-path := "$fleet.test-cli.tmp-dir/recovery.json"
   fleet.test-cli.run-gold "050-export"
       "Export the recovery information"
-      ["fleet", "recovery", "export", "--directory", fleet.test-cli.tmp-dir]
-      --before-gold=: | output |
-        // In case we are on Windows, change the backslash in the path to a slash.
-        output.replace --all "\\recover-" "/recover-"
+      ["fleet", "recovery", "export", "-o", recovery-path]
 
   // Just make sure that the file is there and is a valid JSON file with
   // some entries.
-  exported := json.decode (file.read-content "$fleet.test-cli.tmp-dir/recover-$(fleet.id).json")
+  exported := json.decode (file.read-content recovery-path)
   expect (exported is Map)
   expect (exported.size > 0)
 
