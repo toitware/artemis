@@ -667,7 +667,7 @@ class SynchronizeJob extends TaskJob:
         broker-host := config is ServerConfigHttp
             ? (config as ServerConfigHttp).host
             : null
-        logger_.info "received recovery config" --tags={"url": url, "broker-host": broker-host}
+        logger_.info "recovery query succeeded" --tags={"url": url, "broker": broker-host}
         return BrokerService logger_ config
       finally:
         client.close
