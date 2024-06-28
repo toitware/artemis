@@ -474,7 +474,7 @@ class Fleet:
 
   recovery-info -> ByteArray:
     broker.server-config.fill-certificate-ders: certificate-roots.MAP[it].raw
-    json-config := broker.server-config.to-json
+    json-config := broker.server-config.to-service-json
         --base64
         --der-serializer=: unreachable
     return json.encode json-config
