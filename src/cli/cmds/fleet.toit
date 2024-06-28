@@ -596,17 +596,18 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
 
   recovery-export-cmd := cli.Command "export"
       --help="""
-          Export the recovery information for this fleet.
+          Export the current broker of this fleet as recovery information.
 
           The written JSON file should be served on the recovery server(s).
           """
       --options=[
-        cli.Option "directory"
-            --help="The directory to write the recovery information to.",
+        cli.Option "output"
+            --short-name="o"
+            --help="The file to write the recovery information to."
       ]
       --examples=[
-        cli.Example "Export the recovery servers to the current directory:"
-            --arguments="--directory=.",
+        cli.Example "Export the current broker to 'recovery.json':"
+            --arguments="-o recovery.json",
       ]
       --run=:: recovery-export it config cache ui
   recovery-cmd.add recovery-export-cmd
@@ -1031,13 +1032,12 @@ recovery-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
               printer.emit --title="Recovery urls" recovery-urls
 
 recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  directory := parsed["directory"]
+  output := parsed["output"]
 
   with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
     recovery-info := fleet.recovery-info
-    path := fs.join directory (recovery-file-name --fleet-id=fleet.id)
-    file.write-content --path=path recovery-info
-    ui.info "Exported recovery information to '$path'."
+    file.write-content --path=output recovery-info
+    ui.info "Exported recovery information to '$output'."
     recovery-urls := fleet.recovery-urls
     if not recovery-urls.is-empty:
       ui.info "Devices with the current recovery configuration will try to"
@@ -1048,7 +1048,7 @@ recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       ui.do --kind=Ui.RESULT: | printer/Printer |
         printer.emit-structured
           --json=: {
-            "path": path,
+            "path": output,
             "recovery-urls": recovery-urls,
           }
           --stdout=:

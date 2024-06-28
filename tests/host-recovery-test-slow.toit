@@ -111,8 +111,9 @@ main args:
     fleet.run ["fleet", "roll-out"]
 
     // Create recovery information for it.
-    fleet.run ["fleet", "recovery", "export", "--directory", fleet.test-cli.tmp-dir]
-    recovery-info := file.read-content "$fleet.test-cli.tmp-dir/recover-$(fleet.id).json"
+    recovery-path := "$fleet.test-cli.tmp-dir/recover-$(fleet.id).json"
+    fleet.run ["fleet", "recovery", "export", "-o", recovery-path]
+    recovery-info := file.read-content recovery-path
     recovery-server.recovery-info = recovery-info
 
     test-device.wait-for-synchronized  // Still on the old broker.
