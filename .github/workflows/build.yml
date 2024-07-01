@@ -189,7 +189,7 @@ jobs:
 
       - name: Sign and notarize
         if: github.event_name == 'release' || inputs.sign_macos
-        uses: toitlang/action-macos-sign-notarize@v1.1.2
+        uses: toitlang/action-macos-sign-notarize@v1.2.0
         with:
           certificate: ${{ secrets.MACOS_CERTIFICATE }}
           certificate-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
