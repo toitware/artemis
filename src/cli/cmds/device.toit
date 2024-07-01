@@ -192,11 +192,11 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
       ]
       --examples=[
         cli.Example "Build a firmware image for the default device (see 'device default'):"
-            --arguments="--output firmware.ota",
+            --arguments="--format binary --output firmware.ota",
         cli.Example "Build a firmware image for the device big-whale:"
-            --arguments="--output firmware.ota big-whale",
+            --arguments="--format binary --output firmware.ota big-whale",
         cli.Example "Build a tarball with the necessary files to run the firmware for the default device:"
-            --arguments="--output firmware.tar --format=tar",
+            --arguments="--format tar --output firmware.tar",
       ]
       --run=:: extract-device it config cache ui
   cmd.add extract-cmd
