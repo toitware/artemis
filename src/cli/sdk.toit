@@ -41,16 +41,19 @@ class Sdk:
       run-compile arguments + [path]
 
   compile-snapshot-to-image -> none
-      --word-size/int
       --snapshot-path/string
+      --format/string="binary"
+      --word-sizes/List
       --out/string:
-    if word-size != 32 and word-size != 64: throw "Unsupported word size: $word-size"
-    run-snapshot-to-image [
+    args := [
       "-o", out,
-      "--format=binary",
-      word-size == 32 ? "-m32" : "-m64",
-      snapshot-path,
+      "--format=$format",
+      snapshot-path
     ]
+    args += word-sizes.map: | size/int |
+      if size != 32 and size != 64: throw "Unsupported word size: $size"
+      size == 32 ? "-m32" : "-m64"
+    run-snapshot-to-image args
 
   assets-create --output-path/string assets/Map:
     run-assets [ "-e", output-path, "create" ]

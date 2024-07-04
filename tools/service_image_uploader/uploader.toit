@@ -256,7 +256,7 @@ create-image-archive snapshot-paths/Map --sdk/Sdk --out/string:
         sdk.compile-snapshot-to-image
             --snapshot-path=snapshot-path
             --out=image-path
-            --word-size=word-size
+            --word-sizes=[word-size]
 
         ar-writer.add image-name (file.read-content image-path)
         if chip-family == "esp32":
