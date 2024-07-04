@@ -336,7 +336,7 @@ class Sdk:
     "pkg": ["bin/toit", "pkg"],
     "assets": ["bin/toit", "tool", "assets"],
     "firmware": ["bin/toit", "tool", "firmware"],
-    "snapshot_to_image": ["bin/toit", "tool", "snapshot_to_image"],
+    "snapshot_to_image": ["bin/toit", "tool", "snapshot-to-image"],
   }
 
   executable_ name/string -> List:
