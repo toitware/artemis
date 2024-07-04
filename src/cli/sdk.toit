@@ -344,8 +344,8 @@ class Sdk:
         ? PRE-159-EXECUTABLES[name]
         : POST-159-EXECUTABLES[name]
     exe-extension := (system.platform == system.PLATFORM-WINDOWS) ? ".exe" : ""
-    cmd[0] = "$sdk-path/$cmd[0]$exe-extension"
-    return cmd
+    result := ["$sdk-path/$cmd[0]$exe-extension"] + cmd[1..]
+    return result
 
   /**
   Extracts the SDK version from the given $envelope-path.
