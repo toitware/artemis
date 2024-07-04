@@ -34,7 +34,7 @@ class CompiledProgram:
   constructor.snapshot path/string --sdk/Sdk:
     with-tmp-directory: | tmp/string |
       image-ubjson-path := "$tmp/image.ubjson"
-      sdk.run-snapshot-to-image-tool ["-m32", "-m64", "--format=ubjson", "-o", image-ubjson-path, path]
+      sdk.run-snapshot-to-image ["-m32", "-m64", "--format=ubjson", "-o", image-ubjson-path, path]
       image := read-ubjson image-ubjson-path
       id := uuid.parse image["id"]
       image32/ByteArray? := null

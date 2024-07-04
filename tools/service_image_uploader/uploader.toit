@@ -180,7 +180,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
           --ref=(commit or service-version)
 
       ui.info "Downloading packages."
-      sdk.download-packages repo-path
+      sdk.pkg-install --project-root=repo-path
 
       full-service-version = service-version
       if commit: full-service-version += "-$commit"
