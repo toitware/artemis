@@ -67,7 +67,7 @@ function(ADD_TOIT_SNAPSHOT SOURCE TARGET DEP_FILE ENV)
   add_custom_command(
     OUTPUT "${TARGET}"
     DEPFILE ${DEP_FILE}
-    DEPENDS "${TOIT}" download_packages "${SOURCE}"
+    DEPENDS download_packages "${SOURCE}"
     COMMAND ${CMAKE_COMMAND} -E env ${ENV} ASAN_OPTIONS=detect_leaks=false
       "${TOIT}" compile
       --dependency-file "${DEP_FILE}"
@@ -92,7 +92,7 @@ function(ADD_TOIT_EXE SOURCE TARGET DEP_FILE ENV)
   add_custom_command(
     OUTPUT "${TARGET}"
     DEPFILE ${DEP_FILE}
-    DEPENDS "${TOIT}" download_packages "${SOURCE}"
+    DEPENDS download_packages "${SOURCE}"
     COMMAND ${CMAKE_COMMAND} -E env ${ENV} ASAN_OPTIONS=detect_leaks=false
       "${TOIT}" compile
       --dependency-file "${DEP_FILE}"
@@ -122,7 +122,6 @@ macro(toit_project NAME PATH)
       add_custom_target(
         sync_packages
         COMMAND "${TOIT}" pkg sync
-        DEPENDS "${TOIT}"
       )
     endif()
 
@@ -141,7 +140,7 @@ macro(toit_project NAME PATH)
           "-DTOIT_PROJECT=${PATH}"
           "-DTOIT=${TOIT}"
           -P "${TOIT_DOWNLOAD_PACKAGE_SCRIPT}"
-      DEPENDS "${TOIT}" ${PACKAGE_FILES} sync-${NAME}-packages
+      DEPENDS ${PACKAGE_FILES} sync-${NAME}-packages
     )
 
     add_custom_target(
