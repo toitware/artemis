@@ -235,7 +235,7 @@ foreach(file ${TESTS})
     add_test(
       NAME "${test_name}"
       COMMAND cmake -E env TOIT_PACKAGE_CACHE_PATHS=${CMAKE_CURRENT_SOURCE_DIR}/.packages
-        "${TOITRUN}" "${file}"
+        "${TOIT}" "${file}"
             ${flag}
             "--toit-run=${TOITRUN}"
             "--sdk-version=${DEV_SDK_VERSION}"
