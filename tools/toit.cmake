@@ -113,7 +113,7 @@ macro(toit_project NAME PATH)
       list(APPEND PACKAGE_FILES "${PATH}/package.lock")
     endif()
 
-    setupTOIT()
+    setup_TOIT()
 
     if (NOT TARGET download_packages)
       add_custom_target(
