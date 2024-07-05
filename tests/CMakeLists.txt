@@ -237,7 +237,7 @@ foreach(file ${TESTS})
       COMMAND cmake -E env TOIT_PACKAGE_CACHE_PATHS=${CMAKE_CURRENT_SOURCE_DIR}/.packages
         "${TOIT}" "${file}"
             ${flag}
-            "--toit-run=${TOITRUN}"
+            "--toit-run=${TOIT}"
             "--sdk-version=${DEV_SDK_VERSION}"
             "--sdk-path=${DEV_SDK_PATH}"
             "--envelope-esp32-path=${DEV_ENVELOPE_ESP32_PATH}"

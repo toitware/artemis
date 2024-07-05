@@ -9,7 +9,7 @@ foreach(TEST ${TESTS})
 
   add_test(
     NAME "${TEST_NAME}"
-    COMMAND "${TOITRUN}" run.toit ${TEST} ${EXPECTED} ${FAIL}
+    COMMAND "${TOIT}" run.toit ${TEST} ${EXPECTED} ${FAIL}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     CONFIGURATIONS default
   )
