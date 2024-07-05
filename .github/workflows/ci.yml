@@ -351,7 +351,7 @@ jobs:
         run: |
           make rebuild-cmake
           cmake \
-              -DTOIT="$TOITC_EXEC" \
+              -DTOIT="$TOIT_EXEC" \
               build
 
       # The SDK is already downloaded, but we might still need envelopes.
