@@ -22,7 +22,6 @@ with-supabase-client parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
   client := supabase.Client
       --server-config=supabase-config
       --local-storage=local-storage
-      --certificate-provider=: certificate-roots.MAP[it]
   try:
     block.call client
   finally:

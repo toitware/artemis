@@ -21,7 +21,6 @@ class ArtemisServerServiceSupabase implements ArtemisServerService:
 
   check-in network/net.Interface logger/log.Logger -> none:
     client := supabase.Client network --server-config=server-config_
-        --certificate-provider=: throw "UNSUPPORTED"
 
     client.rest.insert "events" --no-return-inserted {
       "device_id": "$hardware-id_",
