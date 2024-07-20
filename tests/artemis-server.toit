@@ -267,7 +267,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
     supabase-client/supabase.Client? := null
     try:
       supabase-client = supabase.Client
-          --host=server-config_.host
+          --uri=server-config_.uri
           --anon=service-key_
       block.call supabase-client
     finally:

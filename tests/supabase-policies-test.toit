@@ -11,11 +11,11 @@ import .artemis-server
 main args:
   with-artemis-server --args=args --type="supabase": | artemis-server/TestArtemisServer |
     server-config := artemis-server.server-config as ServerConfigSupabase
-    client-anon := supabase.Client --server-config=server-config --certificate-provider=:unreachable
-    client1 := supabase.Client --server-config=server-config --certificate-provider=:unreachable
-    client2 := supabase.Client --server-config=server-config --certificate-provider=:unreachable
-    client3 := supabase.Client --server-config=server-config --certificate-provider=:unreachable
-    client4 := supabase.Client --server-config=server-config --certificate-provider=:unreachable
+    client-anon := supabase.Client --server-config=server-config
+    client1 := supabase.Client --server-config=server-config
+    client2 := supabase.Client --server-config=server-config
+    client3 := supabase.Client --server-config=server-config
+    client4 := supabase.Client --server-config=server-config
 
     emails := []
     [ client1, client2, client3, client4 ].do:
@@ -485,7 +485,7 @@ main args:
     roles1 := client1.rest.select "roles"
     expect-equals 2 roles1.size
 
-    client-admin := supabase.Client --server-config=server-config --certificate-provider=:unreachable
+    client-admin := supabase.Client --server-config=server-config
     client-admin.auth.sign-in
         --email="test-admin@toit.io"
         --password="password"
