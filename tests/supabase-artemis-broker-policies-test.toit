@@ -13,8 +13,8 @@ import .utils
 main args:
   with-broker --args=args --type="supabase-local-artemis" --logger=log.default: | broker/TestBroker |
     server-config := broker.server-config as ServerConfigSupabase
-    client-anon := supabase.Client --server-config=server-config --certificate-provider=:unreachable
-    client1 := supabase.Client --server-config=server-config --certificate-provider=:unreachable
+    client-anon := supabase.Client --server-config=server-config
+    client1 := supabase.Client --server-config=server-config
 
     email := "$(random)@toit.io"
     password := "password"
@@ -61,7 +61,6 @@ main args:
       }
 
     client2 := supabase.Client --server-config=server-config
-        --certificate-provider=:unreachable
     email2 := "$(random)@toit.io"
     client2.auth.sign-up --email=email2 --password=password
     client2.auth.sign-in --email=email2 --password=password
@@ -76,7 +75,6 @@ main args:
 
     email3 := "$(random)@toit.io"
     client3 := supabase.Client --server-config=server-config
-        --certificate-provider=:unreachable
     client3.auth.sign-up --email=email3 --password=password
     client3.auth.sign-in --email=email3 --password=password
 

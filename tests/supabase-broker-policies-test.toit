@@ -12,8 +12,8 @@ import .supabase-broker-policies-shared
 main args:
   with-broker --args=args --type="supabase-local" --logger=log.default: | broker/TestBroker |
     server-config := broker.server-config as ServerConfigSupabase
-    client-anon := supabase.Client --server-config=server-config --certificate-provider=:unreachable
-    client1 := supabase.Client --server-config=server-config --certificate-provider=:unreachable
+    client-anon := supabase.Client --server-config=server-config
+    client1 := supabase.Client --server-config=server-config
 
     email := "$(random)@toit.io"
     password := "password"
