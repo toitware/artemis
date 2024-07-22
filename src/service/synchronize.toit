@@ -16,7 +16,6 @@ import system.firmware
 import watchdog show Watchdog WatchdogServiceClient
 
 import .brokers.broker
-import .check-in
 import .containers
 import .device
 import .firmware-update
@@ -414,8 +413,6 @@ class SynchronizeJob extends TaskJob:
         transition-to_ STATE-CONNECTED-TO-NETWORK
         broker := determine-broker_ --network=network
         done := connect-broker_ --broker=broker --network=network
-        if check-in:
-          with-timeout TIMEOUT-CHECK-IN: check-in.run network logger_
         if done: return true
     finally: | is-exception exception |
       // We get canceled in tests and when forced offline through calls
@@ -476,7 +473,6 @@ class SynchronizeJob extends TaskJob:
           // we reboot just after synchronizing in that case.
           assert: not safe-mode_
           if device_.max-offline and control-level-online_ == 0: return true
-          if check-in and check-in.schedule-now: return false
     finally:
       with-timeout TIMEOUT-BROKER-CLOSE: broker-connection.close
 
