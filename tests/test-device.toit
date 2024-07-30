@@ -5,11 +5,10 @@ import encoding.json
 import artemis.shared.server-config
 import artemis.service.service
 import artemis.service.device as service
-import artemis.cli.utils show OptionUuid
 import artemis.service.storage show Storage
 import artemis.service.run.null-pin-trigger show NullPinTriggerManager
 import artemis.service.run.null-watchdog show NullWatchdog
-import cli
+import cli show *
 import encoding.json
 import http
 import net
@@ -34,13 +33,13 @@ extract-backdoor-url bytes/ByteArray -> string:
   return (lines[0].split "**")[1].trim
 
 main args:
-  cmd := cli.Command "root"
+  cmd := Command "root"
     --options=[
-      cli.Option "broker-config-json" --required,
+      Option "broker-config-json" --required,
       OptionUuid "alias-id" --required,
       OptionUuid "hardware-id" --required,
       OptionUuid "organization-id" --required,
-      cli.Option "encoded-firmware" --required,
+      Option "encoded-firmware" --required,
     ]
     --run=::
       run

@@ -1,16 +1,17 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import cli show Cli
 import http
 import supabase
 import certificate-roots
 
 import ..http.base
 import ...config
-import ...ui
+import ...utils.supabase
 import ....shared.server-config
 
-create-broker-cli-supabase-http server-config/ServerConfigSupabase config/Config -> BrokerCliSupabase:
-  local-storage := ConfigLocalStorage config --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
+create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> BrokerCliSupabase:
+  local-storage := ConfigLocalStorage --cli=cli --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
   supabase-client := supabase.Client --server-config=server-config --local-storage=local-storage
   id := "supabase/$server-config.host"
 
@@ -54,11 +55,11 @@ class BrokerCliSupabase extends BrokerCliHttp:
   sign-in --email/string --password/string:
     supabase-client_.auth.sign-in --email=email --password=password
 
-  sign-in --provider/string --ui/Ui --open-browser/bool:
+  sign-in --provider/string --cli/Cli --open-browser/bool:
     supabase-client_.auth.sign-in
         --provider=provider
-        --ui=ui
         --open-browser=open-browser
+        --ui=SupabaseUi cli
 
   update --email/string? --password/string?:
     payload := {:}

@@ -71,7 +71,7 @@ main args:
 
     // Stop the migration.
     fleet.run ["fleet", "migration", "stop"]
-    fleet.test-cli.stop-main-broker
+    fleet.tester.stop-main-broker
     migration-brokers[..migration-brokers.size - 1].do: | broker/MigrationBroker |
       broker.close
 

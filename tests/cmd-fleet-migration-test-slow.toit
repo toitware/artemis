@@ -82,7 +82,7 @@ main args:
     // Note that device 'never-started' is not on the new broker and would not be
     // able to recover.
     fleet.run ["fleet", "migration", "stop"]
-    fleet.test-cli.stop-main-broker
+    fleet.tester.stop-main-broker
 
     // Do one more migration to ensure that none of the devices is somehow
     // accessing the old broker.

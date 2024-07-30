@@ -11,7 +11,7 @@ main args:
     run-test fleet
 
 run-test fleet/TestFleet:
-  tmp-dir := fleet.test-cli.tmp-dir
+  tmp-dir := fleet.tester.tmp-dir
 
   device/FakeDevice := fleet.devices.values[0]
   device.report-state
@@ -51,7 +51,7 @@ run-test fleet/TestFleet:
         "device", "container", "uninstall", "hello", "--force"
       ]
 
-  fleet.test-cli.ensure-available-artemis-service
+  fleet.tester.ensure-available-artemis-service
       --sdk-version=TEST-SDK-VERSION
       --artemis-version=TEST-ARTEMIS-VERSION
 

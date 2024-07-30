@@ -6,25 +6,25 @@ import .utils
 import artemis.service.synchronize show SynchronizeJob
 
 main args:
-  with-test-cli --args=args: | test-cli/TestCli |
-    test-cli.login
+  with-tester --args=args: | tester/Tester |
+    tester.login
 
-    device := test-cli.create-device
+    device := tester.create-device
     device.start
 
     // Transient commands only work if we know the firmware the device
     // is actually running.
     device.wait-until-connected
 
-    test-cli.run [
+    tester.run [
         "fleet", "init",
-        "--fleet-root", test-cli.tmp-dir,
+        "--fleet-root", tester.tmp-dir,
         "--organization-id", "$device.organization-id",
     ]
-    test-cli.run ["fleet", "add-existing-device", "--fleet-root", test-cli.tmp-dir, "$device.alias-id"]
+    tester.run ["fleet", "add-existing-device", "--fleet-root", tester.tmp-dir, "$device.alias-id"]
 
-    test-cli.run [
-      "--fleet-root", test-cli.tmp-dir,
+    tester.run [
+      "--fleet-root", tester.tmp-dir,
       "device",
       "set-max-offline",
       "--device", "$device.alias-id",
@@ -38,8 +38,8 @@ main args:
     with-timeout slack:
       pos = device.wait-for "synchronized {max-offline: 1s}" --start-at=pos
 
-    test-cli.run [
-      "--fleet-root", test-cli.tmp-dir,
+    tester.run [
+      "--fleet-root", tester.tmp-dir,
       "device",
       "set-max-offline",
       "--device", "$device.alias-id",

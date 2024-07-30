@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import cli show Cli
 import host.file
 import encoding.json
 import net
@@ -10,7 +11,6 @@ import ..config
 import ..event
 import ..device
 import ..pod-registry
-import ..ui
 import ...shared.server-config
 import .supabase
 import .http.base
@@ -23,9 +23,9 @@ interface BrokerCli implements Authenticatable:
   // At the moment we require the connection to be open when artemis receives the
   // broker.
 
-  constructor server-config/ServerConfig config/Config:
+  constructor server-config/ServerConfig --cli/Cli:
     if server-config is ServerConfigSupabase:
-      return create-broker-cli-supabase-http (server-config as ServerConfigSupabase) config
+      return create-broker-cli-supabase-http (server-config as ServerConfigSupabase) --cli=cli
     if server-config is ServerConfigHttp:
       return create-broker-cli-http-toit (server-config as ServerConfigHttp)
     throw "Unknown broker config type"
@@ -62,7 +62,7 @@ interface BrokerCli implements Authenticatable:
   /**
   Signs the user in using OAuth.
   */
-  sign-in --provider/string --ui/Ui --open-browser
+  sign-in --provider/string --cli/Cli --open-browser
 
   /**
   Updates the user's email and/or password.
@@ -274,8 +274,8 @@ interface BrokerCli implements Authenticatable:
       --organization-id/uuid.Uuid
       --pod-id/uuid.Uuid
 
-with-broker server-config/ServerConfig config/Config [block]:
-  broker := BrokerCli server-config config
+with-broker server-config/ServerConfig --cli/Cli [block]:
+  broker := BrokerCli server-config --cli=cli
   try:
     block.call broker
   finally:

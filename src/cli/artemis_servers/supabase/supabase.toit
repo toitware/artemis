@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import certificate-roots
+import cli show Cli
 import http
 import net
 import encoding.json
@@ -12,7 +13,7 @@ import ..artemis-server
 import ...config
 import ...device
 import ...organization
-import ...ui
+import ...utils.supabase
 
 import ....shared.server-config
 
@@ -22,8 +23,8 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   client_/supabase.Client? := ?
   server-config_/ServerConfigSupabase
 
-  constructor network/net.Interface .server-config_/ServerConfigSupabase config/Config:
-    local-storage := ConfigLocalStorage config --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"
+  constructor network/net.Interface .server-config_/ServerConfigSupabase --cli/Cli:
+    local-storage := ConfigLocalStorage --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)" --cli=cli
     client_ = supabase.Client network --server-config=server-config_ --local-storage=local-storage
 
   is-closed -> bool:
@@ -43,12 +44,12 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
   sign-in --email/string --password/string:
     client_.auth.sign-in --email=email --password=password
 
-  sign-in --provider/string --ui/Ui --open-browser/bool:
+  sign-in --provider/string --open-browser/bool --cli/Cli:
     client_.auth.sign-in
         --provider=provider
-        --ui=ui
         --open-browser=open-browser
         --redirect-url=TOIT_IO_AUTH_REDIRECT_URL
+        --ui=SupabaseUi cli
 
   update --email/string? --password/string?:
     payload := {:}

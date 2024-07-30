@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar show *
+import cli show Cli
 import crypto.sha256
 import encoding.json
 import encoding.base64
@@ -17,7 +18,6 @@ import .firmware show Firmware
 import .pod-specification
 import .sdk
 import .server-config
-import .ui
 import .utils
 
 /**
@@ -57,8 +57,8 @@ class Pod:
       --path/string
       --artemis/Artemis
       --broker/Broker
-      --ui/Ui:
-    specification := parse-pod-specification-file path --ui=ui
+      --cli/Cli:
+    specification := parse-pod-specification-file path --cli=cli
     return Pod.from-specification
         --organization-id=organization-id
         --recovery-urls=recovery-urls
@@ -100,8 +100,9 @@ class Pod:
     envelope = byte-builder.bytes
     tmp-dir_ = tmp-directory
 
-  static parse path/string --tmp-directory/string --ui/Ui -> Pod:
-    read-file path --ui=ui: | reader/io.Reader |
+  static parse path/string --tmp-directory/string --cli/Cli -> Pod:
+    ui := cli.ui
+    read-file path --cli=cli: | reader/io.Reader |
       id/uuid.Uuid? := null
       name/string? := null
       envelope/ByteArray? := null
@@ -140,9 +141,9 @@ class Pod:
       --recovery-urls/List
       --artemis/Artemis
       --broker/Broker
-      --ui/Ui:
+      --cli/Cli:
     if not file.is-file path:
-      ui.abort "The file '$path' does not exist or is not a regular file."
+      cli.ui.abort "The file '$path' does not exist or is not a regular file."
 
     is-compiled-pod := false
     catch --unwind=(: it != "Invalid Ar File"):
@@ -154,7 +155,7 @@ class Pod:
         stream.close
     pod/Pod := ?
     if is-compiled-pod:
-      return Pod.parse path --tmp-directory=artemis.tmp-directory --ui=ui
+      return Pod.parse path --tmp-directory=artemis.tmp-directory --cli=cli
     else:
       return Pod.from-specification
           --organization-id=organization-id
@@ -162,7 +163,7 @@ class Pod:
           --path=path
           --artemis=artemis
           --broker=broker
-          --ui=ui
+          --cli=cli
 
   static envelope-count_/int := 0
   static generate-envelope-path_ --tmp-directory/string -> string:
@@ -201,8 +202,8 @@ class Pod:
     device-config_ = cached
     return cached
 
-  write path/string --ui/Ui:
-    write-file path --ui=ui: | writer/io.Writer |
+  write path/string --cli/Cli:
+    write-file path --cli=cli: | writer/io.Writer |
       ar-writer := ArWriter writer
       ar-writer.add MAGIC-NAME_ MAGIC-CONTENT_
       ar-writer.add ID-NAME_ id.to-byte-array
@@ -248,10 +249,9 @@ class Pod:
   */
   compute-device-specific-data -> ByteArray
       --identity-path/string
-      --cache/Cache
-      --ui/Ui:
+      --cli/Cli:
     // Use the SDK from the pod.
-    sdk := get-sdk sdk-version --cache=cache --ui=ui
+    sdk := get-sdk sdk-version --cli=cli
 
     // Extract the device ID from the identity file.
     // TODO(florian): abstract the identity management.
@@ -276,9 +276,9 @@ class Pod:
       ]
 
       if not is-same-broker "broker" identity tmp artemis-assets-path sdk:
-        ui.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
+        cli.ui.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
       if not is-same-broker "artemis.broker" identity tmp artemis-assets-path sdk:
-        ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
+        cli.ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
 
     device-map := identity["artemis.device"]
     device := Device
@@ -288,7 +288,7 @@ class Pod:
 
     // We don't really need the full firmware and just the device-specific data,
     // but by cooking the firmware we get the checksums correct.
-    firmware := Firmware --pod=this --device=device --cache=cache --ui=ui
+    firmware := Firmware --pod=this --device=device --cli=cli
 
     return firmware.device-specific-data
 

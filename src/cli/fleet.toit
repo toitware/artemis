@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import certificate-roots
+import cli show Cli
 import encoding.json
 import encoding.ubjson
 import encoding.base64
@@ -17,7 +18,6 @@ import .firmware
 import .pod
 import .pod-specification
 import .pod-registry
-import .ui
 import .utils
 import .utils.names
 import .server-config
@@ -93,7 +93,8 @@ class FleetFile:
       --.servers
       --.recovery-urls:
 
-  static parse path/string --default-broker-config/ServerConfig --ui/Ui -> FleetFile:
+  static parse path/string --default-broker-config/ServerConfig --cli/Cli -> FleetFile:
+    ui := cli.ui
     fleet-content := null
     exception := catch: fleet-content = read-json path
     if exception:
@@ -127,7 +128,7 @@ class FleetFile:
           ui.abort "Fleet file '$path' does not contain a 'pod' entry for group '$group-name'."
         if entry["pod"] is not string:
           ui.abort "Fleet file '$path' has invalid format for 'pod' in group '$group-name'."
-        PodReference.parse entry["pod"] --ui=ui
+        PodReference.parse entry["pod"] --cli=cli
 
     broker-name := fleet-content.get "broker"
     migrating-from-entry := fleet-content.get "migrating-from"
@@ -257,7 +258,9 @@ class DevicesFile:
 
   constructor .path .devices:
 
-  static parse path/string --ui/Ui -> DevicesFile:
+  static parse path/string --cli/Cli -> DevicesFile:
+    ui := cli.ui
+
     encoded-devices := null
     exception := catch: encoded-devices = read-json path
     if exception:
@@ -285,10 +288,10 @@ class DevicesFile:
 
     return DevicesFile path devices
 
-  check-groups fleet-file/FleetFile --ui/Ui:
+  check-groups fleet-file/FleetFile --cli/Cli:
     devices.do: | device/DeviceFleet |
       if not fleet-file.group-pods.contains device.group:
-        ui.abort "Device $device.short-string is in group '$device.group' which doesn't exist."
+        cli.ui.abort "Device $device.short-string is in group '$device.group' which doesn't exist."
 
   write -> none:
     sorted-devices := devices.sort: | a/DeviceFleet b/DeviceFleet | a.compare-to b
@@ -315,58 +318,48 @@ class Fleet:
   organization-id/uuid.Uuid
   artemis/Artemis
   broker/Broker
-  ui_/Ui
-  cache_/Cache
-  config_/Config
+  cli_/Cli
   fleet-root-or-ref_/string
   fleet-file_/FleetFile
 
   constructor fleet-root-or-ref/string
       artemis/Artemis
       --default-broker-config/ServerConfig
-      --ui/Ui
-      --cache/Cache
-      --config/Config:
+      --cli/Cli:
     fleet-file := load-fleet-file fleet-root-or-ref
         --default-broker-config=default-broker-config
-        --ui=ui
+        --cli=cli
     return Fleet fleet-root-or-ref artemis
         --fleet-file=fleet-file
-        --ui=ui
-        --cache=cache
-        --config=config
+        --cli=cli
 
   constructor .fleet-root-or-ref_ .artemis
       --fleet-file/FleetFile
       --short-strings/Map?=null
-      --ui/Ui
-      --cache/Cache
-      --config/Config:
+      --cli/Cli:
     fleet-file_ = fleet-file
     id = fleet-file.id
     organization-id = fleet-file.organization-id
-    ui_ = ui
-    cache_ = cache
-    config_ = config
+    cli_ = cli
     broker = Broker
         --server-config=fleet-file.broker-config
-        --cache=cache
-        --config=config
-        --ui=ui
         --fleet-id=id
         --organization-id=organization-id
         --tmp-directory=artemis.tmp-directory
         --short-strings=short-strings
+        --cli=cli
 
     // TODO(florian): should we always do this check?
     org := artemis.get-organization --id=organization-id
     if not org:
-      ui.abort "Organization $organization-id does not exist or is not accessible."
+      cli.ui.abort "Organization $organization-id does not exist or is not accessible."
 
   static load-fleet-file -> FleetFile
       fleet-root-or-ref/string
       --default-broker-config/ServerConfig
-      --ui/Ui:
+      --cli/Cli:
+    ui := cli.ui
+
     fleet-path/string := ?
     must-be-reference/bool := ?
     if file.is-file fleet-root-or-ref:
@@ -388,7 +381,7 @@ class Fleet:
 
     result := FleetFile.parse fleet-path
         --default-broker-config=default-broker-config
-        --ui=ui
+        --cli=cli
     if must-be-reference and not result.is-reference:
       ui.abort "Provided fleet-file is not a reference."
     else if not must-be-reference and result.is-reference:
@@ -405,7 +398,7 @@ class Fleet:
   Also uploads the trivial patches.
   */
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
-    ui_.info "Uploading pod. This may take a while."
+    cli_.ui.info "Uploading pod. This may take a while."
 
     return broker.upload
         --pod=pod
@@ -419,7 +412,7 @@ class Fleet:
     if not pod-id:
       pod-id = get-pod-id reference
     if not broker.is-cached --pod-id=pod-id:
-      ui_.info "Downloading pod '$reference'."
+      cli_.ui.info "Downloading pod '$reference'."
     return download --pod-id=pod-id
 
   download --pod-id/uuid.Uuid -> Pod:
@@ -452,7 +445,7 @@ class Fleet:
   recovery-url-add url/string -> none:
     old-urls := fleet-file_.recovery-urls
     if old-urls.contains url:
-      ui_.info "Recovery URL '$url' already exists."
+      cli_.ui.info "Recovery URL '$url' already exists."
       return
     new-urls := old-urls + [url]
     new-file := fleet-file_.with --recovery-urls=new-urls
@@ -510,37 +503,35 @@ class FleetWithDevices extends Fleet:
 
   constructor fleet-root/string artemis/Artemis
       --default-broker-config/ServerConfig
-      --ui/Ui
-      --cache/Cache
-      --config/Config:
+      --cli/Cli:
     if not file.is-directory fleet-root and file.is-file fleet-root:
-      ui.abort "Fleet argument for this operation must be a fleet root (directory) and not a reference file: '$fleet-root'."
+      cli.ui.abort "Fleet argument for this operation must be a fleet root (directory) and not a reference file: '$fleet-root'."
 
     fleet-file := Fleet.load-fleet-file fleet-root
         --default-broker-config=default-broker-config
-        --ui=ui
+        --cli=cli
     if fleet-file.is-reference:
-      ui.abort "Fleet root '$fleet-root' is a reference fleet and cannot be used for device management."
-    devices-file := load-devices-file fleet-root --ui=ui
-    devices-file.check-groups fleet-file --ui=ui
+      cli.ui.abort "Fleet root '$fleet-root' is a reference fleet and cannot be used for device management."
+    devices-file := load-devices-file fleet-root --cli=cli
+    devices-file.check-groups fleet-file --cli=cli
     group-pods_ = fleet-file.group-pods
     devices_ = devices-file.devices
     device-short-strings_ = {:}
     devices_.do: | device/DeviceFleet |
       device-short-strings_[device.id] = device.short-string
-    aliases_ = build-alias-map_ devices_ ui
+    aliases_ = build-alias-map_ devices_ --cli=cli
     super fleet-root artemis
         --fleet-file=fleet-file
         --short-strings=device-short-strings_
-        --ui=ui
-        --cache=cache
-        --config=config
+        --cli=cli
 
   static init fleet-root/string artemis/Artemis -> FleetFile
       --organization-id/uuid.Uuid
       --broker-config/ServerConfig
       --recovery-url-prefixes/List
-      --ui/Ui:
+      --cli/Cli:
+    ui := cli.ui
+
     if not file.is-directory fleet-root:
       ui.abort "Fleet root '$fleet-root' is not a directory."
 
@@ -563,7 +554,7 @@ class FleetWithDevices extends Fleet:
         --id=fleet-id
         --organization-id=organization-id
         --group-pods={
-          DEFAULT-GROUP: PodReference.parse "$INITIAL-POD-NAME@latest" --ui=ui,
+          DEFAULT-GROUP: PodReference.parse "$INITIAL-POD-NAME@latest" --cli=cli,
         }
         --is-reference=false
         --broker-name=broker-name
@@ -582,7 +573,8 @@ class FleetWithDevices extends Fleet:
 
     return fleet-file
 
-  static load-devices-file fleet-root/string --ui/Ui -> DevicesFile:
+  static load-devices-file fleet-root/string --cli/Cli -> DevicesFile:
+    ui := cli.ui
     if not file.is-directory fleet-root:
       ui.abort "Fleet root '$fleet-root' is not a directory."
     devices-path := "$fleet-root/$DEVICES-FILE_"
@@ -591,7 +583,7 @@ class FleetWithDevices extends Fleet:
       ui.error "Use 'init' to initialize a fleet root."
       ui.abort
 
-    return DevicesFile.parse devices-path --ui=ui
+    return DevicesFile.parse devices-path --cli=cli
 
   /** The root (directory) of this fleet. */
   root -> string:
@@ -610,7 +602,7 @@ class FleetWithDevices extends Fleet:
     designators. This function builds a map for these and warns the
     user if any of them is ambiguous.
   */
-  static build-alias-map_ devices/List ui/Ui -> Map:
+  static build-alias-map_ devices/List --cli/Cli -> Map:
     result := {:}
     ambiguous-ids := {:}
     devices.size.repeat: | index/int |
@@ -637,10 +629,10 @@ class FleetWithDevices extends Fleet:
       device.aliases.do: | alias/string |
         add-alias.call alias
     if ambiguous-ids.size > 0:
-      ui.warning "The following names, device-ids or aliases are ambiguous:"
+      cli.ui.warning "The following names, device-ids or aliases are ambiguous:"
       ambiguous-ids.do: | id/string index-list/List |
         uuid-list := index-list.map: devices[it].id
-        ui.warning "  $id maps to $(uuid-list.join ", ")"
+        cli.ui.warning "  $id maps to $(uuid-list.join ", ")"
     return result
 
   /**
@@ -657,7 +649,7 @@ class FleetWithDevices extends Fleet:
       --group/string
       --output-directory/string:
     if not has-group group:
-      ui_.abort "Group '$group' not found."
+      cli_.ui.abort "Group '$group' not found."
 
     old-size := devices_.size
     new-file := "$output-directory/$(id).identity"
@@ -685,17 +677,15 @@ class FleetWithDevices extends Fleet:
 
     // We need to notify the migrating-from brokers.
     fleet-file_.migrating-from.do: | server-name |
-      ui_.info "Updating on '$server-name' broker (migration in progress)."
+      cli_.ui.info "Updating on '$server-name' broker (migration in progress)."
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
           --short-strings=device-short-strings_
-          --cache=cache_
-          --config=config_
-          --ui=ui_
           --fleet-id=id
           --organization-id=organization-id
           --tmp-directory=artemis.tmp-directory
+          --cli=cli_
       old-broker.update --device-id=device-id --pod=pod
 
   /**
@@ -705,13 +695,15 @@ class FleetWithDevices extends Fleet:
     a device hasn't set its state yet.
   */
   roll-out --diff-bases/List:
+    ui := cli_.ui
+
     fleet-devices := devices_
     device-ids := fleet-devices.map: it.id
 
     detailed-devices := broker.get-devices --device-ids=device-ids
     fleet-devices.do: | fleet-device/DeviceFleet |
       if not detailed-devices.contains fleet-device.id:
-        ui_.abort "Device $fleet-device.id is unknown to the broker."
+        ui.abort "Device $fleet-device.id is unknown to the broker."
 
     pods-per-group := {:}  // From group-name to Pod.
     pods := fleet-devices.map: | fleet-device/DeviceFleet |
@@ -725,31 +717,29 @@ class FleetWithDevices extends Fleet:
         --diff-bases=diff-bases
         --warn-only-trivial=not is-migrating
 
-    ui_.info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
+    ui.info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
 
     // We need to notify the migrating-from brokers.
     fleet-file_.migrating-from.do: | server-name |
-      ui_.info "Rolling out to '$server-name' broker (migration in progress)."
+      ui.info "Rolling out to '$server-name' broker (migration in progress)."
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
           --short-strings=device-short-strings_
-          --cache=cache_
-          --config=config_
-          --ui=ui_
           --fleet-id=id
           --organization-id=organization-id
           --tmp-directory=artemis.tmp-directory
+          --cli=cli_
       // We could filter out devices that were already known in the new broker, but
       // it's easier and more robust to update all devices.
       // This also makes it possible to move forward and backward between two brokers.
       detailed-devices = old-broker.get-devices --device-ids=device-ids
       old-broker.roll-out --devices=detailed-devices.values --pods=pods --diff-bases=diff-bases
-      ui_.info "Successfully rolled out to '$server-name' broker (migration in progress)."
+      ui.info "Successfully rolled out to '$server-name' broker (migration in progress)."
 
   pod-reference-for-group name/string -> PodReference:
     return group-pods_.get name
-        --if-absent=: ui_.abort "Unknown group '$name'"
+        --if-absent=: cli_.ui.abort "Unknown group '$name'"
 
   has-group group/string -> bool:
     return group-pods_.contains group
@@ -833,9 +823,7 @@ class FleetWithDevices extends Fleet:
           --fleet-id=id
           --organization-id=organization-id
           --short-strings=device-short-strings_
-          --cache=cache_
-          --config=config_
-          --ui=ui_
+          --cli=cli_
           --tmp-directory=artemis.tmp-directory
 
     all-brokers := [broker] + migrating-from-brokers
@@ -906,7 +894,7 @@ class FleetWithDevices extends Fleet:
       fleet-device/DeviceFleet := id-to-fleet-device[device-id]
       detailed-device/DeviceDetailed? := detailed-devices.get device-id
       if not detailed-device:
-        ui_.warning "Device $device-id is unknown to the broker."
+        cli_.ui.warning "Device $device-id is unknown to the broker."
         continue.do
 
       status := build-status_ detailed-device
@@ -985,35 +973,34 @@ class FleetWithDevices extends Fleet:
           a["device-name"].compare-to b["device-name"] --if-equal=:
             a["device-id"].compare-to b["device-id"]
 
-    // TODO(florian): we shouldn't have any `ui_.result` outside of `cmd` files.
-    ui_.do --kind=Ui.RESULT: | printer/Printer |
-      header := {
-        "device-id": "Device ID",
-        "device-name": "Name",
-        "pod-description": "Pod",
-        "outdated-human": "Outdated",
-        "modified-human": "Modified",
-        "missed-checkins-human": "Missed Checkins",
-        "last-seen-human": "Last Seen",
-        "aliases": "Aliases",
-      }
-      if has-unmigrated:
-        header["broker"] = "Broker"
-      printer.emit rows --header=header
+    header := {
+      "device-id": "Device ID",
+      "device-name": "Name",
+      "pod-description": "Pod",
+      "outdated-human": "Outdated",
+      "modified-human": "Modified",
+      "missed-checkins-human": "Missed Checkins",
+      "last-seen-human": "Last Seen",
+      "aliases": "Aliases",
+    }
+    if has-unmigrated:
+      header["broker"] = "Broker"
+    // TODO(florian): we shouldn't have any `ui.result` outside of `cmd` files.
+    cli_.ui.emit-table --header=header rows
 
   resolve-alias alias/string -> DeviceFleet:
     if not aliases_.contains alias:
-      ui_.abort "No device with name, device-id, or alias '$alias' in the fleet."
+      cli_.ui.abort "No device with name, device-id, or alias '$alias' in the fleet."
     device-index := aliases_[alias]
     if device-index == AMBIGUOUS_:
-      ui_.abort "The name, device-id, or alias '$alias' is ambiguous."
+      cli_.ui.abort "The name, device-id, or alias '$alias' is ambiguous."
     return devices_[device-index]
 
   device device-id/uuid.Uuid ->  DeviceFleet:
     devices_.do: | device/DeviceFleet |
       if device.id == device-id:
         return device
-    ui_.abort "No device with id $device-id in the fleet."
+    cli_.ui.abort "No device with id $device-id in the fleet."
     unreachable
 
   /**
@@ -1092,9 +1079,7 @@ class FleetWithDevices extends Fleet:
         --fleet-id=id
         --organization-id=organization-id
         --tmp-directory=artemis.tmp-directory
-        --cache=cache_
-        --config=config_
-        --ui=ui_
+        --cli=cli_
 
     if new-broker.server-config.name == broker.server-config.name:
       // Do nothing. We are already running on this broker.
@@ -1146,12 +1131,10 @@ class FleetWithDevices extends Fleet:
         current-broker := Broker
             --server-config=fleet-file.servers[name]
             --short-strings=device-short-strings_
-            --cache=cache_
-            --config=config_
-            --ui=ui_
             --fleet-id=id
             --organization-id=organization-id
             --tmp-directory=artemis.tmp-directory
+            --cli=cli_
         current-detailed-devices := current-broker.get-devices --device-ids=device-ids
         current-ids := current-detailed-devices.keys
         current-last-events := current-broker.get-last-events --device-ids=current-ids
@@ -1159,7 +1142,7 @@ class FleetWithDevices extends Fleet:
           if not last-events.contains device-id or last-events[device-id].timestamp < event.timestamp:
             devices_.do: | fleet-device/DeviceFleet |
               if fleet-device.id == device-id:
-                ui_.abort "Device $fleet-device.short-string has not migrated yet."
+                cli_.ui.abort "Device $fleet-device.short-string has not migrated yet."
             unreachable
 
     brokers-set := Set

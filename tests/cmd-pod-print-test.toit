@@ -21,12 +21,12 @@ EXTENDED-SPEC ::= {
 }
 
 main args:
-  with-test-cli --args=args: | test-cli/TestCli |
-    run-test test-cli
+  with-tester --args=args: | tester/Tester |
+    run-test tester
 
-run-test test-cli/TestCli:
+run-test tester/Tester:
   with-tmp-directory: | dir/string |
-    test-cli.replacements[dir] = "TMP_DIR"
+    tester.replacements[dir] = "TMP_DIR"
 
     minimal-spec-path := "$dir/$MINIMAL-SPEC-FILENAME"
     write-yaml-to-file minimal-spec-path MINIMAL-SPEC
@@ -34,18 +34,18 @@ run-test test-cli/TestCli:
     extended-spec-path := "$dir/extended.yaml"
     write-yaml-to-file extended-spec-path EXTENDED-SPEC
 
-    test-cli.run-gold "AAA-print-spec"
+    tester.run-gold "AAA-print-spec"
         "Content of minimal spec"
         ["pod", "print", minimal-spec-path]
 
-    test-cli.run-gold "BAA-print-spec-flat"
+    tester.run-gold "BAA-print-spec-flat"
         "Content of minimal spec after flattening"
         ["pod", "print", "--flat", minimal-spec-path]
 
-    test-cli.run-gold "CAA-print-spec"
+    tester.run-gold "CAA-print-spec"
         "Content of extended spec"
         ["pod", "print", extended-spec-path]
 
-    test-cli.run-gold "DAA-print-spec-flat"
+    tester.run-gold "DAA-print-spec-flat"
         "Content of extended spec after flattening"
         ["pod", "print", "--flat", extended-spec-path]

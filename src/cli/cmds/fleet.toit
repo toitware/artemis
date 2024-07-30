@@ -1,6 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import cli
+import cli show *
 import fs
 import host.file
 import uuid
@@ -23,11 +23,10 @@ import ..fleet
 import ..pod
 import ..pod-registry
 import ..server-config show get-server-from-config
-import ..ui
 import ..utils
 
-create-fleet-commands config/Config cache/Cache ui/Ui -> List:
-  cmd := cli.Command "fleet"
+create-fleet-commands -> List:
+  cmd := Command "fleet"
       --help="""
         Manage multiple devices at the same time.
 
@@ -51,7 +50,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         4. Flash the devices using 'serial flash'.
         """
 
-  init-cmd := cli.Command "init"
+  init-cmd := Command "init"
       --help="""
         Initialize a fleet root.
 
@@ -69,20 +68,20 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
       --options=[
         OptionUuid "organization-id"
             --help="The organization to use.",
-        cli.Option "broker"
+        Option "broker"
             --help="The broker to use.",
       ]
       --examples=[
-        cli.Example "Initialize a fleet root in the current directory with the default organization:"
+        Example "Initialize a fleet root in the current directory with the default organization:"
             --arguments=""
             --global-priority=8,
-        cli.Example "Initialize a fleet in directory 'fleet' with organization '12345678-1234-1234-1234-123456789abc':"
+        Example "Initialize a fleet in directory 'fleet' with organization '12345678-1234-1234-1234-123456789abc':"
             --arguments="--fleet-root=./fleet --organization-id=12345678-1234-1234-1234-123456789abc"
       ]
-      --run=:: init it config cache ui
+      --run=:: init it
   cmd.add init-cmd
 
-  login-cmd := cli.Command "login"
+  login-cmd := Command "login"
       --aliases=["signin", "sign-in", "log-in"]
       --help="""
         Log in to the fleet's broker.
@@ -91,10 +90,10 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         fleet configuration.
         """
       --options=auth-cmd.SIGNIN-OPTIONS
-      --run=:: login it config cache ui
+      --run=:: login it
   cmd.add login-cmd
 
-  add-devices-cmd := cli.Command "add-devices"
+  add-devices-cmd := Command "add-devices"
       --aliases=["create-identities", "provision"]
       --help="""
         Create a specified number of identity files.
@@ -110,29 +109,29 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         This command requires Internet access.
         """
       --options=[
-        cli.Option "output-directory"
+        Option "output-directory"
             --type="directory"
             --help="Directory to write the identity files to."
             --default=".",
-        cli.Option "group"
+        Option "group"
             --default=DEFAULT-GROUP
             --help="Add the devices to a group.",
       ]
       --rest=[
-        cli.OptionInt "count"
+        OptionInt "count"
             --help="Number of identity files to create."
             --required,
       ]
       --examples=[
-        cli.Example "Create 10 identity files in the current directory:"
+        Example "Create 10 identity files in the current directory:"
             --arguments="10",
-        cli.Example "Create 10 identity files in the directory 'identities' and add them to group 'g1':"
+        Example "Create 10 identity files in the directory 'identities' and add them to group 'g1':"
             --arguments="--output-directory=identities --group=g1 10",
       ]
-      --run=:: add-devices it config cache ui
+      --run=:: add-devices it
   cmd.add add-devices-cmd
 
-  add-device-cmd := cli.Command "add-device"
+  add-device-cmd := Command "add-device"
       --aliases=["create-device"]
       --help="""
         Add a new device to the fleet.
@@ -150,37 +149,37 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         This command requires Internet access.
         """
       --options=(build-extract-format-options --no-required) + [
-        cli.Option "output"
+        Option "output"
             --short-name="o"
             --type="file"
             --help="The file to write the output to.",
-        cli.Option "name"
+        Option "name"
             --help="The name of the device.",
-        cli.Option "alias"
+        Option "alias"
             --help="The alias of the device."
             --multi
             --split-commas,
-        cli.Option "group"
+        Option "group"
             --default=DEFAULT-GROUP
             --help="The group of the new device.",
-        cli.OptionUuid "id"
+        OptionUuid "id"
             --help="The id of the device.",
-        cli.Flag "default"
+        Flag "default"
             --default=true
             --help="Make this device the default device.",
       ]
       --examples=[
-        cli.Example "Add a new device in group 'roof-solar':"
+        Example "Add a new device in group 'roof-solar':"
             --arguments="--group=roof-solar",
-        cli.Example "Add a new device and write the identity file to 'device.identity':"
+        Example "Add a new device and write the identity file to 'device.identity':"
             --arguments="--format=identity -o device.identity",
-        cli.Example "Create a tar file 'device.tar' for a new host device 'berry' in group 'host-devices':"
+        Example "Create a tar file 'device.tar' for a new host device 'berry' in group 'host-devices':"
             --arguments="--name=berry --group=host-devices --format=tar -o device.tar",
       ]
-      --run=:: add-device it config cache ui
+      --run=:: add-device it
   cmd.add add-device-cmd
 
-  roll-out-cmd := cli.Command "roll-out"
+  roll-out-cmd := Command "roll-out"
       --aliases=[
         "rollout",
         "deploy"
@@ -206,52 +205,52 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         firmware update will still work, but will not be as efficient.
         """
       --options=[
-        cli.Option "diff-base"
+        Option "diff-base"
             --type="pod-file|reference"
             --help="The base pod file or reference to use for diff-based updates."
             --multi,
       ]
       --examples=[
-        cli.Example "Roll out the fleet configuration to all devices:"
+        Example "Roll out the fleet configuration to all devices:"
             --arguments=""
             --global-priority=2,
-        cli.Example """
+        Example """
             Roll out the fleet configuration to all devices using pods base1.pod
             and base2.pod as diff bases:"""
             --arguments="--diff-base=base1.pod --diff-base=base2.pod",
-        cli.Example """
+        Example """
             Roll out the fleet configuration to all devices using pod 'my-pod@v2.1.0'
             as diff base:"""
             --arguments="--diff-base=my-pod@v2.1.0",
       ]
-      --run=:: roll-out it config cache ui
+      --run=:: roll-out it
   cmd.add roll-out-cmd
 
-  status-cmd := cli.Command "status"
+  status-cmd := Command "status"
       --help="""
         Show the status of the fleet.
         """
       --options=[
-        cli.Flag "include-healthy"
+        Flag "include-healthy"
             --help="Show healthy devices."
             --default=true,
-        cli.Flag "include-never-seen"
+        Flag "include-never-seen"
             --help="Include devices that have never been seen."
             --default=false,
       ]
       --examples=[
-        cli.Example "Show the status of the fleet:"
+        Example "Show the status of the fleet:"
             --arguments=""
             --global-priority=5,
-        cli.Example "Show the status of the fleet, without healthy devices:"
+        Example "Show the status of the fleet, without healthy devices:"
             --arguments="--no-include-healthy",
-        cli.Example "Show the status of the fleet, including devices that have never been seen:"
+        Example "Show the status of the fleet, including devices that have never been seen:"
             --arguments="--include-never-seen",
       ]
-      --run=:: status it config cache ui
+      --run=:: status it
   cmd.add status-cmd
 
-  add-existing-device-cmd := cli.Command "add-existing-device"
+  add-existing-device-cmd := Command "add-existing-device"
       --help="""
         Add an existing device to the fleet.
 
@@ -265,13 +264,13 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         another, or to add devices that were created before fleets existed.
         """
       --options=[
-        cli.Option "name"
+        Option "name"
             --help="The name of the device.",
-        cli.Option "alias"
+        Option "alias"
             --help="The alias of the device."
             --multi
             --split-commas,
-        cli.Option "group"
+        Option "group"
             --default=DEFAULT-GROUP
             --help="Add the device to a group.",
       ]
@@ -281,15 +280,15 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --examples=[
-        cli.Example """
+        Example """
             Add device '12345678-1234-1234-1234-123456789abc' to group 'insect' with
             name 'wasp':"""
             --arguments="--name=wasp --group=insect 12345678-1234-1234-1234-123456789abc",
       ]
-      --run=:: add-existing-device it config cache ui
+      --run=:: add-existing-device it
   cmd.add add-existing-device-cmd
 
-  group-cmd := cli.Command "group"
+  group-cmd := Command "group"
       --help="""
         Manage groups in the fleet.
 
@@ -299,13 +298,13 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         """
   cmd.add group-cmd
 
-  group-list-cmd := cli.Command "list"
+  group-list-cmd := Command "list"
       --aliases=["ls"]
       --help="List the groups in the fleet."
-      --run=:: group-list it config cache ui
+      --run=:: group-list it
   group-cmd.add group-list-cmd
 
-  group-add-cmd := cli.Command "add"
+  group-add-cmd := Command "add"
       --aliases=["create"]
       --help="""
         Add a group in the fleet.
@@ -315,31 +314,31 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         If neither a pod reference nor a template is given uses the default pod reference.
         """
       --options=[
-        cli.Option "pod"
+        Option "pod"
             --help="The pod reference to use for the group.",
-        cli.Option "template"
+        Option "template"
             --help="The existing group that should be used as a template for the new group.",
-        cli.Flag "force"
+        Flag "force"
             --help="Create the group even if the pod doesn't exist."
             --short-name="f",
       ]
       --rest=[
-        cli.Option "name"
+        Option "name"
             --help="The name of the new group."
             --required,
       ]
       --examples=[
-        cli.Example "Create a group 'on-battery' using the pod 'battery-pod#11':"
+        Example "Create a group 'on-battery' using the pod 'battery-pod#11':"
             --arguments="--pod=battery-pod#11 on-battery",
-        cli.Example """
+        Example """
             Create a group 'on-battery-inaccessible' using the current pod of
             group 'on-battery':"""
             --arguments="--template=on-battery on-battery-inaccessible",
       ]
-      --run=:: group-add it config cache ui
+      --run=:: group-add it
   group-cmd.add group-add-cmd
 
-  group-update-cmd := cli.Command "update"
+  group-update-cmd := Command "update"
       --help="""
         Update one or several groups in the fleet.
 
@@ -350,80 +349,80 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         a new tag for the existing pod.
         """
       --options=[
-        cli.Option "pod"
+        Option "pod"
             --type="pod-reference"
             --help="The pod reference to use for the group.",
-        cli.Option "name"
+        Option "name"
             --help="The new name of the group.",
-        cli.Option "tag"
+        Option "tag"
             --help="The tag to update the existing pod to.",
-        cli.Flag "force"
+        Flag "force"
             --help="Update the group even if the pod doesn't exist."
             --short-name="f",
       ]
       --rest=[
-        cli.Option "group"
+        Option "group"
             --help="The name of the group to update."
             --required
             --multi,
       ]
       --examples=[
-        cli.Example "Update groups 'on-battery' and 'wired' to use pods with tag 'v1.2':"
+        Example "Update groups 'on-battery' and 'wired' to use pods with tag 'v1.2':"
             --arguments="--tag=v1.2 on-battery wired",
-        cli.Example "Rename group 'g1' to 'g2'."
+        Example "Rename group 'g1' to 'g2'."
             --arguments="--name=g2 g1",
-        cli.Example "Update group 'default' to use pod 'my-podv1.0.0':"
+        Example "Update group 'default' to use pod 'my-podv1.0.0':"
             --arguments="--pod=my-pod@v1.0.0 default"
             --global-priority=3,
-        cli.Example "Update group 'g2' to use revision 11 of pod 'my-pod':"
+        Example "Update group 'g2' to use revision 11 of pod 'my-pod':"
             --arguments="--pod=my-pod#11 g2",
       ]
-      --run=:: group-update it config cache ui
+      --run=:: group-update it
   group-cmd.add group-update-cmd
 
-  group-remove-cmd := cli.Command "remove"
+  group-remove-cmd := Command "remove"
       --help="""
       Remove a group from the fleet.
 
       The group must be unused.
       """
       --rest=[
-        cli.Option "group"
+        Option "group"
             --help="The name of the group to remove."
             --required,
       ]
       --examples=[
-        cli.Example "Remove group 'g1':"
+        Example "Remove group 'g1':"
             --arguments="g1",
       ]
-      --run=:: group-remove it config cache ui
+      --run=:: group-remove it
   group-cmd.add group-remove-cmd
 
-  group-move-cmd := cli.Command "move"
+  group-move-cmd := Command "move"
       --help="Move devices between groups."
       --options=[
-        cli.Option "to"
+        Option "to"
             --help="The group to move the devices to."
             --required,
-        cli.Option "group"
+        Option "group"
             --help="A group to move the devices from."
             --multi,
       ]
       --rest=[
-        cli.Option "device"
+        Option "device"
             --help="The ID, namer or alias of a device to move."
             --multi,
       ]
       --examples=[
-        cli.Example "Move all devices from group 'g1' to group 'g2':"
+        Example "Move all devices from group 'g1' to group 'g2':"
             --arguments="--to=g2 --group=g1",
-        cli.Example "Move devices 'big-whale' and 12345678-1234-1234-1234-123456789abc to group 'g2':"
+        Example "Move devices 'big-whale' and 12345678-1234-1234-1234-123456789abc to group 'g2':"
             --arguments="--to=g2 big-whale 12345678-1234-1234-1234-123456789abc",
       ]
-      --run=:: group-move it config cache ui
+      --run=:: group-move it
   group-cmd.add group-move-cmd
 
-  create-reference-cmd := cli.Command "create-reference"
+  create-reference-cmd := Command "create-reference"
       --aliases=["create-ref"]
       --help="""
         Creates a reference file for this fleet.
@@ -432,20 +431,20 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         but cannot be used for device management commands, such as 'fleet roll-out'.
         """
       --options=[
-        cli.Option "output"
+        Option "output"
             --short-name="o"
             --type="file"
             --help="The file to write the reference to."
             --required,
       ]
       --examples=[
-        cli.Example "Create a reference file 'my-fleet.ref':"
+        Example "Create a reference file 'my-fleet.ref':"
             --arguments="--output=my-fleet.ref",
       ]
-      --run=:: create-reference it config cache ui
+      --run=:: create-reference it
   cmd.add create-reference-cmd
 
-  migration-cmd := cli.Command "migration"
+  migration-cmd := Command "migration"
       --aliases=["migrate"]
       --help="""
         Migrate a fleet to a new broker.
@@ -461,7 +460,7 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         """
   cmd.add migration-cmd
 
-  migration-start-cmd := cli.Command "start"
+  migration-start-cmd := Command "start"
       --help="""
         Start the migration to a new broker.
 
@@ -471,18 +470,18 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         It is legal to start a migration even if one is already in progress.
         """
       --options=[
-        cli.Option "broker"
+        Option "broker"
             --help="The broker to migrate to."
             --required,
       ]
       --examples=[
-        cli.Example "Migrate the fleet to the broker 'my-broker':"
+        Example "Migrate the fleet to the broker 'my-broker':"
             --arguments="--broker=my-broker",
       ]
-      --run=:: migration-start it config cache ui
+      --run=:: migration-start it
   migration-cmd.add migration-start-cmd
 
-  migration-stop-cmd := cli.Command "stop"
+  migration-stop-cmd := Command "stop"
       --help="""
           Stops the migration.
 
@@ -500,28 +499,28 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
           been seen, then the command will *not* abort; even without this flag.
           """
       --options=[
-        cli.Flag "force"
+        Flag "force"
             --short-name="f"
             --help="Remove the old broker(s) even if devices are still using them."
             --default=false,
-        cli.Option "broker"
+        Option "broker"
             --help="The broker to remove."
             --multi,
       ]
       --examples=[
-        cli.Example "Finish the migration:"
+        Example "Finish the migration:"
             --arguments="",
-        cli.Example """
+        Example """
             Stop the migration for brokers 'old-broker1', 'old-broker2'.
             These will not be updated anymore:
             """
             --arguments="--broker=my-broker1 --broker=my-broker2",
       ]
-      --run=:: migration-stop it config cache ui
+      --run=:: migration-stop it
   migration-cmd.add migration-stop-cmd
 
   recovery-path := recovery-file-name --fleet-string="<FLEET-ID>"
-  recovery-cmd := cli.Command "recovery"
+  recovery-cmd := Command "recovery"
       --help="""
         Manage recovery URLs for the fleet.
 
@@ -547,80 +546,83 @@ create-fleet-commands config/Config cache/Cache ui/Ui -> List:
         """
   cmd.add recovery-cmd
 
-  recovery-add-cmd := cli.Command "add"
+  recovery-add-cmd := Command "add"
       --help="""
           Add a recovery URL to this fleet.
           """
       --rest=[
-        cli.Option "url"
+        Option "url"
             --help="The URL of the recovery server."
             --required,
       ]
       --examples=[
-        cli.Example "Add a recovery URL 'https://recovery.toit.io/recover.json':"
+        Example "Add a recovery URL 'https://recovery.toit.io/recover.json':"
             --arguments="https://recovery.toit.io/recover.json",
       ]
-      --run=:: recovery-add it config cache ui
+      --run=:: recovery-add it
   recovery-cmd.add recovery-add-cmd
 
-  recovery-remove-cmd := cli.Command "remove"
+  recovery-remove-cmd := Command "remove"
       --help="""
           Remove a recovery URL from this fleet.
           """
       --options=[
-        cli.Flag "all"
+        Flag "all"
             --help="Remove all recovery servers.",
-        cli.Flag "force"
+        Flag "force"
             --short-name="f"
             --help="Don't error if the recovery server doesn't exist.",
       ]
       --rest=[
-        cli.Option "url"
+        Option "url"
             --help="The URL of the recovery server."
             --multi,
       ]
       --examples=[
-        cli.Example "Remove the recovery URL 'https://recovery.toit.io/recover.json':"
+        Example "Remove the recovery URL 'https://recovery.toit.io/recover.json':"
             --arguments="https://recovery.toit.io/recover.json",
       ]
-      --run=:: recovery-remove it config cache ui
+      --run=:: recovery-remove it
   recovery-cmd.add recovery-remove-cmd
 
-  recovery-list-cmd := cli.Command "list"
+  recovery-list-cmd := Command "list"
       --aliases=["ls"]
       --help="""
           List the recovery URLs for this fleet.
           """
-      --run=:: recovery-list it config cache ui
+      --run=:: recovery-list it
   recovery-cmd.add recovery-list-cmd
 
-  recovery-export-cmd := cli.Command "export"
+  recovery-export-cmd := Command "export"
       --help="""
           Export the current broker of this fleet as recovery information.
 
           The written JSON file should be served on the recovery server(s).
           """
       --options=[
-        cli.Option "output"
+        Option "output"
             --short-name="o"
             --help="The file to write the recovery information to."
       ]
       --examples=[
-        cli.Example "Export the current broker to 'recovery.json':"
+        Example "Export the current broker to 'recovery.json':"
             --arguments="-o recovery.json",
       ]
-      --run=:: recovery-export it config cache ui
+      --run=:: recovery-export it
   recovery-cmd.add recovery-export-cmd
 
   return [cmd]
 
-init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  fleet-root-flag := parsed["fleet-root"]
-  organization-id := parsed["organization-id"]
-  broker-name := parsed["broker"]
+init invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  fleet-root-flag := invocation["fleet-root"]
+  organization-id := invocation["organization-id"]
+  broker-name := invocation["broker"]
 
   if not organization-id:
-    default-organization-id := default-organization-from-config config
+    default-organization-id := default-organization-from-config --cli=cli
     if not default-organization-id:
       ui.abort "No organization ID specified and no default organization ID set."
 
@@ -628,52 +630,58 @@ init parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   broker-config := ?
   if broker-name:
-    broker-config = get-server-from-config --name=broker-name config ui
+    broker-config = get-server-from-config --name=broker-name --cli=cli
   else:
-    broker-config = get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY config ui
+    broker-config = get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
 
-  default-recovery-urls := (config.get CONFIG-RECOVERY-SERVERS-KEY) or []
+  default-recovery-urls := (cli.config.get CONFIG-RECOVERY-SERVERS-KEY) or []
 
-  fleet-root := compute-fleet-root-or-ref parsed config ui
-  with-artemis parsed config cache ui: | artemis/Artemis |
+  fleet-root := compute-fleet-root-or-ref invocation
+  with-artemis invocation: | artemis/Artemis |
     fleet-file := FleetWithDevices.init fleet-root artemis
         --organization-id=organization-id
         --broker-config=broker-config
         --recovery-url-prefixes=default-recovery-urls
-        --ui=ui
+        --cli=cli
 
     fleet-file.recovery-urls.do: | url/string |
       ui.info "Added recovery URL: $url"
     ui.info "Fleet root '$fleet-root' initialized."
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit-structured
-        --json=: {
+    ui.emit --kind=Ui.RESULT
+        --structured=: {
           "id": "$fleet-file.id",
           "broker": fleet-file.broker-config.to-json --base64 --der-serializer=: unreachable,
           "recovery-urls": fleet-file.recovery-urls,
         }
-        --stdout=: | printer/Printer |
-          // Do nothing.
+        --text=:
+          // Don't print anything.
+          null
 
-login parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+login invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  with-pod-fleet invocation: | fleet/Fleet |
     broker := fleet.broker
     broker-name := broker.server-config.name
     ui.info "Logging in to broker '$broker-name'."
-    broker-authenticatable := BrokerCli broker.server-config config
-    auth-cmd.sign-in parsed --name=broker-name --authenticatable=broker-authenticatable --ui=ui
+    broker-authenticatable := BrokerCli broker.server-config --cli=cli
+    auth-cmd.sign-in invocation --name=broker-name --authenticatable=broker-authenticatable
 
-add-devices parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  output-directory := parsed["output-directory"]
-  count := parsed["count"]
-  group := parsed["group"]
+add-devices invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  output-directory := invocation["output-directory"]
+  count := invocation["count"]
+  group := invocation["group"]
 
   if count < 0:
     ui.abort "Count can't be negative."
 
   written-ids := {:}
   try:
-    with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+    with-devices-fleet invocation: | fleet/FleetWithDevices |
       count.repeat:
         id := random-uuid
         path := fleet.create-identity
@@ -682,24 +690,28 @@ add-devices parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --output-directory=output-directory
         written-ids["$id"] = path
   finally:
-      ui.do --kind=Ui.RESULT: | printer/Printer |
-        printer.emit-structured
-          --json=: written-ids
-          --stdout=: | printer/Printer |
-              // Unless we didn't manage to create any identity (and more than 0 was requested),
-              // report the number of created identity files.
-              if written-ids.size > 0 or count == 0:
-                ui.info "Created $written-ids.size identity file(s)."
+    ui.emit --kind=Ui.RESULT
+        --structured=: written-ids
+        --text=:
+          // Unless we didn't manage to create any identity (and more than 0 was requested),
+          // report the number of created identity files.
+          written-ids.size > 0 or count == 0
+            ? "Created $written-ids.size identity file(s)."
+            : null
 
-add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  output := parsed["output"]
-  format := parsed["format"]
-  name := parsed["name"]
-  aliases := parsed["alias"]
-  group := parsed["group"]
-  id := parsed["id"]
-  partitions := parsed["partition"]
-  should-make-default := parsed["default"]
+add-device invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+  params := invocation.parameters
+
+  output := params["output"]
+  format := params["format"]
+  name := params["name"]
+  aliases := params["alias"]
+  group := params["group"]
+  id := params["id"]
+  partitions := params["partition"]
+  should-make-default := params["default"]
 
   // If no id is given, just create one randomly.
   id = id or random-uuid
@@ -707,7 +719,7 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if output and not format:
     ui.abort "Output file given without format."
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     with-tmp-directory: | tmp-dir |
       identity-path := fleet.create-identity
           --id=id
@@ -723,46 +735,53 @@ add-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
             --format=format
             --partitions=partitions
             --output=output
-            --cache=cache
-            --ui=ui
+            --cli=cli
 
-      if should-make-default: make-default_ --device-id=id --config=config --ui=ui
-      ui.do --kind=Ui.RESULT: | printer/Printer |
-        printer.emit-structured
-          --json=: {
+      if should-make-default: make-default_ --device-id=id --cli=cli
+      ui.emit --kind=Ui.RESULT
+          --structured=: {
             "name": fleet-device.name,
             "id": "$fleet-device.id",
             "group": fleet-device.group,
             "fleet-id": "$fleet.id",
           }
-          --stdout=: | printer/Printer |
-            printer.emit "Successfully added device $fleet-device.name ($id) in group $fleet-device.group."
+          --text=:
+            "Successfully added device $fleet-device.name ($id) in group $fleet-device.group."
 
-roll-out parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  diff-bases := parsed["diff-base"]
+roll-out invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  diff-bases := invocation["diff-base"]
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     pod-diff-bases := diff-bases.map: | file-or-ref/string |
       if file.is-file file-or-ref:
-        Pod.parse file-or-ref --tmp-directory=fleet.artemis.tmp-directory --ui=ui
+        Pod.parse file-or-ref --tmp-directory=fleet.artemis.tmp-directory --cli=cli
       else:
-        fleet.download (PodReference.parse file-or-ref --ui=ui)
+        fleet.download (PodReference.parse file-or-ref --cli=cli)
     fleet.roll-out --diff-bases=pod-diff-bases
 
-status parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  include-healthy := parsed["include-healthy"]
-  include-never-seen := parsed["include-never-seen"]
+status invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  include-healthy := invocation["include-healthy"]
+  include-never-seen := invocation["include-never-seen"]
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     fleet.status --include-healthy=include-healthy --include-never-seen=include-never-seen
 
-add-existing-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device-id := parsed["device-id"]
-  name := parsed["name"]
-  aliases := parsed["alias"]
-  group := parsed["group"]
+add-existing-device invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  device-id := invocation["device-id"]
+  name := invocation["name"]
+  aliases := invocation["alias"]
+  group := invocation["group"]
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     if not fleet.has-group group:
       ui.abort "Group '$group' not found."
 
@@ -778,26 +797,34 @@ add-existing-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     fleet.add-device --device-id=device.id --group=group --name=name --aliases=aliases
     ui.info "Added device $device-id to fleet."
 
-group-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+group-list invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     fleet-file := fleet.fleet-file_
 
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      structured := []
-      fleet-file.group-pods.do: | name pod-reference/PodReference |
-        structured.add {
-          "name": name,
-          "pod": pod-reference.to-string,
-        }
-      printer.emit structured --header={"name": "Group", "pod": "Pod"}
+    structured := []
+    fleet-file.group-pods.do: | name pod-reference/PodReference |
+      structured.add {
+        "name": name,
+        "pod": pod-reference.to-string,
+      }
+    ui.emit-table
+      --kind=Ui.RESULT
+      --header={"name": "Group", "pod": "Pod"}
+      structured
 
-group-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  pod := parsed["pod"]
-  template := parsed["template"]
-  name := parsed["name"]
-  force := parsed["force"]
+group-add invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  pod := invocation["pod"]
+  template := invocation["template"]
+  name := invocation["name"]
+  force := invocation["force"]
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     pod-reference/PodReference? := null
     if pod:
       pod-reference = PodReference.parse pod --on-error=:
@@ -818,12 +845,16 @@ group-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     fleet-file.write
     ui.info "Added group '$name'."
 
-group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  pod := parsed["pod"]
-  tag := parsed["tag"]
-  name := parsed["name"]
-  groups := parsed["group"]
-  force := parsed["force"]
+group-update invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+  params := invocation.parameters
+
+  pod := params["pod"]
+  tag := params["tag"]
+  name := params["name"]
+  groups := params["group"]
+  force := params["force"]
 
   if not name and not pod and not tag:
     ui.abort "No new name, tag, or pod reference given."
@@ -836,7 +867,7 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
   executed-actions/List := []
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     fleet-root := fleet.root
     fleet-file := fleet.fleet-file_
 
@@ -867,27 +898,30 @@ group-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         old-reference := fleet-file.group-pods[group]
         fleet-file.group-pods.remove group
         fleet-file.group-pods[name] = old-reference
-        devices-file := FleetWithDevices.load-devices-file fleet-root --ui=ui
+        devices-file := FleetWithDevices.load-devices-file fleet-root --cli=cli
         move-devices_
             --fleet-root=fleet-root
             --ids-to-move={}
             --groups-to-move={group}
             --to=name
-            --ui=ui
+            --cli=cli
         executed-actions.add "Renamed group '$group' to '$name'."
     fleet-file.write
     executed-actions.do: ui.info it
 
-group-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  group := parsed["group"]
+group-remove invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  group := invocation["group"]
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     fleet-file := fleet.fleet-file_
     if not fleet-file.group-pods.contains group:
       ui.info "Group '$group' does not exist."
       return
 
-    device-file := FleetWithDevices.load-devices-file fleet.root --ui=ui
+    device-file := FleetWithDevices.load-devices-file fleet.root --cli=cli
     used-groups := {}
     device-file.devices.do: | device/DeviceFleet |
       used-groups.add device.group
@@ -900,13 +934,16 @@ group-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
     ui.info "Removed group '$group'."
 
-group-move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  to := parsed["to"]
-  groups-to-move := parsed["group"]
-  devices-to-move := parsed["device"]
+group-move invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  to := invocation["to"]
+  groups-to-move := invocation["group"]
+  devices-to-move := invocation["device"]
 
   ids-to-move := {}
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     devices-to-move.do: | device |
       ids-to-move.add (fleet.resolve-alias device).id
 
@@ -927,7 +964,7 @@ group-move parsed/cli.Parsed config/Config cache/Cache ui/Ui:
         --ids-to-move=ids-to-move
         --groups-to-move=groups-to-move-set
         --to=to
-        --ui=ui
+        --cli=cli
     ui.info "Moved $moved-count devices to group '$to'."
 
 move-devices_ -> int
@@ -935,8 +972,8 @@ move-devices_ -> int
     --ids-to-move/Set
     --groups-to-move/Set
     --to/string
-    --ui/Ui:
-  devices-file := FleetWithDevices.load-devices-file fleet-root --ui=ui
+    --cli/Cli:
+  devices-file := FleetWithDevices.load-devices-file fleet-root --cli=cli
   new-devices := []
 
   moved-count := 0
@@ -953,26 +990,35 @@ move-devices_ -> int
 
   return moved-count
 
-create-reference parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  output := parsed["output"]
+create-reference invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+  output := invocation["output"]
+
+  with-pod-fleet invocation: | fleet/Fleet |
     fleet.write-reference --path=output
     ui.info "Created reference file '$output'."
 
-migration-start parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  broker-name := parsed["broker"]
+migration-start invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
-    new-broker := get-server-from-config config ui --name=broker-name
+  broker-name := invocation["broker"]
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
+    new-broker := get-server-from-config --name=broker-name --cli=cli
     fleet.migration-start --broker-config=new-broker
     ui.info "Started migration to broker '$broker-name'. Use 'fleet status' to monitor the migration."
 
-migration-stop parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  force := parsed["force"]
-  brokers := parsed["broker"]
+migration-stop invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  force := invocation["force"]
+  brokers := invocation["broker"]
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     fleet.migration-stop brokers --force=force
     if brokers.is-empty:
       ui.info "Stopped all migration."
@@ -987,23 +1033,29 @@ recovery-file-name --fleet-string/string -> string:
 recovery-file-name --fleet-id/uuid.Uuid -> string:
   return recovery-file-name --fleet-string="$fleet-id"
 
-recovery-add parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  url := parsed["url"]
+recovery-add invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  url := invocation["url"]
 
   if url.ends-with "/":
     url = url[..url.size - 1]
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     fleet.recovery-url-add url
 
     ui.info "Added recovery URL '$url'."
 
-recovery-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  all := parsed["all"]
-  force := parsed["force"]
-  urls := parsed["url"]
+recovery-remove invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  all := invocation["all"]
+  force := invocation["force"]
+  urls := invocation["url"]
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     if all:
       fleet.recovery-urls-remove-all
       ui.info "Removed all recovery URLs."
@@ -1019,22 +1071,32 @@ recovery-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       joined := quoted.join ", "
       ui.info "Removed recovery URL(s) $joined."
 
-recovery-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+recovery-list invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     recovery-urls := fleet.recovery-urls
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit-structured
-          --json=: recovery-urls
-          --stdout=:
-            if recovery-urls.is-empty:
-              printer.emit "No recovery URLs configured."
-            else:
-              printer.emit --title="Recovery urls" recovery-urls
+    if ui.wants-structured --kind=Ui.RESULT:
+      ui.emit --kind=Ui.RESULT
+          --structured=: recovery-urls
+          --text=: unreachable
+    else:
+      if recovery-urls.is-empty:
+        ui.result "No recovery URLs configured."
+      else:
+        ui.emit-list
+            --kind=Ui.RESULT
+            --title="Recovery urls"
+            recovery-urls
 
-recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  output := parsed["output"]
+recovery-export invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  output := invocation["output"]
+
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     recovery-info := fleet.recovery-info
     file.write-content --path=output recovery-info
     ui.info "Exported recovery information to '$output'."
@@ -1045,11 +1107,12 @@ recovery-export parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       recovery-urls.do: | url/string |
         ui.info "- $url"
 
-      ui.do --kind=Ui.RESULT: | printer/Printer |
-        printer.emit-structured
-          --json=: {
+      ui.emit
+          --kind=Ui.RESULT
+          --structured=: {
             "path": output,
             "recovery-urls": recovery-urls,
           }
-          --stdout=:
-            // Do nothing.
+          --text=:
+            // Don't output anything.
+            null

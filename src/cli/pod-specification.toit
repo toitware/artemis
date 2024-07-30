@@ -1,5 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import cli show Cli DirectoryStore
 import encoding.base64
 import encoding.url as url-encoding
 import host.directory
@@ -14,7 +15,6 @@ import .sdk
 import .server-config
 import .utils
 import .git
-import .ui
 
 import ..shared.version show SDK-VERSION ARTEMIS-VERSION
 
@@ -157,11 +157,11 @@ has-key_ map/Map key/string -> bool:
 class JsonMap:
   map/Map
   holder/string
-  ui/Ui
+  cli/Cli
 
   used/Set := {}
 
-  constructor .map --.holder --.ui --used/Set?=null:
+  constructor .map --.holder --.cli --used/Set?=null:
     // Allow to share the "used" set.
     if used: this.used = used
 
@@ -261,13 +261,13 @@ class JsonMap:
     return map[key]
 
   with-holder new-holder/string -> JsonMap:
-    return JsonMap map --holder=new-holder --ui=ui --used=used
+    return JsonMap map --holder=new-holder --cli=cli --used=used
 
   warn-unused -> none:
     unused := []
     map.do --keys:
       if not used.contains it:
-        ui.warning "Unused entry in $holder: $it"
+        cli.ui.warning "Unused entry in $holder: $it"
 
 /**
 A specification of a pod.
@@ -291,8 +291,10 @@ class PodSpecification:
   containers/Map  // Of name -> $Container.
   path/string
 
-  constructor.from-json --.path/string data/Map --ui/Ui:
-    json-map := JsonMap data --holder="pod specification" --ui=ui
+  constructor.from-json --.path/string data/Map --cli/Cli:
+    ui := cli.ui
+
+    json-map := JsonMap data --holder="pod specification" --cli=cli
     name = json-map.get-string "name"
     artemis-version = json-map.get-string "artemis-version"
     sdk-version = json-map.get-optional-string "sdk-version"
@@ -337,7 +339,7 @@ class PodSpecification:
       copy := json-map.map.copy
       copy["containers"] = json-map.map["apps"]
       copy.remove "apps"
-      json-map = JsonMap copy --holder="pod specification" --ui=ui --used=json-map.used
+      json-map = JsonMap copy --holder="pod specification" --cli=cli --used=json-map.used
     else if json-map.has-key "containers":
       json-map.check-is-map "containers"
 
@@ -349,7 +351,7 @@ class PodSpecification:
         format-error_ "Container $name in pod specification is not a map: $value"
 
     containers = containers-entry.map: | name container-description |
-      json-container-description := JsonMap container-description --holder="container $name" --ui=ui
+      json-container-description := JsonMap container-description --holder="container $name" --cli=cli
       container := Container.from-json name json-container-description
       json-container-description.warn-unused
       container
@@ -361,7 +363,7 @@ class PodSpecification:
         format-error_ "Connection in pod specification is not a map: $it"
 
     connections = connections-entry.map:
-      json-connection-info := JsonMap it --holder="connection" --ui=ui
+      json-connection-info := JsonMap it --holder="connection" --cli=cli
       connection := ConnectionInfo.from-json json-connection-info
       json-connection-info.warn-unused
       connection
@@ -372,9 +374,9 @@ class PodSpecification:
     json-map.warn-unused
     validate_
 
-  static parse path/string --ui/Ui -> PodSpecification:
+  static parse path/string --cli/Cli -> PodSpecification:
     json := parse-json-hierarchy path
-    return PodSpecification.from-json --path=path json --ui=ui
+    return PodSpecification.from-json --path=path json --cli=cli
 
   static parse-json-hierarchy path/string --extends-chain/List=[] -> Map:
     path = fs.clean path
@@ -542,7 +544,7 @@ interface Container:
 
   All paths in the container are relative to $relative-to.
   */
-  build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
+  build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cli/Cli -> none
   type -> string
   arguments -> List?
   is-background -> bool?
@@ -597,7 +599,7 @@ abstract class ContainerBase implements Container:
       if is-critical:
         format-error_ "Critical container $name cannot have triggers"
       triggers = []
-      parsed-triggers := triggers-list.map: Trigger.parse-json name it --ui=json-map.ui
+      parsed-triggers := triggers-list.map: Trigger.parse-json name it --cli=json-map.cli
       seen-types := {}
       parsed-triggers.do: | trigger-entry |
         trigger-type/string := ?
@@ -619,7 +621,7 @@ abstract class ContainerBase implements Container:
     defines = json-map.get-optional-map "defines"
 
   abstract type -> string
-  abstract build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cache/cli.Cache --ui/Ui
+  abstract build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cli/Cli -> none
 
 class ContainerPath extends ContainerBase:
   entrypoint/string
@@ -641,7 +643,9 @@ class ContainerPath extends ContainerBase:
       format-error_"In container $name, git entry requires a relative path: $entrypoint"
     super.from-json name json-map
 
-  build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
+  build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cli/Cli -> none:
+    ui := cli.ui
+
     if not git-url:
       path := entrypoint
       if fs.is-relative path:
@@ -653,10 +657,10 @@ class ContainerPath extends ContainerBase:
       if exception: ui.abort "Compilation of container $name failed: $exception."
       return
 
-    git := Git --ui=ui
+    git := Git --cli=cli
     cache-key := cache-key-git-app --url=git-url
     ui.info "Fetching '$git-url'."
-    cached-git := cache.get-directory-path cache-key: | store/cli.DirectoryStore |
+    cached-git := cli.cache.get-directory-path cache-key: | store/DirectoryStore |
       store.with-tmp-directory: | tmp-dir/string |
         clone-dir := "$tmp-dir/checkout"
         directory.mkdir clone-dir
@@ -733,7 +737,7 @@ class ContainerSnapshot extends ContainerBase:
     snapshot-path = json-map.get-string "snapshot"
     super.from-json name json-map
 
-  build-snapshot --relative-to/string --output-path/string --sdk/Sdk --cache/cli.Cache --ui/Ui:
+  build-snapshot --relative-to/string --output-path/string --sdk/Sdk --cli/Cli -> none:
     path := snapshot-path
     if fs.is-relative snapshot-path:
       path = "$relative-to/$snapshot-path"
@@ -758,17 +762,17 @@ abstract class Trigger:
 
   May either return a single $Trigger or a list of triggers.
   */
-  static parse-json container-name/string data/any --ui/Ui -> any:
+  static parse-json container-name/string data/any --cli/Cli -> any:
     known-triggers := {
       "boot": :: BootTrigger,
       "install": :: InstallTrigger,
       "interval": ::
-        interval-map := JsonMap data --holder="trigger in container $container-name" --ui=ui
+        interval-map := JsonMap data --holder="trigger in container $container-name" --cli=cli
         trigger := IntervalTrigger.from-json interval-map
         interval-map.warn-unused
         trigger,
       "gpio": ::
-        gpio-map := JsonMap data --holder="container $container-name" --ui=ui
+        gpio-map := JsonMap data --holder="container $container-name" --cli=cli
         trigger := GpioTrigger.parse-json container-name gpio-map
         gpio-map.warn-unused
         trigger,
@@ -843,7 +847,7 @@ abstract class GpioTrigger extends Trigger:
         format-error_ "Entry in gpio trigger list of $json-map.holder is not a map"
 
     pin-triggers := gpio-trigger-list.map: | entry/Map |
-      pin-json-map := JsonMap entry --holder="gpio trigger in container $container-name" --ui=json-map.ui
+      pin-json-map := JsonMap entry --holder="gpio trigger in container $container-name" --cli=json-map.cli
       pin := pin-json-map.get-int "pin"
       pin-json-map = pin-json-map.with-holder "gpio trigger for pin $pin in container $container-name"
       on-touch := pin-json-map.get-optional-bool "touch"

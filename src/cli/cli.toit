@@ -1,11 +1,10 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import certificate-roots
-import cli
-
-import .cache
-import .config
-import .ui
+import cli show *
+import core as core
+import host.pipe show stderr
+import io
 
 import .cmds.auth
 import .cmds.config
@@ -20,62 +19,10 @@ import .cmds.serial
 
 import ..shared.version
 
-create-ui-from-args args:
-  verbose-level/string? := null
-  output-format/string? := null
-
-  // We don't keep track of whether an argument was already provided.
-  // The last one wins.
-  // The real parsing later will catch any errors.
-  // The output might still be affected since we use the created Ui class
-  // for the output of parsing.
-  // Also we might parse the flags in the wrong way here. For example,
-  //   `--output "--verbosity-level"` would be parsed differently if we knew
-  // that `--output` is an option that takes an argument. We completely ignore
-  // this here.
-  for i := 0; i < args.size; i++:
-    arg := args[i]
-    if arg == "--": break
-    if arg == "--verbose":
-      verbose-level = "verbose"
-    else if arg == "--verbosity-level" or arg == "--verbose_level":
-      if i + 1 >= args.size:
-        // We will get an error during the real parsing of the args.
-        break
-      verbose-level = args[++i]
-    else if arg.starts-with "--verbosity-level=" or arg.starts-with "--verbose_level=":
-      verbose-level = arg["--verbosity-level=".size..]
-    else if arg == "--output-format" or arg == "--output_format":
-      if i + 1 >= args.size:
-        // We will get an error during the real parsing of the args.
-        break
-      output-format = args[++i]
-    else if arg.starts-with "--output-format=" or arg.starts-with "--output_format=":
-      output-format = arg["--output-format=".size..]
-
-  if output-format == null: output-format = "text"
-  if verbose-level == null: verbose-level = output-format == "json" ? "quiet" : "info"
-
-  level/int := ?
-  if verbose-level == "debug": level = Ui.DEBUG-LEVEL
-  else if verbose-level == "info": level = Ui.NORMAL-LEVEL
-  else if verbose-level == "verbose": level = Ui.VERBOSE-LEVEL
-  else if verbose-level == "quiet": level = Ui.QUIET-LEVEL
-  else if verbose-level == "silent": level = Ui.SILENT-LEVEL
-  else: level = Ui.NORMAL-LEVEL
-
-  if output-format == "json":
-    return JsonUi --level=level
-  else:
-    return ConsoleUi --level=Ui.NORMAL-LEVEL
-
 main args:
-  config := read-config
-  cache := Cache --app-name="artemis"
-  ui := create-ui-from-args args
-  main args --config=config --cache=cache --ui=ui
+  main args --cli=null
 
-main args --config/Config --cache/Cache --ui/Ui:
+main args --cli/Cli?:
   certificate-roots.install-all-trusted-roots
 
   // We don't want to add a `--version` option to the root command,
@@ -84,34 +31,38 @@ main args --config/Config --cache/Cache --ui/Ui:
   // command. The `--version` here is just for convenience, since many
   // tools have it too.
   if args.size == 1 and args[0] == "--version":
-    ui.result ARTEMIS-VERSION
+    if cli:
+      cli.ui.result ARTEMIS-VERSION
+    else:
+      core.print ARTEMIS-VERSION
     return
 
-  root-cmd := cli.Command "root"
+  root-cmd := Command "artemis"
       --help="""
       A fleet management system for Toit devices.
       """
       --subcommands=[
-        cli.Command "version"
+        Command "version"
             --help="Show the version of the Artemis tool."
-            --run=:: ui.result ARTEMIS-VERSION,
+            --run=:: | invocation/Invocation |
+              invocation.cli.ui.result ARTEMIS-VERSION,
       ]
       --options=[
-        cli.Option "fleet-root"
+        Option "fleet-root"
             --type="directory"
             --help="Specify the fleet root. Can also be set with the ARTEMIS_FLEET_ROOT environment variable."
             --hidden,
-        cli.Option "fleet"
+        Option "fleet"
             --type="directory|reference"
             --help="Specify the fleet. Can also be set with the ARTEMIS_FLEET environment variable.",
-        cli.OptionEnum "output-format"
+        OptionEnum "output-format"
             ["text", "json"]
             --help="Specify the format used when printing to the console."
             --default="text",
-        cli.Flag "verbose"
+        Flag "verbose"
             --help="Enable verbose output. Shorthand for --verbosity-level=verbose."
             --default=false,
-        cli.OptionEnum "verbosity-level"
+        OptionEnum "verbosity-level"
             ["debug", "info", "verbose", "quiet", "silent"]
             --help="Specify the verbosity level.",
       ]
@@ -120,23 +71,26 @@ main args --config/Config --cache/Cache --ui/Ui:
   // This might be easier, once the UI is integrated with the cli
   // package, as the package could then pass it to the commands after
   // it has parsed the UI flags.
-  (create-config-commands config cache ui).do: root-cmd.add it
-  (create-auth-commands config cache ui).do: root-cmd.add it
-  (create-org-commands config cache ui).do: root-cmd.add it
-  (create-profile-commands config cache ui).do: root-cmd.add it
-  (create-sdk-commands config cache ui).do: root-cmd.add it
-  (create-device-commands config cache ui).do: root-cmd.add it
-  (create-fleet-commands config cache ui).do: root-cmd.add it
-  (create-pod-commands config cache ui).do: root-cmd.add it
-  (create-serial-commands config cache ui).do: root-cmd.add it
-  (create-doc-commands config cache ui).do: root-cmd.add it
+  create-config-commands.do: root-cmd.add it
+  create-auth-commands.do: root-cmd.add it
+  create-org-commands.do: root-cmd.add it
+  create-profile-commands.do: root-cmd.add it
+  create-sdk-commands.do: root-cmd.add it
+  create-device-commands.do: root-cmd.add it
+  create-fleet-commands.do: root-cmd.add it
+  create-pod-commands.do: root-cmd.add it
+  create-serial-commands.do: root-cmd.add it
+  create-doc-commands.do: root-cmd.add it
 
   try:
-    root-cmd.run args
+    root-cmd.run args --cli=cli
   finally: | is-exception exception |
     if is-exception:
       // Exception traces only contain the first 80 characters
       // of the exception value. We want all of it!
       str := "$exception.value"
       if str.size > 80:
-        ui.error "Full exception: $str"
+        if cli:
+          cli.ui.error "Full exception: $str"
+        else:
+          (stderr.out as io.Writer).write "Full exception: $str\n"

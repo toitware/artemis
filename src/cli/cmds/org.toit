@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import cli
+import cli show *
 import net
 import uuid
 
@@ -8,46 +8,45 @@ import .utils_
 import ..config
 import ..cache
 import ..server-config
-import ..ui
 import ..organization
 import ..artemis-servers.artemis-server show with-server ArtemisServerCli
 import ..utils
 
-create-org-commands config/Config cache/Cache ui/Ui -> List:
-  org-cmd := cli.Command "org"
+create-org-commands -> List:
+  org-cmd := Command "org"
       --help="Manage organizations."
       --options=[
-        cli.OptionString "server" --hidden --help="The server to use.",
+        OptionString "server" --hidden --help="The server to use.",
       ]
 
-  list-cmd := cli.Command "list"
+  list-cmd := Command "list"
       --aliases=["ls"]
       --help="List organizations."
-      --run=:: list-orgs it config ui
+      --run=:: list-orgs it
   org-cmd.add list-cmd
 
-  add-cmd := cli.Command "add"
+  add-cmd := Command "add"
       --aliases=["create"]
       --help="Create a new organization."
       --options=[
-        cli.Flag "default"
+        Flag "default"
             --default=true
             --help="Make this organization the default.",
       ]
       --rest=[
-        cli.OptionString "name"
+        OptionString "name"
             --help="Name of the organization."
             --required,
       ]
       --examples=[
-        cli.Example "Create a new organization called 'in-the-sea', and make it the default:"
+        Example "Create a new organization called 'in-the-sea', and make it the default:"
             --arguments="in-the-sea"
             --global-priority=9,
       ]
-      --run=:: add-org it config ui
+      --run=:: add-org it
   org-cmd.add add-cmd
 
-  show-cmd := cli.Command "show"
+  show-cmd := Command "show"
       --help="""
         Show details of an organization.
 
@@ -59,15 +58,15 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
             --help="ID of the organization."
       ]
       --examples=[
-        cli.Example "Show the default organization:"
+        Example "Show the default organization:"
             --arguments="",
-        cli.Example "Show the organization with ID 12345678-1234-1234-1234-123456789abc:"
+        Example "Show the organization with ID 12345678-1234-1234-1234-123456789abc:"
             --arguments="12345678-1234-1234-1234-123456789abc",
       ]
-      --run=:: show-org it config ui
+      --run=:: show-org it
   org-cmd.add show-cmd
 
-  default-cmd := cli.Command "default"
+  default-cmd := Command "default"
       --help="""
         Show or set the default organization.
 
@@ -77,8 +76,8 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
         If the '--clear' flag is specified, clears the default organization.
         """
       --options=[
-        cli.Flag "id-only" --help="Only show the ID of the default organization.",
-        cli.Flag "clear"
+        Flag "id-only" --help="Only show the ID of the default organization.",
+        Flag "clear"
             --help="Clear the default organization.",
       ]
       --rest=[
@@ -86,24 +85,24 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
             --help="ID of the organization."
       ]
       --examples=[
-        cli.Example "Show the default organization:"
+        Example "Show the default organization:"
             --arguments="",
-        cli.Example "Set the default organization to the one with ID 12345678-1234-1234-1234-123456789abc:"
+        Example "Set the default organization to the one with ID 12345678-1234-1234-1234-123456789abc:"
             --arguments="12345678-1234-1234-1234-123456789abc",
-        cli.Example "Clear the default organization:"
+        Example "Clear the default organization:"
             --arguments="--clear",
       ]
-      --run=:: default-org it config cache ui
+      --run=:: default-org it
   org-cmd.add default-cmd
 
-  update-cmd := cli.Command "update"
+  update-cmd := Command "update"
       --help="""
       Update an organization.
 
       If no ID is given, updates the default organization.
       """
       --options=[
-        cli.OptionString "name"
+        OptionString "name"
             --help="Name of the organization."
       ]
       --rest=[
@@ -111,17 +110,17 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
             --help="ID of the organization."
       ]
       --examples=[
-        cli.Example "Update the default organization to be called 'in-the-air':"
+        Example "Update the default organization to be called 'in-the-air':"
             --arguments="--name=in-the-air ",
-        cli.Example """
+        Example """
             Update the organization with ID 12345678-1234-1234-1234-123456789abc to be
             called 'obsolete':"""
             --arguments="--name=obsolete 12345678-1234-1234-1234-123456789abc",
       ]
-      --run=:: update-org it config ui
+      --run=:: update-org it
   org-cmd.add update-cmd
 
-  member-cmd := cli.Command "members"
+  member-cmd := Command "members"
       --help="Manage organization members."
       --options=[
         OptionUuid "organization-id"
@@ -129,21 +128,21 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
       ]
   org-cmd.add member-cmd
 
-  member-list-cmd := cli.Command "list"
+  member-list-cmd := Command "list"
       --help="List members of an organization."
       --options=[
-        cli.Flag "id-only" --help="Only show the IDs of the members."
+        Flag "id-only" --help="Only show the IDs of the members."
       ]
       --examples=[
-        cli.Example "List members of the default organization:"
+        Example "List members of the default organization:"
             --arguments="",
-        cli.Example "List members of the organization with ID 12345678-1234-1234-1234-123456789abc:"
+        Example "List members of the organization with ID 12345678-1234-1234-1234-123456789abc:"
             --arguments="12345678-1234-1234-1234-123456789abc",
       ]
-      --run=:: member-list it config cache ui
+      --run=:: member-list it
   member-cmd.add member-list-cmd
 
-  member-add-cmd := cli.Command "add"
+  member-add-cmd := Command "add"
       --help="""
         Add a member to an organization.
 
@@ -153,7 +152,7 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
         If no organization ID is given, the default organization is used.
         """
       --options=[
-        cli.OptionEnum "role" ["member", "admin" ]
+        OptionEnum "role" ["member", "admin" ]
             --help="Role of the member."
             --default="member"
       ]
@@ -163,20 +162,20 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --examples=[
-        cli.Example "Add user with ID 12345678-1234-1234-1234-123456789abc to the default organization:"
+        Example "Add user with ID 12345678-1234-1234-1234-123456789abc to the default organization:"
             --arguments="12345678-1234-1234-1234-123456789abc",
-        cli.Example """
+        Example """
             Add user with ID 11111111-2222-3333-444444444444 as admin to organization
             12345678-1234-1234-1234-123456789abc:"""
             --arguments="--organization-id=12345678-1234-1234-1234-123456789abc --role=admin 12345678-1234-1234-1234-123456789abc",
       ]
-      --run=:: member-add it config cache ui
+      --run=:: member-add it
   member-cmd.add member-add-cmd
 
-  member-remove-cmd := cli.Command "remove"
+  member-remove-cmd := Command "remove"
       --help="Remove a member from an organization."
       --options=[
-          cli.Flag "force" --short-name="f"
+          Flag "force" --short-name="f"
             --help="Force removal even if the user is self.",
       ]
       --rest=[
@@ -185,111 +184,125 @@ create-org-commands config/Config cache/Cache ui/Ui -> List:
             --required,
       ]
       --examples=[
-        cli.Example "Remove user with ID 12345678-1234-1234-1234-123456789abc from the default organization:"
+        Example "Remove user with ID 12345678-1234-1234-1234-123456789abc from the default organization:"
             --arguments="12345678-1234-1234-1234-123456789abc",
-        cli.Example """
+        Example """
             Remove user with ID 11111111-2222-3333-444444444444 from organization
             12345678-1234-1234-1234-123456789abc:"""
             --arguments="--organization-id=12345678-1234-1234-1234-123456789abc 11111111-2222-3333-444444444444",
       ]
-      --run=:: member-remove it config cache ui
+      --run=:: member-remove it
   member-cmd.add member-remove-cmd
 
-  member-set-role := cli.Command "set-role"
+  member-set-role := Command "set-role"
       --help="Set the role of a member."
       --rest=[
         OptionUuid "user-id"
             --help="ID of the user to add."
             --required,
-        cli.OptionEnum "role" ["member", "admin" ]
+        OptionEnum "role" ["member", "admin" ]
             --help="Role of the member."
             --required,
       ]
       --examples=[
-        cli.Example """
+        Example """
             Set the role of user with ID 12345678-1234-1234-1234-123456789abc to admin in
             the default organization:"""
             --arguments="12345678-1234-1234-1234-123456789abc admin",
-        cli.Example """
+        Example """
             Set the role of user with ID 11111111-2222-3333-444444444444 to member (non-admin) in
             organization 12345678-1234-1234-1234-123456789abc:"""
             --arguments="--organization-id=12345678-1234-1234-1234-123456789abc 11111111-2222-3333-444444444444 member",
       ]
-      --run=:: member-set-role it config cache ui
+      --run=:: member-set-role it
   member-cmd.add member-set-role
 
   return [org-cmd]
 
-with-org-server parsed/cli.Parsed config/Config ui/Ui [block]:
-  server-config/ServerConfig := ?
-  server-config = get-server-from-config config ui --key=CONFIG-ARTEMIS-DEFAULT-KEY
+with-org-server invocation/Invocation [block]:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-server server-config config: | server/ArtemisServerCli |
+  server-config/ServerConfig := ?
+  server-config = get-server-from-config --key=CONFIG-ARTEMIS-DEFAULT-KEY --cli=cli
+
+  with-server server-config --cli=cli: | server/ArtemisServerCli |
     server.ensure-authenticated: | error-message |
       ui.abort "$error-message (artemis)."
     block.call server
 
-with-org-server-id parsed/cli.Parsed config/Config ui/Ui [block]:
-  org-id := parsed["organization-id"]
+with-org-server-id invocation/Invocation [block]:
+  org-id := invocation["organization-id"]
+
+  cli := invocation.cli
+  ui := cli.ui
+
   if not org-id:
-    org-id = default-organization-from-config config
+    org-id = default-organization-from-config --cli=cli
     if not org-id:
       ui.abort "No default organization set."
 
-  with-org-server parsed config ui: | server |
+  with-org-server invocation: | server |
     block.call server org-id
 
-list-orgs parsed/cli.Parsed config/Config ui/Ui -> none:
-  with-org-server parsed config ui: | server/ArtemisServerCli |
+list-orgs invocation/Invocation -> none:
+  with-org-server invocation: | server/ArtemisServerCli |
     orgs := server.get-organizations
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit
+    invocation.cli.ui.emit-table
           --header={"id": "ID", "name": "Name"}
           orgs.map: | org/Organization | {
             "id": "$org.id",
             "name": org.name,
           }
 
-add-org parsed/cli.Parsed config/Config ui/Ui -> none:
-  should-make-default := parsed["default"]
-  with-org-server parsed config ui: | server/ArtemisServerCli |
-    org := server.create-organization parsed["name"]
-    ui.info "Added organization $org.id - $org.name."
-    if should-make-default: make-default_ org config ui
+add-org invocation/Invocation -> none:
+  should-make-default := invocation["default"]
+  with-org-server invocation: | server/ArtemisServerCli |
+    org := server.create-organization invocation["name"]
+    invocation.cli.ui.info "Added organization $org.id - $org.name."
+    if should-make-default: make-default_ org --cli=invocation.cli
 
-show-org parsed/cli.Parsed config/Config ui/Ui -> none:
-  with-org-server-id parsed config ui: | server/ArtemisServerCli org-id/uuid.Uuid |
-    print-org org-id server ui
+show-org invocation/Invocation -> none:
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
+    print-org org-id server --cli=invocation.cli
 
-print-org org-id/uuid.Uuid server/ArtemisServerCli ui/Ui -> none:
+print-org org-id/uuid.Uuid server/ArtemisServerCli --cli/Cli -> none:
+  ui := cli.ui
   org := server.get-organization org-id
   if not org:
     ui.abort "Organization $org-id not found."
-  ui.do --kind=Ui.RESULT: | printer/Printer |
-    printer.emit-structured
-        --json=: {
+  if ui.wants-structured --kind=Ui.RESULT:
+    ui.emit
+        --kind=Ui.RESULT
+        --structured=: {
           "id": "$org.id",
           "name": org.name,
           "created": "$org.created-at",
         }
-        --stdout=: | p/Printer | p.emit {
-          "Id": "$org.id",
-          "Name": org.name,
-          "Created": "$org.created-at",
-        }
+        --text=: unreachable
+  else:
+    ui.emit-map {
+      "Id": "$org.id",
+      "Name": org.name,
+      "Created": "$org.created-at",
+    }
 
-default-org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
-  if parsed["clear"]:
+default-org invocation/Invocation -> none:
+  cli := invocation.cli
+  config := cli.config
+  ui := cli.ui
+
+  if invocation["clear"]:
     config.remove CONFIG-ORGANIZATION-DEFAULT-KEY
     config.write
     ui.info "Default organization cleared."
     return
 
-  org-id := parsed["organization-id"]
+  org-id := invocation["organization-id"]
   if not org-id:
-    id-only := parsed["id-only"]
+    id-only := invocation["id-only"]
 
-    org-id = default-organization-from-config config
+    org-id = default-organization-from-config --cli=cli
     if not org-id:
       ui.abort "No default organization set."
 
@@ -297,41 +310,47 @@ default-org parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
       ui.result "$org-id"
       return
 
-    with-org-server parsed config ui: | server/ArtemisServerCli |
-      print-org org-id server ui
+    with-org-server invocation: | server/ArtemisServerCli |
+      print-org org-id server --cli=cli
 
     return
 
-  with-org-server-id parsed config ui: | server/ArtemisServerCli org-id/uuid.Uuid |
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
     org/OrganizationDetailed? := null
     exception := catch: org = server.get-organization org-id
     if exception or not org:
       ui.abort "Organization not found."
 
-    make-default_ org config ui
+    make-default_ org --cli=cli
 
-make-default_ org/Organization config/Config ui/Ui -> none:
-    config[CONFIG-ORGANIZATION-DEFAULT-KEY] = "$org.id"
-    config.write
-    ui.info "Default organization set to $org.id - $org.name."
+make-default_ org/Organization --cli/Cli -> none:
+  config := cli.config
+  ui := cli.ui
 
-update-org parsed/cli.Parsed config/Config ui/Ui -> none:
-  name := parsed["name"]
+  config[CONFIG-ORGANIZATION-DEFAULT-KEY] = "$org.id"
+  config.write
+  ui.info "Default organization set to $org.id - $org.name."
+
+update-org invocation/Invocation -> none:
+  ui := invocation.cli.ui
+
+  name := invocation["name"]
   if not name: ui.abort "No name provided."
   if name == "": ui.abort "Name cannot be empty."
 
-  with-org-server-id parsed config ui: | server/ArtemisServerCli org-id/uuid.Uuid |
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
     server.update-organization org-id --name=name
     ui.info "Updated organization $org-id."
 
-member-list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
-  with-org-server-id parsed config ui: | server/ArtemisServerCli org-id/uuid.Uuid |
+member-list invocation/Invocation -> none:
+  ui := invocation.cli.ui
+
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
     members := server.get-organization-members org-id
-    if parsed["id-only"]:
+    if invocation["id-only"]:
       member-ids := members.map: "$it["id"]"
       member-ids.sort --in-place
-      ui.do --kind=Ui.RESULT: | printer/Printer |
-        printer.emit member-ids
+      ui.emit-list member-ids --kind=Ui.RESULT
       return
     profiles := members.map: server.get-profile --user-id=it["id"]
     unsorted-result := List members.size: {
@@ -347,16 +366,18 @@ member-list parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
           a["name"].compare-to b["name"] --if-equal=:
             a["id"].compare-to b["id"]
 
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit
-          --header={"id": "ID", "role": "Role", "name": "Name", "email": "Email"}
-          result
+    ui.emit-table
+        --kind=Ui.RESULT
+        --header={"id": "ID", "role": "Role", "name": "Name", "email": "Email"}
+        result
 
-member-add parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
-  user-id := parsed["user-id"]
-  role := parsed["role"]
+member-add invocation/Invocation -> none:
+  ui := invocation.cli.ui
 
-  with-org-server-id parsed config ui: | server/ArtemisServerCli org-id/uuid.Uuid|
+  user-id := invocation["user-id"]
+  role := invocation["role"]
+
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid|
     existing-members := server.get-organization-members org-id
     if (existing-members.any: it["id"] == user-id):
       ui.abort "User $user-id is already a member of organization $org-id."
@@ -366,11 +387,13 @@ member-add parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
         --role=role
     ui.info "Added user $user-id to organization $org-id."
 
-member-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
-  user-id := parsed["user-id"]
-  force := parsed["force"]
+member-remove invocation/Invocation -> none:
+  ui := invocation.cli.ui
 
-  with-org-server-id parsed config ui: | server/ArtemisServerCli org-id/uuid.Uuid |
+  user-id := invocation["user-id"]
+  force := invocation["force"]
+
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
     if not force:
       current-user-id := server.get-current-user-id
       if user-id == current-user-id:
@@ -378,11 +401,13 @@ member-remove parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
     server.organization-member-remove --organization-id=org-id --user-id=user-id
     ui.info "Removed user $user-id from organization $org-id."
 
-member-set-role parsed/cli.Parsed config/Config cache/Cache ui/Ui -> none:
-  user-id := parsed["user-id"]
-  role := parsed["role"]
+member-set-role invocation/Invocation -> none:
+  ui := invocation.cli.ui
 
-  with-org-server-id parsed config ui: | server/ArtemisServerCli org-id/uuid.Uuid|
+  user-id := invocation["user-id"]
+  role := invocation["role"]
+
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid|
     server.organization-member-set-role
         --organization-id=org-id
         --user-id=user-id

@@ -73,17 +73,17 @@ main args/List:
             },
           },
         }
-    run-test fleet.test-cli synchro-done-latch qemu-data
+    run-test fleet.tester synchro-done-latch qemu-data
 
-run-test test-cli/TestCli synchro-done-latch/monitor.Latch qemu-data/TestDeviceConfig:
-  tmp-dir := test-cli.tmp-dir
+run-test tester/Tester synchro-done-latch/monitor.Latch qemu-data/TestDeviceConfig:
+  tmp-dir := tester.tmp-dir
   ui := TestUi --no-quiet
 
   device-id := qemu-data.device-id
 
   lan-ip := get-lan-ip
 
-  test-device := test-cli.create-device
+  test-device := tester.create-device
       --alias-id=device-id
       // We don't know the actual hardware-id.
       // Cheat by reusing the alias id.

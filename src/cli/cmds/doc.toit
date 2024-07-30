@@ -1,15 +1,15 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import cli
-import ..ui
+import cli show *
 
-create-doc-commands _ _ ui/Ui -> List:
-  cmd := cli.Command "doc"
+create-doc-commands -> List:
+  cmd := Command "doc"
       --help="Documentation."
 
-  specification-format-cmd := cli.Command "specification-format"
+  specification-format-cmd := Command "specification-format"
       --help="Show the format of the pod specification file."
-      --run=:: ui.result SPECIFICATION-FORMAT-HELP
+      --run=:: | invocation/Invocation |
+        invocation.cli.ui.result SPECIFICATION-FORMAT-HELP
   cmd.add specification-format-cmd
 
   return [cmd]

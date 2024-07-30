@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar
-import cli
+import cli show *
 import host.file
 import uuid
 
@@ -13,15 +13,14 @@ import ..fleet
 import ..pod
 import ..pod-specification
 import ..pod-registry
-import ..ui
 import ..utils.names
 import ..utils show json-encode-pretty read-json read-yaml
 
-create-pod-commands config/Config cache/Cache ui/Ui -> List:
-  cmd := cli.Command "pod"
+create-pod-commands -> List:
+  cmd := Command "pod"
       --help="Create and manage pods."
 
-  create-cmd := cli.Command "build"
+  create-cmd := Command "build"
       --aliases=["create", "compile"]
       --help="""
         Create a pod.
@@ -35,26 +34,26 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         'fleet add-devices' for more information.
         """
       --options=[
-        cli.Option "output"
+        Option "output"
             --type="file"
             --short-name="o"
             --help="File to write the pod to."
             --required,
       ]
       --rest=[
-        cli.Option "specification"
+        Option "specification"
             --type="file"
             --help="The specification of the pod."
             --required,
       ]
       --examples=[
-        cli.Example "Build a pod file 'my-pod.pod' from a specification file 'my-pod.yaml':"
+        Example "Build a pod file 'my-pod.pod' from a specification file 'my-pod.yaml':"
             --arguments="-o my-pod.pod my-pod.yaml",
       ]
-      --run=:: create-pod it config cache ui
+      --run=:: create-pod it
   cmd.add create-cmd
 
-  upload-cmd := cli.Command "upload"
+  upload-cmd := Command "upload"
       --help="""
         Upload the given pod(s) to the broker.
 
@@ -62,42 +61,42 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         new devices and for diff-based over-the-air updates.
         """
       --options=[
-        cli.Option "tag"
+        Option "tag"
             --short-name="t"
             --help="A tag to attach to the pod."
             --multi,
-        cli.Flag "force"
+        Flag "force"
             --short-name="f"
             --help="Force tags even if they already exist."
             --default=false,
       ]
       --rest=[
-        cli.Option "pod"
+        Option "pod"
             --type="file"
             --help="A pod to upload."
             --multi
             --required,
       ]
       --examples=[
-        cli.Example """
+        Example """
             Build a pod from specification 'my-pod.yaml' and upload it with just
             the automatic 'latest' tag:"""
             --arguments="my-pod.yaml"
             --global-priority=7,
-        cli.Example """
+        Example """
             Upload the pod file 'my-pod.pod' with the tag 'v1.0.0', and the automatic
             'latest' tag:"""
             --arguments="--tag=v1.0.0 my-pod.pod"
             --global-priority=4,
-        cli.Example """
+        Example """
             Upload the pod file 'my-pod.pod' with the tag 'v2.0.0' and reset the tag
             if it already exists:"""
             --arguments="--tag=v2.0.0 --force my-pod.pod",
       ]
-      --run=:: upload it config cache ui
+      --run=:: upload it
   cmd.add upload-cmd
 
-  download-cmd := cli.Command "download"
+  download-cmd := Command "download"
       --help="""
         Download a pod from the broker.
 
@@ -108,53 +107,53 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         downloaded.
         """
       --options=[
-        cli.Option "output"
+        Option "output"
             --type="file"
             --short-name="o"
             --help="File to write the pod to."
             --required,
       ]
       --rest=[
-        cli.Option "reference"
+        Option "reference"
             --help="A pod reference: a UUID, name@tag, or name#revision."
             --required,
       ]
       --examples=[
-        cli.Example "Download the latest version of the pod with name 'my-pod' to 'my-pod.pod':"
+        Example "Download the latest version of the pod with name 'my-pod' to 'my-pod.pod':"
             --arguments="-o my-pod.pod my-pod",
-        cli.Example "Download the pod with UUID '12345678-1234-5678-1234-567812345678' to 'my-pod.pod':"
+        Example "Download the pod with UUID '12345678-1234-5678-1234-567812345678' to 'my-pod.pod':"
             --arguments="-o my-pod.pod 12345678-1234-5678-1234-567812345678",
-        cli.Example "Download the pod with name 'my-pod' and tag 'v1.0.0' to 'my-pod.pod':"
+        Example "Download the pod with name 'my-pod' and tag 'v1.0.0' to 'my-pod.pod':"
             --arguments="-o my-pod.pod my-pod@v1.0.0",
-        cli.Example "Download the pod with name 'my-pod' and revision '1' to 'my-pod.pod':"
+        Example "Download the pod with name 'my-pod' and revision '1' to 'my-pod.pod':"
             --arguments="-o my-pod.pod my-pod#1",
       ]
-      --run=:: download it config cache ui
+      --run=:: download it
   cmd.add download-cmd
 
-  list-cmd := cli.Command "list"
+  list-cmd := Command "list"
       --help="""
         List all pods available on the broker.
 
         If no names are given, all pods for this fleet are listed.
         """
       --options=[
-        cli.Option "name"
+        Option "name"
             --help="List pods with this name."
             --multi,
       ]
       --examples=[
-        cli.Example "List all pods available on the broker:"
+        Example "List all pods available on the broker:"
             --arguments="",
-        cli.Example "List all pods with the name 'my-pod':"
+        Example "List all pods with the name 'my-pod':"
             --arguments="--name=my-pod",
-        cli.Example "List all pods with name 'my-pod' or 'my-other-pod':"
+        Example "List all pods with name 'my-pod' or 'my-other-pod':"
             --arguments="--name=my-pod --name=my-other-pod",
       ]
-      --run=:: list it config cache ui
+      --run=:: list it
   cmd.add list-cmd
 
-  print-cmd := cli.Command "print"
+  print-cmd := Command "print"
       --help="""
         Print the given pod specification.
 
@@ -164,25 +163,25 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         This command is useful for debugging pod specifications.
         """
       --options=[
-        cli.Flag "flat"
+        Flag "flat"
             --help="Print the merged pod specification.",
       ]
       --rest=[
-        cli.Option "specification"
+        Option "specification"
             --type="file"
             --help="The specification of the pod."
             --required,
       ]
       --examples=[
-        cli.Example "Print the merged pod specification from a file 'my-pod.yaml':"
+        Example "Print the merged pod specification from a file 'my-pod.yaml':"
             --arguments="--flat my-pod.yaml",
-        cli.Example "Print the non-merged pod specification from a file 'my-pod.yaml':"
+        Example "Print the non-merged pod specification from a file 'my-pod.yaml':"
             --arguments="my-pod.yaml",
       ]
-      --run=:: print it config cache ui
+      --run=:: print it
   cmd.add print-cmd
 
-  delete-cmd := cli.Command "delete"
+  delete-cmd := Command "delete"
       --help="""
         Delete the given pod(s) from the broker.
 
@@ -193,46 +192,51 @@ create-pod-commands config/Config cache/Cache ui/Ui -> List:
         (without revision or tag) and all pods with that name are deleted.
         """
       --options=[
-        cli.Flag "all"
+        Flag "all"
             --help="Delete all pods with the given name.",
       ]
       --rest=[
-        cli.Option "name-or-reference"
+        Option "name-or-reference"
             --help="A pod name or reference (a UUID, name@tag, or name#revision)."
             --multi
             --required,
       ]
       --examples=[
-        cli.Example "Delete the pod with name 'my-pod':"
+        Example "Delete the pod with name 'my-pod':"
             --arguments="my-pod",
-        cli.Example "Delete the pod with UUID '12345678-1234-5678-1234-567812345678':"
+        Example "Delete the pod with UUID '12345678-1234-5678-1234-567812345678':"
             --arguments="12345678-1234-5678-1234-567812345678",
       ]
-      --run=:: delete it config cache ui
+      --run=:: delete it
   cmd.add delete-cmd
 
   return [cmd]
 
-create-pod parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  specification-path := parsed["specification"]
-  output := parsed["output"]
+create-pod invocation/Invocation:
+  cli := invocation.cli
 
-  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+  specification-path := invocation["specification"]
+  output := invocation["output"]
+
+  with-pod-fleet invocation: | fleet/Fleet |
     artemis := fleet.artemis
     broker := fleet.broker
     pod := Pod.from-specification
         --organization-id=fleet.organization-id
         --recovery-urls=fleet.recovery-urls
         --path=specification-path
-        --ui=ui
         --artemis=artemis
         --broker=broker
-    pod.write output --ui=ui
+        --cli=cli
+    pod.write output --cli=cli
 
-upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  pod-paths := parsed["pod"]
-  tags/List := parsed["tag"]
-  force/bool := parsed["force"]
+upload invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  pod-paths := invocation["pod"]
+  tags/List := invocation["tag"]
+  force/bool := invocation["force"]
 
   if tags.is-empty:
     name := random-name
@@ -245,7 +249,7 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   else:
     tags.add "latest"
 
-  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+  with-pod-fleet invocation: | fleet/Fleet |
     artemis := fleet.artemis
     broker := fleet.broker
     pod-paths.do: | pod-path/string |
@@ -254,14 +258,12 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --recovery-urls=fleet.recovery-urls
           --artemis=artemis
           --broker=broker
-          --ui=ui
+          --cli=cli
       upload-result := fleet.upload --pod=pod --tags=tags --force-tags=force
-      if ui.wants-structured-result:
+      if ui.wants-structured --kind=Ui.RESULT:
         // Note that we don't print the error-tags as error messages in this case.
-        ui.do --kind=Ui.RESULT: | printer/Printer |
-          printer.emit-structured
-              --json=: upload-result.to-json
-              --stdout=: // Do nothing.
+        ui.emit --kind=Ui.RESULT
+            --structured=: upload-result.to-json
       else:
         prefix := upload-result.tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
         ui.info "$prefix $pod.name#$upload-result.revision to fleet $fleet.id."
@@ -274,30 +276,37 @@ upload parsed/cli.Parsed config/Config cache/Cache ui/Ui:
 
       if not upload-result.tag-errors.is-empty: ui.abort
 
-download parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  reference-string := parsed["reference"]
-  output := parsed["output"]
+download invocation/Invocation:
+  cli := invocation.cli
 
-  reference := PodReference.parse reference-string --allow-name-only --ui=ui
+  reference-string := invocation["reference"]
+  output := invocation["output"]
 
-  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+  reference := PodReference.parse reference-string --allow-name-only --cli=cli
+
+  with-pod-fleet invocation: | fleet/Fleet |
     pod := fleet.download reference
-    pod.write output --ui=ui
-    ui.info "Downloaded pod '$reference-string' to '$output'."
+    pod.write output --cli=cli
+    cli.ui.info "Downloaded pod '$reference-string' to '$output'."
 
-list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  names := parsed["name"]
+list invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+  names := invocation["name"]
+
+  with-pod-fleet invocation: | fleet/Fleet |
     pods := fleet.list-pods --names=names
     // TODO(florian):
     // we want to have 'created_at' in the registry entry.
     // we want to have a second way of listing: one where we only list the ones that
     // have tags. One, where we list all of them.
     // we probably also want to list only entries for a specific name.
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit-structured
-          --json=:
+
+    if ui.wants-structured --kind=Ui.RESULT:
+      ui.emit
+        --kind=Ui.RESULT
+        --structured=:
             json-pods := []
             pods.do: | key/PodRegistryDescription pod-entries/List |
               name := key.name
@@ -307,20 +316,21 @@ list parsed/cli.Parsed config/Config cache/Cache ui/Ui:
                 json-entry
               json-pods.add-all json-entries
             json-pods
-          --stdout=:
-            print-pods_ pods --printer=printer
+    else:
+      print-pods_ pods --cli=cli
 
-print-pods_ pods/Map --printer/Printer:
+print-pods_ pods/Map --cli/Cli -> none:
+  ui := cli.ui
   is-first := true
   pods.do: | description/PodRegistryDescription pod-entries/List |
     if is-first:
       is-first = false
     else:
-      printer.emit ""
+      ui.result ""
     description-line := "$description.name"
     if description.description:
       description-line += " - $description.description"
-    printer.emit description-line
+    ui.result description-line
     rows := pod-entries.map: | entry/PodRegistryEntry |
       {
         "id": "$entry.id",
@@ -329,7 +339,8 @@ print-pods_ pods/Map --printer/Printer:
         "joined_tags": entry.tags.join ",",
         "created_at": "$entry.created-at",
       }
-    printer.emit
+    ui.emit-table
+        --kind=Ui.RESULT
         --header={
           "id": "ID",
           "revision": "Revision",
@@ -340,9 +351,11 @@ print-pods_ pods/Map --printer/Printer:
         }
         rows
 
-print parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  flat := parsed["flat"]
-  specification-path := parsed["specification"]
+print invocation/Invocation:
+  ui := invocation.cli.ui
+
+  flat := invocation["flat"]
+  specification-path := invocation["specification"]
 
   exception := catch --unwind=(: it is not PodSpecificationException):
     // We always parse the specification, even if we don't need the flat version.
@@ -352,24 +365,25 @@ print parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       // If we only want the non-flattened version read the json/yaml again by hand.
       json = read-pod-spec-file specification-path
 
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit-structured
-          --json=: printer.emit json
-          --stdout=:
-            str := (json-encode-pretty json).to-string
-            printer.emit str
+    ui.emit --kind=Ui.RESULT
+        --structured=: json
+        --text=: (json-encode-pretty json).to-string
+
   if exception:
     ui.abort (exception as PodSpecificationException).message
 
-delete parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  reference-strings := parsed["name-or-reference"]
-  all := parsed["all"]
+delete invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
 
-  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+  reference-strings := invocation["name-or-reference"]
+  all := invocation["all"]
+
+  with-pod-fleet invocation: | fleet/Fleet |
     if all:
       fleet.delete --description-names=reference-strings
     else:
-      refs := reference-strings.map: | string | PodReference.parse string --ui=ui
+      refs := reference-strings.map: | string | PodReference.parse string --cli=cli
       fleet.delete --pod-references=refs
   if reference-strings.size == 1:
     ui.info "Deleted pod '$(reference-strings.first)'."

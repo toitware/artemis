@@ -30,15 +30,15 @@ main args/List:
             },
           },
         }
-    run-test fleet.test-cli host-config
+    run-test fleet.tester host-config
 
-run-test test-cli/TestCli config/TestDeviceConfig:
-  tmp-dir := test-cli.tmp-dir
+run-test tester/Tester config/TestDeviceConfig:
+  tmp-dir := tester.tmp-dir
   ui := TestUi --no-quiet
 
   device-id := config.device-id
 
-  test-device := test-cli.create-device
+  test-device := tester.create-device
       --alias-id=device-id
       // We don't know the actual hardware-id.
       // Cheat by reusing the alias id.

@@ -1,6 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import cli
+import cli show *
 import encoding.base64
 import encoding.ubjson
 import host.file
@@ -22,7 +22,6 @@ import ..pod-registry
 import ..pod-specification
 import ..sdk
 import ..server-config
-import ..ui
 import ..utils
 import ...shared.json-diff show Modification
 
@@ -43,22 +42,22 @@ EXTRACT-FORMATS-COMMAND-HELP ::= """
 
 build-extract-format-options --required/bool -> List:
   return [
-    cli.OptionEnum "format" ["identity", "binary", "tar", "qemu"]
+    OptionEnum "format" ["identity", "binary", "tar", "qemu"]
         --help="The format of the output file."
         --required=required,
     PARTITION-OPTION
   ]
 
-create-device-commands config/Config cache/Cache ui/Ui -> List:
-  cmd := cli.Command "device"
+create-device-commands -> List:
+  cmd := Command "device"
       --help="Manage devices."
       --options=[
-        cli.Option "device"
+        Option "device"
             --short-name="d"
             --help="ID, name or alias of the device.",
       ]
 
-  update-cmd := cli.Command "update"
+  update-cmd := Command "update"
       --help="""
         Updates the firmware on a device.
 
@@ -66,28 +65,28 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
         or it can be a remote pod reference like name@tag or name#revision.
         """
       --options=[
-        cli.Option "local"
+        Option "local"
             --type="file"
             --help="A local pod file to update to.",
       ]
       --rest=[
-        cli.Option "remote"
+        Option "remote"
             --help="A remote pod reference; a UUID, name@tag, or name#revision.",
       ]
       --examples=[
-        cli.Example "Update the device big-whale with pod 'pressure@v1.2.3'"
+        Example "Update the device big-whale with pod 'pressure@v1.2.3'"
             --arguments="-d big-whale pressure@v1.2.3",
-        cli.Example "Update the default device (see 'device default') with the pod 'hibernate.pod':"
+        Example "Update the default device (see 'device default') with the pod 'hibernate.pod':"
             --arguments="--local hibernate.pod",
-        cli.Example """
+        Example """
             Update the device with UUID '62a99fbc-aac7-4af1-a09b-dfcece191d14' to the
             pod 'pressure#2':"""
             --arguments="-d 62a99fbc-aac7-4af1-a09b-dfcece191d14 pressure#2",
       ]
-      --run=:: update it config cache ui
+      --run=:: update it
   cmd.add update-cmd
 
-  default-cmd := cli.Command "default"
+  default-cmd := Command "default"
       --help="""
         Show or set the default device.
 
@@ -97,25 +96,25 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
         If the '--clear' flag is specified, clears the default device.
         """
       --options=[
-        cli.Flag "id-only" --help="Only show the ID of the default device.",
-        cli.Flag "clear"
+        Flag "id-only" --help="Only show the ID of the default device.",
+        Flag "clear"
             --help="Clear the default device.",
       ]
       --rest=[
-        cli.Option "device-rest"
+        Option "device-rest"
             --help="ID, name or alias of the device.",
       ]
       --examples=[
-        cli.Example "Set the default device to big-whale:" --arguments="big-whale",
-        cli.Example "Set the default device to the device with UUID '62a99fbc-aac7-4af1-a09b-dfcece191d14':"
+        Example "Set the default device to big-whale:" --arguments="big-whale",
+        Example "Set the default device to the device with UUID '62a99fbc-aac7-4af1-a09b-dfcece191d14':"
             --arguments="62a99fbc-aac7-4af1-a09b-dfcece191d14",
-        cli.Example "Show the default device:" --arguments="",
-        cli.Example "Clear the default device:" --arguments="--clear",
+        Example "Show the default device:" --arguments="",
+        Example "Clear the default device:" --arguments="--clear",
       ]
-      --run=:: default-device it config cache ui
+      --run=:: default-device it
   cmd.add default-cmd
 
-  show-cmd := cli.Command "show"
+  show-cmd := Command "show"
       --aliases=["status"]
       --help="""
         Show all available information about a device.
@@ -123,51 +122,51 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
         If no ID is given, shows the information of the default device.
         """
       --options=[
-        cli.Option "event-type"
+        Option "event-type"
             --help="Only show events of this type."
             --multi,
-        cli.Flag "show-event-values"
+        Flag "show-event-values"
             --help="Show the values of the events."
             --default=false,
-        cli.OptionInt "max-events"
+        OptionInt "max-events"
             --help="Maximum number of events to show."
             --default=3,
       ]
       --rest=[
-        cli.Option "device-rest"
+        Option "device-rest"
             --help="ID, name or alias of the device.",
       ]
       --examples=[
-        cli.Example "Show the status of the default device (see 'device default'):"
+        Example "Show the status of the default device (see 'device default'):"
             --arguments="",
-        cli.Example "Show the status of the device big-whale:"
+        Example "Show the status of the device big-whale:"
             --arguments="big-whale",
-        cli.Example "Show the status of the device with UUID '62a99fbc-aac7-4af1-a09b-dfcece191d14':"
+        Example "Show the status of the device with UUID '62a99fbc-aac7-4af1-a09b-dfcece191d14':"
             --arguments="62a99fbc-aac7-4af1-a09b-dfcece191d14",
-        cli.Example "Show up to 20 events of the device big-whale:"
+        Example "Show up to 20 events of the device big-whale:"
             --arguments="--max-events 20 big-whale",
       ]
-      --run=:: show it config cache ui
+      --run=:: show it
   cmd.add show-cmd
 
-  max-offline-cmd := cli.Command "set-max-offline"
+  max-offline-cmd := Command "set-max-offline"
       --help="Update the max-offline time of a device."
       --rest=[
-        cli.Option "max-offline"
+        Option "max-offline"
             --help="The new max-offline time."
             --type="duration"
             --required,
       ]
       --examples=[
-        cli.Example "Set the max-offline time to 15 seconds" --arguments="15s",
-        cli.Example "Set the max-offline time to 3 minutes" --arguments="3m",
+        Example "Set the max-offline time to 15 seconds" --arguments="15s",
+        Example "Set the max-offline time to 3 minutes" --arguments="3m",
       ]
-      --run=:: set-max-offline it config cache ui
+      --run=:: set-max-offline it
   cmd.add max-offline-cmd
 
-  cmd.add (create-container-command config cache ui)
+  cmd.add create-container-command
 
-  extract-cmd := cli.Command "extract"
+  extract-cmd := Command "extract"
       --help="""
         Extracts a representation of this device.
 
@@ -176,53 +175,50 @@ create-device-commands config/Config cache/Cache ui/Ui -> List:
         If no pod is specified, the one specified in the fleet is used.
         """
       --options= (build-extract-format-options --required) + [
-        cli.Option "output"
+        Option "output"
             --short-name="o"
             --type="file"
             --help="The output file."
             --required,
-        cli.Option "local"
+        Option "local"
             --help="A local pod file to build the firmware from.",
-        cli.Option "remote"
+        Option "remote"
             --help="A remote reference to a pod to build the firmware from.",
       ]
       --rest=[
-        cli.Option "device-rest"
+        Option "device-rest"
             --help="ID, name or alias of the device.",
       ]
       --examples=[
-        cli.Example "Build a firmware image for the default device (see 'device default'):"
+        Example "Build a firmware image for the default device (see 'device default'):"
             --arguments="--format binary --output firmware.ota",
-        cli.Example "Build a firmware image for the device big-whale:"
+        Example "Build a firmware image for the device big-whale:"
             --arguments="--format binary --output firmware.ota big-whale",
-        cli.Example "Build a tarball with the necessary files to run the firmware for the default device:"
+        Example "Build a tarball with the necessary files to run the firmware for the default device:"
             --arguments="--format tar --output firmware.tar",
       ]
-      --run=:: extract-device it config cache ui
+      --run=:: extract-device it
   cmd.add extract-cmd
 
   return [cmd]
 
-with-device
-    parsed/cli.Parsed
-    config/Config
-    cache/Cache
-    ui/Ui
-    --allow-rest-device/bool=false
-    [block]:
-  device-reference := parsed["device"]
+with-device invocation/Invocation --allow-rest-device/bool=false [block]:
+  cli := invocation.cli
+  ui := cli.ui
+
+  device-reference := invocation["device"]
 
   if allow-rest-device:
-    device-rest-reference := parsed["device-rest"]
+    device-rest-reference := invocation["device-rest"]
     if device-reference and device-rest-reference:
       ui.abort "Cannot specify a device both with '-d' and without it: '$device-reference', '$device-rest-reference'."
 
     if device-rest-reference: device-reference = device-rest-reference
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     device/DeviceFleet := ?
     if not device-reference:
-      device-id := default-device-from-config config
+      device-id := default-device-from-config --cli=cli
       if not device-id:
         ui.abort "No device specified and no default device ID set."
       device = fleet.device device-id
@@ -235,14 +231,14 @@ pod-for_ -> Pod?
     --local/string?
     --remote/string?
     --fleet/FleetWithDevices
-    --ui/Ui
+    --cli/Cli
     [--on-absent]:
   reference/PodReference? := null
   if local:
     if remote:
-      ui.abort "Cannot specify both a local pod file and a remote pod reference."
+      cli.ui.abort "Cannot specify both a local pod file and a remote pod reference."
   else if remote:
-    reference = PodReference.parse remote --allow-name-only --ui=ui
+    reference = PodReference.parse remote --allow-name-only --cli=cli
   else:
     return on-absent.call
 
@@ -254,33 +250,40 @@ pod-for_ -> Pod?
       --recovery-urls=fleet.recovery-urls
       --artemis=fleet.artemis
       --broker=fleet.broker
-      --ui=ui
+      --cli=cli
 
-update parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device := parsed["device"]
-  local := parsed["local"]
-  remote := parsed["remote"]
+update invocation/Invocation:
+  device := invocation["device"]
+  local := invocation["local"]
+  remote := invocation["remote"]
 
-  with-device parsed config cache ui: | device/DeviceFleet fleet/FleetWithDevices |
-    pod := pod-for_ --local=local --remote=remote --fleet=fleet --ui=ui --on-absent=:
+  cli := invocation.cli
+  ui := cli.ui
+
+  with-device invocation: | device/DeviceFleet fleet/FleetWithDevices |
+    pod := pod-for_ --local=local --remote=remote --fleet=fleet --cli=cli --on-absent=:
       ui.abort "No pod specified."
     fleet.update --device-id=device.id --pod=pod
     ui.info "Update request sent to broker. The device will update when it synchronizes."
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit-structured
-        --json=: {
+    ui.emit
+        --kind=Ui.RESULT
+        --structured=: {
           "device-id": "$device.id",
           "pod-id": "$pod.id",
         }
-        --stdout=: | printer/Printer |
-          // Do nothing.
+        --text=:
+          // Don't output anything.
           null
 
-default-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device-reference := parsed["device"]
-  device-rest-reference := parsed["device-rest"]
+default-device invocation/Invocation:
+  device-reference := invocation["device"]
+  device-rest-reference := invocation["device-rest"]
 
-  if parsed["clear"]:
+  cli := invocation.cli
+  config := cli.config
+  ui := cli.ui
+
+  if invocation["clear"]:
     config.remove CONFIG-DEVICE-DEFAULT-KEY
     config.write
     ui.info "Default device cleared."
@@ -289,13 +292,13 @@ default-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
   if device-reference and device-rest-reference:
     ui.abort "Cannot specify a device both with '-d' and without it: '$device-reference', '$device-rest-reference'."
 
-  with-devices-fleet parsed config cache ui: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/FleetWithDevices |
     // We allow to set the default with `-d` or by giving it as rest argument.
     device := device-reference or device-rest-reference
     device-id := ?
     if not device:
       // TODO(florian): make sure the device exists in the fleet.
-      device-id = default-device-from-config config
+      device-id = default-device-from-config --cli=cli
       if not device-id:
         ui.abort "No default device set."
 
@@ -306,24 +309,28 @@ default-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       device-id = resolved.id
 
     // TODO(florian): make sure the device exists on the broker.
-    make-default_ device-id config ui
+    make-default_ device-id --cli=cli
 
-make-default_ device-id/uuid.Uuid config/Config ui/Ui:
-  config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
-  config.write
-  ui.info "Default device set to $device-id."
+make-default_ device-id/uuid.Uuid --cli/Cli:
+  cli.config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
+  cli.config.write
+  cli.ui.info "Default device set to $device-id."
 
-show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  device-reference := parsed["device"]
-  device-rest-reference := parsed["device-rest"]
-  event-types := parsed["event-type"]
-  show-event-values := parsed["show-event-values"]
-  max-events := parsed["max-events"]
+show invocation/Invocation:
+  params := invocation.parameters
+  device-reference := params["device"]
+  device-rest-reference := params["device-rest"]
+  event-types := params["event-type"]
+  show-event-values := params["show-event-values"]
+  max-events := params["max-events"]
+
+  cli := invocation.cli
+  ui := cli.ui
 
   if max-events < 0:
     ui.abort "max-events must be >= 0."
 
-  with-device parsed config cache ui --allow-rest-device: | fleet-device/DeviceFleet fleet/FleetWithDevices |
+  with-device invocation --allow-rest-device: | fleet-device/DeviceFleet fleet/FleetWithDevices |
       broker := fleet.broker
       devices := broker.get-devices --device-ids=[fleet-device.id]
       if devices.is-empty:
@@ -338,10 +345,9 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
                           --limit=max-events
 
         events = events-map.get fleet-device.id
-      ui.do: | printer/Printer |
-        printer.emit-structured
-          --json=: device-to-json_ fleet-device broker-device organization events
-          --stdout=:
+      ui.emit --kind=Ui.RESULT
+          --structured=: device-to-json_ fleet-device broker-device organization events
+          --text=:
             print-device_
                 --show-event-values=show-event-values
                 fleet
@@ -349,12 +355,13 @@ show parsed/cli.Parsed config/Config cache/Cache ui/Ui:
                 broker-device
                 organization
                 events
-                it
 
-set-max-offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  max-offline := parsed["max-offline"]
+set-max-offline invocation/Invocation:
+  max-offline := invocation["max-offline"]
 
-  with-device parsed config cache ui: | device/DeviceFleet fleet/FleetWithDevices |
+  ui := invocation.cli.ui
+
+  with-device invocation: | device/DeviceFleet fleet/FleetWithDevices |
     max-offline-seconds := int.parse max-offline --on-error=:
       // Assume it's a duration with units, like "5s".
       duration := parse-duration max-offline --on-error=:
@@ -365,30 +372,33 @@ set-max-offline parsed/cli.Parsed config/Config cache/Cache ui/Ui:
           --max-offline-seconds=max-offline-seconds
     ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
 
-extract-device parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  output := parsed["output"]
-  format := parsed["format"]
-  local := parsed["local"]
-  remote := parsed["remote"]
-  partitions := parsed["partition"]
+extract-device invocation/Invocation:
+  params := invocation.parameters
+  output := params["output"]
+  format := params["format"]
+  local := params["local"]
+  remote := params["remote"]
+  partitions := params["partition"]
 
-  with-device parsed config cache ui: | fleet-device/DeviceFleet fleet/FleetWithDevices |
+  cli := invocation.cli
+  ui := cli.ui
+
+  with-device invocation: | fleet-device/DeviceFleet fleet/FleetWithDevices |
     pod/Pod? := null
     if local or remote:
       pod = pod-for_
           --local=local
           --remote=remote
           --fleet=fleet
-          --ui=ui
           --on-absent=: unreachable
+          --cli=cli
     extract-device fleet-device
         --fleet=fleet
         --pod=pod
         --format=format
         --output=output
         --partitions=partitions
-        --cache=cache
-        --ui=ui
+        --cli=cli
     ui.info "Firmware successfully written to '$output'."
 
 extract-device fleet-device/DeviceFleet
@@ -398,8 +408,8 @@ extract-device fleet-device/DeviceFleet
     --format/string
     --output/string
     --partitions/List
-    --cache/Cache
-    --ui/Ui:
+    --cli/Cli:
+  ui := cli.ui
 
   artemis := fleet.artemis
 
@@ -415,13 +425,13 @@ extract-device fleet-device/DeviceFleet
           --hardware-id=device.hardware-id
     else:
       file.copy --source=identity-path --target=output
-    ui.info "Wrote identity to '$output'."
+    cli.ui.info "Wrote identity to '$output'."
     return
 
   if not pod: pod = fleet.pod-for fleet-device
 
-  firmware := Firmware --cache=cache --device=device --pod=pod --ui=ui
-  sdk := get-sdk pod.sdk-version --cache=cache --ui=ui
+  firmware := Firmware --device=device --pod=pod --cli=cli
+  sdk := get-sdk pod.sdk-version --cli=cli
   with-tmp-directory: | tmp-dir/string |
     device-specific-path := "$tmp-dir/device-specific"
     device-specific := firmware.device-specific-data
@@ -486,14 +496,22 @@ filter-sensitive_ o/any -> any:
     return o.map: | value | filter-sensitive_ value
   return o
 
-print-device_
+class Printer_:
+  chunks_ := []
+  emit str/string:
+    chunks_.add str
+
+  to-string -> string:
+    return chunks_.join "\n"
+
+print-device_ -> string
     --show-event-values/bool
     fleet/FleetWithDevices
     fleet-device/DeviceFleet
     broker-device/DeviceDetailed
     organization/OrganizationDetailed
-    events/List?
-    printer/Printer:
+    events/List?:
+  printer := Printer_
   printer.emit "Device ID: $broker-device.id"
   printer.emit "Organization ID: $broker-device.organization-id ($organization.name)"
   printer.emit "Device name: $(fleet-device.name or "")"
@@ -591,9 +609,13 @@ print-device_
       str
 
     event-strings := events.map: event-to-string.call it
-    printer.emit --title="Events" event-strings
+    printer.emit "Events:"
+    event-strings.do: | event-string/string |
+      printer.emit "  $event-string"
 
-print-map_ map/Map printer/Printer --indentation/int=0 --prefix/string="" --preferred-keys/List?=null:
+  return printer.to-string
+
+print-map_ map/Map printer/Printer_ --indentation/int=0 --prefix/string="" --preferred-keys/List?=null:
   first-indentation-str := " " * indentation + prefix
   next-indentation-str := " " * first-indentation-str.size
   nested-indentation := first-indentation-str.size + 2
@@ -626,7 +648,7 @@ print-map_ map/Map printer/Printer --indentation/int=0 --prefix/string="" --pref
   keys.do: | key |
     print-key-value.call key map[key]
 
-print-list_ list/List printer/Printer --indentation/int=0:
+print-list_ list/List printer/Printer_ --indentation/int=0:
   indentation-str := " " * indentation
   nested-indentation := indentation + 2
   list.do: | value |
@@ -639,7 +661,7 @@ print-list_ list/List printer/Printer --indentation/int=0:
     else:
       printer.emit "$indentation-str* $value"
 
-print-modification_ modification/Modification --to/Map --fleet/FleetWithDevices printer/Printer:
+print-modification_ modification/Modification --to/Map --fleet/FleetWithDevices printer/Printer_:
   modification.on-value "firmware"
       --added=: printer.emit   "  +pod: $(firmware-to-pod-description_ it --fleet=fleet)"
       --removed=: printer.emit "  -pod"
@@ -689,7 +711,7 @@ print-modification_ modification/Modification --to/Map --fleet/FleetWithDevices 
           new-value = "***"
         printer.emit "  $name changed to $new-value"
 
-print-app-update_ name/string from/Map to/Map printer/Printer:
+print-app-update_ name/string from/Map to/Map printer/Printer_:
   printer.emit "    $name:"
   modification := Modification.compute --from=from --to=to
   modification.on-map
