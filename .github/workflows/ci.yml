@@ -10,6 +10,7 @@ on:
       - "*/*"
 
 env:
+  SUPABASE_VERSION: 1.187.10
   EXCLUDED_SUPABASE_SERVICES: imgproxy,inbucket,pgadmin-schema-diff,migra,studio,deno-relay
   # Qemu release page: https://github.com/espressif/qemu/releases/tag/esp-develop-8.2.0-20240122
   QEMU_LINUX_URL: https://github.com/espressif/qemu/releases/download/esp-develop-8.2.0-20240122/qemu-xtensa-softmmu-esp_develop_8.2.0_20240122-x86_64-linux-gnu.tar.xz
@@ -112,7 +113,7 @@ jobs:
         if: matrix.run_supabase_tests
         uses: supabase/setup-cli@v1
         with:
-          version: 1.145.6
+          version: ${{ env.SUPABASE_VERSION }}
 
       - name: Start Supabase - Toitware
         if: matrix.run_supabase_tests
