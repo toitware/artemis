@@ -33,6 +33,10 @@ port = 55324
 smtp_port = 55325
 pop3_port = 55326
 
+[analytics]
+# Port to use for the analytics URL.
+port = 55327
+
 [storage]
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
