@@ -25,7 +25,7 @@ class CompiledProgram:
   constructor.source path/string --sdk/Sdk:
     with-tmp-directory: | tmp/string |
       snapshot-path := "$tmp/snapshot"
-      sdk.run-toit-compile ["-w", snapshot-path, path]
+      sdk.compile-to-snapshot path --out=snapshot-path
       snapshot-content := file.read-content snapshot-path
       cache-snapshot snapshot-content
       return CompiledProgram.snapshot snapshot-path --sdk=sdk
@@ -34,7 +34,11 @@ class CompiledProgram:
   constructor.snapshot path/string --sdk/Sdk:
     with-tmp-directory: | tmp/string |
       image-ubjson-path := "$tmp/image.ubjson"
-      sdk.run-snapshot-to-image-tool ["-m32", "-m64", "--format=ubjson", "-o", image-ubjson-path, path]
+      sdk.compile-snapshot-to-image
+          --format="ubjson"
+          --out=image-ubjson-path
+          --word-sizes=[32, 64]
+          --snapshot-path=path
       image := read-ubjson image-ubjson-path
       id := uuid.parse image["id"]
       image32/ByteArray? := null
