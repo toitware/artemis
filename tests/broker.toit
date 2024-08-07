@@ -1,5 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import cli show Cli
 import encoding.json
 import encoding.ubjson
 import log show Logger
@@ -30,10 +31,10 @@ class TestBroker:
   constructor .server-config .backdoor:
 
   with-cli [block]:
-    with-tmp-config: | config |
+    with-tmp-config-cli: | cli/Cli |
       broker-cli/BrokerCli? := null
       try:
-        broker-cli = BrokerCli server-config config
+        broker-cli = BrokerCli server-config --cli=cli
         block.call broker-cli
       finally:
         if broker-cli: broker-cli.close

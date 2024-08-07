@@ -13,7 +13,7 @@ run-test fleet/TestFleet:
   json-config := fleet.run --json [
     "config", "show"
   ]
-  expect-equals "$fleet.test-cli.tmp-dir/config" json-config["path"]
+  expect-equals "$fleet.tester.tmp-dir/config" json-config["path"]
   expect-equals "test-broker" json-config["default-broker"]
   servers := json-config["servers"]
   expect (servers.contains "test-broker")
@@ -24,19 +24,19 @@ run-test fleet/TestFleet:
   expect-equals "toit-http" broker-config["type"]
   expect-equals "toit-http" artemis-config["type"]
 
-  artemis-server-config := fleet.test-cli.artemis.server-config as ServerConfigHttp
-  broker-server-config := fleet.test-cli.broker.server-config as ServerConfigHttp
+  artemis-server-config := fleet.tester.artemis.server-config as ServerConfigHttp
+  broker-server-config := fleet.tester.broker.server-config as ServerConfigHttp
 
   expect-equals artemis-server-config.host broker-server-config.host
-  fleet.test-cli.replacements[artemis-server-config.host] = "<HOST>"
+  fleet.tester.replacements[artemis-server-config.host] = "<HOST>"
   expect-equals broker-server-config.host broker-config["host"]
   expect-equals artemis-server-config.host artemis-config["host"]
   expect-equals broker-server-config.port broker-config["port"]
-  fleet.test-cli.replacements["$broker-server-config.port"] = "<B-PORT>"
+  fleet.tester.replacements["$broker-server-config.port"] = "<B-PORT>"
   expect-equals artemis-server-config.port artemis-config["port"]
-  fleet.test-cli.replacements["$artemis-server-config.port"] = "<A-PORT>"
+  fleet.tester.replacements["$artemis-server-config.port"] = "<A-PORT>"
 
-  fleet.test-cli.replacements["$artemis-config["auth"]"] = "<ARTEMIS_AUTH>"
+  fleet.tester.replacements["$artemis-config["auth"]"] = "<ARTEMIS_AUTH>"
 
   fleet.run-gold "BAA-config-show"
       "Print the test config"
@@ -86,8 +86,8 @@ run-test fleet/TestFleet:
     expect-list-equals mapped recovery-urls
 
   with-tmp-directory: | fleet-tmp-dir/string |
-    fleet.test-cli.replacements["$fleet-tmp-dir"] = "<FLEET-TMP-DIR>"
-    fleet.test-cli.run-gold "BAC-init-recovery"
+    fleet.tester.replacements["$fleet-tmp-dir"] = "<FLEET-TMP-DIR>"
+    fleet.tester.run-gold "BAC-init-recovery"
         "Show the recovery servers"
         ["fleet", "init", "--fleet", fleet-tmp-dir]
         --before-gold=: | output/string |
@@ -145,8 +145,8 @@ run-test fleet/TestFleet:
         "config", "broker", "default", "non-existing"
       ]
 
-  servers-in-config := fleet.test-cli.config.get CONFIG-SERVERS-KEY
-  fleet.test-cli.config.remove CONFIG-SERVERS-KEY
+  servers-in-config := fleet.tester.cli.config.get CONFIG-SERVERS-KEY
+  fleet.tester.cli.config.remove CONFIG-SERVERS-KEY
 
   fleet.run-gold "DAB-config-broker-default-non-existing-no-servers"
       "Try to set the default broker to a non-existing broker when there are no servers"
@@ -155,4 +155,4 @@ run-test fleet/TestFleet:
         "config", "broker", "default", "non-existing"
       ]
 
-  fleet.test-cli.config[CONFIG-SERVERS-KEY] = servers-in-config
+  fleet.tester.cli.config[CONFIG-SERVERS-KEY] = servers-in-config

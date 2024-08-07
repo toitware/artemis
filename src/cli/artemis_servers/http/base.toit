@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import certificate-roots
+import cli show Cli
 import encoding.ubjson
 import http
 import log
@@ -13,7 +14,6 @@ import ..artemis-server
 import ...config
 import ...device
 import ...organization
-import ...ui
 
 import ....shared.server-config
 import ....shared.utils as utils
@@ -23,10 +23,11 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
   client_/http.Client? := ?
   server-config_/ServerConfigHttp
   current-user-id_/uuid.Uuid? := null
-  config_/Config
+  cli_/Cli
 
-  constructor network/net.Interface .server-config_/ServerConfigHttp .config_/Config:
+  constructor network/net.Interface .server-config_/ServerConfigHttp --cli/Cli:
     client_ = http.Client network
+    cli_ = cli
 
   is-closed -> bool:
     return client_ == null
@@ -38,7 +39,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
 
   ensure-authenticated [block]:
     if current-user-id_: return
-    user-id := config_.get "$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"
+    user-id := cli_.config.get "$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"
     if user-id:
       current-user-id_ = uuid.parse user-id
       return
@@ -56,10 +57,10 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       "password": password,
     }
     current-user-id_ = uuid.parse id
-    config_["$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"] = id
-    config_.write
+    cli_.config["$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"] = id
+    cli_.config.write
 
-  sign-in --provider/string --ui/Ui --open-browser/bool:
+  sign-in --provider/string --open-browser/bool --cli/Cli:
     throw "UNIMPLEMENTED"
 
   update --email/string? --password/string?:
@@ -71,8 +72,8 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
   logout:
     if not current-user-id_: throw "Not logged in"
     current-user-id_ = null
-    config_.remove "$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"
-    config_.write
+    cli_.config.remove "$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"
+    cli_.config.write
 
   create-device-in-organization --organization-id/uuid.Uuid --device-id/uuid.Uuid? -> Device:
     map := {

@@ -26,15 +26,15 @@ main args/List:
             },
           },
         }
-    run-test fleet.test-cli qemu-data
+    run-test fleet.tester qemu-data
 
-run-test test-cli/TestCli qemu-data/TestDeviceConfig:
-  tmp-dir := test-cli.tmp-dir
+run-test tester/Tester qemu-data/TestDeviceConfig:
+  tmp-dir := tester.tmp-dir
   ui := TestUi --no-quiet
 
   device-id := qemu-data.device-id
 
-  test-device := test-cli.create-device
+  test-device := tester.create-device
       --alias-id=device-id
       // We don't know the actual hardware-id.
       // Cheat by reusing the alias id.

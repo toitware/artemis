@@ -1,6 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import cli
+import cli show *
 import uuid
 
 import .device
@@ -10,14 +10,13 @@ import ..cache
 import ..config
 import ..fleet
 import ..pod-specification as pod-specification
-import ..ui
 import ..utils
 
-create-container-command config/Config cache/Cache ui/Ui -> cli.Command:
-  cmd := cli.Command "container"
+create-container-command -> Command:
+  cmd := Command "container"
       --help="Manage the containers installed on a device."
 
-  install-cmd := cli.Command "install"
+  install-cmd := Command "install"
       --help="Install a container on a device."
       --options=[
         OptionPatterns "trigger"
@@ -25,56 +24,59 @@ create-container-command config/Config cache/Cache ui/Ui -> cli.Command:
             --help="Trigger to start the container. Defaults to 'boot,install'."
             --split-commas
             --multi,
-        cli.Flag "background"
+        Flag "background"
             --help="Run in background and do not delay sleep."
             --default=false,
-        cli.Flag "critical"
+        Flag "critical"
             --help="Run automatically and restart if necessary."
             --default=false,
       ]
       --rest=[
-        cli.OptionString "name"
+        OptionString "name"
             --help="Name of the container when installed."
             --required,
-        cli.OptionString "path"
+        OptionString "path"
             --help="Path to source code or snapshot."
             --type="file"
             --required,
-        cli.Option "arguments"
+        Option "arguments"
             --help="Argument to pass to the container."
             --type="string"
             --multi,
       ]
       --examples=[
-        cli.Example "Install the 'hello' container and run it every 5 seconds:"
+        Example "Install the 'hello' container and run it every 5 seconds:"
             --arguments="--trigger=interval:5s hello hello.toit",
       ]
-      --run=:: install-container it config cache ui
+      --run=:: install-container it
   cmd.add install-cmd
 
-  uninstall-cmd := cli.Command "uninstall"
+  uninstall-cmd := Command "uninstall"
       --help="Uninstall a container from a device."
       --options=[
-          cli.Flag "force"
+          Flag "force"
             --short-name="f"
             --help="Force uninstallation of a container that is required for a connection."
             --default=false,
       ]
       --rest=[
-        cli.OptionString "name"
+        OptionString "name"
             --help="Name of the container to uninstall.",
       ]
-      --run=:: uninstall-container it config cache ui
+      --run=:: uninstall-container it
   cmd.add uninstall-cmd
 
   return cmd
 
-install-container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  container-name := parsed["name"]
-  container-path := parsed["path"]
-  arguments := parsed["arguments"]
-  is-critical := parsed["critical"]
-  parsed-triggers := parsed["trigger"]
+install-container invocation/Invocation:
+  params := invocation.parameters
+  ui := invocation.cli.ui
+
+  container-name := params["name"]
+  container-path := params["path"]
+  arguments := params["arguments"]
+  is-critical := params["critical"]
+  parsed-triggers := params["trigger"]
 
   if is-critical and not parsed-triggers.is-empty:
     ui.abort "Critical containers cannot have triggers."
@@ -128,21 +130,21 @@ install-container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
     // Non-critical containers get a boot and an install trigger by default.
     triggers = [pod-specification.BootTrigger, pod-specification.InstallTrigger]
 
-  with-device parsed config cache ui: | device/DeviceFleet fleet/FleetWithDevices |
+  with-device invocation: | device/DeviceFleet fleet/FleetWithDevices |
     fleet.broker.container-install
         --device-id=device.id
         --app-name=container-name
         --arguments=arguments
-        --background=parsed["background"]
+        --background=invocation["background"]
         --critical=is-critical
         --triggers=triggers
         --application-path=container-path
     ui.info "Request sent to broker. Container will be installed when device synchronizes."
 
-uninstall-container parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  container-name := parsed["name"]
-  force := parsed["force"]
+uninstall-container invocation/Invocation:
+  container-name := invocation["name"]
+  force := invocation["force"]
 
-  with-device parsed config cache ui: | device/DeviceFleet fleet/FleetWithDevices |
+  with-device invocation: | device/DeviceFleet fleet/FleetWithDevices |
     fleet.broker.container-uninstall --device-id=device.id --app-name=container-name --force=force
-    ui.info "Request sent to broker. Container will be uninstalled when device synchronizes."
+    invocation.cli.ui.info "Request sent to broker. Container will be uninstalled when device synchronizes."

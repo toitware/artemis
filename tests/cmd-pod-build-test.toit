@@ -6,6 +6,7 @@ import artemis.cli.firmware show get-envelope
 import artemis.cli.pod show Pod
 import artemis.cli.pod-specification show PodSpecification
 import artemis.cli.sdk show Sdk
+import cli show Cli
 import expect show *
 import host.file
 import io
@@ -17,14 +18,14 @@ main args:
 
 run-test fleet/TestFleet:
   fleet-dir := fleet.fleet-dir
-  test-cli := fleet.test-cli
+  tester := fleet.tester
   ui := TestUi
-  fleet.test-cli.ensure-available-artemis-service
+  fleet.tester.ensure-available-artemis-service
 
   spec := {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod",
-      "sdk-version": "$test-cli.sdk-version",
+      "sdk-version": "$tester.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "firmware-envelope": "esp32",
       "connections": [
@@ -43,13 +44,13 @@ run-test fleet/TestFleet:
   validate-pod "$fleet-dir/test-pod.pod"
       --name="test-pod"
       --containers=["artemis"]
-      --test-cli=test-cli
+      --tester=tester
 
   // Test custom firmwares.
   spec = {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod2",
-      "sdk-version": "$test-cli.sdk-version",
+      "sdk-version": "$tester.sdk-version",
       "firmware-envelope": "file://custom.envelope",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "connections": [
@@ -65,11 +66,11 @@ run-test fleet/TestFleet:
 
   custom-path := "$fleet-dir/custom.envelope"
 
-  default-envelope := get-envelope-for --sdk-version=test-cli.sdk-version --cache=test-cli.cache --ui=ui
+  default-envelope := get-envelope-for --sdk-version=tester.sdk-version --cli=tester.cli
   write-blob-to-file custom-path default-envelope
 
   print "custom-path: $custom-path"
-  sdk := Sdk --envelope-path=custom-path --cache=test-cli.cache --ui=ui
+  sdk := Sdk --envelope-path=custom-path --cli=tester.cli
   custom-program := """
   main: print "custom"
   """
@@ -88,13 +89,13 @@ run-test fleet/TestFleet:
   validate-pod "$fleet-dir/test-pod2.pod"
       --name="test-pod2"
       --containers=["artemis", "custom"]
-      --test-cli=test-cli
+      --tester=tester
 
   // Test compiler flags.
   spec = {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod3",
-      "sdk-version": "$test-cli.sdk-version",
+      "sdk-version": "$tester.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "firmware-envelope": "esp32",
       "connections": [
@@ -123,14 +124,14 @@ run-test fleet/TestFleet:
   validate-pod "$fleet-dir/test-pod3.pod"
       --name="test-pod3"
       --containers=["artemis", "hello"]
-      --test-cli=test-cli
+      --tester=tester
 
   // Test invalid compiler flag.
   // This ensures that the compiler flags are actually passed to the compiler.
   spec = {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod4",
-      "sdk-version": "$test-cli.sdk-version",
+      "sdk-version": "$tester.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "firmware-envelope": "esp32",
       "connections": [
@@ -154,10 +155,12 @@ run-test fleet/TestFleet:
     "pod", "build", spec-path, "-o", "$fleet-dir/test-pod4.pod"
   ]
 
-validate-pod pod-path/string --name/string --containers/List --test-cli/TestCli:
-  artemis := test-cli
+validate-pod pod-path/string --name/string --containers/List --tester/Tester:
+  artemis := tester
   with-tmp-directory: | tmp-dir |
-    pod := Pod.parse pod-path --tmp-directory=tmp-dir --ui=(TestUi --no-quiet)
+    cli := tester.cli.with
+        --ui=TestUi --no-quiet
+    pod := Pod.parse pod-path --tmp-directory=tmp-dir --cli=cli
     expect-equals name pod.name
     envelope := pod.envelope
     seen := {}
@@ -167,7 +170,7 @@ validate-pod pod-path/string --name/string --containers/List --test-cli/TestCli:
     containers.do:
       expect (seen.contains it)
 
-get-envelope-for --sdk-version/string --cache --ui -> ByteArray:
+get-envelope-for --sdk-version/string --cli/Cli -> ByteArray:
   default-spec := {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "test-pod2",
@@ -182,7 +185,7 @@ get-envelope-for --sdk-version/string --cache --ui -> ByteArray:
         }
       ]
     }
-  pod-specification := PodSpecification.from-json default-spec --path="ignored" --ui=TestUi
+  pod-specification := PodSpecification.from-json default-spec --path="ignored" --cli=cli
 
-  default-envelope-path := get-envelope --specification=pod-specification --cache=cache --ui=ui
+  default-envelope-path := get-envelope --specification=pod-specification --cli=cli
   return file.read-content default-envelope-path

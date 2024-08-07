@@ -9,6 +9,7 @@ import artemis.cli.server-config as cli-server-config
 import artemis.service
 import artemis.shared.server-config show ServerConfig ServerConfigHttp
 import artemis.cli.utils show read-json read-yaml write-yaml-to-file write-blob-to-file
+import cli show Cli
 import encoding.json
 import host.directory
 import host.file
@@ -34,26 +35,26 @@ main args/List:
     print "Missing ARTEMIS_TEST_WIFI_PASSWORD environment variable."
     exit 1
 
-  with-test-cli --args=args: | test-cli/TestCli |
-    run-test test-cli serial-port wifi-ssid wifi-password
+  with-tester --args=args: | tester/Tester |
+    run-test tester serial-port wifi-ssid wifi-password
 
-run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/string:
-  tmp-dir := test-cli.tmp-dir
+run-test tester/Tester serial-port/string wifi-ssid/string wifi-password/string:
+  tmp-dir := tester.tmp-dir
   ui := TestUi --no-quiet
 
-  test-cli.replacements[serial-port] = "SERIAL-PORT"
-  test-cli.replacements[wifi-ssid] = "WIFI-SSID"
-  test-cli.replacements[wifi-password] = "WIFI-PASSWORD"
-  test-cli.replacements[test-cli.sdk-version] = "SDK-VERSION"
+  tester.replacements[serial-port] = "SERIAL-PORT"
+  tester.replacements[wifi-ssid] = "WIFI-SSID"
+  tester.replacements[wifi-password] = "WIFI-PASSWORD"
+  tester.replacements[tester.sdk-version] = "SDK-VERSION"
 
-  if test-cli.artemis.server-config is ServerConfigHttp:
-    test-cli.run [
+  if tester.artemis.server-config is ServerConfigHttp:
+    tester.run [
       "auth", "signup",
       "--email", ADMIN-EMAIL,
       "--password", ADMIN-PASSWORD
     ]
 
-  test-cli.run [
+  tester.run [
     "auth", "login",
     "--email", ADMIN-EMAIL,
     "--password", ADMIN-PASSWORD
@@ -61,13 +62,12 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
 
   service-version := "v0.0.$(random)-TEST"
 
+  cli := tester.cli.with --ui=ui
   uploader.main
-      --config=test-cli.config
-      --cache=test-cli.cache
-      --ui=ui
+      --cli=cli
       [
         "service",
-        "--sdk-version", test-cli.sdk-version,
+        "--sdk-version", tester.sdk-version,
         "--service-version", service-version,
         "--snapshot-directory", "$tmp-dir/snapshots",
         "--local",
@@ -75,10 +75,10 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
 
   email := "test-$(%010d random)@example.com"
   password := "test-$(%010d random)"
-  test-cli.replacements[email] = "USER@EMAIL"
-  test-cli.replacements[password] = "USER-PASSWORD"
+  tester.replacements[email] = "USER@EMAIL"
+  tester.replacements[password] = "USER-PASSWORD"
 
-  test-cli.run-gold "BAA-signup"
+  tester.run-gold "BAA-signup"
       "Sign up for a new account."
       [
         "auth", "signup",
@@ -86,7 +86,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         "--password", password,
       ]
 
-  test-cli.run-gold "BAK-login"
+  tester.run-gold "BAK-login"
       "Log in to the newly created account."
       [
         "auth", "login",
@@ -94,8 +94,8 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         "--password", password,
       ]
 
-  if test-cli.artemis.server-config != test-cli.broker.server-config:
-    test-cli.run-gold "BBA-signup-broker"
+  if tester.artemis.server-config != tester.broker.server-config:
+    tester.run-gold "BBA-signup-broker"
         "Sign up for a new account."
         [
           "auth", "signup",
@@ -104,7 +104,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
           "--password", password,
         ]
 
-    test-cli.run-gold "BBK-login-broker"
+    tester.run-gold "BBK-login-broker"
         "Log in to the newly created account in the broker."
         [
           "auth", "login",
@@ -115,7 +115,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
 
   // We might want to change this, but at the moment a new user does not have any
   // organizations.
-  test-cli.run-gold "BCA-organizations"
+  tester.run-gold "BCA-organizations"
       "List organizations directly aftern signup."
       [
         "org", "list",
@@ -124,10 +124,10 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   // Create a new organization.
   test-org-name := "Test organization $(%010d random)"
   REPLACEMENT-PREFIX := "ORGANIZATION_NAME"
-  test-cli.replacements[test-org-name] = REPLACEMENT-PREFIX + " " * (test-org-name.size - REPLACEMENT-PREFIX.size)
+  tester.replacements[test-org-name] = REPLACEMENT-PREFIX + " " * (test-org-name.size - REPLACEMENT-PREFIX.size)
 
   org-id/string? := null
-  test-cli.run-gold "BCC-create-org"
+  tester.run-gold "BCC-create-org"
       "Create an organization."
       --before-gold=: | output/string |
         // Something like "Added organization cce84fa4-b3cc-5ed8-a7cc-96b2d76bfd37 - foobar"
@@ -135,11 +135,11 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         2.repeat: space-index = output.index-of " " (space-index + 1)
         end-index := output.index-of " " (space-index + 1)
         org-id = output[space-index + 1 .. end-index]
-        test-cli.replacements[org-id] = "-={| UUID-FOR-TEST-ORGANIZATION |}=-"
+        tester.replacements[org-id] = "-={| UUID-FOR-TEST-ORGANIZATION |}=-"
         output
       ["org", "add", test-org-name]
 
-  test-cli.run-gold "BCD-organizations-after"
+  tester.run-gold "BCD-organizations-after"
       "List organizations after creating a new one."
       [
         "org", "list",
@@ -148,9 +148,9 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   // Initialize a fleet.
   fleet-dir := "$tmp-dir/fleet"
   directory.mkdir --recursive fleet-dir
-  test-cli.replacements[fleet-dir] = "FLEET-DIR"
+  tester.replacements[fleet-dir] = "FLEET-DIR"
 
-  test-cli.run-gold "CAA-fleet-init"
+  tester.run-gold "CAA-fleet-init"
       "Initialize a fleet."
       [
         "--fleet-root", fleet-dir,
@@ -158,9 +158,9 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
       ]
   fleet-file := read-json "$fleet-dir/fleet.json"
   fleet-id := fleet-file["id"]
-  test-cli.replacements[fleet-id] = "-={|       UUID-FOR-FLEET       |}=-"
+  tester.replacements[fleet-id] = "-={|       UUID-FOR-FLEET       |}=-"
 
-  test-cli.run-gold "CAK-no-devices-yet"
+  tester.run-gold "CAK-no-devices-yet"
       "List devices in the fleet."
       [
         "--fleet-root", fleet-dir,
@@ -168,7 +168,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
       ]
 
   spec-path := "$fleet-dir/my-pod.yaml"
-  test-cli.replacements["my-pod.yaml"] = "FLEET-POD-FILE"
+  tester.replacements["my-pod.yaml"] = "FLEET-POD-FILE"
 
   default-spec := read-yaml spec-path
   // Only replace the artemis version. Keep the rest as is.
@@ -180,8 +180,8 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   // Create a firmware.
   // Just make sure that the example file works. We are not using that firmware otherwise.
   pod-file := "$tmp-dir/firmware.pod"
-  test-cli.replacements[pod-file] = "FIRMWARE.POD"
-  test-cli.run-gold "DAA-default-firmware"
+  tester.replacements[pod-file] = "FIRMWARE.POD"
+  tester.run-gold "DAA-default-firmware"
       "Create the default firmware."
       [
         "--fleet-root", fleet-dir,
@@ -196,15 +196,15 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
     revision := pod-json["revision"]
     tags := pod-json["tags"]
     created-at := pod-json["created_at"]
-    test-cli.replacements[id] = "-={|      UUID-FOR-MY-POD#$revision     |}=-"
-    test-cli.replacements[created-at] = "CREATED-AT-FOR-MY-POD#$revision"
+    tester.replacements[id] = "-={|      UUID-FOR-MY-POD#$revision     |}=-"
+    tester.replacements[created-at] = "CREATED-AT-FOR-MY-POD#$revision"
     tags.do:
       if it != "latest":
-        test-cli.replacements[it] = "TAG-FOR-MY-POD#$revision"
+        tester.replacements[it] = "TAG-FOR-MY-POD#$revision"
     id
 
   add-replacements-for-last-pod := :
-    available-pods := test-cli.run --json [
+    available-pods := tester.run --json [
       "--fleet-root", fleet-dir,
       "pod", "list",
     ]
@@ -212,7 +212,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
 
 
   // Upload the firmware.
-  test-cli.run-gold "DAB-upload-firmware"
+  tester.run-gold "DAB-upload-firmware"
       "Upload the firmware."
       --before-gold=:
         add-replacements-for-last-pod.call
@@ -233,7 +233,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   write-yaml-to-file spec-path our-spec
 
   // Compile the specification.
-  test-cli.run-gold "DAC-compile-modified-firmware"
+  tester.run-gold "DAC-compile-modified-firmware"
       "Compile the modified specification."
       [
         "--fleet-root", fleet-dir,
@@ -243,7 +243,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
       ]
 
   // Upload the specification.
-  test-cli.run-gold "DAD-upload-modified-pod"
+  tester.run-gold "DAD-upload-modified-pod"
       "Upload the modified pod."
       --before-gold=:
         add-replacements-for-last-pod.call
@@ -253,14 +253,14 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         "pod", "upload", pod-file,
       ]
 
-  available-pods := test-cli.run --json [
+  available-pods := tester.run --json [
     "--fleet-root", fleet-dir,
     "pod", "list",
   ]
   flash-pod-id := available-pods[0]["id"]
 
   // List the available firmwares.
-  test-cli.run-gold "DAE-list-firmwares"
+  tester.run-gold "DAE-list-firmwares"
       --ignore-spacing
       "List the available firmwares."
       [
@@ -271,7 +271,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   device-id/string? := null
   FLASH-DEVICE-NAME ::= "test-device"
   // Flash it.
-  test-cli.run-gold "DAF-flash"
+  tester.run-gold "DAF-flash"
       "Flash the firmware to the device."
       --ignore-spacing
       --before-gold=: | output/string |
@@ -289,8 +289,8 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         device-name := output[name-start-index..name-end-index]
         expect-equals FLASH-DEVICE-NAME device-name
         device-id = output[device-start-index..device-end-index]
-        test-cli.replacements[device-name] = "DEVICE_NAME"
-        test-cli.replacements[device-id] = "-={|    UUID-FOR-TEST-DEVICE    |}=-"
+        tester.replacements[device-name] = "DEVICE_NAME"
+        tester.replacements[device-id] = "-={|    UUID-FOR-TEST-DEVICE    |}=-"
         output
       [
         "serial", "flash",
@@ -299,7 +299,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         "--port", serial-port,
       ]
 
-  test-device := test-cli.listen-to-serial-device
+  test-device := tester.listen-to-serial-device
       --serial-port=serial-port
       --alias-id=uuid.parse device-id
       // We don't know the actual hardware-id.
@@ -311,7 +311,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   with-timeout --ms=15_000:
     while true:
       // Wait for the device to come online.
-      output := test-cli.run [
+      output := tester.run [
         "fleet", "status",
         "--fleet-root", fleet-dir,
       ]
@@ -326,7 +326,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   //   with_timeout --ms=5_000:
   //     pipe.run_program "jag" "monitor"
 
-  test-cli.run-gold "DAK-devices-after-flash"
+  tester.run-gold "DAK-devices-after-flash"
       --ignore-spacing
       "List devices in the fleet."
       [
@@ -340,7 +340,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
   updated-spec["max-offline"] = "11s"
   write-yaml-to-file spec-path updated-spec
 
-  test-cli.run-gold "DDA-device-show"
+  tester.run-gold "DDA-device-show"
       "Show the device before update."
       --ignore-spacing
       --before-gold=: | output/string |
@@ -348,7 +348,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         lines.do:
           APP-ID-PREFIX ::= "      id: "
           if it.starts-with APP-ID-PREFIX:
-            test-cli.replacements[it[APP-ID-PREFIX.size ..]] = "APP_ID"
+            tester.replacements[it[APP-ID-PREFIX.size ..]] = "APP_ID"
         output
       [
         "device", "show",
@@ -358,7 +358,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
       ]
 
   // Upload a new version.
-  test-cli.run-gold "DDB-upload-new-firmware"
+  tester.run-gold "DDB-upload-new-firmware"
       "Upload a new version of the firmware."
       --before-gold=: | output/string |
         add-replacements-for-last-pod.call
@@ -369,7 +369,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         spec-path,
       ]
 
-  test-cli.run-gold "DDK-update-firmware"
+  tester.run-gold "DDK-update-firmware"
       "Update the firmware."
       --ignore-spacing
       --before-gold=: | output/string |
@@ -377,7 +377,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         lines.do:
           UPLOADING-PREFIX ::= "Uploading patch "
           if it.starts-with UPLOADING-PREFIX:
-            test-cli.replacements[it[UPLOADING-PREFIX.size ..]] = "PATCH-HASH-SIZE"
+            tester.replacements[it[UPLOADING-PREFIX.size ..]] = "PATCH-HASH-SIZE"
         output
       [
         "fleet", "roll-out",
@@ -388,7 +388,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
 
   with-timeout --ms=120_000:
     while true:
-      status-output := test-cli.run [
+      status-output := tester.run [
             "device", "show",
             "-d", device-id,
             "--max-events", "0",
@@ -398,7 +398,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
         break
       sleep --ms=1_000
 
-  test-cli.run-gold "DEA-status"
+  tester.run-gold "DEA-status"
       "List devices in the fleet after applied update."
       --ignore-spacing
       --before-gold=: | output/string |
@@ -428,7 +428,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
       ]
 
   after-firmware/string? := null
-  test-cli.run-gold "DEK-device-show"
+  tester.run-gold "DEK-device-show"
       "Show the device after update."
       --before-gold=: | output/string |
         lines := output.split "\n"
@@ -436,7 +436,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
           FIRMWARE-PREFIX ::= "  firmware: "
           if it.starts-with FIRMWARE-PREFIX:
             after-firmware = it[FIRMWARE-PREFIX.size ..]
-            test-cli.replacements[after-firmware] = "AFTER_FIRMWARE"
+            tester.replacements[after-firmware] = "AFTER_FIRMWARE"
         output
       [
         "device", "show",
@@ -453,7 +453,7 @@ run-test test-cli/TestCli serial-port/string wifi-ssid/string wifi-password/stri
 
   test-device.clear-output
 
-  test-cli.run-gold "EAA-container-install"
+  tester.run-gold "EAA-container-install"
       "Install a container"
       [
         "--fleet-root", fleet-dir,

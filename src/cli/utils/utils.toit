@@ -1,6 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import cli
+import cli show Cli Ui
 import encoding.base64
 import encoding.json
 import encoding.tison
@@ -15,7 +15,6 @@ import io
 import net
 import system
 import uuid
-import ..ui
 import ..pod-specification
 
 with-tmp-directory [block]:
@@ -74,9 +73,9 @@ read-base64-ubjson path/string -> any:
   data := file.read-content path
   return ubjson.decode (base64.decode data)
 
-read-file path/string --ui/Ui [block] -> any:
+read-file path/string --cli/Cli [block] -> any:
   return read-file path block --on-error=: | exception |
-    ui.abort "Failed to open '$path' for reading ($exception)."
+    cli.ui.abort "Failed to open '$path' for reading ($exception)."
 
 read-file path/string [block] [--on-error] -> any:
   stream/file.Stream? := null
@@ -88,9 +87,9 @@ read-file path/string [block] [--on-error] -> any:
   finally:
     stream.close
 
-write-file path/string --ui/Ui [block] -> none:
+write-file path/string --cli/Cli [block] -> none:
   write-file path block --on-error=: | exception |
-    ui.abort "Failed to open '$path' for writing ($exception)."
+    cli.ui.abort "Failed to open '$path' for writing ($exception)."
 
 write-file path/string [block] [--on-error] -> none:
   stream/file.Stream? := null
@@ -103,8 +102,8 @@ write-file path/string [block] [--on-error] -> none:
   finally:
     stream.close
 
-download-url url/string --out-path/string --ui/Ui -> none:
-  ui.info "Downloading $url."
+download-url url/string --out-path/string --cli/Cli -> none:
+  cli.ui.info "Downloading $url."
 
   network := net.open
   try:
@@ -112,7 +111,7 @@ download-url url/string --out-path/string --ui/Ui -> none:
 
     response := client.get --uri=url
     if response.status-code != http.STATUS-OK:
-      ui.abort "Failed to download '$url': $response.status-code $response.status-message."
+      cli.ui.abort "Failed to download '$url': $response.status-code $response.status-message."
     file := file.Stream.for-write out-path
     file.out.write-from response.body
     file.close
@@ -239,10 +238,10 @@ Parses the given $path into a $PodSpecification.
 
 If there is an error, calls $Ui.abort with an error message.
 */
-parse-pod-specification-file path/string --ui/Ui -> PodSpecification:
+parse-pod-specification-file path/string --cli/Cli -> PodSpecification:
   exception := catch --unwind=(: it is not PodSpecificationException):
-    return PodSpecification.parse path --ui=ui
-  ui.abort "Cannot parse pod specification: $exception."
+    return PodSpecification.parse path --cli=cli
+  cli.ui.abort "Cannot parse pod specification: $exception."
   unreachable
 
 // TODO(florian): move this into Duration?
@@ -303,80 +302,6 @@ timestamp-to-human-readable timestamp/Time --now-cut-off/Duration=(Duration --s=
   if local-now.year == local.year and local-now.month == local.month and local-now.day == local.day:
     return "$(%02d local.h):$(%02d local.m):$(%02d local.s)"
   return "$local.year-$(%02d local.month)-$(%02d local.day) $(%02d local.h):$(%02d local.m):$(%02d local.s)"
-
-// TODO(florian): move this into the cli package.
-class OptionPatterns extends cli.OptionEnum:
-  constructor name/string patterns/List
-      --default=null
-      --short-name/string?=null
-      --help/string?=null
-      --required/bool=false
-      --hidden/bool=false
-      --multi/bool=false
-      --split-commas/bool=false:
-    super name patterns
-      --default=default
-      --short-name=short-name
-      --help=help
-      --required=required
-      --hidden=hidden
-      --multi=multi
-      --split-commas=split-commas
-
-  parse str/string --for-help-example/bool=false -> any:
-    if not str.contains ":" and not str.contains "=":
-      // Make sure it's a valid one.
-      key := super str --for-help-example=for-help-example
-      return key
-
-    separator-index := str.index-of ":"
-    if separator-index < 0: separator-index = str.index-of "="
-    key := str[..separator-index]
-    key-with-equals := str[..separator-index + 1]
-    if not (values.any: it.starts-with key-with-equals):
-      throw "Invalid value for option '$name': '$str'. Valid values are: $(values.join ", ")."
-
-    return {
-      key: str[separator-index + 1..]
-    }
-
-/**
-A Uuid option.
-*/
-class OptionUuid extends cli.Option:
-  default/uuid.Uuid?
-
-  /**
-  Creates a new Uuid option.
-
-  The $default value is null.
-
-  The $type is set to 'uuid'.
-
-  Ensures that values are valid Uuids.
-  */
-  constructor name/string
-      --.default=null
-      --short-name/string?=null
-      --help/string?=null
-      --required/bool=false
-      --hidden/bool=false
-      --multi/bool=false
-      --split-commas/bool=false:
-    if multi and default: throw "Multi option can't have default value."
-    if required and default: throw "Option can't have default value and be required."
-    super.from-subclass name --short-name=short-name --help=help \
-        --required=required --hidden=hidden --multi=multi \
-        --split-commas=split-commas
-
-  is-flag: return false
-
-  type -> string: return "uuid"
-
-  parse str/string --for-help-example/bool=false -> uuid.Uuid:
-    catch: return uuid.parse str
-    throw "Invalid value for option '$name': '$str'. Expected a UUID."
-
 
 /** Whether we are running in a development setup. */
 is-dev-setup -> bool:

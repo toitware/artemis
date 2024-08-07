@@ -24,7 +24,7 @@ run-test fleet/TestFleet:
         "pod", "list",
       ]
 
-  ref-file := "$fleet.test-cli.tmp-dir/fleet.ref"
+  ref-file := "$fleet.tester.tmp-dir/fleet.ref"
   fleet.run-gold "200-create-ref"
       "Create a ref"
       [
@@ -57,7 +57,7 @@ run-test fleet/TestFleet:
         "pod", "list", "--fleet", "$fleet.fleet-dir/fleet.json"
       ]
 
-  fake-fleet-dir := "$fleet.test-cli.tmp-dir/fake-fleet"
+  fake-fleet-dir := "$fleet.tester.tmp-dir/fake-fleet"
   directory.mkdir fake-fleet-dir
   fake-fleet-file := "$fake-fleet-dir/fleet.json"
   file.write-content --path=fake-fleet-file (file.read-content ref-file)

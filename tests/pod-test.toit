@@ -14,9 +14,9 @@ main args:
         --tmp-directory=tmp-dir
 
     out := "$tmp-dir/$(id).pod"
-    ui := TestUi
-    pod.write out --ui=ui
-    pod2 := Pod.parse out --ui=ui --tmp-directory=tmp-dir
+    cli := TestCli
+    pod.write out --cli=cli
+    pod2 := Pod.parse out --cli=cli --tmp-directory=tmp-dir
     expect-equals id pod2.id
     expect-equals "name" pod2.name
     expect-equals "envelope".to-byte-array pod2.envelope

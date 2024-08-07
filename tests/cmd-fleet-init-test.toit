@@ -8,14 +8,14 @@ import expect show *
 import .utils
 
 main args:
-  with-test-cli --args=args: | test-cli/TestCli |
-    run-test test-cli
+  with-tester --args=args: | tester/Tester |
+    run-test tester
 
-run-test test-cli/TestCli:
-  test-cli.login
+run-test tester/Tester:
+  tester.login
 
   with-tmp-directory: | fleet-tmp-dir |
-    test-cli.run [
+    tester.run [
       "fleet",
       "--fleet-root", fleet-tmp-dir,
       "init",
@@ -32,7 +32,7 @@ run-test test-cli/TestCli:
     broker-entry := fleet-json["servers"][broker-name]
 
     // We are not allowed to initialize a folder twice.
-    already-initialized-message := test-cli.run --expect-exit-1 [
+    already-initialized-message := tester.run --expect-exit-1 [
       "fleet",
       "--fleet-root", fleet-tmp-dir,
       "init",
@@ -41,7 +41,7 @@ run-test test-cli/TestCli:
     expect (already-initialized-message.contains "already contains a fleet.json file")
 
   with-tmp-directory: | fleet-tmp-dir |
-    bad-org-id-message := test-cli.run --expect-exit-1 [
+    bad-org-id-message := tester.run --expect-exit-1 [
       "fleet",
       "--fleet-root", fleet-tmp-dir,
       "init",
@@ -51,15 +51,15 @@ run-test test-cli/TestCli:
 
   with-tmp-directory: | fleet-tmp-dir |
     // Get the current default broker.
-    default-broker := test-cli.run --json ["config", "broker", "default"]
-    test-cli.run [
+    default-broker := tester.run --json ["config", "broker", "default"]
+    tester.run [
       // Add a non-existing broker, and make it the default.
       "config", "broker", "add", "http", "--port", "1235", "testy",
     ]
-    expect-equals "testy" (test-cli.run --json ["config", "broker", "default"])
+    expect-equals "testy" (tester.run --json ["config", "broker", "default"])
 
     // Initialize a new fleet with the old broker.
-    test-cli.run [
+    tester.run [
       "fleet",
       "--fleet-root", fleet-tmp-dir,
       "init",
@@ -68,7 +68,7 @@ run-test test-cli/TestCli:
     ]
 
     // Test that we can talk to the broker.
-    test-cli.run [
+    tester.run [
       "pod", "list",
       "--fleet-root", fleet-tmp-dir,
     ]

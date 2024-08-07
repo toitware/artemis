@@ -2,7 +2,7 @@
 
 import ar
 import certificate-roots
-import cli
+import cli show *
 import encoding.base64
 import encoding.json
 import http
@@ -11,14 +11,13 @@ import net
 import supabase
 import supabase.filter show equals
 
-import artemis.cli.config as cli
-import artemis.cli.ui as ui
 import artemis.cli.config
   show
     CONFIG-ARTEMIS-DEFAULT-KEY
     CONFIG-SERVER-AUTHS-KEY
     ConfigLocalStorage
 import artemis.cli.server-config show *
+import artemis.cli.utils.supabase show *
 import artemis.shared.constants show *
 import uuid
 
@@ -37,26 +36,26 @@ interface UploadClient:
 
   upload --snapshot-uuid/string cli-snapshot/ByteArray
 
-get-artemis-config parsed/cli.Parsed config/cli.Config ui/ui.Ui -> ServerConfig:
-  result := get-server-from-config config ui --key=CONFIG-ARTEMIS-DEFAULT-KEY
+get-artemis-config --cli/Cli -> ServerConfig:
+  result := get-server-from-config --key=CONFIG-ARTEMIS-DEFAULT-KEY --cli=cli
   return result
 
 
-with-upload-client parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
-  server-config := get-artemis-config parsed config ui
+with-upload-client invocation/Invocation [block]:
+  server-config := get-artemis-config --cli=invocation.cli
   if server-config is ServerConfigSupabase:
-    with-upload-client-supabase parsed config ui block
+    with-upload-client-supabase invocation block
   else if server-config is ServerConfigHttp:
-    with-upload-client-http (server-config as ServerConfigHttp) ui block
+    with-upload-client-http (server-config as ServerConfigHttp) --cli=invocation.cli block
   else:
     throw "Unsupported server type"
 
 class UploadClientSupabase implements UploadClient:
   client_/supabase.Client
-  ui_/ui.Ui
+  cli_/Cli
 
-  constructor .client_ --ui/ui.Ui:
-    ui_ = ui
+  constructor .client_ --cli/Cli:
+    cli_ = cli
 
   close:
     client_.close
@@ -67,11 +66,13 @@ class UploadClientSupabase implements UploadClient:
       --snapshots/Map  // From chip-family to ByteArray.
       --organization-id/string?
       --force/bool:
+    ui := cli_.ui
     client_.ensure-authenticated: | reason/string |
       print "Authentication failure: $reason"
-      client_.auth.sign_in --provider="github" --ui=ui_
+      supabase-ui := SupabaseUi cli_
+      client_.auth.sign_in --provider="github" --ui=supabase-ui
 
-    ui_.info "Uploading image archive."
+    ui.info "Uploading image archive."
 
     // TODO(florian): share constants with the CLI.
     sdk-ids := client_.rest.select "sdks" --filters=[
@@ -106,9 +107,9 @@ class UploadClientSupabase implements UploadClient:
       if not existing-images.is-empty:
         existing-org := existing-images[0].get "organization_id"
         suffix := existing-org ? " in organization $existing-org" : ""
-        ui_.error "Image already exists$suffix."
-        ui_.error "Use --force to overwrite."
-        ui_.abort
+        ui.error "Image already exists$suffix."
+        ui.error "Use --force to overwrite."
+        ui.abort
 
     client_.storage.upload
         --path="service-images/$image-id"
@@ -140,9 +141,9 @@ class UploadClientSupabase implements UploadClient:
         "organization_id": organization-id,
       }
 
-    ui_.info "Successfully uploaded $service-version into service-images/$image-id."
+    ui.info "Successfully uploaded $service-version into service-images/$image-id."
 
-    ui_.info "Uploading snapshots."
+    ui.info "Uploading snapshots."
     buffer := io.Buffer
     ar-writer := ar.ArWriter buffer
     ar-writer.add AR-SNAPSHOT-HEADER "<snapshots>"
@@ -151,17 +152,17 @@ class UploadClientSupabase implements UploadClient:
     client_.storage.upload
       --path="service-snapshots/$image-id"
       --content=buffer.bytes
-    ui_.info "Successfully uploaded the snapshot."
+    ui.info "Successfully uploaded the snapshot."
 
   upload --snapshot-uuid/string cli-snapshot/ByteArray:
-    client_.ensure-authenticated: it.sign-in --provider="github" --ui=ui_
+    client_.ensure-authenticated: it.sign-in --provider="github" --cli=cli_
     client_.storage.upload
       --path="cli-snapshots/$snapshot-uuid"
       --content=cli-snapshot
 
-with-upload-client-supabase parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
-  with-supabase-client parsed config ui: | client/supabase.Client |
-    upload-client := UploadClientSupabase client --ui=ui
+with-upload-client-supabase invocation/Invocation [block]:
+  with-supabase-client invocation: | client/supabase.Client |
+    upload-client := UploadClientSupabase client --cli=invocation.cli
     try:
       block.call upload-client
     finally:
@@ -170,11 +171,11 @@ with-upload-client-supabase parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]
 class UploadClientHttp implements UploadClient:
   client_/http.Client
   server-config_/ServerConfigHttp
-  ui_/ui.Ui
+  cli_/Cli
   network_/net.Interface
 
-  constructor .server-config_ --ui/ui.Ui:
-    ui_ = ui
+  constructor .server-config_ --cli/Cli:
+    cli_ = cli
     network_ = net.open
     client_ = http.Client network_
 
@@ -227,8 +228,8 @@ class UploadClientHttp implements UploadClient:
 
     return decoded
 
-with-upload-client-http server-config/ServerConfigHttp ui/ui.Ui [block]:
-  upload-client := UploadClientHttp server-config --ui=ui
+with-upload-client-http server-config/ServerConfigHttp --cli/Cli [block]:
+  upload-client := UploadClientHttp server-config --cli=cli
   try:
     block.call upload-client
   finally:

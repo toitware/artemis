@@ -1,6 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import ar
+import cli show Cli FileStore
 import crypto.sha256
 import encoding.base64
 import encoding.ubjson
@@ -18,7 +19,6 @@ import .cache as cli
 import .device
 import .pod
 import .pod-specification
-import .ui
 import .utils
 import ..shared.utils.patch
 
@@ -91,10 +91,10 @@ class Firmware:
     may change the size of the part (and thus the ranges of the other parts),
     the process is repeated until the encoded parts do not change anymore.
   */
-  constructor --device/Device --pod/Pod --cache/cli.Cache --ui/Ui --unconfigured-content/FirmwareContent?=null:
+  constructor --device/Device --pod/Pod --cli/Cli --unconfigured-content/FirmwareContent?=null:
     sdk-version := Sdk.get-sdk-version-from --envelope-path=pod.envelope-path
     unconfigured := unconfigured-content or
-        FirmwareContent.from-envelope pod.envelope-path --cache=cache --ui=ui
+        FirmwareContent.from-envelope pod.envelope-path --cli=cli
     encoded-parts := unconfigured.encoded-parts
     device-map := {
       "device_id":       "$device.id",
@@ -112,8 +112,7 @@ class Firmware:
 
       configured := FirmwareContent.from-envelope pod.envelope-path
           --device-specific=device-specific
-          --cache=cache
-          --ui=ui
+          --cli=cli
       if configured.encoded-parts == encoded-parts:
         return Firmware configured device-specific
       encoded-parts = configured.encoded-parts
@@ -156,9 +155,9 @@ class FirmwareContent:
     list := ubjson.decode encoded-parts
     parts = list.map: FirmwarePart.encoded it
 
-  constructor.from-envelope envelope-path/string --device-specific/ByteArray?=null --cache/cli.Cache --ui/Ui:
+  constructor.from-envelope envelope-path/string --device-specific/ByteArray?=null --cli/Cli:
     sdk-version := Sdk.get-sdk-version-from --envelope-path=envelope-path
-    sdk := get-sdk sdk-version --cache=cache --ui=ui
+    sdk := get-sdk sdk-version --cli=cli
     firmware-description/Map := {:}
     if device-specific:
       with-tmp-directory: | tmp-dir/string |
@@ -279,9 +278,9 @@ class FirmwarePartConfig extends FirmwarePart:
 /**
 Stores the snapshots inside the envelope in the user's snapshot directory.
 */
-cache-snapshots --envelope-path/string --output-directory/string?=null --cache/cli.Cache --ui/Ui:
+cache-snapshots --envelope-path/string --output-directory/string?=null --cli/Cli:
   sdk-version := Sdk.get-sdk-version-from --envelope-path=envelope-path
-  sdk := get-sdk sdk-version --cache=cache --ui=ui
+  sdk := get-sdk sdk-version --cli=cli
   containers := sdk.firmware-list-containers --envelope-path=envelope-path
   with-tmp-directory: | tmp-dir/string |
     containers.do: | name/string description/Map |
@@ -296,8 +295,8 @@ cache-snapshots --envelope-path/string --output-directory/string?=null --cache/c
         cache-snapshot snapshot-content --output-directory=output-directory
 
 // A forwarding function to work around the shadowing in 'get_envelope'.
-cache-snapshots_ --envelope-path/string --cache/cli.Cache --ui/Ui:
-  cache-snapshots --envelope-path=envelope-path --cache=cache --ui=ui
+cache-snapshots_ --envelope-path/string --cli/Cli:
+  cache-snapshots --envelope-path=envelope-path --cli=cli
 
 /**
 Builds the URL for the firmware envelope for the given $sdk-version and $envelope.
@@ -332,9 +331,8 @@ If $cache-snapshots is true, then copies the contained snapshots
 // envelope.
 get-envelope -> string
     --specification/PodSpecification
-    --cache/cli.Cache
     --cache-snapshots/bool=true
-    --ui/Ui:
+    --cli/Cli:
   if is-dev-setup:
     envelope := specification.envelope
     local-sdk := os.env.get "DEV_TOIT_REPO_PATH"
@@ -363,15 +361,15 @@ get-envelope -> string
     throw "Invalid envelope URL: $url"
 
   cache-key := cache-key-envelope --url=url
-  return cache.get-file-path cache-key: | store/cli.FileStore |
+  return cli.cache.get-file-path cache-key: | store/FileStore |
     store.with-tmp-directory: | tmp-dir |
       out-path := "$tmp-dir/fw.envelope"
       is-gz-file := url.ends-with ".gz"
       if is-gz-file: out-path += ".gz"
-      download-url url --out-path=out-path --ui=ui
+      download-url url --out-path=out-path --cli=cli
       if is-gz-file:
         gunzip out-path
       envelope-path := "$tmp-dir/fw.envelope"
       if cache-snapshots:
-        cache-snapshots_ --envelope-path=envelope-path --cache=cache --ui=ui
+        cache-snapshots_ --envelope-path=envelope-path --cli=cli
       store.move envelope-path

@@ -6,26 +6,26 @@ import expect show *
 import .utils
 
 main args:
-  with-test-cli --args=args: | test-cli/TestCli |
-    run-test test-cli
+  with-tester --args=args: | tester/Tester |
+    run-test tester
 
-run-test test-cli/TestCli:
+run-test tester/Tester:
   test-start := Time.now
 
   // Some command that requires to be authenticated.
-  output := test-cli.run --expect-exit-1 ["org", "list"]
+  output := tester.run --expect-exit-1 ["org", "list"]
   expect (output.contains "Not logged in")
 
-  test-cli.run [
+  tester.run [
     "auth", "login",
     "--email", TEST-EXAMPLE-COM-EMAIL,
     "--password", TEST-EXAMPLE-COM-PASSWORD,
   ]
 
-  output = test-cli.run ["org", "list"]
+  output = tester.run ["org", "list"]
   expect-not (output.contains "Not logged in")
 
-  test-cli.run ["auth", "logout"]
+  tester.run ["auth", "logout"]
 
-  output = test-cli.run --expect-exit-1 ["org", "list"]
+  output = tester.run --expect-exit-1 ["org", "list"]
   expect (output.contains "Not logged in")

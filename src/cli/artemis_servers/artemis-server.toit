@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import cli show Cli
 import log
 import net
 import uuid
@@ -11,17 +12,16 @@ import ..auth
 import ..config
 import ..device
 import ..organization
-import ..ui
 
 /**
 An abstraction for the Artemis server.
 */
 interface ArtemisServerCli implements Authenticatable:
-  constructor network/net.Interface server-config/ServerConfig config/Config:
+  constructor network/net.Interface server-config/ServerConfig --cli/Cli:
     if server-config is ServerConfigSupabase:
-      return ArtemisServerCliSupabase network (server-config as ServerConfigSupabase) config
+      return ArtemisServerCliSupabase network (server-config as ServerConfigSupabase) --cli=cli
     if server-config is ServerConfigHttp:
-      return ArtemisServerCliHttpToit network (server-config as ServerConfigHttp) config
+      return ArtemisServerCliHttpToit network (server-config as ServerConfigHttp) --cli=cli
     throw "UNSUPPORTED ARTEMIS SERVER CONFIG"
 
   is-closed -> bool
@@ -48,7 +48,7 @@ interface ArtemisServerCli implements Authenticatable:
   /**
   Signs the user in using OAuth.
   */
-  sign-in --provider/string --ui/Ui --open-browser/bool
+  sign-in --provider/string --open-browser/bool --cli/Cli
 
   /**
   Updates the user's email and/or password.
@@ -164,11 +164,11 @@ interface ArtemisServerCli implements Authenticatable:
   */
   download-service-image image/string -> ByteArray
 
-with-server server-config/ServerConfig config/Config [block]:
+with-server server-config/ServerConfig --cli/Cli [block]:
   network := net.open
   server/ArtemisServerCli? := null
   try:
-    server = ArtemisServerCli network server-config config
+    server = ArtemisServerCli network server-config --cli=cli
     block.call server
   finally:
     if server: server.close

@@ -7,17 +7,17 @@ import .utils
 
 main args:
   with-fleet --count=0 --args=args: | fleet/TestFleet |
-    run-test fleet.test-cli
+    run-test fleet.tester
 
-run-test test-cli/TestCli:
+run-test tester/Tester:
   test-start := Time.now
 
-  backdoor := test-cli.artemis.backdoor
+  backdoor := tester.artemis.backdoor
   backdoor.install-service-images []
 
-  test-cli.login
+  tester.login
 
-  output := test-cli.run [ "sdk", "list" ]
+  output := tester.run [ "sdk", "list" ]
   /*
 ┌─────────────┬─────────────────┐
 │ SDK Version   Service Version │
@@ -59,7 +59,7 @@ run-test test-cli/TestCli:
   ]
   backdoor.install-service-images test-images
 
-  output = test-cli.run [ "sdk", "list" ]
+  output = tester.run [ "sdk", "list" ]
   /*
   ┌─────────────────┬─────────────────┐
   │ SDK Version       Service Version │
@@ -85,7 +85,7 @@ run-test test-cli/TestCli:
   expect found-v2-v2
 
   // Test filtering.
-  output = test-cli.run [ "sdk", "list", "--sdk-version", SDK-V2 ]
+  output = tester.run [ "sdk", "list", "--sdk-version", SDK-V2 ]
   /*
   ┌─────────────────┬─────────────────┐
   │ SDK Version       Service Version │
@@ -110,7 +110,7 @@ run-test test-cli/TestCli:
   expect found-v2-v2
 
   // Same for service version.
-  output = test-cli.run [ "sdk", "list", "--service-version", SERVICE-V1 ]
+  output = tester.run [ "sdk", "list", "--service-version", SERVICE-V1 ]
   /*
   ┌─────────────────┬─────────────────┐
   │ SDK Version       Service Version │
@@ -135,7 +135,7 @@ run-test test-cli/TestCli:
   expect-not found-v2-v2
 
   // Test sdk and service version.
-  output = test-cli.run [ "sdk", "list", "--sdk-version", SDK-V2, "--service-version", SERVICE-V1 ]
+  output = tester.run [ "sdk", "list", "--sdk-version", SDK-V2, "--service-version", SERVICE-V1 ]
   /*
   ┌─────────────────┬─────────────────┐
   │ SDK Version       Service Version │

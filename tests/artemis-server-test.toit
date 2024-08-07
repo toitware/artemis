@@ -2,6 +2,7 @@
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS
 
+import cli show Cli
 import expect show *
 import host.directory
 import log
@@ -35,9 +36,9 @@ main args:
 run-test artemis-server/TestArtemisServer [--authenticate]:
   server-config := artemis-server.server-config
   backdoor := artemis-server.backdoor
-  with-tmp-config: | config |
+  with-tmp-config-cli: | cli/Cli |
     network := net.open
-    server-cli := ArtemisServerCli network server-config config
+    server-cli := ArtemisServerCli network server-config --cli=cli
     authenticate.call server-cli
     hardware-id := test-create-device-in-organization server-cli backdoor
     test-notify-created server-cli backdoor --hardware-id=hardware-id

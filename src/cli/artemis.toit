@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import ar
+import cli show Cli FileStore
 import host.file
 import net
 import uuid
@@ -20,7 +21,6 @@ import .artemis-servers.artemis-server
 import .brokers.broker
 import .sdk
 import .organization
-import .ui
 import .server-config
 
 /**
@@ -30,16 +30,12 @@ class Artemis:
   artemis-server_/ArtemisServerCli? := null
   network_/net.Interface? := null
 
-  config_/Config
-  cache_/cache.Cache
-  ui_/Ui
+  cli_/Cli
   server-config/ServerConfig
   tmp-directory/string
 
-  constructor --config/Config --cache/cache.Cache --ui/Ui --.tmp-directory --.server-config:
-    config_ = config
-    cache_ = cache
-    ui_ = ui
+  constructor --cli/Cli --.tmp-directory --.server-config:
+    cli_ = cli
 
   /**
   Closes the manager.
@@ -65,10 +61,10 @@ class Artemis:
   connected-artemis-server_ --authenticated/bool=true -> ArtemisServerCli:
     if not artemis-server_:
       connect-network_
-      artemis-server_ = ArtemisServerCli network_ server-config config_
+      artemis-server_ = ArtemisServerCli network_ server-config --cli=cli_
     if authenticated:
       artemis-server_.ensure-authenticated: | error-message |
-        ui_.abort "$error-message (artemis)."
+        cli_.ui.abort "$error-message (artemis)."
     return artemis-server_
 
   /**
@@ -88,7 +84,7 @@ class Artemis:
         --sdk-version=sdk
         --service-version=service
     if versions.is-empty:
-      ui_.abort "Unsupported Artemis/SDK versions ($service/$sdk)."
+      cli_.ui.abort "Unsupported Artemis/SDK versions ($service/$sdk)."
 
   notify-created --hardware-id/uuid.Uuid:
     server := connected-artemis-server_
@@ -117,14 +113,14 @@ class Artemis:
         --artemis-config=server-config
         --chip-family=chip-family
         --word-size=word-size
-    return cache_.get-file-path service-key: | store/cache.FileStore |
+    return cli_.cache.get-file-path service-key: | store/FileStore |
       server := connected-artemis-server_ --no-authenticated
       entry := server.list-sdk-service-versions
           --organization-id=organization-id
           --sdk-version=sdk
           --service-version=service
       if entry.is-empty:
-        ui_.abort "Unsupported Artemis/SDK versions."
+        cli_.ui.abort "Unsupported Artemis/SDK versions."
       image-name := entry.first["image"]
       service-image-bytes := server.download-service-image image-name
       ar-reader := ar.ArReader.from-bytes service-image-bytes
@@ -135,7 +131,7 @@ class Artemis:
       ar-reader = ar.ArReader.from-bytes service-image-bytes
       if metadata["version"] == 1:
         if chip-family != "esp32":
-          ui_.abort "Unsupported chip family '$chip-family' for service $service and SDK $sdk."
+          cli_.ui.abort "Unsupported chip family '$chip-family' for service $service and SDK $sdk."
         ar-file := ar-reader.find "service-$(word-size).img"
         store.save ar-file.content
       else:

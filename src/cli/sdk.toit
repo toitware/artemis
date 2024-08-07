@@ -2,6 +2,7 @@
 
 import ar
 import certificate-roots
+import cli show Cli DirectoryStore
 import encoding.json
 import encoding.ubjson
 import host.file
@@ -14,9 +15,7 @@ import semver
 import system
 import writer show Writer
 
-import .cache as cli
 import .cache show cache-key-sdk
-import .ui show Ui
 import .utils
 
 class Sdk:
@@ -25,9 +24,9 @@ class Sdk:
 
   constructor .sdk-path .version:
 
-  constructor --envelope-path/string --cache/cli.Cache --ui/Ui:
+  constructor --envelope-path/string --cli/Cli:
     sdk-version := get-sdk-version-from --envelope-path=envelope-path
-    return get-sdk sdk-version --cache=cache --ui=ui
+    return get-sdk sdk-version --cli=cli
 
   is-source-build -> bool:
     return sdk-path.ends-with "build/host"
@@ -394,7 +393,7 @@ sdk-url version/string -> string:
 
 reported-local-sdk-use_/bool := false
 
-get-sdk version/string --cache/cli.Cache --ui/Ui -> Sdk:
+get-sdk version/string --cli/Cli -> Sdk:
   if is-dev-setup:
     local-sdk := os.env.get "DEV_TOIT_REPO_PATH"
     if local-sdk:
@@ -405,11 +404,11 @@ get-sdk version/string --cache/cli.Cache --ui/Ui -> Sdk:
 
   url := sdk-url version
   cache-key := cache-key-sdk --version=version
-  path := cache.get-directory-path cache-key: | store/cli.DirectoryStore |
+  path := cli.cache.get-directory-path cache-key: | store/DirectoryStore |
     with-tmp-directory: | tmp-dir |
       gzip-path := "$tmp-dir/toit.tar.gz"
       tar-path := "$tmp-dir/toit.tar"
-      download-url url --out-path=gzip-path --ui=ui
+      download-url url --out-path=gzip-path --cli=cli
       store.with-tmp-directory: | final-out-dir/string |
         // We don't use 'tar' to extract the archive, because that
         // doesn't work with the git-tar. It would fail to find the

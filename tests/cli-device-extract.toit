@@ -2,7 +2,6 @@
 
 import host.directory
 import uuid
-import artemis.cli.ui show Ui
 import artemis.cli.utils show
   read-json write-json-to-file write-yaml-to-file write-blob-to-file copy-directory
 
@@ -26,12 +25,12 @@ upload-pod -> uuid.Uuid
     --gold-name/string?=null
     --format/string
     --fleet/TestFleet
-    --tmp-dir/string="$fleet.test-cli.tmp-dir/td-$format-$(tmp-dir-counter++)"
+    --tmp-dir/string="$fleet.tester.tmp-dir/td-$format-$(tmp-dir-counter++)"
     --files/Map={:}
     --pod-spec/Map={:}
     --pod-spec-filename/string="my-pod.yaml":
 
-  fleet.test-cli.ensure-available-artemis-service
+  fleet.tester.ensure-available-artemis-service
 
   prefix := "--base-root="
   base-root/string? := null
@@ -57,7 +56,7 @@ upload-pod -> uuid.Uuid
   if not pod-spec.contains "artemis-version":
     pod-spec["artemis-version"] = TEST-ARTEMIS-VERSION
   if not pod-spec.contains "sdk-version":
-    pod-spec["sdk-version"] = fleet.test-cli.sdk-version
+    pod-spec["sdk-version"] = fleet.tester.sdk-version
   if not pod-spec.contains "extends":
     pod-spec["extends"] = ["base.yaml"]
   // The base contains the firmware-envelope entry.
@@ -85,11 +84,11 @@ upload-pod -> uuid.Uuid
   ]
 
   if gold-name:
-    fleet.test-cli.replacements[upload-result["id"]] = pad-replacement-id gold-name
-    fleet.test-cli.replacements[upload-result["name"]] = gold-name
+    fleet.tester.replacements[upload-result["id"]] = pad-replacement-id gold-name
+    fleet.tester.replacements[upload-result["name"]] = gold-name
     upload-result["tags"].do: | tag/string |
       if tag != "latest":
-        fleet.test-cli.replacements[tag] = "auto-tag"
+        fleet.tester.replacements[tag] = "auto-tag"
 
   return uuid.parse upload-result["id"]
 
@@ -109,11 +108,10 @@ create-extract-device -> TestDeviceConfig
     --files/Map
     --pod-spec/Map
     --pod-spec-filename/string="my-pod.yaml"
-    --tmp-dir/string="$fleet.test-cli.tmp-dir/td-$format"
+    --tmp-dir/string="$fleet.tester.tmp-dir/td-$format"
     --user-email/string=TEST-EXAMPLE-COM-EMAIL
     --user-password/string=TEST-EXAMPLE-COM-PASSWORD
-    --org-id/uuid.Uuid=TEST-ORGANIZATION-UUID
-    --ui/Ui=TestUi:
+    --org-id/uuid.Uuid=TEST-ORGANIZATION-UUID:
 
   upload-pod
       --format=format

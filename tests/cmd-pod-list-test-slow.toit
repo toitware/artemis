@@ -11,14 +11,14 @@ main args:
     run-test fleet
 
 run-test fleet:
-  fleet.test-cli.ensure-available-artemis-service
+  fleet.tester.ensure-available-artemis-service
 
   name := "test-pod"
 
   spec := {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "$name",
-      "sdk-version": "$fleet.test-cli.sdk-version",
+      "sdk-version": "$fleet.tester.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "firmware-envelope": "esp32",
       "connections": [

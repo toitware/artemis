@@ -15,7 +15,7 @@ create-pods name/string fleet/TestFleet --count/int -> List:
     {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
       "name": "$name",
-      "sdk-version": "$fleet.test-cli.sdk-version",
+      "sdk-version": "$fleet.tester.sdk-version",
       "artemis-version": "$TEST-ARTEMIS-VERSION",
       "firmware-envelope": "esp32",
       "connections": [
@@ -49,7 +49,7 @@ create-pods name/string fleet/TestFleet --count/int -> List:
   return [description-id, spec-ids]
 
 run-test fleet/TestFleet:
-  fleet.test-cli.ensure-available-artemis-service
+  fleet.tester.ensure-available-artemis-service
 
   pod1-name := "pod1"
   tmp := create-pods pod1-name fleet --count=3
@@ -92,7 +92,7 @@ run-test fleet/TestFleet:
   expect-equals spec2-ids[0] pods[0]["id"]
 
   pod3-id2 := spec3-ids[1]
-  fleet.test-cli.replacements["$pod3-id2"] = pad-replacement-id "POD3-ID"
+  fleet.tester.replacements["$pod3-id2"] = pad-replacement-id "POD3-ID"
   fleet.run-gold "CCA-delete-pod-id"
       "Delete a pod by id"
       [

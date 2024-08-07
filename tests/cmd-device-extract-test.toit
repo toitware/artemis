@@ -18,7 +18,7 @@ main args:
 
 run-test fleet/TestFleet --args/List:
   with-tmp-directory: | tmp-dir |
-    result := fleet.test-cli.run --json [
+    result := fleet.tester.run --json [
       "fleet", "add-device", "--output-format", "json",
     ]
     device-id := uuid.parse result["id"]
@@ -37,7 +37,7 @@ run-test fleet/TestFleet --args/List:
         --format="tar"
         --path=tar-file
 
-    test-device := fleet.test-cli.create-device
+    test-device := fleet.tester.create-device
         --alias-id=device-id
         --hardware-id=device-id  // Not really used anyway.
         --device-config=device-config

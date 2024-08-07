@@ -2,22 +2,23 @@
 
 import ar
 import certificate-roots
-import cli
+import cli show Cli Invocation
 import host.file
 import host.directory
 import supabase
 
-import artemis.cli.config as cli
-import artemis.cli.ui as ui
 import artemis.cli.config show
     CONFIG-ARTEMIS-DEFAULT-KEY
     CONFIG-SERVER-AUTHS-KEY
     ConfigLocalStorage
 import artemis.cli.server-config show *
 
-with-supabase-client parsed/cli.Parsed config/cli.Config ui/ui.Ui [block]:
-  server-config := get-server-from-config config ui --key=CONFIG-ARTEMIS-DEFAULT-KEY
-  local-storage := ConfigLocalStorage config --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
+with-supabase-client invocation/Invocation [block]:
+  cli := invocation.cli
+  server-config := get-server-from-config --key=CONFIG-ARTEMIS-DEFAULT-KEY --cli=cli
+  local-storage := ConfigLocalStorage
+      --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
+      --cli=cli
   supabase-config := server-config as supabase.ServerConfig
   client := supabase.Client
       --server-config=supabase-config

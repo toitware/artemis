@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import certificate-roots
+import cli show Cli
 import encoding.json
 import http
 import net
@@ -12,7 +13,6 @@ import ..broker
 import ...device
 import ...event
 import ...pod-registry
-import ...ui
 import ....shared.server-config
 import ....shared.utils as utils
 import ....shared.constants show *
@@ -56,7 +56,7 @@ class BrokerCliHttp implements BrokerCli:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
-  sign-in --provider/string --ui/Ui --open-browser/bool:
+  sign-in --provider/string --cli/Cli --open-browser/bool:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 

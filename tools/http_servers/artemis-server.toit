@@ -21,8 +21,8 @@ main args:
       cli.OptionInt "port" --short-name="p"
           --help="The port to listen on."
     ]
-    --run=:: | parsed/cli.Parsed |
-      broker := HttpArtemisServer parsed["port"]
+    --run=:: | invocation/cli.Invocation |
+      broker := HttpArtemisServer invocation["port"]
       broker.start
 
   root-cmd.run args
