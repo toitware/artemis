@@ -289,6 +289,7 @@ class PodSpecification:
   max-offline-seconds/int
   connections/List  // Of $ConnectionInfo.
   containers/Map  // Of name -> $Container.
+  recovery-urls/List  // Of string.
   path/string
 
   constructor.from-json --.path/string data/Map --cli/Cli:
@@ -370,6 +371,13 @@ class PodSpecification:
 
     max-offline := json-map.get-optional-duration "max-offline"
     max-offline-seconds = max-offline ? max-offline.in-s : 0
+
+    urls := json-map.get-optional-list "recovery-urls"
+    if urls:
+      urls.do: | url |
+        if url is not string:
+          format-error_ "Recovery URL in pod specification is not a string: $url"
+    recovery-urls = urls or []
 
     json-map.warn-unused
     validate_

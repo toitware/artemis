@@ -61,6 +61,13 @@
           "additionalProperties": {
             "$ref": "#/$defs/Container"
           }
+        },
+        "recovery-urls": {
+          "description": "List of URLs to use for recovery if the broker is unreachable.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

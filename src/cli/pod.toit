@@ -59,23 +59,24 @@ class Pod:
       --broker/Broker
       --cli/Cli:
     specification := parse-pod-specification-file path --cli=cli
+    if not recovery-urls.is-empty:
+      // Fleet recovery-urls are deprecated, but add them to the specification.
+      specification.recovery-urls.add-all recovery-urls
+
     return Pod.from-specification
         --organization-id=organization-id
-        --recovery-urls=recovery-urls
         --specification=specification
         --artemis=artemis
         --broker=broker
 
   constructor.from-specification
       --organization-id/uuid.Uuid
-      --recovery-urls/List
       --specification/PodSpecification
       --broker/Broker
       --artemis/Artemis:
     envelope-path := generate-envelope-path_ --tmp-directory=artemis.tmp-directory
     broker.customize-envelope
         --organization-id=organization-id
-        --recovery-urls=recovery-urls
         --output-path=envelope-path
         --artemis=artemis
         --specification=specification

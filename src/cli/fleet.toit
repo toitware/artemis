@@ -169,6 +169,8 @@ class FleetFile:
       }
 
     recovery-urls := fleet-content.get "recovery-urls" --if-absent=: []
+    if not recovery-urls.is-empty:
+      ui.warning "Fleet file '$path' contains recovery URLs. This is deprecated and will be removed in the future."
 
     return FleetFile
         --path=path
@@ -249,7 +251,8 @@ class FleetFile:
       result["migrating-from"] = migrating-from
     result["servers"] = servers.map: | server-name/string server-config/ServerConfig |
       server-config.to-json --der-serializer=: base64.encode it
-    result["recovery-urls"] = recovery-urls
+    if not recovery-urls.is-empty:
+      result["recovery-urls"] = recovery-urls
     return result
 
 class DevicesFile:
@@ -549,6 +552,10 @@ class FleetWithDevices extends Fleet:
     fleet-id := random-uuid
     recovery-urls := recovery-url-prefixes.map: | prefix |
       "$prefix/recover-$(fleet-id).json"
+
+    if not recovery-urls.is-empty:
+      ui.warning "Recovery URL configurations are deprecated and will be removed in the future."
+
     fleet-file := FleetFile
         --path="$fleet-root/$FLEET-FILE_"
         --id=fleet-id

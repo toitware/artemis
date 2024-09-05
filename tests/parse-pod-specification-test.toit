@@ -13,6 +13,7 @@ import .utils
 
 main:
   test-examples
+  test-optional
   test-custom-envelope
   test-warnings
   test-errors
@@ -69,11 +70,24 @@ VALID-SPECIFICATION ::= {
         "bar": "42"
       }
     }
-  }
+  },
+  "recovery-urls": [
+    "https://example.com/recovery",
+  ],
 }
 
 new-valid -> Map:
   return deep-copy_ VALID-SPECIFICATION
+
+test-optional:
+  spec := new-valid
+  spec.remove "max-offline"
+  spec.remove "recovery-urls"
+  spec.remove "containers"
+  spec.remove "connections"
+  test-cli := TestCli
+  PodSpecification.from-json spec --path="ignored" --cli=test-cli
+  expect-equals "" test-cli.ui.stdout.trim
 
 test-custom-envelope:
   custom-envelope := new-valid

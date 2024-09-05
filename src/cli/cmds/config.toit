@@ -135,6 +135,8 @@ create-recovery-config-commands -> List:
       --help="""
           Configure default recovery servers.
 
+          Deprecated. Store recovery urls in the pod specifications instead.
+
           Default recovery servers are automatically set when creating a new fleet. The
             URLs in the configuration are used as a prefix, with 'recover-<FLEET-ID>.json'
             appended to the URL to create the full recovery URL.
@@ -145,6 +147,8 @@ create-recovery-config-commands -> List:
   recovery-add-cmd := Command "add"
       --help="""
           Add a default recovery server.
+
+          Deprecated. Store recovery urls in the pod specifications instead.
           """
       --rest=[
         Option "url"
@@ -160,12 +164,20 @@ create-recovery-config-commands -> List:
 
   recovery-list-cmd := Command "list"
       --aliases=["ls"]
-      --help="List the recovery servers."
+      --help="""
+          List the recovery servers.
+
+          Deprecated. Store recovery urls in the pod specifications instead.
+          """
       --run=:: list-recovery-servers it
   recovery-cmd.add recovery-list-cmd
 
   recovery-remove-cmd := Command "remove"
-      --help="Remove a default recovery server."
+      --help="""
+          Remove a default recovery server.
+
+          Deprecated. Store recovery urls in the pod specifications instead.
+          """
       --options=[
         Flag "all"
             --help="Remove all servers.",
@@ -357,6 +369,8 @@ add-recovery-server invocation/Invocation:
   config := invocation.cli.config
   ui := invocation.cli.ui
 
+  ui.warning "The 'recovery' command is deprecated. Store recovery urls in the pod specifications instead."
+
   url := invocation["url"]
 
   config-key := CONFIG-RECOVERY-SERVERS-KEY
@@ -373,6 +387,8 @@ list-recovery-servers invocation/Invocation:
   config := invocation.cli.config
   ui := invocation.cli.ui
 
+  ui.warning "The 'recovery' command is deprecated. Store recovery urls in the pod specifications instead."
+
   config-key := CONFIG-RECOVERY-SERVERS-KEY
   recovery-servers := config.get config-key or []
 
@@ -386,6 +402,8 @@ remove-recovery-servers invocation/Invocation:
   config := cli.config
   ui := cli.ui
   params := invocation.parameters
+
+  ui.warning "The 'recovery' command is deprecated. Store recovery urls in the pod specifications instead."
 
   all := params["all"]
   urls := params["url"]

@@ -50,8 +50,11 @@ SPECIFICATION-FORMAT-HELP ::= """
   'connections': a list of connections, each of which must be a
       connection object. At least one connection must be provided.
       See below for the format of a connection object.
-  'containers': optional. a list of containers, each of which must be a container
+  'containers': optional. A list of containers, each of which must be a container
       object. See below for the format of a container object.
+  'recovery-urls': optional. A list of URLs to use for recovery. If a device
+      can't connect to the broker, it will try to obtain updated broker
+      information from these URLs.
 
 
   A connection object consists of the following entries:

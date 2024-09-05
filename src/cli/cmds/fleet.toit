@@ -524,6 +524,8 @@ create-fleet-commands -> List:
       --help="""
         Manage recovery URLs for the fleet.
 
+        This command is deprecated. Use entries in the pod-specification instead.
+
         Recovery servers are used when a broker is unreachable and can't
         be restored. For example, if a domain name is lost.
 
@@ -1037,6 +1039,8 @@ recovery-add invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
 
+  ui.warning "The 'recovery' command is deprecated. Use entries in the pod-specification instead."
+
   url := invocation["url"]
 
   if url.ends-with "/":
@@ -1050,6 +1054,8 @@ recovery-add invocation/Invocation:
 recovery-remove invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
+
+  ui.warning "The 'recovery' command is deprecated. Use entries in the pod-specification instead."
 
   all := invocation["all"]
   force := invocation["force"]
@@ -1074,6 +1080,8 @@ recovery-remove invocation/Invocation:
 recovery-list invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
+
+  ui.warning "The 'recovery' command is deprecated. Use entries in the pod-specification instead."
 
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     recovery-urls := fleet.recovery-urls

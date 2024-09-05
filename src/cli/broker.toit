@@ -783,7 +783,6 @@ class Broker:
   customize-envelope
       --organization-id/uuid.Uuid
       --specification/PodSpecification
-      --recovery-urls/List
       --artemis/Artemis
       --output-path/string:
     service-version := specification.artemis-version
@@ -924,7 +923,7 @@ class Broker:
 
       artemis-assets["recovery-urls"] = {
         "format": "tison",
-        "json": recovery-urls,
+        "json": specification.recovery-urls,
       }
 
       artemis-assets-path := "$tmp-dir/artemis.assets"

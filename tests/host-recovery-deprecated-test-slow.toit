@@ -78,6 +78,8 @@ main args:
     recovery-server := RecoveryServer
     recovery-server.start --fleet-id=fleet.id
 
+    fleet.run ["fleet", "recovery", "add", recovery-server.recovery-url]
+
     upload-pod
         --gold-name="recovery"
         --format="tar"
@@ -90,8 +92,7 @@ main args:
             "recovery": {
               "entrypoint": "host-recovery-source.toit",
             }
-          },
-          "recovery-urls": [recovery-server.recovery-url],
+          }
         }
     test-device/TestDevicePipe := fleet.create-host-device "test-device" --no-start
     test-device.start --env={
