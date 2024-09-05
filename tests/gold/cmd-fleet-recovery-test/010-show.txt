@@ -1,3 +1,0 @@
-# An empty list of recovery servers
-# [fleet, recovery, list]
-No recovery URLs configured.

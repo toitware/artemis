@@ -1,5 +1,0 @@
-# List the recovery servers
-# [fleet, recovery, list]
-Recovery urls:
-  http://example.com:1234/recover.json
-  https://example.com:1234/recover.json
