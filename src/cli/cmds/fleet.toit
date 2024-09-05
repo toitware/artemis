@@ -605,6 +605,7 @@ create-fleet-commands -> List:
         Option "output"
             --short-name="o"
             --help="The file to write the recovery information to."
+            --required,
       ]
       --examples=[
         Example "Export the current broker to 'recovery.json':"
@@ -1108,19 +1109,3 @@ recovery-export invocation/Invocation:
     recovery-info := fleet.recovery-info
     file.write-content --path=output recovery-info
     ui.info "Exported recovery information to '$output'."
-    recovery-urls := fleet.recovery-urls
-    if not recovery-urls.is-empty:
-      ui.info "Devices with the current recovery configuration will try to"
-      ui.info "  download it from one of the following URLs:"
-      recovery-urls.do: | url/string |
-        ui.info "- $url"
-
-      ui.emit
-          --kind=Ui.RESULT
-          --structured=: {
-            "path": output,
-            "recovery-urls": recovery-urls,
-          }
-          --text=:
-            // Don't output anything.
-            null
