@@ -264,7 +264,7 @@ update invocation/Invocation:
     pod := pod-for_ --local=local --remote=remote --fleet=fleet --cli=cli --on-absent=:
       ui.abort "No pod specified."
     fleet.update --device-id=device.id --pod=pod
-    ui.info "Update request sent to broker. The device will update when it synchronizes."
+    ui.inform "Update request sent to broker. The device will update when it synchronizes."
     ui.emit
         --kind=Ui.RESULT
         --structured=: {
@@ -286,7 +286,7 @@ default-device invocation/Invocation:
   if invocation["clear"]:
     config.remove CONFIG-DEVICE-DEFAULT-KEY
     config.write
-    ui.info "Default device cleared."
+    ui.inform "Default device cleared."
     return
 
   if device-reference and device-rest-reference:
@@ -314,7 +314,7 @@ default-device invocation/Invocation:
 make-default_ device-id/uuid.Uuid --cli/Cli:
   cli.config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
   cli.config.write
-  cli.ui.info "Default device set to $device-id."
+  cli.ui.inform "Default device set to $device-id."
 
 show invocation/Invocation:
   params := invocation.parameters
@@ -370,7 +370,7 @@ set-max-offline invocation/Invocation:
 
     fleet.broker.config-set-max-offline --device-id=device.id
           --max-offline-seconds=max-offline-seconds
-    ui.info "Request sent to broker. Max offline time will be changed when device synchronizes."
+    ui.inform "Request sent to broker. Max offline time will be changed when device synchronizes."
 
 extract-device invocation/Invocation:
   params := invocation.parameters
@@ -399,7 +399,7 @@ extract-device invocation/Invocation:
         --output=output
         --partitions=partitions
         --cli=cli
-    ui.info "Firmware successfully written to '$output'."
+    ui.inform "Firmware successfully written to '$output'."
 
 extract-device fleet-device/DeviceFleet
     --fleet/FleetWithDevices
@@ -425,7 +425,7 @@ extract-device fleet-device/DeviceFleet
           --hardware-id=device.hardware-id
     else:
       file.copy --source=identity-path --target=output
-    cli.ui.info "Wrote identity to '$output'."
+    cli.ui.inform "Wrote identity to '$output'."
     return
 
   if not pod: pod = fleet.pod-for fleet-device
@@ -444,9 +444,9 @@ extract-device fleet-device/DeviceFleet
           --device-specific-path=device-specific-path
       file.write-content --path=output bytes
       if format == "tar":
-        ui.info "Wrote tarball to '$output'."
+        ui.inform "Wrote tarball to '$output'."
       else:
-        ui.info "Wrote binary firmware to '$output'."
+        ui.inform "Wrote binary firmware to '$output'."
     else if format == "qemu":
       chip-family := Sdk.get-chip-family-from --envelope=pod.envelope
       if chip-family != "esp32":
@@ -460,7 +460,7 @@ extract-device fleet-device/DeviceFleet
           --envelope-path=pod.envelope-path
           --config-path=device-specific-path
           --partitions=partitions
-      ui.info "Wrote QEMU image to '$output'."
+      ui.inform "Wrote QEMU image to '$output'."
     else:
       ui.abort "Unknown format: $format."
 

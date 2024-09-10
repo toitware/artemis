@@ -156,9 +156,9 @@ update invocation/Invocation:
       ui.abort error-message
     exception := catch:
       authenticatable.update --email=email --password=password
-      ui.info "Successfully updated account on server '$name'."
+      ui.inform "Successfully updated account on server '$name'."
       if password:
-        ui.info "Check your email for a verification link. It might be in your spam folder."
+        ui.inform "Check your email for a verification link. It might be in your spam folder."
     if exception: ui.abort exception
 
 
@@ -211,7 +211,7 @@ sign-in invocation/Invocation --name/string --authenticatable/Authenticatable:
           --provider=params["provider"]
           --open-browser=params["open-browser"]
     if exception: ui.abort exception
-  ui.info "Successfully authenticated on server '$name'."
+  ui.inform "Successfully authenticated on server '$name'."
 
 list-servers invocation/Invocation:
   cli := invocation.cli
@@ -229,7 +229,7 @@ sign-up invocation/Invocation:
       exception := catch:
         authenticatable.sign-up --email=email --password=password
       if exception: ui.abort exception
-      ui.info "Successfully signed up on server '$name'. Check your email for a verification link."
+      ui.inform "Successfully signed up on server '$name'. Check your email for a verification link."
 
 logout invocation/Invocation:
   ui := invocation.cli.ui
@@ -239,4 +239,4 @@ logout invocation/Invocation:
       ui.abort error-message
     exception := catch: authenticatable.logout
     if exception: ui.abort exception
-    ui.info "Successfully logged out of server '$name'."
+    ui.inform "Successfully logged out of server '$name'."

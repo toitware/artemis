@@ -70,7 +70,7 @@ download invocation/Invocation:
     if sdk-version: filters.add (equals "sdk_version" "$sdk-version")
     if service-version: filters.add (equals "service_version" "$service-version")
     service-images := client.rest.select "sdk_service_versions" --filters=filters
-    ui.info "Downloading snapshots for:"
+    ui.inform "Downloading snapshots for:"
     ui.emit-table
         --kind=Ui.INFO
         --header={"sdk_version": "SDK", "service_version": "Service"}
@@ -85,7 +85,7 @@ download invocation/Invocation:
       // would still be there).
       // In that case, one would need to remove the Artemis cache.
       snapshot := cli.cache.get cache-key: | store/FileStore |
-        ui.info "Downloading $row["sdk_version"]-$row["service_version"]."
+        ui.inform "Downloading $row["sdk_version"]-$row["service_version"]."
         snapshot/ByteArray? := null
         exception := catch:
           snapshot = client.storage.download --path="service-snapshots/$image"
@@ -100,7 +100,7 @@ download invocation/Invocation:
         if not artemis-header:
           // Deprecated direct snapshot format.
           uuid := cache-snapshot snapshot --output-directory=output-directory
-          ui.info "Wrote service snapshot $uuid."
+          ui.inform "Wrote service snapshot $uuid."
         else:
           // Reset the reader.
           // We are right after the header, which should be the first file.
@@ -111,7 +111,7 @@ download invocation/Invocation:
             if file.name == AR-SNAPSHOT-HEADER:
               continue
             uuid := cache-snapshot file.content --output-directory=output-directory
-            ui.info "Wrote service snapshot $uuid."
+            ui.inform "Wrote service snapshot $uuid."
         store.save snapshot
 
     if not sdk-version and not service-version:
@@ -124,8 +124,8 @@ download invocation/Invocation:
         // entry in the Artemis cache. If the snapshot files have been deleted,
         // then one might need to remove the Artemis cache.
         cli.cache.get cache-key: | store/FileStore |
-          ui.info "Downloading $name."
+          ui.inform "Downloading $name."
           snapshot := client.storage.download --path="cli-snapshots/$name"
           uuid := cache-snapshot snapshot --output-directory=output-directory
-          ui.info "Wrote CLI snapshot $uuid."
+          ui.inform "Wrote CLI snapshot $uuid."
           store.save snapshot

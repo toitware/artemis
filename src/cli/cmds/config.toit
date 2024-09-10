@@ -299,7 +299,7 @@ add-supabase invocation/Invocation:
     config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
-  ui.info "Added broker '$name'."
+  ui.inform "Added broker '$name'."
 
 add-http invocation/Invocation:
   cli := invocation.cli
@@ -351,7 +351,7 @@ add-http invocation/Invocation:
     config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
-  ui.info "Added broker '$name'."
+  ui.inform "Added broker '$name'."
 
 add-recovery-server invocation/Invocation:
   config := invocation.cli.config
@@ -367,7 +367,7 @@ add-recovery-server invocation/Invocation:
   config[config-key] = recovery-servers
   config.write
 
-  ui.info "Added recovery server '$url'."
+  ui.inform "Added recovery server '$url'."
 
 list-recovery-servers invocation/Invocation:
   config := invocation.cli.config
@@ -398,7 +398,7 @@ remove-recovery-servers invocation/Invocation:
     recovery-servers.clear
     config[config-key] = recovery-servers
     config.write
-    ui.info "Removed all recovery servers."
+    ui.inform "Removed all recovery servers."
     return
 
   urls.do: | url |
@@ -409,4 +409,4 @@ remove-recovery-servers invocation/Invocation:
   config[config-key] = recovery-servers
   config.write
 
-  ui.info "Removed recovery server(s)."
+  ui.inform "Removed recovery server(s)."

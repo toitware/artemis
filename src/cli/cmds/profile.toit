@@ -64,4 +64,4 @@ update-profile invocation/Invocation:
 
   with-profile-server invocation: | server/ArtemisServerCli |
     server.update-profile --name=name
-    ui.info "Profile updated."
+    ui.inform "Profile updated."

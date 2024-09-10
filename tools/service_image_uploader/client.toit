@@ -72,7 +72,7 @@ class UploadClientSupabase implements UploadClient:
       supabase-ui := SupabaseUi cli_
       client_.auth.sign_in --provider="github" --ui=supabase-ui
 
-    ui.info "Uploading image archive."
+    ui.inform "Uploading image archive."
 
     // TODO(florian): share constants with the CLI.
     sdk-ids := client_.rest.select "sdks" --filters=[
@@ -141,9 +141,9 @@ class UploadClientSupabase implements UploadClient:
         "organization_id": organization-id,
       }
 
-    ui.info "Successfully uploaded $service-version into service-images/$image-id."
+    ui.inform "Successfully uploaded $service-version into service-images/$image-id."
 
-    ui.info "Uploading snapshots."
+    ui.inform "Uploading snapshots."
     buffer := io.Buffer
     ar-writer := ar.ArWriter buffer
     ar-writer.add AR-SNAPSHOT-HEADER "<snapshots>"
@@ -152,7 +152,7 @@ class UploadClientSupabase implements UploadClient:
     client_.storage.upload
       --path="service-snapshots/$image-id"
       --content=buffer.bytes
-    ui.info "Successfully uploaded the snapshot."
+    ui.inform "Successfully uploaded the snapshot."
 
   upload --snapshot-uuid/string cli-snapshot/ByteArray:
     client_.ensure-authenticated: it.sign-in --provider="github" --cli=cli_

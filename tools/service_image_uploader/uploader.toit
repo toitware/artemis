@@ -164,7 +164,7 @@ build-and-upload invocation/Invocation:
       repo-path = root
       full-service-version = service-version or ARTEMIS-VERSION
     else:
-      ui.info "Cloning repository and checking out $(commit or service-version)."
+      ui.inform "Cloning repository and checking out $(commit or service-version)."
       repo-path = "$tmp-dir/artemis"
       git.init repo-path --origin="file://$(url-encoding.encode root)"
       git.config --repository-root=repo-path
@@ -176,7 +176,7 @@ build-and-upload invocation/Invocation:
           --repository-root=repo-path
           --ref=(commit or service-version)
 
-      ui.info "Downloading packages."
+      ui.inform "Downloading packages."
       sdk.download-packages repo-path
 
       full-service-version = service-version
@@ -197,14 +197,14 @@ build-and-upload invocation/Invocation:
     service-source-paths := CHIP-FAMILIES.map: | chip-family/string |
       service-path-in-repository repo-path --chip-family=chip-family
 
-    ui.info "Generating version.toit."
+    ui.inform "Generating version.toit."
     exit-status := pipe.run-program
         --environment={"ARTEMIS_GIT_VERSION": full-service-version}
         ["make", "-C", repo-path, "rebuild-cmake"]
     if exit-status != 0: throw "make failed with exit code $(pipe.exit-code exit-status)"
 
     ar-file := "$tmp-dir/service.ar"
-    ui.info "Creating snapshot."
+    ui.inform "Creating snapshot."
 
     snapshot-paths := {:}
     CHIP-FAMILIES.do: | chip-family/string |

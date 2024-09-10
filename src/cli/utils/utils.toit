@@ -103,7 +103,7 @@ write-file path/string [block] [--on-error] -> none:
     stream.close
 
 download-url url/string --out-path/string --cli/Cli -> none:
-  cli.ui.info "Downloading $url."
+  cli.ui.inform "Downloading $url."
 
   network := net.open
   try:

@@ -245,7 +245,7 @@ upload invocation/Invocation:
     tags = [ tag ]
 
   if tags.contains "latest":
-    ui.warning "The latest tag is automatically added."
+    ui.warn "The latest tag is automatically added."
   else:
     tags.add "latest"
 
@@ -266,10 +266,10 @@ upload invocation/Invocation:
             --structured=: upload-result.to-json
       else:
         prefix := upload-result.tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
-        ui.info "$prefix $pod.name#$upload-result.revision to fleet $fleet.id."
-        ui.info "  id: $pod.id"
-        ui.info "  references:"
-        upload-result.tags.do: ui.info "    - $pod.name@$it"
+        ui.inform "$prefix $pod.name#$upload-result.revision to fleet $fleet.id."
+        ui.inform "  id: $pod.id"
+        ui.inform "  references:"
+        upload-result.tags.do: ui.inform "    - $pod.name@$it"
 
         if not upload-result.tag-errors.is-empty:
           upload-result.tag-errors.do: ui.error it
@@ -287,7 +287,7 @@ download invocation/Invocation:
   with-pod-fleet invocation: | fleet/Fleet |
     pod := fleet.download reference
     pod.write output --cli=cli
-    cli.ui.info "Downloaded pod '$reference-string' to '$output'."
+    cli.ui.inform "Downloaded pod '$reference-string' to '$output'."
 
 list invocation/Invocation:
   cli := invocation.cli
@@ -386,6 +386,6 @@ delete invocation/Invocation:
       refs := reference-strings.map: | string | PodReference.parse string --cli=cli
       fleet.delete --pod-references=refs
   if reference-strings.size == 1:
-    ui.info "Deleted pod '$(reference-strings.first)'."
+    ui.inform "Deleted pod '$(reference-strings.first)'."
   else:
-    ui.info "Deleted pods '$(reference-strings.join ", ")'."
+    ui.inform "Deleted pods '$(reference-strings.join ", ")'."

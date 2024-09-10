@@ -188,7 +188,7 @@ flash invocation/Invocation:
           --group=group
           --output-directory=tmp-dir
       fleet-device := fleet.device device-id
-      ui.info "Successfully provisioned device $fleet-device.name ($device-id)."
+      ui.inform "Successfully provisioned device $fleet-device.name ($device-id)."
 
       pod/Pod := ?
       reference/PodReference := ?
@@ -236,10 +236,10 @@ flash invocation/Invocation:
         info += ") with pod '$reference'"
         if reference.id: info += "."
         else: info += " ($pod.id)."
-        ui.info info
+        ui.inform info
       else:
-        ui.info "Simulating flash."
-        ui.info "Using the local Artemis service and not the one specified in the specification."
+        ui.inform "Simulating flash."
+        ui.inform "Using the local Artemis service and not the one specified in the specification."
         old-default := cli.config.get CONFIG-ARTEMIS-DEFAULT-KEY
         if should-make-default: make-default_ --device-id=device-id --cli=cli
         run-host
@@ -289,4 +289,4 @@ flash --station/bool invocation/Invocation:
       identity := read-base64-ubjson identity-path
       // TODO(florian): Abstract away the identity format.
       device-id := uuid.parse identity["artemis.device"]["device_id"]
-      cli.ui.info "Successfully flashed device $device-id with pod '$pod.name' ($pod.id)."
+      cli.ui.inform "Successfully flashed device $device-id with pod '$pod.name' ($pod.id)."

@@ -398,7 +398,7 @@ class Fleet:
   Also uploads the trivial patches.
   */
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
-    cli_.ui.info "Uploading pod. This may take a while."
+    cli_.ui.inform "Uploading pod. This may take a while."
 
     return broker.upload
         --pod=pod
@@ -412,7 +412,7 @@ class Fleet:
     if not pod-id:
       pod-id = get-pod-id reference
     if not broker.is-cached --pod-id=pod-id:
-      cli_.ui.info "Downloading pod '$reference'."
+      cli_.ui.inform "Downloading pod '$reference'."
     return download --pod-id=pod-id
 
   download --pod-id/uuid.Uuid -> Pod:
@@ -445,7 +445,7 @@ class Fleet:
   recovery-url-add url/string -> none:
     old-urls := fleet-file_.recovery-urls
     if old-urls.contains url:
-      cli_.ui.info "Recovery URL '$url' already exists."
+      cli_.ui.inform "Recovery URL '$url' already exists."
       return
     new-urls := old-urls + [url]
     new-file := fleet-file_.with --recovery-urls=new-urls
@@ -629,10 +629,10 @@ class FleetWithDevices extends Fleet:
       device.aliases.do: | alias/string |
         add-alias.call alias
     if ambiguous-ids.size > 0:
-      cli.ui.warning "The following names, device-ids or aliases are ambiguous:"
+      cli.ui.warn "The following names, device-ids or aliases are ambiguous:"
       ambiguous-ids.do: | id/string index-list/List |
         uuid-list := index-list.map: devices[it].id
-        cli.ui.warning "  $id maps to $(uuid-list.join ", ")"
+        cli.ui.warn "  $id maps to $(uuid-list.join ", ")"
     return result
 
   /**
@@ -677,7 +677,7 @@ class FleetWithDevices extends Fleet:
 
     // We need to notify the migrating-from brokers.
     fleet-file_.migrating-from.do: | server-name |
-      cli_.ui.info "Updating on '$server-name' broker (migration in progress)."
+      cli_.ui.inform "Updating on '$server-name' broker (migration in progress)."
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
@@ -717,11 +717,11 @@ class FleetWithDevices extends Fleet:
         --diff-bases=diff-bases
         --warn-only-trivial=not is-migrating
 
-    ui.info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
+    ui.inform "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
 
     // We need to notify the migrating-from brokers.
     fleet-file_.migrating-from.do: | server-name |
-      ui.info "Rolling out to '$server-name' broker (migration in progress)."
+      ui.inform "Rolling out to '$server-name' broker (migration in progress)."
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
@@ -735,7 +735,7 @@ class FleetWithDevices extends Fleet:
       // This also makes it possible to move forward and backward between two brokers.
       detailed-devices = old-broker.get-devices --device-ids=device-ids
       old-broker.roll-out --devices=detailed-devices.values --pods=pods --diff-bases=diff-bases
-      ui.info "Successfully rolled out to '$server-name' broker (migration in progress)."
+      ui.inform "Successfully rolled out to '$server-name' broker (migration in progress)."
 
   pod-reference-for-group name/string -> PodReference:
     return group-pods_.get name
@@ -894,7 +894,7 @@ class FleetWithDevices extends Fleet:
       fleet-device/DeviceFleet := id-to-fleet-device[device-id]
       detailed-device/DeviceDetailed? := detailed-devices.get device-id
       if not detailed-device:
-        cli_.ui.warning "Device $device-id is unknown to the broker."
+        cli_.ui.warn "Device $device-id is unknown to the broker."
         continue.do
 
       status := build-status_ detailed-device

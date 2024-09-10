@@ -276,9 +276,9 @@ class Pod:
       ]
 
       if not is-same-broker "broker" identity tmp artemis-assets-path sdk:
-        cli.ui.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
+        cli.ui.warn "The identity file and the Artemis assets in the envelope don't use the same broker"
       if not is-same-broker "artemis.broker" identity tmp artemis-assets-path sdk:
-        cli.ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
+        cli.ui.warn "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
 
     device-map := identity["artemis.device"]
     device := Device
