@@ -6,7 +6,7 @@ are delivered through the broker, it is critical that the device can reach the b
 ## Strategy
 
 The Artemis service that is installed on the devices periodically downloads its
-target configuration from the broker.
+configuration from the broker.
 
 If the device can't reach the broker, it will retry more and more aggressively.
 First it will reduce the interval between
@@ -18,7 +18,7 @@ the device attempts to reach a recovery URL. This URL can provide a new broker
 configuration, allowing the device to connect again.
 
 Being able to contact the broker means that the device can fetch new configurations,
-and, hopefully, also firmwares. However, any new firmware isn't guaranteed to be able
+and, hopefully, also firmware. However, any new firmware isn't guaranteed to be able
 to do the same. As such, Artemis only commits to a new firmware after it has
 successfully connected to the broker with the new firmware.
 
@@ -26,7 +26,7 @@ As a last resort, Artemis also uses a watchdog. If the device can't connect to t
 broker for a long time, the watchdog will trigger and reboot the device. This also
 guards against the Artemis service itself getting into a bad state.
 
-## Max Offline
+## Max offline
 
 The frequency at which Artemis contacts the broker can be configured using the
 `max-offline` setting in the pod specification. A value of `0s` means that the
@@ -98,7 +98,7 @@ Contrary to the orange state, Artemis does not always contact the recovery URL.
 In case the recovery-URL connection makes things worse Artemis only fetches
 recovery URLs 20% of the time.
 
-## Recovery URL
+## Recovery URLs
 
 Even though recovery URLs are baked into pods, they are stored as properties of
 the fleet. We don't expect recovery URLs to change often, and having them in the
