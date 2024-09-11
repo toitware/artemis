@@ -31,6 +31,21 @@ class Device:
 
   constructor --.hardware-id --.id --.organization-id:
 
+  constructor.from-json-identity identity/Map:
+    device := identity["artemis.device"]
+    hardware-id = uuid.parse device["hardware_id"]
+    id = uuid.parse device["device_id"]
+    organization-id = uuid.parse device["organization_id"]
+
+  to-json-identity -> Map:
+    return {
+      "artemis.device": {
+        "device_id"       : "$id",
+        "organization_id" : "$organization-id",
+        "hardware_id"     : "$hardware-id",
+      },
+    }
+
 /**
 A detailed version of the $Device class.
 */

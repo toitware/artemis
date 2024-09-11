@@ -409,10 +409,7 @@ extract-device fleet-device/DeviceFleet
 
   if format == "identity":
     if not identity-path:
-      fleet.write-identity-file
-          --out-path=output
-          --device-id=device.id
-          --hardware-id=device.hardware-id
+      fleet.write-identity-file device --out-path=output
     else:
       file.copy --source=identity-path --target=output
     ui.info "Wrote identity to '$output'."
