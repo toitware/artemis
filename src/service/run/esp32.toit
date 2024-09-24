@@ -14,7 +14,6 @@ import uuid
 import watchdog.provider as watchdog
 import watchdog show WatchdogServiceClient Watchdog
 
-import ..check-in show check-in-setup
 import ..device
 import ..esp32.pin-trigger
 import ..network show NetworkManager
@@ -66,7 +65,6 @@ main arguments:
       --organization-id=uuid.parse artemis-device-map["organization_id"]
       --firmware-state=config
       --storage=storage
-  check-in-setup --assets=artemis-assets --device=device
 
   recovery-urls-encoded := artemis-assets.get "recovery-urls"
   recovery-urls/List? :=
