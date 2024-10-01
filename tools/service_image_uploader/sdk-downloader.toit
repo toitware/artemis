@@ -120,4 +120,4 @@ print-path invocation/Invocation:
   else:
     path = (get-sdk sdk-version --cli=silent-cli).sdk-path
 
-  ui.result path
+  ui.emit --result path

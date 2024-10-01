@@ -645,8 +645,8 @@ init invocation/Invocation:
         --cli=cli
 
     fleet-file.recovery-urls.do: | url/string |
-      ui.inform "Added recovery URL: $url"
-    ui.inform "Fleet root '$fleet-root' initialized."
+      ui.emit --info "Added recovery URL: $url"
+    ui.emit --info "Fleet root '$fleet-root' initialized."
     ui.emit --kind=Ui.RESULT
         --structured=: {
           "id": "$fleet-file.id",
@@ -664,7 +664,7 @@ login invocation/Invocation:
   with-pod-fleet invocation: | fleet/Fleet |
     broker := fleet.broker
     broker-name := broker.server-config.name
-    ui.inform "Logging in to broker '$broker-name'."
+    ui.emit --info "Logging in to broker '$broker-name'."
     broker-authenticatable := BrokerCli broker.server-config --cli=cli
     auth-cmd.sign-in invocation --name=broker-name --authenticatable=broker-authenticatable
 
@@ -795,7 +795,7 @@ add-existing-device invocation/Invocation:
       ui.abort "Device $device-id is not in the same organization as the fleet."
 
     fleet.add-device --device-id=device.id --group=group --name=name --aliases=aliases
-    ui.inform "Added device $device-id to fleet."
+    ui.emit --info "Added device $device-id to fleet."
 
 group-list invocation/Invocation:
   cli := invocation.cli
@@ -810,8 +810,7 @@ group-list invocation/Invocation:
         "name": name,
         "pod": pod-reference.to-string,
       }
-    ui.emit-table
-      --kind=Ui.RESULT
+    ui.emit-table --result
       --header={"name": "Group", "pod": "Pod"}
       structured
 
@@ -843,7 +842,7 @@ group-add invocation/Invocation:
       ui.abort "Group '$name' already exists."
     fleet-file.group-pods[name] = pod-reference
     fleet-file.write
-    ui.inform "Added group '$name'."
+    ui.emit --info "Added group '$name'."
 
 group-update invocation/Invocation:
   cli := invocation.cli
@@ -907,7 +906,7 @@ group-update invocation/Invocation:
             --cli=cli
         executed-actions.add "Renamed group '$group' to '$name'."
     fleet-file.write
-    executed-actions.do: ui.inform it
+    executed-actions.do: ui.emit --info it
 
 group-remove invocation/Invocation:
   cli := invocation.cli
@@ -918,7 +917,7 @@ group-remove invocation/Invocation:
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     fleet-file := fleet.fleet-file_
     if not fleet-file.group-pods.contains group:
-      ui.inform "Group '$group' does not exist."
+      ui.emit --info "Group '$group' does not exist."
       return
 
     device-file := FleetWithDevices.load-devices-file fleet.root --cli=cli
@@ -932,7 +931,7 @@ group-remove invocation/Invocation:
     fleet-file.group-pods.remove group
     fleet-file.write
 
-    ui.inform "Removed group '$group'."
+    ui.emit --info "Removed group '$group'."
 
 group-move invocation/Invocation:
   cli := invocation.cli
@@ -965,7 +964,7 @@ group-move invocation/Invocation:
         --groups-to-move=groups-to-move-set
         --to=to
         --cli=cli
-    ui.inform "Moved $moved-count devices to group '$to'."
+    ui.emit --info "Moved $moved-count devices to group '$to'."
 
 move-devices_ -> int
     --fleet-root/string
@@ -998,7 +997,7 @@ create-reference invocation/Invocation:
 
   with-pod-fleet invocation: | fleet/Fleet |
     fleet.write-reference --path=output
-    ui.inform "Created reference file '$output'."
+    ui.emit --info "Created reference file '$output'."
 
 migration-start invocation/Invocation:
   cli := invocation.cli
@@ -1009,7 +1008,7 @@ migration-start invocation/Invocation:
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     new-broker := get-server-from-config --name=broker-name --cli=cli
     fleet.migration-start --broker-config=new-broker
-    ui.inform "Started migration to broker '$broker-name'. Use 'fleet status' to monitor the migration."
+    ui.emit --info "Started migration to broker '$broker-name'. Use 'fleet status' to monitor the migration."
 
 migration-stop invocation/Invocation:
   cli := invocation.cli
@@ -1021,11 +1020,11 @@ migration-stop invocation/Invocation:
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     fleet.migration-stop brokers --force=force
     if brokers.is-empty:
-      ui.inform "Stopped all migration."
+      ui.emit --info "Stopped all migration."
     else:
       quoted := brokers.map: "'$it'"
       joined := quoted.join ", "
-      ui.inform "Stopped migration for broker(s) $joined."
+      ui.emit --info "Stopped migration for broker(s) $joined."
 
 recovery-file-name --fleet-string/string -> string:
   return "recover-$(fleet-string).json"
@@ -1045,7 +1044,7 @@ recovery-add invocation/Invocation:
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     fleet.recovery-url-add url
 
-    ui.inform "Added recovery URL '$url'."
+    ui.emit --info "Added recovery URL '$url'."
 
 recovery-remove invocation/Invocation:
   cli := invocation.cli
@@ -1058,18 +1057,18 @@ recovery-remove invocation/Invocation:
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     if all:
       fleet.recovery-urls-remove-all
-      ui.inform "Removed all recovery URLs."
+      ui.emit --info "Removed all recovery URLs."
     else:
       urls.do: | url |
         if not fleet.recovery-url-remove url:
           if not force:
             ui.abort "Recovery URL '$url' not found."
           else:
-            ui.inform "Recovery URL '$url' not found."
+            ui.emit --info "Recovery URL '$url' not found."
 
       quoted := urls.map: "'$it'"
       joined := quoted.join ", "
-      ui.inform "Removed recovery URL(s) $joined."
+      ui.emit --info "Removed recovery URL(s) $joined."
 
 recovery-list invocation/Invocation:
   cli := invocation.cli
@@ -1083,7 +1082,7 @@ recovery-list invocation/Invocation:
           --text=: unreachable
     else:
       if recovery-urls.is-empty:
-        ui.result "No recovery URLs configured."
+        ui.emit --result "No recovery URLs configured."
       else:
         ui.emit-list
             --kind=Ui.RESULT
@@ -1099,13 +1098,13 @@ recovery-export invocation/Invocation:
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     recovery-info := fleet.recovery-info
     file.write-content --path=output recovery-info
-    ui.inform "Exported recovery information to '$output'."
+    ui.emit --info "Exported recovery information to '$output'."
     recovery-urls := fleet.recovery-urls
     if not recovery-urls.is-empty:
-      ui.inform "Devices with the current recovery configuration will try to"
-      ui.inform "  download it from one of the following URLs:"
+      ui.emit --info "Devices with the current recovery configuration will try to"
+      ui.emit --info "  download it from one of the following URLs:"
       recovery-urls.do: | url/string |
-        ui.inform "- $url"
+        ui.emit --info "- $url"
 
       ui.emit
           --kind=Ui.RESULT

@@ -72,7 +72,7 @@ class UploadClientSupabase implements UploadClient:
       supabase-ui := SupabaseUi cli_
       client_.auth.sign_in --provider="github" --ui=supabase-ui
 
-    ui.inform "Uploading image archive."
+    ui.emit --info "Uploading image archive."
 
     // TODO(florian): share constants with the CLI.
     sdk-ids := client_.rest.select "sdks" --filters=[
@@ -107,8 +107,8 @@ class UploadClientSupabase implements UploadClient:
       if not existing-images.is-empty:
         existing-org := existing-images[0].get "organization_id"
         suffix := existing-org ? " in organization $existing-org" : ""
-        ui.error "Image already exists$suffix."
-        ui.error "Use --force to overwrite."
+        ui.emit --error "Image already exists$suffix."
+        ui.emit --error "Use --force to overwrite."
         ui.abort
 
     client_.storage.upload
@@ -141,9 +141,9 @@ class UploadClientSupabase implements UploadClient:
         "organization_id": organization-id,
       }
 
-    ui.inform "Successfully uploaded $service-version into service-images/$image-id."
+    ui.emit --info "Successfully uploaded $service-version into service-images/$image-id."
 
-    ui.inform "Uploading snapshots."
+    ui.emit --info "Uploading snapshots."
     buffer := io.Buffer
     ar-writer := ar.ArWriter buffer
     ar-writer.add AR-SNAPSHOT-HEADER "<snapshots>"
@@ -152,7 +152,7 @@ class UploadClientSupabase implements UploadClient:
     client_.storage.upload
       --path="service-snapshots/$image-id"
       --content=buffer.bytes
-    ui.inform "Successfully uploaded the snapshot."
+    ui.emit --info "Successfully uploaded the snapshot."
 
   upload --snapshot-uuid/string cli-snapshot/ByteArray:
     client_.ensure-authenticated: it.sign-in --provider="github" --cli=cli_

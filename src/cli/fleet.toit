@@ -98,8 +98,8 @@ class FleetFile:
     fleet-content := null
     exception := catch: fleet-content = read-json path
     if exception:
-      ui.error "Fleet file '$path' is not a valid JSON."
-      ui.error exception.message
+      ui.emit --error "Fleet file '$path' is not a valid JSON."
+      ui.emit --error exception.message
       ui.abort
     if fleet-content is not Map:
       ui.abort "Fleet file '$path' has invalid format."
@@ -264,8 +264,8 @@ class DevicesFile:
     encoded-devices := null
     exception := catch: encoded-devices = read-json path
     if exception:
-      ui.error "Fleet file '$path' is not a valid JSON."
-      ui.error exception.message
+      ui.emit --error "Fleet file '$path' is not a valid JSON."
+      ui.emit --error exception.message
       ui.abort
     if encoded-devices is not Map:
       ui.abort "Fleet file '$path' has invalid format."
@@ -282,8 +282,8 @@ class DevicesFile:
             --group=(encoded-device.get "group") or DEFAULT-GROUP
         devices.add device
       if exception:
-        ui.error "Fleet file '$path' has invalid format for device ID $device-id."
-        ui.error exception.message
+        ui.emit --error "Fleet file '$path' has invalid format for device ID $device-id."
+        ui.emit --error exception.message
         ui.abort
 
     return DevicesFile path devices
@@ -375,8 +375,8 @@ class Fleet:
 
     if not file.is-file fleet-path:
       // Can only happen if the fleet-root-or-ref was a directory.
-      ui.error "Fleet root '$fleet-root-or-ref' does not contain a $FLEET-FILE_ file."
-      ui.error "Use 'init' to initialize a fleet root."
+      ui.emit --error "Fleet root '$fleet-root-or-ref' does not contain a $FLEET-FILE_ file."
+      ui.emit --error "Use 'init' to initialize a fleet root."
       ui.abort
 
     result := FleetFile.parse fleet-path
@@ -398,7 +398,7 @@ class Fleet:
   Also uploads the trivial patches.
   */
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
-    cli_.ui.inform "Uploading pod. This may take a while."
+    cli_.ui.emit --info "Uploading pod. This may take a while."
 
     return broker.upload
         --pod=pod
@@ -412,7 +412,7 @@ class Fleet:
     if not pod-id:
       pod-id = get-pod-id reference
     if not broker.is-cached --pod-id=pod-id:
-      cli_.ui.inform "Downloading pod '$reference'."
+      cli_.ui.emit --info "Downloading pod '$reference'."
     return download --pod-id=pod-id
 
   download --pod-id/uuid.Uuid -> Pod:
@@ -445,7 +445,7 @@ class Fleet:
   recovery-url-add url/string -> none:
     old-urls := fleet-file_.recovery-urls
     if old-urls.contains url:
-      cli_.ui.inform "Recovery URL '$url' already exists."
+      cli_.ui.emit --info "Recovery URL '$url' already exists."
       return
     new-urls := old-urls + [url]
     new-file := fleet-file_.with --recovery-urls=new-urls
@@ -579,8 +579,8 @@ class FleetWithDevices extends Fleet:
       ui.abort "Fleet root '$fleet-root' is not a directory."
     devices-path := "$fleet-root/$DEVICES-FILE_"
     if not file.is-file devices-path:
-      ui.error "Fleet root '$fleet-root' does not contain a $DEVICES-FILE_ file."
-      ui.error "Use 'init' to initialize a fleet root."
+      ui.emit --error "Fleet root '$fleet-root' does not contain a $DEVICES-FILE_ file."
+      ui.emit --error "Use 'init' to initialize a fleet root."
       ui.abort
 
     return DevicesFile.parse devices-path --cli=cli
@@ -629,10 +629,10 @@ class FleetWithDevices extends Fleet:
       device.aliases.do: | alias/string |
         add-alias.call alias
     if ambiguous-ids.size > 0:
-      cli.ui.warn "The following names, device-ids or aliases are ambiguous:"
+      cli.ui.emit --warning "The following names, device-ids or aliases are ambiguous:"
       ambiguous-ids.do: | id/string index-list/List |
         uuid-list := index-list.map: devices[it].id
-        cli.ui.warn "  $id maps to $(uuid-list.join ", ")"
+        cli.ui.emit --warning "  $id maps to $(uuid-list.join ", ")"
     return result
 
   /**
@@ -677,7 +677,7 @@ class FleetWithDevices extends Fleet:
 
     // We need to notify the migrating-from brokers.
     fleet-file_.migrating-from.do: | server-name |
-      cli_.ui.inform "Updating on '$server-name' broker (migration in progress)."
+      cli_.ui.emit --info "Updating on '$server-name' broker (migration in progress)."
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
@@ -717,11 +717,11 @@ class FleetWithDevices extends Fleet:
         --diff-bases=diff-bases
         --warn-only-trivial=not is-migrating
 
-    ui.inform "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
+    ui.emit --info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
 
     // We need to notify the migrating-from brokers.
     fleet-file_.migrating-from.do: | server-name |
-      ui.inform "Rolling out to '$server-name' broker (migration in progress)."
+      ui.emit --info "Rolling out to '$server-name' broker (migration in progress)."
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
@@ -735,7 +735,7 @@ class FleetWithDevices extends Fleet:
       // This also makes it possible to move forward and backward between two brokers.
       detailed-devices = old-broker.get-devices --device-ids=device-ids
       old-broker.roll-out --devices=detailed-devices.values --pods=pods --diff-bases=diff-bases
-      ui.inform "Successfully rolled out to '$server-name' broker (migration in progress)."
+      ui.emit --info "Successfully rolled out to '$server-name' broker (migration in progress)."
 
   pod-reference-for-group name/string -> PodReference:
     return group-pods_.get name
@@ -894,7 +894,7 @@ class FleetWithDevices extends Fleet:
       fleet-device/DeviceFleet := id-to-fleet-device[device-id]
       detailed-device/DeviceDetailed? := detailed-devices.get device-id
       if not detailed-device:
-        cli_.ui.warn "Device $device-id is unknown to the broker."
+        cli_.ui.emit --warning "Device $device-id is unknown to the broker."
         continue.do
 
       status := build-status_ detailed-device
@@ -985,8 +985,8 @@ class FleetWithDevices extends Fleet:
     }
     if has-unmigrated:
       header["broker"] = "Broker"
-    // TODO(florian): we shouldn't have any `ui.result` outside of `cmd` files.
-    cli_.ui.emit-table --header=header rows
+    // TODO(florian): we shouldn't have any `ui.emit --result` outside of `cmd` files.
+    cli_.ui.emit-table --result --header=header rows
 
   resolve-alias alias/string -> DeviceFleet:
     if not aliases_.contains alias:

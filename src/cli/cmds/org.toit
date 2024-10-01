@@ -248,7 +248,7 @@ with-org-server-id invocation/Invocation [block]:
 list-orgs invocation/Invocation -> none:
   with-org-server invocation: | server/ArtemisServerCli |
     orgs := server.get-organizations
-    invocation.cli.ui.emit-table
+    invocation.cli.ui.emit-table --result
           --header={"id": "ID", "name": "Name"}
           orgs.map: | org/Organization | {
             "id": "$org.id",
@@ -259,7 +259,7 @@ add-org invocation/Invocation -> none:
   should-make-default := invocation["default"]
   with-org-server invocation: | server/ArtemisServerCli |
     org := server.create-organization invocation["name"]
-    invocation.cli.ui.inform "Added organization $org.id - $org.name."
+    invocation.cli.ui.emit --info "Added organization $org.id - $org.name."
     if should-make-default: make-default_ org --cli=invocation.cli
 
 show-org invocation/Invocation -> none:
@@ -281,7 +281,7 @@ print-org org-id/uuid.Uuid server/ArtemisServerCli --cli/Cli -> none:
         }
         --text=: unreachable
   else:
-    ui.emit-map {
+    ui.emit-map --result {
       "Id": "$org.id",
       "Name": org.name,
       "Created": "$org.created-at",
@@ -295,7 +295,7 @@ default-org invocation/Invocation -> none:
   if invocation["clear"]:
     config.remove CONFIG-ORGANIZATION-DEFAULT-KEY
     config.write
-    ui.inform "Default organization cleared."
+    ui.emit --info "Default organization cleared."
     return
 
   org-id := invocation["organization-id"]
@@ -307,7 +307,7 @@ default-org invocation/Invocation -> none:
       ui.abort "No default organization set."
 
     if id-only:
-      ui.result "$org-id"
+      ui.emit --result "$org-id"
       return
 
     with-org-server invocation: | server/ArtemisServerCli |
@@ -329,7 +329,7 @@ make-default_ org/Organization --cli/Cli -> none:
 
   config[CONFIG-ORGANIZATION-DEFAULT-KEY] = "$org.id"
   config.write
-  ui.inform "Default organization set to $org.id - $org.name."
+  ui.emit --info "Default organization set to $org.id - $org.name."
 
 update-org invocation/Invocation -> none:
   ui := invocation.cli.ui
@@ -340,7 +340,7 @@ update-org invocation/Invocation -> none:
 
   with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
     server.update-organization org-id --name=name
-    ui.inform "Updated organization $org-id."
+    ui.emit --info "Updated organization $org-id."
 
 member-list invocation/Invocation -> none:
   ui := invocation.cli.ui
@@ -366,8 +366,7 @@ member-list invocation/Invocation -> none:
           a["name"].compare-to b["name"] --if-equal=:
             a["id"].compare-to b["id"]
 
-    ui.emit-table
-        --kind=Ui.RESULT
+    ui.emit-table --result
         --header={"id": "ID", "role": "Role", "name": "Name", "email": "Email"}
         result
 
@@ -385,7 +384,7 @@ member-add invocation/Invocation -> none:
         --organization-id=org-id
         --user-id=user-id
         --role=role
-    ui.inform "Added user $user-id to organization $org-id."
+    ui.emit --info "Added user $user-id to organization $org-id."
 
 member-remove invocation/Invocation -> none:
   ui := invocation.cli.ui
@@ -399,7 +398,7 @@ member-remove invocation/Invocation -> none:
       if user-id == current-user-id:
         ui.abort "Use '--force' to remove yourself from an organization."
     server.organization-member-remove --organization-id=org-id --user-id=user-id
-    ui.inform "Removed user $user-id from organization $org-id."
+    ui.emit --info "Removed user $user-id from organization $org-id."
 
 member-set-role invocation/Invocation -> none:
   ui := invocation.cli.ui
@@ -412,4 +411,4 @@ member-set-role invocation/Invocation -> none:
         --organization-id=org-id
         --user-id=user-id
         --role=role
-    ui.inform "Set role of user $user-id to $role in organization $org-id."
+    ui.emit --info "Set role of user $user-id to $role in organization $org-id."

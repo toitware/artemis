@@ -81,4 +81,4 @@ compute-fleet-root-or-ref invocation -> string:
 make-default_ --device-id/uuid.Uuid --cli/Cli:
   cli.config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
   cli.config.write
-  cli.ui.inform "Default device set to $device-id."
+  cli.ui.emit --info "Default device set to $device-id."

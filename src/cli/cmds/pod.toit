@@ -245,7 +245,7 @@ upload invocation/Invocation:
     tags = [ tag ]
 
   if tags.contains "latest":
-    ui.warn "The latest tag is automatically added."
+    ui.emit --warning "The latest tag is automatically added."
   else:
     tags.add "latest"
 
@@ -266,13 +266,13 @@ upload invocation/Invocation:
             --structured=: upload-result.to-json
       else:
         prefix := upload-result.tag-errors.is-empty ? "Successfully uploaded" : "Uploaded"
-        ui.inform "$prefix $pod.name#$upload-result.revision to fleet $fleet.id."
-        ui.inform "  id: $pod.id"
-        ui.inform "  references:"
-        upload-result.tags.do: ui.inform "    - $pod.name@$it"
+        ui.emit --info "$prefix $pod.name#$upload-result.revision to fleet $fleet.id."
+        ui.emit --info "  id: $pod.id"
+        ui.emit --info "  references:"
+        upload-result.tags.do: ui.emit --info "    - $pod.name@$it"
 
         if not upload-result.tag-errors.is-empty:
-          upload-result.tag-errors.do: ui.error it
+          upload-result.tag-errors.do: ui.emit --error it
 
       if not upload-result.tag-errors.is-empty: ui.abort
 
@@ -287,7 +287,7 @@ download invocation/Invocation:
   with-pod-fleet invocation: | fleet/Fleet |
     pod := fleet.download reference
     pod.write output --cli=cli
-    cli.ui.inform "Downloaded pod '$reference-string' to '$output'."
+    cli.ui.emit --info "Downloaded pod '$reference-string' to '$output'."
 
 list invocation/Invocation:
   cli := invocation.cli
@@ -326,11 +326,11 @@ print-pods_ pods/Map --cli/Cli -> none:
     if is-first:
       is-first = false
     else:
-      ui.result ""
+      ui.emit --result ""
     description-line := "$description.name"
     if description.description:
       description-line += " - $description.description"
-    ui.result description-line
+    ui.emit --result description-line
     rows := pod-entries.map: | entry/PodRegistryEntry |
       {
         "id": "$entry.id",
@@ -339,8 +339,7 @@ print-pods_ pods/Map --cli/Cli -> none:
         "joined_tags": entry.tags.join ",",
         "created_at": "$entry.created-at",
       }
-    ui.emit-table
-        --kind=Ui.RESULT
+    ui.emit-table --result
         --header={
           "id": "ID",
           "revision": "Revision",
@@ -386,6 +385,6 @@ delete invocation/Invocation:
       refs := reference-strings.map: | string | PodReference.parse string --cli=cli
       fleet.delete --pod-references=refs
   if reference-strings.size == 1:
-    ui.inform "Deleted pod '$(reference-strings.first)'."
+    ui.emit --info "Deleted pod '$(reference-strings.first)'."
   else:
-    ui.inform "Deleted pods '$(reference-strings.join ", ")'."
+    ui.emit --info "Deleted pods '$(reference-strings.join ", ")'."

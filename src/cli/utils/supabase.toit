@@ -12,4 +12,4 @@ class SupabaseUi implements supabase.Ui:
   constructor .cli_:
 
   info msg/string -> none:
-    cli_.ui.inform msg
+    cli_.ui.emit --info msg

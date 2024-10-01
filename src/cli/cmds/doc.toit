@@ -9,7 +9,7 @@ create-doc-commands -> List:
   specification-format-cmd := Command "specification-format"
       --help="Show the format of the pod specification file."
       --run=:: | invocation/Invocation |
-        invocation.cli.ui.result SPECIFICATION-FORMAT-HELP
+        invocation.cli.ui.emit --result SPECIFICATION-FORMAT-HELP
   cmd.add specification-format-cmd
 
   return [cmd]

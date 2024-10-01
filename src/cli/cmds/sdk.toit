@@ -61,8 +61,7 @@ list-sdks invocation/Invocation:
       "service-version": it["service_version"],
     }
 
-    invocation.cli.ui.emit-table
-        --kind=Ui.RESULT
+    invocation.cli.ui.emit-table --result
         --header={
           "sdk-version": "SDK Version",
           "service-version": "Service Version",

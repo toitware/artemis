@@ -219,7 +219,7 @@ show-config invocation/Invocation:
               auth[token-name] = auth[token-name][0..30] + "..."
         server["auth"] = auth
     if recovery-urls: result["recovery-servers"] = recovery-urls
-    ui.emit-map result
+    ui.emit-map --result result
   else:
     result := {
       "Configuration file" : config.path
@@ -237,7 +237,7 @@ show-config invocation/Invocation:
         server := result-servers.get server-name --init=: {:}
         server["auth"] = auth
     if recovery-urls: result["Recovery servers"] = recovery-urls
-    ui.emit-map result
+    ui.emit-map --result result
 
 default-server invocation/Invocation:
   cli := invocation.cli
@@ -255,7 +255,7 @@ default-server invocation/Invocation:
   if not name:
     default-server := config.get config-key
     if default-server:
-      ui.result default-server
+      ui.emit --result default-server
     else:
       ui.abort "No default broker."
     return
@@ -270,7 +270,7 @@ check-certificate_ name/string --cli/Cli -> none:
   ui := cli.ui
   certificate := certificate-roots.MAP.get name
   if certificate: return
-  ui.error "Unknown certificate."
+  ui.emit --error "Unknown certificate."
   ui.emit-list certificate-roots.MAP.keys --kind=Ui.ERROR --title="Available certificates"
   ui.abort
 
@@ -299,7 +299,7 @@ add-supabase invocation/Invocation:
     config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
-  ui.inform "Added broker '$name'."
+  ui.emit --info "Added broker '$name'."
 
 add-http invocation/Invocation:
   cli := invocation.cli
@@ -351,7 +351,7 @@ add-http invocation/Invocation:
     config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
-  ui.inform "Added broker '$name'."
+  ui.emit --info "Added broker '$name'."
 
 add-recovery-server invocation/Invocation:
   config := invocation.cli.config
@@ -367,7 +367,7 @@ add-recovery-server invocation/Invocation:
   config[config-key] = recovery-servers
   config.write
 
-  ui.inform "Added recovery server '$url'."
+  ui.emit --info "Added recovery server '$url'."
 
 list-recovery-servers invocation/Invocation:
   config := invocation.cli.config
@@ -398,7 +398,7 @@ remove-recovery-servers invocation/Invocation:
     recovery-servers.clear
     config[config-key] = recovery-servers
     config.write
-    ui.inform "Removed all recovery servers."
+    ui.emit --info "Removed all recovery servers."
     return
 
   urls.do: | url |
@@ -409,4 +409,4 @@ remove-recovery-servers invocation/Invocation:
   config[config-key] = recovery-servers
   config.write
 
-  ui.inform "Removed recovery server(s)."
+  ui.emit --info "Removed recovery server(s)."

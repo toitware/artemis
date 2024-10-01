@@ -112,7 +112,7 @@ class Git:
       run_ args --description="Fetch of $ref from $remote"
     finally: | is-exception _ |
       if is-exception:
-        cli_.ui.error "Verbose remote was: $output"
+        cli_.ui.emit --error "Verbose remote was: $output"
 
     if checkout:
       args = [
@@ -210,9 +210,9 @@ class Git:
     exit-value := pipe.wait-for pid
 
     if (pipe.exit-code exit-value) != 0:
-      cli_.ui.error "$description failed"
-      cli_.ui.error "Git arguments: $args"
-      cli_.ui.error output.bytes.to-string-non-throwing
+      cli_.ui.emit --error "$description failed"
+      cli_.ui.emit --error "Git arguments: $args"
+      cli_.ui.emit --error output.bytes.to-string-non-throwing
       cli_.ui.abort
 
     return stdout.bytes.to-string-non-throwing

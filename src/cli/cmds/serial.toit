@@ -147,8 +147,8 @@ build-partitions-table_ partition-list/List --cli/Cli -> List:
     value := description[delimiter-index + 1 ..]
     if type == "file":
       if not file.is-file value:
-        ui.error "Partition '$type:$name' refers to invalid file."
-        ui.error "No such file: $value."
+        ui.emit --error "Partition '$type:$name' refers to invalid file."
+        ui.emit --error "No such file: $value."
         ui.abort
     else:
       size := int.parse value --on-error=:
@@ -188,7 +188,7 @@ flash invocation/Invocation:
           --group=group
           --output-directory=tmp-dir
       fleet-device := fleet.device device-id
-      ui.inform "Successfully provisioned device $fleet-device.name ($device-id)."
+      ui.emit --info "Successfully provisioned device $fleet-device.name ($device-id)."
 
       pod/Pod := ?
       reference/PodReference := ?
@@ -217,7 +217,7 @@ flash invocation/Invocation:
 
       sdk := get-sdk pod.sdk-version --cli=cli
       if not simulate:
-        ui.verbose:
+        ui.emit --verbose:
           debug-line := "Flashing the device with pod $reference"
           if reference.id: debug-line += "."
           else: debug-line += " ($pod.id)."
@@ -236,10 +236,10 @@ flash invocation/Invocation:
         info += ") with pod '$reference'"
         if reference.id: info += "."
         else: info += " ($pod.id)."
-        ui.inform info
+        ui.emit --info info
       else:
-        ui.inform "Simulating flash."
-        ui.inform "Using the local Artemis service and not the one specified in the specification."
+        ui.emit --info "Simulating flash."
+        ui.emit --info "Using the local Artemis service and not the one specified in the specification."
         old-default := cli.config.get CONFIG-ARTEMIS-DEFAULT-KEY
         if should-make-default: make-default_ --device-id=device-id --cli=cli
         run-host
@@ -248,7 +248,7 @@ flash invocation/Invocation:
             --cli=cli
 
       if ui.wants-structured --kind=Ui.RESULT:
-        ui.result {
+        ui.emit --result {
               "device_id": "$device-id",
               "pod_id": "$pod.id",
               "pod_name": "$pod.name",
@@ -289,4 +289,4 @@ flash --station/bool invocation/Invocation:
       identity := read-base64-ubjson identity-path
       // TODO(florian): Abstract away the identity format.
       device-id := uuid.parse identity["artemis.device"]["device_id"]
-      cli.ui.inform "Successfully flashed device $device-id with pod '$pod.name' ($pod.id)."
+      cli.ui.emit --info "Successfully flashed device $device-id with pod '$pod.name' ($pod.id)."

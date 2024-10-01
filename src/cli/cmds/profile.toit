@@ -49,7 +49,7 @@ show-profile invocation/Invocation:
   with-profile-server invocation: | server/ArtemisServerCli |
     profile := server.get-profile
     // We recreate the map, so we don't show unnecessary entries.
-    invocation.cli.ui.result {
+    invocation.cli.ui.emit --result {
       "id": profile["id"],
       "name": profile["name"],
       "email": profile["email"],
@@ -64,4 +64,4 @@ update-profile invocation/Invocation:
 
   with-profile-server invocation: | server/ArtemisServerCli |
     server.update-profile --name=name
-    ui.inform "Profile updated."
+    ui.emit --info "Profile updated."

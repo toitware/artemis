@@ -267,7 +267,7 @@ class JsonMap:
     unused := []
     map.do --keys:
       if not used.contains it:
-        cli.ui.warn "Unused entry in $holder: $it"
+        cli.ui.emit --warning "Unused entry in $holder: $it"
 
 /**
 A specification of a pod.
@@ -304,17 +304,17 @@ class PodSpecification:
       format-error_ "Invalid sdk-version: $sdk-version"
 
     if not sdk-version:
-      ui.warn "Implicit 'sdk-version' is deprecated. Please specify 'sdk-version'."
+      ui.emit --warning "Implicit 'sdk-version' is deprecated. Please specify 'sdk-version'."
 
     chip := json-map.get-optional-string "chip"
     if not json-envelope and not chip:
-      ui.warn "Implicit envelope 'esp32' is deprecated. Please specify 'firmware-envelope'."
+      ui.emit --warning "Implicit envelope 'esp32' is deprecated. Please specify 'firmware-envelope'."
       json-envelope = "esp32"
     else if not json-envelope and chip:
-      ui.warn "The 'chip' property is deprecated. Use 'firmware-envelope' instead."
+      ui.emit --warning "The 'chip' property is deprecated. Use 'firmware-envelope' instead."
       json-envelope = chip
     else if json-envelope and chip:
-      ui.warn "The 'chip' property is deprecated and ignored. Only 'firmware-envelope' is used."
+      ui.emit --warning "The 'chip' property is deprecated and ignored. Only 'firmware-envelope' is used."
 
     envelope = json-envelope
 
@@ -659,7 +659,7 @@ class ContainerPath extends ContainerBase:
 
     git := Git --cli=cli
     cache-key := cache-key-git-app --url=git-url
-    ui.inform "Fetching '$git-url'."
+    ui.emit --info "Fetching '$git-url'."
     cached-git := cli.cache.get-directory-path cache-key: | store/DirectoryStore |
       store.with-tmp-directory: | tmp-dir/string |
         clone-dir := "$tmp-dir/checkout"
@@ -703,7 +703,7 @@ class ContainerPath extends ContainerBase:
           --repository-root=clone-dir
           --ref=git-ref
           --quiet
-      ui.inform "Compiling '$git-url'."
+      ui.emit --info "Compiling '$git-url'."
       entrypoint-path := "$clone-dir/$entrypoint"
       if not file.is-file entrypoint-path:
         ui.abort "Entry point '$entrypoint-path' does not exist."

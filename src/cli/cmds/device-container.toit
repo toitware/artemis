@@ -139,7 +139,7 @@ install-container invocation/Invocation:
         --critical=is-critical
         --triggers=triggers
         --application-path=container-path
-    ui.inform "Request sent to broker. Container will be installed when device synchronizes."
+    ui.emit --info "Request sent to broker. Container will be installed when device synchronizes."
 
 uninstall-container invocation/Invocation:
   container-name := invocation["name"]
@@ -147,4 +147,4 @@ uninstall-container invocation/Invocation:
 
   with-device invocation: | device/DeviceFleet fleet/FleetWithDevices |
     fleet.broker.container-uninstall --device-id=device.id --app-name=container-name --force=force
-    invocation.cli.ui.inform "Request sent to broker. Container will be uninstalled when device synchronizes."
+    invocation.cli.ui.emit --info "Request sent to broker. Container will be uninstalled when device synchronizes."

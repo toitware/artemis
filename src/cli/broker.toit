@@ -241,7 +241,7 @@ class Broker:
           --organization-id=organization-id
           --id=old-id
       if not downloaded:
-        cli_.ui.warn "Failed to download old firmware for patch $old-id -> $trivial-id."
+        cli_.ui.emit --warning "Failed to download old firmware for patch $old-id -> $trivial-id."
         return
       store.with-tmp-directory: | tmp-dir |
         file.write-content downloaded --path="$tmp-dir/patch"
@@ -275,7 +275,7 @@ class Broker:
           : "$diff-size-bytes B"
       from64 := base64.encode patch.from_ --url-mode
       to64 := base64.encode patch.to_ --url-mode
-      cli_.ui.inform "Uploading patch $from64 -> $to64 ($diff-size)."
+      cli_.ui.emit --info "Uploading patch $from64 -> $to64 ($diff-size)."
       broker-connection_.upload-firmware diff
           --organization-id=organization-id
           --firmware-id=diff-id
@@ -397,9 +397,9 @@ class Broker:
       if not resolved:
         has-errors = true
         if reference.tag:
-          cli_.ui.error "No pod with name '$reference.name' and tag '$reference.tag' in the fleet."
+          cli_.ui.emit --error "No pod with name '$reference.name' and tag '$reference.tag' in the fleet."
         else:
-          cli_.ui.error "No pod with name '$reference.name' and revision $reference.revision in the fleet."
+          cli_.ui.emit --error "No pod with name '$reference.name' and revision $reference.revision in the fleet."
       resolved
     if has-errors: cli_.ui.abort
     return result
@@ -552,7 +552,7 @@ class Broker:
       if base-firmwares.is-empty:
         short := short-string-for_ --device-id=device-id
         if warn-only-trivial:
-          cli_.ui.warn "Firmware of device $short is unknown. Upgrade might not use patches."
+          cli_.ui.emit --warning "Firmware of device $short is unknown. Upgrade might not use patches."
       else:
         upgrade-from = base-firmwares
     else:
@@ -583,7 +583,7 @@ class Broker:
   compute-updated-goal_ --device/Device --upgrade-from/List --pod/Pod --unconfigured-content/FirmwareContent -> Map:
     // Compute the patches and upload them.
     short := short-string-for_ --device-id=device.id
-    cli_.ui.inform "Computing and uploading patches for $short."
+    cli_.ui.emit --info "Computing and uploading patches for $short."
     upgrade-to := Firmware
         --pod=pod
         --device=device
@@ -724,7 +724,7 @@ class Broker:
       if not device.goal and not device.reported-state-firmware:
         throw "No known firmware information for device."
       new-goal := device.goal or device.reported-state-firmware
-      cli_.ui.inform "Installing container '$app-name'."
+      cli_.ui.emit --info "Installing container '$app-name'."
       apps := new-goal.get "apps" --if-absent=: {:}
       apps[app-name] = build-container-description_
           --id=id
@@ -754,7 +754,7 @@ class Broker:
         if not apps.contains app-name and not force:
           cli_.ui.abort "Container '$app-name' is not installed."
         else:
-          cli_.ui.inform "Uninstalling container '$app-name'."
+          cli_.ui.emit --info "Uninstalling container '$app-name'."
           apps.remove app-name
           if apps.is-empty: new-goal.remove "apps"
       new-goal
@@ -764,7 +764,7 @@ class Broker:
       if not device.goal and not device.reported-state-firmware:
         throw "No known firmware information for device."
       new-goal := device.goal or device.reported-state-firmware
-      cli_.ui.inform "Setting max-offline to $(Duration --s=max-offline-seconds)."
+      cli_.ui.emit --info "Setting max-offline to $(Duration --s=max-offline-seconds)."
       if max-offline-seconds > 0:
         new-goal["max-offline"] = max-offline-seconds
       else:
@@ -835,7 +835,7 @@ class Broker:
     if max-offline-seconds > 0: device-config["max-offline"] = max-offline-seconds
 
     if specification.connections.is-empty and not has-implicit-network_ envelope-chip-family:
-      cli_.ui.warn "No network connections configured."
+      cli_.ui.emit --warning "No network connections configured."
     connections := specification.connections.map: | connection/ConnectionInfo |
       connection.to-json
     device-config["connections"] = connections
@@ -895,7 +895,7 @@ class Broker:
             --critical=container.is-critical
             --runlevel=container.runlevel
             --triggers=triggers
-        cli_.ui.inform "Added container '$name' to envelope."
+        cli_.ui.emit --info "Added container '$name' to envelope."
 
       artemis-assets := {
         // TODO(florian): share the keys of the assets with the Artemis service.

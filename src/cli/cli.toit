@@ -32,7 +32,7 @@ main args --cli/Cli?:
   // tools have it too.
   if args.size == 1 and args[0] == "--version":
     if cli:
-      cli.ui.result ARTEMIS-VERSION
+      cli.ui.emit --result ARTEMIS-VERSION
     else:
       core.print ARTEMIS-VERSION
     return
@@ -45,7 +45,7 @@ main args --cli/Cli?:
         Command "version"
             --help="Show the version of the Artemis tool."
             --run=:: | invocation/Invocation |
-              invocation.cli.ui.result ARTEMIS-VERSION,
+              invocation.cli.ui.emit --result ARTEMIS-VERSION,
       ]
       --options=[
         Option "fleet-root"
@@ -91,6 +91,6 @@ main args --cli/Cli?:
       str := "$exception.value"
       if str.size > 80:
         if cli:
-          cli.ui.error "Full exception: $str"
+          cli.ui.emit --error "Full exception: $str"
         else:
           (stderr.out as io.Writer).write "Full exception: $str\n"
