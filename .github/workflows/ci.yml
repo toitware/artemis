@@ -327,6 +327,10 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Add local bin to PATH
+        run: |
+          echo "$HOME/local/bin" >> $GITHUB_PATH
+
       # Downloads the SDK that is defined in the Makefile
       # Reuses the SDK if it's already downloaded.
       - name: Setup Toit SDK
