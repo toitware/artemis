@@ -376,11 +376,11 @@ sdk-url version/string -> string:
   platform := system.platform
   platform-str/string := ?
   if platform == system.PLATFORM-LINUX:
-    if arch == "x86_64":
+    if arch == system.ARCHITECTURE-X86-64:
       platform-str = "linux"
-    else if arch == "aarch64":
+    else if arch == system.ARCHITECTURE-ARM64:
       platform-str = "aarch64"
-    else if arch == "armv7l":
+    else if arch == system.ARCHITECTURE-ARM:
       platform-str = "rpi"
     else:
       throw "Unsupported architecture: $arch"
