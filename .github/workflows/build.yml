@@ -26,7 +26,7 @@ on:
 
 env:
   SUPPORTED_SDK_VERSIONS: |
-      v2.0.0-alpha.159
+      v2.0.0-alpha.161
 
 jobs:
   build:
@@ -214,6 +214,17 @@ jobs:
               --add-file artemis build/macos/artemis 0 0 \
               out/artemis.dmg \
               empty
+
+      - name: Sign DMG
+        if: github.event_name == 'release' || inputs.sign_macos
+        uses: toitlang/action-macos-sign-notarize@v1.2.0
+        with:
+          certificate: ${{ secrets.MACOS_CERTIFICATE }}
+          certificate-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          username: ${{ secrets.AC_USERNAME }}
+          password: ${{ secrets.AC_PASSWORD }}
+          apple-team-id: 33DS2ZRDST
+          app-path: out/artemis.dmg
 
       - name: Create a ZIP
         run: |

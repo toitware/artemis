@@ -12,7 +12,6 @@ import ....shared.server-config
 create-broker-cli-supabase-http server-config/ServerConfigSupabase config/Config -> BrokerCliSupabase:
   local-storage := ConfigLocalStorage config --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
   supabase-client := supabase.Client --server-config=server-config --local-storage=local-storage
-      --certificate-provider=: certificate-roots.MAP[it]
   id := "supabase/$server-config.host"
 
   host-port := server-config.host

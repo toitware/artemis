@@ -101,6 +101,12 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   anon/string
   poll-interval/Duration := ?
 
+  // TODO(florian): clean up certificates for server configs.
+  uri -> string:
+    if root-certificate-der or root-certificate-name:
+      return "https://$host"
+    return "http://$host"
+
   /**
   The name of the root certificate.
 
