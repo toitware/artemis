@@ -372,18 +372,21 @@ Builds the URL of a released SDK with the given $version on GitHub.
 Chooses the download URL based on the current platform.
 */
 sdk-url version/string -> string:
+  arch := system.architecture
+  platform := system.platform
   platform-str/string := ?
-  if system.platform == system.PLATFORM-LINUX:
-    // TODO(florian): There should be a way to get the architecture from the core
-    //   library.
-    arch := (pipe.backticks [ "uname", "-m" ]).trim
+  if platform == system.PLATFORM-LINUX:
     if arch == "x86_64":
       platform-str = "linux"
     else if arch == "aarch64":
       platform-str = "aarch64"
+    else if arch == "armv7l":
+      platform-str = "rpi"
     else:
       throw "Unsupported architecture: $arch"
   else if system.platform == system.PLATFORM-MACOS:
+    // TODO(florian): choose the the ARM version if we are running
+    // on an ARM Mac and the version is recent enough.
     platform-str = "macos"
   else if system.platform == system.PLATFORM-WINDOWS:
     platform-str = "windows"
