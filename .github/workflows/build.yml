@@ -26,8 +26,7 @@ on:
 
 env:
   SUPPORTED_SDK_VERSIONS: |
-      v2.0.0-alpha.159
-      v2.0.0-alpha.160
+      v2.0.0-alpha.161
 
 jobs:
   build:
