@@ -253,18 +253,9 @@ class Pod:
     // Use the SDK from the pod.
     sdk := get-sdk sdk-version --cache=cache --ui=ui
 
-    // Extract the device ID from the identity file.
-    // TODO(florian): abstract the identity management.
-    identity-raw := file.read-content identity-path
+    identity := read-base64-ubjson identity-path
+    device := Device.from-json-identity identity
 
-    identity := ubjson.decode (base64.decode identity-raw)
-
-    // Since we already have the identity content, check that the artemis server
-    // is the same.
-    // This is primarily a sanity check, and we might remove the broker from the
-    // identity file in the future. Since users are not supposed to be able to
-    // change the Artemis server, there wouldn't be much left of the check.
-    // TODO(florian): remove this check?
     with-tmp-directory: | tmp/string |
       artemis-assets-path := "$tmp/artemis.assets"
       sdk.run-firmware [
@@ -275,32 +266,8 @@ class Pod:
         "artemis"
       ]
 
-      if not is-same-broker "broker" identity tmp artemis-assets-path sdk:
-        ui.warning "The identity file and the Artemis assets in the envelope don't use the same broker"
-      if not is-same-broker "artemis.broker" identity tmp artemis-assets-path sdk:
-        ui.warning "The identity file and the Artemis assets in the envelope don't use the same Artemis server"
-
-    device-map := identity["artemis.device"]
-    device := Device
-        --hardware-id=uuid.parse device-map["hardware_id"]
-        --id=uuid.parse device-map["device_id"]
-        --organization-id=uuid.parse device-map["organization_id"]
-
     // We don't really need the full firmware and just the device-specific data,
     // but by cooking the firmware we get the checksums correct.
     firmware := Firmware --pod=this --device=device --cache=cache --ui=ui
 
     return firmware.device-specific-data
-
-  static is-same-broker broker/string identity/Map tmp/string assets-path/string sdk/Sdk -> bool:
-    broker-path := "$tmp/broker.json"
-    sdk.run-assets [
-      "-e", assets-path,
-      "get", "--format=tison",
-      "-o", broker-path,
-      "broker"
-    ]
-    // TODO(kasper): This is pretty crappy.
-    x := ((json.stringify identity["broker"]) + "\n").to-byte-array
-    y := (file.read-content broker-path)
-    return x == y
