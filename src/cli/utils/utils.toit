@@ -12,6 +12,7 @@ import host.file
 import host.os
 import host.pipe
 import io
+import monitor
 import net
 import system
 import uuid
@@ -60,7 +61,10 @@ read-json path/string -> any:
 
 read-yaml path/string -> any:
   content := file.read-content path
-  return yaml.decode content
+  result := monitor.Latch
+  // Work around stack-size limit on 32-bit machines.
+  task:: result.set (yaml.decode content)
+  return result.get
 
 read-ubjson path/string -> any:
   data := file.read-content path
