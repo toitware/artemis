@@ -21,14 +21,15 @@ class Synchronizer:
     network_ = net.open
     server-socket_ = network_.tcp-listen 0
     task_ = task::
-      client-socket_ = server-socket_.accept
-      client-socket-latch_.set client-socket_
-      task_ = null
+      try:
+        client-socket_ = server-socket_.accept
+        client-socket-latch_.set client-socket_
+      finally:
+        task_ = null
 
   close:
     if task_:
       task_.cancel
-      task_ = null
     if client-socket_:
       client-socket_.close
       client-socket_ = null
