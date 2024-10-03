@@ -96,7 +96,7 @@ class TestExit:
 interface TestPrinter:
   set-test-ui_ test-ui/TestUi?
 
-class TestConsolePrinter extends cli-pkg.ConsolePrinter implements TestPrinter:
+class TestHumanPrinter extends cli-pkg.HumanPrinter implements TestPrinter:
   test-ui_/TestUi? := null
 
   print_ str/string:
@@ -134,7 +134,7 @@ class TestUi extends cli-pkg.Ui:
 
   static create-printer_ --json/bool -> cli-pkg.Printer:
     if json: return TestJsonPrinter
-    return TestConsolePrinter
+    return TestHumanPrinter
 
   abort:
     throw TestExit
