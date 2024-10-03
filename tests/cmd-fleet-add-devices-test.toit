@@ -122,5 +122,3 @@ check-identity-file identity-path/string --id/string:
   expect-equals id identity["artemis.device"]["device_id"]
   expect-equals "$TEST-ORGANIZATION-UUID" identity["artemis.device"]["organization_id"]
   expect-not-null identity["artemis.device"]["hardware_id"]
-  expect-not-null identity["artemis.broker"]
-  expect-not-null identity["broker"]

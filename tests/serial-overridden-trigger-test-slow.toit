@@ -3,10 +3,12 @@
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
 import expect show *
+import net
 import uuid
 import host.os
 
 import .serial
+import .synchronizer
 import .utils
 
 /**
@@ -15,10 +17,19 @@ Tests that overridden triggers survive deep sleeps.
 
 TEST-CODE ::= """
 import artemis-pkg.artemis
+import net
 
 main:
   print "Hello."
   reason := artemis.Container.current.trigger
+  if "\$reason".contains "boot":
+    // The host might need a bit of time before it is ready to listen to the
+    // UART, so we need to wait before printing things.
+    network := net.open
+    socket := network.tcp-connect "HOST" PORT
+    // Wait for a message from the socket.
+    socket.in.read
+    socket.close
   print "Reason: \$reason."
 
   next-trigger := ?
@@ -63,13 +74,18 @@ main args/List:
     run-test fleet serial-port wifi-ssid wifi-password
 
 run-test fleet/TestFleet serial-port/string wifi-ssid/string wifi-password/string:
+  synchronizer := Synchronizer
+  test-code := TEST-CODE
+  test-code = test-code.replace "HOST" synchronizer.ip
+  test-code = test-code.replace "PORT" "$synchronizer.port"
+
   device-id := flash-serial
       --wifi-ssid=wifi-ssid
       --wifi-password=wifi-password
       --port=serial-port
       --fleet=fleet
       --files={
-        "test.toit": TEST-CODE,
+        "test.toit": test-code,
         "test2.toit": TEST-PERIODIC-CODE,
       }
       --pod-spec={
@@ -83,6 +99,8 @@ run-test fleet/TestFleet serial-port/string wifi-ssid/string wifi-password/strin
       // Cheat by reusing the alias id.
       --hardware-id=device-id
 
+  synchronizer.signal
+
   pos := test-device.wait-for "Reason: Trigger - boot" --start-at=0
   expected-interval := 1
   // We need to wait for the synchronization to succeed (or fail) before we can
@@ -91,3 +109,5 @@ run-test fleet/TestFleet serial-port/string wifi-ssid/string wifi-password/strin
     pos = test-device.wait-for "Reason: Trigger - interval $(expected-interval)s" --start-at=pos
     expected-interval++
   test-device.wait-for "Reason: Trigger - interval $(expected-interval)s" --start-at=pos
+
+  synchronizer.close

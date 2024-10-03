@@ -318,7 +318,7 @@ jobs:
           kill $HTTP_PID
 
   serial:
-    runs-on: self-linux
+    runs-on: serial
 
     steps:
       - name: Clean workspace
@@ -327,10 +327,15 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Add local bin to PATH
+        run: |
+          echo "$HOME/local/bin" >> $GITHUB_PATH
+
       # Downloads the SDK that is defined in the Makefile
       # Reuses the SDK if it's already downloaded.
       - name: Setup Toit SDK
         run: |
+          ARCHITECTURE=$(uname -m)
           SDK_VERSION=$(make dev-sdk-version)
           TOIT_SDK=$HOME/.cache/artemis/sdks/$SDK_VERSION
 
@@ -339,8 +344,16 @@ jobs:
             echo "SDK already downloaded."
           else
             mkdir -p $HOME/.cache/artemis/sdks
-            wget https://github.com/toitlang/toit/releases/download/$SDK_VERSION/toit-linux.tar.gz
-            tar x -zf toit-linux.tar.gz
+            if [[ $ARCHITECTURE == "x86_64" ]]; then
+              TAR_BALL_NAME=toit-linux
+            elif [[ $ARCHITECTURE == "armv7l" ]]; then
+              TAR_BALL_NAME=toit-rpi
+            else
+              echo "Unsupported architecture: $ARCHITECTURE"
+              exit 1
+            fi
+            wget https://github.com/toitlang/toit/releases/download/$SDK_VERSION/$TAR_BALL_NAME.tar.gz
+            tar x -zf $TAR_BALL_NAME.tar.gz
             mv toit $TOIT_SDK
           fi
           echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_ENV
@@ -379,8 +392,8 @@ jobs:
       - name: Run serial tests
         run: |
           export ARTEMIS_TEST_SERIAL_PORT=/dev/ttyUSB0
-          export ARTEMIS_TEST_WIFI_SSID=jaguar
-          export ARTEMIS_TEST_WIFI_PASSWORD=toittoit
+          export ARTEMIS_TEST_WIFI_SSID="artemis testing"
+          export ARTEMIS_TEST_WIFI_PASSWORD="artemis testing password"
           make TOITRUN=$TOIT_EXEC test-serial
 
       # Erase the flash of the device.

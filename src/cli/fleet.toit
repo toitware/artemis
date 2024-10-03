@@ -1028,10 +1028,7 @@ class FleetWithDevices extends Fleet:
     artemis.notify-created --hardware-id=hardware-id
     broker.notify-created device
 
-    write-identity-file
-        --out-path=out-path
-        --device-id=device-id
-        --hardware-id=hardware-id
+    write-identity-file device --out-path=out-path
 
   /**
   Writes an identity file.
@@ -1039,34 +1036,8 @@ class FleetWithDevices extends Fleet:
   This file is used to build a device image and needs to be given to
     $Pod.compute-device-specific-data.
   */
-  write-identity-file -> none
-      --out-path/string
-      --device-id/uuid.Uuid
-      --hardware-id/uuid.Uuid:
-    // A map from id to DER certificates.
-    der-certificates := {:}
-
-    broker-json := server-config-to-service-json broker.server-config der-certificates
-    artemis-json := server-config-to-service-json artemis.server-config der-certificates
-
-    identity ::= {
-      "artemis.device": {
-        "device_id"       : "$device-id",
-        "organization_id" : "$organization-id",
-        "hardware_id"     : "$hardware-id",
-      },
-      "artemis.broker": artemis-json,
-      "broker": broker-json,
-    }
-
-    // Add the necessary certificates to the identity.
-    der-certificates.do: | name/string content/ByteArray |
-      // The 'server_config_to_service_json' function puts the certificates
-      // into their own namespace.
-      assert: name.starts-with "certificate-"
-      identity[name] = content
-
-    write-base64-ubjson-to-file out-path identity
+  write-identity-file --out-path/string device/Device -> none:
+    write-base64-ubjson-to-file out-path device.to-json-identity
 
   migration-start --broker-config/ServerConfig:
     // Forward to change the name of the parameter.
