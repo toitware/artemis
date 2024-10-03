@@ -63,7 +63,7 @@ with-pod-fleet invocation/Invocation [block]:
         --cli=cli
     block.call fleet
 
-compute-fleet-root-or-ref invocation -> string:
+compute-fleet-root-or-ref invocation/Invocation -> string:
   ui := invocation.cli.ui
   fleet-root := invocation["fleet-root"]  // Old deprecated argument.
   fleet-root-or-ref := invocation["fleet"]
@@ -74,7 +74,7 @@ compute-fleet-root-or-ref invocation -> string:
   // For the environment 'ARTEMIS_FLEET' wins.
   fleet-env := os.env.get "ARTEMIS_FLEET" or os.env.get "ARTEMIS_FLEET_ROOT"
   if fleet-env:
-    ui.debug "Using fleet-root '$fleet-env' provided by environment variable."
+    ui.emit --debug "Using fleet-root '$fleet-env' provided by environment variable."
     return fleet-env
   return "."
 
