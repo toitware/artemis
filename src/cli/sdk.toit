@@ -33,7 +33,7 @@ class Sdk:
     return sdk-path.ends-with "build/host"
 
   compile-to-snapshot path/string --out/string --flags/List=["-O2"] -> none:
-    if (semver.compare version "v2.0.0-alpha.159") < 0:
+    if (semver.compare version "v2.0.0-alpha.161") < 0:
       arguments := ["-w", "$out"] + flags
       run-toit-compile arguments + [path]
     else:
@@ -326,7 +326,7 @@ class Sdk:
     exit-status := pipe.run-program (executable_ "snapshot_to_image") + arguments
     if exit-status != 0: throw "snapshot_to_image tool failed with exit code $(pipe.exit-code exit-status)"
 
-  static PRE-159-EXECUTABLES ::= {
+  static PRE-161-EXECUTABLES ::= {
     "toit.compile": ["bin/toit.compile"],
     "pkg": ["bin/toit.pkg"],
     "assets": ["tools/assets"],
@@ -334,7 +334,7 @@ class Sdk:
     "snapshot_to_image": ["tools/snapshot_to_image"],
   }
 
-  static POST-159-EXECUTABLES ::= {
+  static POST-161-EXECUTABLES ::= {
     "compile": ["bin/toit", "compile"],
     "pkg": ["bin/toit", "pkg"],
     "assets": ["bin/toit", "tool", "assets"],
@@ -343,9 +343,9 @@ class Sdk:
   }
 
   executable_ name/string -> List:
-    cmd := (semver.compare version "v2.0.0-alpha.159") < 0
-        ? PRE-159-EXECUTABLES[name]
-        : POST-159-EXECUTABLES[name]
+    cmd := (semver.compare version "v2.0.0-alpha.161") < 0
+        ? PRE-161-EXECUTABLES[name]
+        : POST-161-EXECUTABLES[name]
     exe-extension := (system.platform == system.PLATFORM-WINDOWS) ? ".exe" : ""
     result := ["$sdk-path/$cmd[0]$exe-extension"] + cmd[1..]
     return result
