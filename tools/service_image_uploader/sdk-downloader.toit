@@ -82,6 +82,7 @@ compute-host-envelope -> string:
     if arch == system.ARCHITECTURE-X86-64: return "x64-windows"
   else if platform == system.PLATFORM-LINUX:
     if arch == system.ARCHITECTURE-X86-64: return "x64-linux"
+    if arch == system.ARCHITECTURE-ARM: return "arm-linux"
   else if platform == system.PLATFORM-MACOS:
     if arch == system.ARCHITECTURE-X86-64: return "x64-macos"
     if arch == system.ARCHITECTURE-ARM64: return "aarch64-macos"
