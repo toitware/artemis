@@ -118,9 +118,7 @@ with-http-broker --name="test-broker" [block]:
   port-latch := monitor.Latch
   server-task := task:: server.start port-latch
 
-  host := "localhost"
-  lan-ip := get-lan-ip
-  host = host.replace "localhost" lan-ip
+  host := get-lan-ip
 
   server-config := ServerConfigHttp name
       --host=host
