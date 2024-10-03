@@ -14,7 +14,6 @@ import watchdog show WatchdogServiceClient Watchdog
 
 import .null-watchdog
 import .null-pin-trigger
-import ..check-in show check-in-setup
 import ..device
 import ..service show run-artemis
 import ..storage show Storage
@@ -50,7 +49,6 @@ main arguments:
       --organization-id=uuid.parse artemis-device-map["organization_id"]
       --firmware-state=config
       --storage=storage
-  check-in-setup --assets=artemis-assets --device=device
 
   recovery-urls-encoded := artemis-assets.get "recovery-urls"
   recovery-urls/List? :=

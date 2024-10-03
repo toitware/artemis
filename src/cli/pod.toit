@@ -258,7 +258,7 @@ class Pod:
 
     with-tmp-directory: | tmp/string |
       artemis-assets-path := "$tmp/artemis.assets"
-      sdk.run-firmware-tool [
+      sdk.run-firmware [
         "-e", envelope-path,
         "container", "extract",
         "-o", artemis-assets-path,

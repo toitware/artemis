@@ -32,31 +32,31 @@ class Sdk:
   is-source-build -> bool:
     return sdk-path.ends-with "build/host"
 
-  compile-to-snapshot path/string --out/string -> none
-      --flags/List=["-O2"]:
-    arguments := ["-w", "$out"] + flags
-    run-toit-compile arguments + [path]
+  compile-to-snapshot path/string --out/string --flags/List=["-O2"] -> none:
+    if (semver.compare version "v2.0.0-alpha.161") < 0:
+      arguments := ["-w", "$out"] + flags
+      run-toit-compile arguments + [path]
+    else:
+      arguments := ["--snapshot", "-o", out] + flags
+      run-compile arguments + [path]
 
   compile-snapshot-to-image -> none
-      --word-size/int
       --snapshot-path/string
+      --format/string="binary"
+      --word-sizes/List
       --out/string:
-    if word-size != 32 and word-size != 64: throw "Unsupported word size: $word-size"
-    run-snapshot-to-image-tool [
+    args := [
       "-o", out,
-      "--format=binary",
-      word-size == 32 ? "-m32" : "-m64",
-      snapshot-path,
+      "--format=$format",
+      snapshot-path
     ]
-
-  download-packages dir/string -> none:
-    run-toit-pkg [
-      "install",
-      "--project-root=$dir",
-    ]
+    args += word-sizes.map: | size/int |
+      if size != 32 and size != 64: throw "Unsupported word size: $size"
+      size == 32 ? "-m32" : "-m64"
+    run-snapshot-to-image args
 
   assets-create --output-path/string assets/Map:
-    run-assets-tool [ "-e", output-path, "create" ]
+    run-assets [ "-e", output-path, "create" ]
     with-tmp-directory: | tmp-dir |
       assets.do: | asset-name/string asset-description/Map |
         asset-path/string := ?
@@ -71,7 +71,7 @@ class Sdk:
         else:
           throw "Invalid asset description: $asset-description"
         format := asset-description["format"]
-        run-assets-tool [
+        run-assets [
           "-e", output-path,
           "add",
           "--format", format,
@@ -84,7 +84,7 @@ class Sdk:
       --format/string="auto":
     with-tmp-directory: | tmp-dir |
       result-path := "$tmp-dir/$name"
-      run-assets-tool [
+      run-assets [
         "-e", assets-path,
         "get",
         "--output", result-path,
@@ -113,7 +113,7 @@ class Sdk:
     ]
     if assets: args += [ "--assets", assets ]
     if critical: args += [ "--critical" ]
-    run-firmware-tool args
+    run-firmware args
 
   /**
   Sets the property $name to $value in the given $envelope.
@@ -126,7 +126,7 @@ class Sdk:
       //   https://github.com/toitlang/toit/blob/0e1157190578f8ca6cbdb8f4ba1db9700ae44fb9/src/resources/pipe_win.cc#L459
       value = value.replace --all "\\" "\\\\"
       value = value.replace --all "\"" "\\\""
-    run-firmware-tool [
+    run-firmware [
       "property", "set",
       "-e", envelope,
       name,
@@ -191,7 +191,7 @@ class Sdk:
       ]
       if device-specific-path: args += [ "--config", device-specific-path ]
 
-      run-firmware-tool args
+      run-firmware args
       return file.read-content out-path
     unreachable
 
@@ -229,13 +229,13 @@ class Sdk:
       "--part", assets ? "assets" : "image",
       name,
     ]
-    run-firmware-tool args
+    run-firmware args
 
   chip-for --envelope-path/string -> string?:
     if (semver.compare version "v2.0.0-alpha.150") < 0:
       throw "Unsupported for SDK versions older than v2.0.0-alpha.150"
-    firmware-tool := tools-executable "firmware"
-    json-output := pipe.backticks [firmware-tool, "show", "--output-format", "json", "-e", envelope-path]
+    firmware := executable_ "firmware"
+    json-output := pipe.backticks firmware + ["show", "--output-format", "json", "-e", envelope-path]
     decoded := json.parse json-output.trim
     return decoded.get "chip"
 
@@ -267,7 +267,7 @@ class Sdk:
       arguments += [ "--baud", baud-rate ]
     if partitions and not partitions.is-empty:
       arguments += [ "--partition", partitions.join "," ]
-    run-firmware-tool arguments
+    run-firmware arguments
 
   /**
   Extracts the given $envelope-path to the given $output-path.
@@ -287,44 +287,68 @@ class Sdk:
       "--output", output-path,
       "--format", "qemu",
     ]
-    run-firmware-tool arguments
+    run-firmware arguments
 
   /**
   Installs the dependencies of the project at $project-root.
   */
   pkg-install --project-root/string:
-    run-toit-pkg [
+    run-pkg [
       "install",
       "--project-root", project-root,
     ]
 
-  run-assets-tool arguments/List -> none:
-    exit-status := pipe.run-program [tools-executable "assets"] + arguments
+  run-assets arguments/List -> none:
+    exit-status := pipe.run-program (executable_ "assets") + arguments
     if exit-status != 0: throw "assets tool failed with exit code $(pipe.exit-code exit-status)"
 
-  run-firmware-tool arguments/List -> none:
-    exit-status := pipe.run-program [tools-executable "firmware"] + arguments
+  run-firmware arguments/List -> none:
+    exit-status := pipe.run-program (executable_ "firmware") + arguments
     if exit-status != 0: throw "firmware tool failed with exit code $(pipe.exit-code exit-status)"
 
+  // Runs 'toit.compile'.
+  // This is for older SDKs only.
   run-toit-compile arguments/List -> none:
-    exit-status := pipe.run-program [bin-executable "toit.compile"] + arguments
+    exit-status := pipe.run-program (executable_ "toit.compile") + arguments
     if exit-status != 0: throw "toit.compile failed with exit code $(pipe.exit-code exit-status)"
 
-  run-toit-pkg arguments/List -> none:
-    exit-status := pipe.run-program [bin-executable "toit.pkg"] + arguments
+  // Runs 'toit compile'.
+  // This is for newer SDKs.
+  run-compile arguments/List -> none:
+    exit-status := pipe.run-program (executable_ "compile") + arguments
+    if exit-status != 0: throw "toit.compile failed with exit code $(pipe.exit-code exit-status)"
+
+  run-pkg arguments/List -> none:
+    exit-status := pipe.run-program (executable_ "pkg") + arguments
     if exit-status != 0: throw "toit.pkg failed with exit code $(pipe.exit-code exit-status)"
 
-  run-snapshot-to-image-tool arguments/List -> none:
-    exit-status := pipe.run-program [tools-executable "snapshot_to_image"] + arguments
+  run-snapshot-to-image arguments/List -> none:
+    exit-status := pipe.run-program (executable_ "snapshot_to_image") + arguments
     if exit-status != 0: throw "snapshot_to_image tool failed with exit code $(pipe.exit-code exit-status)"
 
-  tools-executable name/string -> string:
-    return "$sdk-path/tools/$name$exe-extension"
+  static PRE-161-EXECUTABLES ::= {
+    "toit.compile": ["bin/toit.compile"],
+    "pkg": ["bin/toit.pkg"],
+    "assets": ["tools/assets"],
+    "firmware": ["tools/firmware"],
+    "snapshot_to_image": ["tools/snapshot_to_image"],
+  }
 
-  bin-executable name/string -> string:
-    return "$sdk-path/bin/$name$exe-extension"
+  static POST-161-EXECUTABLES ::= {
+    "compile": ["bin/toit", "compile"],
+    "pkg": ["bin/toit", "pkg"],
+    "assets": ["bin/toit", "tool", "assets"],
+    "firmware": ["bin/toit", "tool", "firmware"],
+    "snapshot_to_image": ["bin/toit", "tool", "snapshot-to-image"],
+  }
 
-  static exe-extension ::= (system.platform == system.PLATFORM-WINDOWS) ? ".exe" : ""
+  executable_ name/string -> List:
+    cmd := (semver.compare version "v2.0.0-alpha.161") < 0
+        ? PRE-161-EXECUTABLES[name]
+        : POST-161-EXECUTABLES[name]
+    exe-extension := (system.platform == system.PLATFORM-WINDOWS) ? ".exe" : ""
+    result := ["$sdk-path/$cmd[0]$exe-extension"] + cmd[1..]
+    return result
 
   /**
   Extracts the SDK version from the given $envelope-path.
