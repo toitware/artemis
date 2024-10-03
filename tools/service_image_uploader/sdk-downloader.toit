@@ -4,7 +4,6 @@
 
 import certificate-roots
 import cli show *
-import cli.ui show PrinterBase
 import log
 import artemis.cli.pod-specification show PodSpecification INITIAL-POD-SPECIFICATION
 import artemis.cli.sdk show get-sdk

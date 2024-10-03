@@ -69,6 +69,7 @@ packages:
     path: ../tools/snapshot
     prefixes:
       ar: pkg-ar
+      cli: pkg-cli
       fs: pkg-fs
       host: pkg-host
   toit-artemis:
