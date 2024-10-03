@@ -393,7 +393,7 @@ jobs:
         run: |
           export ARTEMIS_TEST_SERIAL_PORT=/dev/ttyUSB0
           export ARTEMIS_TEST_WIFI_SSID="artemis testing"
-          export ARTEMIS_TEST_WIFI_PASSWORD="artemis testing"
+          export ARTEMIS_TEST_WIFI_PASSWORD="artemis testing password"
           make TOITRUN=$TOIT_EXEC test-serial
 
       # Erase the flash of the device.
