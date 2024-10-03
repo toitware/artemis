@@ -1,7 +1,6 @@
 sdk: ^2.0.0-alpha.144
 prefixes:
   ar: pkg-ar
-  cli: pkg-cli
   fs: pkg-fs
   host: pkg-host
 packages:
@@ -10,14 +9,6 @@ packages:
     name: ar
     version: 1.3.0
     hash: d0f3890e5c641bee93fa337fbea0710a0a72710c
-  pkg-cli:
-    url: github.com/toitlang/pkg-cli
-    name: cli
-    version: 1.8.0
-    hash: 73c8aabb60a6f5f304566a1e781d7b025aa17e9b
-    prefixes:
-      fs: pkg-fs
-      host: pkg-host
   pkg-fs:
     url: github.com/toitlang/pkg-fs
     name: fs

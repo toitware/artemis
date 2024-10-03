@@ -6,7 +6,6 @@ import fs.xdg
 import host.directory
 import host.file
 import host.os
-import cli
 import uuid
 import .utils_
 
