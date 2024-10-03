@@ -267,7 +267,7 @@ class Pod:
     // TODO(florian): remove this check?
     with-tmp-directory: | tmp/string |
       artemis-assets-path := "$tmp/artemis.assets"
-      sdk.run-firmware-tool [
+      sdk.run-firmware [
         "-e", envelope-path,
         "container", "extract",
         "-o", artemis-assets-path,
@@ -294,7 +294,7 @@ class Pod:
 
   static is-same-broker broker/string identity/Map tmp/string assets-path/string sdk/Sdk -> bool:
     broker-path := "$tmp/broker.json"
-    sdk.run-assets-tool [
+    sdk.run-assets [
       "-e", assets-path,
       "get", "--format=tison",
       "-o", broker-path,

@@ -13,7 +13,6 @@ import .artemis-server
 import .utils
 
 import artemis.cli.artemis-servers.artemis-server show ArtemisServerCli
-import artemis.service.artemis-servers.artemis-server show ArtemisServerService
 import artemis.shared.server-config show ServerConfig
 import artemis.cli.auth as cli-auth
 
@@ -42,8 +41,6 @@ run-test artemis-server/TestArtemisServer [--authenticate]:
     authenticate.call server-cli
     hardware-id := test-create-device-in-organization server-cli backdoor
     test-notify-created server-cli backdoor --hardware-id=hardware-id
-    server-service := ArtemisServerService server-config --hardware-id=hardware-id
-    test-check-in network server-service backdoor --hardware-id=hardware-id
 
     test-organizations server-cli backdoor
     test-profile server-cli backdoor
@@ -76,14 +73,6 @@ test-notify-created server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -
   expect-not (backdoor.has-event --hardware-id=hardware-id --type="created")
   server-cli.notify-created --hardware-id=hardware-id
   expect (backdoor.has-event --hardware-id=hardware-id --type="created")
-
-test-check-in network/net.Interface
-    server-service/ArtemisServerService
-    backdoor/ArtemisServerBackdoor
-    --hardware-id/uuid.Uuid:
-  expect-not (backdoor.has-event --hardware-id=hardware-id --type="ping")
-  server-service.check-in network log.default
-  expect (backdoor.has-event --hardware-id=hardware-id --type="ping")
 
 test-organizations server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   original-orgs := server-cli.get-organizations

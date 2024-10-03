@@ -177,7 +177,7 @@ build-and-upload invocation/Invocation:
           --ref=(commit or service-version)
 
       ui.emit --info "Downloading packages."
-      sdk.download-packages repo-path
+      sdk.pkg-install --project-root=repo-path
 
       full-service-version = service-version
       if commit: full-service-version += "-$commit"
@@ -242,7 +242,7 @@ create-image-archive snapshot-paths/Map --sdk/Sdk --out/string:
   ar-stream := file.Stream.for-write out
   ar-writer := ar.ArWriter ar-stream
 
-  ar-writer.add "artemis" """{ "magic": "🐅", "version": 2 }"""
+  ar-writer.add "artemis" """{ "magic": "�", "version": 2 }"""
 
   with-tmp-directory: | tmp-dir/string |
     snapshot-paths.do: | chip-family/string snapshot-path/string |
@@ -253,7 +253,7 @@ create-image-archive snapshot-paths/Map --sdk/Sdk --out/string:
         sdk.compile-snapshot-to-image
             --snapshot-path=snapshot-path
             --out=image-path
-            --word-size=word-size
+            --word-sizes=[word-size]
 
         ar-writer.add image-name (file.read-content image-path)
         if chip-family == "esp32":

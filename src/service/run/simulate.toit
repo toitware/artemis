@@ -15,7 +15,6 @@ import .null-pin-trigger
 import .null-watchdog
 import ..utils show decode-server-config
 import ..service show run-artemis
-import ..check-in show check-in-setup
 import ..device
 import ..storage show Storage
 import ..watchdog
@@ -96,7 +95,6 @@ run-host --pod/Pod --identity-path/string --cli/Cli -> none:
           --organization-id=artemis-device.organization-id
           --firmware-state=config
           --storage=storage
-      check-in-setup --assets=identity --device=device
       server-config := decode-server-config "broker" identity
       sleep-duration := run-artemis
           device
