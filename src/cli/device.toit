@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import uuid
+import uuid show Uuid
 import .firmware
 
 class Device:
@@ -12,7 +12,7 @@ class Device:
 
   This ID is generally *not* shared with the user.
   */
-  hardware-id/uuid.Uuid
+  hardware-id/Uuid
 
   /**
   The device ID.
@@ -20,22 +20,22 @@ class Device:
   This ID is the one under which users identify a device.
   It's also called "alias" in the Artemis server.
   */
-  id/uuid.Uuid
+  id/Uuid
 
   /**
   The organization ID of the device.
 
   The ID in which organization the device is registered in.
   */
-  organization-id/uuid.Uuid
+  organization-id/Uuid
 
   constructor --.hardware-id --.id --.organization-id:
 
   constructor.from-json-identity identity/Map:
     device := identity["artemis.device"]
-    hardware-id = uuid.parse device["hardware_id"]
-    id = uuid.parse device["device_id"]
-    organization-id = uuid.parse device["organization_id"]
+    hardware-id = Uuid.parse device["hardware_id"]
+    id = Uuid.parse device["device_id"]
+    organization-id = Uuid.parse device["organization_id"]
 
   to-json-identity -> Map:
     return {
@@ -110,28 +110,28 @@ class DeviceDetailed extends Device:
 
     if initial-state:
       identity := initial-state["identity"]
-      local-organization-id = uuid.parse identity["organization_id"]
-      local-hardware-id = uuid.parse identity["hardware_id"]
-      local-id = uuid.parse identity["device_id"]
+      local-organization-id = Uuid.parse identity["organization_id"]
+      local-hardware-id = Uuid.parse identity["hardware_id"]
+      local-id = Uuid.parse identity["device_id"]
     else:
       old-firmware := Firmware.encoded reported-state-firmware["firmware"]
       device := old-firmware.device-specific "artemis.device"
-      local-organization-id = uuid.parse device["organization_id"]
-      local-hardware-id = uuid.parse device["hardware_id"]
-      local-id = uuid.parse device["device_id"]
+      local-organization-id = Uuid.parse device["organization_id"]
+      local-hardware-id = Uuid.parse device["hardware_id"]
+      local-id = Uuid.parse device["device_id"]
 
     super --hardware-id=local-hardware-id --id=local-id --organization-id=local-organization-id
 
-  pod-id-firmware -> uuid.Uuid?:
+  pod-id-firmware -> Uuid?:
     return pod-id-from-state_ reported-state-firmware
 
-  pod-id-current -> uuid.Uuid?:
+  pod-id-current -> Uuid?:
     return pod-id-from-state_ reported-state-current
 
-  pod-id-goal -> uuid.Uuid?:
+  pod-id-goal -> Uuid?:
     return pod-id-from-state_ reported-state-goal
 
-  pod-id-from-state_ state/Map? -> uuid.Uuid?:
+  pod-id-from-state_ state/Map? -> Uuid?:
     if not state: return null
     if not state.contains "firmware": return null
 

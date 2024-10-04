@@ -3,7 +3,7 @@
 import crypto.sha1
 import crypto.sha256
 import encoding.base64
-import uuid
+import uuid show Uuid
 import .server-config
 
 /**
@@ -18,24 +18,24 @@ cache-key-service-image -> string
     --word-size/int:
   return "$artemis-config.cache-key/service/$service-version/$(sdk-version)-$(chip-family)-$(word-size).image"
 
-cache-key-application-image id/uuid.Uuid --broker-config/ServerConfig -> string:
+cache-key-application-image id/Uuid --broker-config/ServerConfig -> string:
   return "$broker-config.cache-key/application/images/$(id).image"
 
 cache-key-pod-parts -> string
     --broker-config/ServerConfig
-    --organization-id/uuid.Uuid
+    --organization-id/Uuid
     --part-id/string:
   return "$broker-config.cache-key/$organization-id/pod/parts/$part-id"
 
 cache-key-pod-manifest -> string
     --broker-config/ServerConfig
-    --organization-id/uuid.Uuid
-    --pod-id/uuid.Uuid:
+    --organization-id/Uuid
+    --pod-id/Uuid:
   return "$broker-config.cache-key/$organization-id/pod/manifest/$pod-id"
 
 cache-key-patch -> string
     --broker-config/ServerConfig
-    --organization-id/uuid.Uuid
+    --organization-id/Uuid
     --patch-id/string:
   return "$broker-config.cache-key/$organization-id/patches/$patch-id"
 

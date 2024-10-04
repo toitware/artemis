@@ -1,13 +1,13 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli show Cli
-import uuid
+import uuid show Uuid
 
 /**
 A reference to refer to a specific pod.
 */
 class PodReference:
-  id/uuid.Uuid?
+  id/Uuid?
   name/string?
   revision/int?
   tag/string?
@@ -65,9 +65,9 @@ class PodReference:
         str[18] == '-' and
         str[23] == '-':
       // Try to parse it as an ID.
-      id/uuid.Uuid? := null
+      id/Uuid? := null
       exception := catch:
-        id = uuid.parse str
+        id = Uuid.parse str
       if exception:
         if allow-name-only:
           name = str
@@ -118,14 +118,14 @@ class PodRegistryDescription:
     }
 
 class PodRegistryEntry:
-  id/uuid.Uuid
+  id/Uuid
   revision/int
   created-at/Time
   pod-description-id/int
   tags/List
 
   constructor.from-map map/Map:
-    id = uuid.parse map["id"]
+    id = Uuid.parse map["id"]
     revision = map["revision"]
     created-at = Time.parse map["created_at"]
     pod-description-id = map["pod_description_id"]

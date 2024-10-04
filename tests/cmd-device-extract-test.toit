@@ -5,7 +5,7 @@
 import host.file
 import expect show *
 import system
-import uuid
+import uuid show Uuid
 import .cli-device-extract show TestDeviceConfig
 import .utils
 
@@ -21,7 +21,7 @@ run-test fleet/TestFleet --args/List:
     result := fleet.tester.run --json [
       "fleet", "add-device", "--output-format", "json",
     ]
-    device-id := uuid.parse result["id"]
+    device-id := Uuid.parse result["id"]
 
     // To create a tar file we need to have an uploaded pod.
     fleet.upload-pod "extract-pod" --format="tar"

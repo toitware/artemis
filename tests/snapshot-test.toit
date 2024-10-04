@@ -5,11 +5,11 @@ import expect show *
 import host.file
 import io
 import snapshot show cache-snapshot
-import uuid
+import uuid show Uuid
 import .utils
 
 main:
-  random-uuid := uuid.uuid5 "snapshot_test" "random $Time.monotonic-us $random"
+  random-uuid := Uuid.uuid5 "snapshot_test" "random $Time.monotonic-us $random"
 
   buffer := io.Buffer
   writer := ar.ArWriter buffer

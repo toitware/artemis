@@ -6,7 +6,7 @@ import encoding.ubjson
 import encoding.base64
 import encoding.tison
 import system.assets
-import uuid
+import uuid show Uuid
 
 import watchdog.provider as watchdog
 import watchdog show Watchdog WatchdogServiceClient
@@ -62,9 +62,9 @@ run-host --pod/Pod --identity-path/string --cli/Cli -> none:
   device-identity := identity["artemis.device"]
 
   artemis-device := artemis-device.Device
-      --hardware-id=uuid.parse device-identity["hardware_id"]
-      --organization-id=uuid.parse device-identity["organization_id"]
-      --id=uuid.parse device-identity["device_id"]
+      --hardware-id=Uuid.parse device-identity["hardware_id"]
+      --organization-id=Uuid.parse device-identity["organization_id"]
+      --id=Uuid.parse device-identity["device_id"]
 
   firmware := fw.Firmware
       --pod=pod

@@ -8,7 +8,7 @@ import encoding.base64
 import encoding.ubjson
 import host.file
 import io
-import uuid
+import uuid show Uuid
 
 import .artemis
 import .broker
@@ -35,7 +35,7 @@ class Pod:
   static MAGIC-CONTENT_ ::= "frickin' sharks"
 
   envelope/ByteArray
-  id/uuid.Uuid
+  id/Uuid
   name/string
 
   envelope-path_/string? := null
@@ -52,7 +52,7 @@ class Pod:
     tmp-dir_ = tmp-directory
 
   constructor.from-specification
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --recovery-urls/List
       --path/string
       --artemis/Artemis
@@ -67,7 +67,7 @@ class Pod:
         --broker=broker
 
   constructor.from-specification
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --recovery-urls/List
       --specification/PodSpecification
       --broker/Broker
@@ -89,7 +89,7 @@ class Pod:
         --envelope-path=envelope-path
 
   constructor.from-manifest manifest/Map [--download] --tmp-directory/string:
-    id = uuid.parse manifest[ID-NAME_]
+    id = Uuid.parse manifest[ID-NAME_]
     name = manifest[NAME-NAME_]
     parts := manifest["parts"]
     byte-builder := io.Buffer
@@ -103,7 +103,7 @@ class Pod:
   static parse path/string --tmp-directory/string --cli/Cli -> Pod:
     ui := cli.ui
     read-file path --cli=cli: | reader/io.Reader |
-      id/uuid.Uuid? := null
+      id/Uuid? := null
       name/string? := null
       envelope/ByteArray? := null
 
@@ -118,7 +118,7 @@ class Pod:
         if file.name == ID-NAME_:
           if id:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple IDs."
-          id = uuid.Uuid file.content
+          id = Uuid file.content
         else if file.name == NAME-NAME_:
           if name:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple names."
@@ -137,7 +137,7 @@ class Pod:
 
   constructor.from-file
       path/string
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --recovery-urls/List
       --artemis/Artemis
       --broker/Broker

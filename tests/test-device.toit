@@ -12,7 +12,7 @@ import cli show *
 import encoding.json
 import http
 import net
-import uuid
+import uuid show Uuid
 import watchdog.provider as watchdog
 import watchdog show WatchdogServiceClient
 
@@ -112,9 +112,9 @@ class Backdoor:
       writer.out.write (json.encode "ok")
 
 run
-    --alias-id/uuid.Uuid
-    --hardware-id/uuid.Uuid
-    --organization-id/uuid.Uuid
+    --alias-id/Uuid
+    --hardware-id/Uuid
+    --organization-id/Uuid
     --encoded-firmware/string
     --broker-config-json/string:
   (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install

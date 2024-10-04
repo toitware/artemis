@@ -8,7 +8,7 @@ import log
 import net
 import encoding.json
 import encoding.base64
-import uuid
+import uuid show Uuid
 
 import ..artemis-server
 import ...config
@@ -22,7 +22,7 @@ import ....shared.constants show *
 class ArtemisServerCliHttpToit implements ArtemisServerCli:
   client_/http.Client? := ?
   server-config_/ServerConfigHttp
-  current-user-id_/uuid.Uuid? := null
+  current-user-id_/Uuid? := null
   cli_/Cli
 
   constructor network/net.Interface .server-config_/ServerConfigHttp --cli/Cli:
@@ -41,7 +41,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     if current-user-id_: return
     user-id := cli_.config.get "$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"
     if user-id:
-      current-user-id_ = uuid.parse user-id
+      current-user-id_ = Uuid.parse user-id
       return
     block.call "Not logged in"
 
@@ -56,7 +56,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       "email": email,
       "password": password,
     }
-    current-user-id_ = uuid.parse id
+    current-user-id_ = Uuid.parse id
     cli_.config["$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"] = id
     cli_.config.write
 
@@ -75,7 +75,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     cli_.config.remove "$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"
     cli_.config.write
 
-  create-device-in-organization --organization-id/uuid.Uuid --device-id/uuid.Uuid? -> Device:
+  create-device-in-organization --organization-id/Uuid --device-id/Uuid? -> Device:
     map := {
       "organization_id": "$organization-id",
     }
@@ -83,24 +83,24 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
 
     device-info := send-request_ COMMAND-CREATE-DEVICE-IN-ORGANIZATION_ map
     return Device
-        --hardware-id=uuid.parse device-info["id"]
-        --id=uuid.parse device-info["alias"]
-        --organization-id=uuid.parse device-info["organization_id"]
+        --hardware-id=Uuid.parse device-info["id"]
+        --id=Uuid.parse device-info["alias"]
+        --organization-id=Uuid.parse device-info["organization_id"]
 
-  notify-created --hardware-id/uuid.Uuid -> none:
+  notify-created --hardware-id/Uuid -> none:
     send-request_ COMMAND-NOTIFY-ARTEMIS-CREATED_ {
       "hardware_id": "$hardware-id",
       "data": { "type": "created" },
     }
 
-  get-current-user-id -> uuid.Uuid:
+  get-current-user-id -> Uuid:
     return current-user-id_
 
   get-organizations -> List:
     organizations := send-request_ COMMAND-GET-ORGANIZATIONS_ {:}
     return organizations.map: Organization.from-map it
 
-  get-organization id/uuid.Uuid -> OrganizationDetailed?:
+  get-organization id/Uuid -> OrganizationDetailed?:
     organization := send-request_ COMMAND-GET-ORGANIZATION-DETAILS_ {
       "id": "$id",
     }
@@ -113,7 +113,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     }
     return Organization.from-map organization
 
-  update-organization organization-id/uuid.Uuid --name/string -> none:
+  update-organization organization-id/Uuid --name/string -> none:
     update := {
       "name": name,
     }
@@ -122,41 +122,41 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       "update": update,
     }
 
-  get-organization-members id/uuid.Uuid -> List:
+  get-organization-members id/Uuid -> List:
     response := send-request_ COMMAND-GET-ORGANIZATION-MEMBERS_ {
       "id": "$id",
     }
     return response.map: {
-      "id": uuid.parse it["id"],
+      "id": Uuid.parse it["id"],
       "role": it["role"],
     }
 
-  organization-member-add --organization-id/uuid.Uuid --user-id/uuid.Uuid --role/string:
+  organization-member-add --organization-id/Uuid --user-id/Uuid --role/string:
     send-request_ COMMAND-ORGANIZATION-MEMBER-ADD_ {
       "organization_id": "$organization-id",
       "user_id": "$user-id",
       "role": role,
     }
 
-  organization-member-remove --organization-id/uuid.Uuid --user-id/uuid.Uuid:
+  organization-member-remove --organization-id/Uuid --user-id/Uuid:
     send-request_ COMMAND-ORGANIZATION-MEMBER-REMOVE_ {
       "organization_id": "$organization-id",
       "user_id": "$user-id",
     }
 
-  organization-member-set-role --organization-id/uuid.Uuid --user-id/uuid.Uuid --role/string:
+  organization-member-set-role --organization-id/Uuid --user-id/Uuid --role/string:
     send-request_ COMMAND-ORGANIZATION-MEMBER-SET-ROLE_ {
       "organization_id": "$organization-id",
       "user_id": "$user-id",
       "role": role,
     }
 
-  get-profile --user-id/uuid.Uuid?=null -> Map?:
+  get-profile --user-id/Uuid?=null -> Map?:
     result := send-request_ COMMAND-GET-PROFILE_ {
       "id": user-id ? "$user-id" : null,
     }
     if not result: return null
-    result["id"] = uuid.parse result["id"]
+    result["id"] = Uuid.parse result["id"]
     return result
 
   update-profile --name/string -> none:
@@ -165,7 +165,7 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     }
 
   list-sdk-service-versions -> List
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --sdk-version/string?=null
       --service-version/string?=null:
     return send-request_ COMMAND-LIST-SDK-SERVICE-VERSIONS_ {

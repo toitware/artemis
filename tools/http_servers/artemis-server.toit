@@ -2,7 +2,7 @@
 
 import artemis.shared.constants show *
 import cli
-import uuid
+import uuid show Uuid
 import encoding.base64
 import encoding.json
 
@@ -167,8 +167,8 @@ class HttpArtemisServer extends HttpServer:
     organization-id := data["organization_id"]
     alias := data.get "alias"
 
-    hardware-id := "$(uuid.uuid5 "" "hardware_id - $Time.monotonic-us")"
-    alias-id := alias or "$(uuid.uuid5 "" "alias_id - $Time.monotonic-us")"
+    hardware-id := "$(Uuid.uuid5 "" "hardware_id - $Time.monotonic-us")"
+    alias-id := alias or "$(Uuid.uuid5 "" "alias_id - $Time.monotonic-us")"
 
     devices.do: | key entry/DeviceEntry |
       if entry.alias == alias-id:
@@ -187,7 +187,7 @@ class HttpArtemisServer extends HttpServer:
     devices.remove hardware-id
 
   create-user --email/string --name/string --id/string?=null -> string:
-    if not id: id = (uuid.uuid5 "" "user_id - $Time.monotonic-us").stringify
+    if not id: id = (Uuid.uuid5 "" "user_id - $Time.monotonic-us").stringify
     user := User id --email=email --name=name
     users[id] = user
     return id
@@ -210,7 +210,7 @@ class HttpArtemisServer extends HttpServer:
 
   create-organization data/Map user-id/string? -> Map:
     if not user-id: throw "Not logged in"
-    id := "$(uuid.uuid5 "" "organization_id - $Time.monotonic-us")"
+    id := "$(Uuid.uuid5 "" "organization_id - $Time.monotonic-us")"
     name := data["name"]
     organization := create-organization --id=id --name=name --admin-id=user-id
     return organization.to-json

@@ -4,7 +4,7 @@ import ar
 import cli show Cli FileStore
 import host.file
 import net
-import uuid
+import uuid show Uuid
 
 import encoding.base64
 import encoding.ubjson
@@ -77,7 +77,7 @@ class Artemis:
   Checks whether the given $sdk version and $service version is supported by
     the Artemis server.
   */
-  check-is-supported-version_ --organization-id/uuid.Uuid --sdk/string?=null --service/string?=null:
+  check-is-supported-version_ --organization-id/Uuid --sdk/string?=null --service/string?=null:
     server := connected-artemis-server_
     versions := server.list-sdk-service-versions
         --organization-id=organization-id
@@ -86,11 +86,11 @@ class Artemis:
     if versions.is-empty:
       cli_.ui.abort "Unsupported Artemis/SDK versions ($service/$sdk)."
 
-  notify-created --hardware-id/uuid.Uuid:
+  notify-created --hardware-id/Uuid:
     server := connected-artemis-server_
     server.notify-created --hardware-id=hardware-id
 
-  create-device --device-id/uuid.Uuid? --organization-id/uuid.Uuid -> Device:
+  create-device --device-id/Uuid? --organization-id/Uuid -> Device:
     return connected-artemis-server_.create-device-in-organization
         --device-id=device-id
         --organization-id=organization-id
@@ -101,7 +101,7 @@ class Artemis:
   Returns a path to the cached image.
   */
   get-service-image-path -> string
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --sdk/string
       --service/string
       --chip-family/string
@@ -143,7 +143,7 @@ class Artemis:
 
   Returns null if the organization doesn't exist.
   */
-  get-organization --id/uuid.Uuid -> OrganizationDetailed?:
+  get-organization --id/Uuid -> OrganizationDetailed?:
     return connected-artemis-server_.get-organization id
 
   /**
@@ -158,7 +158,7 @@ class Artemis:
     used to filter the results.
   */
   list-sdk-service-versions -> List
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --sdk-version/string?
       --service-version/string?:
     return connected-artemis-server_.list-sdk-service-versions

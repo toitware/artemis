@@ -2,7 +2,7 @@
 
 import cli show *
 import host.file
-import uuid
+import uuid show Uuid
 
 import .utils_
 import ..artemis
@@ -288,5 +288,5 @@ flash --station/bool invocation/Invocation:
           --partitions=partitions
       identity := read-base64-ubjson identity-path
       // TODO(florian): Abstract away the identity format.
-      device-id := uuid.parse identity["artemis.device"]["device_id"]
+      device-id := Uuid.parse identity["artemis.device"]["device_id"]
       cli.ui.emit --info "Successfully flashed device $device-id with pod '$pod.name' ($pod.id)."

@@ -7,7 +7,7 @@ import io
 import monitor
 import net
 import system
-import uuid
+import uuid show Uuid
 
 import .cli-device-extract show upload-pod
 import .host-recovery-source show TEST-URL-ENV
@@ -23,7 +23,7 @@ class RecoveryServer:
   recovery-url/string? := null
 
   attempt := 0
-  start --fleet-id/uuid.Uuid -> none:
+  start --fleet-id/Uuid -> none:
     network := net.open
     // Listen on a free port.
     tcp-socket := network.tcp-listen 0

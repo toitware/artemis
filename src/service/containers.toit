@@ -3,7 +3,7 @@
 import gpio
 import io
 import log
-import uuid
+import uuid show Uuid
 
 import system.containers
 
@@ -35,8 +35,8 @@ class ContainerManager:
   scheduler_/Scheduler
 
   jobs_ ::= {:}           // Map<string, ContainerJob>
-  images_ ::= {}          // Set<uuid.Uuid>
-  images-bundled_ ::= {}  // Set<uuid.Uuid>
+  images_ ::= {}          // Set<Uuid>
+  images-bundled_ ::= {}  // Set<Uuid>
   pin-trigger-manager_/PinTriggerManager ::= ?
 
   constructor logger/log.Logger .scheduler_ .pin-trigger-manager_:
@@ -52,8 +52,8 @@ class ContainerManager:
   load state/Map saved-states/Map -> none:
     apps := state.get "apps" --if-absent=: return
     apps.do: | name description |
-      id/uuid.Uuid? := null
-      catch: id = uuid.parse (description.get ContainerJob.KEY-ID)
+      id/Uuid? := null
+      catch: id = Uuid.parse (description.get ContainerJob.KEY-ID)
       if not id: continue.do
       job := create --name=name --id=id --description=description --state=(saved-states.get name)
       // TODO(kasper): We should be able to find all container
@@ -94,7 +94,7 @@ class ContainerManager:
 
   create -> ContainerJob?
       --name/string
-      --id/uuid.Uuid
+      --id/Uuid
       --description/Map
       --state/any
       --reader/io.Reader?=null:
@@ -238,7 +238,7 @@ class ContainerJob extends Job:
   pin-trigger-manager_/PinTriggerManager
   logger_/log.Logger
 
-  id/uuid.Uuid
+  id/Uuid
   description_/Map := ?
   running_/containers.Container? := null
   runlevel_/int := Job.RUNLEVEL-NORMAL

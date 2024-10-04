@@ -10,7 +10,7 @@ import encoding.tison
 import encoding.ubjson
 
 import log
-import uuid
+import uuid show Uuid
 import watchdog.provider as watchdog
 import watchdog show WatchdogServiceClient Watchdog
 
@@ -60,9 +60,9 @@ main arguments:
 
   artemis-device-map := device-specific "artemis.device"
   device := Device
-      --id=uuid.parse artemis-device-map["device_id"]
-      --hardware-id=uuid.parse artemis-device-map["hardware_id"]
-      --organization-id=uuid.parse artemis-device-map["organization_id"]
+      --id=Uuid.parse artemis-device-map["device_id"]
+      --hardware-id=Uuid.parse artemis-device-map["hardware_id"]
+      --organization-id=Uuid.parse artemis-device-map["organization_id"]
       --firmware-state=config
       --storage=storage
 

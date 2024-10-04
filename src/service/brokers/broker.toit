@@ -4,7 +4,7 @@ import encoding.tison
 import log
 import net
 import reader show Reader  // For toitdoc.
-import uuid
+import uuid show Uuid
 
 import .http show BrokerServiceHttp
 
@@ -28,7 +28,7 @@ interface BrokerConnection:
 
   Calls the $block with a $Reader.
   */
-  fetch-image id/uuid.Uuid [block] -> none
+  fetch-image id/Uuid [block] -> none
 
   /**
   Downloads the firmware with the given $id.

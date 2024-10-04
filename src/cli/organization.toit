@@ -1,12 +1,12 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import uuid
+import uuid show Uuid
 
 class Organization:
   /**
   The organization ID.
   */
-  id/uuid.Uuid
+  id/Uuid
 
   /**
   The name of the organization.
@@ -16,7 +16,7 @@ class Organization:
   constructor --.id --.name:
 
   constructor.from-map map/Map:
-    id = uuid.parse map["id"]
+    id = Uuid.parse map["id"]
     name = map["name"]
 
 /**
@@ -30,7 +30,7 @@ class OrganizationDetailed extends Organization:
   created-at/Time
   // TODO(florian): add members.
 
-  constructor --id/uuid.Uuid --name/string --.created-at:
+  constructor --id/Uuid --name/string --.created-at:
     super --id=id --name=name
 
   constructor.from-map map/Map:

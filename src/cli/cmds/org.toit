@@ -2,7 +2,7 @@
 
 import cli show *
 import net
-import uuid
+import uuid show Uuid
 
 import .utils_
 import ..config
@@ -263,10 +263,10 @@ add-org invocation/Invocation -> none:
     if should-make-default: make-default_ org --cli=invocation.cli
 
 show-org invocation/Invocation -> none:
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
     print-org org-id server --cli=invocation.cli
 
-print-org org-id/uuid.Uuid server/ArtemisServerCli --cli/Cli -> none:
+print-org org-id/Uuid server/ArtemisServerCli --cli/Cli -> none:
   ui := cli.ui
   org := server.get-organization org-id
   if not org:
@@ -315,7 +315,7 @@ default-org invocation/Invocation -> none:
 
     return
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
     org/OrganizationDetailed? := null
     exception := catch: org = server.get-organization org-id
     if exception or not org:
@@ -338,14 +338,14 @@ update-org invocation/Invocation -> none:
   if not name: ui.abort "No name provided."
   if name == "": ui.abort "Name cannot be empty."
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
     server.update-organization org-id --name=name
     ui.emit --info "Updated organization $org-id."
 
 member-list invocation/Invocation -> none:
   ui := invocation.cli.ui
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
     members := server.get-organization-members org-id
     if invocation["id-only"]:
       member-ids := members.map: "$it["id"]"
@@ -376,7 +376,7 @@ member-add invocation/Invocation -> none:
   user-id := invocation["user-id"]
   role := invocation["role"]
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid|
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid|
     existing-members := server.get-organization-members org-id
     if (existing-members.any: it["id"] == user-id):
       ui.abort "User $user-id is already a member of organization $org-id."
@@ -392,7 +392,7 @@ member-remove invocation/Invocation -> none:
   user-id := invocation["user-id"]
   force := invocation["force"]
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid |
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
     if not force:
       current-user-id := server.get-current-user-id
       if user-id == current-user-id:
@@ -406,7 +406,7 @@ member-set-role invocation/Invocation -> none:
   user-id := invocation["user-id"]
   role := invocation["role"]
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/uuid.Uuid|
+  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid|
     server.organization-member-set-role
         --organization-id=org-id
         --user-id=user-id

@@ -18,7 +18,7 @@ import supabase
 import supabase.auth as supabase
 import system
 import artemis.shared.utils
-import uuid
+import uuid show Uuid
 
 import .artemis-server
   show
@@ -155,7 +155,7 @@ test-image --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.Cl
 
 test-image broker-cli/broker.BrokerCli broker-service/broker.BrokerService --network/net.Client:
   2.repeat: | iteration |
-    APP-ID ::= uuid.uuid5 "app-$random" "test-app-$iteration-$Time.monotonic-us"
+    APP-ID ::= Uuid.uuid5 "app-$random" "test-app-$iteration-$Time.monotonic-us"
     content-32 := ?
     content-64 := ?
     if iteration == 0:

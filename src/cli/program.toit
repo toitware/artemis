@@ -3,13 +3,13 @@
 import ar
 import host.file
 import snapshot show cache-snapshot
-import uuid
+import uuid show Uuid
 
 import .utils
 import .sdk
 
 class CompiledProgram:
-  id/uuid.Uuid
+  id/Uuid
   image32/ByteArray
   image64/ByteArray
   sdk_/Sdk
@@ -40,7 +40,7 @@ class CompiledProgram:
           --word-sizes=[32, 64]
           --snapshot-path=path
       image := read-ubjson image-ubjson-path
-      id := uuid.parse image["id"]
+      id := Uuid.parse image["id"]
       image32/ByteArray? := null
       image64/ByteArray? := null
       image["images"].do: | map/Map |
@@ -66,5 +66,5 @@ extract-id-from-snapshot snapshot-path/string -> string?:
   id/string? := null
   while member := ar-reader.next:
     if member.name == "uuid":
-      id = (uuid.Uuid member.content).stringify
+      id = (Uuid member.content).stringify
   return id
