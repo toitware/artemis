@@ -2,7 +2,6 @@
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS BROKER
 
-import uuid show Uuid
 import host.os
 
 import .serial

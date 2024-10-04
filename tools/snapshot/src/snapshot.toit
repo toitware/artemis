@@ -19,7 +19,7 @@ extract-uuid snapshot-bytes/ByteArray -> string:
   ar-reader := ar.ArReader.from-bytes snapshot-bytes
   ar-file := ar-reader.find "uuid"
   if not ar-file: throw "No uuid file in snapshot"
-  return (Uuid (ar-file.content)).stringify
+  return (Uuid ar-file.content).stringify
 
 cached-snapshot-path_ uuid/string --output-directory/string? -> string:
   if output-directory:
@@ -39,7 +39,7 @@ cache-snapshot snapshot/ByteArray --output-directory/string?=null -> string:
   ar-reader := ar.ArReader.from-bytes snapshot
   ar-file := ar-reader.find "uuid"
   if not ar-file: throw "No uuid file in snapshot"
-  uuid := (Uuid (ar-file.content)).stringify
+  uuid := (Uuid ar-file.content).stringify
   out-path := cached-snapshot-path_ uuid --output-directory=output-directory
   dir-path := fs.dirname out-path
   if not file.is-directory dir-path:
