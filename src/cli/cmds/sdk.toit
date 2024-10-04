@@ -1,6 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import cli
+import cli show *
 import net
 import semver
 
@@ -8,42 +8,41 @@ import ..config
 import ..cache
 import ..fleet
 import ..server-config
-import ..ui
 import ..artemis-servers.artemis-server show with-server ArtemisServerCli
 import .utils_
 
-create-sdk-commands config/Config cache/Cache ui/Ui -> List:
-  sdk-cmd := cli.Command "sdk"
+create-sdk-commands -> List:
+  sdk-cmd := Command "sdk"
       --help="Information about supported SDKs."
       --options=[
-        cli.Option "server" --hidden --help="The server to use.",
+        Option "server" --hidden --help="The server to use.",
       ]
 
-  list-cmd := cli.Command "list"
+  list-cmd := Command "list"
       --aliases=["ls"]
       --help="List supported SDKs."
       --options=[
-        cli.Option "sdk-version" --help="The SDK version to list.",
-        cli.Option "service-version" --help="The service version to list.",
+        Option "sdk-version" --help="The SDK version to list.",
+        Option "service-version" --help="The service version to list.",
       ]
       --examples=[
-        cli.Example "List all available SDKs/service versions:"
+        Example "List all available SDKs/service versions:"
             --arguments="",
-        cli.Example "List all available service versions for a the SDK version v2.0.0-alpha.139:"
+        Example "List all available service versions for a the SDK version v2.0.0-alpha.139:"
             --arguments="--sdk-version=v2.0.0-alpha.139",
-        cli.Example "List all available SDK versions for the service version v0.5.5:"
+        Example "List all available SDK versions for the service version v0.5.5:"
             --arguments="--service-version=v0.5.5",
       ]
-      --run=:: list-sdks it config cache ui
+      --run=:: list-sdks it
   sdk-cmd.add list-cmd
 
   return [sdk-cmd]
 
-list-sdks parsed/cli.Parsed config/Config cache/Cache ui/Ui:
-  sdk-version := parsed["sdk-version"]
-  service-version := parsed["service-version"]
+list-sdks invocation/Invocation:
+  sdk-version := invocation["sdk-version"]
+  service-version := invocation["service-version"]
 
-  with-pod-fleet parsed config cache ui: | fleet/Fleet |
+  with-pod-fleet invocation: | fleet/Fleet |
     artemis := fleet.artemis
     versions/List := artemis.list-sdk-service-versions
         --organization-id=fleet.organization-id
@@ -62,10 +61,9 @@ list-sdks parsed/cli.Parsed config/Config cache/Cache ui/Ui:
       "service-version": it["service_version"],
     }
 
-    ui.do --kind=Ui.RESULT: | printer/Printer |
-      printer.emit
-          --header={
-            "sdk-version": "SDK Version",
-            "service-version": "Service Version",
-          }
-          output
+    invocation.cli.ui.emit-table --result
+        --header={
+          "sdk-version": "SDK Version",
+          "service-version": "Service Version",
+        }
+        output

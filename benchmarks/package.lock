@@ -1,8 +1,7 @@
-sdk: ^2.0.0-alpha.145
+sdk: ^2.0.0-alpha.161
 prefixes:
   artemis: ..
   artemis-pkg: artemis-pkg-copy
-  cli: pkg-cli
   host: pkg-host
 packages:
   ..:
@@ -31,8 +30,8 @@ packages:
   pkg-cli:
     url: github.com/toitlang/pkg-cli
     name: cli
-    version: 1.8.0
-    hash: 73c8aabb60a6f5f304566a1e781d7b025aa17e9b
+    version: 2.0.0
+    hash: f893664723411d328ef1f8b275bc456274a1b6db
     prefixes:
       fs: pkg-fs
       host: pkg-host
@@ -62,7 +61,6 @@ packages:
     path: ../tools/snapshot
     prefixes:
       ar: pkg-ar
-      cli: pkg-cli
       fs: pkg-fs
       host: pkg-host
   toit-artemis:

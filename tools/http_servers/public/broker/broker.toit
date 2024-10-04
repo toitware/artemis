@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT-style license that can be
 // found in the LICENSE file.
 
-import cli
+import cli show *
 import encoding.json
 import monitor
 
@@ -10,7 +10,7 @@ import .base
 import .constants
 
 main args:
-  root-cmd := cli.Command "root"
+  root-cmd := Command "root"
     --help="""An HTTP-based broker.
 
       Can be used to let devices and the CLI communicate with each other.
@@ -18,11 +18,11 @@ main args:
       testing.
       """
     --options=[
-      cli.OptionInt "port" --short-name="p"
+      OptionInt "port" --short-name="p"
           --help="The port to listen on."
     ]
-    --run=:: | parsed/cli.Parsed |
-      broker := HttpBroker parsed["port"]
+    --run=:: | invocation/Invocation |
+      broker := HttpBroker invocation["port"]
       broker.start
 
   root-cmd.run args

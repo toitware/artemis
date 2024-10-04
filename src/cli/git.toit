@@ -1,15 +1,15 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import cli show Cli
 import host.pipe
 import io
 import monitor
-import .ui
 
 class Git:
-  ui_/Ui
+  cli_/Cli
 
-  constructor --ui/Ui:
-    ui_ = ui
+  constructor --cli/Cli:
+    cli_ = cli
 
   /**
   Returns the root of the Git repository that contains the
@@ -112,7 +112,7 @@ class Git:
       run_ args --description="Fetch of $ref from $remote"
     finally: | is-exception _ |
       if is-exception:
-        ui_.error "Verbose remote was: $output"
+        cli_.ui.emit --error "Verbose remote was: $output"
 
     if checkout:
       args = [
@@ -210,10 +210,10 @@ class Git:
     exit-value := pipe.wait-for pid
 
     if (pipe.exit-code exit-value) != 0:
-      ui_.error "$description failed"
-      ui_.error "Git arguments: $args"
-      ui_.error output.bytes.to-string-non-throwing
-      ui_.abort
+      cli_.ui.emit --error "$description failed"
+      cli_.ui.emit --error "Git arguments: $args"
+      cli_.ui.emit --error output.bytes.to-string-non-throwing
+      cli_.ui.abort
 
     return stdout.bytes.to-string-non-throwing
 

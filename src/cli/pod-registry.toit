@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
+import cli show Cli
 import uuid
-import .ui
 
 /**
 A reference to refer to a specific pod.
@@ -32,9 +32,9 @@ class PodReference:
     if other is not PodReference: return false
     return id == other.id and name == other.name and revision == other.revision and tag == other.tag
 
-  static parse str/string --allow-name-only/bool=false --ui/Ui -> PodReference:
+  static parse str/string --allow-name-only/bool=false --cli/Cli -> PodReference:
     return parse str --allow-name-only=allow-name-only
-        --on-error=(: ui.abort it)
+        --on-error=(: cli.ui.abort it)
 
   static parse str/string --allow-name-only/bool=false [--on-error] -> PodReference:
     name/string? := null

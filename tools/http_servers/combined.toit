@@ -19,7 +19,7 @@ main args:
       cli.OptionInt "broker-port"
           --help="The port the broker should listen on."
     ]
-    --run=:: | parsed/cli.Parsed |
+    --run=:: | parsed/cli.Invocation |
       task::
         artemis := HttpArtemisServer parsed["artemis-port"]
         artemis.start

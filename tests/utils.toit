@@ -1,5 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
+import cli as cli-pkg
+import cli.ui as cli-pkg
 import encoding.base64
 import encoding.json
 import encoding.json as json-encoding
@@ -15,10 +17,8 @@ import http
 import net
 import system
 import uuid
-import artemis.cli
+import artemis.cli as artemis-pkg
 import artemis.cli.server-config as cli-server-config
-import artemis.cli.cache as cli
-import artemis.cli.config as cli
 import artemis.cli.cache as artemis-cache
 import artemis.cli.utils show read-json write-json-to-file untar
 import artemis.shared.server-config
@@ -27,7 +27,6 @@ import artemis.service
 import artemis.service.brokers.broker show BrokerConnection BrokerService
 import artemis.service.device show Device
 import artemis.service.storage show Storage
-import artemis.cli.ui show ConsolePrinter JsonPrinter Ui Printer
 import artemis.cli.utils show write-blob-to-file read-base64-ubjson
 import ..tools.service-image-uploader.uploader as uploader
 import monitor
@@ -83,65 +82,82 @@ with-tmp-directory [block]:
   finally:
     directory.rmdir --recursive tmp-dir
 
-with-tmp-config [block]:
+with-tmp-config-cli [block]:
   with-tmp-directory: | directory |
     config-path := "$directory/config"
-    config := cli.read-config-file config-path --init=: it
+    app-name := "artemis-test"
+    config := cli-pkg.Config --app-name=app-name --path=config-path --data={:}
+    cli := cli-pkg.Cli app-name --config=config
 
-    block.call config
+    block.call cli
 
 class TestExit:
 
-// TODO(florian): Maybe it's better to use a simplified version of the
-//   the UI, so it's easier to match against it. We probably want the
-//   default version of the console UI to be simpler anyway.
+interface TestPrinter:
+  set-test-ui_ test-ui/TestUi?
 
-class TestPrinter extends ConsolePrinter:
-  test-ui_/TestUi
-  constructor .test-ui_ prefix/string?:
-    super prefix
+class TestHumanPrinter extends cli-pkg.HumanPrinter implements TestPrinter:
+  test-ui_/TestUi? := null
 
   print_ str/string:
     if not test-ui_.quiet_: super str
     test-ui_.stdout += "$str\n"
 
-class TestJsonPrinter extends JsonPrinter:
-  test-ui_/TestUi
+  set-test-ui_ test-ui/TestUi:
+    test-ui_ = test-ui
 
-  constructor .test-ui_ prefix/string? level/int:
-    super prefix level
+class TestJsonPrinter extends cli-pkg.JsonPrinter implements TestPrinter:
+  test-ui_/TestUi? := null
 
   print_ str/string:
     if not test-ui_.quiet_: super str
     test-ui_.stderr += "$str\n"
 
-  handle-structured_ data:
+  emit-structured --kind/int data:
     test-ui_.stdout += json.stringify data
 
-class TestUi extends Ui:
+  set-test-ui_ test-ui/TestUi:
+    test-ui_ = test-ui
+
+class TestUi extends cli-pkg.Ui:
   stdout/string := ""
   stderr/string := ""
   quiet_/bool
   json_/bool
 
-  constructor --level/int=Ui.NORMAL-LEVEL --quiet/bool=true --json/bool=false:
+  constructor --level/int=cli-pkg.Ui.NORMAL-LEVEL --quiet/bool=true --json/bool=false:
     quiet_ = quiet
     json_ = json
-    super --level=level
+    printer := create-printer_ --json=json
+    super --printer=printer --level=level
+    (printer as TestPrinter).set-test-ui_ this
 
-  create-printer_ prefix/string? level/int -> Printer:
-    if json_: return TestJsonPrinter this prefix level
-    return TestPrinter this prefix
+  static create-printer_ --json/bool -> cli-pkg.Printer:
+    if json: return TestJsonPrinter
+    return TestHumanPrinter
 
   abort:
     throw TestExit
 
-  wants-structured-result -> bool:
-    return json_
 
-class TestCli:
-  config/cli.Config
-  cache/cli.Cache
+class TestCli implements cli-pkg.Cli:
+  name/string
+  ui/TestUi
+
+  constructor --.name/string="test" --quiet/bool=true:
+    ui=(TestUi --quiet=quiet)
+
+  cache -> cli-pkg.Cache:
+    unreachable
+
+  config -> cli-pkg.Config:
+    unreachable
+
+  with --name=null --cache=null --config=null --ui=null:
+    unreachable
+
+class Tester:
+  cli/cli-pkg.Cli
   artemis/TestArtemisServer
   broker/TestBroker
   toit-run-path_/string
@@ -153,12 +169,13 @@ class TestCli:
   sdk-version/string
   tmp-dir/string
 
-  constructor .config .cache .artemis .broker
+  constructor .artemis .broker
       --toit-run-path/string
       --qemu-path/string?
       --.gold-name
       --.sdk-version
-      --.tmp-dir:
+      --.tmp-dir
+      --.cli:
     toit-run-path_ = toit-run-path
     qemu-path_ = qemu-path
 
@@ -186,10 +203,11 @@ class TestCli:
 
   run args/List --expect-exit-1/bool=false --allow-exception/bool=false --quiet/bool=true --json/bool -> any:
     ui := TestUi --quiet=quiet --json=json
+    run-cli := cli.with --ui=ui
     exception := null
     try:
       exception = catch --unwind=(: not expect-exit-1 or (not allow-exception and it is not TestExit)):
-        cli.main args --config=config --cache=cache --ui=ui
+        artemis-pkg.main args --cli=run-cli
     finally: | is-exception _ |
       if is-exception:
         print "Execution of '$args' failed unexpectedly."
@@ -297,7 +315,7 @@ class TestCli:
         --organization-id=TEST-ORGANIZATION-UUID
         --toit-run=toit-run-path_
         --encoded-firmware=encoded-firmware
-        --test-cli=this
+        --tester=this
     test-devices_.add result
     return result
 
@@ -315,7 +333,7 @@ class TestCli:
           --organization-id=TEST-ORGANIZATION-UUID
           --image-path=device-config.path
           --qemu-path=qemu-path_
-          --test-cli=this
+          --tester=this
     else if device-config.format == "tar":
       result = TestDevicePipe.host
           --broker=broker
@@ -323,7 +341,7 @@ class TestCli:
           --hardware-id=hardware-id
           --organization-id=TEST-ORGANIZATION-UUID
           --tar-path=device-config.path
-          --test-cli=this
+          --tester=this
     else:
       throw "Unknown format"
 
@@ -341,7 +359,7 @@ class TestCli:
         --organization-id=TEST-ORGANIZATION-UUID
         --serial-port=serial-port
         --toit-run=toit-run-path_
-        --test-cli=this
+        --tester=this
     result.start
     test-devices_.add result
     return result
@@ -360,7 +378,7 @@ class TestCli:
         --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
         --encoded-firmware=encoded-firmware
-        --test-cli=this
+        --tester=this
     result.start
     test-devices_.add result
     return result
@@ -383,7 +401,7 @@ class TestCli:
         --hardware-id=hardware-id
         --organization-id=organization-id
         --encoded-firmware=encoded-firmware
-        --test-cli=this
+        --tester=this
     result.start
     test-devices_.add result
     return result
@@ -419,17 +437,21 @@ class TestCli:
       --sdk-version=TEST-SDK-VERSION
       --artemis-version=TEST-ARTEMIS-VERSION:
     with-tmp-directory: | admin-tmp-dir |
-      admin-config := cli.Config "$admin-tmp-dir/config" (deep-copy_ config.data)
+      admin-config := cli-pkg.Config
+          --app-name="test"
+          --path="$admin-tmp-dir/config"
+          --data=(deep-copy_ cli.config.data)
       ui := TestUi
-      cli.main --config=admin-config --cache=cache --ui=ui [
+      admin-cli := cli-pkg.Cli "test"
+          --config=admin-config
+          --ui=ui
+          --cache=cli.cache
+      artemis-pkg.main --cli=admin-cli [
             "auth", "login",
             "--email", ADMIN-EMAIL,
             "--password", ADMIN-PASSWORD,
           ]
-      uploader.main
-          --config=admin-config
-          --cache=cache
-          --ui=ui
+      uploader.main --cli=admin-cli
           [
             "service",
             "--sdk-version", sdk-version,
@@ -452,10 +474,10 @@ abstract class TestDevice:
   alias-id/uuid.Uuid
   organization-id/uuid.Uuid
   broker/TestBroker
-  test-cli/TestCli
+  tester/Tester
   pos_/int := 0
 
-  constructor --.broker --.hardware-id --.alias-id --.organization-id --.test-cli:
+  constructor --.broker --.hardware-id --.alias-id --.organization-id --.tester:
 
   /**
   Starts the device.
@@ -526,7 +548,7 @@ abstract class TestDevice:
         if status-line["broker"] == broker.name:
           return status
       sleep --ms=300
-      status = test-cli.run --json ["fleet", "status"]
+      status = tester.run --json ["fleet", "status"]
 
   /**
   Waits until this device is on the given pod.
@@ -543,7 +565,7 @@ abstract class TestDevice:
         if status-line["pod-id"] == "$pod-id":
           return status
       sleep --ms=300
-      status = test-cli.run --json ["fleet", "status"]
+      status = tester.run --json ["fleet", "status"]
 
 
   get-current-broker --status=get-status_:
@@ -555,7 +577,7 @@ abstract class TestDevice:
     unreachable
 
   get-status_ -> List:
-    return test-cli.run --json ["fleet", "status"]
+    return tester.run --json ["fleet", "status"]
 
   /**
   Waits until the device has connected to the broker.
@@ -584,7 +606,7 @@ class FakeDevice extends TestDevice:
       --alias-id/uuid.Uuid
       --organization-id/uuid.Uuid
       --encoded-firmware/string
-      --test-cli/TestCli:
+      --tester/Tester:
     network_ = net.open
     firmware-state := {
       "firmware": encoded-firmware
@@ -600,7 +622,7 @@ class FakeDevice extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
-        --test-cli=test-cli
+        --tester=tester
 
   start:
     // Do nothing.
@@ -753,7 +775,7 @@ class TestDevicePipe extends TestDevice:
       --organization-id/uuid.Uuid
       --encoded-firmware/string
       --toit-run/string
-      --test-cli/TestCli:
+      --tester/Tester:
 
     broker-config-json := broker.server-config.to-service-json --der-serializer=: unreachable
     encoded-broker-config := json.stringify broker-config-json
@@ -773,7 +795,7 @@ class TestDevicePipe extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
-        --test-cli=test-cli
+        --tester=tester
 
   constructor.serial
       --broker/TestBroker
@@ -782,7 +804,7 @@ class TestDevicePipe extends TestDevice:
       --organization-id/uuid.Uuid
       --serial-port/string
       --toit-run/string
-      --test-cli/TestCli:
+      --tester/Tester:
     command_ = [
       toit-run,
       "test-device-serial.toit",
@@ -793,7 +815,7 @@ class TestDevicePipe extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
-        --test-cli=test-cli
+        --tester=tester
 
   constructor.qemu
         --broker/TestBroker
@@ -802,7 +824,7 @@ class TestDevicePipe extends TestDevice:
         --organization-id/uuid.Uuid
         --image-path/string
         --qemu-path/string
-        --test-cli/TestCli:
+        --tester/Tester:
     command_ = [
       qemu-path,
       "-L", (fs.dirname qemu-path),
@@ -816,7 +838,7 @@ class TestDevicePipe extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
-        --test-cli=test-cli
+        --tester=tester
 
   constructor.host
       --broker/TestBroker
@@ -824,7 +846,7 @@ class TestDevicePipe extends TestDevice:
       --alias-id/uuid.Uuid
       --organization-id/uuid.Uuid
       --tar-path/string
-      --test-cli/TestCli:
+      --tester/Tester:
     tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
     untar tar-path --target=tmp-dir
     boot-sh := "$tmp-dir/boot.sh"
@@ -834,7 +856,7 @@ class TestDevicePipe extends TestDevice:
         --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
-        --test-cli=test-cli
+        --tester=tester
 
   start --env/Map?=null:
     if child-process_: throw "Already started"
@@ -950,7 +972,7 @@ class TestDevicePipe extends TestDevice:
 /**
 Starts the artemis server and broker.
 
-Calls the given $block with a $TestCli instance and a $Device or null.
+Calls the given $block with a $Tester instance and a $Device or null.
 
 If the type is supabase, uses the running supabase instances. Otherwise,
   creates fresh instances of the brokers.
@@ -958,7 +980,7 @@ If the type is supabase, uses the running supabase instances. Otherwise,
 If the $args parameter contains a '--toit-run=...' argument, it is
   used to launch devices.
 */
-with-test-cli
+with-tester
     --args/List
     --artemis-type=(server-type-from-args args)
     --broker-type=(broker-type-from-args args)
@@ -966,7 +988,7 @@ with-test-cli
     --gold-name/string?=null
     [block]:
   with-artemis-server --args=args --type=artemis-type: | artemis-server |
-    with-test-cli
+    with-tester
         --artemis-server=artemis-server
         broker-type
         --logger=logger
@@ -974,7 +996,7 @@ with-test-cli
         --gold-name=gold-name
         block
 
-with-test-cli
+with-tester
     --artemis-server/TestArtemisServer
     broker-type
     --logger/log.Logger
@@ -982,7 +1004,7 @@ with-test-cli
     --gold-name/string?
     [block]:
   with-broker --args=args --type=broker-type --logger=logger: | broker/TestBroker |
-    with-test-cli
+    with-tester
         --artemis-server=artemis-server
         --broker=broker
         --logger=logger
@@ -990,7 +1012,7 @@ with-test-cli
         --gold-name=gold-name
         block
 
-with-test-cli
+with-tester
     --artemis-server/TestArtemisServer
     --broker/TestBroker
     --logger/log.Logger
@@ -1014,10 +1036,12 @@ with-test-cli
 
   with-tmp-directory: | tmp-dir |
     config-file := "$tmp-dir/config"
-    config := cli.read-config-file config-file --init=: it
+    config := cli-pkg.Config --app-name="test" --path=config-file --init=: {:}
     cache-dir := "$tmp-dir/CACHE"
     directory.mkdir cache-dir
-    cache := cli.Cache --app-name="artemis-test" --path=cache-dir
+    cache := cli-pkg.Cache --app-name="artemis-test" --path=cache-dir
+
+    cli := cli-pkg.Cli "test" --config=config --cache=cache --ui=TestUi
 
     SDK-VERSION-OPTION ::= "--sdk-version="
     SDK-PATH-OPTION ::= "--sdk-path="
@@ -1053,7 +1077,7 @@ with-test-cli
 
     // Prefill the cache with the Dev SDK from the Makefile.
     sdk-key := artemis-cache.cache-key-sdk --version=sdk-version
-    cache.get-directory-path sdk-key: | store/cli.DirectoryStore |
+    cache.get-directory-path sdk-key: | store/cli-pkg.DirectoryStore |
       store.copy sdk-path
 
     ENVELOPES-URL-PREFIX ::= "github.com/toitlang/envelopes/releases/download/$sdk-version"
@@ -1068,14 +1092,14 @@ with-test-cli
     ENVELOPE-ARCHITECTURES.do: | envelope-arch/string cached-path/string |
       envelope-url := "$ENVELOPES-URL-PREFIX/firmware-$(envelope-arch).envelope.gz"
       envelope-key := artemis-cache.cache-key-envelope --url=envelope-url
-      cache.get-file-path envelope-key: | store/cli.FileStore |
+      cache.get-file-path envelope-key: | store/cli-pkg.FileStore |
         print "Caching envelope: $cached-path for $envelope-arch"
         store.copy cached-path
 
     artemis-config := artemis-server.server-config
     broker-config := broker.server-config
-    cli-server-config.add-server-to-config config artemis-config
-    cli-server-config.add-server-to-config config broker-config
+    cli-server-config.add-server-to-config artemis-config --cli=cli
+    cli-server-config.add-server-to-config broker-config --cli=cli
 
     artemis-task/Task? := null
 
@@ -1085,23 +1109,24 @@ with-test-cli
       gold-name = toit-file[last-separator + 1 ..].trim --right ".toit"
       gold-name = gold-name.trim --right "_slow"
 
-    test-cli := TestCli config cache artemis-server broker
+    tester := Tester artemis-server broker
         --toit-run-path=toit-run-path
         --qemu-path=qemu-path
         --gold-name=gold-name
         --sdk-version=sdk-version
         --tmp-dir=tmp-dir
+        --cli=cli
 
-    test-cli.replacements[tmp-dir] = "TMP_DIR"
-    test-cli.replacements[TEST-SDK-VERSION] = "TEST_SDK_VERSION"
-    test-cli.replacements[TEST-ARTEMIS-VERSION] = "TEST_ARTEMIS_VERSION"
+    tester.replacements[tmp-dir] = "TMP_DIR"
+    tester.replacements[TEST-SDK-VERSION] = "TEST_SDK_VERSION"
+    tester.replacements[TEST-ARTEMIS-VERSION] = "TEST_ARTEMIS_VERSION"
 
     try:
-      test-cli.run ["config", "broker", "--artemis", "default", artemis-config.name]
-      test-cli.run ["config", "broker", "default", broker-config.name]
-      block.call test-cli
+      tester.run ["config", "broker", "--artemis", "default", artemis-config.name]
+      tester.run ["config", "broker", "default", broker-config.name]
+      block.call tester
     finally:
-      test-cli.close
+      tester.close
       if artemis-task: artemis-task.cancel
       directory.rmdir --recursive cache-dir
 
@@ -1170,7 +1195,7 @@ class MigrationBroker:
 
 class TestFleet:
   id/uuid.Uuid
-  test-cli/TestCli
+  tester/Tester
   fleet-dir/string
   args/List
   devices/Map := {:}
@@ -1183,7 +1208,7 @@ class TestFleet:
   It is not recommended to mix these devices with other types of
     test devices (like host devices).
   */
-  constructor --.id --.test-cli --.fleet-dir --.args --devices/List:
+  constructor --.id --.tester --.fleet-dir --.args --devices/List:
     devices.do: | device/FakeDevice |
       this.devices[device.alias-id] = device
 
@@ -1194,7 +1219,7 @@ class TestFleet:
       broker.close
 
   get-status -> List:
-    return test-cli.run --json ["fleet", "status"]
+    return tester.run --json ["fleet", "status"]
 
   check-no-migration-stop:
     run --expect-exit-1 ["fleet", "migration", "stop"]
@@ -1206,8 +1231,8 @@ class TestFleet:
         --format=format
 
   create-host-device name/string --start/bool -> TestDevicePipe:
-    tar-file := "$test-cli.tmp-dir/dev-$(name).tar"
-    added-device := test-cli.run --json [
+    tar-file := "$tester.tmp-dir/dev-$(name).tar"
+    added-device := tester.run --json [
       "fleet", "add-device", "--format", "tar", "-o", tar-file, "--name", name
     ]
     device-id := uuid.parse added-device["id"]
@@ -1216,12 +1241,12 @@ class TestFleet:
         --format="tar"
         --path=tar-file
 
-    test-device := test-cli.create-device
+    test-device := tester.create-device
         --alias-id=device-id
         --hardware-id=device-id  // Not really used anyway.
         --device-config=device-config
 
-    test-cli.replacements["$device-id"] = pad-replacement-id name
+    tester.replacements["$device-id"] = pad-replacement-id name
 
     if start:
       test-device.start
@@ -1234,7 +1259,7 @@ class TestFleet:
       --alias-id/uuid.Uuid
       --hardware-id/uuid.Uuid
       --serial-port/string:
-    return test-cli.listen-to-serial-device
+    return tester.listen-to-serial-device
         --alias-id=alias-id
         --hardware-id=hardware-id
         --serial-port=serial-port
@@ -1254,7 +1279,7 @@ class TestFleet:
     started := monitor.Latch
     task::
       with-http-broker --name=name: | broker/TestBroker |
-        cli-server-config.add-server-to-config test-cli.config broker.server-config
+        cli-server-config.add-server-to-config broker.server-config --cli=tester.cli
         done := monitor.Latch
         result := MigrationBroker name broker done
         started.set result
@@ -1265,24 +1290,24 @@ class TestFleet:
     return result
 
   run command/List --expect-exit-1/bool=false --allow-exception/bool=false --quiet/bool=true -> string:
-    return test-cli.run --expect-exit-1=expect-exit-1 --allow-exception=allow-exception --quiet=quiet command
+    return tester.run --expect-exit-1=expect-exit-1 --allow-exception=allow-exception --quiet=quiet command
 
   run args/List --expect-exit-1/bool=false --allow-exception/bool=false --quiet/bool=true --json/bool -> any:
-    return test-cli.run --expect-exit-1=expect-exit-1 --allow-exception=allow-exception --quiet=quiet --json=json args
+    return tester.run --expect-exit-1=expect-exit-1 --allow-exception=allow-exception --quiet=quiet --json=json args
 
   run-gold --expect-exit-1/bool=false --ignore-spacing/bool=false name/string description/string command/List -> none:
-    test-cli.run-gold --expect-exit-1=expect-exit-1 --ignore-spacing=ignore-spacing name description command
+    tester.run-gold --expect-exit-1=expect-exit-1 --ignore-spacing=ignore-spacing name description command
 
 
 with-fleet --args/List --count/int=0 [block]:
-  with-test-cli --args=args: | test-cli/TestCli |
+  with-tester --args=args: | tester/Tester |
     with-tmp-directory: | fleet-dir |
       os.env["ARTEMIS_FLEET"] = fleet-dir
 
-      test-cli.replacements[fleet-dir] = "<FLEET_ROOT>"
-      test-cli.login
+      tester.replacements[fleet-dir] = "<FLEET_ROOT>"
+      tester.login
 
-      test-cli.run [
+      tester.run [
         "fleet",
         "init",
         "--organization-id", "$TEST-ORGANIZATION-UUID",
@@ -1290,11 +1315,11 @@ with-fleet --args/List --count/int=0 [block]:
 
       fleet-file := read-json "$fleet-dir/fleet.json"
       fleet-id := fleet-file["id"]
-      test-cli.replacements[fleet-id] = pad-replacement-id "FLEET_ID"
+      tester.replacements[fleet-id] = pad-replacement-id "FLEET_ID"
 
       identity-dir := "$fleet-dir/identities"
       directory.mkdir --recursive identity-dir
-      test-cli.run [
+      tester.run [
         "fleet",
         "create-identities",
         "--output-directory", identity-dir,
@@ -1316,13 +1341,13 @@ with-fleet --args/List --count/int=0 [block]:
         id-file := "$identity-dir/$(id).identity"
         expect (file.is-file id-file)
         content := read-base64-ubjson id-file
-        fake-device := test-cli.start-fake-device --identity=content
-        test-cli.replacements[id] = "-={| UUID-FOR-FAKE-DEVICE $(%05d fake-devices.size) |}=-"
+        fake-device := tester.start-fake-device --identity=content
+        tester.replacements[id] = "-={| UUID-FOR-FAKE-DEVICE $(%05d fake-devices.size) |}=-"
         fake-devices.add fake-device
 
       fleet := TestFleet
           --id=(uuid.parse fleet-id)
-          --test-cli=test-cli
+          --tester=tester
           --fleet-dir=fleet-dir
           --args=args
           --devices=fake-devices

@@ -1,24 +1,23 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import cli
+import cli show *
 import host.os
 import uuid
+
 import ..artemis
 import ..config
 import ..cache
 import ..fleet
-import ..ui
 import ..server-config
 import ..utils
 
-with-artemis parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
-  artemis-config := get-server-from-config config ui --key=CONFIG-ARTEMIS-DEFAULT-KEY
+with-artemis invocation/Invocation [block]:
+  cli := invocation.cli
+  artemis-config := get-server-from-config --cli=cli --key=CONFIG-ARTEMIS-DEFAULT-KEY
 
   with-tmp-directory: | tmp-directory/string |
     artemis := Artemis
-        --config=config
-        --cache=cache
-        --ui=ui
+        --cli=invocation.cli
         --tmp-directory=tmp-directory
         --server-config=artemis-config
     try:
@@ -26,45 +25,48 @@ with-artemis parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
     finally:
       artemis.close
 
-default-device-from-config config/Config -> uuid.Uuid?:
+default-device-from-config --cli/Cli -> uuid.Uuid?:
+  config := cli.config
   device-id-string := config.get CONFIG-DEVICE-DEFAULT-KEY
   if not device-id-string: return null
   return uuid.parse device-id-string
 
-default-organization-from-config config/Config -> uuid.Uuid?:
+default-organization-from-config --cli/Cli -> uuid.Uuid?:
+  config := cli.config
   organization-id-string := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
   if not organization-id-string: return null
   return uuid.parse organization-id-string
 
-with-devices-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
+with-devices-fleet invocation/Invocation [block]:
+  cli := invocation.cli
+
   // If the result of the compute-call isn't a root, but a reference, then
   // the constructor call below will throw.
-  fleet-root := compute-fleet-root-or-ref parsed config ui
+  fleet-root := compute-fleet-root-or-ref invocation
 
-  with-artemis parsed config cache ui: | artemis/Artemis |
-    default-broker-config := get-server-from-config config ui --key=CONFIG-BROKER-DEFAULT-KEY
+  with-artemis invocation: | artemis/Artemis |
+    default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
     fleet := FleetWithDevices fleet-root artemis
         --default-broker-config=default-broker-config
-        --ui=ui
-        --cache=cache
-        --config=config
+        --cli=cli
     block.call fleet
 
-with-pod-fleet parsed/cli.Parsed config/Config cache/Cache ui/Ui [block]:
-  fleet-root-or-ref := compute-fleet-root-or-ref parsed config ui
+with-pod-fleet invocation/Invocation [block]:
+  cli := invocation.cli
 
-  with-artemis parsed config cache ui: | artemis/Artemis |
-    default-broker-config := get-server-from-config config ui --key=CONFIG-BROKER-DEFAULT-KEY
+  fleet-root-or-ref := compute-fleet-root-or-ref invocation
+
+  with-artemis invocation: | artemis/Artemis |
+    default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
     fleet := Fleet fleet-root-or-ref artemis
         --default-broker-config=default-broker-config
-        --ui=ui
-        --cache=cache
-        --config=config
+        --cli=cli
     block.call fleet
 
-compute-fleet-root-or-ref parsed/cli.Parsed config/Config ui/Ui -> string:
-  fleet-root := parsed["fleet-root"]  // Old deprecated argument.
-  fleet-root-or-ref := parsed["fleet"]
+compute-fleet-root-or-ref invocation/Invocation -> string:
+  ui := invocation.cli.ui
+  fleet-root := invocation["fleet-root"]  // Old deprecated argument.
+  fleet-root-or-ref := invocation["fleet"]
   if fleet-root and fleet-root-or-ref:
     ui.abort "The arguments --fleet-root and --fleet are mutually exclusive."
   fleet-root-or-ref = fleet-root-or-ref or fleet-root
@@ -72,12 +74,11 @@ compute-fleet-root-or-ref parsed/cli.Parsed config/Config ui/Ui -> string:
   // For the environment 'ARTEMIS_FLEET' wins.
   fleet-env := os.env.get "ARTEMIS_FLEET" or os.env.get "ARTEMIS_FLEET_ROOT"
   if fleet-env:
-    ui.do --kind=Ui.DEBUG: | printer/Printer |
-      printer.emit "Using fleet-root '$fleet-env' provided by environment variable."
+    ui.emit --debug "Using fleet-root '$fleet-env' provided by environment variable."
     return fleet-env
   return "."
 
-make-default_ --device-id/uuid.Uuid --config/Config --ui/Ui:
-  config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
-  config.write
-  ui.info "Default device set to $device-id."
+make-default_ --device-id/uuid.Uuid --cli/Cli:
+  cli.config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
+  cli.config.write
+  cli.ui.emit --info "Default device set to $device-id."

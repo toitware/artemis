@@ -5,10 +5,10 @@ import artemis.service.synchronize show SynchronizeJob
 import expect show *
 
 main args:
-  with-test-cli --args=args: | test-cli/TestCli |
-    test-cli.login
+  with-tester --args=args: | tester/Tester |
+    tester.login
 
-    device := test-cli.create-device as TestDevicePipe
+    device := tester.create-device as TestDevicePipe
     device.start
 
     device.wait-until-connected

@@ -1,6 +1,6 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
-import cli
+import cli show *
 import encoding.json
 import encoding.ubjson
 import encoding.base64
@@ -24,33 +24,31 @@ import ...cli.device as artemis-device
 import ...cli.firmware as fw
 import ...cli.pod
 import ...cli.sdk
-import ...cli.ui show Ui ConsoleUi
 import ...cli.utils
 
 main arguments:
-  cache := cli.Cache --app-name="artemis"
-  root-cmd := cli.Command "root"
+  root-cmd := Command "artemis-service"
       --options=[
-        cli.OptionString "pod"
+        Option "pod"
             --type="file"
             --required,
-        cli.OptionString "identity"
+        Option "identity"
             --type="file"
             --required,
       ]
-      --run=:: run-host
-          --pod-path=it["pod"]
-          --identity-path=it["identity"]
-          --cache=cache
+      --run=:: | invocation/Invocation |
+        run-host
+          --pod-path=invocation["pod"]
+          --identity-path=invocation["identity"]
+          --cli=invocation.cli
   root-cmd.run arguments
 
-run-host --pod-path/string --identity-path/string --cache/cli.Cache -> none:
-  ui := ConsoleUi
+run-host --pod-path/string --identity-path/string --cli/Cli -> none:
   with-tmp-directory: | tmp-dir |
-    pod := Pod.parse pod-path --tmp-directory=tmp-dir --ui=ui
-    run-host --pod=pod --identity-path=identity-path --cache=cache --ui=ui
+    pod := Pod.parse pod-path --tmp-directory=tmp-dir --cli=cli
+    run-host --pod=pod --identity-path=identity-path --cli=cli
 
-run-host --pod/Pod --identity-path/string --cache/cli.Cache --ui/Ui -> none:
+run-host --pod/Pod --identity-path/string --cli/Cli -> none:
   watchdog-provider := watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog
   watchdog-provider.install
 
@@ -71,12 +69,11 @@ run-host --pod/Pod --identity-path/string --cache/cli.Cache --ui/Ui -> none:
   firmware := fw.Firmware
       --pod=pod
       --device=artemis-device
-      --cache=cache
-      --ui=ui
+      --cli=cli
   encoded-firmware-description := firmware.encoded
 
   sdk-version := pod.sdk-version
-  sdk := get-sdk sdk-version --cache=cache --ui=ui
+  sdk := get-sdk sdk-version --cli=cli
   with-tmp-directory: | tmp-dir/string |
     asset-path := "$tmp-dir/artemis_asset"
     sdk.firmware-extract-container --assets

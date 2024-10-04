@@ -3,15 +3,11 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import certificate-roots
-import cli
+import cli show *
 import log
-// TODO(florian): these should come from the cli package.
-import artemis.cli.config as cli
-import artemis.cli.cache as cli
-import artemis.cli.sdk show *
-import artemis.cli.firmware show *
 import artemis.cli.pod-specification show PodSpecification INITIAL-POD-SPECIFICATION
-import artemis.cli.ui as ui
+import artemis.cli.sdk show get-sdk
+import artemis.cli.firmware show get-envelope
 import host.file
 import snapshot show cache-snapshot
 import supabase
@@ -19,61 +15,58 @@ import system
 
 import .utils
 
-main args:
-  // Use the same config as the CLI.
-  // This way we get the same server configurations and oauth tokens.
-  config := cli.read-config
-  // Use the same cache as the CLI.
-  // This way we can reuse the SDKs.
-  cache := cli.Cache --app-name="artemis"
-  ui := ui.ConsoleUi
+main args/List:
+  // Use the same application name as the
+  // This way we get the same config and cache.
+  // The config gives as the server configurations and oauth tokens.
+  // The cache the SDKs.
+  cli := Cli "artemis" --ui=(Ui.from-args args)
+  main args --cli=cli
 
-  main --config=config --cache=cache --ui=ui args
-
-main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
+main args/List --cli/Cli?:
   certificate-roots.install-all-trusted-roots
 
-  cmd := cli.Command "sdk downloader"
+  cmd := Command "sdk downloader"
       --help="Downloads SDKs and envelopes into the cache."
       --options=[
-        cli.Option "version"
+        Option "version"
             --help="The version of the SDK to use."
             --required,
-        cli.Option "envelope"
+        Option "envelope"
             --help="The envelope to download."
             --multi
             --split-commas,
-        cli.Flag "host-envelope"
+        Flag "host-envelope"
             --help="Compute the envelope for this host and add it as 'envelope' option.",
       ]
 
-  download-cmd := cli.Command "download"
+  download-cmd := Command "download"
       --help="Caches SDKs and envelopes."
-      --run=:: download config cache ui it
+      --run=:: download it
   cmd.add download-cmd
 
-  print-cmd := cli.Command "print"
+  print-cmd := Command "print"
       --help="""
         Prints the path to the SDK or envelope.
 
         If necessary, downloads it first.
         """
       --options=[
-        cli.Option "envelope"
+        Option "envelope"
             --help="Prints the path to the envelope.",
-        cli.Flag "host-envelope"
+        Flag "host-envelope"
             --help="Prints the path to the envelope that runs on the current host.",
       ]
-      --run=:: print-path config cache ui it
+      --run=:: print-path it
   cmd.add print-cmd
 
-  cmd.run args
+  cmd.run args --cli=cli
 
-pod-specification-for_ --sdk-version/string --envelope/string --ui/ui.Ui:
+pod-specification-for_ --sdk-version/string --envelope/string --cli/Cli:
   json := INITIAL-POD-SPECIFICATION
   json["sdk-version"] = sdk-version
   json["firmware-envelope"] = envelope
-  return PodSpecification.from-json json --path="ignored" --ui=ui
+  return PodSpecification.from-json json --path="ignored" --cli=cli
 
 compute-host-envelope -> string:
   arch := system.architecture
@@ -88,48 +81,43 @@ compute-host-envelope -> string:
     if arch == system.ARCHITECTURE-ARM64: return "aarch64-macos"
   throw "Unsupported architecture: $arch - $platform"
 
-download config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
-  sdk-version := parsed["version"]
-  envelopes := parsed["envelope"]
-  needs-host-envelope := parsed["host-envelope"]
+download invocation/Invocation:
+  cli := invocation.cli
+
+  sdk-version := invocation["version"]
+  envelopes := invocation["envelope"]
+  needs-host-envelope := invocation["host-envelope"]
   if needs-host-envelope:
     envelopes += [compute-host-envelope]
 
-  get-sdk --cache=cache sdk-version --ui=ui
+  get-sdk sdk-version --cli=cli
   envelopes.do:
-    pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=it --ui=ui
-    get-envelope --specification=pod-specification --cache=cache --ui=ui
+    pod-specification := pod-specification-for_ --sdk-version=sdk-version --envelope=it --cli=cli
+    get-envelope --specification=pod-specification --cli=cli
 
-class SilentUi extends ui.Ui:
-  result-ui/ui.Ui
+print-path invocation/Invocation:
+  sdk-version := invocation["version"]
+  envelope := invocation["envelope"]
 
-  constructor .result-ui:
-    super --level=ui.Ui.SILENT-LEVEL
+  cli := invocation.cli
+  ui := cli.ui
 
-  create-printer_ prefix/string? kind/int -> ui.Printer:
-    return result-ui.create-printer_ prefix kind
-
-  wants-structured-result -> bool:
-    return result-ui.wants-structured-result
-
-print-path config/cli.Config cache/cli.Cache result-ui/ui.Ui parsed/cli.Parsed:
-  sdk-version := parsed["version"]
-  envelope := parsed["envelope"]
-  needs-host-envelope := parsed["host-envelope"]
+  needs-host-envelope := invocation["host-envelope"]
   if needs-host-envelope:
-    if envelope: result-ui.abort "The options 'envelope' and '--host-envelope' are exclusive"
+    if envelope: ui.abort "The options 'envelope' and '--host-envelope' are exclusive"
     envelope = compute-host-envelope
 
   // Use a different ui, to avoid printing anything.
-  silent-ui := SilentUi result-ui
+  silent-ui := ui.with --level=Ui.SILENT-LEVEL
+  silent-cli := cli.with --ui=silent-ui
   path/string := ?
   if envelope:
     pod-specification := pod-specification-for_
         --sdk-version=sdk-version
         --envelope=envelope
-        --ui=silent-ui
-    path = get-envelope --cache=cache --specification=pod-specification --ui=silent-ui
+        --cli=silent-cli
+    path = get-envelope --specification=pod-specification --cli=silent-cli
   else:
-    path = (get-sdk --cache=cache sdk-version --ui=silent-ui).sdk-path
+    path = (get-sdk sdk-version --cli=silent-cli).sdk-path
 
-  result-ui.result path
+  ui.emit --result path

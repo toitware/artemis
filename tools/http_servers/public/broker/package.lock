@@ -1,4 +1,4 @@
-sdk: ^2.0.0-alpha.145
+sdk: ^2.0.0-alpha.161
 prefixes:
   cli: pkg-cli
   http: pkg-http
@@ -6,8 +6,8 @@ packages:
   pkg-cli:
     url: github.com/toitlang/pkg-cli
     name: cli
-    version: 1.8.0
-    hash: 73c8aabb60a6f5f304566a1e781d7b025aa17e9b
+    version: 2.0.0
+    hash: f893664723411d328ef1f8b275bc456274a1b6db
     prefixes:
       fs: pkg-fs
       host: pkg-host
@@ -21,8 +21,8 @@ packages:
   pkg-host:
     url: github.com/toitlang/pkg-host
     name: host
-    version: 1.15.1
-    hash: ff187c2c19d695e66c3dc1d9c09b4dc6bec09088
+    version: 1.15.2
+    hash: b8a12cb7702d10b76c1d1e888303537d7b87a7f3
   pkg-http:
     url: github.com/toitlang/pkg-http
     name: http

@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT-style license that can be
 // found in the LICENSE file.
 
-import .ui
+import cli show Cli
 
 interface Authenticatable:
   /**
@@ -26,7 +26,7 @@ interface Authenticatable:
   /**
   Signs the user in using OAuth.
   */
-  sign-in --provider/string --ui/Ui --open-browser/bool
+  sign-in --provider/string --cli/Cli --open-browser/bool
 
   /**
   Updates the user's email and/or password.

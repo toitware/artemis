@@ -1,5 +1,6 @@
 // Copyright (C) 2024 Toitware ApS. All rights reserved.
 
+import cli show Cli FileStore DirectoryStore
 import crypto.sha256
 import host.file
 import host.os
@@ -13,7 +14,6 @@ import encoding.ubjson
 import .artemis
 import .cache
 import .config
-import .ui
 import .device
 import .pod
 import .pod-specification
@@ -67,9 +67,7 @@ class Broker:
   fleet-id/uuid.Uuid
   organization-id/uuid.Uuid
   server-config/ServerConfig
-  config_/Config
-  cache_/Cache
-  ui_/Ui
+  cli_/Cli
   network_/net.Client? := null
   tmp-directory_/string
   /**
@@ -85,14 +83,10 @@ class Broker:
       --.fleet-id/uuid.Uuid
       --.organization-id/uuid.Uuid
       --.server-config
-      --config/Config
-      --cache/Cache
-      --ui/Ui
+      --cli/Cli
       --tmp-directory/string
       --short-strings/Map?:
-    config_ = config
-    cache_ = cache
-    ui_ = ui
+    cli_ = cli
     tmp-directory_ = tmp-directory
     device-short-strings_ = short-strings
 
@@ -103,9 +97,9 @@ class Broker:
 
   broker-connection_ -> BrokerCli:
     if not broker-connection__:
-      broker-connection__ = BrokerCli server-config config_
+      broker-connection__ = BrokerCli server-config --cli=cli_
       broker-connection__.ensure-authenticated: | error-message |
-        ui_.abort "$error-message (broker)."
+        cli_.ui.abort "$error-message (broker)."
     return broker-connection__
 
   short-string-for_ --device-id/uuid.Uuid -> string:
@@ -146,7 +140,7 @@ class Broker:
             --broker-config=server-config
             --organization-id=organization-id
             --part-id=id
-        cache_.get-file-path key: | store/FileStore |
+        cli_.cache.get-file-path key: | store/FileStore |
           broker-connection_.pod-registry-upload-pod-part content --part-id=id
               --organization-id=organization-id
           store.save content
@@ -154,7 +148,7 @@ class Broker:
           --broker-config=server-config
           --organization-id=organization-id
           --pod-id=pod.id
-      cache_.get-file-path key: | store/FileStore |
+      cli_.cache.get-file-path key: | store/FileStore |
         encoded := ubjson.encode manifest
         broker-connection_.pod-registry-upload-pod-manifest encoded --pod-id=pod.id
             --organization-id=organization-id
@@ -201,7 +195,7 @@ class Broker:
         --tag-errors=tag-errors
 
   upload-trivial-patches_ --pod/Pod -> none:
-    firmware-content := FirmwareContent.from-envelope pod.envelope-path --cache=cache_ --ui=ui_
+    firmware-content := FirmwareContent.from-envelope pod.envelope-path --cli=cli_
     upload_ --firmware-content=firmware-content
 
   upload_ --firmware-content/FirmwareContent:
@@ -224,7 +218,7 @@ class Broker:
         --broker-config=server-config
         --organization-id=organization-id
         --patch-id=trivial-id
-    cache_.get cache-key: | store/FileStore |
+    cli_.cache.get cache-key: | store/FileStore |
       trivial := build-trivial-patch patch.bits_
       broker-connection_.upload-firmware trivial
           --organization-id=organization-id
@@ -241,13 +235,13 @@ class Broker:
         --broker-config=server-config
         --organization-id=organization-id
         --patch-id=old-id
-    trivial-old := cache_.get cache-key: | store/FileStore |
+    trivial-old := cli_.cache.get cache-key: | store/FileStore |
       downloaded := null
       catch: downloaded = broker-connection_.download-firmware
           --organization-id=organization-id
           --id=old-id
       if not downloaded:
-        ui_.warning "Failed to download old firmware for patch $old-id -> $trivial-id."
+        cli_.ui.emit --warning "Failed to download old firmware for patch $old-id -> $trivial-id."
         return
       store.with-tmp-directory: | tmp-dir |
         file.write-content downloaded --path="$tmp-dir/patch"
@@ -270,7 +264,7 @@ class Broker:
         --broker-config=server-config
         --organization-id=organization-id
         --patch-id=diff-id
-    cache_.get cache-key: | store/FileStore |
+    cli_.cache.get cache-key: | store/FileStore |
       // Build the diff and verify that we can apply it and get the
       // correct hash out before uploading it.
       diff := build-diff-patch old patch.bits_
@@ -281,7 +275,7 @@ class Broker:
           : "$diff-size-bytes B"
       from64 := base64.encode patch.from_ --url-mode
       to64 := base64.encode patch.to_ --url-mode
-      ui_.info "Uploading patch $from64 -> $to64 ($diff-size)."
+      cli_.ui.emit --info "Uploading patch $from64 -> $to64 ($diff-size)."
       broker-connection_.upload-firmware diff
           --organization-id=organization-id
           --firmware-id=diff-id
@@ -308,14 +302,14 @@ class Broker:
         --broker-config=server-config
         --organization-id=organization-id
         --pod-id=pod-id
-    return cache_.contains manifest-key
+    return cli_.cache.contains manifest-key
 
   download --pod-id/uuid.Uuid -> Pod:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
         --organization-id=organization-id
         --pod-id=pod-id
-    encoded-manifest := cache_.get manifest-key: | store/FileStore |
+    encoded-manifest := cli_.cache.get manifest-key: | store/FileStore |
       bytes := broker-connection_.pod-registry-download-pod-manifest
         --pod-id=pod-id
         --organization-id=organization-id
@@ -329,7 +323,7 @@ class Broker:
               --broker-config=server-config
               --organization-id=organization-id
               --part-id=part-id
-          cache_.get key: | store/FileStore |
+          cli_.cache.get key: | store/FileStore |
             bytes := broker-connection_.pod-registry-download-pod-part
                 part-id
                 --organization-id=organization-id
@@ -364,11 +358,11 @@ class Broker:
       if not was-found: unknown-pod-descriptions.add name
     if not unknown-pod-descriptions.is-empty:
       if unknown-pod-descriptions.size == 1:
-        ui_.abort "Unknown pod '$unknown-pod-descriptions[0]'."
+        cli_.ui.abort "Unknown pod '$unknown-pod-descriptions[0]'."
       else:
         quoted := unknown-pod-descriptions.map: "'$it'"
         joined := quoted.join ", "
-        ui_.abort "Unknown pods $joined."
+        cli_.ui.abort "Unknown pods $joined."
     broker-connection_.pod-registry-descriptions-delete
         --fleet-id=fleet-id
         --description-ids=descriptions.map: it.id
@@ -403,11 +397,11 @@ class Broker:
       if not resolved:
         has-errors = true
         if reference.tag:
-          ui_.error "No pod with name '$reference.name' and tag '$reference.tag' in the fleet."
+          cli_.ui.emit --error "No pod with name '$reference.name' and tag '$reference.tag' in the fleet."
         else:
-          ui_.error "No pod with name '$reference.name' and revision $reference.revision in the fleet."
+          cli_.ui.emit --error "No pod with name '$reference.name' and revision $reference.revision in the fleet."
       resolved
-    if has-errors: ui_.abort
+    if has-errors: cli_.ui.abort
     return result
 
   pod pod-id/uuid.Uuid -> PodBroker:
@@ -460,7 +454,7 @@ class Broker:
     base-patches := {:}
 
     base-firmwares := diff-bases.map: | diff-base/Pod |
-      FirmwareContent.from-envelope diff-base.envelope-path --cache=cache_ --ui=ui_
+      FirmwareContent.from-envelope diff-base.envelope-path --cli=cli_
 
     base-firmwares.do: | content/FirmwareContent |
       trivial-patches := extract-trivial-patches_ content
@@ -514,7 +508,7 @@ class Broker:
       device := devices[i]
       pod := pods[i]
       unconfigured := unconfigured-cache.get pod.id --init=:
-        FirmwareContent.from-envelope pod.envelope-path --cache=cache_ --ui=ui_
+        FirmwareContent.from-envelope pod.envelope-path --cli=cli_
 
       goal := prepare-update-device_
           --device=device
@@ -558,7 +552,7 @@ class Broker:
       if base-firmwares.is-empty:
         short := short-string-for_ --device-id=device-id
         if warn-only-trivial:
-          ui_.warning "Firmware of device $short is unknown. Upgrade might not use patches."
+          cli_.ui.emit --warning "Firmware of device $short is unknown. Upgrade might not use patches."
       else:
         upgrade-from = base-firmwares
     else:
@@ -567,7 +561,7 @@ class Broker:
         old-device-map := old-firmware.device-specific "artemis.device"
         old-device-id := uuid.parse old-device-map["device_id"]
         if device-id != old-device-id:
-          ui_.abort "The device id of the firmware image ($old-device-id) does not match the given device id ($device-id)."
+          cli_.ui.abort "The device id of the firmware image ($old-device-id) does not match the given device id ($device-id)."
         upgrade-from.add old-firmware.content
 
     result := compute-updated-goal_
@@ -589,19 +583,18 @@ class Broker:
   compute-updated-goal_ --device/Device --upgrade-from/List --pod/Pod --unconfigured-content/FirmwareContent -> Map:
     // Compute the patches and upload them.
     short := short-string-for_ --device-id=device.id
-    ui_.info "Computing and uploading patches for $short."
+    cli_.ui.emit --info "Computing and uploading patches for $short."
     upgrade-to := Firmware
         --pod=pod
         --device=device
-        --cache=cache_
         --unconfigured-content=unconfigured-content
-        --ui=ui_
+        --cli=cli_
     upgrade-from.do: | old-firmware-content/FirmwareContent |
       patches := upgrade-to.content.patches old-firmware-content
       patches.do: diff-and-upload_ it
 
     // Build the updated goal and return it.
-    sdk := get-sdk pod.sdk-version --cache=cache_ --ui=ui_
+    sdk := get-sdk pod.sdk-version --cli=cli_
     goal := (pod.device-config --sdk=sdk).copy
     goal["firmware"] = upgrade-to.encoded
     return goal
@@ -682,7 +675,7 @@ class Broker:
     devices := broker-connection_.get-devices --device-ids=[id]
     if devices.is-empty:
       short := short-string-for_ --device-id=id
-      ui_.abort "Device $short does not exist on server."
+      cli_.ui.abort "Device $short does not exist on server."
     return devices[id]
 
   /**
@@ -704,15 +697,15 @@ class Broker:
     update-goal_ --device-id=device-id: | device/DeviceDetailed |
       current-state := device.reported-state-current or device.reported-state-firmware
       if not current-state:
-        ui_.abort "Unknown device state."
+        cli_.ui.abort "Unknown device state."
       firmware := Firmware.encoded current-state["firmware"]
       sdk-version := firmware.sdk-version
-      sdk := get-sdk sdk-version --cache=cache_ --ui=ui_
+      sdk := get-sdk sdk-version --cli=cli_
       program := CompiledProgram.application application-path --sdk=sdk
       id := program.id
 
       cache-key := cache-key-application-image id --broker-config=server-config
-      cache_.get-directory-path cache-key: | store/DirectoryStore |
+      cli_.cache.get-directory-path cache-key: | store/DirectoryStore |
         store.with-tmp-directory: | tmp-dir |
           // TODO(florian): do we want to rely on the cache, or should we
           // do a check to see if the files are really uploaded?
@@ -731,7 +724,7 @@ class Broker:
       if not device.goal and not device.reported-state-firmware:
         throw "No known firmware information for device."
       new-goal := device.goal or device.reported-state-firmware
-      ui_.info "Installing container '$app-name'."
+      cli_.ui.emit --info "Installing container '$app-name'."
       apps := new-goal.get "apps" --if-absent=: {:}
       apps[app-name] = build-container-description_
           --id=id
@@ -755,13 +748,13 @@ class Broker:
         if required.contains app-name:
           is-required = true
       if is-required and not force:
-        ui_.abort "Container '$app-name' is required by a connection."
+        cli_.ui.abort "Container '$app-name' is required by a connection."
       apps := new-goal.get "apps" or {:}
       if apps:
         if not apps.contains app-name and not force:
-          ui_.abort "Container '$app-name' is not installed."
+          cli_.ui.abort "Container '$app-name' is not installed."
         else:
-          ui_.info "Uninstalling container '$app-name'."
+          cli_.ui.emit --info "Uninstalling container '$app-name'."
           apps.remove app-name
           if apps.is-empty: new-goal.remove "apps"
       new-goal
@@ -771,7 +764,7 @@ class Broker:
       if not device.goal and not device.reported-state-firmware:
         throw "No known firmware information for device."
       new-goal := device.goal or device.reported-state-firmware
-      ui_.info "Setting max-offline to $(Duration --s=max-offline-seconds)."
+      cli_.ui.emit --info "Setting max-offline to $(Duration --s=max-offline-seconds)."
       if max-offline-seconds > 0:
         new-goal["max-offline"] = max-offline-seconds
       else:
@@ -811,8 +804,7 @@ class Broker:
 
     envelope-path := get-envelope
         --specification=specification
-        --cache=cache_
-        --ui=ui_
+        --cli=cli_
 
     // Extract the sdk version from the envelope.
     envelope := file.read-content envelope-path
@@ -821,13 +813,13 @@ class Broker:
     if sdk-version:
       if sdk-version != envelope-sdk-version:
         if not (is-dev-setup and os.env.get "DEV_TOIT_REPO_PATH"):
-          ui_.abort "The envelope uses SDK version $envelope-sdk-version, but $sdk-version was requested."
+          cli_.ui.abort "The envelope uses SDK version $envelope-sdk-version, but $sdk-version was requested."
     else:
       sdk-version = envelope-sdk-version
       check-sdk-service-version.call
     envelope-word-bit-size := Sdk.get-word-bit-size-from --envelope=envelope
 
-    sdk := get-sdk sdk-version --cache=cache_ --ui=ui_
+    sdk := get-sdk sdk-version --cli=cli_
 
     copy-file --source=envelope-path --target=output-path
 
@@ -843,7 +835,7 @@ class Broker:
     if max-offline-seconds > 0: device-config["max-offline"] = max-offline-seconds
 
     if specification.connections.is-empty and not has-implicit-network_ envelope-chip-family:
-      ui_.warning "No network connections configured."
+      cli_.ui.emit --warning "No network connections configured."
     connections := specification.connections.map: | connection/ConnectionInfo |
       connection.to-json
     device-config["connections"] = connections
@@ -862,8 +854,7 @@ class Broker:
             --relative-to=specification.relative-to
             --sdk=sdk
             --output-path=snapshot-path
-            --cache=cache_
-            --ui=ui_
+            --cli=cli_
 
         // Build the assets from the defines (if any).
         assets-path/string? := null
@@ -904,7 +895,7 @@ class Broker:
             --critical=container.is-critical
             --runlevel=container.runlevel
             --triggers=triggers
-        ui_.info "Added container '$name' to envelope."
+        cli_.ui.emit --info "Added container '$name' to envelope."
 
       artemis-assets := {
         // TODO(florian): share the keys of the assets with the Artemis service.
@@ -955,7 +946,7 @@ class Broker:
           --critical
 
     // For convenience save all snapshots in the user's cache.
-    cache-snapshots --envelope-path=output-path --cache=cache_ --ui=ui_
+    cache-snapshots --envelope-path=output-path --cli=cli_
 
   /**
   Builds a container description as needed for a "container" entry in the device state.

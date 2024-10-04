@@ -30,8 +30,8 @@ run-test fleet/TestFleet:
       "List the recovery servers"
       ["fleet", "recovery", "list"]
 
-  recovery-path := "$fleet.test-cli.tmp-dir/recovery.json"
-  fleet.test-cli.run-gold "050-export"
+  recovery-path := "$fleet.tester.tmp-dir/recovery.json"
+  fleet.tester.run-gold "050-export"
       "Export the recovery information"
       ["fleet", "recovery", "export", "-o", recovery-path]
 

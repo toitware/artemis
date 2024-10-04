@@ -3,7 +3,6 @@
 import expect show *
 import host.directory
 import host.file
-import artemis.cli.ui show ConsoleUi
 
 import .utils
 import .artemis-server
@@ -15,8 +14,8 @@ import supabase
 import supabase.filter show equals
 
 main args:
-  // Start a TestCli, since that will set up everything the way we want.
-  with-test-cli --args=args --artemis-type="supabase":
+  // Start a Tester, since that will set up everything the way we want.
+  with-tester --args=args --artemis-type="supabase":
     run-test it
 
 // Just a commit that exists on main.
@@ -24,17 +23,17 @@ main args:
 TEST-COMMIT ::= "a521082f8f6f0ddfaf33ab55007ec8a51b659dff"
 
 run-main-test
-    test-cli/TestCli
+    tester/Tester
     tmp-dir/string
     service-version/string
     --keep-service/bool=false
     [block]:
   block.call
-  supabase-backdoor := (test-cli.artemis.backdoor) as SupabaseBackdoor
+  supabase-backdoor := (tester.artemis.backdoor) as SupabaseBackdoor
   // Check that the service is available.
   supabase-backdoor.with-backdoor-client_: | client/supabase.Client |
     available-sdks := client.rest.select "sdk_service_versions" --filters=[
-      equals "sdk_version" test-cli.sdk-version,
+      equals "sdk_version" tester.sdk-version,
       equals "service_version" service-version,
     ]
     expect-not available-sdks.is-empty
@@ -59,24 +58,25 @@ run-main-test
   expect-equals 0 files.size
 
   if not keep-service:
-    delete-service-version test-cli service-version
+    delete-service-version tester service-version
 
-delete-service-version test-cli/TestCli service-version/string:
-  supabase-backdoor := test-cli.artemis.backdoor as SupabaseBackdoor
+delete-service-version tester/Tester service-version/string:
+  supabase-backdoor := tester.artemis.backdoor as SupabaseBackdoor
   supabase-backdoor.with-backdoor-client_: | client/supabase.Client |
     client.rest.delete "artemis_services" --filters=[
       equals "version" "$service-version",
     ]
 
-run-test test-cli/TestCli:
-  sdk-version := test-cli.sdk-version
+run-test tester/Tester:
+  sdk-version := tester.sdk-version
   with-tmp-directory: | tmp-dir/string |
     ui := TestUi --no-quiet
-    git := Git --ui=ui
+    cli := tester.cli.with --ui=ui
+    git := Git --cli=cli
 
     // Login using the CLI login.
     // The uploader reuses the same credentials.
-    test-cli.run [
+    tester.run [
       "auth", "login",
       "--email", ADMIN-EMAIL,
       "--password", ADMIN-PASSWORD
@@ -93,11 +93,9 @@ run-test test-cli/TestCli:
     git.tag --name=service-version --commit=TEST-COMMIT
     try:
       // We keep the service for the next test.
-      run-main-test test-cli tmp-dir service-version --keep-service:
+      run-main-test tester tmp-dir service-version --keep-service:
         uploader.main
-            --config=test-cli.config
-            --cache=test-cli.cache
-            --ui=ui
+            --cli=cli
             [
               "service",
               "--sdk-version", sdk-version,
@@ -106,7 +104,7 @@ run-test test-cli/TestCli:
             ]
 
       // Debug information to analyze flaky tests.
-      supabase-backdoor := test-cli.artemis.backdoor as SupabaseBackdoor
+      supabase-backdoor := tester.artemis.backdoor as SupabaseBackdoor
       supabase-backdoor.with-backdoor-client_: | client/supabase.Client |
         service-images := client.rest.select "service_images"
         print "Service images before 2nd attempt: $service-images"
@@ -114,9 +112,7 @@ run-test test-cli/TestCli:
       // Without force we can't upload the same version again.
       exception := catch:
         uploader.main
-            --config=test-cli.config
-            --cache=test-cli.cache
-            --ui=ui
+            --cli=cli
             [
               "service",
               "--sdk-version", sdk-version,
@@ -131,11 +127,9 @@ run-test test-cli/TestCli:
         expect false
 
       // We keep the service version for the download test.
-      run-main-test test-cli tmp-dir service-version --keep-service:
+      run-main-test tester tmp-dir service-version --keep-service:
         uploader.main
-            --config=test-cli.config
-            --cache=test-cli.cache
-            --ui=ui
+            --cli=cli
             [
               "service",
               "--sdk-version", sdk-version,
@@ -146,11 +140,9 @@ run-test test-cli/TestCli:
 
       // Try with a specific commit.
       commit-version := "$service-version-$(TEST-COMMIT)"
-      run-main-test test-cli tmp-dir commit-version:
+      run-main-test tester tmp-dir commit-version:
         uploader.main
-            --config=test-cli.config
-            --cache=test-cli.cache
-            --ui=ui
+            --cli=cli
             [
               "service",
               "--sdk-version", sdk-version,
@@ -163,11 +155,9 @@ run-test test-cli/TestCli:
 
       // With service version.
       local-version := "$service-version-$Time.now"
-      run-main-test test-cli tmp-dir local-version:
+      run-main-test tester tmp-dir local-version:
         uploader.main
-            --config=test-cli.config
-            --cache=test-cli.cache
-            --ui=ui
+            --cli=cli
             [
               "service",
               "--sdk-version", sdk-version,
@@ -177,11 +167,9 @@ run-test test-cli/TestCli:
             ]
 
       // Without service version.
-      run-main-test test-cli tmp-dir ARTEMIS-VERSION:
+      run-main-test tester tmp-dir ARTEMIS-VERSION:
         uploader.main
-            --config=test-cli.config
-            --cache=test-cli.cache
-            --ui=ui
+            --cli=cli
             [
               "service",
               "--sdk-version", sdk-version,
@@ -194,9 +182,7 @@ run-test test-cli/TestCli:
 
     // Download a service.
     downloader.main
-        --config=test-cli.config
-        --cache=test-cli.cache
-        --ui=ui
+        --cli=cli
         [
           "--sdk-version", sdk-version,
           "--service-version", service-version,
@@ -211,7 +197,7 @@ run-test test-cli/TestCli:
     // Two different snapshots due to two different chip families.
     expect-equals 2 files.size
 
-    delete-service-version test-cli service-version
+    delete-service-version tester service-version
 
 expect-exit-1 [block]:
   exception := catch: block.call

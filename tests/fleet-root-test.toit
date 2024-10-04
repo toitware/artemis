@@ -6,14 +6,14 @@ import expect show *
 import .utils
 
 main args:
-  with-test-cli --args=args: | test-cli/TestCli |
-    run-test test-cli
+  with-tester --args=args: | tester/Tester |
+    run-test tester
 
-run-test test-cli/TestCli:
-  test-cli.login
+run-test tester/Tester:
+  tester.login
 
   with-tmp-directory: | fleet-tmp-dir |
-    test-cli.run [
+    tester.run [
       "fleet",
       "--fleet-root", fleet-tmp-dir,
       "init",
@@ -26,7 +26,7 @@ run-test test-cli/TestCli:
 
   with-tmp-directory: | fleet-tmp-dir |
     os.env["ARTEMIS_FLEET_ROOT"] = fleet-tmp-dir
-    test-cli.run [
+    tester.run [
       "fleet",
       "init",
       "--organization-id", "$TEST-ORGANIZATION-UUID",

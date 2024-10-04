@@ -16,7 +16,7 @@ run-test fleet/TestFleet:
   fleet.upload-pod "pod" --format="tar"
   device := fleet.create-host-device "dev1" --start
 
-  hello-path := "$fleet.test-cli.tmp-dir/hello.toit"
+  hello-path := "$fleet.tester.tmp-dir/hello.toit"
   file.write-content --path=hello-path """
     main:
       print "Hello world"

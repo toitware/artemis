@@ -4,16 +4,12 @@
 
 import ar
 import certificate-roots
-import cli
+import cli show *
 import encoding.url as url-encoding
 
-// TODO(florian): these should come from the cli package.
-import artemis.cli.config as cli
-import artemis.cli.cache as cli
 import artemis.cli.cache show cache-key-service-image
 import artemis.cli.git show Git
 import artemis.cli.sdk show *
-import artemis.cli.ui as ui
 import artemis.shared.version show ARTEMIS-VERSION
 import host.file
 import host.pipe
@@ -29,21 +25,18 @@ CHIP-FAMILIES ::= [
   "host",
 ]
 
-main args:
-  // Use the same config as the CLI.
-  // This way we get the same server configurations and oauth tokens.
-  config := cli.read-config
-  // Use the same cache as the CLI.
-  // This way we can reuse the SDKs.
-  cache := cli.Cache --app-name="artemis"
-  ui := ui.ConsoleUi
+main args/List:
+  // Use the same application name as the
+  // This way we get the same config and cache.
+  // The config gives as the server configurations and oauth tokens.
+  // The cache the SDKs.
+  cli := Cli "artemis"
+  main args --cli=cli
 
-  main --config=config --cache=cache --ui=ui args
-
-main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
+main args/List --cli/Cli?:
   certificate-roots.install-all-trusted-roots
 
-  cmd := cli.Command "uploader"
+  cmd := Command "uploader"
       --help="""
         Administrative tool to upload CLI snapshots and Artemis service
         images to the Artemis server.
@@ -51,13 +44,13 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         Make sure to be authenticated against the Artemis server.
         """
       --options=[
-        cli.OptionString "server"
+        Option "server"
             --help="The server to upload to.",
-        cli.OptionString "snapshot-directory"
+        Option "snapshot-directory"
             --help="The directory to store the snapshot in.",
       ]
 
-  cli-snapshot-cmd := cli.Command "cli-snapshot"
+  cli-snapshot-cmd := Command "cli-snapshot"
       --help="""
         Uploads the CLI snapshot to the Artemis server.
 
@@ -67,15 +60,15 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         Also copies the snapshot into the snapshot directory.
         """
       --rest=[
-        cli.OptionString "snapshot"
+        Option "snapshot"
             --help="The snapshot to upload."
             --type="file"
             --required,
       ]
-      --run=:: upload-cli-snapshot config cache ui it
+      --run=:: upload-cli-snapshot it
   cmd.add cli-snapshot-cmd
 
-  service-cmd := cli.Command "service"
+  service-cmd := Command "service"
       --help="""
         Builds and uploads the Artemis service image.
 
@@ -103,55 +96,59 @@ main --config/cli.Config --cache/cli.Cache --ui/ui.Ui args:
         The built image is then uploaded to the Artemis server.
         """
       --options=[
-        cli.OptionString "sdk-version"
+        Option "sdk-version"
             --help="The version of the SDK to use."
             --required,
-        cli.OptionString "service-version"
+        Option "service-version"
             --help="The version of the service to use.",
-        cli.OptionString "commit"
+        Option "commit"
             --help="The commit to build.",
-        cli.Flag "local"
+        Flag "local"
             --help="Build the service from the checked out code of the current repository.",
-        cli.Option "organization-id"
+        Option "organization-id"
             --help="The organization ID to upload the service to.",
-        cli.Flag "force"
+        Flag "force"
             --short-name="f"
             --help="Force the upload, even if the service already exists."
             --default=false,
-        cli.Option "optimization-level"
+        Option "optimization-level"
             --short-name="O"
             --help="The optimization level to use."
             --default="2",
       ]
       --examples=[
-        cli.Example "Upload the checked out code as version v0.5.5.pre.1+fix.foo to organization 3ea5b632-5739-4f40-8446-2fc102a5b338:"
+        Example "Upload the checked out code as version v0.5.5.pre.1+fix.foo to organization 3ea5b632-5739-4f40-8446-2fc102a5b338:"
             --arguments="--sdk-version=v2.0.0-alpha.139 --service-version=v0.5.5.pre.1+fix.foo --organization-id=3ea5b632-5739-4f40-8446-2fc102a5b338",
-        cli.Example "Upload the commit faea5684479957e48b945f7fdf4cbc70c0053225 as version v0.5.5.pre.2+updated to organization 3ea5b632-5739-4f40-8446-2fc102a5b338:"
+        Example "Upload the commit faea5684479957e48b945f7fdf4cbc70c0053225 as version v0.5.5.pre.2+updated to organization 3ea5b632-5739-4f40-8446-2fc102a5b338:"
             --arguments="--sdk-version=v2.0.0-alpha.139 --service-version=v0.5.5.pre.2+updated --commit=faea5684479957e48b945f7fdf4cbc70c0053225 --organization-id=3ea5b632-5739-4f40-8446-2fc102a5b338",
-        cli.Example "Upload the build v2.0.0-alpha.140/v0.5.5 to the server for everyone:"
+        Example "Upload the build v2.0.0-alpha.140/v0.5.5 to the server for everyone:"
             --arguments="--sdk-version=v2.0.0-alpha.140 --service-version=v0.5.5"
       ]
-      --run=:: build-and-upload config cache ui it
+      --run=:: build-and-upload it
   cmd.add service-cmd
 
-  cmd.run args
+  cmd.run args --cli=cli
 
 service-path-in-repository root/string --chip-family/string -> string:
   return "$root/src/service/run/$(chip-family).toit"
 
-build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
-  sdk-version := parsed["sdk-version"]
-  service-version := parsed["service-version"]
-  commit := parsed["commit"]
-  use-local := parsed["local"]
-  snapshot-directory := parsed["snapshot-directory"]
-  organization-id := parsed["organization-id"]
-  force := parsed["force"]
-  optimization-level := parsed["optimization-level"]
+build-and-upload invocation/Invocation:
+  params := invocation.parameters
+  cli := invocation.cli
+  ui := cli.ui
 
-  git := Git --ui=ui
+  sdk-version := params["sdk-version"]
+  service-version := params["service-version"]
+  commit := params["commit"]
+  use-local := params["local"]
+  snapshot-directory := params["snapshot-directory"]
+  organization-id := params["organization-id"]
+  force := params["force"]
+  optimization-level := params["optimization-level"]
+
+  git := Git --cli=cli
   // Get the SDK.
-  sdk := get-sdk sdk-version --cache=cache --ui=ui
+  sdk := get-sdk sdk-version --cli=cli
   root := git.current-repository-root
 
   with-tmp-directory: | tmp-dir/string |
@@ -167,7 +164,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
       repo-path = root
       full-service-version = service-version or ARTEMIS-VERSION
     else:
-      ui.info "Cloning repository and checking out $(commit or service-version)."
+      ui.emit --info "Cloning repository and checking out $(commit or service-version)."
       repo-path = "$tmp-dir/artemis"
       git.init repo-path --origin="file://$(url-encoding.encode root)"
       git.config --repository-root=repo-path
@@ -179,13 +176,13 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
           --repository-root=repo-path
           --ref=(commit or service-version)
 
-      ui.info "Downloading packages."
+      ui.emit --info "Downloading packages."
       sdk.pkg-install --project-root=repo-path
 
       full-service-version = service-version
       if commit: full-service-version += "-$commit"
 
-    artemis-config := get-artemis-config parsed config ui
+    artemis-config := get-artemis-config --cli=cli
     // Since we are potentially reusing an ID, we need to remove the cached versions.
     CHIP-FAMILIES.do: | chip-family |
       [32, 64].do: | word-size |
@@ -195,19 +192,19 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
             --artemis-config=artemis-config
             --chip-family=chip-family
             --word-size=word-size
-        cache.remove cache-key
+        cli.cache.remove cache-key
 
     service-source-paths := CHIP-FAMILIES.map: | chip-family/string |
       service-path-in-repository repo-path --chip-family=chip-family
 
-    ui.info "Generating version.toit."
+    ui.emit --info "Generating version.toit."
     exit-status := pipe.run-program
         --environment={"ARTEMIS_GIT_VERSION": full-service-version}
         ["make", "-C", repo-path, "rebuild-cmake"]
     if exit-status != 0: throw "make failed with exit code $(pipe.exit-code exit-status)"
 
     ar-file := "$tmp-dir/service.ar"
-    ui.info "Creating snapshot."
+    ui.emit --info "Creating snapshot."
 
     snapshot-paths := {:}
     CHIP-FAMILIES.do: | chip-family/string |
@@ -222,7 +219,7 @@ build-and-upload config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
 
     create-image-archive snapshot-paths --sdk=sdk --out=ar-file
 
-    with-upload-client parsed config ui: | client/UploadClient |
+    with-upload-client invocation: | client/UploadClient |
       image-id := (uuid.uuid5 "artemis"
           "$Time.monotonic-us $sdk-version $full-service-version").stringify
 
@@ -245,7 +242,7 @@ create-image-archive snapshot-paths/Map --sdk/Sdk --out/string:
   ar-stream := file.Stream.for-write out
   ar-writer := ar.ArWriter ar-stream
 
-  ar-writer.add "artemis" """{ "magic": "🐅", "version": 2 }"""
+  ar-writer.add "artemis" """{ "magic": "�", "version": 2 }"""
 
   with-tmp-directory: | tmp-dir/string |
     snapshot-paths.do: | chip-family/string snapshot-path/string |
@@ -266,12 +263,12 @@ create-image-archive snapshot-paths/Map --sdk/Sdk --out/string:
 
   ar-stream.close
 
-upload-cli-snapshot config/cli.Config cache/cli.Cache ui/ui.Ui parsed/cli.Parsed:
-  snapshot := parsed["snapshot"]
-  snapshot-directory := parsed["snapshot-directory"]
+upload-cli-snapshot invocation/Invocation:
+  snapshot := invocation["snapshot"]
+  snapshot-directory := invocation["snapshot-directory"]
 
   snapshot-content := file.read-content snapshot
-  with-upload-client parsed config ui: | client/UploadClient |
+  with-upload-client invocation: | client/UploadClient |
     uuid := extract-uuid snapshot-content
     client.upload snapshot-content --snapshot-uuid=uuid
 

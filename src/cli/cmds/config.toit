@@ -2,40 +2,39 @@
 
 import encoding.base64
 import certificate-roots
-import cli
+import cli show *
 import host.file
 
 import ..server-config
 import ..cache
 import ..config
-import ..ui
 import ...shared.server-config
 
-create-config-commands config/Config cache/Cache ui/Ui -> List:
-  config-cmd := cli.Command "config"
+create-config-commands -> List:
+  config-cmd := Command "config"
       --help="Configure Artemis tool."
 
-  show-cmd := cli.Command "show"
+  show-cmd := Command "show"
       --help="Prints the current configuration."
-      --run=:: show-config config ui
+      --run=:: show-config it
   config-cmd.add show-cmd
 
-  (create-server-config-commands config ui).do: config-cmd.add it
-  (create-recovery-config-commands config cache ui).do: config-cmd.add it
+  create-server-config-commands.do: config-cmd.add it
+  create-recovery-config-commands.do: config-cmd.add it
 
   return [config-cmd]
 
-create-server-config-commands config/Config ui/Ui -> List:
-  config-broker-cmd := cli.Command "broker"
+create-server-config-commands -> List:
+  config-broker-cmd := Command "broker"
       --help="Configure the Artemis brokers."
       --options=[
-        cli.Flag "artemis"
+        Flag "artemis"
             --help="Manipulate the config of the Artemis server."
             --hidden
       ]
 
   config-broker-cmd.add
-      cli.Command "default"
+      Command "default"
           --help="""
             Show or set the default broker.
 
@@ -47,92 +46,92 @@ create-server-config-commands config/Config ui/Ui -> List:
             If the '--clear' flag is specified, clears the default broker.
             """
           --options=[
-            cli.Flag "clear"
+            Flag "clear"
                 --help="Clear the default broker.",
           ]
           --rest=[
-            cli.OptionString "name"
+            Option "name"
                 --help="The name of the broker."
           ]
           --examples=[
-            cli.Example "Prints the current default broker (if any):"
+            Example "Prints the current default broker (if any):"
                 --arguments="",
-            cli.Example "Set the default broker to 'my-broker':"
+            Example "Set the default broker to 'my-broker':"
                 --arguments="my-broker",
           ]
-          --run=:: default-server it config ui
+          --run=:: default-server it
 
-  add-cmd := cli.Command "add"
+  add-cmd := Command "add"
       --help="Add a broker."
       --options=[
-        cli.Flag "default"
+        Flag "default"
             --default=true
             --help="Set the broker as the default broker.",
       ]
   config-broker-cmd.add add-cmd
 
   add-cmd.add
-      cli.Command "supabase"
+      Command "supabase"
           --help="Add a Supabase broker."
           --options=[
-            cli.OptionString "certificate"
+            Option "certificate"
                 --help="The certificate to use for the broker.",
           ]
           --rest=[
-            cli.OptionString "name"
+            Option "name"
                 --help="The name of the broker."
                 --required,
-            cli.OptionString "host"
+            Option "host"
                 --help="The host of the broker."
                 --required,
-            cli.OptionString "anon"
+            Option "anon"
                 --help="The key for anonymous access."
                 --required,
           ]
           --examples=[
-            cli.Example "Add a local Supabase broker (anon-token is truncated):"
+            Example "Add a local Supabase broker (anon-token is truncated):"
                 --arguments="my-local-supabase 127.0.0.1:54321 eyJhb...6XHc",
-            cli.Example "Add a Supabase broker with a certificate (anon-token is truncated):"
+            Example "Add a Supabase broker with a certificate (anon-token is truncated):"
                 --arguments="my-remote-broker --certificate=\"Baltimore CyberTrust Root\" voisfafsfolxhqpkudzd.subabase.co eyJh...j2e4",
           ]
-          --run=:: add-supabase it config ui
+          --run=:: add-supabase it
 
   add-cmd.add
-      cli.Command "http"
+      Command "http"
           --help="Add an HTTP broker."
           --options=[
-            cli.OptionInt "port"
+            OptionInt "port"
                 --help="The port of the broker."
                 --short-name="p"
                 --required,
-            cli.Option "host"
+            Option "host"
                 --help="The host of the broker."
                 --short-name="h"
                 --default="localhost",
-            cli.Option "path"
+            Option "path"
                 --help="The path of the broker."
                 --default="/",
-            cli.Option "root-certificate"
+            Option "root-certificate"
                 --help="The root certificate name of the broker."
                 --multi,
-            cli.Option "device-header"
+            Option "device-header"
                 --help="The HTTP header the device needs to add to the request. Of the form KEY=VALUE."
                 --multi,
-            cli.Option "admin-header"
+            Option "admin-header"
                 --help="The HTTP header the CLI needs to add to the request. Of the form KEY=VALUE."
                 --multi,
           ]
           --rest=[
-            cli.OptionString "name"
+            Option "name"
                 --help="The name of the broker."
                 --required,
           ]
-          --run=:: add-http it config ui
+          --run=:: add-http it
 
   return [config-broker-cmd]
 
-create-recovery-config-commands config/Config cache/Cache ui/Ui -> List:
-  recovery-cmd := cli.Command "recovery"
+create-recovery-config-commands -> List:
+  recovery-cmd := Command "recovery"
       --help="""
           Configure default recovery servers.
 
@@ -143,52 +142,56 @@ create-recovery-config-commands config/Config cache/Cache ui/Ui -> List:
           See the 'fleet recovery' documentation for more information.
           """
 
-  recovery-add-cmd := cli.Command "add"
+  recovery-add-cmd := Command "add"
       --help="""
           Add a default recovery server.
           """
       --rest=[
-        cli.OptionString "url"
+        Option "url"
             --help="The URL of the server."
             --required,
       ]
       --examples=[
-        cli.Example "Add a recovery server:"
+        Example "Add a recovery server:"
             --arguments="https://recovery.example.com",
       ]
-      --run=:: add-recovery-server it config ui
+      --run=:: add-recovery-server it
   recovery-cmd.add recovery-add-cmd
 
-  recovery-list-cmd := cli.Command "list"
+  recovery-list-cmd := Command "list"
       --aliases=["ls"]
       --help="List the recovery servers."
-      --run=:: list-recovery-servers config ui
+      --run=:: list-recovery-servers it
   recovery-cmd.add recovery-list-cmd
 
-  recovery-remove-cmd := cli.Command "remove"
+  recovery-remove-cmd := Command "remove"
       --help="Remove a default recovery server."
       --options=[
-        cli.Flag "all"
+        Flag "all"
             --help="Remove all servers.",
-        cli.Flag "force"
+        Flag "force"
             --short-name="f"
             --help="Do not error if the server doesn't exist.",
       ]
       --rest=[
-        cli.OptionString "url"
+        Option "url"
             --help="The URL of the server."
             --multi,
       ]
       --examples=[
-        cli.Example "Remove a recovery server:"
+        Example "Remove a recovery server:"
             --arguments="https://recovery.example.com",
       ]
-      --run=:: remove-recovery-servers it config ui
+      --run=:: remove-recovery-servers it
   recovery-cmd.add recovery-remove-cmd
 
   return [recovery-cmd]
 
-show-config config/Config ui/Ui:
+show-config invocation/Invocation:
+  cli := invocation.cli
+  config := cli.config
+  ui := cli.ui
+
   default-device := config.get CONFIG-DEVICE-DEFAULT-KEY
   default-broker := config.get CONFIG-BROKER-DEFAULT-KEY
   default-org := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
@@ -196,7 +199,7 @@ show-config config/Config ui/Ui:
   auths := config.get CONFIG-SERVER-AUTHS-KEY
   recovery-urls := config.get CONFIG-RECOVERY-SERVERS-KEY
 
-  json-output := :
+  if ui.wants-structured:
     result := {
       "path" : config.path
     }
@@ -216,9 +219,8 @@ show-config config/Config ui/Ui:
               auth[token-name] = auth[token-name][0..30] + "..."
         server["auth"] = auth
     if recovery-urls: result["recovery-servers"] = recovery-urls
-    result
-
-  human-output := : | printer/Printer |
+    ui.emit-map --result result
+  else:
     result := {
       "Configuration file" : config.path
     }
@@ -235,50 +237,53 @@ show-config config/Config ui/Ui:
         server := result-servers.get server-name --init=: {:}
         server["auth"] = auth
     if recovery-urls: result["Recovery servers"] = recovery-urls
-    printer.emit result
+    ui.emit-map --result result
 
-  ui.do --kind=Ui.RESULT: | printer/Printer |
-    printer.emit-structured
-        --json=json-output
-        --stdout=human-output
+default-server invocation/Invocation:
+  cli := invocation.cli
+  config := cli.config
+  ui := cli.ui
 
-default-server parsed/cli.Parsed config/Config ui/Ui:
-  config-key := parsed["artemis"] ? CONFIG-ARTEMIS-DEFAULT-KEY : CONFIG-BROKER-DEFAULT-KEY
+  config-key := invocation["artemis"] ? CONFIG-ARTEMIS-DEFAULT-KEY : CONFIG-BROKER-DEFAULT-KEY
 
-  if parsed["clear"]:
+  if invocation["clear"]:
     config.remove config-key
     config.write
     return
 
-  name := parsed["name"]
+  name := invocation["name"]
   if not name:
     default-server := config.get config-key
     if default-server:
-      ui.result default-server
+      ui.emit --result default-server
     else:
       ui.abort "No default broker."
     return
 
-  if not has-server-in-config config name:
+  if not has-server-in-config name --cli=cli:
     ui.abort "Unknown broker '$name'."
 
   config[config-key] = name
   config.write
 
-check-certificate_ name/string ui/Ui -> none:
+check-certificate_ name/string --cli/Cli -> none:
+  ui := cli.ui
   certificate := certificate-roots.MAP.get name
   if certificate: return
-  ui.error "Unknown certificate."
-  ui.do: | printer/Printer |
-    printer.emit --title="Available certificates:"
-      certificate-roots.MAP.keys
+  ui.emit --error "Unknown certificate."
+  ui.emit-list certificate-roots.MAP.keys --kind=Ui.ERROR --title="Available certificates"
   ui.abort
 
-add-supabase parsed/cli.Parsed config/Config ui/Ui:
-  name := parsed["name"]
-  host := parsed["host"]
-  anon := parsed["anon"]
-  certificate-name := parsed["certificate"]
+add-supabase invocation/Invocation:
+  cli := invocation.cli
+  params := invocation.parameters
+  config := cli.config
+  ui := cli.ui
+
+  name := params["name"]
+  host := params["host"]
+  anon := params["anon"]
+  certificate-name := params["certificate"]
 
   if host.starts-with "http://" or host.starts-with "https://":
     host = host.trim --prefix "http://"
@@ -289,23 +294,28 @@ add-supabase parsed/cli.Parsed config/Config ui/Ui:
       --anon=anon
       --root-certificate-name=certificate-name
 
-  add-server-to-config config supabase-config
-  if parsed["default"]:
+  add-server-to-config supabase-config --cli=cli
+  if params["default"]:
     config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
-  ui.info "Added broker '$name'."
+  ui.emit --info "Added broker '$name'."
 
-add-http parsed/cli.Parsed config/Config ui/Ui:
-  name := parsed["name"]
-  host := parsed["host"]
-  port := parsed["port"]
-  path := parsed["path"]
-  root-certificate-names := parsed["root-certificate"]
-  device-headers-list := parsed["device-header"]
-  admin-headers-list := parsed["admin-header"]
+add-http invocation/Invocation:
+  cli := invocation.cli
+  params := invocation.parameters
+  config := cli.config
+  ui := cli.ui
 
-  root-certificate-names.do: check-certificate_ it ui
+  name := params["name"]
+  host := params["host"]
+  port := params["port"]
+  path := params["path"]
+  root-certificate-names := params["root-certificate"]
+  device-headers-list := params["device-header"]
+  admin-headers-list := params["admin-header"]
+
+  root-certificate-names.do: check-certificate_ it --cli=cli
   if root-certificate-names.is-empty:
     root-certificate-names = null
 
@@ -336,15 +346,18 @@ add-http parsed/cli.Parsed config/Config ui/Ui:
       --device-headers=device-headers
       --admin-headers=admin-headers
 
-  add-server-to-config config http-config
-  if parsed["default"]:
+  add-server-to-config http-config --cli=cli
+  if params["default"]:
     config[CONFIG-BROKER-DEFAULT-KEY] = name
   config.write
 
-  ui.info "Added broker '$name'."
+  ui.emit --info "Added broker '$name'."
 
-add-recovery-server parsed/cli.Parsed config/Config ui/Ui:
-  url := parsed["url"]
+add-recovery-server invocation/Invocation:
+  config := invocation.cli.config
+  ui := invocation.cli.ui
+
+  url := invocation["url"]
 
   config-key := CONFIG-RECOVERY-SERVERS-KEY
   recovery-servers := config.get config-key --init=: []
@@ -354,20 +367,29 @@ add-recovery-server parsed/cli.Parsed config/Config ui/Ui:
   config[config-key] = recovery-servers
   config.write
 
-  ui.info "Added recovery server '$url'."
+  ui.emit --info "Added recovery server '$url'."
 
-list-recovery-servers config/Config ui/Ui:
+list-recovery-servers invocation/Invocation:
+  config := invocation.cli.config
+  ui := invocation.cli.ui
+
   config-key := CONFIG-RECOVERY-SERVERS-KEY
   recovery-servers := config.get config-key or []
 
-  ui.do --kind=Ui.RESULT: | printer/Printer |
-    printer.emit --title="Recovery servers:"
+  ui.emit-list
+      --kind=Ui.RESULT
+      --title="Recovery servers:"
       recovery-servers
 
-remove-recovery-servers parsed/cli.Parsed config/Config ui/Ui:
-  all := parsed["all"]
-  urls := parsed["url"]
-  force := parsed["force"]
+remove-recovery-servers invocation/Invocation:
+  cli := invocation.cli
+  config := cli.config
+  ui := cli.ui
+  params := invocation.parameters
+
+  all := params["all"]
+  urls := params["url"]
+  force := params["force"]
 
   config-key := CONFIG-RECOVERY-SERVERS-KEY
   recovery-servers := config.get config-key --init=: []
@@ -376,7 +398,7 @@ remove-recovery-servers parsed/cli.Parsed config/Config ui/Ui:
     recovery-servers.clear
     config[config-key] = recovery-servers
     config.write
-    ui.info "Removed all recovery servers."
+    ui.emit --info "Removed all recovery servers."
     return
 
   urls.do: | url |
@@ -387,4 +409,4 @@ remove-recovery-servers parsed/cli.Parsed config/Config ui/Ui:
   config[config-key] = recovery-servers
   config.write
 
-  ui.info "Removed recovery server(s)."
+  ui.emit --info "Removed recovery server(s)."

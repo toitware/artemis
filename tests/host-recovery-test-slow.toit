@@ -111,14 +111,14 @@ main args:
     fleet.run ["fleet", "roll-out"]
 
     // Create recovery information for it.
-    recovery-path := "$fleet.test-cli.tmp-dir/recover-$(fleet.id).json"
+    recovery-path := "$fleet.tester.tmp-dir/recover-$(fleet.id).json"
     fleet.run ["fleet", "recovery", "export", "-o", recovery-path]
     recovery-info := file.read-content recovery-path
     recovery-server.recovery-info = recovery-info
 
     test-device.wait-for-synchronized  // Still on the old broker.
     recovery-server.device-made-contact.get
-    fleet.test-cli.stop-main-broker
+    fleet.tester.stop-main-broker
     recovery-server.recover-latch.set true  // Let the HTTP server respond.
 
     test-device.wait-for "connecting {safe-mode: true}"
