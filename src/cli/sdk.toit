@@ -208,11 +208,13 @@ class Sdk:
     if (semver.compare version "v2.0.0-alpha.88") >= 0:
       output-format = ["--output-format", "json"]
 
-    return json.parse (pipe.backticks [
-      "$sdk-path/tools/firmware",
+    firmware := executable_ "firmware"
+    json-output := pipe.backticks firmware + [
       "container", "list",
       "-e", envelope-path,
-    ] + output-format)
+    ] + output-format
+    decoded := json.parse json-output.trim
+    return decoded
 
   /**
   Extracts the container with the given $name from the $envelope-path and
