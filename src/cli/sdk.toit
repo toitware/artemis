@@ -273,7 +273,7 @@ class Sdk:
   /**
   Extracts the given $envelope-path to the given $output-path.
   */
-  extract-qemu-image
+  extract-full-image
       --output-path/string
       --envelope-path/string
       --config-path/string
@@ -281,12 +281,18 @@ class Sdk:
     if partitions and not partitions.is-empty:
       throw "Partitions are not supported for QEMU images."
 
+    format/string := ?
+    if (semver.compare version "v2.0.0-alpha.164") < 0:
+      format = "qemu"
+    else:
+      format = "full-image"
+
     arguments := [
       "extract",
       "-e", envelope-path,
       "--config", config-path,
       "--output", output-path,
-      "--format", "qemu",
+      "--format", format,
     ]
     run-firmware arguments
 

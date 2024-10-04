@@ -29,7 +29,7 @@ main:
 main args/List:
   with-fleet --args=args --count=0: | fleet/TestFleet |
     qemu-data := create-extract-device
-        --format="qemu"
+        --format="full-image"
         --fleet=fleet
         --files={
           "test.toit": TEST-CODE,

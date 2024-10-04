@@ -31,7 +31,10 @@ EXTRACT-FORMATS-COMMAND-HELP ::= """
     - 'binary': a binary image suitable for OTA updates.
     - 'tar': a tar file with the device firmware. Only available for host devices.
       That is, devices that use an envelope built for Linux, macOS, or Windows.
-    - 'qemu': a QEMU image. Only available for ESP32 devices.
+    - 'full-image': a full binary image suitable for QEMU, Wokwi, or flashing
+      to a device. Only available for the ESP32 chip family. See the help of
+      'toit tool firmware extract' for more information.
+    - 'qemu': a deprecated alias for 'full-image'.
 
   The type of device (host, ESP32, etc.) is determined by the pod of the group
   the device is in.
@@ -42,7 +45,7 @@ EXTRACT-FORMATS-COMMAND-HELP ::= """
 
 build-extract-format-options --required/bool -> List:
   return [
-    OptionEnum "format" ["identity", "binary", "tar", "qemu"]
+    OptionEnum "format" ["identity", "binary", "tar", "full-image", "qemu"]
         --help="The format of the output file."
         --required=required,
     PARTITION-OPTION
@@ -444,20 +447,22 @@ extract-device fleet-device/DeviceFleet
         ui.emit --info "Wrote tarball to '$output'."
       else:
         ui.emit --info "Wrote binary firmware to '$output'."
-    else if format == "qemu":
+    else if format == "qemu" or format == "full-image":
+      if format == "qemu":
+        ui.emit --warning "The 'qemu' format is deprecated. Use 'full-image' instead."
       chip-family := Sdk.get-chip-family-from --envelope=pod.envelope
       if chip-family != "esp32":
-        ui.abort "Cannot generate QEMU image for chip-family '$chip-family'."
+        ui.abort "Cannot generate full binary image for chip-family '$chip-family'."
       chip := sdk.chip-for --envelope-path=pod.envelope-path
       if chip != "esp32":
-        ui.abort "Cannot generate QEMU image for chip '$chip'."
+        ui.abort "Cannot generate full binary image for chip '$chip'."
 
-      sdk.extract-qemu-image
+      sdk.extract-full-image
           --output-path=output
           --envelope-path=pod.envelope-path
           --config-path=device-specific-path
           --partitions=partitions
-      ui.emit --info "Wrote QEMU image to '$output'."
+      ui.emit --info "Wrote full binary image to '$output'."
     else:
       ui.abort "Unknown format: $format."
 
