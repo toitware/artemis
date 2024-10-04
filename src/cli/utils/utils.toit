@@ -15,7 +15,7 @@ import io
 import monitor
 import net
 import system
-import uuid
+import uuid show Uuid
 import ..pod-specification
 
 with-tmp-directory [block]:
@@ -182,8 +182,8 @@ gunzip path/string:
 copy-file --source/string --target/string:
   file.copy --source=source --target=target
 
-random-uuid --namespace/string="Artemis" -> uuid.Uuid:
-  return uuid.uuid5 namespace "$Time.now $Time.monotonic-us $random"
+random-uuid --namespace/string="Artemis" -> Uuid:
+  return Uuid.uuid5 namespace "$Time.now $Time.monotonic-us $random"
 
 json-encode-pretty value/any -> ByteArray:
   buffer := io.Buffer

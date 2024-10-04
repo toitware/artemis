@@ -5,7 +5,7 @@ import log
 import net
 import reader show Reader
 import system show BITS-PER-WORD
-import uuid
+import uuid show Uuid
 
 import .connection
 import ..broker
@@ -51,7 +51,7 @@ class BrokerConnectionHttp implements BrokerConnection:
     last-poll-us_ = Time.monotonic-us
     return result
 
-  fetch-image id/uuid.Uuid [block] -> none:
+  fetch-image id/Uuid [block] -> none:
     payload :=  {
       "path": "/toit-artemis-assets/$device_.organization-id/images/$id.$BITS-PER-WORD",
     }

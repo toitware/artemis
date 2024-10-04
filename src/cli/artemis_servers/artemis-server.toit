@@ -3,7 +3,7 @@
 import cli show Cli
 import log
 import net
-import uuid
+import uuid show Uuid
 
 import .supabase show ArtemisServerCliSupabase
 import .http.base show ArtemisServerCliHttpToit
@@ -66,7 +66,7 @@ interface ArtemisServerCli implements Authenticatable:
   Takes a $device-id, representing the user's chosen name for the device.
   The $device-id may be null in which case the server creates an alias.
   */
-  create-device-in-organization --organization-id/uuid.Uuid --device-id/uuid.Uuid? -> Device
+  create-device-in-organization --organization-id/Uuid --device-id/Uuid? -> Device
 
   /**
   Notifies the server that the device with the given $hardware-id was created.
@@ -74,7 +74,7 @@ interface ArtemisServerCli implements Authenticatable:
   This operation is mostly for debugging purposes, as the $create-device-in-organization
     already has a similar effect.
   */
-  notify-created --hardware-id/uuid.Uuid
+  notify-created --hardware-id/Uuid
 
   /** Returns the used-id of the authenticated user. */
   get-current-user-id -> string
@@ -91,7 +91,7 @@ interface ArtemisServerCli implements Authenticatable:
 
   Returns null if the organization doesn't exist.
   */
-  get-organization id/uuid.Uuid -> OrganizationDetailed?
+  get-organization id/Uuid -> OrganizationDetailed?
 
   /** Creates a new organization with the given $name. */
   create-organization name/string -> Organization
@@ -99,32 +99,32 @@ interface ArtemisServerCli implements Authenticatable:
   /**
   Updates the given organization.
   */
-  update-organization organization-id/uuid.Uuid --name/string -> none
+  update-organization organization-id/Uuid --name/string -> none
 
   /**
   Gets a list of members.
 
   Each entry is a map consisting of the "id" and "role".
   */
-  get-organization-members organization-id/uuid.Uuid -> List
+  get-organization-members organization-id/Uuid -> List
 
   /**
   Adds the user with $user-id as a new member to the organization
     with $organization-id.
   */
-  organization-member-add --organization-id/uuid.Uuid --user-id/uuid.Uuid --role/string
+  organization-member-add --organization-id/Uuid --user-id/Uuid --role/string
 
   /**
   Removes the user with $user-id from the organization with
     $organization-id.
   */
-  organization-member-remove --organization-id/uuid.Uuid --user-id/uuid.Uuid
+  organization-member-remove --organization-id/Uuid --user-id/Uuid
 
   /**
   Updates the role of the user with $user-id in the organization
     with $organization-id.
   */
-  organization-member-set-role --organization-id/uuid.Uuid --user-id/uuid.Uuid --role/string
+  organization-member-set-role --organization-id/Uuid --user-id/Uuid --role/string
 
   /**
   Gets the profile of the user with the given ID.
@@ -132,7 +132,7 @@ interface ArtemisServerCli implements Authenticatable:
   If no user ID is given, the profile of the current user is returned.
   Returns null, if no user with the given ID exists.
   */
-  get-profile --user-id/uuid.Uuid?=null -> Map?
+  get-profile --user-id/Uuid?=null -> Map?
 
   /**
   Updates the profile of the current user.
@@ -152,7 +152,7 @@ interface ArtemisServerCli implements Authenticatable:
     used to filter the results.
   */
   list-sdk-service-versions -> List
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --sdk-version/string?=null
       --service-version/string?=null
 

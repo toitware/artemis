@@ -19,7 +19,6 @@ import artemis.cli.config
 import artemis.cli.server-config show *
 import artemis.cli.utils.supabase show *
 import artemis.shared.constants show *
-import uuid
 
 import .utils
 

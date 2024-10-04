@@ -4,7 +4,7 @@ import cli show *
 import encoding.base64
 import encoding.ubjson
 import host.file
-import uuid
+import uuid show Uuid
 
 import .utils_
 import .device-container
@@ -311,7 +311,7 @@ default-device invocation/Invocation:
     // TODO(florian): make sure the device exists on the broker.
     make-default_ device-id --cli=cli
 
-make-default_ device-id/uuid.Uuid --cli/Cli:
+make-default_ device-id/Uuid --cli/Cli:
   cli.config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
   cli.config.write
   cli.ui.emit --info "Default device set to $device-id."

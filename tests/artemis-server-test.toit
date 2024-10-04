@@ -7,7 +7,7 @@ import expect show *
 import host.directory
 import log
 import net
-import uuid
+import uuid show Uuid
 
 import .artemis-server
 import .utils
@@ -46,7 +46,7 @@ run-test artemis-server/TestArtemisServer [--authenticate]:
     test-profile server-cli backdoor
     test-sdk server-cli backdoor
 
-test-create-device-in-organization server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> uuid.Uuid:
+test-create-device-in-organization server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> Uuid:
   // Test without and with alias.
   device1 := server-cli.create-device-in-organization
       --device-id=null
@@ -69,7 +69,7 @@ test-create-device-in-organization server-cli/ArtemisServerCli backdoor/ArtemisS
 
   return hardware-id2
 
-test-notify-created server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor --hardware-id/uuid.Uuid:
+test-notify-created server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor --hardware-id/Uuid:
   expect-not (backdoor.has-event --hardware-id=hardware-id --type="created")
   server-cli.notify-created --hardware-id=hardware-id
   expect (backdoor.has-event --hardware-id=hardware-id --type="created")

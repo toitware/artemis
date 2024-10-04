@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import system.services show ServiceResourceProxy
-import uuid
+import uuid show Uuid
 
 import .api as api
 import .implementation.container as implementation
@@ -95,7 +95,7 @@ interface Device:
   The $id is guaranteed to be unique among all devices that
     belong to a specific organization.
   */
-  id -> uuid.Uuid
+  id -> Uuid
 
 /**
 A trigger that was responsible for starting a container.

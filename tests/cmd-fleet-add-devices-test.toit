@@ -9,7 +9,6 @@ import host.directory
 import host.file
 import expect show *
 import uuid show Uuid
-import uuid
 import .utils
 
 main args:
@@ -39,7 +38,7 @@ run-test fleet/TestFleet:
     expect-equals count added-devices.size
     added-devices.do: | uuid-string/string path/string |
       // Make sure the uuid-string is actually a uuid.
-      uuid.parse uuid-string
+      Uuid.parse uuid-string
       expect (file.is-file path)
     check-and-remove-identity-files fleet-dir tmp-dir count
 

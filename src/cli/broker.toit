@@ -6,7 +6,7 @@ import host.file
 import host.os
 import io
 import net
-import uuid
+import uuid show Uuid
 
 import encoding.base64
 import encoding.ubjson
@@ -31,8 +31,8 @@ import .sdk
 import .server-config
 
 class UploadResult:
-  fleet-id/uuid.Uuid
-  id/uuid.Uuid
+  fleet-id/Uuid
+  id/Uuid
   name/string
   revision/int
   tags/List
@@ -53,7 +53,7 @@ class UploadResult:
     return result
 
 class PodBroker:
-  id/uuid.Uuid
+  id/Uuid
   name/string?
   revision/int?
   tags/List?
@@ -64,8 +64,8 @@ class PodBroker:
 Manages devices that have an Artemis service running on them.
 */
 class Broker:
-  fleet-id/uuid.Uuid
-  organization-id/uuid.Uuid
+  fleet-id/Uuid
+  organization-id/Uuid
   server-config/ServerConfig
   cli_/Cli
   network_/net.Client? := null
@@ -80,8 +80,8 @@ class Broker:
   broker-connection__/BrokerCli? := null
 
   constructor
-      --.fleet-id/uuid.Uuid
-      --.organization-id/uuid.Uuid
+      --.fleet-id/Uuid
+      --.organization-id/Uuid
       --.server-config
       --cli/Cli
       --tmp-directory/string
@@ -102,7 +102,7 @@ class Broker:
         cli_.ui.abort "$error-message (broker)."
     return broker-connection__
 
-  short-string-for_ --device-id/uuid.Uuid -> string:
+  short-string-for_ --device-id/Uuid -> string:
     if not device-short-strings_: throw "Access to device in non-device fleet."
     return device-short-strings_[device-id]
 
@@ -297,14 +297,14 @@ class Broker:
     sha.add writer.buffer.bytes
     return sha.get
 
-  is-cached --pod-id/uuid.Uuid -> bool:
+  is-cached --pod-id/Uuid -> bool:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
         --organization-id=organization-id
         --pod-id=pod-id
     return cli_.cache.contains manifest-key
 
-  download --pod-id/uuid.Uuid -> Pod:
+  download --pod-id/Uuid -> Pod:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
         --organization-id=organization-id
@@ -404,7 +404,7 @@ class Broker:
     if has-errors: cli_.ui.abort
     return result
 
-  pod pod-id/uuid.Uuid -> PodBroker:
+  pod pod-id/Uuid -> PodBroker:
     pod-entry := broker-connection_.pod-registry-pods
         --fleet-id=fleet-id
         --pod-ids=[pod-id]
@@ -416,10 +416,10 @@ class Broker:
 
     return PodBroker --id=pod-id --name=null --revision=null --tags=null
 
-  get-pod-id reference/PodReference -> uuid.Uuid:
+  get-pod-id reference/PodReference -> Uuid:
     return (get-pod-ids [reference])[0]
 
-  get-pod-id --name/string --tag/string? --revision/int? -> uuid.Uuid:
+  get-pod-id --name/string --tag/string? --revision/int? -> Uuid:
     return get-pod-id (PodReference --name=name --tag=tag --revision=revision)
 
   pod-exists reference/PodReference -> bool:
@@ -436,7 +436,7 @@ class Broker:
   get-devices --device-ids/List -> Map:
     return broker-connection_.get-devices --device-ids=device-ids
 
-  update --device-id/uuid.Uuid --pod/Pod --base-firmwares/List=[]:
+  update --device-id/Uuid --pod/Pod --base-firmwares/List=[]:
     update-bulk_ --devices=[device-for --id=device-id] --pods=[pod] --base-firmwares=base-firmwares
 
   /**
@@ -559,7 +559,7 @@ class Broker:
       known-encoded-firmwares.do: | encoded/string |
         old-firmware := Firmware.encoded encoded
         old-device-map := old-firmware.device-specific "artemis.device"
-        old-device-id := uuid.parse old-device-map["device_id"]
+        old-device-id := Uuid.parse old-device-map["device_id"]
         if device-id != old-device-id:
           cli_.ui.abort "The device id of the firmware image ($old-device-id) does not match the given device id ($device-id)."
         upgrade-from.add old-firmware.content
@@ -671,7 +671,7 @@ class Broker:
     }
     broker-connection_.notify-created --device-id=device.id --state=state
 
-  device-for --id/uuid.Uuid -> DeviceDetailed:
+  device-for --id/Uuid -> DeviceDetailed:
     devices := broker-connection_.get-devices --device-ids=[id]
     if devices.is-empty:
       short := short-string-for_ --device-id=id
@@ -683,11 +683,11 @@ class Broker:
 
   See $BrokerCli.update-goal.
   */
-  update-goal_ --device-id/uuid.Uuid [block]:
+  update-goal_ --device-id/Uuid [block]:
     broker-connection_.update-goal --device-id=device-id block
 
   container-install -> none
-      --device-id/uuid.Uuid
+      --device-id/Uuid
       --app-name/string
       --application-path/string
       --arguments/List?
@@ -736,7 +736,7 @@ class Broker:
       new-goal["apps"] = apps
       new-goal
 
-  container-uninstall --device-id/uuid.Uuid --app-name/string --force/bool:
+  container-uninstall --device-id/Uuid --app-name/string --force/bool:
     update-goal_ --device-id=device-id: | device/DeviceDetailed |
       if not device.goal and not device.reported-state-firmware:
         throw "No known firmware information for device."
@@ -759,7 +759,7 @@ class Broker:
           if apps.is-empty: new-goal.remove "apps"
       new-goal
 
-  config-set-max-offline --device-id/uuid.Uuid --max-offline-seconds/int:
+  config-set-max-offline --device-id/Uuid --max-offline-seconds/int:
     update-goal_ --device-id=device-id: | device/DeviceDetailed |
       if not device.goal and not device.reported-state-firmware:
         throw "No known firmware information for device."
@@ -781,7 +781,7 @@ class Broker:
   The image is ready to be flashed together with the identity file.
   */
   customize-envelope
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --specification/PodSpecification
       --recovery-urls/List
       --artemis/Artemis
@@ -878,10 +878,10 @@ class Broker:
         // be able to get it from the firmware tool.
         sha := sha256.Sha256
         snapshot-uuid-string := extract-id-from-snapshot snapshot-path
-        sha.add (uuid.parse snapshot-uuid-string).to-byte-array
+        sha.add (Uuid.parse snapshot-uuid-string).to-byte-array
         if assets-path:
           sha.add (file.read-content assets-path)
-        id := uuid.Uuid sha.get[..uuid.SIZE]
+        id := Uuid sha.get[..Uuid.SIZE]
 
         triggers := container.triggers
         if not container.is-critical and not triggers:
@@ -952,7 +952,7 @@ class Broker:
   Builds a container description as needed for a "container" entry in the device state.
   */
   static build-container-description_ -> Map
-      --id/uuid.Uuid
+      --id/Uuid
       --arguments/List?
       --background/bool?
       --critical/bool?

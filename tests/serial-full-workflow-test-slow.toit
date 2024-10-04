@@ -15,7 +15,7 @@ import host.directory
 import host.file
 import host.os
 import host.pipe
-import uuid
+import uuid show Uuid
 import expect show *
 import .artemis-server show TestArtemisServer
 import .utils
@@ -301,10 +301,10 @@ run-test tester/Tester serial-port/string wifi-ssid/string wifi-password/string:
 
   test-device := tester.listen-to-serial-device
       --serial-port=serial-port
-      --alias-id=uuid.parse device-id
+      --alias-id=Uuid.parse device-id
       // We don't know the actual hardware-id.
       // Cheat by reusing the alias id.
-      --hardware-id=uuid.parse device-id
+      --hardware-id=Uuid.parse device-id
 
   pos := test-device.wait-for-synchronized --start-at=0
 

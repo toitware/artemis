@@ -7,7 +7,7 @@ import http
 import net
 import net.x509
 import tls
-import uuid
+import uuid show Uuid
 
 import ..broker
 import ...device
@@ -154,7 +154,7 @@ class BrokerCliHttp implements BrokerCli:
   extra-headers -> Map?:
     return null
 
-  update-goal --device-id/uuid.Uuid [block] -> none:
+  update-goal --device-id/Uuid [block] -> none:
     detailed-devices := get-devices --device-ids=[device-id]
     if detailed-devices.size != 1: throw "Device not found: $device-id"
     detailed-device := detailed-devices[device-id]
@@ -176,15 +176,15 @@ class BrokerCliHttp implements BrokerCli:
     }
     result := {:}
     response.do: | row/Map |
-      device-id := uuid.parse row["device_id"]
+      device-id := Uuid.parse row["device_id"]
       goal := row["goal"]
       state := row["state"]
       result[device-id] = DeviceDetailed --goal=goal --state=state
     return result
 
   upload-image -> none
-      --organization-id/uuid.Uuid
-      --app-id/uuid.Uuid
+      --organization-id/Uuid
+      --app-id/Uuid
       --word-size/int
       content/ByteArray:
     send-request_ COMMAND-UPLOAD_ {
@@ -192,7 +192,7 @@ class BrokerCliHttp implements BrokerCli:
       "content": content,
     }
 
-  upload-firmware --organization-id/uuid.Uuid --firmware-id/string chunks/List -> none:
+  upload-firmware --organization-id/Uuid --firmware-id/string chunks/List -> none:
     firmware := #[]
     chunks.do: firmware += it
     send-request_ COMMAND-UPLOAD_ {
@@ -200,12 +200,12 @@ class BrokerCliHttp implements BrokerCli:
       "content": firmware,
     }
 
-  download-firmware --organization-id/uuid.Uuid --id/string -> ByteArray:
+  download-firmware --organization-id/Uuid --id/string -> ByteArray:
     return send-request_ COMMAND-DOWNLOAD_ {
       "path": "/toit-artemis-assets/$organization-id/firmware/$id",
     }
 
-  notify-created --device-id/uuid.Uuid --state/Map -> none:
+  notify-created --device-id/Uuid --state/Map -> none:
     send-request_ COMMAND-NOTIFY-BROKER-CREATED_ {
       "_device_id": "$device-id",
       "_state": state,
@@ -225,9 +225,9 @@ class BrokerCliHttp implements BrokerCli:
     response := send-request_ COMMAND-GET-EVENTS_ payload
     result := {:}
     current-list/List? := null
-    current-id/uuid.Uuid? := null
+    current-id/Uuid? := null
     response.do: | row/Map |
-      device-id := uuid.parse row["device_id"]
+      device-id := Uuid.parse row["device_id"]
       event-type := row["type"]
       data := row["data"]
       timestamp := row["ts"]
@@ -240,8 +240,8 @@ class BrokerCliHttp implements BrokerCli:
 
   /** See $BrokerCli.pod-registry-description-upsert. */
   pod-registry-description-upsert -> int
-      --fleet-id/uuid.Uuid
-      --organization-id/uuid.Uuid
+      --fleet-id/Uuid
+      --organization-id/Uuid
       --name/string
       --description/string?:
     return send-request_ COMMAND-POD-REGISTRY-DESCRIPTION-UPSERT_ {
@@ -252,7 +252,7 @@ class BrokerCliHttp implements BrokerCli:
     }
 
   /** See $BrokerCli.pod-registry-descriptions-delete. */
-  pod-registry-descriptions-delete --fleet-id/uuid.Uuid --description-ids/List -> none:
+  pod-registry-descriptions-delete --fleet-id/Uuid --description-ids/List -> none:
     send-request_ COMMAND-POD-REGISTRY-DELETE-DESCRIPTIONS_ {
       "_fleet_id": "$fleet-id",
       "_description_ids": description-ids,
@@ -261,14 +261,14 @@ class BrokerCliHttp implements BrokerCli:
   /** See $BrokerCli.pod-registry-add. */
   pod-registry-add -> none
       --pod-description-id/int
-      --pod-id/uuid.Uuid:
+      --pod-id/Uuid:
     send-request_ COMMAND-POD-REGISTRY-ADD_ {
       "_pod_description_id": pod-description-id,
       "_pod_id": "$pod-id",
     }
 
   /** See $BrokerCli.pod-registry-delete. */
-  pod-registry-delete --fleet-id/uuid.Uuid --pod-ids/List -> none:
+  pod-registry-delete --fleet-id/Uuid --pod-ids/List -> none:
     send-request_ COMMAND-POD-REGISTRY-DELETE_ {
       "_fleet_id": "$fleet-id",
       "_pod_ids": pod-ids.map: "$it",
@@ -277,7 +277,7 @@ class BrokerCliHttp implements BrokerCli:
   /** See $BrokerCli.pod-registry-tag-set. */
   pod-registry-tag-set -> none
       --pod-description-id/int
-      --pod-id/uuid.Uuid
+      --pod-id/Uuid
       --tag/string
       --force/bool=false:
     send-request_ COMMAND-POD-REGISTRY-TAG-SET_ {
@@ -297,7 +297,7 @@ class BrokerCliHttp implements BrokerCli:
     }
 
   /** See $BrokerCli.pod-registry-descriptions. */
-  pod-registry-descriptions --fleet-id/uuid.Uuid -> List:
+  pod-registry-descriptions --fleet-id/Uuid -> List:
     response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS_ {
       "_fleet_id": "$fleet-id",
     }
@@ -312,8 +312,8 @@ class BrokerCliHttp implements BrokerCli:
 
   /** See $(BrokerCli.pod-registry-descriptions --fleet-id --organization-id --names --create-if-absent). */
   pod-registry-descriptions -> List
-      --fleet-id/uuid.Uuid
-      --organization-id/uuid.Uuid
+      --fleet-id/Uuid
+      --organization-id/Uuid
       --names/List
       --create-if-absent/bool:
     response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-NAMES_ {
@@ -334,7 +334,7 @@ class BrokerCliHttp implements BrokerCli:
     return response.map: PodRegistryEntry.from-map it
 
   /** See $(BrokerCli.pod-registry-pods --fleet-id --pod-ids). */
-  pod-registry-pods --fleet-id/uuid.Uuid --pod-ids/List -> List:
+  pod-registry-pods --fleet-id/Uuid --pod-ids/List -> List:
     response := send-request_ COMMAND-POD-REGISTRY-PODS-BY-IDS_ {
       "_fleet_id": "$fleet-id",
       "_pod_ids": (pod-ids.map: "$it"),
@@ -342,7 +342,7 @@ class BrokerCliHttp implements BrokerCli:
     return response.map: PodRegistryEntry.from-map it
 
   /** See $BrokerCli.pod-registry-pod-ids. */
-  pod-registry-pod-ids --fleet-id/uuid.Uuid --references/List -> Map:
+  pod-registry-pod-ids --fleet-id/Uuid --references/List -> Map:
     response := send-request_ COMMAND-POD-REGISTRY-POD-IDS-BY-REFERENCE_ {
       "_fleet_id": "$fleet-id",
       "_references": references.map: | reference/PodReference |
@@ -355,7 +355,7 @@ class BrokerCliHttp implements BrokerCli:
     }
     result := {:}
     response.do: | it/Map |
-      pod-id := uuid.parse it["pod_id"]
+      pod-id := Uuid.parse it["pod_id"]
       reference := PodReference
           --name=it["name"]
           --tag=it.get "tag"
@@ -365,7 +365,7 @@ class BrokerCliHttp implements BrokerCli:
 
   /** See $BrokerCli.pod-registry-upload-pod-part. */
   pod-registry-upload-pod-part -> none
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --part-id/string
       content/ByteArray:
     send-request_ COMMAND-UPLOAD_ {
@@ -374,15 +374,15 @@ class BrokerCliHttp implements BrokerCli:
     }
 
   /** See $BrokerCli.pod-registry-download-pod-part. */
-  pod-registry-download-pod-part part-id/string --organization-id/uuid.Uuid -> ByteArray:
+  pod-registry-download-pod-part part-id/string --organization-id/Uuid -> ByteArray:
     return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
       "path": "/toit-artemis-pods/$organization-id/part/$part-id",
     }
 
   /** See $BrokerCli.pod-registry-upload-pod-manifest. */
   pod-registry-upload-pod-manifest -> none
-      --organization-id/uuid.Uuid
-      --pod-id/uuid.Uuid
+      --organization-id/Uuid
+      --pod-id/Uuid
       content/ByteArray:
     send-request_ COMMAND-UPLOAD_ {
       "path": "/toit-artemis-pods/$organization-id/manifest/$pod-id",
@@ -390,7 +390,7 @@ class BrokerCliHttp implements BrokerCli:
     }
 
   /** See $BrokerCli.pod-registry-download-pod-manifest. */
-  pod-registry-download-pod-manifest --organization-id/uuid.Uuid --pod-id/uuid.Uuid -> ByteArray:
+  pod-registry-download-pod-manifest --organization-id/Uuid --pod-id/Uuid -> ByteArray:
     return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
       "path": "/toit-artemis-pods/$organization-id/manifest/$pod-id",
     }

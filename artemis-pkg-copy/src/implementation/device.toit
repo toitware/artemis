@@ -2,15 +2,15 @@
 // Use of this source code is governed by an MIT-style license that can be
 // found in the LICENSE file.
 
-import uuid
+import uuid show Uuid
 
 import ..artemis as artemis
 import ..api as api
 
 class Device implements artemis.Device:
   client_/api.ArtemisClient
-  id/uuid.Uuid
+  id/Uuid
   constructor client/api.ArtemisClient?:
     if not client: throw "Artemis unavailable"
     client_ = client
-    id = uuid.Uuid client.device-id
+    id = Uuid client.device-id

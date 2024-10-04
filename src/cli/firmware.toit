@@ -9,7 +9,7 @@ import host.file
 import host.os
 import io
 import snapshot show cache-snapshot
-import uuid
+import uuid show Uuid
 import fs
 import semver
 
@@ -123,23 +123,23 @@ class Firmware:
   device -> Device:
     device-map := device-specific "artemis.device"
     return Device
-        --id=uuid.parse device-map["device_id"]
-        --organization-id=uuid.parse device-map["organization_id"]
-        --hardware-id=uuid.parse device-map["hardware_id"]
+        --id=Uuid.parse device-map["device_id"]
+        --organization-id=Uuid.parse device-map["organization_id"]
+        --hardware-id=Uuid.parse device-map["hardware_id"]
 
   /** The sdk version that was used for this firmware. */
   sdk-version -> string:
     return device-specific "sdk-version"
 
-  pod-id -> uuid.Uuid:
+  pod-id -> Uuid:
     // TODO(kasper): Device configurations prior to Artemis v0.6
     // do not (generally) contain pod ids. To ease migration, we
     // let them have a nil id to indicate that we don't know which
     // pod they are running. It feels safe to remove this workaround
     // in a couple of weeks (early June, 2023).
     device-pod-id := device-specific "pod-id"
-    if not device-pod-id: return uuid.NIL
-    return uuid.Uuid device-pod-id
+    if not device-pod-id: return Uuid.NIL
+    return Uuid device-pod-id
 
 class FirmwareContent:
   bits/ByteArray?

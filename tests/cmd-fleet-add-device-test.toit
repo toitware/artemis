@@ -6,7 +6,7 @@ import artemis.cli.utils show read-json
 import host.file
 import expect show *
 import system
-import uuid
+import uuid show Uuid
 import .cli-device-extract show TestDeviceConfig
 import .utils
 
@@ -41,10 +41,10 @@ run-test fleet/TestFleet --args/List:
     ]
     expect (file.is-file tar-file)
     devices-with-tar := read-json "$fleet-dir/devices.json"
-    tar-device-id/uuid.Uuid? := null
+    tar-device-id/Uuid? := null
     devices-with-tar.do: | uuid-str/string _ |
       if devices-after.contains uuid-str: continue.do
-      tar-device-id = uuid.parse uuid-str
+      tar-device-id = Uuid.parse uuid-str
 
     device-config := TestDeviceConfig
         --device-id=tar-device-id
@@ -66,7 +66,7 @@ run-test fleet/TestFleet --args/List:
       "fleet", "add-device", "--format", "tar", "-o", tar-file, "--output-format", "json"
     ]
 
-    new-id := uuid.parse result["id"]
+    new-id := Uuid.parse result["id"]
     device-config = TestDeviceConfig
         --device-id=new-id
         --format="tar"

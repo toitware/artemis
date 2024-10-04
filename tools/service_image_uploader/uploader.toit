@@ -13,7 +13,7 @@ import artemis.cli.sdk show *
 import artemis.shared.version show ARTEMIS-VERSION
 import host.file
 import host.pipe
-import uuid
+import uuid show Uuid
 import snapshot show cache-snapshot extract-uuid
 import supabase
 
@@ -220,7 +220,7 @@ build-and-upload invocation/Invocation:
     create-image-archive snapshot-paths --sdk=sdk --out=ar-file
 
     with-upload-client invocation: | client/UploadClient |
-      image-id := (uuid.uuid5 "artemis"
+      image-id := (Uuid.uuid5 "artemis"
           "$Time.monotonic-us $sdk-version $full-service-version").stringify
 
       image-content := file.read-content ar-file

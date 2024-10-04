@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS.
 
 import host.directory
-import uuid
+import uuid show Uuid
 import artemis.cli.utils show
   read-json write-json-to-file write-yaml-to-file write-blob-to-file copy-directory
 
@@ -10,7 +10,7 @@ import .utils
 class TestDeviceConfig:
   format/string
   path/string
-  device-id/uuid.Uuid
+  device-id/Uuid
 
   constructor --.format --.path --.device-id:
 
@@ -21,7 +21,7 @@ Uploads a pod to the fleet.
 
 The $format is needed to determine which base pod-specification should be used.
 */
-upload-pod -> uuid.Uuid
+upload-pod -> Uuid
     --gold-name/string?=null
     --format/string
     --fleet/TestFleet
@@ -90,7 +90,7 @@ upload-pod -> uuid.Uuid
       if tag != "latest":
         fleet.tester.replacements[tag] = "auto-tag"
 
-  return uuid.parse upload-result["id"]
+  return Uuid.parse upload-result["id"]
 
 /**
 Library to create a new device and extract the image for it.
@@ -111,7 +111,7 @@ create-extract-device -> TestDeviceConfig
     --tmp-dir/string="$fleet.tester.tmp-dir/td-$format"
     --user-email/string=TEST-EXAMPLE-COM-EMAIL
     --user-password/string=TEST-EXAMPLE-COM-PASSWORD
-    --org-id/uuid.Uuid=TEST-ORGANIZATION-UUID:
+    --org-id/Uuid=TEST-ORGANIZATION-UUID:
 
   upload-pod
       --format=format
@@ -130,4 +130,4 @@ create-extract-device -> TestDeviceConfig
     "--output", path,
   ]
 
-  return TestDeviceConfig --format=format --device-id=(uuid.parse result["id"]) --path=path
+  return TestDeviceConfig --format=format --device-id=(Uuid.parse result["id"]) --path=path

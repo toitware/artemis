@@ -4,7 +4,7 @@
 
 import expect show *
 import net
-import uuid
+import uuid show Uuid
 import host.os
 
 import .serial

@@ -2,12 +2,12 @@
 
 import host.directory
 import host.file
-import uuid
+import uuid show Uuid
 import artemis.cli.utils show read-json write-json-to-file write-blob-to-file copy-directory
 
 import .utils
 
-flash-serial -> uuid.Uuid
+flash-serial -> Uuid
     --fleet/TestFleet
     --port/string
     --files/Map
@@ -89,4 +89,4 @@ flash-serial -> uuid.Uuid
   close-paren := output.index-of ")"
   device-id := output[open-paren + 1..close-paren]
 
-  return uuid.parse device-id
+  return Uuid.parse device-id

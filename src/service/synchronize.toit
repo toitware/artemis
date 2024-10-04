@@ -3,7 +3,7 @@
 import io
 import log
 import net
-import uuid
+import uuid show Uuid
 
 import certificate-roots
 import crypto.sha256
@@ -324,8 +324,8 @@ class SynchronizeJob extends TaskJob:
     // started connecting.
     return JobTime.now - jitter
 
-  parse-uuid_ value/string -> uuid.Uuid?:
-    catch: return uuid.parse value
+  parse-uuid_ value/string -> Uuid?:
+    catch: return Uuid.parse value
     logger_.warn "unable to parse uuid '$value'"
     return null
 
@@ -830,7 +830,7 @@ class SynchronizeJob extends TaskJob:
 
     handle-container-update_ name description
 
-  handle-container-install_ goal/Goal name/string id/uuid.Uuid description/Map -> none:
+  handle-container-install_ goal/Goal name/string id/Uuid description/Map -> none:
     if job := containers_.create --name=name --id=id --description=description --state=null:
       device_.state-container-install-or-update name description
       containers_.install job

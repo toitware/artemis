@@ -16,7 +16,7 @@ import fs
 import http
 import net
 import system
-import uuid
+import uuid show Uuid
 import artemis.cli as artemis-pkg
 import artemis.cli.server-config as cli-server-config
 import artemis.cli.cache as artemis-cache
@@ -43,31 +43,31 @@ export Device
 /** test@example.com is an admin of the $TEST-ORGANIZATION-UUID. */
 TEST-EXAMPLE-COM-EMAIL ::= "test@example.com"
 TEST-EXAMPLE-COM-PASSWORD ::= "password"
-TEST-EXAMPLE-COM-UUID ::= uuid.parse "f76629c5-a070-4bbc-9918-64beaea48848"
+TEST-EXAMPLE-COM-UUID ::= Uuid.parse "f76629c5-a070-4bbc-9918-64beaea48848"
 TEST-EXAMPLE-COM-NAME ::= "Test User"
 
 /** demo@example.com is a member of the $TEST-ORGANIZATION-UUID. */
 DEMO-EXAMPLE-COM-EMAIL ::= "demo@example.com"
 DEMO-EXAMPLE-COM-PASSWORD ::= "password"
-DEMO-EXAMPLE-COM-UUID ::= uuid.parse "d9064bb5-1501-4ec9-bfee-21ab74d645b8"
+DEMO-EXAMPLE-COM-UUID ::= Uuid.parse "d9064bb5-1501-4ec9-bfee-21ab74d645b8"
 DEMO-EXAMPLE-COM-NAME ::= "Demo User"
 
 ADMIN-EMAIL ::= "test-admin@toit.io"
 ADMIN-PASSWORD ::= "password"
-ADMIN-UUID ::= uuid.parse "6ac69de5-7b56-4153-a31c-7b4e29bbcbcf"
+ADMIN-UUID ::= Uuid.parse "6ac69de5-7b56-4153-a31c-7b4e29bbcbcf"
 ADMIN-NAME ::= "Admin User"
 
 /** Preseeded "Test Organization". */
 TEST-ORGANIZATION-NAME ::= "Test Organization"
-TEST-ORGANIZATION-UUID ::= uuid.parse "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
+TEST-ORGANIZATION-UUID ::= Uuid.parse "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
 
 /** Preseeded test device in $TEST-ORGANIZATION-UUID. */
-TEST-DEVICE-UUID ::= uuid.parse "eb45c662-356c-4bea-ad8c-ede37688fddf"
-TEST-DEVICE-ALIAS ::= uuid.parse "191149e5-a95b-47b1-80dd-b149f953d272"
+TEST-DEVICE-UUID ::= Uuid.parse "eb45c662-356c-4bea-ad8c-ede37688fddf"
+TEST-DEVICE-ALIAS ::= Uuid.parse "191149e5-a95b-47b1-80dd-b149f953d272"
 
-TEST-POD-UUID ::= uuid.parse "0e29c450-f802-49cc-b695-c5add71fdac3"
+TEST-POD-UUID ::= Uuid.parse "0e29c450-f802-49cc-b695-c5add71fdac3"
 
-NON-EXISTENT-UUID ::= uuid.uuid5 "non" "existent"
+NON-EXISTENT-UUID ::= Uuid.uuid5 "non" "existent"
 
 UPDATE-GOLD-ENV ::= "UPDATE_GOLD"
 
@@ -301,11 +301,11 @@ class Tester:
   By default a random token is used.
   */
   create-device -> TestDevice
-      --organization-id/uuid.Uuid=TEST-ORGANIZATION-UUID
+      --organization-id/Uuid=TEST-ORGANIZATION-UUID
       --firmware-token/ByteArray?=null:
     device-description := create-device_ organization-id firmware-token
-    hardware-id/uuid.Uuid := device-description["id"]
-    alias-id/uuid.Uuid := device-description["alias"]
+    hardware-id/Uuid := device-description["id"]
+    alias-id/Uuid := device-description["alias"]
     encoded-firmware := device-description["encoded_firmware"]
 
     result := TestDevicePipe.fake-host
@@ -320,8 +320,8 @@ class Tester:
     return result
 
   create-device -> TestDevice
-      --alias-id/uuid.Uuid
-      --hardware-id/uuid.Uuid
+      --alias-id/Uuid
+      --hardware-id/Uuid
       --device-config/TestDeviceConfig
       --organization-id=TEST-ORGANIZATION-UUID:
     result/TestDevice := ?
@@ -349,8 +349,8 @@ class Tester:
     return result
 
   listen-to-serial-device -> TestDevicePipe
-      --alias-id/uuid.Uuid
-      --hardware-id/uuid.Uuid
+      --alias-id/Uuid
+      --hardware-id/Uuid
       --serial-port/string:
     result := TestDevicePipe.serial
         --broker=broker
@@ -365,11 +365,11 @@ class Tester:
     return result
 
   start-fake-device -> FakeDevice
-      --organization-id/uuid.Uuid=TEST-ORGANIZATION-UUID
+      --organization-id/Uuid=TEST-ORGANIZATION-UUID
       --firmware-token/ByteArray?=null:
     device-description := create-device_ organization-id firmware-token
-    hardware-id/uuid.Uuid := device-description["id"]
-    alias-id/uuid.Uuid := device-description["alias"]
+    hardware-id/Uuid := device-description["id"]
+    alias-id/Uuid := device-description["alias"]
     encoded-firmware := device-description["encoded_firmware"]
 
     result := FakeDevice
@@ -385,9 +385,9 @@ class Tester:
 
   start-fake-device --identity/Map --firmware-token/ByteArray?=null -> FakeDevice:
     device-description := identity["artemis.device"]
-    hardware-id/uuid.Uuid := uuid.parse device-description["hardware_id"]
-    alias-id/uuid.Uuid := uuid.parse device-description["device_id"]
-    organization-id/uuid.Uuid := uuid.parse device-description["organization_id"]
+    hardware-id/Uuid := Uuid.parse device-description["hardware_id"]
+    alias-id/Uuid := Uuid.parse device-description["device_id"]
+    organization-id/Uuid := Uuid.parse device-description["organization_id"]
 
     encoded-firmware := build-encoded-firmware
         --firmware-token=firmware-token
@@ -406,10 +406,10 @@ class Tester:
     test-devices_.add result
     return result
 
-  create-device_ organization-id/uuid.Uuid firmware-token/ByteArray?=null -> Map:
+  create-device_ organization-id/Uuid firmware-token/ByteArray?=null -> Map:
     device-description := artemis.backdoor.create-device --organization-id=organization-id
-    hardware-id/uuid.Uuid := device-description["id"]
-    alias-id/uuid.Uuid := device-description["alias"]
+    hardware-id/Uuid := device-description["id"]
+    alias-id/Uuid := device-description["alias"]
     initial-state := {
       "identity": {
         "device_id": "$alias-id",
@@ -470,9 +470,9 @@ class Tester:
     (broker.backdoor as broker-lib.ToitHttpBackdoor).stop
 
 abstract class TestDevice:
-  hardware-id/uuid.Uuid
-  alias-id/uuid.Uuid
-  organization-id/uuid.Uuid
+  hardware-id/Uuid
+  alias-id/Uuid
+  organization-id/Uuid
   broker/TestBroker
   tester/Tester
   pos_/int := 0
@@ -523,7 +523,7 @@ abstract class TestDevice:
   */
   abstract update-output-pos -> none
 
-  id -> uuid.Uuid: return alias-id
+  id -> Uuid: return alias-id
 
   wait-for-synchronized --start-at/int=pos_ --update-pos/bool=true -> int:
     new-pos := wait-for "[artemis.synchronize] INFO: synchronized"
@@ -554,7 +554,7 @@ abstract class TestDevice:
   Waits until this device is on the given pod.
   Returns the last status line.
   */
-  wait-to-be-on-pod pod-id/uuid.Uuid --status/List?=null -> List:
+  wait-to-be-on-pod pod-id/Uuid --status/List?=null -> List:
     wait-for "[artemis.synchronize] INFO: firmware update: validated"
     if not status: status = get-status_
     while true:
@@ -602,9 +602,9 @@ class FakeDevice extends TestDevice:
 
   constructor
       --broker/TestBroker
-      --hardware-id/uuid.Uuid
-      --alias-id/uuid.Uuid
-      --organization-id/uuid.Uuid
+      --hardware-id/Uuid
+      --alias-id/Uuid
+      --organization-id/Uuid
       --encoded-firmware/string
       --tester/Tester:
     network_ = net.open
@@ -719,8 +719,8 @@ class TestDeviceBackdoor:
     network_ = net.open
     client_ = http.Client network_
 
-  device-id -> uuid.Uuid:
-    return uuid.parse (get_ "device-id")
+  device-id -> Uuid:
+    return Uuid.parse (get_ "device-id")
 
   get-storage --ram/bool=false --flash/bool=false key/string:
     if not ram and not flash:
@@ -770,9 +770,9 @@ class TestDevicePipe extends TestDevice:
 
   constructor.fake-host
       --broker/TestBroker
-      --hardware-id/uuid.Uuid
-      --alias-id/uuid.Uuid
-      --organization-id/uuid.Uuid
+      --hardware-id/Uuid
+      --alias-id/Uuid
+      --organization-id/Uuid
       --encoded-firmware/string
       --toit-run/string
       --tester/Tester:
@@ -799,9 +799,9 @@ class TestDevicePipe extends TestDevice:
 
   constructor.serial
       --broker/TestBroker
-      --hardware-id/uuid.Uuid
-      --alias-id/uuid.Uuid
-      --organization-id/uuid.Uuid
+      --hardware-id/Uuid
+      --alias-id/Uuid
+      --organization-id/Uuid
       --serial-port/string
       --toit-run/string
       --tester/Tester:
@@ -819,9 +819,9 @@ class TestDevicePipe extends TestDevice:
 
   constructor.qemu
         --broker/TestBroker
-        --hardware-id/uuid.Uuid
-        --alias-id/uuid.Uuid
-        --organization-id/uuid.Uuid
+        --hardware-id/Uuid
+        --alias-id/Uuid
+        --organization-id/Uuid
         --image-path/string
         --qemu-path/string
         --tester/Tester:
@@ -842,9 +842,9 @@ class TestDevicePipe extends TestDevice:
 
   constructor.host
       --broker/TestBroker
-      --hardware-id/uuid.Uuid
-      --alias-id/uuid.Uuid
-      --organization-id/uuid.Uuid
+      --hardware-id/Uuid
+      --alias-id/Uuid
+      --organization-id/Uuid
       --tar-path/string
       --tester/Tester:
     tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
@@ -1131,12 +1131,12 @@ with-tester
       directory.rmdir --recursive cache-dir
 
 build-encoded-firmware -> string
-    --device-id/uuid.Uuid
-    --organization-id/uuid.Uuid=TEST-ORGANIZATION-UUID
-    --hardware-id/uuid.Uuid=device-id
+    --device-id/Uuid
+    --organization-id/Uuid=TEST-ORGANIZATION-UUID
+    --hardware-id/Uuid=device-id
     --firmware-token/ByteArray=#[random 256, random 256, random 256, random 256]
     --sdk-version/string=TEST-SDK-VERSION
-    --pod-id/uuid.Uuid=TEST-POD-UUID:
+    --pod-id/Uuid=TEST-POD-UUID:
   device-specific := ubjson.encode {
     "artemis.device": {
       "device_id": "$device-id",
@@ -1159,7 +1159,7 @@ build-encoded-firmware -> string
 build-encoded-firmware -> string
     --device/Device
     --sdk-version/string?=null
-    --pod-id/uuid.Uuid?=null:
+    --pod-id/Uuid?=null:
   return build-encoded-firmware
       --device-id=device.id
       --organization-id=device.organization-id
@@ -1179,8 +1179,8 @@ broker-type-from-args args/List:
     return arg[2..].trim --right "-broker"
   return "http"
 
-random-uuid -> uuid.Uuid:
-  return uuid.uuid5 "random" "uuid $Time.now.ns-since-epoch $random"
+random-uuid -> Uuid:
+  return Uuid.uuid5 "random" "uuid $Time.now.ns-since-epoch $random"
 
 
 class MigrationBroker:
@@ -1194,7 +1194,7 @@ class MigrationBroker:
     done-latch.set true
 
 class TestFleet:
-  id/uuid.Uuid
+  id/Uuid
   tester/Tester
   fleet-dir/string
   args/List
@@ -1224,7 +1224,7 @@ class TestFleet:
   check-no-migration-stop:
     run --expect-exit-1 ["fleet", "migration", "stop"]
 
-  upload-pod gold-name/string --format/string -> uuid.Uuid:
+  upload-pod gold-name/string --format/string -> Uuid:
     return device-extract.upload-pod
         --fleet=this
         --gold-name=gold-name
@@ -1235,7 +1235,7 @@ class TestFleet:
     added-device := tester.run --json [
       "fleet", "add-device", "--format", "tar", "-o", tar-file, "--name", name
     ]
-    device-id := uuid.parse added-device["id"]
+    device-id := Uuid.parse added-device["id"]
     device-config := device-extract.TestDeviceConfig
         --device-id=device-id
         --format="tar"
@@ -1256,8 +1256,8 @@ class TestFleet:
     return test-device as TestDevicePipe
 
   listen-to-serial-device -> TestDevicePipe
-      --alias-id/uuid.Uuid
-      --hardware-id/uuid.Uuid
+      --alias-id/Uuid
+      --hardware-id/Uuid
       --serial-port/string:
     return tester.listen-to-serial-device
         --alias-id=alias-id
@@ -1346,7 +1346,7 @@ with-fleet --args/List --count/int=0 [block]:
         fake-devices.add fake-device
 
       fleet := TestFleet
-          --id=(uuid.parse fleet-id)
+          --id=(Uuid.parse fleet-id)
           --tester=tester
           --fleet-dir=fleet-dir
           --args=args

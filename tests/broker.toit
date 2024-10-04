@@ -9,7 +9,7 @@ import monitor
 import net
 import supabase
 import system
-import uuid
+import uuid show Uuid
 
 import artemis.cli.brokers.broker show BrokerCli
 import artemis.service.brokers.broker show BrokerService
@@ -52,17 +52,17 @@ interface BrokerBackdoor:
   /**
   Creates a new device with the given $device-id and initial $state.
   */
-  create-device --device-id/uuid.Uuid --state/Map -> none
+  create-device --device-id/Uuid --state/Map -> none
 
   /**
   Removes the device with the given $device-id.
   */
-  remove-device device-id/uuid.Uuid -> none
+  remove-device device-id/Uuid -> none
 
   /**
   Returns the reported state of the device.
   */
-  get-state device-id/uuid.Uuid -> Map?
+  get-state device-id/Uuid -> Map?
 
   /**
   Clears all events.
@@ -99,13 +99,13 @@ class ToitHttpBackdoor implements BrokerBackdoor:
 
   constructor .server:
 
-  create-device --device-id/uuid.Uuid --state/Map:
+  create-device --device-id/Uuid --state/Map:
     server.create-device --device-id="$device-id" --state=state
 
-  remove-device device-id/uuid.Uuid -> none:
+  remove-device device-id/Uuid -> none:
     server.remove-device "$device-id"
 
-  get-state device-id/uuid.Uuid -> Map?:
+  get-state device-id/Uuid -> Map?:
     return server.get-state --device-id="$device-id"
 
   clear-events -> none:
@@ -150,20 +150,20 @@ class SupabaseBackdoor implements BrokerBackdoor:
 
   constructor .server-config_ .service-key_:
 
-  create-device --device-id/uuid.Uuid --state/Map:
+  create-device --device-id/Uuid --state/Map:
     with-backdoor-client_: | client/supabase.Client |
       client.rest.rpc --schema="toit_artemis" "new_provisioned" {
         "_device_id": "$device-id",
         "_state": state,
       }
 
-  remove-device device-id/uuid.Uuid -> none:
+  remove-device device-id/Uuid -> none:
     with-backdoor-client_: | client/supabase.Client |
       client.rest.rpc --schema="toit_artemis" "remove_device" {
         "_device_id": "$device-id",
       }
 
-  get-state device-id/uuid.Uuid -> Map?:
+  get-state device-id/Uuid -> Map?:
     with-backdoor-client_: | client/supabase.Client |
       return client.rest.rpc --schema="toit_artemis" "get_state" {
         "_device_id": "$device-id",

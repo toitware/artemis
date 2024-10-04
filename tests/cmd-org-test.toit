@@ -3,7 +3,7 @@
 // ARTEMIS_TEST_FLAGS: ARTEMIS
 
 import expect show *
-import uuid
+import uuid show Uuid
 import .utils
 
 main args:
@@ -105,7 +105,7 @@ run-test tester/Tester:
   expect-throw "Invalid value for option 'organization-id': 'bad_id'. Expected a UUID.":
     tester.run --expect-exit-1 ["org", "default", "bad_id"]
 
-  UNKNOWN-UUID ::= uuid.uuid5 "unknown" "unknown"
+  UNKNOWN-UUID ::= Uuid.uuid5 "unknown" "unknown"
   bad-use-output := tester.run --expect-exit-1 ["org", "default", "$UNKNOWN-UUID"]
   expect (bad-use-output.contains "Organization not found")
 

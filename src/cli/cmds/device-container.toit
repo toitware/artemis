@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import cli show *
-import uuid
+import uuid show Uuid
 
 import .device
 import .utils_

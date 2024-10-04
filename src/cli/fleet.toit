@@ -6,7 +6,7 @@ import encoding.json
 import encoding.ubjson
 import encoding.base64
 import host.file
-import uuid
+import uuid show Uuid
 
 import .artemis
 import .broker
@@ -26,7 +26,7 @@ import ..shared.json-diff
 DEFAULT-GROUP ::= "default"
 
 class DeviceFleet:
-  id/uuid.Uuid
+  id/Uuid
   name/string?
   group/string
   aliases/List
@@ -73,8 +73,8 @@ class Status_:
 
 class FleetFile:
   path/string
-  id/uuid.Uuid
-  organization-id/uuid.Uuid
+  id/Uuid
+  organization-id/Uuid
   group-pods/Map
   is-reference/bool
   broker-name/string
@@ -172,8 +172,8 @@ class FleetFile:
 
     return FleetFile
         --path=path
-        --id=uuid.parse fleet-content["id"]
-        --organization-id=uuid.parse fleet-content["organization"]
+        --id=Uuid.parse fleet-content["id"]
+        --organization-id=Uuid.parse fleet-content["organization"]
         --group-pods=group-pods
         --is-reference=is-reference
         --broker-name=broker-name
@@ -193,8 +193,8 @@ class FleetFile:
   */
   with -> FleetFile
       --path/string?=null
-      --id/uuid.Uuid?=null
-      --organization-id/uuid.Uuid?=null
+      --id/Uuid?=null
+      --organization-id/Uuid?=null
       --group-pods/Map?=null
       --is-reference/bool?=null
       --broker-name/string?=null
@@ -276,7 +276,7 @@ class DevicesFile:
         ui.abort "Fleet file '$path' has invalid format for device ID $device-id."
       exception = catch:
         device := DeviceFleet
-            --id=uuid.parse device-id
+            --id=Uuid.parse device-id
             --name=encoded-device.get "name"
             --aliases=encoded-device.get "aliases"
             --group=(encoded-device.get "group") or DEFAULT-GROUP
@@ -314,8 +314,8 @@ In return, it can be instantiated with only a fleet-reference file.
 class Fleet:
   static FLEET-FILE_ ::= "fleet.json"
 
-  id/uuid.Uuid
-  organization-id/uuid.Uuid
+  id/Uuid
+  organization-id/Uuid
   artemis/Artemis
   broker/Broker
   cli_/Cli
@@ -415,7 +415,7 @@ class Fleet:
       cli_.ui.emit --info "Downloading pod '$reference'."
     return download --pod-id=pod-id
 
-  download --pod-id/uuid.Uuid -> Pod:
+  download --pod-id/Uuid -> Pod:
     return broker.download --pod-id=pod-id
 
   list-pods --names/List -> Map:
@@ -427,13 +427,13 @@ class Fleet:
   delete --pod-references/List:
     broker.delete --pod-references=pod-references
 
-  pod pod-id/uuid.Uuid -> PodBroker:
+  pod pod-id/Uuid -> PodBroker:
     return broker.pod pod-id
 
-  get-pod-id reference/PodReference -> uuid.Uuid:
+  get-pod-id reference/PodReference -> Uuid:
     return broker.get-pod-id reference
 
-  get-pod-id --name/string --tag/string? --revision/int? -> uuid.Uuid:
+  get-pod-id --name/string --tag/string? --revision/int? -> Uuid:
     return broker.get-pod-id --name=name --tag=tag --revision=revision
 
   pod-exists reference/PodReference -> bool:
@@ -526,7 +526,7 @@ class FleetWithDevices extends Fleet:
         --cli=cli
 
   static init fleet-root/string artemis/Artemis -> FleetFile
-      --organization-id/uuid.Uuid
+      --organization-id/Uuid
       --broker-config/ServerConfig
       --recovery-url-prefixes/List
       --cli/Cli:
@@ -643,7 +643,7 @@ class FleetWithDevices extends Fleet:
   It's safe to call this method with a $random-uuid.
   */
   create-identity -> string
-      --id/uuid.Uuid
+      --id/Uuid
       --name/string?=null
       --aliases/List?=null
       --group/string
@@ -672,7 +672,7 @@ class FleetWithDevices extends Fleet:
   pod-for device/DeviceFleet -> Pod:
     return download (pod-reference-for-group device.group)
 
-  update --device-id/uuid.Uuid --pod/Pod:
+  update --device-id/Uuid --pod/Pod:
     broker.update --device-id=device-id --pod=pod
 
     // We need to notify the migrating-from brokers.
@@ -744,7 +744,7 @@ class FleetWithDevices extends Fleet:
   has-group group/string -> bool:
     return group-pods_.contains group
 
-  add-device --device-id/uuid.Uuid --name/string? --group/string --aliases/List?:
+  add-device --device-id/Uuid --name/string? --group/string --aliases/List?:
     if aliases and aliases.is-empty: aliases = null
     devices_.add (DeviceFleet --id=device-id --group=group --name=name --aliases=aliases)
     write-devices_
@@ -845,13 +845,13 @@ class FleetWithDevices extends Fleet:
       broker-detailed-devices := current-broker.get-devices --device-ids=device-ids
       // If we don't know anything about the device yet, add it, even if we don't
       // see any event. This happens for devices that have never been seen.
-      broker-detailed-devices.do: | device-id/uuid.Uuid device/DeviceDetailed |
+      broker-detailed-devices.do: | device-id/Uuid device/DeviceDetailed |
         if not detailed-devices.contains device-id:
           detailed-devices[device-id] = device
           device-to-broker[device-id] = current-broker
 
       broker-events := current-broker.get-last-events --device-ids=broker-detailed-devices.keys
-      broker-events.do: | device-id/uuid.Uuid event/Event |
+      broker-events.do: | device-id/Uuid event/Event |
         old/Event? := last-events.get device-id
         if not old or old.timestamp < event.timestamp:
           last-events[device-id] = event
@@ -870,11 +870,11 @@ class FleetWithDevices extends Fleet:
       broker-goal-events := current-broker.get-goal-request-events
           --device-ids=broker-devices
           --limit=Status_.CHECKIN-VERIFICATION-COUNT
-      broker-goal-events.do: | device-id/uuid.Uuid events/List |
+      broker-goal-events.do: | device-id/Uuid events/List |
         goal-request-events[device-id] = events
 
       pod-ids := {}
-      broker-devices.do: | device-id/uuid.Uuid |
+      broker-devices.do: | device-id/Uuid |
           detailed-device/DeviceDetailed? := detailed-devices.get device-id
           if detailed-device:
             // We might only need the current (and not the firmware), but requesting both
@@ -889,7 +889,7 @@ class FleetWithDevices extends Fleet:
       pod-descriptions[current-broker.server-config.name] = broker-description-map
 
     rows := []
-    device-to-broker.do: | device-id/uuid.Uuid broker/Broker |
+    device-to-broker.do: | device-id/Uuid broker/Broker |
       broker-name := broker.server-config.name
       fleet-device/DeviceFleet := id-to-fleet-device[device-id]
       detailed-device/DeviceDetailed? := detailed-devices.get device-id
@@ -903,7 +903,7 @@ class FleetWithDevices extends Fleet:
 
       if not include-never-seen and status.never-seen: continue.do
 
-      pod-id/uuid.Uuid? := detailed-device.pod-id-current or detailed-device.pod-id-firmware
+      pod-id/Uuid? := detailed-device.pod-id-current or detailed-device.pod-id-firmware
 
       if not include-healthy and status.is-healthy: continue.do
 
@@ -996,7 +996,7 @@ class FleetWithDevices extends Fleet:
       cli_.ui.abort "The name, device-id, or alias '$alias' is ambiguous."
     return devices_[device-index]
 
-  device device-id/uuid.Uuid ->  DeviceFleet:
+  device device-id/Uuid ->  DeviceFleet:
     devices_.do: | device/DeviceFleet |
       if device.id == device-id:
         return device
@@ -1012,7 +1012,7 @@ class FleetWithDevices extends Fleet:
 
   Writes the identity file to $out-path.
   */
-  provision --device-id/uuid.Uuid? --out-path/string:
+  provision --device-id/Uuid? --out-path/string:
     // Ensure that we are authenticated with both the Artemis server and the broker.
     // We don't want to create a device on Artemis and then have an error with the broker.
     artemis.ensure-authenticated
@@ -1072,7 +1072,7 @@ class FleetWithDevices extends Fleet:
 
     old-migrating-from := fleet-file_.migrating-from
     new-migrating-from := old-migrating-from
-    if not old-migrating-from:
+    if old-migrating-from.is-empty:
       new-migrating-from = [broker.server-config.name]
     else if not old-migrating-from.contains broker.server-config.name:
       new-migrating-from = old-migrating-from.copy
@@ -1109,7 +1109,7 @@ class FleetWithDevices extends Fleet:
         current-detailed-devices := current-broker.get-devices --device-ids=device-ids
         current-ids := current-detailed-devices.keys
         current-last-events := current-broker.get-last-events --device-ids=current-ids
-        current-last-events.do: | device-id/uuid.Uuid event/Event |
+        current-last-events.do: | device-id/Uuid event/Event |
           if not last-events.contains device-id or last-events[device-id].timestamp < event.timestamp:
             devices_.do: | fleet-device/DeviceFleet |
               if fleet-device.id == device-id:
@@ -1134,6 +1134,6 @@ class FleetWithDevices extends Fleet:
     identity := read-base64-ubjson identity-path
     device-map := identity["artemis.device"]
     return Device
-        --hardware-id=uuid.parse device-map["hardware_id"]
-        --id=uuid.parse device-map["device_id"]
-        --organization-id=uuid.parse device-map["organization_id"]
+        --hardware-id=Uuid.parse device-map["hardware_id"]
+        --id=Uuid.parse device-map["device_id"]
+        --organization-id=Uuid.parse device-map["organization_id"]

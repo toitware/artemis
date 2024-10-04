@@ -38,7 +38,7 @@ main:
     literal-round-trip
         (ByteArray 87) + MOBY-2705.to-byte-array + (ByteArray 87 + it)
   literal-round-trip
-      (ByteArray 87 --filler=42) + MOBY-2705.to-byte-array + (ByteArray 87 --filler=91)
+      (ByteArray 87 --initial=42) + MOBY-2705.to-byte-array + (ByteArray 87 --initial=91)
 
   odd-size-test
 

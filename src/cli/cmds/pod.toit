@@ -3,7 +3,6 @@
 import ar
 import cli show *
 import host.file
-import uuid
 
 import .utils_
 import ..artemis

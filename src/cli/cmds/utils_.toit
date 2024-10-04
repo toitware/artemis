@@ -2,7 +2,7 @@
 
 import cli show *
 import host.os
-import uuid
+import uuid show Uuid
 
 import ..artemis
 import ..config
@@ -25,17 +25,17 @@ with-artemis invocation/Invocation [block]:
     finally:
       artemis.close
 
-default-device-from-config --cli/Cli -> uuid.Uuid?:
+default-device-from-config --cli/Cli -> Uuid?:
   config := cli.config
   device-id-string := config.get CONFIG-DEVICE-DEFAULT-KEY
   if not device-id-string: return null
-  return uuid.parse device-id-string
+  return Uuid.parse device-id-string
 
-default-organization-from-config --cli/Cli -> uuid.Uuid?:
+default-organization-from-config --cli/Cli -> Uuid?:
   config := cli.config
   organization-id-string := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
   if not organization-id-string: return null
-  return uuid.parse organization-id-string
+  return Uuid.parse organization-id-string
 
 with-devices-fleet invocation/Invocation [block]:
   cli := invocation.cli
@@ -78,7 +78,7 @@ compute-fleet-root-or-ref invocation/Invocation -> string:
     return fleet-env
   return "."
 
-make-default_ --device-id/uuid.Uuid --cli/Cli:
+make-default_ --device-id/Uuid --cli/Cli:
   cli.config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
   cli.config.write
   cli.ui.emit --info "Default device set to $device-id."

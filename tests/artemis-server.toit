@@ -5,7 +5,7 @@ import net
 import supabase
 import supabase.filter show equals greater-than-or-equal
 import system
-import uuid
+import uuid show Uuid
 
 import .supabase-local-server
 import ..tools.http-servers.artemis-server show HttpArtemisServer DeviceEntry EventEntry
@@ -26,10 +26,10 @@ interface ArtemisServerBackdoor:
 
   Returns a list of [hardware_id, fleet_id, alias]. If no alias exists, uses "" instead.
   */
-  fetch-device-information --hardware-id/uuid.Uuid -> List
+  fetch-device-information --hardware-id/Uuid -> List
 
   /** Whether there exists a '$type'-event for the given $hardware-id. */
-  has-event --hardware-id/uuid.Uuid --type/string -> bool
+  has-event --hardware-id/Uuid --type/string -> bool
 
   /**
   Installs the given images.
@@ -49,12 +49,12 @@ interface ArtemisServerBackdoor:
   Returns a map with the device ID ("id"), and alias ID ("alias") of
     the created device.
   */
-  create-device --organization-id/uuid.Uuid -> Map
+  create-device --organization-id/Uuid -> Map
 
   /**
   Removes the device with the given $device-id.
   */
-  remove-device device-id/uuid.Uuid -> none
+  remove-device device-id/Uuid -> none
 
 with-artemis-server
     --type/string
@@ -78,15 +78,15 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
 
   constructor .server:
 
-  fetch-device-information --hardware-id/uuid.Uuid -> List:
+  fetch-device-information --hardware-id/Uuid -> List:
     entry/DeviceEntry := server.devices["$hardware-id"]
     return [
-      uuid.parse entry.id,
-      uuid.parse entry.organization-id,
-      uuid.parse entry.alias,
+      Uuid.parse entry.id,
+      Uuid.parse entry.organization-id,
+      Uuid.parse entry.alias,
     ]
 
-  has-event --hardware-id/uuid.Uuid --type/string -> bool:
+  has-event --hardware-id/Uuid --type/string -> bool:
     hardware-id-string := "$hardware-id"
     server.events.do: | entry/EventEntry |
       if entry.device-id == hardware-id-string and
@@ -108,7 +108,7 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
     server.sdk-service-versions = sdk-service-versions
     server.image-binaries = image-binaries
 
-  create-device --organization-id/uuid.Uuid -> Map:
+  create-device --organization-id/Uuid -> Map:
     // TODO(florian): the server should automatically generate an alias
     // if none is given.
     alias := random-uuid
@@ -117,11 +117,11 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
       "alias": "$alias",
     }
     return {
-      "id": uuid.parse response["id"],
-      "alias": uuid.parse response["alias"],
+      "id": Uuid.parse response["id"],
+      "alias": Uuid.parse response["alias"],
     }
 
-  remove-device device-id/uuid.Uuid -> none:
+  remove-device device-id/Uuid -> none:
     server.remove-device "$device-id"
 
 with-http-artemis-server [block]:
@@ -180,17 +180,17 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 
   constructor .server-config_ .service-key_:
 
-  fetch-device-information --hardware-id/uuid.Uuid -> List:
+  fetch-device-information --hardware-id/Uuid -> List:
     entry := query_ "devices" [
       equals "id" "$hardware-id",
     ]
     return [
-      uuid.parse entry[0]["id"],
-      uuid.parse entry[0]["organization_id"],
-      uuid.parse entry[0]["alias"],
+      Uuid.parse entry[0]["id"],
+      Uuid.parse entry[0]["organization_id"],
+      Uuid.parse entry[0]["alias"],
     ]
 
-  has-event --hardware-id/uuid.Uuid --type/string -> bool:
+  has-event --hardware-id/Uuid --type/string -> bool:
     // For simplicity just run through all entries.
     // In the test-setup we should not have that many.
     entries := query_ "events" [
@@ -240,7 +240,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 
         client.storage.upload --path="service-images/$image" --content=content
 
-  create-device --organization-id/uuid.Uuid -> Map:
+  create-device --organization-id/Uuid -> Map:
     alias := random-uuid
     with-backdoor-client_: | client/supabase.Client |
       response := client.rest.insert "devices" {
@@ -248,12 +248,12 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
         "alias": "$alias",
       }
       return {
-        "id": uuid.parse response["id"],
-        "alias": uuid.parse response["alias"],
+        "id": Uuid.parse response["id"],
+        "alias": Uuid.parse response["alias"],
       }
     unreachable
 
-  remove-device device-id/uuid.Uuid -> none:
+  remove-device device-id/Uuid -> none:
     with-backdoor-client_: | client/supabase.Client |
       client.rest.delete "devices" --filters=[equals "id" "$device-id"]
 

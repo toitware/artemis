@@ -1,10 +1,10 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import uuid
+import uuid show Uuid
 import crypto.crc
 import .utils
 
-random-name --uuid/uuid.Uuid=random-uuid -> string:
+random-name --uuid/Uuid=random-uuid -> string:
   bytes := uuid.to-byte-array
   cutoff := bytes.size / 2
   adjective := ADJECTIVES[(crc.crc32 bytes[..cutoff]) % ADJECTIVES.size]

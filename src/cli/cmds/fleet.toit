@@ -3,7 +3,7 @@
 import cli show *
 import fs
 import host.file
-import uuid
+import uuid show Uuid
 
 import .device show
     extract-device
@@ -1029,7 +1029,7 @@ migration-stop invocation/Invocation:
 recovery-file-name --fleet-string/string -> string:
   return "recover-$(fleet-string).json"
 
-recovery-file-name --fleet-id/uuid.Uuid -> string:
+recovery-file-name --fleet-id/Uuid -> string:
   return recovery-file-name --fleet-string="$fleet-id"
 
 recovery-add invocation/Invocation:
