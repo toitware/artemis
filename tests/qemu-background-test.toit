@@ -61,7 +61,7 @@ main args/List:
 
     qemu-data := create-extract-device
         --fleet=fleet
-        --format="full-image"
+        --format="image"
         --files={
           test-file: test-content,
         }

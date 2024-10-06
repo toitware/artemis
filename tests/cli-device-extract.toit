@@ -100,7 +100,7 @@ Library to create a new device and extract the image for it.
 Creates a new device and extracts the image for it.
 
 The $format should be one supported by the `device extract` command. For
-  testing it's typically either 'full-image' or 'tar'.
+  testing it's typically either 'image' or 'tar'.
 */
 create-extract-device -> TestDeviceConfig
     --format/string

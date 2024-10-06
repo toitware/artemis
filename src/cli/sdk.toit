@@ -273,7 +273,7 @@ class Sdk:
   /**
   Extracts the given $envelope-path to the given $output-path.
   */
-  extract-full-image
+  extract-image
       --output-path/string
       --envelope-path/string
       --config-path/string
@@ -285,7 +285,7 @@ class Sdk:
     if (semver.compare version "v2.0.0-alpha.164") < 0:
       format = "qemu"
     else:
-      format = "full-image"
+      format = "image"
 
     arguments := [
       "extract",

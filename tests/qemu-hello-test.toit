@@ -14,7 +14,7 @@ main: print "hello world"
 main args/List:
   with-fleet --args=args --count=0: | fleet/TestFleet |
     qemu-data := create-extract-device
-        --format="full-image"
+        --format="image"
         --fleet=fleet
         --files={
           "hello.toit": HELLO-WORLD-CODE,
