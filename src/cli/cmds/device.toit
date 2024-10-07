@@ -31,8 +31,8 @@ EXTRACT-FORMATS-COMMAND-HELP ::= """
     - 'binary': a binary image suitable for OTA updates.
     - 'tar': a tar file with the device firmware. Only available for host devices.
       That is, devices that use an envelope built for Linux, macOS, or Windows.
-    - 'image': a full binary image suitable for QEMU, Wokwi, or flashing
-      to a device. Only available for the ESP32 chip family. See the help of
+    - 'image': a binary image suitable for QEMU, Wokwi, or flashing
+      a device. Only available for the ESP32 chip family. See the help of
       'toit tool firmware extract' for more information.
     - 'qemu': a deprecated alias for 'image'.
 
@@ -452,17 +452,17 @@ extract-device fleet-device/DeviceFleet
         ui.emit --warning "The 'qemu' format is deprecated. Use 'image' instead."
       chip-family := Sdk.get-chip-family-from --envelope=pod.envelope
       if chip-family != "esp32":
-        ui.abort "Cannot generate full binary image for chip-family '$chip-family'."
+        ui.abort "Cannot generate binary image for chip-family '$chip-family'."
       chip := sdk.chip-for --envelope-path=pod.envelope-path
       if chip != "esp32":
-        ui.abort "Cannot generate full binary image for chip '$chip'."
+        ui.abort "Cannot generate binary image for chip '$chip'."
 
       sdk.extract-image
           --output-path=output
           --envelope-path=pod.envelope-path
           --config-path=device-specific-path
           --partitions=partitions
-      ui.emit --info "Wrote full binary image to '$output'."
+      ui.emit --info "Wrote binary image to '$output'."
     else:
       ui.abort "Unknown format: $format."
 

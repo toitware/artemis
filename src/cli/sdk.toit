@@ -279,7 +279,7 @@ class Sdk:
       --config-path/string
       --partitions/List?:
     if partitions and not partitions.is-empty:
-      throw "Partitions are not supported for QEMU images."
+      throw "Partitions are not supported for binary images."
 
     format/string := ?
     if (semver.compare version "v2.0.0-alpha.164") < 0:
