@@ -325,7 +325,7 @@ class Tester:
       --device-config/TestDeviceConfig
       --organization-id=TEST-ORGANIZATION-UUID:
     result/TestDevice := ?
-    if device-config.format == "qemu":
+    if device-config.format == "image":
       result = TestDevicePipe.qemu
           --broker=broker
           --alias-id=alias-id
