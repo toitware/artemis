@@ -1,0 +1,3 @@
+# Add a tag to a pod
+# [pod, tag, add, -t, foo, test-pod#1]
+Added tags 'foo' to 'test-pod#1'.

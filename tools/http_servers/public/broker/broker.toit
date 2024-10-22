@@ -298,6 +298,8 @@ class HttpBroker extends HttpServer:
     force := data["_force"]
 
     description/PodDescription := pod-registry_[pod-description-id]
+    if not description.pods.contains pod-id:
+      throw "Pod description and pod-id mismatch"
     description.pods.do: | _ tags |
       if force:
         tags.remove tag

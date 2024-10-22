@@ -186,6 +186,8 @@ interface BrokerCli implements Authenticatable:
 
   /**
   Removes a tag.
+
+  Does nothing if the tag is not set.
   */
   pod-registry-tag-remove -> none
       --pod-description-id/int

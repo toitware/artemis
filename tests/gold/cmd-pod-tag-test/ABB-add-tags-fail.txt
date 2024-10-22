@@ -1,0 +1,3 @@
+# Add existing tag to a pod
+# [pod, tag, add, -t, foo, test-pod#2]
+Error: Tag 'foo' already exists for pod test-pod.

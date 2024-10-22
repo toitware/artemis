@@ -1,0 +1,3 @@
+# Add a multiple tags to multiple pods
+# [pod, tag, add, -t, bar, -t, gee, test-pod@foo, test-pod2]
+Added tags 'bar, gee' to 'test-pod@foo, test-pod2'.

@@ -1,0 +1,3 @@
+# Remove non-existing tags from a pod
+# [pod, tag, remove, -t, non-existing, -t, non-existing2, test-pod]
+Removed tags 'non-existing, non-existing2' from 'test-pod'.

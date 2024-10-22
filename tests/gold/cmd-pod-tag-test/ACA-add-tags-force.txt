@@ -1,0 +1,3 @@
+# Add existing tag to a pod with force
+# [pod, tag, add, -t, foo, --force, test-pod#2]
+Added tags 'foo' to 'test-pod#2'.

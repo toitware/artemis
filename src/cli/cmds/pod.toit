@@ -130,6 +130,90 @@ create-pod-commands -> List:
       --run=:: download it
   cmd.add download-cmd
 
+  tag-cmd := Command "tag"
+      --help="""
+        Change the tags of an uploaded pod.
+        """
+  cmd.add tag-cmd
+
+  tag-add-cmd := Command "add"
+      --help="""
+        Add tags to uploaded pods.
+
+        The pods to change are specified through a pod reference like
+        name@tag or name#revision.
+        If only a pod name is provided, the pod with the 'latest' tags is
+        changed.
+
+        If '--force' is provided, tags are added even if they already exists, moving
+        the tags to the selected pods.
+
+        Note: this operation is not atomic. It downloads the existing tags, adds the
+        new tags, and then sets the combined tags.
+        """
+      --options=[
+        Option "tag"
+            --short-name="t"
+            --help="A tag to add to the pod."
+            --multi,
+        Flag "force"
+            --short-name="f"
+            --help="Force tags even if they already exist."
+            --default=false,
+      ]
+      --rest=[
+        Option "reference"
+            --help="A pod reference: a UUID, name@tag, or name#revision."
+            --multi
+            --required,
+      ]
+      --examples=[
+        Example """
+                Add the tags 'foo' and 'bar' to the latest version of the pod with name 'my-pod':"""
+            --arguments="-t foo -t bar my-pod",
+        Example "Add the tag 'foo' to the pod with UUID '12345678-1234-5678-1234-567812345678':"
+            --arguments="-t foo 12345678-1234-5678-1234-567812345678",
+        Example "Add the tag 'lts' to the pods 'my-pod' with tag 'v1.0.0' and 'my-pod2' with tag 'v2.0.0':"
+            --arguments="-t lts my-pod@v1.0.0 my-pod2@v2.0.0",
+        Example """
+            Add the tag 'debug' to the pod with name 'my-pod' and revision '1'.
+            Force the tag to this pod even if it already exists on another pod:"""
+            --arguments="--force -t debug my-pod.pod my-pod#1",
+      ]
+      --run=:: tag-add it
+  tag-cmd.add tag-add-cmd
+
+  tag-remove-cmd := Command "remove"
+      --aliases=["delete"]
+      --help="""
+        Remove tags from pods.
+
+        The pods to change are specified by their pod-name, and not
+        by complete references.
+
+        If the tag doesn't exist on the pod, it is ignored.
+        """
+      --options=[
+        Option "tag"
+            --short-name="t"
+            --help="A tag to add to the pod."
+            --multi,
+      ]
+      --rest=[
+        Option "pod-name"
+            --help="A pod name."
+            --multi
+            --required,
+      ]
+      --examples=[
+        Example "Remove the tags 'foo' and 'bar' from the pod with name 'my-pod':"
+            --arguments="-t foo -t bar my-pod",
+        Example "Remove the tags 'debug' from the pods 'my-pod' and 'my-pod2':"
+            --arguments="-t debug my-pod my-pod2",
+      ]
+      --run=:: tag-remove it
+  tag-cmd.add tag-remove-cmd
+
   list-cmd := Command "list"
       --help="""
         List all pods available on the broker.
@@ -381,9 +465,45 @@ delete invocation/Invocation:
     if all:
       fleet.delete --description-names=reference-strings
     else:
-      refs := reference-strings.map: | string | PodReference.parse string --cli=cli
+      refs := reference-strings.map: | ref/string | PodReference.parse ref --cli=cli
       fleet.delete --pod-references=refs
   if reference-strings.size == 1:
     ui.emit --info "Deleted pod '$(reference-strings.first)'."
   else:
     ui.emit --info "Deleted pods '$(reference-strings.join ", ")'."
+
+tag-add invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  tags := invocation["tag"]
+  force := invocation["force"]
+  references := invocation["reference"]
+
+  with-pod-fleet invocation: | fleet/Fleet |
+    refs := references.map: | name/string |
+      PodReference.parse name --allow-name-only --cli=cli
+    fleet.add-tags --tags=tags --force=force --references=refs
+  if references.size == 1:
+    ui.emit --info "Added tags '$(tags.join ", ")' to '$(references.first)'."
+  else:
+    ui.emit --info "Added tags '$(tags.join ", ")' to '$(references.join ", ")'."
+
+tag-remove invocation/Invocation:
+  cli := invocation.cli
+  ui := cli.ui
+
+  tags := invocation["tag"]
+  pod-names := invocation["pod-name"]
+
+  with-pod-fleet invocation: | fleet/Fleet |
+    refs := pod-names.map: | name/string |
+      ref := PodReference.parse name --allow-name-only --cli=cli
+      if not ref.is-name-only:
+        cli.ui.abort "Pod names must not be an ID or contain tags or revisions: $name."
+      ref
+    fleet.remove-tags --tags=tags --references=refs
+  if pod-names.size == 1:
+    ui.emit --info "Removed tags '$(tags.join ", ")' from '$(pod-names.first)'."
+  else:
+    ui.emit --info "Removed tags '$(tags.join ", ")' from '$(pod-names.join ", ")'."
