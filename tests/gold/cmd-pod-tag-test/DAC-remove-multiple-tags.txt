@@ -1,0 +1,3 @@
+# Remove tags from multiple pods
+# [pod, tag, remove, -t, bar, test-pod, test-pod2]
+Removed tags 'bar' from 'test-pod, test-pod2'.

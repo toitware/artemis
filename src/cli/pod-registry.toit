@@ -80,6 +80,9 @@ class PodReference:
 
     return PodReference --name=str
 
+  is-name-only -> bool:
+    return not id and not revision and not tag
+
   with --tag/string -> PodReference:
     if id: throw "Cannot specify tag for reference with id."
     if revision: throw "Cannot specify tag for reference with revision."

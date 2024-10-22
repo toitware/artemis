@@ -1,0 +1,3 @@
+# Remove the 'latest' tag from a pod
+# [pod, tag, remove, -t, latest, test-pod2]
+Removed tags 'latest' from 'test-pod2'.

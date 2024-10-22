@@ -125,6 +125,10 @@ class Broker:
       network_.close
       network_ = null
 
+  is-existing-tag-error_ error -> bool:
+    if error is not string: return false
+    return error.contains "duplicate key value" or error.contains "already exists"
+
   /**
   Uploads the given $pod to the broker for the given $fleet-id in $organization-id.
 
@@ -166,14 +170,10 @@ class Broker:
         --pod-description-id=description-id
         --pod-id=pod.id
 
-    is-existing-tag-error := : | error |
-      error is string and
-        (error.contains "duplicate key value" or error.contains "already exists")
-
     tag-errors := []
     tags.do: | tag/string |
       force := force-tags or (tag == "latest")
-      exception := catch --unwind=(: not is-existing-tag-error.call it):
+      exception := catch --unwind=(: not is-existing-tag-error_ it):
         broker-connection_.pod-registry-tag-set
             --pod-description-id=description-id
             --pod-id=pod.id
@@ -375,6 +375,58 @@ class Broker:
     broker-connection_.pod-registry-delete
         --fleet-id=fleet-id
         --pod-ids=pod-ids
+
+  add-tags --tags/List --force/bool --references/List:
+    references = references.map: | reference/PodReference |
+      reference.is-name-only
+          ? reference.with --tag="latest"
+          : reference
+
+    pod-ids := get-pod-ids references
+    pod-entries := broker-connection_.pod-registry-pods
+        --fleet-id=fleet-id
+        --pod-ids=pod-ids
+
+    mapping := {:}
+    for i := 0; i < pod-ids.size; i++:
+      mapping[pod-ids[i]] = references[i]
+
+    tag-errors := []
+    tags.do: | tag/string |
+      pod-entries.do: | pod-entry/PodRegistryEntry |
+        print-on-stderr_ "pod-entry: $pod-entry.to-json"
+        exception := catch --unwind=(: not is-existing-tag-error_ it):
+          broker-connection_.pod-registry-tag-set
+              --pod-description-id=pod-entry.pod-description-id
+              --pod-id=pod-entry.id
+              --tag=tag
+              --force=force
+        if exception:
+          ref/PodReference := mapping[pod-entry.id]
+          tag-errors.add "Tag '$tag' already exists for pod $ref.name."
+
+    if not tag-errors.is-empty:
+      tag-errors.do: cli_.ui.emit --error it
+      cli_.ui.abort
+
+  remove-tags --tags/List --references/List:
+    names := {}
+    references.do: | reference/PodReference |
+      assert: reference.is-name-only
+      names.add reference.name
+
+    descriptions := broker-connection_.pod-registry-descriptions
+        --fleet-id=fleet-id
+        --organization-id=organization-id
+        --names=names.to-list
+        --no-create-if-absent
+
+    descriptions.do: | description/PodRegistryDescription |
+      description-id := description.id
+      tags.do: | tag/string |
+        broker-connection_.pod-registry-tag-remove
+            --pod-description-id=description-id
+            --tag=tag
 
   get-pod-ids references/List -> List:
     references.do: | reference/PodReference |
