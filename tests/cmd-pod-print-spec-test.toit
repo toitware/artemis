@@ -36,16 +36,16 @@ run-test tester/Tester:
 
     tester.run-gold "AAA-print-spec"
         "Content of minimal spec"
-        ["pod", "print", minimal-spec-path]
+        ["pod", "print-spec", minimal-spec-path]
 
     tester.run-gold "BAA-print-spec-flat"
         "Content of minimal spec after flattening"
-        ["pod", "print", "--flat", minimal-spec-path]
+        ["pod", "print-spec", "--flat", minimal-spec-path]
 
     tester.run-gold "CAA-print-spec"
         "Content of extended spec"
-        ["pod", "print", extended-spec-path]
+        ["pod", "print-spec", extended-spec-path]
 
     tester.run-gold "DAA-print-spec-flat"
         "Content of extended spec after flattening"
-        ["pod", "print", "--flat", extended-spec-path]
+        ["pod", "print-spec", "--flat", extended-spec-path]
