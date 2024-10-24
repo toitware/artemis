@@ -15,4 +15,4 @@ jobs:
           xcrun notarytool history \
               --apple-id "${{ secrets.AC_USERNAME }}" \
               --password "${{ secrets.AC_PASSWORD }}" \
-              --team-id "33DS2ZRDST"
+              --team-id "${{ vars.MACOS_TEAM_ID }}"
