@@ -137,7 +137,7 @@ create-org-commands -> List:
         Example "List members of the default organization:"
             --arguments="",
         Example "List members of the organization with ID 12345678-1234-1234-1234-123456789abc:"
-            --arguments="12345678-1234-1234-1234-123456789abc",
+            --arguments="--organization-id 12345678-1234-1234-1234-123456789abc",
       ]
       --run=:: member-list it
   member-cmd.add member-list-cmd
