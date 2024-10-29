@@ -17,6 +17,8 @@ import .cmds.profile
 import .cmds.sdk
 import .cmds.serial
 
+import .utils show is-dev-setup
+
 import ..shared.version
 
 main args:
@@ -37,7 +39,7 @@ main args --cli/Cli?:
       core.print ARTEMIS-VERSION
     return
 
-  root-cmd := Command "artemis"
+  root-cmd := Command (is-dev-setup ? "artemis-dev" : "artemis")
       --help="""
       A fleet management system for Toit devices.
       """
