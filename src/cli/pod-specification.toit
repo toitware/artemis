@@ -477,11 +477,11 @@ class WifiConnectionInfo implements ConnectionInfo:
     return null
 
 class CellularConnectionInfo implements ConnectionInfo:
-  config/Map
+  config/Map?
   requires/List?
 
   constructor.from-json json-map/JsonMap:
-    config = json-map.get-map "config"
+    config = json-map.get-optional-map "config"
     requires = json-map.get-optional-list "requires"
         --type="string"
         --check=: it is string
@@ -492,8 +492,8 @@ class CellularConnectionInfo implements ConnectionInfo:
   to-json -> Map:
     result := {
       "type": type,
-      "config": config,
     }
+    if config: result["config"] = config
     if requires: result["requires"] = requires
     return result
 

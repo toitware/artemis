@@ -202,7 +202,8 @@ class ConnectionCellular extends Connection:
     // manager clean up and re-resolve the services
     // if things have changed since last attempt.
     cellular.reset
-    return cellular.open --name=name description_["config"]
+    config := description_.get "config" --if-absent=: {:}
+    return cellular.open --name=name config
 
 class ConnectionEthernet extends Connection:
   constructor index/int description/Map:
