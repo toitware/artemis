@@ -211,3 +211,9 @@ download-sdk: install-pkgs
 rebuild-cmake:
 	mkdir -p build
 	(cd build && cmake .. -DDEFAULT_SDK_VERSION=$(LOCAL_DEV_SDK) -G Ninja)
+
+.PHONY: update-pkgs
+update-pkgs:
+	for d in $$(git ls-files | grep package.yaml); do \
+	  toit pkg update --project-root $$(dirname $$d); \
+	done
