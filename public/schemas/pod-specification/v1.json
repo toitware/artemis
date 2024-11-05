@@ -139,7 +139,10 @@
             "type": { "const": "cellular" },
             "config": { "$ref": "#/$defs/CellularConfig" },
             "requires": { "$ref": "#/$defs/ConnectionDependencies" }
-          }
+          },
+          "required": [
+            "type"
+          ]
         }
       ]
     },

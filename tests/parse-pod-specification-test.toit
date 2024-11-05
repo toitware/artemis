@@ -13,6 +13,7 @@ import .utils
 
 main:
   test-examples
+  test-cellular
   test-custom-envelope
   test-warnings
   test-errors
@@ -21,6 +22,22 @@ test-examples:
   cli := TestCli
   PodSpecification.from-json INITIAL-POD-SPECIFICATION --path="ignored" --cli=cli
   PodSpecification.from-json EXAMPLE-POD-SPECIFICATION --path="ignored" --cli=cli
+
+test-cellular:
+  cli := TestCli
+  cellular := new-valid
+  connection := {
+    "type": "cellular",
+  }
+  cellular["connections"][0] = connection
+  PodSpecification.from-json cellular --path="ignored" --cli=cli
+
+  // With config.
+  connection["config"] = {
+    "cellular.apn": "apn",
+    "cellular.log.level": 0
+  }
+  PodSpecification.from-json cellular --path="ignored" --cli=cli
 
 expect-format-error str/string json/Map:
   exception := catch: PodSpecification.from-json json --path="ignored" --cli=TestCli
