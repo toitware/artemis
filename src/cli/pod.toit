@@ -14,7 +14,7 @@ import .artemis
 import .broker
 import .cache
 import .device
-import .firmware show Firmware
+import .firmware show Firmware get-partition-table
 import .pod-specification
 import .sdk
 import .server-config
@@ -31,14 +31,17 @@ class Pod:
   static ID-NAME_ ::= "id"
   static NAME-NAME_ ::= "name"
   static CUSTOMIZED-ENVELOPE-NAME_ := "customized.env"
+  static PARTITION-TABLE-NAME_ ::= "part-table"
 
   static MAGIC-CONTENT_ ::= "frickin' sharks"
 
   envelope/ByteArray
   id/Uuid
   name/string
+  partition-table/ByteArray? := null
 
   envelope-path_/string? := null
+  partition-table-path_/string? := null
   sdk-version_/string? := null
   device-config_/Map? := null
   tmp-dir_/string := ?
@@ -48,8 +51,10 @@ class Pod:
       --.name
       --tmp-directory/string
       --.envelope
-      --envelope-path/string?=null:
+      --envelope-path/string?=null
+      --.partition-table/ByteArray?=null:
     tmp-dir_ = tmp-directory
+    envelope-path_ = envelope-path
 
   constructor.from-specification
       --organization-id/Uuid
@@ -65,13 +70,15 @@ class Pod:
         --specification=specification
         --artemis=artemis
         --broker=broker
+        --cli=cli
 
   constructor.from-specification
       --organization-id/Uuid
       --recovery-urls/List
       --specification/PodSpecification
       --broker/Broker
-      --artemis/Artemis:
+      --artemis/Artemis
+      --cli/Cli:
     envelope-path := generate-envelope-path_ --tmp-directory=artemis.tmp-directory
     broker.customize-envelope
         --organization-id=organization-id
@@ -81,16 +88,23 @@ class Pod:
         --specification=specification
     envelope := file.read-content envelope-path
     id := random-uuid
+    partition-table/ByteArray? := specification.partition-table
+        ? get-partition-table --specification=specification --cli=cli
+        : null
+
     return Pod
         --id=id
         --name=specification.name
         --tmp-directory=artemis.tmp-directory
         --envelope=envelope
         --envelope-path=envelope-path
+        --partition-table=partition-table
 
   constructor.from-manifest manifest/Map [--download] --tmp-directory/string:
     id = Uuid.parse manifest[ID-NAME_]
     name = manifest[NAME-NAME_]
+    if manifest.contains PARTITION-TABLE-NAME_:
+      partition-table = manifest[PARTITION-TABLE-NAME_]
     parts := manifest["parts"]
     byte-builder := io.Buffer
     writer := ArWriter byte-builder
@@ -106,6 +120,7 @@ class Pod:
       id/Uuid? := null
       name/string? := null
       envelope/ByteArray? := null
+      partition-table/ByteArray? := null
 
       ar-reader := ArReader reader
       file := ar-reader.next
@@ -127,12 +142,21 @@ class Pod:
           if envelope:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple envelopes."
           envelope = file.content
+        else if file.name == PARTITION-TABLE-NAME_:
+          if partition-table:
+            ui.abort "The file at '$path' is not a valid Artemis pod. It contains a partition table, which is not supported."
+          partition-table = file.content
 
       if not id:       ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain an ID."
       if not name:     ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain a name."
       if not envelope: ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain an envelope."
 
-      return Pod --id=id --name=name --envelope=envelope --tmp-directory=tmp-directory
+      return Pod
+          --id=id
+          --name=name
+          --envelope=envelope
+          --partition-table=partition-table
+          --tmp-directory=tmp-directory
     unreachable
 
   constructor.from-file
@@ -165,9 +189,11 @@ class Pod:
           --broker=broker
           --cli=cli
 
-  static envelope-count_/int := 0
+  static pod-cache-counter_/int := 0
   static generate-envelope-path_ --tmp-directory/string -> string:
-    return "$tmp-directory/pod-$(envelope-count_++).envelope"
+    return "$tmp-directory/pod-$(pod-cache-counter_++).envelope"
+  static generate-partition-table-path_ --tmp-directory/string -> string:
+    return "$tmp-directory/pod-$(pod-cache-counter_++).partition-table"
 
   sdk-version -> string:
     cached := sdk-version_
@@ -182,6 +208,15 @@ class Pod:
     cached = generate-envelope-path_ --tmp-directory=tmp-dir_
     write-blob-to-file cached envelope
     envelope-path_ = cached
+    return cached
+
+  partition-table-path -> string?:
+    if not partition-table: return null
+    cached := partition-table-path_
+    if cached: return cached
+    cached = generate-partition-table-path_ --tmp-directory=tmp-dir_
+    write-blob-to-file cached partition-table
+    partition-table-path_ = cached
     return cached
 
   device-config --sdk/Sdk -> Map:
@@ -209,6 +244,8 @@ class Pod:
       ar-writer.add ID-NAME_ id.to-byte-array
       ar-writer.add NAME-NAME_ name.to-byte-array
       ar-writer.add CUSTOMIZED-ENVELOPE-NAME_ envelope
+      if partition-table:
+        ar-writer.add PARTITION-TABLE-NAME_ partition-table
 
   /**
   Splits this pod into smaller parts.
@@ -222,6 +259,8 @@ class Pod:
     manifest := {:}
     manifest[ID-NAME_] = "$id"
     manifest[NAME-NAME_] = name
+    if partition-table:
+      manifest[PARTITION-TABLE-NAME_] = partition-table
     part-names := {:}
     parts := {:}
     reader := io.Reader envelope

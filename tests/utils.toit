@@ -1091,7 +1091,9 @@ with-tester
      }
     ENVELOPE-ARCHITECTURES.do: | envelope-arch/string cached-path/string |
       envelope-url := "$ENVELOPES-URL-PREFIX/firmware-$(envelope-arch).envelope.gz"
-      envelope-key := artemis-cache.cache-key-envelope --url=envelope-url
+      envelope-key := artemis-cache.cache-key-url-artifact
+          --url=envelope-url
+          --kind=artemis-cache.CACHE-ARTIFACT-KIND-PARTITION-TABLE
       cache.get-file-path envelope-key: | store/cli-pkg.FileStore |
         print "Caching envelope: $cached-path for $envelope-arch"
         store.copy cached-path
