@@ -1,2 +1,3 @@
 # Create the default firmware.
 # [--fleet-root, TMP_DIR/fleet, pod, build, -o, TMP_DIR/firmware.pod, TMP_DIR/fleet/FLEET-POD-FILE]
+Downloading https://github.com/toitlang/envelopes/releases/download/SDK-VERSION/partition-table-ota-1c0000.csv.

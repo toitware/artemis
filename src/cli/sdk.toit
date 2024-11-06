@@ -403,6 +403,12 @@ class Sdk:
       return metadata["kind"]
     return "esp32"
 
+  static get-partition-table-bin-from --envelope/ByteArray -> ByteArray:
+    reader := ar.ArReader.from-bytes envelope
+    file := reader.find "\$partitions.bin"
+    if not file: throw "Partition table not found in envelope."
+    return file.content
+
 /**
 Builds the URL of a released SDK with the given $version on GitHub.
 

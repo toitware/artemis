@@ -167,6 +167,9 @@ create-fleet-commands -> List:
         Flag "default"
             --default=true
             --help="Make this device the default device.",
+        Flag "force"
+            --help="Force image extraction even if the OTA partition is small."
+            --default=false,
       ]
       --examples=[
         Example "Add a new device in group 'roof-solar':"
@@ -711,6 +714,7 @@ add-device invocation/Invocation:
   group := params["group"]
   id := params["id"]
   partitions := params["partition"]
+  force := params["force"]
   should-make-default := params["default"]
 
   // If no id is given, just create one randomly.
@@ -735,6 +739,7 @@ add-device invocation/Invocation:
             --format=format
             --partitions=partitions
             --output=output
+            --force=force
             --cli=cli
 
       if should-make-default: make-default_ --device-id=id --cli=cli

@@ -187,6 +187,9 @@ create-device-commands -> List:
             --help="A local pod file to build the firmware from.",
         Option "remote"
             --help="A remote reference to a pod to build the firmware from.",
+        Flag "force"
+            --help="Force the extraction even if OTA partition is small."
+            --default=false,
       ]
       --rest=[
         Option "device-rest"
@@ -382,6 +385,7 @@ extract-device invocation/Invocation:
   local := params["local"]
   remote := params["remote"]
   partitions := params["partition"]
+  force := params["force"]
 
   cli := invocation.cli
   ui := cli.ui
@@ -401,6 +405,7 @@ extract-device invocation/Invocation:
         --format=format
         --output=output
         --partitions=partitions
+        --force=force
         --cli=cli
     ui.emit --info "Firmware successfully written to '$output'."
 
@@ -411,6 +416,7 @@ extract-device fleet-device/DeviceFleet
     --format/string
     --output/string
     --partitions/List
+    --force/bool
     --cli/Cli:
   ui := cli.ui
 
@@ -456,6 +462,7 @@ extract-device fleet-device/DeviceFleet
       chip := sdk.chip-for --envelope-path=pod.envelope-path
       if chip != "esp32":
         ui.abort "Cannot generate binary image for chip '$chip'."
+      check-esp32-partition-size_ pod --ui=ui --force=force
 
       sdk.extract-image
           --output-path=output

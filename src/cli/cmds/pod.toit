@@ -1,6 +1,5 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import ar
 import cli show *
 import host.file
 

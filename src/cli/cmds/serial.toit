@@ -59,6 +59,9 @@ create-serial-commands -> List:
         Flag "simulate"
             --hidden
             --default=false,
+        Flag "force"
+            --help="Force flashing even if the OTA partition is small."
+            --default=false,
       ]
       --rest=[
         Option "remote"
@@ -114,6 +117,9 @@ create-serial-commands -> List:
             --short-name="i"
             --help="The identity file to use."
             --required,
+        Flag "force"
+            --help="Force flashing even if the OTA partition is small."
+            --default=false,
       ]
       --examples=[
         Example """
@@ -172,6 +178,7 @@ flash invocation/Invocation:
   local := params["local"]
   remote := params["remote"]
   partitions := build-partitions_ params["partition"] --cli=cli
+  force := params["force"]
 
   if local and remote:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
@@ -206,6 +213,8 @@ flash invocation/Invocation:
         else:
           reference = fleet.pod-reference-for-group group
         pod = fleet.download reference
+
+      check-esp32-partition-size_ pod --ui=ui --force=force
 
       // Make unique for the given device.
       config-bytes := pod.compute-device-specific-data
@@ -267,6 +276,7 @@ flash --station/bool invocation/Invocation:
   port := params["port"]
   baud := params["baud"]
   partitions := build-partitions_ params["partition"] --cli=cli
+  force := params["force"]
 
   with-artemis invocation: | artemis/Artemis |
     pod := Pod.parse pod-path --tmp-directory=artemis.tmp-directory --cli=cli
@@ -278,6 +288,8 @@ flash --station/bool invocation/Invocation:
 
       config-path := "$tmp-dir/config"
       write-blob-to-file config-path config-bytes
+
+      check-esp32-partition-size_ pod --ui=cli.ui --force=force
 
       // Flash.
       sdk := get-sdk pod.sdk-version --cli=cli
