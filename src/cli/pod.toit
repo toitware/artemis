@@ -52,7 +52,7 @@ class Pod:
       --tmp-directory/string
       --.envelope
       --envelope-path/string?=null
-      --.partition-table/ByteArray?=null:
+      --.partition-table/ByteArray?:
     tmp-dir_ = tmp-directory
     envelope-path_ = envelope-path
 
@@ -144,7 +144,7 @@ class Pod:
           envelope = file.content
         else if file.name == PARTITION-TABLE-NAME_:
           if partition-table:
-            ui.abort "The file at '$path' is not a valid Artemis pod. It contains a partition table, which is not supported."
+            ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple partition tables."
           partition-table = file.content
 
       if not id:       ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain an ID."
