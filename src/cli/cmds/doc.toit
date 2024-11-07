@@ -29,10 +29,15 @@ SPECIFICATION-FORMAT-HELP ::= """
       Use 'sdk list' to see all available sdk-artemis combinations.
   'firmware-envelope': optional. The firmware envelope to use. This can be a
       variant name available from https://github.com/toitlang/envelopes (for
-      example 'esp32-ota-1c0000'), a path URI to a local envelope (for
+      example 'esp32-no-ble'), a path URI to a local envelope (for
       example 'file:///path/to/envelope'), or a URI to a remote envelope (for
       example 'https://example.com/envelope').
       For URIs any '\$(sdk-version)' is replaced with the SDK version.
+  'partition-table': optional. The partition table to use. This can be a
+      CSV file published on https://github.com/toitlang/envelopes (for
+      example 'ota-1c0000"), a path URI to a local partition file (for
+      example 'file:///path/to/partition-table'), or a URI to a remote
+      partition table (for example 'https://example.com/partition-table.csv').
 
   'extends': optional. A list of paths to other specification files to
       extend. The paths are relative to the current specification file.
