@@ -423,27 +423,31 @@ sdk-url version/string -> string:
     else:
       throw "Unsupported platform: $platform"
   else:
+    platform-string/string := ?
     if platform == system.PLATFORM-LINUX:
-      selector = "linux"
+      platform-string = "linux"
     else if platform == system.PLATFORM-MACOS:
-      selector = "macos"
+      platform-string = "macos"
     else if platform == system.PLATFORM-WINDOWS:
-      selector = "windows"
+      platform-string = "windows"
     else:
       throw "Unsupported platform: $platform"
 
+    arch-string := ?
     if arch == system.ARCHITECTURE-X86-64:
-      selector += "-x64"
+      arch-string = "x64"
     else if arch == system.ARCHITECTURE-ARM64:
       if system.platform == system.PLATFORM-WINDOWS:
         throw "Unsupported architecture: $platform-$arch"
-      selector += "-aarch64"
+      arch-string = "aarch64"
     else if arch == system.ARCHITECTURE-ARM:
       if system.platform != system.PLATFORM-LINUX:
         throw "Unsupported architecture: $platform-$arch"
-      selector += "-armv7"
+      arch-string = "armv7"
     else:
       throw "Unsupported architecture: $platform-$arch"
+
+    selector = "$(platform-string)-$arch-string"
 
   return "https://github.com/toitlang/toit/releases/download/$version/toit-$(selector).tar.gz"
 
