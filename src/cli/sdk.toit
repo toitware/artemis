@@ -256,8 +256,8 @@ class Sdk:
     if not is-dev-setup and (semver.compare version "v2.0.0-alpha.152") < 0:
       throw "Flashing is not supported for SDK versions older than v2.0.0-alpha.152"
 
-    if not is-dev-setup and partition-table-path and (semver.compare version "v2.0.0-alpha.164") < 0:
-      throw "Partition tables are not supported for SDK versions older than v2.0.0-alpha.164."
+    if not is-dev-setup and partition-table-path and (semver.compare version "v2.0.0-alpha.165") < 0:
+      throw "Partition tables are not supported for SDK versions older than v2.0.0-alpha.165."
 
     // TODO(florian): we shouldn't need to pass `chip` to the firmware tool.
     chip := chip-for --envelope-path=envelope-path
