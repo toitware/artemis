@@ -405,26 +405,47 @@ Chooses the download URL based on the current platform.
 sdk-url version/string -> string:
   arch := system.architecture
   platform := system.platform
-  platform-str/string := ?
-  if platform == system.PLATFORM-LINUX:
-    if arch == system.ARCHITECTURE-X86-64:
-      platform-str = "linux"
-    else if arch == system.ARCHITECTURE-ARM64:
-      platform-str = "aarch64"
-    else if arch == system.ARCHITECTURE-ARM:
-      platform-str = "rpi"
+  selector/string := ?
+  if (semver.compare version "v2.0.0-alpha.163") < 0:
+    if platform == system.PLATFORM-LINUX:
+      if arch == system.ARCHITECTURE-X86-64:
+        selector = "linux"
+      else if arch == system.ARCHITECTURE-ARM64:
+        selector = "aarch64"
+      else if arch == system.ARCHITECTURE-ARM:
+        selector = "rpi"
+      else:
+        throw "Unsupported architecture: $platform-$arch"
+    else if system.platform == system.PLATFORM-MACOS:
+      selector = "macos"
+    else if system.platform == system.PLATFORM-WINDOWS:
+      selector = "windows"
     else:
-      throw "Unsupported architecture: $arch"
-  else if system.platform == system.PLATFORM-MACOS:
-    // TODO(florian): choose the the ARM version if we are running
-    // on an ARM Mac and the version is recent enough.
-    platform-str = "macos"
-  else if system.platform == system.PLATFORM-WINDOWS:
-    platform-str = "windows"
+      throw "Unsupported platform: $platform"
   else:
-    throw "Unsupported platform: $system.platform"
+    if platform == system.PLATFORM-LINUX:
+      selector = "linux"
+    else if platform == system.PLATFORM-MACOS:
+      selector = "macos"
+    else if platform == system.PLATFORM-WINDOWS:
+      selector = "windows"
+    else:
+      throw "Unsupported platform: $platform"
 
-  return "https://github.com/toitlang/toit/releases/download/$version/toit-$(platform-str).tar.gz"
+    if arch == system.ARCHITECTURE-X86-64:
+      selector += "-x64"
+    else if arch == system.ARCHITECTURE-ARM64:
+      if system.platform == system.PLATFORM-WINDOWS:
+        throw "Unsupported architecture: $platform-$arch"
+      selector += "-aarch64"
+    else if arch == system.ARCHITECTURE-ARM:
+      if system.platform != system.PLATFORM-LINUX:
+        throw "Unsupported architecture: $platform-$arch"
+      selector += "-armv7"
+    else:
+      throw "Unsupported architecture: $platform-$arch"
+
+  return "https://github.com/toitlang/toit/releases/download/$version/toit-$(selector).tar.gz"
 
 reported-local-sdk-use_/bool := false
 
