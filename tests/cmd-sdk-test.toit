@@ -35,26 +35,26 @@ run-test tester/Tester:
   IMAGE-V2-V1 ::= "toto"
   IMAGE-V2-V2 ::= "titi"
 
-  IGNORED-CONTENT ::= "ignored".to-byte-array
+  IGNORED-CONTENTS ::= "ignored".to-byte-array
 
   test-images := [
     {
       "sdk_version": SDK-V1,
       "service_version": SERVICE-V1,
       "image": IMAGE-V1-V1,
-      "content": IGNORED-CONTENT,
+      "content": IGNORED-CONTENTS,
     },
     {
       "sdk_version": SDK-V2,
       "service_version": SERVICE-V1,
       "image": IMAGE-V2-V1,
-      "content": IGNORED-CONTENT,
+      "content": IGNORED-CONTENTS,
     },
     {
       "sdk_version": SDK-V2,
       "service_version": SERVICE-V2,
       "image": IMAGE-V2-V2,
-      "content": IGNORED-CONTENT,
+      "content": IGNORED-CONTENTS,
     },
   ]
   backdoor.install-service-images test-images

@@ -37,7 +37,7 @@ run-test fleet/TestFleet:
 
   // Just make sure that the file is there and is a valid JSON file with
   // some entries.
-  exported := json.decode (file.read-content recovery-path)
+  exported := json.decode (file.read-contents recovery-path)
   expect (exported is Map)
   expect (exported.size > 0)
 

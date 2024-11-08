@@ -1109,7 +1109,7 @@ read-all flashlog/TestFlashLog --expected-first-sn/int?=null -> List:
     last-sn := null
     flashlog.read: | x sn |
       // We can have duplicates, but if the sequence number is
-      // the same, we should have the same content.
+      // the same, we should have the same contents.
       if output.contains sn:
         expect-bytes-equal output[sn] x
       else:

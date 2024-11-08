@@ -28,7 +28,7 @@ interface UploadClient:
   close
   upload
       --sdk-version/string --service-version/string
-      --image-id/string --image-content/ByteArray
+      --image-id/string --image-contents/ByteArray
       --snapshots/Map  // From chip-family to ByteArray.
       --organization-id/string?
       --force/bool
@@ -61,7 +61,7 @@ class UploadClientSupabase implements UploadClient:
 
   upload
       --sdk-version/string --service-version/string
-      --image-id/string --image-content/ByteArray
+      --image-id/string --image-contents/ByteArray
       --snapshots/Map  // From chip-family to ByteArray.
       --organization-id/string?
       --force/bool:
@@ -112,7 +112,7 @@ class UploadClientSupabase implements UploadClient:
 
     client_.storage.upload
         --path="service-images/$image-id"
-        --content=image-content
+        --content=image-contents
 
     // In theory we should be able to use 'upsert' here, but
     // there are unique constraints on the columns that we
@@ -184,12 +184,12 @@ class UploadClientHttp implements UploadClient:
 
   upload
       --sdk-version/string --service-version/string
-      --image-id/string --image-content/ByteArray
+      --image-id/string --image-contents/ByteArray
       --snapshots/Map  // From chip-family to ByteArray.
       --organization-id/string?
       --force/bool:
     // We only upload the image.
-    send-request_ COMMAND-UPLOAD-SERVICE-IMAGE_ --content=image-content {
+    send-request_ COMMAND-UPLOAD-SERVICE-IMAGE_ --contents=image-contents {
       "sdk_version": sdk-version,
       "service_version": service-version,
       "image_id": image-id,
@@ -201,9 +201,9 @@ class UploadClientHttp implements UploadClient:
     throw "UNIMPLEMENTED"
 
   // TODO(florian): share this code with the cli and the service.
-  send-request_ command/int meta-data/Map --content/ByteArray -> any:
+  send-request_ command/int meta-data/Map --contents/ByteArray -> any:
     encoded-meta := json.encode meta-data
-    encoded := #[command] + encoded-meta + #[0] + content
+    encoded := #[command] + encoded-meta + #[0] + contents
 
     headers := null
     if server-config_.admin-headers:

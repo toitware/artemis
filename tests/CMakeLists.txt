@@ -78,22 +78,22 @@ if (NOT ${WITH_LOCAL_SUPABASE})
 endif()
 
 function (takes_artemis_flags file result)
-  file(READ "${file}" content)
-  string(REGEX MATCH "// ARTEMIS_TEST_FLAGS:.*ARTEMIS" match "${content}")
+  file(READ "${file}" contents)
+  string(REGEX MATCH "// ARTEMIS_TEST_FLAGS:.*ARTEMIS" match "${contents}")
   # Return the match if there was one.
   set(${result} ${match} PARENT_SCOPE)
 endfunction()
 
 function (takes_broker_flags file result)
-  file(READ "${file}" content)
-  string(REGEX MATCH "// ARTEMIS_TEST_FLAGS:.*BROKER" match "${content}")
+  file(READ "${file}" contents)
+  string(REGEX MATCH "// ARTEMIS_TEST_FLAGS:.*BROKER" match "${contents}")
   # Return the match if there was one.
   set(${result} ${match} PARENT_SCOPE)
 endfunction()
 
 function(extract_test_flags file result)
-  file(READ "${file}" content)
-  string(REGEX MATCHALL "// TEST_FLAGS: ([^\n]*)" flags "${content}")
+  file(READ "${file}" contents)
+  string(REGEX MATCHALL "// TEST_FLAGS: ([^\n]*)" flags "${contents}")
   string(REPLACE " " ";" flags "${CMAKE_MATCH_1}")
   set(${result} "${flags}" PARENT_SCOPE)
 endfunction()

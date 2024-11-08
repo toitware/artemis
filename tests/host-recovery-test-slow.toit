@@ -72,7 +72,7 @@ main args:
   if system.platform == system.PLATFORM-WINDOWS: return
 
   source-dir := fs.dirname system.program-path
-  source := file.read-content "$source-dir/host-recovery-source.toit"
+  source := file.read-contents "$source-dir/host-recovery-source.toit"
 
   with-fleet --count=0 --args=args: | fleet/TestFleet |
     recovery-server := RecoveryServer
@@ -104,8 +104,8 @@ main args:
     fleet.run ["fleet", "migration", "start", "--broker", backup-broker.name]
     fleet.run ["fleet", "migration", "stop", "--force"]  // We are now on the new broker.
 
-    fleet-content := (file.read-content "$fleet.fleet-dir/fleet.json").to-string
-    print fleet-content
+    fleet-contents := (file.read-contents "$fleet.fleet-dir/fleet.json").to-string
+    print fleet-contents
 
     new-pod-id := fleet.upload-pod "on-new-broker" --format="tar"
     fleet.run ["fleet", "roll-out"]
@@ -113,7 +113,7 @@ main args:
     // Create recovery information for it.
     recovery-path := "$fleet.tester.tmp-dir/recover-$(fleet.id).json"
     fleet.run ["fleet", "recovery", "export", "-o", recovery-path]
-    recovery-info := file.read-content recovery-path
+    recovery-info := file.read-contents recovery-path
     recovery-server.recovery-info = recovery-info
 
     test-device.wait-for-synchronized  // Still on the old broker.

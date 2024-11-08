@@ -21,7 +21,7 @@ abstract class ServerConfig:
   */
   constructor.from-json name/string json-map/Map [--der-deserializer]:
     // This is a bit fishy, as the constructors can already to validity checks
-    // before we have recovered the content of fields that were deduplicated.
+    // before we have recovered the contents of fields that were deduplicated.
     config/ServerConfig := ?
     if json-map["type"] == "supabase":
       config = ServerConfigSupabase.from-json name json-map

@@ -26,8 +26,8 @@ class CompiledProgram:
     with-tmp-directory: | tmp/string |
       snapshot-path := "$tmp/snapshot"
       sdk.compile-to-snapshot path --out=snapshot-path
-      snapshot-content := file.read-content snapshot-path
-      cache-snapshot snapshot-content
+      snapshot-contents := file.read-contents snapshot-path
+      cache-snapshot snapshot-contents
       return CompiledProgram.snapshot snapshot-path --sdk=sdk
     unreachable
 
@@ -56,7 +56,7 @@ extract-id-from-snapshot snapshot-path/string -> string?:
     print-on-stderr_ "$snapshot-path: Not a file"
     exit 1
 
-  snapshot := file.read-content snapshot-path
+  snapshot := file.read-contents snapshot-path
   ar-reader/ar.ArReader? := null
   exception := catch:
     ar-reader = ar.ArReader.from-bytes snapshot
@@ -64,7 +64,7 @@ extract-id-from-snapshot snapshot-path/string -> string?:
   first := ar-reader.next
   if first.name != "toit": return null
   id/string? := null
-  while member := ar-reader.next:
+  while member/ar.ArFile := ar-reader.next:
     if member.name == "uuid":
-      id = (Uuid member.content).stringify
+      id = (Uuid member.contents).stringify
   return id

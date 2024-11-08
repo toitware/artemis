@@ -1,4 +1,4 @@
-# Content of extended spec
+# Contents of extended spec
 # [pod, print-spec, TMP_DIR/extended.yaml]
 {
   "extends": [

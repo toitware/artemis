@@ -527,7 +527,7 @@ class FlashLog:
     region_.read --from=page buffer
     cursor := HEADER-SIZE_
     if (buffer[cursor] & 0x80) == 0:
-      // Page content must start with MSB set.
+      // Page contents must start with MSB set.
       return null
     while cursor < capacity-per-page_:
       if buffer[cursor] == 0xff:

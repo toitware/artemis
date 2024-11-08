@@ -134,16 +134,16 @@ class Broker:
     upload-trivial-patches_ --pod=pod
 
     pod.split: | manifest/Map parts/Map |
-      parts.do: | id/string content/ByteArray |
+      parts.do: | id/string contents/ByteArray |
         // Only upload if we don't have it in our cache.
         key := cache-key-pod-parts
             --broker-config=server-config
             --organization-id=organization-id
             --part-id=id
         cli_.cache.get-file-path key: | store/FileStore |
-          broker-connection_.pod-registry-upload-pod-part content --part-id=id
+          broker-connection_.pod-registry-upload-pod-part contents --part-id=id
               --organization-id=organization-id
-          store.save content
+          store.save contents
       key := cache-key-pod-manifest
           --broker-config=server-config
           --organization-id=organization-id
@@ -195,11 +195,11 @@ class Broker:
         --tag-errors=tag-errors
 
   upload-trivial-patches_ --pod/Pod -> none:
-    firmware-content := FirmwareContent.from-envelope pod.envelope-path --cli=cli_
-    upload_ --firmware-content=firmware-content
+    firmware-contents := FirmwareContents.from-envelope pod.envelope-path --cli=cli_
+    upload_ --firmware-contents=firmware-contents
 
-  upload_ --firmware-content/FirmwareContent:
-    firmware-content.trivial-patches.do:
+  upload_ --firmware-contents/FirmwareContents:
+    firmware-contents.trivial-patches.do:
       upload-patch_ it
 
   /**
@@ -244,7 +244,7 @@ class Broker:
         cli_.ui.emit --warning "Failed to download old firmware for patch $old-id -> $trivial-id."
         return
       store.with-tmp-directory: | tmp-dir |
-        file.write-content downloaded --path="$tmp-dir/patch"
+        file.write-contents downloaded --path="$tmp-dir/patch"
         // TODO(florian): we don't have the chunk-size when downloading from the broker.
         store.move "$tmp-dir/patch"
 
@@ -454,10 +454,10 @@ class Broker:
     base-patches := {:}
 
     base-firmwares := diff-bases.map: | diff-base/Pod |
-      FirmwareContent.from-envelope diff-base.envelope-path --cli=cli_
+      FirmwareContents.from-envelope diff-base.envelope-path --cli=cli_
 
-    base-firmwares.do: | content/FirmwareContent |
-      trivial-patches := extract-trivial-patches_ content
+    base-firmwares.do: | contents/FirmwareContents |
+      trivial-patches := extract-trivial-patches_ contents
       trivial-patches.do: | _ patch/FirmwarePatch |
         upload-patch_ patch
 
@@ -467,14 +467,14 @@ class Broker:
         --base-firmwares=base-firmwares
         --warn-only-trivial=warn-only-trivial
   /**
-  Extracts the trivial patches from the given $firmware-content.
+  Extracts the trivial patches from the given $firmware-contents.
 
   Returns a mapping from patch-id (as used when diffing to the part) and
     the patch itself.
   */
-  extract-trivial-patches_ firmware-content/FirmwareContent -> Map:
+  extract-trivial-patches_ firmware-contents/FirmwareContents -> Map:
     result := {:}
-    firmware-content.trivial-patches.do: | patch/FirmwarePatch |
+    firmware-contents.trivial-patches.do: | patch/FirmwarePatch |
       patch-id := id_ --to=patch.to_
       result[patch-id] = patch
     return result
@@ -491,7 +491,7 @@ class Broker:
   For each device computes upgrade-patches and uploads them if needed.
 
   If a device has no known current state, then uses the $base-firmwares
-    (a list of $FirmwareContent) for diff-based patches. If the list
+    (a list of $FirmwareContents) for diff-based patches. If the list
     is empty, the device must upgrade using trivial patches.
 
   Trivial patches are always uploaded (as part of the pod upload).
@@ -508,12 +508,12 @@ class Broker:
       device := devices[i]
       pod := pods[i]
       unconfigured := unconfigured-cache.get pod.id --init=:
-        FirmwareContent.from-envelope pod.envelope-path --cli=cli_
+        FirmwareContents.from-envelope pod.envelope-path --cli=cli_
 
       goal := prepare-update-device_
           --device=device
           --pod=pod
-          --unconfigured-content=unconfigured
+          --unconfigured-contents=unconfigured
           --base-firmwares=base-firmwares
           --warn-only-trivial=warn-only-trivial
       goals.add goal
@@ -531,11 +531,11 @@ class Broker:
   prepare-update-device_ -> Map
       --device/DeviceDetailed
       --pod/Pod
-      --unconfigured-content/FirmwareContent
+      --unconfigured-contents/FirmwareContents
       --base-firmwares/List
       --warn-only-trivial/bool=true:
     device-id := device.id
-    upload_ --firmware-content=unconfigured-content
+    upload_ --firmware-contents=unconfigured-contents
 
     known-encoded-firmwares := {}
     [
@@ -562,13 +562,13 @@ class Broker:
         old-device-id := Uuid.parse old-device-map["device_id"]
         if device-id != old-device-id:
           cli_.ui.abort "The device id of the firmware image ($old-device-id) does not match the given device id ($device-id)."
-        upgrade-from.add old-firmware.content
+        upgrade-from.add old-firmware.contents
 
     result := compute-updated-goal_
         --device=device
         --upgrade-from=upgrade-from
         --pod=pod
-        --unconfigured-content=unconfigured-content
+        --unconfigured-contents=unconfigured-contents
     return result
 
   /**
@@ -580,17 +580,17 @@ class Broker:
   The returned goal state will instruct the device to download the firmware image
     and install it.
   */
-  compute-updated-goal_ --device/Device --upgrade-from/List --pod/Pod --unconfigured-content/FirmwareContent -> Map:
+  compute-updated-goal_ --device/Device --upgrade-from/List --pod/Pod --unconfigured-contents/FirmwareContents -> Map:
     // Compute the patches and upload them.
     short := short-string-for_ --device-id=device.id
     cli_.ui.emit --info "Computing and uploading patches for $short."
     upgrade-to := Firmware
         --pod=pod
         --device=device
-        --unconfigured-content=unconfigured-content
+        --unconfigured-contents=unconfigured-contents
         --cli=cli_
-    upgrade-from.do: | old-firmware-content/FirmwareContent |
-      patches := upgrade-to.content.patches old-firmware-content
+    upgrade-from.do: | old-firmware-contents/FirmwareContents |
+      patches := upgrade-to.contents.patches old-firmware-contents
       patches.do: diff-and-upload_ it
 
     // Build the updated goal and return it.
@@ -713,12 +713,12 @@ class Broker:
               --app-id=id
               --organization-id=device.organization-id
               --word-size=32
-          file.write-content program.image32 --path="$tmp-dir/image32.bin"
+          file.write-contents program.image32 --path="$tmp-dir/image32.bin"
           broker-connection_.upload-image program.image64
               --organization-id=device.organization-id
               --app-id=id
               --word-size=64
-          file.write-content program.image64 --path="$tmp-dir/image64.bin"
+          file.write-contents program.image64 --path="$tmp-dir/image64.bin"
           store.move tmp-dir
 
       if not device.goal and not device.reported-state-firmware:
@@ -807,7 +807,7 @@ class Broker:
         --cli=cli_
 
     // Extract the sdk version from the envelope.
-    envelope := file.read-content envelope-path
+    envelope := file.read-contents envelope-path
     envelope-sdk-version := Sdk.get-sdk-version-from --envelope=envelope
     envelope-chip-family := Sdk.get-chip-family-from --envelope=envelope
     if sdk-version:
@@ -880,7 +880,7 @@ class Broker:
         snapshot-uuid-string := extract-id-from-snapshot snapshot-path
         sha.add (Uuid.parse snapshot-uuid-string).to-byte-array
         if assets-path:
-          sha.add (file.read-content assets-path)
+          sha.add (file.read-contents assets-path)
         id := Uuid sha.get[..Uuid.SIZE]
 
         triggers := container.triggers

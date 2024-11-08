@@ -108,7 +108,7 @@ main args:
       path-org1 := "$bucket/$organization-id"
       client1.storage.upload
           --path="$path-org1/foo.txt"
-          --content="foo".to-byte-array
+          --contents="foo".to-byte-array
       expect-equals "foo".to-byte-array
           client1.storage.download --path="$path-org1/foo.txt"
       expect-equals "foo".to-byte-array
@@ -121,7 +121,7 @@ main args:
       path-org3 := "$bucket/$organization-id3"
       client3.storage.upload
           --path="$path-org3/bar.txt"
-          --content="bar".to-byte-array
+          --contents="bar".to-byte-array
       expect-equals "bar".to-byte-array
           client3.storage.download --path="$path-org3/bar.txt"
 
