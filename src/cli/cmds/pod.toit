@@ -152,7 +152,8 @@ create-pod-commands -> List:
       --run=:: list it
   cmd.add list-cmd
 
-  print-spec-cmd := Command "print-spec"
+  print-spec-cmd := Command "print-specification"
+      --aliases=["print-spec"]
       --help="""
         Print the given pod specification.
 
