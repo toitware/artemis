@@ -140,10 +140,10 @@ create-pod-commands -> List:
       --help="""
         Add tags to uploaded pods.
 
-        The pods to change are specified through a pod reference like
+        The pods to change are specified through pod references like
         name@tag or name#revision.
-        If only a pod name is provided, the pod with the 'latest' tags is
-        changed.
+        For each given pod reference, if only a pod name is provided, the pod
+        with the 'latest' tag is changed.
 
         If '--force' is provided, tags are added even if they already exists, moving
         the tags to the selected pods.
@@ -188,7 +188,7 @@ create-pod-commands -> List:
       --help="""
         Remove tags from pods.
 
-        The pods to change are specified by their pod-name, and not
+        The pods to change are specified by their pod-names, and not
         by complete references.
 
         If the tag doesn't exist on the pod, it is ignored.
