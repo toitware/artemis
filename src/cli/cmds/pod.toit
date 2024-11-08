@@ -152,7 +152,8 @@ create-pod-commands -> List:
       --run=:: list it
   cmd.add list-cmd
 
-  print-cmd := Command "print"
+  print-spec-cmd := Command "print-specification"
+      --aliases=["print-spec"]
       --help="""
         Print the given pod specification.
 
@@ -177,8 +178,8 @@ create-pod-commands -> List:
         Example "Print the non-merged pod specification from a file 'my-pod.yaml':"
             --arguments="my-pod.yaml",
       ]
-      --run=:: print it
-  cmd.add print-cmd
+      --run=:: print-spec it
+  cmd.add print-spec-cmd
 
   delete-cmd := Command "delete"
       --help="""
@@ -349,7 +350,7 @@ print-pods_ pods/Map --cli/Cli -> none:
         }
         rows
 
-print invocation/Invocation:
+print-spec invocation/Invocation:
   ui := invocation.cli.ui
 
   flat := invocation["flat"]

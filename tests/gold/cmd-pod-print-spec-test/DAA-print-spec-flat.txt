@@ -1,5 +1,5 @@
 # Content of extended spec after flattening
-# [pod, print, --flat, TMP_DIR/extended.yaml]
+# [pod, print-spec, --flat, TMP_DIR/extended.yaml]
 {
   "max-offline": "1h",
   "$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",

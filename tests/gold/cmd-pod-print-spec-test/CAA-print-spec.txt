@@ -1,5 +1,5 @@
 # Content of extended spec
-# [pod, print, TMP_DIR/extended.yaml]
+# [pod, print-spec, TMP_DIR/extended.yaml]
 {
   "extends": [
     "minimal.yaml"
