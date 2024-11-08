@@ -238,7 +238,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
           "image": image,
         }
 
-        client.storage.upload --path="service-images/$image" --contents=contents
+        client.storage.upload --path="service-images/$image" --content=contents
 
   create-device --organization-id/Uuid -> Map:
     alias := random-uuid
