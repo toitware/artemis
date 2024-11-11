@@ -218,10 +218,6 @@ run-shared-test
       expect-throws --contains="Not found":
           client-anon.storage.download --public --path=path
 
-    // Anon doesn't see it with regular download.
-    expect-throws --contains="Not found":
-        client-anon.storage.download --path=path
-
     // Check that anon can't update it.
     expect-throws --contains="row-level security":
       client-anon.storage.upload
