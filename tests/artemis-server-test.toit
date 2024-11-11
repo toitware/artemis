@@ -212,19 +212,19 @@ test-sdk server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
       "sdk_version": SDK-V1,
       "service_version": SERVICE-V1,
       "image": IMAGE-V1-V1,
-      "contents": CONTENTS-V1-V1,
+      "content": CONTENTS-V1-V1,
     },
     {
       "sdk_version": SDK-V2,
       "service_version": SERVICE-V1,
       "image": IMAGE-V2-V1,
-      "contents": CONTENTS-V2-V1,
+      "content": CONTENTS-V2-V1,
     },
     {
       "sdk_version": SDK-V2,
       "service_version": SERVICE-V2,
       "image": IMAGE-V2-V2,
-      "contents": CONTENTS-V2-V2,
+      "content": CONTENTS-V2-V2,
     },
   ]
   backdoor.install-service-images test-images
@@ -241,7 +241,7 @@ test-sdk server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
     expect-equals test-image["image"] image
 
     downloaded-contents := server-cli.download-service-image image
-    expect-equals test-image["contents"] downloaded-contents
+    expect-equals test-image["content"] downloaded-contents
 
   // Test that the filters on list_sdk_service_versions work.
   images = server-cli.list-sdk-service-versions
