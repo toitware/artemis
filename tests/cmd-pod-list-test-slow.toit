@@ -10,7 +10,7 @@ main args:
   with-fleet --count=0 --args=args: | fleet/TestFleet |
     run-test fleet
 
-run-test fleet:
+run-test fleet/TestFleet:
   fleet.tester.ensure-available-artemis-service
 
   name := "test-pod"
