@@ -226,7 +226,7 @@ class Pod:
     parts := {:}
     reader := io.Reader envelope
     ar-reader := ArReader reader
-    while file/ArFile := ar-reader.next:
+    while file/ArFile? := ar-reader.next:
       // TODO(florian): if we wanted to have an easy way to find
       // snapshots, we should use the uuid of the snapshot (when it is one).
       hash := sha256.sha256 file.contents
