@@ -879,12 +879,12 @@ class TestDevicePipe extends TestDevice:
   fork_ --env/Map?=null:
     fork-data := pipe.fork
         --environment=env
-        true                // use_path
+        true                // use_path.
         // We create a stdin pipe, so that qemu can't interfere with
         // our terminal.
         pipe.PIPE-CREATED   // stdin.
-        pipe.PIPE-CREATED   // stdout
-        pipe.PIPE-CREATED   // stderr
+        pipe.PIPE-CREATED   // stdout.
+        pipe.PIPE-CREATED   // stderr.
         command_.first
         command_
     stdin := fork-data[0]
@@ -902,7 +902,8 @@ class TestDevicePipe extends TestDevice:
     stdout-task_ = task --background::
       try:
         catch --trace:
-          while chunk := stdout.read:
+          reader := stdout.in
+          while chunk := reader.read:
             output_ += chunk
             print-on-stderr_ "STDOUT: '$chunk.to-string-non-throwing'"
             signal_.raise
@@ -912,7 +913,8 @@ class TestDevicePipe extends TestDevice:
     stderr-task_ = task --background::
       try:
         catch --trace:
-          while chunk := stderr.read:
+          reader := stderr.in
+          while chunk := reader.read:
             output_ += chunk
             print-on-stderr_ "STDERR: '$chunk.to-string-non-throwing'"
             signal_.raise
