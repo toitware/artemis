@@ -654,7 +654,7 @@ main args:
     IMAGE-BUCKET ::= "service-images"
     client-admin.storage.upload
         --path="$IMAGE-BUCKET/$image"
-        --contents="test".to-byte-array
+        --content="test".to-byte-array
 
     // Check that auth and anon can see it.
     expect-equals "test".to-byte-array
@@ -675,7 +675,7 @@ main args:
     SNAPSHOT-BUCKETS.do: | bucket/string |
       client-admin.storage.upload
           --path="$bucket/$snapshot"
-          --contents="test snapshot".to-byte-array
+          --content="test snapshot".to-byte-array
 
       // Check that admin can see it, but auth and anon can not see it.
       expect-equals "test snapshot".to-byte-array

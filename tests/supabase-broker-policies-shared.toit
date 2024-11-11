@@ -208,7 +208,7 @@ run-shared-test
     // Authenticated can write to the storage.
     client1.storage.upload
         --path=path
-        --contents="test".to-byte-array
+        --content="test".to-byte-array
 
     if others-can-see:
       // Check that anon can see it with public download.
@@ -226,7 +226,7 @@ run-shared-test
     expect-throws --contains="row-level security":
       client-anon.storage.upload
           --path=path
-          --contents="bad".to-byte-array
+          --content="bad".to-byte-array
 
     if others-can-see:
       // Check that it's still the same.
@@ -239,7 +239,7 @@ run-shared-test
     expect-throws --contains="row-level security":
         client-anon.storage.upload
             --path=path2
-            --contents="test".to-byte-array
+            --content="test".to-byte-array
 
 run-shared-pod-description-test
     --client1/supabase.Client
