@@ -84,6 +84,11 @@ main args --cli/Cli?:
   create-serial-commands.do: root-cmd.add it
   create-doc-commands.do: root-cmd.add it
 
+  assert:
+    // Check that the root command is correctly set up.
+    root-cmd.check
+    true
+
   try:
     root-cmd.run args --cli=cli
   finally: | is-exception exception |
