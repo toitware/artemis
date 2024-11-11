@@ -103,7 +103,7 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
         "service_version": entry["service_version"],
         "image": entry["image"],
       }
-      image-binaries[entry["image"]] = entry["contents"]
+      image-binaries[entry["image"]] = entry["content"]
 
     server.sdk-service-versions = sdk-service-versions
     server.image-binaries = image-binaries
