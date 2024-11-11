@@ -64,7 +64,7 @@ extract-id-from-snapshot snapshot-path/string -> string?:
   first := ar-reader.next
   if first.name != "toit": return null
   id/string? := null
-  while member/ar.ArFile := ar-reader.next:
+  while member/ar.ArFile? := ar-reader.next:
     if member.name == "uuid":
       id = (Uuid member.contents).stringify
   return id
