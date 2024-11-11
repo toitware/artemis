@@ -165,7 +165,7 @@ async function handleRequest(req: Request) {
           //   at some point in the future.
           if (response.headers.get("Content-Length") != null) {
             // If there is no content-length header we will fall through and
-            //   return a BinaryResponse with the full content.
+            //   return a BinaryResponse with the full contents.
             return response;
           }
         } else {
@@ -176,15 +176,15 @@ async function handleRequest(req: Request) {
         }
         // Range not supported. Download the whole file ourselves, and
         // let the `BinaryResponse` handling deal with partial responses.
-        const content = await response.arrayBuffer();
-        if (content.byteLength < offset) {
+        const contents = await response.arrayBuffer();
+        if (contents.byteLength < offset) {
           throw new Error("offset too large");
         }
         // Return the requested slice.
         return {
           data: new BinaryResponse(
-            new DataView(content, offset),
-            content.byteLength,
+            new DataView(contents, offset),
+            contents.byteLength,
           ),
           error: null,
         };

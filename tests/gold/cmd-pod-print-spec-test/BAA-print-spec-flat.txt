@@ -1,4 +1,4 @@
-# Content of minimal spec after flattening
+# Contents of minimal spec after flattening
 # [pod, print-spec, --flat, TMP_DIR/minimal.yaml]
 {
   "$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",

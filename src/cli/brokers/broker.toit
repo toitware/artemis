@@ -107,7 +107,7 @@ interface BrokerCli implements Authenticatable:
       --organization-id/Uuid
       --app-id/Uuid
       --word-size/int
-      content/ByteArray -> none
+      contents/ByteArray -> none
 
   /**
   Uploads a firmware with the given $firmware-id so that a device in
@@ -251,7 +251,7 @@ interface BrokerCli implements Authenticatable:
   pod-registry-upload-pod-part -> none
       --organization-id/Uuid
       --part-id/string
-      content/ByteArray
+      contents/ByteArray
 
   /**
   Downloads a pod part from the registry.
@@ -261,13 +261,13 @@ interface BrokerCli implements Authenticatable:
   /**
   Saves the manifest of a pod.
 
-  The $content is a binary blob (for example a UBJSON map) that can be used to recover
+  The $contents is a binary blob (for example a UBJSON map) that can be used to recover
     a pod from its parts.
   */
   pod-registry-upload-pod-manifest -> none
       --organization-id/Uuid
       --pod-id/Uuid
-      content/ByteArray
+      contents/ByteArray
 
   /**
   Downloads the manifest of a pod.

@@ -64,12 +64,12 @@ class HttpBroker extends HttpServer:
     if command == COMMAND-UPLOAD_:
       path-end := encoded.index-of '\0'
       path := encoded[0..path-end].to-string
-      content := encoded[path-end + 1 ..]
+      contents := encoded[path-end + 1 ..]
       data = {
         "path": path,
-        "content": content,
+        "contents": contents,
       }
-      print "$Time.now: Broker request upload ($command) with path=$path and $content.size bytes."
+      print "$Time.now: Broker request upload ($command) with path=$path and $contents.size bytes."
     else:
       data = json.decode encoded
       print "$Time.now: Broker request $(BROKER-COMMAND-TO-STRING.get command) ($command) with $data."
@@ -149,7 +149,7 @@ class HttpBroker extends HttpServer:
 
   upload data/Map:
     path := data["path"]
-    storage_[path] = data["content"]
+    storage_[path] = data["contents"]
 
   download data/Map:
     path := data["path"]

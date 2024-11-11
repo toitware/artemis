@@ -95,22 +95,22 @@ class FleetFile:
 
   static parse path/string --default-broker-config/ServerConfig --cli/Cli -> FleetFile:
     ui := cli.ui
-    fleet-content := null
-    exception := catch: fleet-content = read-json path
+    fleet-contents := null
+    exception := catch: fleet-contents = read-json path
     if exception:
       ui.emit --error "Fleet file '$path' is not a valid JSON."
       ui.emit --error exception.message
       ui.abort
-    if fleet-content is not Map:
+    if fleet-contents is not Map:
       ui.abort "Fleet file '$path' has invalid format."
-    if not fleet-content.contains "id":
+    if not fleet-contents.contains "id":
       ui.abort "Fleet file '$path' does not contain an ID."
-    if not fleet-content.contains "organization":
+    if not fleet-contents.contains "organization":
       ui.abort "Fleet file '$path' does not contain an organization ID."
 
-    is-reference := fleet-content.get "is-reference" --if-absent=: false
+    is-reference := fleet-contents.get "is-reference" --if-absent=: false
 
-    group-entry := fleet-content.get "groups"
+    group-entry := fleet-contents.get "groups"
     group-pods/Map := ?
     if is-reference:
       group-pods = {:}
@@ -130,9 +130,9 @@ class FleetFile:
           ui.abort "Fleet file '$path' has invalid format for 'pod' in group '$group-name'."
         PodReference.parse entry["pod"] --cli=cli
 
-    broker-name := fleet-content.get "broker"
-    migrating-from-entry := fleet-content.get "migrating-from"
-    servers-entry := fleet-content.get "servers"
+    broker-name := fleet-contents.get "broker"
+    migrating-from-entry := fleet-contents.get "migrating-from"
+    servers-entry := fleet-contents.get "servers"
 
     migrating-from/List := []
     servers/Map := ?
@@ -168,12 +168,12 @@ class FleetFile:
         default-broker-config.name: default-broker-config,
       }
 
-    recovery-urls := fleet-content.get "recovery-urls" --if-absent=: []
+    recovery-urls := fleet-contents.get "recovery-urls" --if-absent=: []
 
     return FleetFile
         --path=path
-        --id=Uuid.parse fleet-content["id"]
-        --organization-id=Uuid.parse fleet-content["organization"]
+        --id=Uuid.parse fleet-contents["id"]
+        --organization-id=Uuid.parse fleet-contents["organization"]
         --group-pods=group-pods
         --is-reference=is-reference
         --broker-name=broker-name

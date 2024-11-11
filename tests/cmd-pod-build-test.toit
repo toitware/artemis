@@ -188,4 +188,4 @@ get-envelope-for --sdk-version/string --cli/Cli -> ByteArray:
   pod-specification := PodSpecification.from-json default-spec --path="ignored" --cli=cli
 
   default-envelope-path := get-envelope --specification=pod-specification --cli=cli
-  return file.read-content default-envelope-path
+  return file.read-contents default-envelope-path

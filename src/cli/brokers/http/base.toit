@@ -73,8 +73,8 @@ class BrokerCliHttp implements BrokerCli:
     encoded/ByteArray := ?
     if command == COMMAND-UPLOAD_:
       path := data["path"]
-      content := data["content"]
-      encoded = #[COMMAND-UPLOAD_] + path.to-byte-array + #[0] + content
+      contents := data["content"]
+      encoded = #[COMMAND-UPLOAD_] + path.to-byte-array + #[0] + contents
     else:
       encoded = #[command] + (json.encode data)
 
@@ -186,10 +186,10 @@ class BrokerCliHttp implements BrokerCli:
       --organization-id/Uuid
       --app-id/Uuid
       --word-size/int
-      content/ByteArray:
+      contents/ByteArray:
     send-request_ COMMAND-UPLOAD_ {
       "path": "/toit-artemis-assets/$organization-id/images/$app-id.$word-size",
-      "content": content,
+      "content": contents,
     }
 
   upload-firmware --organization-id/Uuid --firmware-id/string chunks/List -> none:
@@ -367,10 +367,10 @@ class BrokerCliHttp implements BrokerCli:
   pod-registry-upload-pod-part -> none
       --organization-id/Uuid
       --part-id/string
-      content/ByteArray:
+      contents/ByteArray:
     send-request_ COMMAND-UPLOAD_ {
       "path": "/toit-artemis-pods/$organization-id/part/$part-id",
-      "content": content,
+      "content": contents,
     }
 
   /** See $BrokerCli.pod-registry-download-pod-part. */
@@ -383,10 +383,10 @@ class BrokerCliHttp implements BrokerCli:
   pod-registry-upload-pod-manifest -> none
       --organization-id/Uuid
       --pod-id/Uuid
-      content/ByteArray:
+      contents/ByteArray:
     send-request_ COMMAND-UPLOAD_ {
       "path": "/toit-artemis-pods/$organization-id/manifest/$pod-id",
-      "content": content,
+      "content": contents,
     }
 
   /** See $BrokerCli.pod-registry-download-pod-manifest. */

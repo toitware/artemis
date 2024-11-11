@@ -90,7 +90,7 @@ class Sdk:
         "--format", format,
         name,
       ]
-      return file.read-content result-path
+      return file.read-contents result-path
     unreachable
 
   /**
@@ -191,7 +191,7 @@ class Sdk:
       if device-specific-path: args += [ "--config", device-specific-path ]
 
       run-firmware args
-      return file.read-content out-path
+      return file.read-contents out-path
     unreachable
 
   /**
@@ -362,7 +362,7 @@ class Sdk:
   */
   static get-sdk-version-from --envelope-path/string -> string:
     return get-sdk-version-from
-        --envelope=file.read-content envelope-path
+        --envelope=file.read-contents envelope-path
 
   /**
   Extracts the SDK version from the given $envelope.
@@ -372,19 +372,19 @@ class Sdk:
     // Newer versions of envelopes have a metadata file.
     file := reader.find "\$metadata"
     if file != null:
-      metadata := json.decode file.content
+      metadata := json.decode file.contents
       return metadata["sdk-version"]
     // Restart the reader from the beginning.
     reader = ar.ArReader.from-bytes envelope
     file = reader.find "\$sdk-version"
     if file == null: throw "SDK version not found in envelope."
-    return file.content.to-string
+    return file.contents.to-string
 
   static get-word-bit-size-from --envelope/ByteArray -> int:
     reader := ar.ArReader.from-bytes envelope
     file := reader.find "\$metadata"
     if file != null:
-      metadata := json.decode file.content
+      metadata := json.decode file.contents
       return metadata["word-size"] * 8
     return 32
 
@@ -392,7 +392,7 @@ class Sdk:
     reader := ar.ArReader.from-bytes envelope
     file := reader.find "\$metadata"
     if file != null:
-      metadata := json.decode file.content
+      metadata := json.decode file.contents
       // Currently the kind and chip-family align.
       return metadata["kind"]
     return "esp32"

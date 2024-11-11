@@ -435,14 +435,14 @@ extract-device fleet-device/DeviceFleet
   with-tmp-directory: | tmp-dir/string |
     device-specific-path := "$tmp-dir/device-specific"
     device-specific := firmware.device-specific-data
-    file.write-content --path=device-specific-path device-specific
+    file.write-contents --path=device-specific-path device-specific
 
     if format == "tar" or format == "binary":
       bytes := sdk.firmware-extract
           --format=format
           --envelope-path=pod.envelope-path
           --device-specific-path=device-specific-path
-      file.write-content --path=output bytes
+      file.write-contents --path=output bytes
       if format == "tar":
         ui.emit --info "Wrote tarball to '$output'."
       else:

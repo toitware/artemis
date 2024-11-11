@@ -1,4 +1,4 @@
-# Content of extended spec after flattening
+# Contents of extended spec after flattening
 # [pod, print-spec, --flat, TMP_DIR/extended.yaml]
 {
   "max-offline": "1h",

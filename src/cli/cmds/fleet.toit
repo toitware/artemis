@@ -1097,7 +1097,7 @@ recovery-export invocation/Invocation:
 
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     recovery-info := fleet.recovery-info
-    file.write-content --path=output recovery-info
+    file.write-contents --path=output recovery-info
     ui.emit --info "Exported recovery information to '$output'."
     recovery-urls := fleet.recovery-urls
     if not recovery-urls.is-empty:

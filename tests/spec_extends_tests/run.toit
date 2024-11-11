@@ -47,7 +47,7 @@ run-negative-test test/string fail-path/string --should-update/bool:
   actual-message = actual-message.trim
 
   expect exception is PodSpecificationException
-  expected-message := (file.read-content fail-path).to-string
+  expected-message := (file.read-contents fail-path).to-string
   expected-message = expected-message.replace --all "\r\n" "\n"
   expected-message = expected-message.trim
   expect-equals expected-message actual-message

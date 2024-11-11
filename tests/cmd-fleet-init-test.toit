@@ -26,7 +26,7 @@ run-test tester/Tester:
     expect (file.is-file "$fleet-tmp-dir/devices.json")
     expect (file.is-file "$fleet-tmp-dir/my-pod.yaml")
 
-    fleet-json := json.decode (file.read-content "$fleet-tmp-dir/fleet.json")
+    fleet-json := json.decode (file.read-contents "$fleet-tmp-dir/fleet.json")
     // Check that we have a broker entry.
     broker-name := fleet-json["broker"]
     broker-entry := fleet-json["servers"][broker-name]
