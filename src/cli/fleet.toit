@@ -427,6 +427,12 @@ class Fleet:
   delete --pod-references/List:
     broker.delete --pod-references=pod-references
 
+  add-tags --tags/List --force/bool --references/List:
+    broker.add-tags --tags=tags --force=force --references=references
+
+  remove-tags --tags/List --references/List:
+    broker.remove-tags --tags=tags --references=references
+
   pod pod-id/Uuid -> PodBroker:
     return broker.pod pod-id
 
