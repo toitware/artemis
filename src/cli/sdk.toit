@@ -282,7 +282,7 @@ class Sdk:
       throw "Partitions are not supported for binary images."
 
     format/string := ?
-    if (semver.compare version "v2.0.0-alpha.165") < 0:
+    if (semver.compare version "v2.0.0-alpha.166") < 0:
       format = "qemu"
     else:
       format = "image"
