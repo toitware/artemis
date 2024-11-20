@@ -188,7 +188,7 @@ create-device-commands -> List:
         Option "remote"
             --help="A remote reference to a pod to build the firmware from.",
         Flag "force"
-            --help="Force the extraction even if OTA partition is small."
+            --help="Force the extraction even if OTA partition is likely too small."
             --default=false,
       ]
       --rest=[

@@ -168,7 +168,7 @@ create-fleet-commands -> List:
             --default=true
             --help="Make this device the default device.",
         Flag "force"
-            --help="Force image extraction even if the OTA partition is small."
+            --help="Force image extraction even if the OTA partition is likely too small."
             --default=false,
       ]
       --examples=[

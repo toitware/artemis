@@ -60,7 +60,7 @@ create-serial-commands -> List:
             --hidden
             --default=false,
         Flag "force"
-            --help="Force flashing even if the OTA partition is small."
+            --help="Force flashing even if the OTA partition is likely too small."
             --default=false,
       ]
       --rest=[
@@ -118,7 +118,7 @@ create-serial-commands -> List:
             --help="The identity file to use."
             --required,
         Flag "force"
-            --help="Force flashing even if the OTA partition is small."
+            --help="Force flashing even if the OTA partition is likely too small."
             --default=false,
       ]
       --examples=[
