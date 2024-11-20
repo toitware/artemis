@@ -40,7 +40,7 @@ cache-key-patch -> string
   return "$broker-config.cache-key/$organization-id/patches/$patch-id"
 
 CACHE-ARTIFACT-KIND-ENVELOPE ::= "envelope"
-CACHE-ARTIFACT-KIND-PARTITION-TABLE ::= "partition-table"
+CACHE-ARTIFACT-KIND-PARTITION-TABLE ::= "partitions"
 
 cache-key-url-artifact --url/string --kind/string -> string:
   HTTP-URL-PREFIX ::= "http://"
@@ -49,7 +49,7 @@ cache-key-url-artifact --url/string --kind/string -> string:
   if kind == CACHE-ARTIFACT-KIND-ENVELOPE:
     filename = "firmware.envelope"
   else if kind == CACHE-ARTIFACT-KIND-PARTITION-TABLE:
-    filename = "partition-table"  // We don't know whether it's a '.bin' or '.csv'.
+    filename = "partitions"  // We don't know whether it's a '.bin' or '.csv'.
   else:
     throw "Unknown artifact kind: $kind"
   url_without_prefix := (url.trim --left HTTP-URL-PREFIX).trim --left HTTPS-URL-PREFIX
