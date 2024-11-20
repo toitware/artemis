@@ -321,7 +321,7 @@ class PodSpecification:
 
     envelope = json-envelope
 
-    partition-table = json-map.get-optional-string "partition-table"
+    partition-table = json-map.get-optional-string "partitions"
 
     if json-map.has-key "apps" and json-map.has-key "containers":
       format-error_ "Both 'apps' and 'containers' are present in pod specification."
