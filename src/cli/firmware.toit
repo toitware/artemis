@@ -25,20 +25,20 @@ import ..shared.utils.patch
 /**
 A firmware for a specific device.
 
-Contains the generic $content which is shared among devices that use the same firmware version.
+Contains the generic $contents which is shared among devices that use the same firmware version.
 In addition, it contains the $device-specific-data which is unique to the device.
 */
 class Firmware:
   /**
   The generic firmware.
   The generic firmware can be shared among different devices.
-  The content always contains a description, identifying the firmware, but does not
+  The contents always contains a description, identifying the firmware, but does not
     always contain the actual bytes.
   */
-  content/FirmwareContent
+  contents/FirmwareContents
   /**
   An encoded description of this firmware.
-  Contains the $device-specific-data, and a checksum of the $content.
+  Contains the $device-specific-data, and a checksum of the $contents.
   */
   encoded/string
   /**
@@ -53,10 +53,10 @@ class Firmware:
   /** A decoded version of the $device-specific-data. */
   device-specific-data_/Map
 
-  constructor .content .device-specific-data:
+  constructor .contents .device-specific-data:
     map := {
       "device-specific": device-specific-data,
-      "checksum": content.checksum }
+      "checksum": contents.checksum }
     encoded = base64.encode (ubjson.encode map)
     device-specific-data_ = ubjson.decode device-specific-data
     if not device-specific-data_.contains "artemis.device":
@@ -65,23 +65,23 @@ class Firmware:
       throw "Invalid device-specific data: Missing parts"
     if not device-specific-data_.contains "sdk-version":
       throw "Invalid device-specific data: Missing sdk-version"
-    assert: device-specific-data_["parts"] == content.encoded-parts
+    assert: device-specific-data_["parts"] == contents.encoded-parts
 
   constructor.encoded .encoded:
     map := ubjson.decode (base64.decode encoded)
     device-specific-data = map["device-specific"]
     device-specific-data_ = ubjson.decode device-specific-data
-    content = FirmwareContent.encoded device-specific-data_["parts"] --checksum=map["checksum"]
+    contents = FirmwareContents.encoded device-specific-data_["parts"] --checksum=map["checksum"]
 
   /**
   Embeds device-specific information in $device into a firmware given by
     its pod.
 
-  If the $unconfigured-content isn't given, it is extracted from the pod.
+  If the $unconfigured-contents isn't given, it is extracted from the pod.
   If it is given, then the pod is only used for its ID.
 
   Computes the "parts" which describes the individual parts of the
-    firmware. Most parts consist of a range, and the binary hash of its content.
+    firmware. Most parts consist of a range, and the binary hash of its contents.
     Some parts, like the one containing the device-specific information only
     contains its range. The parts description is then encoded with ubjson and
     also stored in the device-specific information part (under the name "parts").
@@ -90,10 +90,10 @@ class Firmware:
     may change the size of the part (and thus the ranges of the other parts),
     the process is repeated until the encoded parts do not change anymore.
   */
-  constructor --device/Device --pod/Pod --cli/Cli --unconfigured-content/FirmwareContent?=null:
+  constructor --device/Device --pod/Pod --cli/Cli --unconfigured-contents/FirmwareContents?=null:
     sdk-version := Sdk.get-sdk-version-from --envelope-path=pod.envelope-path
-    unconfigured := unconfigured-content or
-        FirmwareContent.from-envelope pod.envelope-path --cli=cli
+    unconfigured := unconfigured-contents or
+        FirmwareContents.from-envelope pod.envelope-path --cli=cli
     encoded-parts := unconfigured.encoded-parts
     device-map := {
       "device_id":       "$device.id",
@@ -109,7 +109,7 @@ class Firmware:
         "pod-id"         : pod.id.to-byte-array,
       }
 
-      configured := FirmwareContent.from-envelope pod.envelope-path
+      configured := FirmwareContents.from-envelope pod.envelope-path
           --device-specific=device-specific
           --cli=cli
       if configured.encoded-parts == encoded-parts:
@@ -140,7 +140,7 @@ class Firmware:
     if not device-pod-id: return Uuid.NIL
     return Uuid device-pod-id
 
-class FirmwareContent:
+class FirmwareContents:
   bits/ByteArray?
   parts/List
   checksum/ByteArray
@@ -185,9 +185,9 @@ class FirmwareContent:
       else:
         parts.add (FirmwarePartPatch --from=from --to=to --bits=part-bits)
 
-    return FirmwareContent --bits=bits --parts=parts --checksum=checksum
+    return FirmwareContents --bits=bits --parts=parts --checksum=checksum
 
-  patches from/FirmwareContent? -> List:
+  patches from/FirmwareContents? -> List:
     result := []
     parts.size.repeat: | index/int |
       part := parts[index]
@@ -290,8 +290,8 @@ cache-snapshots --envelope-path/string --output-directory/string?=null --cli/Cli
             --envelope-path=envelope-path
             --name=name
             --output-path=tmp-snapshot-path
-        snapshot-content := file.read-content tmp-snapshot-path
-        cache-snapshot snapshot-content --output-directory=output-directory
+        snapshot-contents := file.read-contents tmp-snapshot-path
+        cache-snapshot snapshot-contents --output-directory=output-directory
 
 // A forwarding function to work around the shadowing in 'get_envelope'.
 cache-snapshots_ --envelope-path/string --cli/Cli:
@@ -328,9 +328,9 @@ build-partition-table-url --sdk-version/string? --partition-table/string -> stri
   if is-valid-release-artifact-name_ partition-table:
     if not sdk-version:
       throw "No sdk_version given"
-    if (semver.compare sdk-version "2.0.0-alpha.163") < 0:
-      throw "Partition tables are not supported for SDK versions older than 2.0.0-alpha.163"
-    return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/partition-table-$(partition-table).csv"
+    if (semver.compare sdk-version "2.0.0-alpha.166") < 0:
+      throw "Partition tables are not supported for SDK versions older than 2.0.0-alpha.166"
+    return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/partitions-$(partition-table).csv"
 
   if sdk-version:
     partition-table = partition-table.replace --all "\$(sdk-version)" sdk-version

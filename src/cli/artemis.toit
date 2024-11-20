@@ -125,7 +125,7 @@ class Artemis:
       service-image-bytes := server.download-service-image image-name
       ar-reader := ar.ArReader.from-bytes service-image-bytes
       artemis-file := ar-reader.find "artemis"
-      metadata := json.decode artemis-file.content
+      metadata := json.decode artemis-file.contents
       // Reset the reader. The images should be after the metadata, but
       // doesn't hurt.
       ar-reader = ar.ArReader.from-bytes service-image-bytes
@@ -133,10 +133,10 @@ class Artemis:
         if chip-family != "esp32":
           cli_.ui.abort "Unsupported chip family '$chip-family' for service $service and SDK $sdk."
         ar-file := ar-reader.find "service-$(word-size).img"
-        store.save ar-file.content
+        store.save ar-file.contents
       else:
         ar-file := ar-reader.find "$(chip-family)-$(word-size).img"
-        store.save ar-file.content
+        store.save ar-file.contents
 
   /**
   Fetches the organizations with the given $id.

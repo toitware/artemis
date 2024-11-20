@@ -13,7 +13,7 @@ endif
 
 TOITRUN ?= toit.run$(EXE_SUFFIX)
 
-LOCAL_DEV_SDK ?= v2.0.0-alpha.163
+LOCAL_DEV_SDK ?= v2.0.0-alpha.166
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 SUPABASE_DIRS := supabase_artemis public/supabase_broker
@@ -211,3 +211,9 @@ download-sdk: install-pkgs
 rebuild-cmake:
 	mkdir -p build
 	(cd build && cmake .. -DDEFAULT_SDK_VERSION=$(LOCAL_DEV_SDK) -G Ninja)
+
+.PHONY: update-pkgs
+update-pkgs:
+	for d in $$(git ls-files | grep package.yaml); do \
+	  toit pkg update --project-root $$(dirname $$d); \
+	done

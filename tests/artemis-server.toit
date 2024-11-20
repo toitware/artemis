@@ -39,7 +39,7 @@ interface ArtemisServerBackdoor:
   - sdk_version: The SDK version of the image.
   - service_version: The service version of the image.
   - image: The image identifier.
-  - content: The image content (a byte array).
+  - contents: The image contents (a byte array).
   */
   install-service-images images/List
 
@@ -219,7 +219,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
         sdk-version := entry["sdk_version"]
         service-version := entry["service_version"]
         image := entry["image"]
-        content := entry["content"]
+        contents := entry["contents"]
 
         sdk-id := sdk-versions.get sdk-version --init=:
           new-entry := client.rest.insert "sdks" {
@@ -238,7 +238,7 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
           "image": image,
         }
 
-        client.storage.upload --path="service-images/$image" --content=content
+        client.storage.upload --path="service-images/$image" --content=contents
 
   create-device --organization-id/Uuid -> Map:
     alias := random-uuid

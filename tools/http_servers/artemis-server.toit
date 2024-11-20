@@ -101,10 +101,10 @@ class HttpArtemisServer extends HttpServer:
     if command == COMMAND-UPLOAD-SERVICE-IMAGE_:
       meta-end := encoded.index-of '\0'
       meta := encoded[0..meta-end]
-      content := encoded[meta-end + 1 ..]
+      contents := encoded[meta-end + 1 ..]
       data = {
         "meta": meta,
-        "content": content,
+        "contents": contents,
       }
     else:
       data = json.decode encoded
@@ -361,14 +361,14 @@ class HttpArtemisServer extends HttpServer:
 
   upload-service-image data/Map:
     meta := json.decode data["meta"]
-    content := data["content"]
+    contents := data["contents"]
     sdk-version := meta["sdk_version"]
     service-version := meta["service_version"]
     image-id := meta["image_id"]
     organization-id := meta.get "organization_id"
     force := meta.get "force"
 
-    image-binaries[image-id] = content
+    image-binaries[image-id] = contents
     // Update any existing entry if there is already one.
     sdk-service-versions.do: | entry/Map |
       if entry["sdk_version"] == sdk-version and entry["service_version"] == service-version:

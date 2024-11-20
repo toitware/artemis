@@ -11,6 +11,7 @@ main args:
         --id=id
         --name="name"
         --envelope="envelope".to-byte-array
+        --partition-table=null
         --tmp-directory=tmp-dir
 
     out := "$tmp-dir/$(id).pod"

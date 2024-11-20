@@ -17,7 +17,7 @@ run-test fleet/TestFleet:
   device := fleet.create-host-device "dev1" --start
 
   hello-path := "$fleet.tester.tmp-dir/hello.toit"
-  file.write-content --path=hello-path """
+  file.write-contents --path=hello-path """
     main:
       print "Hello world"
     """

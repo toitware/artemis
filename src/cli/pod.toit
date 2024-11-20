@@ -33,7 +33,7 @@ class Pod:
   static CUSTOMIZED-ENVELOPE-NAME_ := "customized.env"
   static PARTITION-TABLE-NAME_ ::= "part-table"
 
-  static MAGIC-CONTENT_ ::= "frickin' sharks"
+  static MAGIC-CONTENTS_ ::= "frickin' sharks"
 
   envelope/ByteArray
   id/Uuid
@@ -86,7 +86,7 @@ class Pod:
         --output-path=envelope-path
         --artemis=artemis
         --specification=specification
-    envelope := file.read-content envelope-path
+    envelope := file.read-contents envelope-path
     id := random-uuid
     partition-table/ByteArray? := specification.partition-table
         ? get-partition-table --specification=specification --cli=cli
@@ -124,7 +124,7 @@ class Pod:
 
       ar-reader := ArReader reader
       file := ar-reader.next
-      if file.name != MAGIC-NAME_ or file.content != MAGIC-CONTENT_.to-byte-array:
+      if file.name != MAGIC-NAME_ or file.contents != MAGIC-CONTENTS_.to-byte-array:
         ui.abort "The file at '$path' is not a valid Artemis pod."
 
       while true:
@@ -133,19 +133,19 @@ class Pod:
         if file.name == ID-NAME_:
           if id:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple IDs."
-          id = Uuid file.content
+          id = Uuid file.contents
         else if file.name == NAME-NAME_:
           if name:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple names."
-          name = file.content.to-string
+          name = file.contents.to-string
         else if file.name == CUSTOMIZED-ENVELOPE-NAME_:
           if envelope:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple envelopes."
-          envelope = file.content
+          envelope = file.contents
         else if file.name == PARTITION-TABLE-NAME_:
           if partition-table:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple partition tables."
-          partition-table = file.content
+          partition-table = file.contents
 
       if not id:       ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain an ID."
       if not name:     ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain a name."
@@ -240,7 +240,7 @@ class Pod:
   write path/string --cli/Cli:
     write-file path --cli=cli: | writer/io.Writer |
       ar-writer := ArWriter writer
-      ar-writer.add MAGIC-NAME_ MAGIC-CONTENT_
+      ar-writer.add MAGIC-NAME_ MAGIC-CONTENTS_
       ar-writer.add ID-NAME_ id.to-byte-array
       ar-writer.add NAME-NAME_ name.to-byte-array
       ar-writer.add CUSTOMIZED-ENVELOPE-NAME_ envelope
@@ -265,13 +265,13 @@ class Pod:
     parts := {:}
     reader := io.Reader envelope
     ar-reader := ArReader reader
-    while file := ar-reader.next:
+    while file/ArFile? := ar-reader.next:
       // TODO(florian): if we wanted to have an easy way to find
       // snapshots, we should use the uuid of the snapshot (when it is one).
-      hash := sha256.sha256 file.content
+      hash := sha256.sha256 file.contents
       part-name := base64.encode hash --url-mode
       part-names[file.name] = part-name
-      parts[part-name] = file.content
+      parts[part-name] = file.contents
     manifest["parts"] = part-names
     block.call manifest parts
 

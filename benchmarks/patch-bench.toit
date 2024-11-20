@@ -15,8 +15,8 @@ main:
   bench "-b" false 100000
 
 bench suffix/string fast/bool size/int:
-  old := file.read-content "benchmarks/old$(suffix).bin"
-  new := file.read-content "benchmarks/new$(suffix).bin"
+  old := file.read-contents "benchmarks/old$(suffix).bin"
+  new := file.read-contents "benchmarks/new$(suffix).bin"
   old = old[..size] + old[old.size - size..]
   new = new[..size] + new[new.size - size..]
   old-data := OldData old 0 0

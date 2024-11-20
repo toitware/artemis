@@ -1,5 +1,5 @@
-# Content of minimal spec
-# [pod, print, TMP_DIR/minimal.yaml]
+# Contents of minimal spec
+# [pod, print-spec, TMP_DIR/minimal.yaml]
 {
   "$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",
   "name": "test-pod-print",

@@ -50,8 +50,8 @@ upload-pod -> Uuid
     write-blob-to-file "$tmp-dir/$filename" blob
 
   lock-file := "package.lock"
-  lock-content := make-lock-file-content directory.cwd
-  write-blob-to-file "$tmp-dir/$lock-file" lock-content
+  lock-contents := make-lock-file-contents directory.cwd
+  write-blob-to-file "$tmp-dir/$lock-file" lock-contents
 
   if not pod-spec.contains "artemis-version":
     pod-spec["artemis-version"] = TEST-ARTEMIS-VERSION

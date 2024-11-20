@@ -48,22 +48,22 @@ start-http-server synchro-done-latch/monitor.Latch -> int:
   return port
 
 make-test-code port/int -> string:
-  test-content := TEST-CODE.replace "HOST" get-lan-ip
-  return test-content.replace "PORT" "$port"
+  test-contents := TEST-CODE.replace "HOST" get-lan-ip
+  return test-contents.replace "PORT" "$port"
 
 main args/List:
   with-fleet --args=args --count=0: | fleet/TestFleet |
     synchro-done-latch := monitor.Latch
     port := start-http-server synchro-done-latch
     test-file := "test.toit"
-    test-content := make-test-code port
+    test-contents := make-test-code port
 
 
     qemu-data := create-extract-device
         --fleet=fleet
         --format="image"
         --files={
-          test-file: test-content,
+          test-file: test-contents,
         }
         --pod-spec={
           "max-offline": "2m",

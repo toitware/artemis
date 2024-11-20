@@ -90,7 +90,7 @@ class Sdk:
         "--format", format,
         name,
       ]
-      return file.read-content result-path
+      return file.read-contents result-path
     unreachable
 
   /**
@@ -191,7 +191,7 @@ class Sdk:
       if device-specific-path: args += [ "--config", device-specific-path ]
 
       run-firmware args
-      return file.read-content out-path
+      return file.read-contents out-path
     unreachable
 
   /**
@@ -273,7 +273,7 @@ class Sdk:
     if partitions and not partitions.is-empty:
       arguments += [ "--partition", partitions.join "," ]
     if partition-table-path:
-      arguments += [ "--partition-table", partition-table-path ]
+      arguments += [ "--partitions", partition-table-path ]
     run-firmware arguments
 
   /**
@@ -288,7 +288,7 @@ class Sdk:
       throw "Partitions are not supported for binary images."
 
     format/string := ?
-    if (semver.compare version "v2.0.0-alpha.164") < 0:
+    if (semver.compare version "v2.0.0-alpha.166") < 0:
       format = "qemu"
     else:
       format = "image"
@@ -368,7 +368,7 @@ class Sdk:
   */
   static get-sdk-version-from --envelope-path/string -> string:
     return get-sdk-version-from
-        --envelope=file.read-content envelope-path
+        --envelope=file.read-contents envelope-path
 
   /**
   Extracts the SDK version from the given $envelope.
@@ -378,19 +378,19 @@ class Sdk:
     // Newer versions of envelopes have a metadata file.
     file := reader.find "\$metadata"
     if file != null:
-      metadata := json.decode file.content
+      metadata := json.decode file.contents
       return metadata["sdk-version"]
     // Restart the reader from the beginning.
     reader = ar.ArReader.from-bytes envelope
     file = reader.find "\$sdk-version"
     if file == null: throw "SDK version not found in envelope."
-    return file.content.to-string
+    return file.contents.to-string
 
   static get-word-bit-size-from --envelope/ByteArray -> int:
     reader := ar.ArReader.from-bytes envelope
     file := reader.find "\$metadata"
     if file != null:
-      metadata := json.decode file.content
+      metadata := json.decode file.contents
       return metadata["word-size"] * 8
     return 32
 
@@ -398,7 +398,7 @@ class Sdk:
     reader := ar.ArReader.from-bytes envelope
     file := reader.find "\$metadata"
     if file != null:
-      metadata := json.decode file.content
+      metadata := json.decode file.contents
       // Currently the kind and chip-family align.
       return metadata["kind"]
     return "esp32"
@@ -417,26 +417,51 @@ Chooses the download URL based on the current platform.
 sdk-url version/string -> string:
   arch := system.architecture
   platform := system.platform
-  platform-str/string := ?
-  if platform == system.PLATFORM-LINUX:
-    if arch == system.ARCHITECTURE-X86-64:
-      platform-str = "linux"
-    else if arch == system.ARCHITECTURE-ARM64:
-      platform-str = "aarch64"
-    else if arch == system.ARCHITECTURE-ARM:
-      platform-str = "rpi"
+  selector/string := ?
+  if (semver.compare version "v2.0.0-alpha.163") < 0:
+    if platform == system.PLATFORM-LINUX:
+      if arch == system.ARCHITECTURE-X86-64:
+        selector = "linux"
+      else if arch == system.ARCHITECTURE-ARM64:
+        selector = "aarch64"
+      else if arch == system.ARCHITECTURE-ARM:
+        selector = "rpi"
+      else:
+        throw "Unsupported architecture: $platform-$arch"
+    else if system.platform == system.PLATFORM-MACOS:
+      selector = "macos"
+    else if system.platform == system.PLATFORM-WINDOWS:
+      selector = "windows"
     else:
-      throw "Unsupported architecture: $arch"
-  else if system.platform == system.PLATFORM-MACOS:
-    // TODO(florian): choose the the ARM version if we are running
-    // on an ARM Mac and the version is recent enough.
-    platform-str = "macos"
-  else if system.platform == system.PLATFORM-WINDOWS:
-    platform-str = "windows"
+      throw "Unsupported platform: $platform"
   else:
-    throw "Unsupported platform: $system.platform"
+    platform-string/string := ?
+    if platform == system.PLATFORM-LINUX:
+      platform-string = "linux"
+    else if platform == system.PLATFORM-MACOS:
+      platform-string = "macos"
+    else if platform == system.PLATFORM-WINDOWS:
+      platform-string = "windows"
+    else:
+      throw "Unsupported platform: $platform"
 
-  return "https://github.com/toitlang/toit/releases/download/$version/toit-$(platform-str).tar.gz"
+    arch-string := ?
+    if arch == system.ARCHITECTURE-X86-64:
+      arch-string = "x64"
+    else if arch == system.ARCHITECTURE-ARM64:
+      if system.platform == system.PLATFORM-WINDOWS:
+        throw "Unsupported architecture: $platform-$arch"
+      arch-string = "aarch64"
+    else if arch == system.ARCHITECTURE-ARM:
+      if system.platform != system.PLATFORM-LINUX:
+        throw "Unsupported architecture: $platform-$arch"
+      arch-string = "armv7"
+    else:
+      throw "Unsupported architecture: $platform-$arch"
+
+    selector = "$(platform-string)-$arch-string"
+
+  return "https://github.com/toitlang/toit/releases/download/$version/toit-$(selector).tar.gz"
 
 reported-local-sdk-use_/bool := false
 

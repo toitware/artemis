@@ -29,7 +29,7 @@ INITIAL-POD-SPECIFICATION -> Map:
     "artemis-version": ARTEMIS-VERSION,
     "max-offline": "0s",
     "firmware-envelope": "esp32",
-    "partition-table": "ota-1c0000",
+    "partitions": "esp32-ota-1c0000",
     "connections": [
       {
         "type": "wifi",
@@ -48,7 +48,7 @@ EXAMPLE-POD-SPECIFICATION -> Map:
     "artemis-version": ARTEMIS-VERSION,
     "max-offline": "30s",
     "firmware-envelope": "esp32",
-    "partition-table": "ota-1c0000",
+    "partitions": "esp32-ota-1c0000",
     "connections": [
       {
         "type": "wifi",
@@ -321,7 +321,7 @@ class PodSpecification:
 
     envelope = json-envelope
 
-    partition-table = json-map.get-optional-string "partition-table"
+    partition-table = json-map.get-optional-string "partitions"
 
     if json-map.has-key "apps" and json-map.has-key "containers":
       format-error_ "Both 'apps' and 'containers' are present in pod specification."
@@ -679,7 +679,7 @@ class ContainerPath extends ContainerBase:
             --ref=git-ref
             --quiet
         // Write the url, so it's easier to understand what is in there.
-        file.write-content --path="$tmp-dir/URL" git-url
+        file.write-contents --path="$tmp-dir/URL" git-url
         store.move tmp-dir
     cached-checkout := "$cached-git/checkout"
 
