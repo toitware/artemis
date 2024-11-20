@@ -125,7 +125,7 @@ class SynchronizeJob extends TaskJob:
   // time waiting for network operations. These can be
   // quite slow in particular for cellular networks, so
   // these settings may have to be tweaked.
-  static TIMEOUT-NETWORK-OPEN       ::= Duration --m=5
+  static TIMEOUT-NETWORK-OPEN       ::= Duration --m=20
   static TIMEOUT-NETWORK-QUARANTINE ::= Duration --s=10
   static TIMEOUT-NETWORK-CLOSE      ::= Duration --s=30
 
