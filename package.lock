@@ -19,13 +19,13 @@ packages:
   pkg-ar:
     url: github.com/toitlang/pkg-ar
     name: ar
-    version: 1.3.0
-    hash: d0f3890e5c641bee93fa337fbea0710a0a72710c
+    version: 1.3.1
+    hash: a8b2c0b2207322dcc965e56d854234f10d3f1f7a
   pkg-cli:
     url: github.com/toitlang/pkg-cli
     name: cli
-    version: 2.0.0
-    hash: f893664723411d328ef1f8b275bc456274a1b6db
+    version: 2.2.0
+    hash: ae142d3c8783939935ba37a924f9b2c2a0ad2479
     prefixes:
       fs: pkg-fs
       host: pkg-host
@@ -39,13 +39,13 @@ packages:
   pkg-host:
     url: github.com/toitlang/pkg-host
     name: host
-    version: 1.15.1
-    hash: ff187c2c19d695e66c3dc1d9c09b4dc6bec09088
+    version: 1.15.3
+    hash: 62393e8522b77eafbafe60b9817935266117daf6
   pkg-http:
     url: github.com/toitlang/pkg-http
     name: http
-    version: 2.7.2
-    hash: 614dd0f374e70aab09f12e9466a35b779b9a8d63
+    version: 2.8.0
+    hash: 81754d64fe466cd00cc494ec515da8749bf04975
   pkg-ntp:
     url: github.com/toitlang/pkg-ntp
     name: ntp
@@ -65,9 +65,9 @@ packages:
     hash: 6e9a5abce9499a47bfd97277dae6ab71f1c65849
   toit-cert-roots:
     url: github.com/toitware/toit-cert-roots
-    name: certificate_roots
-    version: 1.6.1
-    hash: 55d3be82ed53d8d332338b2de931865cf69fe48b
+    name: certificate-roots
+    version: 1.7.0
+    hash: 0f824e1e2209d9833fa23635460d30661546af4f
   toit-semver:
     url: github.com/toitware/toit-semver
     name: semver

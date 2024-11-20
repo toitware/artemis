@@ -156,20 +156,20 @@ test-image --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.Cl
 test-image broker-cli/broker.BrokerCli broker-service/broker.BrokerService --network/net.Client:
   2.repeat: | iteration |
     APP-ID ::= Uuid.uuid5 "app-$random" "test-app-$iteration-$Time.monotonic-us"
-    content-32 := ?
-    content-64 := ?
+    contents-32 := ?
+    contents-64 := ?
     if iteration == 0:
-      content-32 = "test-image 32".to-byte-array
-      content-64 = "test-image 64".to-byte-array
+      contents-32 = "test-image 32".to-byte-array
+      contents-64 = "test-image 64".to-byte-array
     else:
-      content-32 = ("test-image 32" * 10_000).to-byte-array
-      content-64 = ("test-image 64" * 10_000).to-byte-array
+      contents-32 = ("test-image 32" * 10_000).to-byte-array
+      contents-64 = ("test-image 64" * 10_000).to-byte-array
 
-    broker-cli.upload-image content-32
+    broker-cli.upload-image contents-32
         --organization-id=TEST-ORGANIZATION-UUID
         --app-id=APP-ID
         --word-size=32
-    broker-cli.upload-image content-64
+    broker-cli.upload-image contents-64
         --organization-id=TEST-ORGANIZATION-UUID
         --app-id=APP-ID
         --word-size=64
@@ -182,7 +182,7 @@ test-image broker-cli/broker.BrokerCli broker-service/broker.BrokerService --net
           // a 64-bit platform, it will only download the 64-bit image. It would be good, if we could
           // also verify that the 32-bit image is correct.
           data := utils.read-all reader
-          expect-bytes-equal (system.BITS-PER-WORD == 32 ? content-32 : content-64) data
+          expect-bytes-equal (system.BITS-PER-WORD == 32 ? contents-32 : contents-64) data
     finally:
       broker-connection.close
 
@@ -193,19 +193,19 @@ test-firmware --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net
 test-firmware broker-cli/broker.BrokerCli broker-service/broker.BrokerService --network/net.Client:
   3.repeat: | iteration |
     FIRMWARE-ID ::= "test-app-$iteration"
-    content := ?
+    contents := ?
     if iteration == 0:
-      content = "test-firmware".to-byte-array
+      contents = "test-firmware".to-byte-array
     else:
-      content = ("test-firmware" * 10_000).to-byte-array
+      contents = ("test-firmware" * 10_000).to-byte-array
 
     chunks := ?
     if iteration <= 1:
-      chunks = [content]
+      chunks = [contents]
     else:
       chunks = []
-      List.chunk-up 0 content.size 1024: | from/int to/int |
-        chunks.add content[from..to]
+      List.chunk-up 0 contents.size 1024: | from/int to/int |
+        chunks.add contents[from..to]
 
     broker-cli.upload-firmware chunks
         --firmware-id=FIRMWARE-ID
@@ -214,7 +214,7 @@ test-firmware broker-cli/broker.BrokerCli broker-service/broker.BrokerService --
     downloaded-bytes := broker-cli.download-firmware
         --id=FIRMWARE-ID
         --organization-id=TEST-ORGANIZATION-UUID
-    expect-bytes-equal content downloaded-bytes
+    expect-bytes-equal contents downloaded-bytes
 
     broker-connection := broker-service.connect --network=network --device=DEVICE1
     try:
@@ -225,16 +225,16 @@ test-firmware broker-cli/broker.BrokerCli broker-service/broker.BrokerService --
           while chunk := reader.read: data += chunk
           data.size  // Continue at data.size.
 
-      expect-equals content data
+      expect-equals contents data
 
-      if content.size > 100:
+      if contents.size > 100:
         // Test that we can fetch the firmware starting at an offset.
-        current-offset := 3 * content.size / 4
+        current-offset := 3 * contents.size / 4
         broker-connection.fetch-firmware FIRMWARE-ID --offset=current-offset:
           | reader/io.Reader offset |
             expect-equals current-offset offset
             partial-data := utils.read-all reader
-            expect-bytes-equal content[current-offset..current-offset + partial-data.size] partial-data
+            expect-bytes-equal contents[current-offset..current-offset + partial-data.size] partial-data
 
             current-offset += partial-data.size
             // Return the new offset.

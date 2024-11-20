@@ -31,7 +31,7 @@ run-test fleet/TestFleet:
         "fleet", "create-reference", "-o", ref-file
       ]
 
-  fleet-json := json.decode (file.read-content ref-file)
+  fleet-json := json.decode (file.read-contents ref-file)
   // Check that we have a broker entry.
   broker-name := fleet-json["broker"]
   broker-entry := fleet-json["servers"][broker-name]
@@ -60,7 +60,7 @@ run-test fleet/TestFleet:
   fake-fleet-dir := "$fleet.tester.tmp-dir/fake-fleet"
   directory.mkdir fake-fleet-dir
   fake-fleet-file := "$fake-fleet-dir/fleet.json"
-  file.write-content --path=fake-fleet-file (file.read-content ref-file)
+  file.write-contents --path=fake-fleet-file (file.read-contents ref-file)
 
   fleet.run-gold --expect-exit-1 "310-ref-as-fleet"
       "Fail when trying to use a ref as fleet"

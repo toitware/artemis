@@ -1,9 +1,0 @@
-# Content of extended spec
-# [pod, print, TMP_DIR/extended.yaml]
-{
-  "extends": [
-    "minimal.yaml"
-  ],
-  "max-offline": "1h"
-}
-

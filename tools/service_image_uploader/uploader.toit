@@ -223,19 +223,19 @@ build-and-upload invocation/Invocation:
       image-id := (Uuid.uuid5 "artemis"
           "$Time.monotonic-us $sdk-version $full-service-version").stringify
 
-      image-content := file.read-content ar-file
-      snapshots := snapshot-paths.map: | _ snapshot-path | file.read-content snapshot-path
+      image-contents := file.read-contents ar-file
+      snapshots := snapshot-paths.map: | _ snapshot-path | file.read-contents snapshot-path
       client.upload
           --sdk-version=sdk-version
           --service-version=full-service-version
           --image-id=image-id
-          --image-content=image-content
+          --image-contents=image-contents
           --snapshots=snapshots
           --organization-id=organization-id
           --force=force
 
-      snapshots.do: | _ snapshot-content/ByteArray |
-        cache-snapshot snapshot-content
+      snapshots.do: | _ snapshot-contents/ByteArray |
+        cache-snapshot snapshot-contents
             --output-directory=snapshot-directory
 
 create-image-archive snapshot-paths/Map --sdk/Sdk --out/string:
@@ -255,11 +255,11 @@ create-image-archive snapshot-paths/Map --sdk/Sdk --out/string:
             --out=image-path
             --word-sizes=[word-size]
 
-        ar-writer.add image-name (file.read-content image-path)
+        ar-writer.add image-name (file.read-contents image-path)
         if chip-family == "esp32":
           // Add the same image again with the deprecated name.
           // TODO(florian): remove deprecated image name without chip-family.
-          ar-writer.add "service-$(word-size).img" (file.read-content image-path)
+          ar-writer.add "service-$(word-size).img" (file.read-contents image-path)
 
   ar-stream.close
 
@@ -267,10 +267,10 @@ upload-cli-snapshot invocation/Invocation:
   snapshot := invocation["snapshot"]
   snapshot-directory := invocation["snapshot-directory"]
 
-  snapshot-content := file.read-content snapshot
+  snapshot-contents := file.read-contents snapshot
   with-upload-client invocation: | client/UploadClient |
-    uuid := extract-uuid snapshot-content
-    client.upload snapshot-content --snapshot-uuid=uuid
+    uuid := extract-uuid snapshot-contents
+    client.upload snapshot-contents --snapshot-uuid=uuid
 
-  cache-snapshot snapshot-content
+  cache-snapshot snapshot-contents
       --output-directory=snapshot-directory

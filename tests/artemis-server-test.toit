@@ -203,28 +203,28 @@ test-sdk server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   IMAGE-V2-V1 ::= "toto"
   IMAGE-V2-V2 ::= "titi"
 
-  CONTENT-V1-V1 ::= "foobar_content".to-byte-array
-  CONTENT-V2-V1 ::= "toto_content".to-byte-array
-  CONTENT-V2-V2 ::= "titi_content".to-byte-array
+  CONTENTS-V1-V1 ::= "foobar_contents".to-byte-array
+  CONTENTS-V2-V1 ::= "toto_contents".to-byte-array
+  CONTENTS-V2-V2 ::= "titi_contents".to-byte-array
 
   test-images := [
     {
       "sdk_version": SDK-V1,
       "service_version": SERVICE-V1,
       "image": IMAGE-V1-V1,
-      "content": CONTENT-V1-V1,
+      "content": CONTENTS-V1-V1,
     },
     {
       "sdk_version": SDK-V2,
       "service_version": SERVICE-V1,
       "image": IMAGE-V2-V1,
-      "content": CONTENT-V2-V1,
+      "content": CONTENTS-V2-V1,
     },
     {
       "sdk_version": SDK-V2,
       "service_version": SERVICE-V2,
       "image": IMAGE-V2-V2,
-      "content": CONTENT-V2-V2,
+      "content": CONTENTS-V2-V2,
     },
   ]
   backdoor.install-service-images test-images
@@ -240,8 +240,8 @@ test-sdk server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
     image := filtered-image[0]["image"]
     expect-equals test-image["image"] image
 
-    downloaded-content := server-cli.download-service-image image
-    expect-equals test-image["content"] downloaded-content
+    downloaded-contents := server-cli.download-service-image image
+    expect-equals test-image["content"] downloaded-contents
 
   // Test that the filters on list_sdk_service_versions work.
   images = server-cli.list-sdk-service-versions

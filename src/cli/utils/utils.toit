@@ -39,9 +39,9 @@ write-json-to-file path/string value/any --pretty/bool=false -> none:
     write-blob-to-file path (json.encode value)
 
 write-yaml-to-file path/string value/any --header/string?=null -> none:
-  content := yaml.encode value
-  if header: content = header.to-byte-array + #['\n'] + content
-  write-blob-to-file path content
+  contents := yaml.encode value
+  if header: contents = header.to-byte-array + #['\n'] + contents
+  write-blob-to-file path contents
 
 write-ubjson-to-file path/string value/any -> none:
   encoded := ubjson.encode value
@@ -59,22 +59,22 @@ read-json path/string -> any:
     stream.close
 
 read-yaml path/string -> any:
-  content := file.read-content path
+  contents := file.read-contents path
   result := monitor.Latch
   // Work around stack-size limit on 32-bit machines.
-  task:: result.set (yaml.decode content)
+  task:: result.set (yaml.decode contents)
   return result.get
 
 read-ubjson path/string -> any:
-  data := file.read-content path
+  data := file.read-contents path
   return ubjson.decode data
 
 read-tison path/string -> any:
-  data := file.read-content path
+  data := file.read-contents path
   return tison.decode data
 
 read-base64-ubjson path/string -> any:
-  data := file.read-content path
+  data := file.read-contents path
   return ubjson.decode (base64.decode data)
 
 read-file path/string --cli/Cli [block] -> any:

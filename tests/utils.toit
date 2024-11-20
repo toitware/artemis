@@ -264,27 +264,27 @@ class Tester:
       directory.mkdir --recursive "gold/$gold-name"
       write-blob-to-file gold-path output
       print "Updated gold file '$gold-path'."
-    gold-content := (file.read-content gold-path).to-string
+    gold-contents := (file.read-contents gold-path).to-string
     // In case we are on Windows or something else introduced \r\n.
-    gold-content = gold-content.replace --all "\r\n" "\n"
+    gold-contents = gold-contents.replace --all "\r\n" "\n"
 
     if ignore-spacing:
       [" ", "┌", "─", "┬", "┐", "│", "├",  "┼", "┤", "└", "┴", "┘"].do: | char |
-        gold-content = gold-content.replace --all char ""
+        gold-contents = gold-contents.replace --all char ""
         output = output.replace --all char ""
-    if gold-content != output:
+    if gold-contents != output:
       print "Gold file '$gold-path' does not match output."
       print "Output:"
       print output
       print "Gold:"
-      print gold-content
-      print "gold_content.size: $gold-content.size"
+      print gold-contents
+      print "gold-contents.size: $gold-contents.size"
       print "output.size: $output.size"
-      for i := 0; i < (min output.size gold-content.size); i++:
-        if output[i] != gold-content[i]:
-          print "First difference at $i $output[i] != $gold-content[i]."
+      for i := 0; i < (min output.size gold-contents.size); i++:
+        if output[i] != gold-contents[i]:
+          print "First difference at $i $output[i] != $gold-contents[i]."
           break
-    expect-equals gold-content output
+    expect-equals gold-contents output
 
   canonicalize-gold_ output/string args --description/string -> string:
     result := "# $description\n# $args\n$output"
@@ -879,12 +879,12 @@ class TestDevicePipe extends TestDevice:
   fork_ --env/Map?=null:
     fork-data := pipe.fork
         --environment=env
-        true                // use_path
+        true                // use_path.
         // We create a stdin pipe, so that qemu can't interfere with
         // our terminal.
         pipe.PIPE-CREATED   // stdin.
-        pipe.PIPE-CREATED   // stdout
-        pipe.PIPE-CREATED   // stderr
+        pipe.PIPE-CREATED   // stdout.
+        pipe.PIPE-CREATED   // stderr.
         command_.first
         command_
     stdin := fork-data[0]
@@ -902,7 +902,8 @@ class TestDevicePipe extends TestDevice:
     stdout-task_ = task --background::
       try:
         catch --trace:
-          while chunk := stdout.read:
+          reader := stdout.in
+          while chunk := reader.read:
             output_ += chunk
             print-on-stderr_ "STDOUT: '$chunk.to-string-non-throwing'"
             signal_.raise
@@ -912,7 +913,8 @@ class TestDevicePipe extends TestDevice:
     stderr-task_ = task --background::
       try:
         catch --trace:
-          while chunk := stderr.read:
+          reader := stderr.in
+          while chunk := reader.read:
             output_ += chunk
             print-on-stderr_ "STDERR: '$chunk.to-string-non-throwing'"
             signal_.raise
@@ -1342,8 +1344,8 @@ with-fleet --args/List --count/int=0 [block]:
       ids.do: | id/string |
         id-file := "$identity-dir/$(id).identity"
         expect (file.is-file id-file)
-        content := read-base64-ubjson id-file
-        fake-device := tester.start-fake-device --identity=content
+        contents := read-base64-ubjson id-file
+        fake-device := tester.start-fake-device --identity=contents
         tester.replacements[id] = "-={| UUID-FOR-FAKE-DEVICE $(%05d fake-devices.size) |}=-"
         fake-devices.add fake-device
 
@@ -1395,14 +1397,14 @@ check-resource-lock --args/List lock-type/string:
       return
   throw "Expected --resource-locks=$lock-type"
 
-make-lock-file-content tests-dir/string -> string:
+make-lock-file-contents tests-dir/string -> string:
   // Hackish way to make the package file work with the pod file.
   // The build system already adds the .packages of the tests dir to the
   // environment variable TOIT_PACKAGE_CACHE_PATHS.
-  lock-content := (file.read-content "package.lock").to-string
-  lock-content = lock-content.replace --all "path: " "path: $tests-dir/"
-  return lock-content
+  lock-contents := (file.read-contents "package.lock").to-string
+  lock-contents = lock-contents.replace --all "path: " "path: $tests-dir/"
+  return lock-contents
 
 write-lock-file --target-dir/string --tests-dir/string -> none:
-  lock-content := make-lock-file-content tests-dir
-  file.write-content --path="$target-dir/package.lock" lock-content
+  lock-contents := make-lock-file-contents tests-dir
+  file.write-contents --path="$target-dir/package.lock" lock-contents

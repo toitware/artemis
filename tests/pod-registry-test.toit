@@ -309,7 +309,7 @@ test-pods --test-broker/TestBroker broker-cli/broker.BrokerCli:
     id1 := "$random-uuid"
     id2 := "$random-uuid"
     id3 := "myMXwslBoXkTDQ0olhq1QsiHRWWL4yj1V0IuoK+PYOg="
-    pod-content := {
+    pod-contents := {
       id1: "entry1 - $iteration",
       id2: "entry2 - $iteration",
       id3: "sha256 base64 - $iteration",
@@ -320,7 +320,7 @@ test-pods --test-broker/TestBroker broker-cli/broker.BrokerCli:
       "name3": id3,
     }
 
-    pod-content.do: | key/string value/string |
+    pod-contents.do: | key/string value/string |
       broker-cli.pod-registry-upload-pod-part
           --organization-id=TEST-ORGANIZATION-UUID
           --part-id=key
@@ -346,4 +346,4 @@ test-pods --test-broker/TestBroker broker-cli/broker.BrokerCli:
     decoded.do: | _ id/string |
       downloaded-part := broker-cli.pod-registry-download-pod-part id
           --organization-id=TEST-ORGANIZATION-UUID
-      expect-equals pod-content[id] downloaded-part.to-string
+      expect-equals pod-contents[id] downloaded-part.to-string

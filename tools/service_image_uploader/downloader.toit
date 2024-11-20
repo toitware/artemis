@@ -109,7 +109,7 @@ download invocation/Invocation:
           while file/ar.ArFile? := ar-reader.next:
             if file.name == AR-SNAPSHOT-HEADER:
               continue
-            uuid := cache-snapshot file.content --output-directory=output-directory
+            uuid := cache-snapshot file.contents --output-directory=output-directory
             ui.emit --info "Wrote service snapshot $uuid."
         store.save snapshot
 

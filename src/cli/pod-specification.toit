@@ -679,7 +679,7 @@ class ContainerPath extends ContainerBase:
             --ref=git-ref
             --quiet
         // Write the url, so it's easier to understand what is in there.
-        file.write-content --path="$tmp-dir/URL" git-url
+        file.write-contents --path="$tmp-dir/URL" git-url
         store.move tmp-dir
     cached-checkout := "$cached-git/checkout"
 

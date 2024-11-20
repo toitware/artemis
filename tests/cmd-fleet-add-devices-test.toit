@@ -71,7 +71,7 @@ run-test fleet/TestFleet:
     ]
 
 test-extract-identity fleet/TestFleet tmp-dir/string:
-  devices/Map := json.decode (file.read-content "$fleet.fleet-dir/devices.json")
+  devices/Map := json.decode (file.read-contents "$fleet.fleet-dir/devices.json")
   expect-equals 1 devices.size
   id := devices.keys.first
   device-id-file := "$tmp-dir/device-$(id).identity"
@@ -89,7 +89,7 @@ check-and-remove-identity-files fleet-dir/string tmp-dir/string
     --id/Uuid?=null
     --name/string?=null
     --aliases/List?=null:
-  devices/Map := json.decode (file.read-content "$fleet-dir/devices.json")
+  devices/Map := json.decode (file.read-contents "$fleet-dir/devices.json")
   expect-equals 1 devices.size
   device := devices.values.first
   if id: expect-equals "$id" devices.keys.first
@@ -100,7 +100,7 @@ check-and-remove-identity-files fleet-dir/string tmp-dir/string
   check-and-remove-identity-files fleet-dir tmp-dir 1
 
 check-and-remove-identity-files fleet-dir/string tmp-dir/string count/int:
-  devices := json.decode (file.read-content "$fleet-dir/devices.json")
+  devices := json.decode (file.read-contents "$fleet-dir/devices.json")
   expect-equals count devices.size
   stream := directory.DirectoryStream tmp-dir
   count.repeat:
@@ -117,7 +117,7 @@ check-and-remove-identity-files fleet-dir/string tmp-dir/string count/int:
   devices-stream.close
 
 check-identity-file identity-path/string --id/string:
-  identity := ubjson.decode (base64.decode (file.read-content identity-path))
+  identity := ubjson.decode (base64.decode (file.read-contents identity-path))
   expect-equals id identity["artemis.device"]["device_id"]
   expect-equals "$TEST-ORGANIZATION-UUID" identity["artemis.device"]["organization_id"]
   expect-not-null identity["artemis.device"]["hardware_id"]

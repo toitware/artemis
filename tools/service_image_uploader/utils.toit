@@ -35,9 +35,9 @@ with-tmp-directory [block]:
   finally:
     directory.rmdir --recursive tmp-dir
 
-write-file --path/string content:
+write-file --path/string contents:
   stream := file.Stream.for-write path
   try:
-    stream.out.write content
+    stream.out.write contents
   finally:
     stream.close
