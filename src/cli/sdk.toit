@@ -273,7 +273,7 @@ class Sdk:
     if partitions and not partitions.is-empty:
       arguments += [ "--partition", partitions.join "," ]
     if partition-table-path:
-      arguments += [ "--partition-table", partition-table-path ]
+      arguments += [ "--partitions", partition-table-path ]
     run-firmware arguments
 
   /**

@@ -29,7 +29,7 @@ INITIAL-POD-SPECIFICATION -> Map:
     "artemis-version": ARTEMIS-VERSION,
     "max-offline": "0s",
     "firmware-envelope": "esp32",
-    "partition-table": "esp32-ota-1c0000",
+    "partitions": "esp32-ota-1c0000",
     "connections": [
       {
         "type": "wifi",
@@ -48,7 +48,7 @@ EXAMPLE-POD-SPECIFICATION -> Map:
     "artemis-version": ARTEMIS-VERSION,
     "max-offline": "30s",
     "firmware-envelope": "esp32",
-    "partition-table": "esp32-ota-1c0000",
+    "partitions": "esp32-ota-1c0000",
     "connections": [
       {
         "type": "wifi",
