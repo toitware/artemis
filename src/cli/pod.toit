@@ -145,7 +145,7 @@ class Pod:
         else if file.name == PARTITION-TABLE-NAME_:
           if partition-table:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple partition tables."
-          partition-table = file.content
+          partition-table = file.contents
 
       if not id:       ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain an ID."
       if not name:     ui.abort "The file at '$path' is not a valid Artemis pod. It does not contain a name."

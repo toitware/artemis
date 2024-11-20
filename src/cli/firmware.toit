@@ -329,9 +329,9 @@ build-partition-table-url --sdk-version/string? --partition-table/string -> stri
   if is-valid-release-artifact-name_ partition-table:
     if not sdk-version:
       throw "No sdk_version given"
-    if (semver.compare sdk-version "2.0.0-alpha.163") < 0:
-      throw "Partition tables are not supported for SDK versions older than 2.0.0-alpha.163"
-    return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/partition-table-$(partition-table).csv"
+    if (semver.compare sdk-version "2.0.0-alpha.166") < 0:
+      throw "Partition tables are not supported for SDK versions older than 2.0.0-alpha.166"
+    return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/partitions-$(partition-table).csv"
 
   if sdk-version:
     partition-table = partition-table.replace --all "\$(sdk-version)" sdk-version
