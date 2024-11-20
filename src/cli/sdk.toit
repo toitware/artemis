@@ -407,7 +407,7 @@ class Sdk:
     reader := ar.ArReader.from-bytes envelope
     file := reader.find "\$partitions.bin"
     if not file: throw "Partition table not found in envelope."
-    return file.content
+    return file.contents
 
 /**
 Builds the URL of a released SDK with the given $version on GitHub.
