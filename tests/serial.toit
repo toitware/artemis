@@ -54,6 +54,7 @@ flash-serial -> Uuid
   if not pod-spec.contains "artemis-version": pod-spec["artemis-version"] = TEST-ARTEMIS-VERSION
   if not pod-spec.contains "sdk-version": pod-spec["sdk-version"] = fleet.tester.sdk-version
   if not pod-spec.contains "firmware-envelope": pod-spec["firmware-envelope"] = "esp32"
+  if not pod-spec.contains "partitions": pod-spec["partitions"] = "esp32-ota-1c0000"
 
   pod-name := pod-spec["name"]
 

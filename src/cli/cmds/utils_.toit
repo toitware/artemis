@@ -2,12 +2,15 @@
 
 import cli show *
 import host.os
+import partition-table show PartitionTable
 import uuid show Uuid
 
 import ..artemis
 import ..config
 import ..cache
 import ..fleet
+import ..pod
+import ..sdk
 import ..server-config
 import ..utils
 
@@ -82,3 +85,22 @@ make-default_ --device-id/Uuid --cli/Cli:
   cli.config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
   cli.config.write
   cli.ui.emit --info "Default device set to $device-id."
+
+check-esp32-partition-size_ pod/Pod --ui/Ui --force/bool -> none:
+  chip := Sdk.get-chip-family-from --envelope=pod.envelope
+  partition-table-data := pod.partition-table
+  if not partition-table-data:
+    partition-table-data = Sdk.get-partition-table-bin-from --envelope=pod.envelope
+  table := PartitionTable.decode partition-table-data
+  ota-partition := table.find --name="ota_0"
+  if not ota-partition:
+    ui.abort "No OTA partition ('ota_0') found in the partition table."
+  partition-size := ota-partition.size
+  if partition-size < 0x1c0000:
+    if force:
+      ui.emit --warning "The OTA partition is smaller than 1.75 MiB."
+      ui.emit --warning "Flashing will continue due to '--force'."
+    else:
+      ui.emit --error "The OTA partition is smaller than 1.75 MiB."
+      ui.emit --error "Use '--force' to flash anyway."
+      ui.abort

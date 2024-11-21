@@ -224,7 +224,7 @@ run-test tester/Tester serial-port/string wifi-ssid/string wifi-password/string:
       ]
 
   // Make our own specification.
-  our-spec := read-yaml spec-path
+  our-spec/Map := read-yaml spec-path
   our-spec["max-offline"] = "10s"
   our-spec["artemis-version"] = service-version
   our-spec["connections"][0]["ssid"] = wifi-ssid
@@ -270,28 +270,31 @@ run-test tester/Tester serial-port/string wifi-ssid/string wifi-password/string:
 
   device-id/string? := null
   FLASH-DEVICE-NAME ::= "test-device"
+
+  flash-gold-replacement-callback := : | output/string |
+    provisioned-index := output.index-of "Successfully provisioned device"
+    expect provisioned-index >= 0
+    space-index := provisioned-index
+    3.repeat: space-index = output.index-of " " (space-index + 1)
+    expect space-index >= 0
+    name-start-index := space-index + 1
+    space-index = output.index-of " " (space-index + 1)
+    name-end-index := space-index
+    expect-equals '(' output[name-end-index + 1]
+    device-start-index := name-end-index + 2
+    device-end-index := output.index-of ")" device-start-index
+    device-name := output[name-start-index..name-end-index]
+    expect-equals FLASH-DEVICE-NAME device-name
+    device-id = output[device-start-index..device-end-index]
+    tester.replacements[device-name] = "DEVICE_NAME"
+    tester.replacements[device-id] = "-={|    UUID-FOR-TEST-DEVICE    |}=-"
+    output
+
   // Flash it.
   tester.run-gold "DAF-flash"
       "Flash the firmware to the device."
       --ignore-spacing
-      --before-gold=: | output/string |
-        provisioned-index := output.index-of "Successfully provisioned device"
-        expect provisioned-index >= 0
-        space-index := provisioned-index
-        3.repeat: space-index = output.index-of " " (space-index + 1)
-        expect space-index >= 0
-        name-start-index := space-index + 1
-        space-index = output.index-of " " (space-index + 1)
-        name-end-index := space-index
-        expect-equals '(' output[name-end-index + 1]
-        device-start-index := name-end-index + 2
-        device-end-index := output.index-of ")" device-start-index
-        device-name := output[name-start-index..name-end-index]
-        expect-equals FLASH-DEVICE-NAME device-name
-        device-id = output[device-start-index..device-end-index]
-        tester.replacements[device-name] = "DEVICE_NAME"
-        tester.replacements[device-id] = "-={|    UUID-FOR-TEST-DEVICE    |}=-"
-        output
+      --before-gold=flash-gold-replacement-callback
       [
         "serial", "flash",
         "--name", FLASH-DEVICE-NAME,
@@ -465,3 +468,30 @@ run-test tester/Tester serial-port/string wifi-ssid/string wifi-password/string:
 
   with-timeout --ms=35_000:
     test-device.wait-for "hello world" --start-at=pos
+
+  // Test partition sizes.
+
+  our-spec.remove "partitions"
+  write-yaml-to-file spec-path our-spec
+
+  // Compile the specification.
+  tester.run [
+      "--fleet-root", fleet-dir,
+      "pod", "build",
+      "-o", pod-file,
+      spec-path,
+    ]
+
+  // Try to flash it.
+  tester.run-gold "FAA-flash"
+      "Try to flash firmware with small partition table."
+      --expect-exit-1
+      --ignore-spacing
+      --before-gold=flash-gold-replacement-callback
+      [
+        "serial", "flash",
+        "--name", FLASH-DEVICE-NAME,
+        "--fleet-root", fleet-dir,
+        "--port", serial-port,
+        "--local", pod-file,
+      ]

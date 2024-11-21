@@ -1,0 +1,5 @@
+# Try to flash firmware with small partition table.
+# [serial, flash, --name, DEVICE_NAME, --fleet-root, TMP_DIR/fleet, --port, SERIAL-PORT, --local, TMP_DIR/firmware.pod]
+Successfully provisioned device DEVICE_NAME (-={|    UUID-FOR-TEST-DEVICE    |}=-).
+Error: The OTA partition is smaller than 1.75 MiB.
+Error: Use '--force' to flash anyway.
