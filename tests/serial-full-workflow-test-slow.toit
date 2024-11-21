@@ -471,7 +471,7 @@ run-test tester/Tester serial-port/string wifi-ssid/string wifi-password/string:
 
   // Test partition sizes.
 
-  our-spec.remove "partition-table"
+  our-spec.remove "partitions"
   write-yaml-to-file spec-path our-spec
 
   // Compile the specification.
