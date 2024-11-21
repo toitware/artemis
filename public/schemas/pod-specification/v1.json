@@ -36,6 +36,10 @@
           "description": "Firmware envelope to use. May be a short identifier or a URL. The string '$sdk-version' is replaced by the actual sdk-version.",
           "type": "string"
         },
+        "partitions": {
+          "description": "Partition table to use. May be a short identifier or a URL. The string '$sdk-version' is replaced by the actual sdk-version.",
+          "type": "string"
+        },
         "max-offline": {
           "description": "Maximum duration before Artemis should attempt to synchronize. For example '30m'.",
           "type": "string"

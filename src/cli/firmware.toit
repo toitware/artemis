@@ -14,7 +14,7 @@ import fs
 import semver
 
 import .sdk
-import .cache show cache-key-envelope
+import .cache show cache-key-url-artifact CACHE-ARTIFACT-KIND-ENVELOPE CACHE-ARTIFACT-KIND-PARTITION-TABLE
 import .cache as cli
 import .device
 import .pod
@@ -298,6 +298,11 @@ cache-snapshots --envelope-path/string --output-directory/string?=null --cli/Cli
 cache-snapshots_ --envelope-path/string --cli/Cli:
   cache-snapshots --envelope-path=envelope-path --cli=cli
 
+is-valid-release-artifact-name_ name/string -> bool:
+  name.do: | c/int |
+    if not is-alnum_ c and c != '-' and c != '_': return false
+  return true
+
 /**
 Builds the URL for the firmware envelope for the given $sdk-version and $envelope.
 
@@ -305,7 +310,7 @@ If no envelope is given, builds a URL for the envelopes from Toit's
   Github repository.
 */
 build-envelope-url --sdk-version/string? --envelope/string -> string:
-  if not envelope or (not envelope.contains "/" and not envelope.contains "\\"):
+  if is-valid-release-artifact-name_ envelope:
     if not sdk-version:
       throw "No sdk_version given"
     if (semver.compare sdk-version "2.0.0-alpha.97") < 0:
@@ -319,6 +324,54 @@ build-envelope-url --sdk-version/string? --envelope/string -> string:
   URL-PREFIXES ::= ["http://", "https://", "file://"]
   URL-PREFIXES.do: if envelope.starts-with it: return envelope
   return "file://$envelope"
+
+build-partition-table-url --sdk-version/string? --partition-table/string -> string:
+  if is-valid-release-artifact-name_ partition-table:
+    if not sdk-version:
+      throw "No sdk_version given"
+    if (semver.compare sdk-version "2.0.0-alpha.167") < 0:
+      throw "Partition tables are not supported for SDK versions older than 2.0.0-alpha.167"
+    return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/partitions-$(partition-table).csv"
+
+  if sdk-version:
+    partition-table = partition-table.replace --all "\$(sdk-version)" sdk-version
+
+  URL-PREFIXES ::= ["http://", "https://", "file://"]
+  URL-PREFIXES.do: if partition-table.starts-with it: return partition-table
+  return "file://$partition-table"
+
+get-artifact_ -> string
+    kind/string
+    --url/string
+    --specification/PodSpecification
+    --cli/Cli
+    [--after-download]:
+  sdk-version := specification.sdk-version
+
+  FILE-URL-PREFIX ::= "file://"
+  if url.starts-with FILE-URL-PREFIX:
+    path := url.trim --left FILE-URL-PREFIX
+    if fs.is-relative path:
+      return "$specification.relative-to/$path"
+    return path
+
+  HTTP-URL-PREFIX ::= "http://"
+  HTTPS-URL-PREFIX ::= "https://"
+  if not url.starts-with HTTP-URL-PREFIX and not url.starts-with HTTPS-URL-PREFIX:
+    throw "Invalid $kind URL: $url"
+
+  cache-key := cache-key-url-artifact --url=url --kind=kind
+  return cli.cache.get-file-path cache-key: | store/FileStore |
+    store.with-tmp-directory: | tmp-dir |
+      out-path := "$tmp-dir/artifact"
+      artifact-path := out-path
+      is-gz-file := url.ends-with ".gz"
+      if is-gz-file: out-path += ".gz"
+      download-url url --out-path=out-path --cli=cli
+      if is-gz-file:
+        gunzip out-path
+      after-download.call artifact-path
+      store.move artifact-path
 
 reported-local-envelope-use_/bool := false
 /**
@@ -348,28 +401,26 @@ get-envelope -> string
 
   url := build-envelope-url --sdk-version=sdk-version --envelope=envelope
 
-  FILE-URL-PREFIX ::= "file://"
-  if url.starts-with FILE-URL-PREFIX:
-    path := url.trim --left FILE-URL-PREFIX
-    if fs.is-relative path:
-      return "$specification.relative-to/$path"
-    return path
+  return get-artifact_ CACHE-ARTIFACT-KIND-ENVELOPE
+      --url=url
+      --specification=specification
+      --cli=cli
+      --after-download=: | envelope-path |
+          if cache-snapshots:
+            cache-snapshots_ --envelope-path=envelope-path --cli=cli
 
-  HTTP-URL-PREFIX ::= "http://"
-  HTTPS-URL-PREFIX ::= "https://"
-  if not url.starts-with HTTP-URL-PREFIX and not url.starts-with HTTPS-URL-PREFIX:
-    throw "Invalid envelope URL: $url"
+get-partition-table -> ByteArray
+    --specification/PodSpecification
+    --cli/Cli:
+  partition-table-entry := specification.partition-table
+  url := build-partition-table-url
+      --sdk-version=specification.sdk-version
+      --partition-table=partition-table-entry
 
-  cache-key := cache-key-envelope --url=url
-  return cli.cache.get-file-path cache-key: | store/FileStore |
-    store.with-tmp-directory: | tmp-dir |
-      out-path := "$tmp-dir/fw.envelope"
-      is-gz-file := url.ends-with ".gz"
-      if is-gz-file: out-path += ".gz"
-      download-url url --out-path=out-path --cli=cli
-      if is-gz-file:
-        gunzip out-path
-      envelope-path := "$tmp-dir/fw.envelope"
-      if cache-snapshots:
-        cache-snapshots_ --envelope-path=envelope-path --cli=cli
-      store.move envelope-path
+  path := get-artifact_ CACHE-ARTIFACT-KIND-PARTITION-TABLE
+      --url=url
+      --specification=specification
+      --cli=cli
+      --after-download=: null  // Do nothing.
+
+  return file.read-content path

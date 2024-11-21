@@ -126,7 +126,7 @@ create-serial-commands -> List:
 
   return [cmd]
 
-build-partitions-table_ partition-list/List --cli/Cli -> List:
+build-partitions_ partition-list/List --cli/Cli -> List:
   ui := cli.ui
 
   result := []
@@ -171,7 +171,7 @@ flash invocation/Invocation:
   group := params["group"]
   local := params["local"]
   remote := params["remote"]
-  partitions := build-partitions-table_ params["partition"] --cli=cli
+  partitions := build-partitions_ params["partition"] --cli=cli
 
   if local and remote:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
@@ -226,6 +226,7 @@ flash invocation/Invocation:
         // Flash.
         sdk.flash
             --envelope-path=pod.envelope-path
+            --partition-table-path=pod.partition-table-path
             --config-path=config-path
             --port=port
             --baud-rate=baud
@@ -265,7 +266,7 @@ flash --station/bool invocation/Invocation:
   pod-path := params["pod"]
   port := params["port"]
   baud := params["baud"]
-  partitions := build-partitions-table_ params["partition"] --cli=cli
+  partitions := build-partitions_ params["partition"] --cli=cli
 
   with-artemis invocation: | artemis/Artemis |
     pod := Pod.parse pod-path --tmp-directory=artemis.tmp-directory --cli=cli
@@ -282,6 +283,7 @@ flash --station/bool invocation/Invocation:
       sdk := get-sdk pod.sdk-version --cli=cli
       sdk.flash
           --envelope-path=pod.envelope-path
+          --partition-table-path=pod.partition-table-path
           --config-path=config-path
           --port=port
           --baud-rate=baud

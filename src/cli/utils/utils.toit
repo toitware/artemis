@@ -106,7 +106,19 @@ write-file path/string [block] [--on-error] -> none:
   finally:
     stream.close
 
+
+download-url url/string --cli/Cli -> ByteArray:
+  download-url_ url --cli=cli: | body/io.Reader |
+    return body.read-all
+  unreachable
+
 download-url url/string --out-path/string --cli/Cli -> none:
+  download-url_ url --cli=cli: | body/io.Reader |
+    file := file.Stream.for-write out-path
+    file.out.write-from body
+    file.close
+
+download-url_ url/string --cli/Cli [block] -> none:
   cli.ui.emit --info "Downloading $url."
 
   network := net.open
@@ -116,9 +128,7 @@ download-url url/string --out-path/string --cli/Cli -> none:
     response := client.get --uri=url
     if response.status-code != http.STATUS-OK:
       cli.ui.abort "Failed to download '$url': $response.status-code $response.status-message."
-    file := file.Stream.for-write out-path
-    file.out.write-from response.body
-    file.close
+    block.call response.body
   finally:
     network.close
 
@@ -310,3 +320,6 @@ timestamp-to-human-readable timestamp/Time --now-cut-off/Duration=(Duration --s=
 /** Whether we are running in a development setup. */
 is-dev-setup -> bool:
   return system.program-name.ends-with ".toit"
+
+is-alnum_ c/int -> bool:
+  return 'a' <= c <= 'z' or 'A' <= c <= 'Z' or '0' <= c <= '9'

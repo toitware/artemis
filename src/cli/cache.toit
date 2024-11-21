@@ -39,11 +39,21 @@ cache-key-patch -> string
     --patch-id/string:
   return "$broker-config.cache-key/$organization-id/patches/$patch-id"
 
-cache-key-envelope --url/string -> string:
+CACHE-ARTIFACT-KIND-ENVELOPE ::= "envelope"
+CACHE-ARTIFACT-KIND-PARTITION-TABLE ::= "partitions"
+
+cache-key-url-artifact --url/string --kind/string -> string:
   HTTP-URL-PREFIX ::= "http://"
   HTTPS-URL-PREFIX ::= "https://"
+  filename/string := ?
+  if kind == CACHE-ARTIFACT-KIND-ENVELOPE:
+    filename = "firmware.envelope"
+  else if kind == CACHE-ARTIFACT-KIND-PARTITION-TABLE:
+    filename = "partitions"  // We don't know whether it's a '.bin' or '.csv'.
+  else:
+    throw "Unknown artifact kind: $kind"
   url_without_prefix := (url.trim --left HTTP-URL-PREFIX).trim --left HTTPS-URL-PREFIX
-  return "envelopes/$url_without_prefix/firmware.envelope"
+  return "$(kind)s/$url_without_prefix/$filename"
 
 cache-key-git-app --url/string -> string:
   // The URL might have weird characters or might be very long, so hash it.

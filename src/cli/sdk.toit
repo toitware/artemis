@@ -248,12 +248,16 @@ class Sdk:
   */
   flash
       --envelope-path/string
+      --partition-table-path/string?
       --config-path/string
       --port/string
       --baud-rate/string?
       --partitions/List?:
-    if (semver.compare version "v2.0.0-alpha.152") < 0:
+    if not is-dev-setup and (semver.compare version "v2.0.0-alpha.152") < 0:
       throw "Flashing is not supported for SDK versions older than v2.0.0-alpha.152"
+
+    if not is-dev-setup and partition-table-path and (semver.compare version "v2.0.0-alpha.167") < 0:
+      throw "Partition tables are not supported for SDK versions older than v2.0.0-alpha.167."
 
     // TODO(florian): we shouldn't need to pass `chip` to the firmware tool.
     chip := chip-for --envelope-path=envelope-path
@@ -268,6 +272,8 @@ class Sdk:
       arguments += [ "--baud", baud-rate ]
     if partitions and not partitions.is-empty:
       arguments += [ "--partition", partitions.join "," ]
+    if partition-table-path:
+      arguments += [ "--partitions", partition-table-path ]
     run-firmware arguments
 
   /**
@@ -282,7 +288,7 @@ class Sdk:
       throw "Partitions are not supported for binary images."
 
     format/string := ?
-    if (semver.compare version "v2.0.0-alpha.166") < 0:
+    if (semver.compare version "v2.0.0-alpha.167") < 0:
       format = "qemu"
     else:
       format = "image"

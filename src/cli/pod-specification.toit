@@ -29,6 +29,7 @@ INITIAL-POD-SPECIFICATION -> Map:
     "artemis-version": ARTEMIS-VERSION,
     "max-offline": "0s",
     "firmware-envelope": "esp32",
+    "partitions": "esp32-ota-1c0000",
     "connections": [
       {
         "type": "wifi",
@@ -47,6 +48,7 @@ EXAMPLE-POD-SPECIFICATION -> Map:
     "artemis-version": ARTEMIS-VERSION,
     "max-offline": "30s",
     "firmware-envelope": "esp32",
+    "partitions": "esp32-ota-1c0000",
     "connections": [
       {
         "type": "wifi",
@@ -285,6 +287,7 @@ class PodSpecification:
   name/string
   sdk-version/string?
   envelope/string
+  partition-table/string?
   artemis-version/string
   max-offline-seconds/int
   connections/List  // Of $ConnectionInfo.
@@ -317,6 +320,8 @@ class PodSpecification:
       ui.emit --warning "The 'chip' property is deprecated and ignored. Only 'firmware-envelope' is used."
 
     envelope = json-envelope
+
+    partition-table = json-map.get-optional-string "partitions"
 
     if json-map.has-key "apps" and json-map.has-key "containers":
       format-error_ "Both 'apps' and 'containers' are present in pod specification."
