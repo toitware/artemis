@@ -25,7 +25,7 @@ set(ARTEMIS_GIT_VERSION_MINOR "${CMAKE_MATCH_2}")
 
 # Replace the version in src/shared/version.toit.
 configure_file(
-  src/shared/version.toit.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/shared/version.toit.in
   ${CMAKE_CURRENT_SOURCE_DIR}/src/shared/version.toit
   @ONLY)
 
