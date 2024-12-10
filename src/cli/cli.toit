@@ -57,22 +57,8 @@ main args --cli/Cli?:
         Option "fleet"
             --type="directory|reference"
             --help="Specify the fleet. Can also be set with the ARTEMIS_FLEET environment variable.",
-        OptionEnum "output-format"
-            ["text", "json"]
-            --help="Specify the format used when printing to the console."
-            --default="text",
-        Flag "verbose"
-            --help="Enable verbose output. Shorthand for --verbosity-level=verbose."
-            --default=false,
-        OptionEnum "verbosity-level"
-            ["debug", "info", "verbose", "quiet", "silent"]
-            --help="Specify the verbosity level.",
       ]
 
-  // TODO(florian): the ui should be configurable by flags.
-  // This might be easier, once the UI is integrated with the cli
-  // package, as the package could then pass it to the commands after
-  // it has parsed the UI flags.
   create-config-commands.do: root-cmd.add it
   create-auth-commands.do: root-cmd.add it
   create-org-commands.do: root-cmd.add it

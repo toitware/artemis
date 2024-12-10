@@ -258,7 +258,7 @@ flash invocation/Invocation:
             --cli=cli
 
       if ui.wants-structured --kind=Ui.RESULT:
-        ui.emit --result {
+        ui.emit-map --result {
               "device_id": "$device-id",
               "pod_id": "$pod.id",
               "pod_name": "$pod.name",

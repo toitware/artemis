@@ -19,7 +19,7 @@ main args:
 run-test fleet/TestFleet --args/List:
   with-tmp-directory: | tmp-dir |
     result := fleet.tester.run --json [
-      "fleet", "add-device", "--output-format", "json",
+      "fleet", "add-device"
     ]
     device-id := Uuid.parse result["id"]
 

@@ -46,14 +46,25 @@ with-profile-server invocation/Invocation [block]:
     block.call server
 
 show-profile invocation/Invocation:
+  ui := invocation.cli.ui
   with-profile-server invocation: | server/ArtemisServerCli |
     profile := server.get-profile
-    // We recreate the map, so we don't show unnecessary entries.
-    invocation.cli.ui.emit --result {
-      "id": profile["id"],
-      "name": profile["name"],
-      "email": profile["email"],
-    }
+    if ui.wants-structured --kind=Ui.RESULT:
+      // We recreate the map, so we don't show unnecessary entries.
+      ui.emit
+          --result
+          --structured=: {
+            "id": "$profile["id"]",
+            "name": profile["name"],
+            "email": profile["email"],
+          }
+    else:
+      ui.emit-map --result {
+        "ID": "$profile["id"]",
+        "Name": profile["name"],
+        "Email": profile["email"],
+      }
+
 
 update-profile invocation/Invocation:
   ui := invocation.cli.ui
