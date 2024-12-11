@@ -98,6 +98,13 @@ function(extract_test_flags file result)
   set(${result} "${flags}" PARENT_SCOPE)
 endfunction()
 
+add_test(NAME "ensure-version"
+  COMMAND "${TOITRUN}" "ensure-version.toit" "${CMAKE_SOURCE_DIR}"
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  CONFIGURATIONS "default" "supabase" "serial"
+)
+set_tests_properties("ensure-version" PROPERTIES FIXTURES_SETUP "ensure-version")
+
 foreach(file ${TESTS})
   if ("${file}" MATCHES "supabase" AND NOT "${WITH_LOCAL_SUPABASE}")
     continue()
@@ -249,6 +256,8 @@ foreach(file ${TESTS})
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       CONFIGURATIONS ${TEST_CONFIGURATIONS}
     )
+
+    set_tests_properties("${test_name}" PROPERTIES FIXTURES_REQUIRED "ensure-version")
 
     if (RESOURCE_LOCKS)
       set_tests_properties("${test_name}" PROPERTIES RESOURCE_LOCK "${RESOURCE_LOCKS}")
