@@ -279,7 +279,6 @@ print-org org-id/Uuid server/ArtemisServerCli --cli/Cli -> none:
           "name": org.name,
           "created": "$org.created-at",
         }
-        --text=: unreachable
   else:
     ui.emit-map --result {
       "Id": "$org.id",

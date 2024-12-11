@@ -258,12 +258,12 @@ flash invocation/Invocation:
             --cli=cli
 
       if ui.wants-structured --kind=Ui.RESULT:
-        ui.emit --result {
-              "device_id": "$device-id",
-              "pod_id": "$pod.id",
-              "pod_name": "$pod.name",
-              "group": "$group",
-            }
+        ui.emit-map --result {
+            "device_id": "$device-id",
+            "pod_id": "$pod.id",
+            "pod_name": "$pod.name",
+            "group": "$group",
+          }
 
 flash --station/bool invocation/Invocation:
   if not station: throw "INVALID_ARGUMENT"

@@ -63,7 +63,7 @@ run-test fleet/TestFleet --args/List:
 
     // Get the device info as json.
     result := fleet.run --json [
-      "fleet", "add-device", "--format", "tar", "-o", tar-file, "--output-format", "json"
+      "fleet", "add-device", "--format", "tar", "-o", tar-file
     ]
 
     new-id := Uuid.parse result["id"]
