@@ -197,11 +197,13 @@ build-and-upload invocation/Invocation:
     service-source-paths := CHIP-FAMILIES.map: | chip-family/string |
       service-path-in-repository repo-path --chip-family=chip-family
 
-    ui.emit --info "Generating version.toit."
-    exit-status := pipe.run-program
-        --environment={"ARTEMIS_GIT_VERSION": full-service-version}
-        ["make", "-C", repo-path, "rebuild-cmake"]
-    if exit-status != 0: throw "make failed with exit code $(pipe.exit-code exit-status)"
+    if full-service-version != ARTEMIS-VERSION:
+      // Update the version.toit file.
+      ui.emit --info "Generating version.toit."
+      exit-status := pipe.run-program
+          --environment={"ARTEMIS_GIT_VERSION": full-service-version}
+          ["make", "-C", repo-path, "rebuild-cmake"]
+      if exit-status != 0: throw "make failed with exit code $(pipe.exit-code exit-status)"
 
     ar-file := "$tmp-dir/service.ar"
     ui.emit --info "Creating snapshot."
