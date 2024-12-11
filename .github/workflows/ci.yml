@@ -391,7 +391,7 @@ jobs:
 
       - name: Run serial tests
         run: |
-          export ARTEMIS_TEST_SERIAL_PORT=/dev/ttyUSB0
+          export ARTEMIS_TEST_SERIAL_PORT=/dev/ttyArtemis
           export ARTEMIS_TEST_WIFI_SSID="artemis testing"
           export ARTEMIS_TEST_WIFI_PASSWORD="artemis testing password"
           make TOITRUN=$TOIT_EXEC test-serial
@@ -402,4 +402,4 @@ jobs:
       - name: Erase device flash
         if: always()
         run: |
-          $TOIT_SDK/tools/esptool --port /dev/ttyUSB0 erase_flash
+          $TOIT_SDK/tools/esptool --port /dev/ttyArtemis erase_flash
