@@ -436,6 +436,12 @@ class Tester:
   ensure-available-artemis-service
       --sdk-version=TEST-SDK-VERSION
       --artemis-version=TEST-ARTEMIS-VERSION:
+    if TEST-ARTEMIS-VERSION != configured-version.ARTEMIS-VERSION:
+      // The uploader will call 'make' if the versions don't match.
+      // That's not safe when multiple tests run in parallel. The
+      // testing framework has a pre-build step that ensures that the
+      // versions match.
+      throw "The configured version is not the test version"
     with-tmp-directory: | admin-tmp-dir |
       admin-config := cli-pkg.Config
           --app-name="test"
