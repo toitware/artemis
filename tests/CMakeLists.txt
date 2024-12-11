@@ -101,7 +101,7 @@ endfunction()
 add_test(NAME "ensure-version"
   COMMAND "${TOITRUN}" "ensure-version.toit" "${CMAKE_SOURCE_DIR}"
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-  CONFIGURATIONS "default"
+  CONFIGURATIONS "default" "supabase" "serial"
 )
 set_tests_properties("ensure-version" PROPERTIES FIXTURES_SETUP "ensure-version")
 
