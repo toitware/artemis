@@ -391,9 +391,8 @@ jobs:
 
       - name: Run serial tests
         run: |
-          export ARTEMIS_TEST_SERIAL_PORT=/dev/ttyArtemis
-          export ARTEMIS_TEST_WIFI_SSID="artemis testing"
-          export ARTEMIS_TEST_WIFI_PASSWORD="artemis testing password"
+          # Get the uart-port and wifi configuration from the file in the runner's home.
+          source $HOME/artemis-test.env
           make TOITRUN=$TOIT_EXEC test-serial
 
       # Erase the flash of the device.
