@@ -9,7 +9,7 @@ interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
       --major=1
-      --minor=2
+      --minor=3
 
   /** The mode used by controllers that want to go online. */
   static CONTROLLER-MODE-ONLINE ::= 0
@@ -62,7 +62,9 @@ interface ArtemisService:
   controller-open --mode/int -> int
   static CONTROLLER-OPEN-INDEX /int ::= 6
 
+  /// Deprecated. Use $(channel-open --topic --receive --capacity) instead.
   channel-open --topic/string --receive/bool -> int?
+  channel-open --topic/string --receive/bool --capacity/int? -> int?
   static CHANNEL-OPEN-INDEX /int ::= 2
 
   channel-send handle/int bytes/ByteArray -> bool
@@ -114,8 +116,15 @@ class ArtemisClient extends ServiceClient
   controller-open --mode/int -> int:
     return invoke_ ArtemisService.CONTROLLER-OPEN-INDEX mode
 
+  // This method is intended to be unused, but prior to version 1.3 of
+  // this API, we would use it and avoid sending any capacity to the service
+  // provider. We intend to remove this method when we introduce other
+  // breaking changes in version 2.0.
   channel-open --topic/string --receive/bool -> int?:
     return invoke_ ArtemisService.CHANNEL-OPEN-INDEX [topic, receive]
+
+  channel-open --topic/string --receive/bool --capacity/int? -> int?:
+    return invoke_ ArtemisService.CHANNEL-OPEN-INDEX [topic, receive, capacity]
 
   channel-send handle/int bytes/ByteArray -> bool:
     return invoke_ ArtemisService.CHANNEL-SEND-INDEX [handle, bytes]

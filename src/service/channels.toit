@@ -14,14 +14,12 @@ class ChannelResource extends ServiceResource:
   receive/bool
   log_/FlashLog? := ?
 
-  constructor provider/ServiceProvider client/int --.topic --.receive:
-    if receive:
-      if receivers_.contains topic: throw "ALREADY_IN_USE"
-      receivers_.add topic
+  constructor provider/ServiceProvider client/int --.topic --.receive --capacity/int?:
+    if receive and receivers_.contains topic: throw "ALREADY_IN_USE"
     log_ = flashlogs_.get topic --init=:
       path := "toit.io/channel/$topic"
-      capacity := 32 * 1024
       FlashLog (storage.Region.open --flash path --capacity=capacity)
+    if receive: receivers_.add topic
     log_.acquire
     super provider client
 
@@ -58,8 +56,6 @@ class ChannelServiceProvider extends ServiceProvider
     super name --major=major --minor=minor
 
   handle index/int arguments/any --gid/int --client/int -> any:
-    if index == api.ArtemisService.CHANNEL-OPEN-INDEX:
-      return channel-open client --topic=arguments[0] --receive=arguments[1]
     if index == api.ArtemisService.CHANNEL-SEND-INDEX:
       channel := (resource client arguments[0]) as ChannelResource
       return channel.send arguments[1]
@@ -69,6 +65,17 @@ class ChannelServiceProvider extends ServiceProvider
     if index == api.ArtemisService.CHANNEL-ACKNOWLEDGE-INDEX:
       channel := (resource client arguments[0]) as ChannelResource
       return channel.acknowledge arguments[1] arguments[2]
+    if index == api.ArtemisService.CHANNEL-OPEN-INDEX:
+      // The CHANNEL-OPEN-INDEX method exists in two variants. The
+      // old one is deprecated and doesn't provide the capacity in
+      // the arguments list. We can remove the old variant when we
+      // introduce other breaking changes since newer client code
+      // does not use it.
+      capacity := arguments.size >= 3 ? arguments[2] : 32 * 1024
+      return channel-open client
+           --topic=arguments[0]
+           --receive=arguments[1]
+           --capacity=capacity
     if index == api.ArtemisService.CHANNEL-SIZE-INDEX:
       channel := (resource client arguments) as ChannelResource
       return channel.size
@@ -78,6 +85,9 @@ class ChannelServiceProvider extends ServiceProvider
     unreachable
 
   channel-open --topic/string --receive/bool -> int?:
+    unreachable  // Here to satisfy the checker.
+
+  channel-open --topic/string --receive/bool --capacity/int? -> int?:
     unreachable  // Here to satisfy the checker.
 
   channel-send handle/int bytes/ByteArray -> bool:
@@ -95,5 +105,5 @@ class ChannelServiceProvider extends ServiceProvider
   channel-size handle/int -> int:
     unreachable  // Here to satisfy the checker.
 
-  channel-open client/int --topic/string --receive/bool -> ChannelResource:
-    return ChannelResource this client --topic=topic --receive=receive
+  channel-open client/int --topic/string --receive/bool --capacity/int? -> ChannelResource:
+    return ChannelResource this client --topic=topic --receive=receive --capacity=capacity

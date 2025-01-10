@@ -16,12 +16,29 @@ main:
   provider.uninstall --wait
 
 test:
+  test-open "small" 32 * 1024
+  test-open "medium" 64 * 1024
+  test-open "large" 512 * 1024
+
   test-send "fisk"
   3.repeat: test-simple "fisk"
   test-neutering "hest"
   test-full "fisk"
   test-multi "fisk"
   test-multi "hest"
+
+test-open topic/string capacity/int:
+  channel := artemis.Channel.open --topic=topic --capacity=capacity
+  expect-equals capacity channel.capacity
+  channel.close
+  // Asking for a bigger capacity does nothing if the channel already exists.
+  channel = artemis.Channel.open --topic=topic --capacity=capacity * 2
+  expect-equals capacity channel.capacity
+  channel.close
+  // Asking for a smaller capacity does nothing if the channel already exists.
+  channel = artemis.Channel.open --topic=topic --capacity=capacity / 2
+  expect-equals capacity channel.capacity
+  channel.close
 
 test-send topic/string:
   channel := artemis.Channel.open --topic=topic
@@ -30,6 +47,7 @@ test-send topic/string:
 
 test-simple topic/string:
   channel := artemis.Channel.open --topic=topic --receive
+  expect-equals artemis.Channel.DEFAULT-CAPACITY channel.capacity
   drain-channel channel
 
   position := channel.position
@@ -64,7 +82,7 @@ test-neutering topic/string size/int:
   test-neutering topic:
     ByteArray size: random 0x100
   test-neutering topic:
-    bytes := ByteArray_.external_ size
+    bytes := ByteArray.external size
     bytes.size.repeat: bytes[it] = random 0x100
     bytes
 
