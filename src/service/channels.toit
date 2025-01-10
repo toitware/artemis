@@ -84,6 +84,9 @@ class ChannelServiceProvider extends ServiceProvider
       return channel.capacity
     unreachable
 
+  channel-open --topic/string --receive/bool -> int?:
+    unreachable  // Here to satisfy the checker.
+
   channel-open --topic/string --receive/bool --capacity/int? -> int?:
     unreachable  // Here to satisfy the checker.
 
