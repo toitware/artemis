@@ -8,8 +8,8 @@ import ..artemis as artemis  // For toitdoc.
 interface ArtemisService:
   static SELECTOR ::= ServiceSelector
       --uuid="61d82c0b-7009-4e16-b248-324de4e25f9B"
-      --major=1
-      --minor=2
+      --major=2
+      --minor=0
 
   /** The mode used by controllers that want to go online. */
   static CONTROLLER-MODE-ONLINE ::= 0
@@ -62,7 +62,7 @@ interface ArtemisService:
   controller-open --mode/int -> int
   static CONTROLLER-OPEN-INDEX /int ::= 6
 
-  channel-open --topic/string --receive/bool -> int?
+  channel-open --topic/string --receive/bool --capacity/int? -> int?
   static CHANNEL-OPEN-INDEX /int ::= 2
 
   channel-send handle/int bytes/ByteArray -> bool
@@ -114,8 +114,8 @@ class ArtemisClient extends ServiceClient
   controller-open --mode/int -> int:
     return invoke_ ArtemisService.CONTROLLER-OPEN-INDEX mode
 
-  channel-open --topic/string --receive/bool -> int?:
-    return invoke_ ArtemisService.CHANNEL-OPEN-INDEX [topic, receive]
+  channel-open --topic/string --receive/bool --capacity/int? -> int?:
+    return invoke_ ArtemisService.CHANNEL-OPEN-INDEX [topic, receive, capacity]
 
   channel-send handle/int bytes/ByteArray -> bool:
     return invoke_ ArtemisService.CHANNEL-SEND-INDEX [handle, bytes]

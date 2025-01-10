@@ -294,13 +294,25 @@ class Channel extends ServiceResourceProxy:
   received_/int := 0
   acknowledged_/int := 0
 
+  static DEFAULT-CAPACITY ::= 32 * 1024
+
   constructor.internal_ client/api.ArtemisClient handle/int --.topic:
     super client handle
 
-  static open --topic/string --receive/bool=false -> Channel:
+  static open --topic/string --receive/bool=false --capacity/int=DEFAULT-CAPACITY -> Channel:
     client := artemis-client_
     if not client: throw "Artemis unavailable"
-    handle := client.channel-open --topic=topic --receive=receive
+    handle/int? := null
+    catch --unwind=(: it != "FILE_NOT_FOUND"):
+      handle = client.channel-open
+          --topic=topic
+          --receive=receive
+          --capacity=null  // Do not create if non-existing.
+    if not handle:
+      handle = client.channel-open
+          --topic=topic
+          --receive=receive
+          --capacity=capacity
     return Channel.internal_ client handle --topic=topic
 
   /**
