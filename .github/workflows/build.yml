@@ -261,7 +261,7 @@ jobs:
 
       - name: Sign Windows binary
         if: github.event_name == 'release' || inputs.sign_windows
-        uses: toitlang/action-sign-server@c0ddf849f5d30d53189381ea35daec08b1457e0d  # v1.0.4
+        uses: toitlang/action-sign-server@16ae3053b2ecf4a51fb6c9c4372c0578ddd601ed  # v1.0.5
         with:
           uri: ${{ vars.CERTUM_URI }}
           password: ${{ secrets.CERTUM_PWD }}
@@ -287,7 +287,7 @@ jobs:
 
       - name: Sign Windows installer
         if: github.event_name == 'release' || inputs.sign_windows
-        uses: toitlang/action-sign-server@c0ddf849f5d30d53189381ea35daec08b1457e0d  # v1.0.4
+        uses: toitlang/action-sign-server@16ae3053b2ecf4a51fb6c9c4372c0578ddd601ed  # v1.0.5
         with:
           uri: ${{ vars.CERTUM_URI }}
           password: ${{ secrets.CERTUM_PWD }}
