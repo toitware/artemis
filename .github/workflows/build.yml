@@ -259,16 +259,13 @@ jobs:
           mkdir -p build/windows
           cp in/windows/artemis.exe build/windows/artemis.exe
 
-      # - name: Sign Windows binary
-      #   if: github.event_name == 'release' || inputs.sign_windows
-      #   uses: toitlang/action-code-sign@5da128f4fb4f719c1b667867815f6c31e743b111 # v1.1.0
-      #   with:
-      #     certificate: ${{ secrets.DIGICERT_CERTIFICATE }}
-      #     api-key: ${{ secrets.DIGICERT_API_KEY }}
-      #     certificate-password: ${{ secrets.DIGICERT_PASSWORD }}
-      #     certificate-fingerprint: ${{ secrets.DIGICERT_FINGERPRINT }}
-      #     keypair-alias: ${{ vars.DIGICERT_KEYPAIR_ALIAS }}
-      #     path: build/windows
+      - name: Sign Windows binary
+        if: github.event_name == 'release' || inputs.sign_windows
+        uses: toitlang/action-sign-server@51cf79bedcdbf065d9e5f334b594f91a675a1bed  # v1.0.3
+        with:
+          uri: ${{ vars.CERTUM_URI }}
+          password: ${{ secrets.CERTUM_PWD }}
+          path: build/windows
 
       - name: Create out folder
         shell: bash
@@ -288,16 +285,13 @@ jobs:
           $version = $versionV.Substring(1)
           & tools\windows_installer\build.bat $version $PWD\build\windows\artemis.exe build\windows\artemis_installer_x64.exe
 
-      # - name: Sign Windows installer
-      #   if: github.event_name == 'release' || inputs.sign_windows
-      #   uses: toitlang/action-code-sign@5da128f4fb4f719c1b667867815f6c31e743b111 # v1.1.0
-      #   with:
-      #     certificate: ${{ secrets.DIGICERT_CERTIFICATE }}
-      #     api-key: ${{ secrets.DIGICERT_API_KEY }}
-      #     certificate-password: ${{ secrets.DIGICERT_PASSWORD }}
-      #     certificate-fingerprint: ${{ secrets.DIGICERT_FINGERPRINT }}
-      #     keypair-alias: ${{ vars.DIGICERT_KEYPAIR_ALIAS }}
-      #     path: build/windows/artemis_installer_x64.exe
+      - name: Sign Windows installer
+        if: github.event_name == 'release' || inputs.sign_windows
+        uses: toitlang/action-sign-server@51cf79bedcdbf065d9e5f334b594f91a675a1bed  # v1.0.3
+        with:
+          uri: ${{ vars.CERTUM_URI }}
+          password: ${{ secrets.CERTUM_PWD }}
+          path: build/windows/artemis_installer_x64.exe
 
       - name: Copy installer to output
         shell: bash
