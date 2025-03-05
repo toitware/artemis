@@ -318,7 +318,7 @@ jobs:
           kill $HTTP_PID
 
   serial:
-    runs-on: serial
+    runs-on: serial-artemis
 
     steps:
       - name: Clean workspace
