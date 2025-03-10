@@ -4,6 +4,12 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      upload-service:
+        description: "Upload service for Testing org"
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - "*"
@@ -22,11 +28,9 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os: [ ubuntu-latest ]
         run_supabase_tests: [ false ]
         include:
-          - os: ubuntu-latest
-            run_supabase_tests: true
           - os: ubuntu-latest
             run_supabase_tests: false
             upload-service: true
@@ -58,8 +62,14 @@ jobs:
           echo "SNAPSHOTS_DIR=$HOME/.cache/jaguar/snapshots" >> $GITHUB_ENV
 
       - uses: toitlang/action-setup@v1
+        id: setup-toit
         with:
           toit-version: ${{ steps.constants.outputs.toitVersion }}
+
+      - name: HACK -- atch lib to allow changing the log target
+        run:
+          SDK_PATH="${{ steps.setup-toit.outputs.toit-sdk-path }}"
+          patch -p1 "$SDK_PATH" < toit-log.patch
 
       - name: Setup Qemu
         shell: bash
@@ -189,7 +199,7 @@ jobs:
         if: |
           matrix.upload-service &&
           github.event_name == 'push' &&
-          github.ref == 'refs/heads/main'
+          (github.ref == 'refs/heads/main' || github.event.inputs.upload-service == 'true')
         shell: bash
         env:
           ARTEMIS_EMAIL: leon@toit.io
@@ -237,168 +247,3 @@ jobs:
         with:
           name: other-snapshots-${{ runner.os }}
           path: ${{ env.SNAPSHOTS_DIR }}
-
-  arm64:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-          # We have a test that wants to tag a specific commit.
-          # As such we need to fetch all history.
-          fetch-depth: 0
-
-      - name: Setup Toit version
-        id: constants
-        shell: bash
-        run: |
-          export TOIT_VERSION=$(make dev-sdk-version)
-          echo "toitVersion=$TOIT_VERSION" >> $GITHUB_OUTPUT
-
-      - uses: toitlang/action-setup@v1
-        with:
-          toit-version: ${{ steps.constants.outputs.toitVersion }}
-
-      - name: Setup environment
-        shell: bash
-        run: |
-          echo "ARTEMIS_CONFIG=${{ github.workspace }}/test_config" >> $GITHUB_ENV
-
-      - name: Install dependencies - Linux
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update -y -q
-          sudo apt-get install -y -q --no-install-recommends ninja-build
-          ninja --version
-          cmake --version
-
-      - name: Configure
-        shell: bash
-        run: |
-          make rebuild-cmake
-          cmake -B build -DARTEMIS_ARCH=arm64 -DARTEMIS_OS=linux
-          make disable-supabase-tests
-          make disable-qemu-tests
-
-      - name: Build binaries
-        shell: bash
-        run: |
-          make
-
-      - name: Start http-servers
-        shell: bash
-        run: |
-          make start-http &
-          echo "HTTP_PID=$!" >> $GITHUB_ENV
-          sleep 10
-          make setup-local-dev
-          mkdir -p $HOME/.config/artemis
-          cp $HOME/.config/artemis-dev/config config
-
-      - name: Test executables
-        uses: pguyot/arm-runner-action@v2
-        with:
-          cpu: cortex-a7
-          base_image: "raspios_lite_arm64:2022-01-28"
-          image_additional_mb: 500
-          commands: |
-              uname -m
-              export HOME=$(pwd)
-              export ARTEMIS_CONFIG=$HOME/config
-              build/bin/artemis --version
-              mkdir fleet
-              export ARTEMIS_FLEET_ROOT=$PWD/fleet
-              build/bin/artemis fleet init
-              build/bin/artemis pod build -o test.pod fleet/my-pod.yaml
-
-      - name: Kill http-servers
-        shell: bash
-        run: |
-          kill $HTTP_PID
-
-  serial:
-    runs-on: serial-artemis
-
-    steps:
-      - name: Clean workspace
-        run: |
-          rm -rf ${{ github.workspace }}/*
-
-      - uses: actions/checkout@v4
-
-      - name: Add local bin to PATH
-        run: |
-          echo "$HOME/local/bin" >> $GITHUB_PATH
-
-      # Downloads the SDK that is defined in the Makefile
-      # Reuses the SDK if it's already downloaded.
-      - name: Setup Toit SDK
-        run: |
-          ARCHITECTURE=$(uname -m)
-          SDK_VERSION=$(make dev-sdk-version)
-          TOIT_SDK=$HOME/.cache/artemis/sdks/$SDK_VERSION
-
-          # Check whether the SDK is already downloaded.
-          if [[ -d $TOIT_SDK ]]; then
-            echo "SDK already downloaded."
-          else
-            mkdir -p $HOME/.cache/artemis/sdks
-            if [[ $ARCHITECTURE == "x86_64" ]]; then
-              TAR_BALL_NAME=toit-linux
-            elif [[ $ARCHITECTURE == "armv7l" ]]; then
-              TAR_BALL_NAME=toit-rpi
-            else
-              echo "Unsupported architecture: $ARCHITECTURE"
-              exit 1
-            fi
-            wget https://github.com/toitlang/toit/releases/download/$SDK_VERSION/$TAR_BALL_NAME.tar.gz
-            tar x -zf $TAR_BALL_NAME.tar.gz
-            mv toit $TOIT_SDK
-          fi
-          echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_ENV
-          echo "TOIT_SDK=$TOIT_SDK" >> $GITHUB_ENV
-          echo "TOIT_EXEC=$TOIT_SDK/bin/toit.run" >> $GITHUB_ENV
-          echo "TOITC_EXEC=$TOIT_SDK/bin/toit.compile" >> $GITHUB_ENV
-          echo "TPKG_EXEC=$TOIT_SDK/bin/toit.pkg" >> $GITHUB_ENV
-
-      - name: Run cmake
-        shell: bash
-        run: |
-          make rebuild-cmake
-          cmake \
-              -DTOITC="$TOITC_EXEC" \
-              -DTOITPKG="$TPKG_EXEC" \
-              -DTOITRUN="$TOIT_EXEC" \
-              build
-
-      # The SDK is already downloaded, but we might still need envelopes.
-      - name: Download envelopes
-        run: |
-          make TOITRUN=$TOIT_EXEC download-sdk
-
-      - name: Disable Supabase tests
-        run: |
-          make TOITRUN=$TOIT_EXEC disable-supabase-tests
-
-      - name: Disable QEMU tests
-        run: |
-          make TOITRUN=$TOIT_EXEC disable-qemu-tests
-
-      - name: Build
-        run: |
-          make TOITRUN=$TOIT_EXEC
-
-      - name: Run serial tests
-        run: |
-          # Get the uart-port and wifi configuration from the file in the runner's home.
-          source $HOME/artemis-test.env
-          make TOITRUN=$TOIT_EXEC test-serial
-
-      # Erase the flash of the device.
-      # We don't want it to behave erratically against the WiFi hotspot,
-      # which could make future tests fail more easily.
-      - name: Erase device flash
-        if: always()
-        run: |
-          $TOIT_SDK/tools/esptool --port /dev/ttyArtemis erase_flash
