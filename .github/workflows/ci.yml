@@ -198,8 +198,8 @@ jobs:
       - name: Upload service for Testing org
         if: |
           matrix.upload-service &&
-          github.event_name == 'push' &&
-          (github.ref == 'refs/heads/main' || github.event.inputs.upload-service == 'true')
+          ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+            github.event.inputs.upload-service == 'true')
         shell: bash
         env:
           ARTEMIS_EMAIL: leon@toit.io
