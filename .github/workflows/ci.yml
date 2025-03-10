@@ -189,7 +189,7 @@ jobs:
           make test-supabase
 
       - name: Test
-        if: (!matrix.run_supabase_tests)
+        if: (!matrix.run_supabase_tests) && github.event.inputs.upload-service != 'true'
         shell: bash
         run: |
           make disable-supabase-tests
