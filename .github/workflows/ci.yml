@@ -66,7 +66,7 @@ jobs:
         with:
           toit-version: ${{ steps.constants.outputs.toitVersion }}
 
-      - name: HACK -- atch lib to allow changing the log target
+      - name: HACK -- patch lib to allow changing the log target
         working-directory: ${{ steps.setup-toit.outputs.toit-sdk-path }}
         run: |
           patch -p1 < ${{ github.workspace }}/toit-log.patch
