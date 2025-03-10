@@ -75,43 +75,51 @@ download invocation/Invocation:
         --header={"sdk_version": "SDK", "service_version": "Service"}
         service-images
 
+    successfully-downloaded := 0
     service-images.do: | row |
-      image := row["image"]
-      cache-key := "snapshot-downloader/$image"
-      // We only download a snapshot if we don't have it in our Artemis cache.
-      // This means that it is possible to remove a snapshot from the snapshot-directory
-      // and not get it back by calling this function (since the Artemis cache
-      // would still be there).
-      // In that case, one would need to remove the Artemis cache.
-      snapshot := cli.cache.get cache-key: | store/FileStore |
-        ui.emit --info "Downloading $row["sdk_version"]-$row["service_version"]."
-        snapshot/ByteArray? := null
-        exception := catch:
-          snapshot = client.storage.download --path="service-snapshots/$image"
-        if exception:
-          ui.emit --error "Failed to download $row["sdk_version"]-$row["service_version"]."
-          ui.emit --error "Are you logged in as an admin?"
-          ui.emit --error exception
-          ui.abort
+      e := catch --trace:
+        image := row["image"]
+        cache-key := "snapshot-downloader/$image"
+        // We only download a snapshot if we don't have it in our Artemis cache.
+        // This means that it is possible to remove a snapshot from the snapshot-directory
+        // and not get it back by calling this function (since the Artemis cache
+        // would still be there).
+        // In that case, one would need to remove the Artemis cache.
+        snapshot := cli.cache.get cache-key: | store/FileStore |
+          ui.emit --info "Downloading $row["sdk_version"]-$row["service_version"]."
+          snapshot/ByteArray? := null
+          exception := catch:
+            snapshot = client.storage.download --path="service-snapshots/$image"
+          if exception:
+            if successfully-downloaded > 0:
+              // Assume it's an issue with that particular snapshot.
+              throw "DOWNLOAD_ERROR"
+            else:
+              ui.emit --error "Failed to download $row["sdk_version"]-$row["service_version"]."
+              ui.emit --error "Are you logged in as an admin?"
+              ui.emit --error exception
+              ui.abort "Failed to download snapshot."
 
-        ar-reader := ar.ArReader (io.Reader snapshot)
-        artemis-header := ar-reader.find AR-SNAPSHOT-HEADER
-        if not artemis-header:
-          // Deprecated direct snapshot format.
-          uuid := cache-snapshot snapshot --output-directory=output-directory
-          ui.emit --info "Wrote service snapshot $uuid."
-        else:
-          // Reset the reader.
-          // We are right after the header, which should be the first file.
-          // Since we don't need the header anymore (and we will in fact skip it),
-          // we could just continue reading, but by resetting we avoid hard-to-find bugs.
-          ar-reader = ar.ArReader (io.Reader snapshot)
-          while file/ar.ArFile? := ar-reader.next:
-            if file.name == AR-SNAPSHOT-HEADER:
-              continue
-            uuid := cache-snapshot file.contents --output-directory=output-directory
+          ar-reader := ar.ArReader (io.Reader snapshot)
+          artemis-header := ar-reader.find AR-SNAPSHOT-HEADER
+          if not artemis-header:
+            // Deprecated direct snapshot format.
+            uuid := cache-snapshot snapshot --output-directory=output-directory
             ui.emit --info "Wrote service snapshot $uuid."
-        store.save snapshot
+          else:
+            // Reset the reader.
+            // We are right after the header, which should be the first file.
+            // Since we don't need the header anymore (and we will in fact skip it),
+            // we could just continue reading, but by resetting we avoid hard-to-find bugs.
+            ar-reader = ar.ArReader (io.Reader snapshot)
+            while file/ar.ArFile? := ar-reader.next:
+              if file.name == AR-SNAPSHOT-HEADER:
+                continue
+              uuid := cache-snapshot file.contents --output-directory=output-directory
+              ui.emit --info "Wrote service snapshot $uuid."
+          store.save snapshot
+          successfully-downloaded++
+      if e: print "Caught: $e"
 
     if not sdk-version and not service-version:
       // Download all CLI snapshots.
