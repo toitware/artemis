@@ -488,7 +488,7 @@ get-sdk version/string --cli/Cli -> Sdk:
         gunzip gzip-path
         untar tar-path --target=final-out-dir
         // HACK. patch the log service.
-        log-file-path := "$final-out-dir/lib/log/target.toit"
+        log-file-path := "$final-out-dir/toit/lib/log/target.toit"
         old-contents := (file.read-contents log-file-path).to-string
         contents := old-contents.replace "service_/LogService ::=" "service_/LogService :="
         if contents == old-contents:
