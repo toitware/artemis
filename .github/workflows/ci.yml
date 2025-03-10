@@ -69,6 +69,7 @@ jobs:
       - name: HACK -- atch lib to allow changing the log target
         run:
           SDK_PATH="${{ steps.setup-toit.outputs.toit-sdk-path }}"
+          echo "SDK_PATH=$SDK_PATH"
           patch -p1 "$SDK_PATH" < toit-log.patch
 
       - name: Setup Qemu
