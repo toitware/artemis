@@ -377,7 +377,7 @@ class SynchronizeJob extends TaskJob:
       while not connect-network_:
         // HACK(florian): clear the logger, so we can use the user's logger if
         // one was installed in the meantime.
-        clear-log-service_
+        resolve-log-service_
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
