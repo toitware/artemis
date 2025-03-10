@@ -374,10 +374,11 @@ class SynchronizeJob extends TaskJob:
       start-us := Time.monotonic-us
       limit-us := start-us + TIMEOUT-BROKER-CONNECT.in-us
       backoff-us := 0
+      // HACK(florian): clear the logger, so we can use the user's logger if
+      // one was installed in the meantime.
+      sleep --ms=300  // Give an eventual log service time to start.
+      resolve-log-service_
       while not connect-network_:
-        // HACK(florian): clear the logger, so we can use the user's logger if
-        // one was installed in the meantime.
-        resolve-log-service_
         // If we didn't manage to connect to the broker, we
         // try to connect again. The next time, due to the
         // quarantining, we might pick a different network.
@@ -551,6 +552,7 @@ class SynchronizeJob extends TaskJob:
     return null
 
   transition-to_ state/int -> none:
+    resolve-log-service_
     previous := state_
     state_ = state
 
