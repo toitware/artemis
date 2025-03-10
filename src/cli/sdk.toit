@@ -489,8 +489,12 @@ get-sdk version/string --cli/Cli -> Sdk:
         untar tar-path --target=final-out-dir
         // HACK. patch the log service.
         log-file-path := "$final-out-dir/lib/log/target.toit"
-        contents := (file.read-contents log-file-path).to-string
-        contents = contents.replace "service_/LogService ::=" "service_/LogService :="
+        old-contents := (file.read-contents log-file-path).to-string
+        contents := old-contents.replace "service_/LogService ::=" "service_/LogService :="
+        if contents == old-contents:
+          throw "Failed to patch log service"
+        else:
+          print "Successfully patched log service"
         file.write-contents --path=log-file-path contents
         store.move "$final-out-dir/toit"
   return Sdk path version
