@@ -132,6 +132,7 @@ class Git:
     run_ --description="Tag of $name" [
       "-C", repository-root.copy,
       "tag",
+      "--no-sign",
       name,
       commit,
     ]
@@ -162,6 +163,7 @@ class Git:
     args := [
       "-C", repository-root,
       "tag",
+      "--no-sign",
       name,
       ref,
     ]
