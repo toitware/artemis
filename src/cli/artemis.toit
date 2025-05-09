@@ -99,7 +99,7 @@ service-path-in-repository root/string --chip-family/string -> string:
 
 ARTEMIS-SERVICE-GIT-URL ::= "https://github.com/toitware/artemis"
 
-get-artemis-container version-or-path/string --chip-family/string --cli/Cli -> Container:
+get-artemis-container version-or-path/string --chip-family/string --cli/Cli -> ContainerPath:
   artemis-root-path := os.env.get "ARTEMIS_REPO_PATH"
   if artemis-root-path:
     entrypoint := service-path-in-repository artemis-root-path --chip-family=chip-family

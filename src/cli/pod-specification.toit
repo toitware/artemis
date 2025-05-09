@@ -634,7 +634,12 @@ abstract class ContainerBase implements Container:
     defines = json-map.get-optional-map "defines"
 
   abstract type -> string
-  abstract build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cli/Cli -> none
+  abstract build-snapshot -> none
+      --output-path/string
+      --relative-to/string
+      --pre-compilation-hook/Lambda?=null
+      --sdk/Sdk
+      --cli/Cli
 
 class ContainerPath extends ContainerBase:
   entrypoint/string
@@ -678,7 +683,12 @@ class ContainerPath extends ContainerBase:
       format-error_"In container $name, git entry requires a relative path: $entrypoint"
     super.from-json name json-map
 
-  build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cli/Cli -> none:
+  build-snapshot -> none
+      --output-path/string
+      --relative-to/string
+      --sdk/Sdk
+      --pre-compilation-hook/Lambda?=null
+      --cli/Cli:
     ui := cli.ui
 
     if not git-url:
@@ -772,7 +782,14 @@ class ContainerSnapshot extends ContainerBase:
     snapshot-path = json-map.get-string "snapshot"
     super.from-json name json-map
 
-  build-snapshot --relative-to/string --output-path/string --sdk/Sdk --cli/Cli -> none:
+  build-snapshot -> none
+      --output-path/string
+      --relative-to/string
+      --pre-compilation-hook/Lambda?=null
+      --sdk/Sdk
+      --cli/Cli:
+    if pre-compilation-hook:
+      cli.ui.abort "Pre-compilation hook is not supported for snapshot containers."
     path := snapshot-path
     if fs.is-relative snapshot-path:
       path = "$relative-to/$snapshot-path"
