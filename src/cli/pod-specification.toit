@@ -748,6 +748,8 @@ class ContainerPath extends ContainerBase:
           --repository-root=clone-dir
           --ref=git-ref
           --quiet
+      if pre-compilation-hook:
+        pre-compilation-hook.call clone-dir
       ui.emit --info "Compiling '$git-url'."
       entrypoint-path := "$clone-dir/$entrypoint"
       if not file.is-file entrypoint-path:
