@@ -115,9 +115,6 @@ get-artemis-container version-or-path/string --chip-family/string --cli/Cli -> C
     url = version-or-path
   else if version-or-path.starts-with "file:/":
     return ContainerPath "artemis" --entrypoint=(version-or-path.trim --left "file:/")
-  else if version-or-path.contains "/":
-    // This is a path to a local Artemis.
-    return ContainerPath "artemis" --entrypoint=(version-or-path.trim --left "file:/")
   else:
     // This is a version string.
     url = ARTEMIS-SERVICE-GIT-URL
