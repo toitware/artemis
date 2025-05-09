@@ -7,12 +7,6 @@ COMMAND-SIGN-UP_ ::= 2
 COMMAND-SIGN-IN_ ::= 3
 COMMAND-GET-ORGANIZATIONS_ ::= 4
 COMMAND-UPDATE-CURRENT-USER_ ::= 18
-/**
-Command to notify the Artemis server that a device has been created.
-
-To avoid accidental confusion with $COMMAND-NOTIFY-BROKER-CREATED_, the
-  command has the same constants.
-*/
 COMMAND-NOTIFY-ARTEMIS-CREATED_ ::= 5
 COMMAND-GET-ORGANIZATION-DETAILS_ ::= 6
 COMMAND-CREATE-ORGANIZATION_ ::= 7
@@ -23,8 +17,11 @@ COMMAND-ORGANIZATION-MEMBER-REMOVE_ ::= 11
 COMMAND-ORGANIZATION-MEMBER-SET-ROLE_ ::= 12
 COMMAND-GET-PROFILE_ ::= 13
 COMMAND-UPDATE-PROFILE_ ::= 14
+/// Deprecated and unused in newer CLIs.
 COMMAND-LIST-SDK-SERVICE-VERSIONS_ ::= 15
+/// Deprecated and unused in newer CLIs.
 COMMAND-DOWNLOAD-SERVICE-IMAGE_ ::= 16
+/// Deprecated and unused in newer CLIs.
 COMMAND-UPLOAD-SERVICE-IMAGE_ ::= 17
 
 ARTEMIS-COMMAND-TO-STRING ::= {

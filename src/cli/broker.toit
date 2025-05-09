@@ -841,19 +841,6 @@ class Broker:
     service-version := specification.artemis-version
     sdk-version := specification.sdk-version
 
-    checked := false
-    // We try to check the sdk and service versions as soon as possible to
-    // avoid downloading expensive assets.
-    check-sdk-service-version := :
-      if not checked and sdk-version:
-        artemis.check-is-supported-version_
-            --organization-id=organization-id
-            --sdk=sdk-version
-            --service=service-version
-        checked = true
-
-    check-sdk-service-version.call
-
     envelope-path := get-envelope
         --specification=specification
         --cli=cli_
@@ -868,7 +855,6 @@ class Broker:
           cli_.ui.abort "The envelope uses SDK version $envelope-sdk-version, but $sdk-version was requested."
     else:
       sdk-version = envelope-sdk-version
-      check-sdk-service-version.call
     envelope-word-bit-size := Sdk.get-word-bit-size-from --envelope=envelope
 
     sdk := get-sdk sdk-version --cli=cli_
@@ -982,18 +968,20 @@ class Broker:
       artemis-assets-path := "$tmp-dir/artemis.assets"
       sdk.assets-create --output-path=artemis-assets-path artemis-assets
 
-      // Get the prebuilt Artemis service.
-      artemis-service-image-path := artemis.get-service-image-path
-          --organization-id=organization-id
-          --chip-family=envelope-chip-family
-          --word-size=envelope-word-bit-size
-          --sdk=sdk-version
-          --service=service-version
+
+      // Build the Artemis service image.
+      artemis-container := get-artemis-container service-version --chip-family=envelope-chip-family --cli=cli_
+      artemis-snapshot-path := "$tmp-dir/artemis.snapshot"
+      artemis-container.build-snapshot
+          --relative-to=specification.relative-to
+          --sdk=sdk
+          --output-path=artemis-snapshot-path
+          --cli=cli_
 
       sdk.firmware-add-container "artemis"
           --envelope=output-path
           --assets=artemis-assets-path
-          --program-path=artemis-service-image-path
+          --program-path=artemis-snapshot-path
           --trigger="boot"
           --critical
 

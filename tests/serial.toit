@@ -18,7 +18,6 @@ flash-serial -> Uuid
     --tmp-dir/string="$fleet.tester.tmp-dir/serial":
 
   fleet-dir := fleet.fleet-dir
-  fleet.tester.ensure-available-artemis-service
 
   directory.mkdir --recursive tmp-dir
   files.do: | filename/string blob |

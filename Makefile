@@ -175,32 +175,21 @@ setup-local-dev:
 
 	@ $(TOITRUN) src/cli/cli.toit org add "Test Org"
 
-	@ $(MAKE) upload-service
-
 .PHONY: dev-sdk-version
 dev-sdk-version:
 	@ echo $(LOCAL_DEV_SDK)
 
-.PHONY: upload-service
-upload-service:
-	@ $(TOITRUN) tools/service_image_uploader/uploader.toit service --local --force \
-		--sdk-version=$(LOCAL_DEV_SDK) \
-		--service-version=$(SETUP_LOCAL_DEV_SERVICE)
-	@ $(TOITRUN) tools/service_image_uploader/uploader.toit service --local --force \
-		--sdk-version=$(LOCAL_DEV_SDK) \
-		--service-version=$$(cmake -DPRINT_VERSION=1 -P tools/gitversion.cmake)
-
 .PHONY: download-sdk
 download-sdk: install-pkgs
-	@ $(TOITRUN) tools/service_image_uploader/sdk-downloader.toit download \
+	@ $(TOITRUN) tools/service_image_downloader/sdk-downloader.toit download \
 	    --version $(LOCAL_DEV_SDK) \
 			--envelope=esp32,esp32-qemu
 	@ cmake \
 		-DDEV_SDK_VERSION=$(LOCAL_DEV_SDK) \
-		-DDEV_SDK_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print)" \
-		-DDEV_ENVELOPE_ESP32_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope="esp32")" \
-		-DDEV_ENVELOPE_ESP32_QEMU_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope="esp32-qemu")" \
-		-DDEV_ENVELOPE_HOST_PATH="$$($(TOITRUN) tools/service_image_uploader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --host-envelope)" \
+		-DDEV_SDK_PATH="$$($(TOITRUN) tools/service_image_downloader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print)" \
+		-DDEV_ENVELOPE_ESP32_PATH="$$($(TOITRUN) tools/service_image_downloader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope="esp32")" \
+		-DDEV_ENVELOPE_ESP32_QEMU_PATH="$$($(TOITRUN) tools/service_image_downloader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --envelope="esp32-qemu")" \
+		-DDEV_ENVELOPE_HOST_PATH="$$($(TOITRUN) tools/service_image_downloader/sdk-downloader.toit --version $(LOCAL_DEV_SDK) print --host-envelope)" \
 		build
 
 # We rebuild the cmake file all the time.

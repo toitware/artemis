@@ -29,7 +29,6 @@ jobs:
             run_supabase_tests: true
           - os: ubuntu-latest
             run_supabase_tests: false
-            upload-service: true
 
     runs-on: ${{ matrix.os }}
 
@@ -184,36 +183,6 @@ jobs:
         run: |
           make disable-supabase-tests
           make test
-
-      - name: Upload service for Testing org
-        if: |
-          matrix.upload-service &&
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main'
-        shell: bash
-        env:
-          ARTEMIS_EMAIL: leon@toit.io
-          ARTEMIS_PASSWORD: ${{ secrets.LEON_ARTEMIS_PW }}
-        run: |
-          # We log in with the Artemis executable.
-          # It will set the authentication in the config file which is also
-          # used by the uploader.
-          build/bin/artemis$BIN_EXTENSION auth login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
-
-          SDK_VERSION=$(make dev-sdk-version)
-          VERSION=$(cmake -DPRINT_VERSION=1 -P tools/gitversion.cmake)
-          # It's hard to ensure that we don't upload a service with the same tag
-          # as a release, and that would lead to trouble.
-          # Add a T to indicate that this is a test version and avoid this problem.
-          SERVICE_VERSION=$VERSION-T
-
-          ARTEMIS_TESTING_ORGANIZATION=3ea5b632-5739-4f40-8446-2fc102a5b338
-
-          build/bin/uploader service \
-              --sdk-version $SDK_VERSION \
-              --service-version $SERVICE_VERSION \
-              --organization-id $ARTEMIS_TESTING_ORGANIZATION \
-              --local
 
       - name: Upload binary artifacts
         if: (!matrix.run_supabase_tests)

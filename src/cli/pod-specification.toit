@@ -575,6 +575,14 @@ abstract class ContainerBase implements Container:
   defines/Map?
   name/string
 
+  constructor .name
+      --.arguments/List?
+      --.triggers/List?
+      --.is-background/bool?
+      --.is-critical/bool?
+      --.runlevel/int?
+      --.defines/Map?:
+
   constructor.from-json .name json-map/JsonMap:
     arguments = json-map.get-optional-list "arguments"
         --type="string"
@@ -633,6 +641,28 @@ class ContainerPath extends ContainerBase:
   git-url/string?
   git-ref/string?
   compile-flags/List?
+
+  constructor name/string
+      --.entrypoint
+      --.git-url=null
+      --.git-ref=null
+      --.compile-flags=null
+      --arguments/List?=null
+      --triggers/List?=null
+      --is-background/bool?=null
+      --is-critical/bool?=null
+      --runlevel/int?=null
+      --defines/Map?=null:
+    if compile-flags: compile-flags.do: | flag |
+      if flag is not string:
+        format-error_ "Compile flags entry must be a list of strings: $compile-flags"
+    super name
+        --arguments=arguments
+        --triggers=triggers
+        --is-background=is-background
+        --is-critical=is-critical
+        --runlevel=runlevel
+        --defines=defines
 
   constructor.from-json name/string json-map/JsonMap:
     holder := "container $name"
