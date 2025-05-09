@@ -11,8 +11,6 @@ main args:
     run-test fleet
 
 run-test fleet/TestFleet:
-  fleet.tester.ensure-available-artemis-service
-
   name := "test-pod"
 
   spec := {

@@ -9,7 +9,6 @@ import artemis.cli.server-config as cli-server-config
 import artemis.service
 import artemis.shared.server-config show ServerConfig ServerConfigHttp
 import artemis.cli.utils show read-json read-yaml write-yaml-to-file write-blob-to-file
-import cli show Cli
 import encoding.json
 import host.directory
 import host.file
@@ -19,7 +18,6 @@ import uuid show Uuid
 import expect show *
 import .artemis-server show TestArtemisServer
 import .utils
-import ..tools.service-image-uploader.uploader as uploader
 
 main args/List:
   serial-port := os.env.get "ARTEMIS_TEST_SERIAL_PORT"
@@ -61,17 +59,6 @@ run-test tester/Tester serial-port/string wifi-ssid/string wifi-password/string:
   ]
 
   service-version := "v0.0.$(random)-TEST"
-
-  cli := tester.cli.with --ui=ui
-  uploader.main
-      --cli=cli
-      [
-        "service",
-        "--sdk-version", tester.sdk-version,
-        "--service-version", service-version,
-        "--snapshot-directory", "$tmp-dir/snapshots",
-        "--local",
-      ]
 
   email := "test-$(%010d random)@example.com"
   password := "test-$(%010d random)"

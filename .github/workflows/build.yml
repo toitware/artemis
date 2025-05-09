@@ -104,51 +104,6 @@ jobs:
           echo "ARTEMIS_UUID=$UUID" >> $GITHUB_ENV
           mv build/snapshots/artemis.snapshot build/snapshots/artemis-$UUID.snapshot
 
-      - name: Sign in to Artemis
-        shell: bash
-        env:
-          ARTEMIS_EMAIL: leon@toit.io
-          ARTEMIS_PASSWORD: ${{ secrets.LEON_ARTEMIS_PW }}
-        run: |
-          # We log in with the Artemis executable.
-          # It will set the authentication in the config file which is also
-          # used by the uploader.
-          build/bin/artemis auth login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
-
-      - name: Upload snapshot to Artemis
-        if: github.event_name == 'release' || inputs.upload_service_snapshot
-        shell: bash
-        run: |
-          # No need to cache the snapshots in a local snapshot directory.
-          mkdir -p tmp_snapshots
-          build/bin/uploader cli-snapshot \
-            --snapshot-directory tmp_snapshots \
-            build/snapshots/*.snapshot
-
-      - name: Build and upload service images
-        if: github.event_name == 'release'
-        shell: bash
-        run: |
-          # No need to cache the snapshots in a local snapshot directory.
-          mkdir -p tmp_snapshots
-          for version in $SUPPORTED_SDK_VERSIONS; do
-            # For each supported SDK version, build the locally checked out
-            # version of the service and upload it to Artemis.
-            build/bin/uploader service \
-                --snapshot-directory tmp_snapshots \
-                --sdk-version $version \
-                --service-version ${{ github.event.release.tag_name }} \
-                --local \
-                --force
-            build/bin/uploader service \
-                --snapshot-directory tmp_snapshots \
-                --sdk-version $version \
-                --service-version "${{ github.event.release.tag_name }}+O1" \
-                --local \
-                --optimization-level=1 \
-                --force
-          done
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

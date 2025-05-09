@@ -43,7 +43,6 @@ set(TEST_PREFIX "")
 include(fail.cmake OPTIONAL)
 
 set (SUPABASE_ARTEMIS_TESTS
-    "/tests/supabase-uploader-test.toit"
     "/tests/supabase-policies-test.toit"
     )
 

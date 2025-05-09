@@ -25,8 +25,6 @@ run-test fleet/TestFleet:
       tester.replacements["$it["id"]"] = pad-replacement-id "ID $pod-name#$(it["revision"])"
     output
 
-  tester.ensure-available-artemis-service
-
   name := "test-pod"
   spec := {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",

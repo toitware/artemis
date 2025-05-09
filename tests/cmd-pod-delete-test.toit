@@ -49,8 +49,6 @@ create-pods name/string fleet/TestFleet --count/int -> List:
   return [description-id, spec-ids]
 
 run-test fleet/TestFleet:
-  fleet.tester.ensure-available-artemis-service
-
   pod1-name := "pod1"
   tmp := create-pods pod1-name fleet --count=3
   description1-id := tmp[0]

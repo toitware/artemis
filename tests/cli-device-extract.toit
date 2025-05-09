@@ -30,8 +30,6 @@ upload-pod -> Uuid
     --pod-spec/Map={:}
     --pod-spec-filename/string="my-pod.yaml":
 
-  fleet.tester.ensure-available-artemis-service
-
   prefix := "--base-root="
   base-root/string? := null
   fleet.args.do:
