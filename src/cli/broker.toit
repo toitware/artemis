@@ -984,7 +984,7 @@ class Broker:
           artemis-minor/int := ?
           if not artemis-version:
             cli_.ui.abort "Local Artemis checkouts must have a version.toit file."
-          parts := artemis-version.split "."
+          parts := (artemis-version.trim --left "v").split "."
           if parts.size < 2:
             // Probably just a commit hash or full ref.
             // This should only happen during development. Use our version instead.
