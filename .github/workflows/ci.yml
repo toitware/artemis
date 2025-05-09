@@ -234,8 +234,7 @@ jobs:
         run: |
           echo "ARTEMIS_CONFIG=${{ github.workspace }}/test_config" >> $GITHUB_ENV
 
-      - name: Install dependencies - Linux
-        if: runner.os == 'Linux'
+      - name: Install dependencies
         run: |
           sudo apt-get update -y -q
           sudo apt-get install -y -q --no-install-recommends ninja-build
@@ -269,10 +268,12 @@ jobs:
         uses: pguyot/arm-runner-action@v2
         with:
           cpu: cortex-a7
-          base_image: "raspios_lite_arm64:2022-01-28"
+          base_image: "raspios_lite_arm64:2022-04-04"
           image_additional_mb: 500
           commands: |
               uname -m
+              sudo apt-get update -y
+              sudo apt-get install -y git
               export HOME=$(pwd)
               export ARTEMIS_CONFIG=$HOME/config
               build/bin/artemis --version
