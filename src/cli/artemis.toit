@@ -11,6 +11,7 @@ import encoding.ubjson
 import encoding.json
 import fs
 import host.os
+import system
 
 import .cache as cache
 import .cache show cache-key-service-image
@@ -106,7 +107,8 @@ get-artemis-container version-or-path/string --chip-family/string --cli/Cli -> C
     return ContainerPath "artemis" --entrypoint=entrypoint
   if is-dev-setup:
     git := Git --cli=cli
-    root := git.current-repository-root
+    artemis-path := fs.dirname system.program-path
+    root := git.current-repository-root --path=artemis-path
     entrypoint := service-path-in-repository root --chip-family=chip-family
     return ContainerPath "artemis" --entrypoint=entrypoint
 
