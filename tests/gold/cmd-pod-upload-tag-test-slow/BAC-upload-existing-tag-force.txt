@@ -1,5 +1,6 @@
 # Upload a pod with existing tag using --force
 # [pod, upload, <FLEET_ROOT>/test-pod.yaml, --tag, some-tag, --force]
+Added Artemis service container to envelope.
 Uploading pod. This may take a while.
 Successfully uploaded test-pod#3 to fleet -={|~~~~~~~~~~FLEET_ID~~~~~~~~~~|}=-.
   id: -={|~~~~~~~ID test-pod#3~~~~~~~~|}=-

@@ -1,5 +1,6 @@
 # Upload the firmware.
 # [--fleet-root, TMP_DIR/fleet, pod, upload, TMP_DIR/firmware.pod]
+Added Artemis service container to envelope.
 Uploading pod. This may take a while.
 Successfully uploaded my-pod#1 to fleet -={|       UUID-FOR-FLEET       |}=-.
   id: -={|      UUID-FOR-MY-POD#1     |}=-
