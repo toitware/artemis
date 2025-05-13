@@ -1015,6 +1015,7 @@ class Broker:
           --sdk=sdk
           --output-path=artemis-snapshot-path
           --cli=cli_
+      cli_.ui.emit --info "Added Artemis service container to envelope."
 
       sdk.firmware-add-container "artemis"
           --envelope=output-path
