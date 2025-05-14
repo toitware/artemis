@@ -13,13 +13,15 @@ class Git:
 
   /**
   Returns the root of the Git repository that contains the
-    current working directory.
+    given $path. If no $path is given, uses the current working directory.
   */
-  current-repository-root -> string:
-    out := run_ [
+  current-repository-root --path/string?=null -> string:
+    args :=  path ? ["-C", path] : []
+    args.add-all [
       "rev-parse",
-      "--show-toplevel"
+      "--show-toplevel",
     ]
+    out := run_ args
     return out.trim
 
   /**
@@ -175,10 +177,7 @@ class Git:
   /**
   Runs the command, and only outputs stdout/stderr if there is an error.
   */
-  run_ args/List -> string:
-    return run_ args --description="Git command"
-
-  run_ args/List --description -> string:
+  run_ args/List --description/string="Git command" -> string:
     output := io.Buffer
     stdout := io.Buffer
     fork-data := pipe.fork

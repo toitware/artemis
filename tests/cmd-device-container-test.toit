@@ -51,10 +51,6 @@ run-test fleet/TestFleet:
         "device", "container", "uninstall", "hello", "--force"
       ]
 
-  fleet.tester.ensure-available-artemis-service
-      --sdk-version=TEST-SDK-VERSION
-      --artemis-version=TEST-ARTEMIS-VERSION
-
   pod-spec := deep-copy_ INITIAL-POD-SPECIFICATION
 
   pod-spec["sdk-version"] = TEST-SDK-VERSION

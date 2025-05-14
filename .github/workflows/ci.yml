@@ -29,7 +29,6 @@ jobs:
             run_supabase_tests: true
           - os: ubuntu-latest
             run_supabase_tests: false
-            upload-service: true
 
     runs-on: ${{ matrix.os }}
 
@@ -185,36 +184,6 @@ jobs:
           make disable-supabase-tests
           make test
 
-      - name: Upload service for Testing org
-        if: |
-          matrix.upload-service &&
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main'
-        shell: bash
-        env:
-          ARTEMIS_EMAIL: leon@toit.io
-          ARTEMIS_PASSWORD: ${{ secrets.LEON_ARTEMIS_PW }}
-        run: |
-          # We log in with the Artemis executable.
-          # It will set the authentication in the config file which is also
-          # used by the uploader.
-          build/bin/artemis$BIN_EXTENSION auth login --email "$ARTEMIS_EMAIL" --password "$ARTEMIS_PASSWORD"
-
-          SDK_VERSION=$(make dev-sdk-version)
-          VERSION=$(cmake -DPRINT_VERSION=1 -P tools/gitversion.cmake)
-          # It's hard to ensure that we don't upload a service with the same tag
-          # as a release, and that would lead to trouble.
-          # Add a T to indicate that this is a test version and avoid this problem.
-          SERVICE_VERSION=$VERSION-T
-
-          ARTEMIS_TESTING_ORGANIZATION=3ea5b632-5739-4f40-8446-2fc102a5b338
-
-          build/bin/uploader service \
-              --sdk-version $SDK_VERSION \
-              --service-version $SERVICE_VERSION \
-              --organization-id $ARTEMIS_TESTING_ORGANIZATION \
-              --local
-
       - name: Upload binary artifacts
         if: (!matrix.run_supabase_tests)
         uses: actions/upload-artifact@v4
@@ -265,8 +234,7 @@ jobs:
         run: |
           echo "ARTEMIS_CONFIG=${{ github.workspace }}/test_config" >> $GITHUB_ENV
 
-      - name: Install dependencies - Linux
-        if: runner.os == 'Linux'
+      - name: Install dependencies
         run: |
           sudo apt-get update -y -q
           sudo apt-get install -y -q --no-install-recommends ninja-build
@@ -300,16 +268,20 @@ jobs:
         uses: pguyot/arm-runner-action@v2
         with:
           cpu: cortex-a7
-          base_image: "raspios_lite_arm64:2022-01-28"
+          base_image: "raspios_lite_arm64:2022-04-04"
           image_additional_mb: 500
           commands: |
               uname -m
+              sudo apt-get update -y
+              sudo apt-get install -y git
               export HOME=$(pwd)
               export ARTEMIS_CONFIG=$HOME/config
               build/bin/artemis --version
               mkdir fleet
               export ARTEMIS_FLEET_ROOT=$PWD/fleet
               build/bin/artemis fleet init
+              sed -i 's/artemis-version.*//' fleet/my-pod.yaml
+              echo "artemis-version: ${{ github.ref }}" >> fleet/my-pod.yaml
               build/bin/artemis pod build -o test.pod fleet/my-pod.yaml
 
       - name: Kill http-servers

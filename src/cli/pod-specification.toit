@@ -575,6 +575,14 @@ abstract class ContainerBase implements Container:
   defines/Map?
   name/string
 
+  constructor .name
+      --.arguments/List?
+      --.triggers/List?
+      --.is-background/bool?
+      --.is-critical/bool?
+      --.runlevel/int?
+      --.defines/Map?:
+
   constructor.from-json .name json-map/JsonMap:
     arguments = json-map.get-optional-list "arguments"
         --type="string"
@@ -626,13 +634,40 @@ abstract class ContainerBase implements Container:
     defines = json-map.get-optional-map "defines"
 
   abstract type -> string
-  abstract build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cli/Cli -> none
+  abstract build-snapshot -> none
+      --output-path/string
+      --relative-to/string
+      --pre-compilation-hook/Lambda?=null
+      --sdk/Sdk
+      --cli/Cli
 
 class ContainerPath extends ContainerBase:
   entrypoint/string
   git-url/string?
   git-ref/string?
   compile-flags/List?
+
+  constructor name/string
+      --.entrypoint
+      --.git-url=null
+      --.git-ref=null
+      --.compile-flags=null
+      --arguments/List?=null
+      --triggers/List?=null
+      --is-background/bool?=null
+      --is-critical/bool?=null
+      --runlevel/int?=null
+      --defines/Map?=null:
+    if compile-flags: compile-flags.do: | flag |
+      if flag is not string:
+        format-error_ "Compile flags entry must be a list of strings: $compile-flags"
+    super name
+        --arguments=arguments
+        --triggers=triggers
+        --is-background=is-background
+        --is-critical=is-critical
+        --runlevel=runlevel
+        --defines=defines
 
   constructor.from-json name/string json-map/JsonMap:
     holder := "container $name"
@@ -648,7 +683,12 @@ class ContainerPath extends ContainerBase:
       format-error_"In container $name, git entry requires a relative path: $entrypoint"
     super.from-json name json-map
 
-  build-snapshot --output-path/string --relative-to/string --sdk/Sdk --cli/Cli -> none:
+  build-snapshot -> none
+      --output-path/string
+      --relative-to/string
+      --sdk/Sdk
+      --pre-compilation-hook/Lambda?=null
+      --cli/Cli:
     ui := cli.ui
 
     if not git-url:
@@ -708,6 +748,8 @@ class ContainerPath extends ContainerBase:
           --repository-root=clone-dir
           --ref=git-ref
           --quiet
+      if pre-compilation-hook:
+        pre-compilation-hook.call clone-dir
       ui.emit --info "Compiling '$git-url'."
       entrypoint-path := "$clone-dir/$entrypoint"
       if not file.is-file entrypoint-path:
@@ -742,7 +784,14 @@ class ContainerSnapshot extends ContainerBase:
     snapshot-path = json-map.get-string "snapshot"
     super.from-json name json-map
 
-  build-snapshot --relative-to/string --output-path/string --sdk/Sdk --cli/Cli -> none:
+  build-snapshot -> none
+      --output-path/string
+      --relative-to/string
+      --pre-compilation-hook/Lambda?=null
+      --sdk/Sdk
+      --cli/Cli:
+    if pre-compilation-hook:
+      cli.ui.abort "Pre-compilation hook is not supported for snapshot containers."
     path := snapshot-path
     if fs.is-relative snapshot-path:
       path = "$relative-to/$snapshot-path"

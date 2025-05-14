@@ -24,6 +24,12 @@ class Sdk:
 
   constructor .sdk-path .version:
 
+  constructor .sdk-path/string:
+    version = (pipe.backticks [
+      "$sdk-path/bin/toit",
+      "version",
+    ]).trim
+
   constructor --envelope-path/string --cli/Cli:
     sdk-version := get-sdk-version-from --envelope-path=envelope-path
     return get-sdk sdk-version --cli=cli
@@ -465,16 +471,28 @@ sdk-url version/string -> string:
 
 reported-local-sdk-use_/bool := false
 
-get-sdk version/string --cli/Cli -> Sdk:
+get-sdk version-or-path/string --cli/Cli -> Sdk:
   if is-dev-setup:
     local-sdk := os.env.get "DEV_TOIT_REPO_PATH"
     if local-sdk:
       if not reported-local-sdk-use_:
         print-on-stderr_ "Using local SDK"
         reported-local-sdk-use_ = true
-      return Sdk "$local-sdk/build/host/sdk" version
+      return Sdk "$local-sdk/build/host/sdk" version-or-path
 
-  url := sdk-url version
+  url/string := ?
+  if version-or-path.starts-with "http://" or version-or-path.starts-with "https://":
+    url = version-or-path
+  else if version-or-path.starts-with "file:/":
+    return Sdk (version-or-path.trim --left "file:/")
+  else if version-or-path.contains "/":
+    // This is a path to a local SDK.
+    return Sdk version-or-path
+  else:
+    // This is a version string.
+    url = sdk-url version-or-path
+
+  version := version-or-path
   cache-key := cache-key-sdk --version=version
   path := cli.cache.get-directory-path cache-key: | store/DirectoryStore |
     with-tmp-directory: | tmp-dir |
@@ -488,4 +506,4 @@ get-sdk version/string --cli/Cli -> Sdk:
         gunzip gzip-path
         untar tar-path --target=final-out-dir
         store.move "$final-out-dir/toit"
-  return Sdk path version
+  return Sdk path
