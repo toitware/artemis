@@ -24,10 +24,9 @@ INITIAL-POD-NAME ::= "my-pod"
 INITIAL-POD-SPECIFICATION -> Map:
   return {
     "\$schema": JSON-SCHEMA,
-    "name": "$INITIAL-POD-NAME",
     "sdk-version": SDK-VERSION,
     "artemis-version": ARTEMIS-VERSION,
-    "max-offline": "0s",
+    "max-offline": "5m",
     "firmware-envelope": "esp32",
     "partitions": "esp32-ota-1c0000",
     "connections": [
@@ -46,7 +45,7 @@ EXAMPLE-POD-SPECIFICATION -> Map:
     "name": "example-pod",
     "sdk-version": SDK-VERSION,
     "artemis-version": ARTEMIS-VERSION,
-    "max-offline": "30s",
+    "max-offline": "12h",
     "firmware-envelope": "esp32",
     "partitions": "esp32-ota-1c0000",
     "connections": [
@@ -381,6 +380,14 @@ class PodSpecification:
 
   static parse path/string --cli/Cli -> PodSpecification:
     json := parse-json-hierarchy path
+    if not json.contains "name":
+      // Extract the name from the path.
+      basename := fs.basename path
+      dot-index := basename.index-of --last "."
+      if dot-index >= 0:
+        basename = basename[..dot-index]
+      if basename != "":
+        json["name"] = basename
     return PodSpecification.from-json --path=path json --cli=cli
 
   static parse-json-hierarchy path/string --extends-chain/List=[] -> Map:
