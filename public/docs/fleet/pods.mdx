@@ -119,9 +119,15 @@ containers:
     branch: v0.0.3
 ```
 
-The three version entries are for the specification format (always `1` for now) and the
-SDK and Artemis versions. Be aware that not all combinations of those are supported and
-use `artemis sdk list` to see the valid combinations.
+The `$schema` entry links to the JSON schema of the specification and is also
+used as versioning mechanism. This entry is mandatory and identifies Artemis
+pod specifications.
+
+The `name` is optional and is computed from the name of the file it is absent.
+
+The two version entries are for the SDK and Artemis versions. Be aware that not
+all combinations of those are supported. Use `artemis sdk list` to see the
+valid combinations.
 
 The `max-offline` entry is optional and defaults to 0s. Use it to control for how
 long your device is allowed to stay offline.
@@ -156,9 +162,17 @@ containers:
     critical: true
 ```
 
-The `critical` flag makes the container run continuously. If you want your container
-to run periodically, you can specify interval triggers in the `containers` section
-like this:
+The `critical` flag makes the container run continuously. Only containers that are needed
+for the proper functioning of Artemis should be marked as critical. Typically, this is
+only the cellular driver.
+
+The `background` flag tells Artemis that the container does not keep the device awake. If
+there are only background containers running, the device will go to sleep.
+
+If you want your container to run periodically, you can specify interval
+triggers in the `containers` section like this. Frequently, containers that should run
+continuously are also marked as running periodically with a very low timeout (like 1s). If they
+ever crash or exit, then they will be restarted.
 
 ``` yaml
 containers:
