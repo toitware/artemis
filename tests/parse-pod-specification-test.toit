@@ -8,6 +8,8 @@ import artemis.cli.pod-specification
     PodSpecificationException
     INITIAL-POD-SPECIFICATION
     EXAMPLE-POD-SPECIFICATION
+import encoding.json
+import host.file
 
 import .utils
 
@@ -17,11 +19,18 @@ main:
   test-custom-envelope
   test-warnings
   test-errors
+  test-path-name
 
 test-examples:
   cli := TestCli
-  PodSpecification.from-json INITIAL-POD-SPECIFICATION --path="ignored" --cli=cli
-  PodSpecification.from-json EXAMPLE-POD-SPECIFICATION --path="ignored" --cli=cli
+  with-tmp-directory: | dir |
+    path := "$dir/pod-specification.json"
+
+    file.write-contents --path=path (json.encode INITIAL-POD-SPECIFICATION)
+    PodSpecification.parse path --cli=cli
+
+    file.write-contents --path=path (json.encode EXAMPLE-POD-SPECIFICATION)
+    PodSpecification.parse path --cli=cli
 
 test-cellular:
   cli := TestCli
@@ -389,3 +398,10 @@ test-errors:
     expect-format-error
         "Entry runlevel in container app4 is not an int or a string: $bad"
         bad-runlevel
+
+test-path-name:
+  with-tmp-directory: | dir |
+    path := "$dir/pod-specification.json"
+    file.write-contents --path=path (json.encode INITIAL-POD-SPECIFICATION)
+    pod := PodSpecification.parse path --cli=TestCli
+    expect-equals "pod-specification" pod.name

@@ -21,7 +21,7 @@
           "type": "integer"
         },
         "name": {
-          "description": "Name of the pod.",
+          "description": "Name of the pod. Inferred from the path if not set.",
           "type": "string"
         },
         "sdk-version": {
