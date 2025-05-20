@@ -8,6 +8,8 @@ import artemis.cli.pod-specification
     PodSpecificationException
     INITIAL-POD-SPECIFICATION
     EXAMPLE-POD-SPECIFICATION
+import encoding.json
+import host.file
 
 import .utils
 
@@ -21,8 +23,14 @@ main:
 
 test-examples:
   cli := TestCli
-  PodSpecification.from-json INITIAL-POD-SPECIFICATION --path="ignored" --cli=cli
-  PodSpecification.from-json EXAMPLE-POD-SPECIFICATION --path="ignored" --cli=cli
+  with-tmp-directory: | dir |
+    path := "$dir/pod-specification.json"
+
+    file.write-contents --path=path (json.encode INITIAL-POD-SPECIFICATION)
+    PodSpecification.parse path --cli=cli
+
+    file.write-contents --path=path (json.encode EXAMPLE-POD-SPECIFICATION)
+    PodSpecification.parse path --cli=cli
 
 test-cellular:
   cli := TestCli
