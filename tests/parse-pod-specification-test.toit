@@ -17,6 +17,7 @@ main:
   test-custom-envelope
   test-warnings
   test-errors
+  test-path-name
 
 test-examples:
   cli := TestCli
@@ -389,3 +390,9 @@ test-errors:
     expect-format-error
         "Entry runlevel in container app4 is not an int or a string: $bad"
         bad-runlevel
+
+test-path-name:
+  with-tmp-directory: | dir |
+    path := "$dir/pod-specification.json"
+    pod := PodSpecification.parse path --cli=TestCli
+    expect-equals "pod-specification" pod.name

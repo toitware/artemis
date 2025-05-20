@@ -66,6 +66,7 @@ pod-specification-for_ --sdk-version/string --envelope/string --cli/Cli:
   json := INITIAL-POD-SPECIFICATION
   json["sdk-version"] = sdk-version
   json["firmware-envelope"] = envelope
+  json["name"] = "my-pod"
   return PodSpecification.from-json json --path="ignored" --cli=cli
 
 compute-host-envelope -> string:
