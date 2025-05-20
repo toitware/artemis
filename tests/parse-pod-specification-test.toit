@@ -402,5 +402,6 @@ test-errors:
 test-path-name:
   with-tmp-directory: | dir |
     path := "$dir/pod-specification.json"
+    file.write-contents --path=path (json.encode INITIAL-POD-SPECIFICATION)
     pod := PodSpecification.parse path --cli=TestCli
     expect-equals "pod-specification" pod.name
