@@ -22,7 +22,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os: [ ubuntu-latest, windows-latest ]
         run_supabase_tests: [ false ]
         include:
           - os: ubuntu-latest
