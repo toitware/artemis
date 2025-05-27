@@ -395,4 +395,4 @@ jobs:
       - name: Erase device flash
         if: always()
         run: |
-          $TOIT_SDK/tools/esptool --port /dev/ttyArtemis erase_flash
+          $TOIT_SDK/lib/toit/bin/esptool --port /dev/ttyArtemis erase_flash
