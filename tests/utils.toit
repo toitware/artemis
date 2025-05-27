@@ -786,8 +786,15 @@ class TestDevicePipe extends TestDevice:
     broker-config-json := broker.server-config.to-service-json --der-serializer=: unreachable
     encoded-broker-config := json.stringify broker-config-json
 
+    // TODO(florian): we would like to use the `toit` command here, but
+    // it currently doesn't kill its subprocesses when it is killed itself.
+    // Since we terminate the test device with a kill we must use toit.run
+    // for now.
+    toit-run := fs.join (fs.dirname toit) "../lib/toit/bin/toit.run"
+    if system.platform == system.PLATFORM-WINDOWS:
+      toit-run += ".exe"
     command_ = [
-      toit, "run", "--",
+      toit-run,
       "test-device.toit",
       "--hardware-id=$hardware-id",
       "--alias-id=$alias-id",
