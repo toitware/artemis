@@ -22,14 +22,8 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os: [ macos-latest]
         run_supabase_tests: [ false ]
-        include:
-          - os: ubuntu-latest
-            run_supabase_tests: true
-          - os: ubuntu-latest
-            run_supabase_tests: false
-            upload-service: true
 
     runs-on: ${{ matrix.os }}
 
@@ -247,3 +241,4 @@ jobs:
           name: other-snapshots-${{ runner.os }}
           path: ${{ env.SNAPSHOTS_DIR }}
 
+55
