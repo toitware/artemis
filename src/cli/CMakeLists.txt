@@ -2,19 +2,9 @@
 
 set(ARTEMIS_SOURCE "${CMAKE_CURRENT_LIST_DIR}/cli.toit")
 set(ARTEMIS_EXE "${CMAKE_BINARY_DIR}/bin/artemis${CMAKE_EXECUTABLE_SUFFIX}")
-set(ARTEMIS_SNAPSHOT "${CMAKE_BINARY_DIR}/snapshots/artemis.snapshot")
 set(ARTEMIS_DEP_EXE "${CMAKE_CURRENT_BINARY_DIR}/artemis_exe.toit.dep")
-set(ARTEMIS_DEP_SNAPSHOT "${CMAKE_CURRENT_BINARY_DIR}/artemis_snapshot.toit.dep")
 set(ARTEMIS_ARCH CACHE STRING "Target architecture for artemis")
 set(ARTEMIS_OS CACHE STRING "Target OS for artemis")
-
-
-ADD_TOIT_SNAPSHOT(
-  ${ARTEMIS_SOURCE}
-  ${ARTEMIS_SNAPSHOT}
-  ${ARTEMIS_DEP_SNAPSHOT}
-  ""
-)
 
 # Test that ARTEMIS_ARCH and ARTEMIS_OS are given if one of them is given.
 if (ARTEMIS_ARCH AND NOT ARTEMIS_OS)
@@ -35,14 +25,22 @@ if (ARTEMIS_OS)
 endif()
 
 add_custom_command(
-  OUTPUT ${ARTEMIS_EXE}
-  COMMAND ${TOITC} ${ARCH_FLAG} ${OS_FLAG} -o ${ARTEMIS_EXE} ${ARTEMIS_SNAPSHOT}
-  DEPENDS ${ARTEMIS_SNAPSHOT}
+  OUTPUT "${ARTEMIS_EXE}"
+  DEPFILE ${ARTEMIS_DEP_EXE}
+  DEPENDS download_packages "${ARTEMIS_SOURCE}"
+  COMMAND ${CMAKE_COMMAND} -E env ${ENV} ASAN_OPTIONS=detect_leaks=false
+    "${TOIT}" compile
+    ${ARCH_FLAG} ${OS_FLAG}
+    --dependency-file "${ARTEMIS_DEP_EXE}"
+    --dependency-format ninja
+    -O2
+    -o "${ARTEMIS_EXE}"
+    "${ARTEMIS_SOURCE}"
 )
 
 add_custom_target(
   build_cli
-  DEPENDS ${ARTEMIS_EXE} ${ARTEMIS_SNAPSHOT}
+  DEPENDS ${ARTEMIS_EXE}
 )
 
 add_dependencies(build build_cli)
