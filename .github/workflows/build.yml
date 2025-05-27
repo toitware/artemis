@@ -49,6 +49,7 @@ jobs:
           echo "TOIT_VERSION=$TOIT_VERSION" >> $GITHUB_ENV
 
       - name: Setup Toit
+        id: setup-toit
         uses: toitlang/action-setup@v1
         with:
           toit-version: ${{ env.TOIT_VERSION }}
@@ -75,8 +76,9 @@ jobs:
           mkdir -p out/linux
           mkdir -p build/snapshots
           toit compile --snapshot -o build/snapshots/artemis.snapshot src/cli/cli.toit
+          SDK=${{ steps.setup-toit.outputs.toit-sdk-path }}
           # TODO: Use 'toit compile', once it can take a snapshot as input.
-          toit.compile -o out/linux/artemis build/snapshots/artemis.snapshot
+          $SDK/lib/toit/bin/toit.compile -o out/linux/artemis build/snapshots/artemis.snapshot
 
           for SYSTEM in windows macos aarch64; do
             if [[ $SYSTEM == "windows" ]]; then
@@ -95,7 +97,7 @@ jobs:
               ARCH="amd64"
             fi
             mkdir -p out/$SYSTEM
-            toit.compile --arch $ARCH --os $OS \
+            $SDK/lib/toit/bin/toit.compile --arch $ARCH --os $OS \
               -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot
           done
 
