@@ -105,6 +105,16 @@ add_test(NAME "ensure-version"
 )
 set_tests_properties("ensure-version" PROPERTIES FIXTURES_SETUP "ensure-version")
 
+# Compute the absolute path to the toit executable.
+if(EXISTS ${TOIT})
+  # It's a relative or absolute path.
+  get_filename_component(TOIT_ABSOLUTE "${TOIT}" REALPATH)
+else()
+  # It's just the name of the executable, so search for it in the PATH.
+  find_program(TOIT_ABSOLUTE ${TOIT})
+  get_filename_component(TOIT_ABSOLUTE "${TOIT_ABSOLUTE}" ABSOLUTE)
+endif()
+
 foreach(file ${TESTS})
   if ("${file}" MATCHES "supabase" AND NOT "${WITH_LOCAL_SUPABASE}")
     continue()
@@ -244,7 +254,10 @@ foreach(file ${TESTS})
       COMMAND cmake -E env TOIT_PACKAGE_CACHE_PATHS=${CMAKE_CURRENT_SOURCE_DIR}/.packages
         "${TOIT}" run "${file}" --
             ${flag}
-            "--toit=${TOIT}"
+            # At the moment we need to pass in the absolute path to the toit executable.
+            # This is, because we need to find the toit.run executable. If utils.toit
+            # doesn't need that anymore we can just pass in `${TOIT}`.
+            "--toit=${TOIT_ABSOLUTE}"
             "--sdk-version=${DEV_SDK_VERSION}"
             "--sdk-path=${DEV_SDK_PATH}"
             "--envelope-esp32-path=${DEV_ENVELOPE_ESP32_PATH}"
