@@ -811,8 +811,15 @@ class TestDevicePipe extends TestDevice:
       --serial-port/string
       --toit/string
       --tester/Tester:
+    // TODO(florian): we would like to use the `toit` command here, but
+    // it currently doesn't kill its subprocesses when it is killed itself.
+    // Since we terminate the test device with a kill we must use toit.run
+    // for now.
+    toit-run := fs.join (fs.dirname toit) "../lib/toit/bin/toit.run"
+    if system.platform == system.PLATFORM-WINDOWS:
+      toit-run += ".exe"
     command_ = [
-      toit, "run", "--",
+      toit-run,
       "test-device-serial.toit",
       "--port", serial-port
     ]
