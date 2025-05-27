@@ -70,7 +70,7 @@ function(ADD_TOIT_SNAPSHOT SOURCE TARGET DEP_FILE ENV)
       "${TOIT}" compile
       --dependency-file "${DEP_FILE}"
       --dependency-format ninja
-      -O2
+      -O1
       --snapshot
       -o "${TARGET}"
       "${SOURCE}"
@@ -102,7 +102,7 @@ function(ADD_TOIT_EXE SOURCE TARGET DEP_FILE ENV)
       "${TOIT}" compile
       --dependency-file "${DEP_FILE}"
       --dependency-format ninja ${VESSELS_FLAG}
-      -O2
+      -O1
       -o "${TARGET}"
       "${SOURCE}"
   )
