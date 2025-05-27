@@ -72,6 +72,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p out/linux
+          mkdir -p build/snapshots
           toit compile --snapshot -o build/snapshots/artemis.snapshot src/cli/cli.toit
           # TODO: Use 'toit compile', once it can take a snapshot as input.
           toit.compile -o out/linux/artemis build/snapshots/artemis.snapshot
