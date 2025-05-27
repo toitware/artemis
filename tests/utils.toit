@@ -160,7 +160,7 @@ class Tester:
   cli/cli-pkg.Cli
   artemis/TestArtemisServer
   broker/TestBroker
-  toit-run-path_/string
+  toit-path_/string
   qemu-path_/string?
   test-devices_/List ::= []
   /** A map of strings to be replaced in the output of $run. */
@@ -170,13 +170,13 @@ class Tester:
   tmp-dir/string
 
   constructor .artemis .broker
-      --toit-run-path/string
+      --toit-path/string
       --qemu-path/string?
       --.gold-name
       --.sdk-version
       --.tmp-dir
       --.cli:
-    toit-run-path_ = toit-run-path
+    toit-path_ = toit-path
     qemu-path_ = qemu-path
 
   close:
@@ -313,7 +313,7 @@ class Tester:
         --alias-id=alias-id
         --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
-        --toit-run=toit-run-path_
+        --toit=toit-path_
         --encoded-firmware=encoded-firmware
         --tester=this
     test-devices_.add result
@@ -358,7 +358,7 @@ class Tester:
         --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
         --serial-port=serial-port
-        --toit-run=toit-run-path_
+        --toit=toit-path_
         --tester=this
     result.start
     test-devices_.add result
@@ -780,14 +780,14 @@ class TestDevicePipe extends TestDevice:
       --alias-id/Uuid
       --organization-id/Uuid
       --encoded-firmware/string
-      --toit-run/string
+      --toit/string
       --tester/Tester:
 
     broker-config-json := broker.server-config.to-service-json --der-serializer=: unreachable
     encoded-broker-config := json.stringify broker-config-json
 
     command_ = [
-      toit-run,
+      toit, "run", "--",
       "test-device.toit",
       "--hardware-id=$hardware-id",
       "--alias-id=$alias-id",
@@ -809,10 +809,10 @@ class TestDevicePipe extends TestDevice:
       --alias-id/Uuid
       --organization-id/Uuid
       --serial-port/string
-      --toit-run/string
+      --toit/string
       --tester/Tester:
     command_ = [
-      toit-run,
+      toit, "run", "--",
       "test-device-serial.toit",
       "--port", serial-port
     ]
@@ -985,7 +985,7 @@ Calls the given $block with a $Tester instance and a $Device or null.
 If the type is supabase, uses the running supabase instances. Otherwise,
   creates fresh instances of the brokers.
 
-If the $args parameter contains a '--toit-run=...' argument, it is
+If the $args parameter contains a '--toit=...' argument, it is
   used to launch devices.
 */
 with-tester
@@ -1028,17 +1028,17 @@ with-tester
     --gold-name/string?
     [block]:
 
-  // Use 'toit.run' (or 'toit.run.exe' on Windows), unless there is an
-  // argument `--toit-run=...`.
+  // Use 'toit' (or 'toit.exe' on Windows), unless there is an
+  // argument `--toit=...`.
   is-windows := system.platform == system.PLATFORM-WINDOWS
-  toit-run-path := is-windows ? "toit.run.exe" : "toit.run"
+  toit-path := is-windows ? "toit.exe" : "toit"
   qemu-path := is-windows ? "qemu-system-xtensa.exe" : "qemu-system-xtensa"
-  toit-run-prefix := "--toit-run="
+  toit-prefix := "--toit="
   qemu-prefix := "--qemu="
   for i := 0; i < args.size; i++:
     arg := args[i]
-    if arg.starts-with toit-run-prefix:
-      toit-run-path = arg[toit-run-prefix.size..]
+    if arg.starts-with toit-prefix:
+      toit-path = arg[toit-prefix.size..]
     if arg.starts-with qemu-prefix:
       qemu-path = arg[qemu-prefix.size..]
 
@@ -1120,7 +1120,7 @@ with-tester
       gold-name = gold-name.trim --right "_slow"
 
     tester := Tester artemis-server broker
-        --toit-run-path=toit-run-path
+        --toit-path=toit-path
         --qemu-path=qemu-path
         --gold-name=gold-name
         --sdk-version=sdk-version

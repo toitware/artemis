@@ -99,7 +99,7 @@ function(extract_test_flags file result)
 endfunction()
 
 add_test(NAME "ensure-version"
-  COMMAND "${TOITRUN}" "ensure-version.toit" "${CMAKE_SOURCE_DIR}"
+  COMMAND "${TOIT}" run -- "ensure-version.toit" "${CMAKE_SOURCE_DIR}"
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
   CONFIGURATIONS "default" "supabase" "serial"
 )
@@ -242,9 +242,9 @@ foreach(file ${TESTS})
     add_test(
       NAME "${test_name}"
       COMMAND cmake -E env TOIT_PACKAGE_CACHE_PATHS=${CMAKE_CURRENT_SOURCE_DIR}/.packages
-        "${TOITRUN}" "${file}"
+        "${TOIT}" run "${file}" --
             ${flag}
-            "--toit-run=${TOITRUN}"
+            "--toit=${TOIT}"
             "--sdk-version=${DEV_SDK_VERSION}"
             "--sdk-path=${DEV_SDK_PATH}"
             "--envelope-esp32-path=${DEV_ENVELOPE_ESP32_PATH}"
