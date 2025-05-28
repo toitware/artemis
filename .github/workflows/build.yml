@@ -97,6 +97,7 @@ jobs:
               ARCH="amd64"
             fi
             mkdir -p out/$SYSTEM
+            # TODO: Use 'toit compile', once it can take a snapshot as input.
             $SDK/lib/toit/bin/toit.compile --arch $ARCH --os $OS \
               -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot
           done
