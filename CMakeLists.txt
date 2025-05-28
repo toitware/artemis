@@ -4,9 +4,8 @@ cmake_minimum_required(VERSION 3.23)
 
 project(artemis)
 
-set(TOITRUN "toit.run${CMAKE_EXECUTABLE_SUFFIX}" CACHE FILEPATH "The executable used to run the tests")
-set(TOITC "toit.compile${CMAKE_EXECUTABLE_SUFFIX}" CACHE FILEPATH "The executable used to compile executables")
-set(TOITPKG "toit.pkg${CMAKE_EXECUTABLE_SUFFIX}" CACHE FILEPATH "The executable used to install the packages")
+set(TOIT "toit${CMAKE_EXECUTABLE_SUFFIX}" CACHE FILEPATH "The path to the toit executable")
+set(TOIT_PKG_AUTO_SYNC ON CACHE BOOL "Whether toit pkg sync should be called automatically")
 
 set(DEFAULT_SDK_VERSION CACHE STRING "The default SDK version to use")
 

@@ -165,9 +165,9 @@ create-org-commands -> List:
         Example "Add user with ID 12345678-1234-1234-1234-123456789abc to the default organization:"
             --arguments="12345678-1234-1234-1234-123456789abc",
         Example """
-            Add user with ID 11111111-2222-3333-444444444444 as admin to organization
+            Add user with ID 11111111-2222-3333-4444-555555555555 as admin to organization
             12345678-1234-1234-1234-123456789abc:"""
-            --arguments="--organization-id=12345678-1234-1234-1234-123456789abc --role=admin 12345678-1234-1234-1234-123456789abc",
+            --arguments="--organization-id=12345678-1234-1234-1234-123456789abc --role=admin 11111111-2222-3333-4444-555555555555",
       ]
       --run=:: member-add it
   member-cmd.add member-add-cmd
@@ -187,9 +187,9 @@ create-org-commands -> List:
         Example "Remove user with ID 12345678-1234-1234-1234-123456789abc from the default organization:"
             --arguments="12345678-1234-1234-1234-123456789abc",
         Example """
-            Remove user with ID 11111111-2222-3333-444444444444 from organization
+            Remove user with ID 11111111-2222-3333-4444-555555555555 from organization
             12345678-1234-1234-1234-123456789abc:"""
-            --arguments="--organization-id=12345678-1234-1234-1234-123456789abc 11111111-2222-3333-444444444444",
+            --arguments="--organization-id=12345678-1234-1234-1234-123456789abc 11111111-2222-3333-4444-555555555555",
       ]
       --run=:: member-remove it
   member-cmd.add member-remove-cmd
@@ -210,9 +210,9 @@ create-org-commands -> List:
             the default organization:"""
             --arguments="12345678-1234-1234-1234-123456789abc admin",
         Example """
-            Set the role of user with ID 11111111-2222-3333-444444444444 to member (non-admin) in
+            Set the role of user with ID 11111111-2222-3333-4444-555555555555 to member (non-admin) in
             organization 12345678-1234-1234-1234-123456789abc:"""
-            --arguments="--organization-id=12345678-1234-1234-1234-123456789abc 11111111-2222-3333-444444444444 member",
+            --arguments="--organization-id=12345678-1234-1234-1234-123456789abc 11111111-2222-3333-4444-555555555555 member",
       ]
       --run=:: member-set-role it
   member-cmd.add member-set-role
