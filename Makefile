@@ -13,7 +13,7 @@ endif
 
 TOIT ?= toit$(EXE_SUFFIX)
 
-LOCAL_DEV_SDK ?= v2.0.0-alpha.184
+LOCAL_DEV_SDK ?= v2.0.0-alpha.186
 SETUP_LOCAL_DEV_SERVICE ?= v0.0.1
 
 SUPABASE_DIRS := supabase_artemis public/supabase_broker
