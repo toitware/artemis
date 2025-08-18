@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
           # We have a test that wants to tag a specific commit.
@@ -242,7 +242,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
           # We have a test that wants to tag a specific commit.
@@ -325,7 +325,7 @@ jobs:
         run: |
           rm -rf ${{ github.workspace }}/*
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Add local bin to PATH
         run: |
