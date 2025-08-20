@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Toit
         shell: bash
@@ -175,7 +175,7 @@ jobs:
     needs: [build]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/download-artifact@v4
         with:
@@ -251,7 +251,7 @@ jobs:
     needs: [build]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Git version
         id: version
@@ -330,7 +330,7 @@ jobs:
     needs: [build]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/download-artifact@v4
         with:
@@ -354,17 +354,17 @@ jobs:
   update_public:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Checkout release-repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: toitware/artemis-releases
           path: release-repo
           token: ${{ secrets.LEON_ARTEMIS_RELEASE_PAT }}
 
       - name: Checkout docs-repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: toitware/web-docs
           path: docs-repo
@@ -430,7 +430,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [package-windows, package-linux, package-macos, update_public]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
