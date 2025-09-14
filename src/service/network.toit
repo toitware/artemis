@@ -5,7 +5,9 @@ import net
 import net.cellular
 import net.ethernet
 import net.wifi
+import semver
 
+import system
 import system.services show ServiceProvider
 import system.api.network show NetworkService NetworkServiceClient
 import system.base.network show ProxyingNetworkServiceProvider
@@ -203,6 +205,28 @@ class ConnectionCellular extends Connection:
     // if things have changed since last attempt.
     cellular.reset
     config := description_.get "config" --if-absent=: {:}
+    if config.contains-key "log.level":
+      config-level := config["log.level"]
+      level := config-level
+      if level is string:
+        // Replace with int value.
+        // Set the values to one too low. They will be adjusted below.
+        if level == "TRACE": level = -1
+        else if level == "DEBUG": level = 0
+        else if level == "INFO": level = 1
+        else if level == "WARNING": level = 2
+        else if level == "ERROR": level = 3
+        else if level == "FATAL": level = 4
+        else: throw "INVALID_CELLULAR_LOG_LEVEL"
+      // Log levels have changed with SDK alpha.189. Adjust accordingly.
+      needs-adjustment := (semver.compare system.vm-sdk-version "2.0.0-alpha.189") >= 0
+      if needs-adjustment:
+        level++
+      else if level < 0:
+        level = 0
+      if level != config-level:
+        config = config.copy
+        config["log.level"] = level
     return cellular.open --name=name config
 
 class ConnectionEthernet extends Connection:
