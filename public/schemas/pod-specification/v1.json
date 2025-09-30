@@ -218,10 +218,25 @@
           "$ref": "#/$defs/Pin"
         },
         "cellular.log.level": {
-          "description": "Log level for the cellular module. Debug=0, Info=1, Warning=2, Error=3, Fatal=4.",
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 4
+          "description": "Log level for the cellular module. (Int values are deprecated).",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4
+            },
+            {
+              "type": "string",
+              "enum": [
+                "TRACE",
+                "DEBUG",
+                "INFO",
+                "WARNING",
+                "ERROR",
+                "FATAL"
+              ]
+            }
+          ]
         }
       }
     },
