@@ -253,6 +253,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Install dependencies
+        shell: powershell
+        run: |
+          choco install -y innosetup
+
       - name: Git version
         id: version
         uses: toitlang/action-git-version@v1.1.0
