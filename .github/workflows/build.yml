@@ -253,6 +253,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Install dependencies
+        shell: powershell
+        run: |
+          winget install --accept-package-agreements --accept-source-agreements -e --id=JRSoftware.InnoSetup
+
       - name: Git version
         id: version
         uses: toitlang/action-git-version@v1.1.0
