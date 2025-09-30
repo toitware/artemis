@@ -1,0 +1,17 @@
+# GitHub removes runners if they aren't used for an extended period of time.
+# This workflow runs daily to keep the self-hosted runners alive.
+# It can also be triggered manually if needed.
+name: Periodic runner
+
+on:
+  schedule:
+    # Run every day at 4:00 AM UTC.
+    - cron: '0 4 * * *'
+  workflow_dispatch: # Allow manual trigger.
+
+jobs:
+  keep-alive:
+    runs-on: serial-artemis
+
+    steps:
+      - run: echo "OK"
