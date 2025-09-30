@@ -210,19 +210,17 @@ class ConnectionCellular extends Connection:
       level := config-level
       if level is string:
         // Replace with int value.
-        // Set the values to one too low. They will be adjusted below.
-        if level == "TRACE": level = -1
-        else if level == "DEBUG": level = 0
-        else if level == "INFO": level = 1
-        else if level == "WARNING": level = 2
-        else if level == "ERROR": level = 3
-        else if level == "FATAL": level = 4
-        else: throw "INVALID_CELLULAR_LOG_LEVEL"
+        LOG_LEVELS ::= ["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "FATAL"]
+        level = LOG_LEVELS.index-of level
+        if level < 0: throw "INVALID_CELLULAR_LOG_LEVEL"
+        // Decrement to handle the log-level change below.
+        level--
       // Log levels have changed with SDK alpha.189. Adjust accordingly.
       needs-adjustment := (semver.compare system.vm-sdk-version "2.0.0-alpha.189") >= 0
       if needs-adjustment:
         level++
       else if level < 0:
+        // There was no trace level before 2.0.0-alpha.189.
         level = 0
       if level != config-level:
         config = config.copy
