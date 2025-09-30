@@ -256,7 +256,7 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: |
-          winget install --accept-package-agreements --accept-source-agreements -e --id=JRSoftware.InnoSetup
+          choco install -y innosetup
 
       - name: Git version
         id: version
