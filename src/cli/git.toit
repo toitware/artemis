@@ -181,35 +181,31 @@ class Git:
   run_ args/List --description -> string:
     output := io.Buffer
     stdout := io.Buffer
-    fork-data := pipe.fork
-        --environment=git-env_
-        true                // use_path
-        pipe.PIPE-INHERITED // stdin
-        pipe.PIPE-CREATED   // stdout
-        pipe.PIPE-CREATED   // stderr
+    process := pipe.fork
+        --create-stdout
+        --create-stderr
         "git"
         ["git"] + args
 
-    stdout-pipe := fork-data[1]
-    stderr-pipe := fork-data[2]
-    pid := fork-data[3]
+    stdout-reader := process.stdout.in
+    stderr-reader := process.stderr.in
 
     semaphore := monitor.Semaphore
     stdout-task := task::
       catch --trace:
-        while chunk := stdout-pipe.read:
+        while chunk := stdout-reader.read:
           output.write chunk
           stdout.write chunk
       semaphore.up
 
     stderr-task := task::
       catch --trace:
-        while chunk := stderr-pipe.read:
+        while chunk := stderr-reader.read:
           output.write chunk
       semaphore.up
 
     2.repeat: semaphore.down
-    exit-value := pipe.wait-for pid
+    exit-value := process.wait
 
     if (pipe.exit-code exit-value) != 0:
       cli_.ui.emit --error "$description failed"
