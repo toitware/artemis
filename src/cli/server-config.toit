@@ -55,17 +55,6 @@ get-server-from-config --cli/Cli --name/string -> ServerConfig?:
   result := ServerConfig.from-json name json-map
       --der-deserializer=: base64.decode it
 
-  if result is ServerConfigSupabase:
-    // If the server config is for supabase, and it uses the original
-    // server URI, update it to use the new one.
-    supabase-config := result as ServerConfigSupabase
-    if supabase-config.host == ORIGINAL-SUPABASE-SERVER-URI:
-      json-map["host"] = DEFAULT-ARTEMIS-SERVER-CONFIG.host
-      cli.ui.emit --info
-          "Using updated Artemis server URI: $DEFAULT-ARTEMIS-SERVER-CONFIG.host"
-      return ServerConfig.from-json name json-map
-          --der-deserializer=: base64.decode it
-
   return result
 
 get-servers-from-config --cli/Cli -> List:

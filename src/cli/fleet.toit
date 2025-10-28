@@ -168,6 +168,20 @@ class FleetFile:
         default-broker-config.name: default-broker-config,
       }
 
+    servers.map --in-place: | _ server-config/ServerConfig |
+      if server-config is not ServerConfigSupabase:
+        server-config
+      else:
+        // If the server config is for supabase, and it uses the original
+        // server URI, update it to use the new one.
+        supabase-config := server-config as ServerConfigSupabase
+        if supabase-config.host == ORIGINAL-SUPABASE-SERVER-URI:
+          cli.ui.emit --info
+              "Using updated Artemis server URI: $DEFAULT-ARTEMIS-SERVER-CONFIG.host"
+          supabase-config.with --host=DEFAULT-ARTEMIS-SERVER-CONFIG.host
+        else:
+          supabase-config
+
     recovery-urls := fleet-contents.get "recovery-urls" --if-absent=: []
 
     return FleetFile
