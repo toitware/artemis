@@ -9,9 +9,11 @@ import encoding.base64
 
 export ServerConfig ServerConfigSupabase ServerConfigHttp
 
+ORIGINAL-SUPABASE-SERVER-URI ::= "voisfafsfolxhqpkudzd.supabase.co"
+
 DEFAULT-ARTEMIS-SERVER-CONFIG ::= ServerConfigSupabase
     "Artemis"
-    --host="voisfafsfolxhqpkudzd.supabase.co"
+    --host="artemis-api.toit.io"
     --anon="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvaXNmYWZzZm9seGhxcGt1ZHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQyNDEsImV4cCI6MTk4ODk1MDI0MX0.dmfxNl5WssxnZ8jpvGJeryg4Fd47fOcrlZ8iGrHj2e4"
     --root-certificate-name="Baltimore CyberTrust Root"
 
@@ -50,8 +52,10 @@ get-server-from-config --cli/Cli --name/string -> ServerConfig?:
 
   json-map := servers[name]
 
-  return ServerConfig.from-json name json-map
+  result := ServerConfig.from-json name json-map
       --der-deserializer=: base64.decode it
+
+  return result
 
 get-servers-from-config --cli/Cli -> List:
   config := cli.config

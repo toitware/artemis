@@ -212,6 +212,15 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   compute-cache-key_ -> string:
     return host
 
+  with --host/string -> ServerConfigSupabase:
+    return ServerConfigSupabase
+        name
+        --host=host
+        --anon=anon
+        --root-certificate-name=root-certificate-name
+        --root-certificate-der=root-certificate-der
+        --poll-interval=poll-interval
+
 /**
 A broker configuration for an HTTP-based broker.
 
