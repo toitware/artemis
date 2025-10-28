@@ -765,7 +765,7 @@ class TestDeviceBackdoor:
 
 class TestDevicePipe extends TestDevice:
   output_/ByteArray := #[]
-  child-process_/any := null
+  child-process_/pipe.Process? := null
   signal_ := monitor.Signal
   stdout-task_/Task? := null
   stderr-task_/Task? := null
@@ -897,22 +897,18 @@ class TestDevicePipe extends TestDevice:
       stderr-task_ = null
 
   fork_ --env/Map?=null:
-    fork-data := pipe.fork
+    child-process_ = pipe.fork
         --environment=env
-        true                // use_path.
-        // We create a stdin pipe, so that qemu can't interfere with
-        // our terminal.
-        pipe.PIPE-CREATED   // stdin.
-        pipe.PIPE-CREATED   // stdout.
-        pipe.PIPE-CREATED   // stderr.
+        --create-stdin
+        --create-stdout
+        --create-stderr
         command_.first
         command_
-    stdin := fork-data[0]
-    stdout := fork-data[1]
-    stderr := fork-data[2]
-    child-process_ = fork-data[3]
 
-    stdin.close
+    stdout := child-process_.stdout
+    stderr := child-process_.stderr
+
+    child-process_.stdin.close
 
     // We are listening to both stdout and stderr.
     // We expect only one to be really used. Otherwise, looking for
@@ -947,8 +943,8 @@ class TestDevicePipe extends TestDevice:
     [SIGTERM, SIGKILL].do: | signal |
       catch:
         with-timeout --ms=250:
-          pipe.kill_ child-process_ signal
-          pipe.wait-for child-process_
+          pipe.kill_ child-process_.pid signal
+          child-process_.wait
           child-process_ = null
         return
 
