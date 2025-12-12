@@ -31,6 +31,7 @@ env:
       v2.0.0-alpha.182
       v2.0.0-alpha.184
       v2.0.0-alpha.186
+      v2.0.0-alpha.189
 
 jobs:
   build:
