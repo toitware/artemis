@@ -177,7 +177,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: artemis-release-binaries
           path: in
@@ -262,7 +262,7 @@ jobs:
         id: version
         uses: toitlang/action-git-version@v1.1.0
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: artemis-release-binaries
           path: in
@@ -337,7 +337,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: artemis-release-binaries
           path: in
@@ -438,19 +438,19 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download Linux artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: artemis-packaged-linux
           path: in-linux
 
       - name: Download macOS artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: artemis-packaged-macos
           path: in-mac
 
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: artemis-packaged-windows
           path: in-windows
