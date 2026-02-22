@@ -36,9 +36,7 @@ env:
 
 jobs:
   build:
-    # TODO(florian): on 190 the cross-compilation to macos is broken.
-    # We therefore use macos-latest, instead of linux-latest.
-    runs-on: macos-latest
+    runs-on: linux-latest
 
     steps:
       - uses: actions/checkout@v6
@@ -86,11 +84,7 @@ jobs:
           # TODO: Use 'toit compile', once it can take a snapshot as input.
           $SDK/lib/toit/bin/toit.compile -o out/linux/artemis build/snapshots/artemis.snapshot
 
-          # TODO(florian): we don't use the cross-compilation for compiling on macos because of
-          # a bug in the SDK 190.
-          # for SYSTEM in windows macos aarch64; do
-
-          for SYSTEM in windows aarch64; do
+          for SYSTEM in windows macos aarch64; do
             if [[ $SYSTEM == "windows" ]]; then
               BIN_EXTENSION=".exe"
             else
@@ -100,25 +94,17 @@ jobs:
               OS="linux"
               ARCH="arm64"
             elif [[ $SYSTEM == "macos" ]]; then
-              # TODO(florian): we don't use the cross-compilation for compiling on macos because of
-              # a bug in the SDK 190.
-              # OS=""
-              # ARCH=""
+              OS="darwin"
+              ARCH="aarch64"
             else
               OS=$SYSTEM
               ARCH="amd64"
             fi
             mkdir -p out/$SYSTEM
 
-            # If there is no OS/ARCH, we are compiling on the native platform.
-            if [[ -z "$OS" || -z "$ARCH" ]]; then
-              # TODO: Use 'toit compile', once it can take a snapshot as input.
-              $SDK/lib/toit/bin/toit.compile -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot
-            else
-              # TODO: Use 'toit compile', once it can take a snapshot as input.
-              $SDK/lib/toit/bin/toit.compile --arch $ARCH --os $OS \
-                -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot
-            fi
+            # TODO: Use 'toit compile', once it can take a snapshot as input.
+            $SDK/lib/toit/bin/toit.compile --arch $ARCH --os $OS \
+              -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot
           done
 
       - name: Rename snapshot
