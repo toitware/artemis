@@ -31,6 +31,8 @@ env:
       v2.0.0-alpha.182
       v2.0.0-alpha.184
       v2.0.0-alpha.186
+      v2.0.0-alpha.189
+      v2.0.0-alpha.190
 
 jobs:
   build:
@@ -93,12 +95,13 @@ jobs:
               ARCH="arm64"
             elif [[ $SYSTEM == "macos" ]]; then
               OS="darwin"
-              ARCH="amd64"
+              ARCH="aarch64"
             else
               OS=$SYSTEM
               ARCH="amd64"
             fi
             mkdir -p out/$SYSTEM
+
             # TODO: Use 'toit compile', once it can take a snapshot as input.
             $SDK/lib/toit/bin/toit.compile --arch $ARCH --os $OS \
               -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot

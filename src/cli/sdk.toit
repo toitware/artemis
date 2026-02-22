@@ -459,7 +459,11 @@ sdk-url version/string -> string:
     else:
       throw "Unsupported architecture: $platform-$arch"
 
-    selector = "$(platform-string)-$arch-string"
+    if platform-string == "macos" and (semver.compare version "v2.0.0-alpha.190") >= 0:
+      // Starting with 190, the macOS executable is a fat binary.
+      selector = platform-string
+    else:
+      selector = "$(platform-string)-$arch-string"
 
   return "https://github.com/toitlang/toit/releases/download/$version/toit-$(selector).tar.gz"
 
