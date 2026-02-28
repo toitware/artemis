@@ -15,17 +15,9 @@ get-supabase-config --sub-directory/string -> ServerConfigSupabase:
   anon-key/string? := null
   api-url/string? := null
 
-  out := get-status_ sub-directory
-  lines := out.split "\n"
-  lines.map --in-place: it.trim
-  lines.do:
-    if it.starts-with "anon key:":
-      anon-key = it[(it.index-of ":") + 1..].trim
-    else if it.starts-with "API URL:":
-      api-url = it[(it.index-of ":") + 1..].trim
-
-  if not anon-key or not api-url:
-    throw "Could not get supabase info"
+  status := get-status_ sub-directory
+  api-url = status["API_URL"]
+  anon-key = status["ANON_KEY"]
 
   host := api-url.trim --left "http://"
   print-on-stderr_ "HOST: $host ANON_KEY: $anon-key"
@@ -39,17 +31,13 @@ get-supabase-config --sub-directory/string -> ServerConfigSupabase:
   return ServerConfigSupabase name --host=host --anon=anon-key
 
 get-supabase-service-key --sub-directory/string -> string:
-  out := get-status_ sub-directory
-  lines := out.split "\n"
-  lines.map --in-place: it.trim
-  lines.do:
-    if it.starts-with "service_role key:":
-      return it[(it.index-of ":") + 1..].trim
-  unreachable
+  status := get-status_ sub-directory
+  return status["SERVICE_ROLE_KEY"]
 
-get-status_ sub-directory/string -> string:
+get-status_ sub-directory/string -> Map:
   supabase-exe := os.env.get "SUPABASE_EXE" or "supabase"
-  return pipe.backticks supabase-exe "--workdir" "$sub-directory" "status"
+  out := pipe.backticks supabase-exe "--output=json" "--workdir" "$sub-directory" "status"
+  return json.parse out
 
 // Prints the arguments needed for adding the local supabase service to the configuration.
 main args:

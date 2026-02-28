@@ -114,8 +114,13 @@ main args:
       expect-equals "foo".to-byte-array
           client2.storage.download --path="$path-org1/foo.txt"
 
-      expect-throws --contains="Not found":
-          client3.storage.download --path="$path-org1/foo.txt"
+      if bucket == ASSETS-BUCKET:
+        // Assets are public.
+        expect-equals "foo".to-byte-array
+            client3.storage.download --path="$path-org1/foo.txt"
+      else:
+        expect-throws --contains="Not found":
+            client3.storage.download --path="$path-org1/foo.txt"
 
       // Client3 has access to its own org bucket/path.
       path-org3 := "$bucket/$organization-id3"
@@ -125,8 +130,13 @@ main args:
       expect-equals "bar".to-byte-array
           client3.storage.download --path="$path-org3/bar.txt"
 
-      expect-throws --contains="Not found":
-          client1.storage.download --path="$path-org3/bar.txt"
+      if bucket == ASSETS-BUCKET:
+        // Assets are public.
+        expect-equals "bar".to-byte-array
+            client1.storage.download --path="$path-org3/bar.txt"
+      else:
+        expect-throws --contains="Not found":
+            client1.storage.download --path="$path-org3/bar.txt"
 
     // Remember: device_id3 is in the same org as client1 and client2 (organization_id).
     // client3 is in a different org.
