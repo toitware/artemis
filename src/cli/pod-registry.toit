@@ -34,23 +34,25 @@ class PodReference:
 
   static parse str/string --allow-name-only/bool=false --cli/Cli -> PodReference:
     return parse str --allow-name-only=allow-name-only
-        --on-error=(: cli.ui.abort it)
+        --if-error=(: cli.ui.abort it)
 
-  static parse str/string --allow-name-only/bool=false [--on-error] -> PodReference:
+  static parse str/string --allow-name-only/bool=false [--if-error] -> PodReference:
     name/string? := null
     revision/int? := null
     tag/string? := null
     hash-index := str.index-of "#"
     at-index := str.index-of "@"
     if hash-index >= 0 and at-index >= 0:
-      on-error.call "Cannot specify both revision and tag: '$str'."
+      if-error.call "Cannot specify both revision and tag: '$str'."
+      unreachable
 
     if hash-index >= 0:
       if revision:
-        on-error.call "Cannot specify the revision as option and in the name."
+        if-error.call "Cannot specify the revision as option and in the name."
+        unreachable
       revision-string := str[hash-index + 1..]
       revision = int.parse revision-string
-          --on-error=(: on-error.call "Invalid revision: '$revision-string'.")
+          --if-error=(: if-error.call "Invalid revision: '$revision-string'.")
       name = str[..hash-index]
       return PodReference --name=name --revision=revision
 
@@ -72,11 +74,13 @@ class PodReference:
         if allow-name-only:
           name = str
           return PodReference --name=name
-        on-error.call "Invalid pod uuid: '$str'."
+        if-error.call "Invalid pod uuid: '$str'."
+        unreachable
       return PodReference --id=id
 
     if not allow-name-only:
-      on-error.call "Invalid pod reference: '$str'."
+      if-error.call "Invalid pod reference: '$str'."
+      unreachable
 
     return PodReference --name=str
 
