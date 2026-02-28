@@ -1,4 +1,5 @@
 
+
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -10,31 +11,72 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
-CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "extensions";
+
+CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "pg_catalog";
+
+
+
+
+
 
 CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
 
-CREATE EXTENSION IF NOT EXISTS "pgsodium" WITH SCHEMA "pgsodium";
 
-CREATE SCHEMA IF NOT EXISTS "supabase_migrations";
 
-ALTER SCHEMA "supabase_migrations" OWNER TO "postgres";
+
+
+
+COMMENT ON SCHEMA "public" IS 'standard public schema';
+
+
 
 CREATE SCHEMA IF NOT EXISTS "toit_artemis";
 
+
 ALTER SCHEMA "toit_artemis" OWNER TO "postgres";
+
 
 CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA "graphql";
 
+
+
+
+
+
 CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
+
+
+
+
+
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
 
+
+
+
+
+
 CREATE EXTENSION IF NOT EXISTS "pgjwt" WITH SCHEMA "extensions";
+
+
+
+
+
 
 CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
 
+
+
+
+
+
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
+
+
+
+
+
 
 CREATE TYPE "toit_artemis"."pod" AS (
 	"id" "uuid",
@@ -44,7 +86,9 @@ CREATE TYPE "toit_artemis"."pod" AS (
 	"tags" "text"[]
 );
 
+
 ALTER TYPE "toit_artemis"."pod" OWNER TO "postgres";
+
 
 CREATE TYPE "toit_artemis"."poddescription" AS (
 	"id" bigint,
@@ -52,7 +96,9 @@ CREATE TYPE "toit_artemis"."poddescription" AS (
 	"description" "text"
 );
 
+
 ALTER TYPE "toit_artemis"."poddescription" OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."delete_old_events"() RETURNS "void"
     LANGUAGE "plpgsql"
@@ -63,7 +109,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."delete_old_events"() OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."delete_pod_descriptions"("_fleet_id" "uuid", "_description_ids" bigint[]) RETURNS "void"
     LANGUAGE "plpgsql"
@@ -77,7 +125,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."delete_pod_descriptions"("_fleet_id" "uuid", "_description_ids" bigint[]) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."delete_pod_tag"("_pod_description_id" bigint, "_tag" "text") RETURNS "void"
     LANGUAGE "plpgsql"
@@ -89,7 +139,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."delete_pod_tag"("_pod_description_id" bigint, "_tag" "text") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) RETURNS "void"
     LANGUAGE "plpgsql"
@@ -103,7 +155,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) RETURNS TABLE("device_id" "uuid", "goal" "jsonb", "state" "jsonb")
     LANGUAGE "plpgsql"
@@ -125,7 +179,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone DEFAULT '1970-01-01 00:00:00+00'::timestamp with time zone) RETURNS TABLE("device_id" "uuid", "type" "text", "ts" timestamp with time zone, "data" "jsonb")
     LANGUAGE "plpgsql"
@@ -188,7 +244,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_goal"("_device_id" "uuid") RETURNS "json"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -199,7 +257,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_goal"("_device_id" "uuid") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_goal_no_event"("_device_id" "uuid") RETURNS "json"
     LANGUAGE "plpgsql"
@@ -209,7 +269,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_goal_no_event"("_device_id" "uuid") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_pod_descriptions"("_fleet_id" "uuid") RETURNS SETOF "toit_artemis"."poddescription"
     LANGUAGE "plpgsql"
@@ -230,7 +292,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_pod_descriptions"("_fleet_id" "uuid") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_pod_descriptions_by_ids"("_description_ids" bigint[]) RETURNS SETOF "toit_artemis"."poddescription"
     LANGUAGE "plpgsql"
@@ -243,7 +307,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_pod_descriptions_by_ids"("_description_ids" bigint[]) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_pod_descriptions_by_names"("_fleet_id" "uuid", "_organization_id" "uuid", "_names" "text"[], "_create_if_absent" boolean) RETURNS SETOF "toit_artemis"."poddescription"
     LANGUAGE "plpgsql"
@@ -292,7 +358,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_pod_descriptions_by_names"("_fleet_id" "uuid", "_organization_id" "uuid", "_names" "text"[], "_create_if_absent" boolean) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_pods"("_pod_description_id" bigint, "_limit" bigint, "_offset" bigint) RETURNS SETOF "toit_artemis"."pod"
     LANGUAGE "plpgsql"
@@ -321,7 +389,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_pods"("_pod_description_id" bigint, "_limit" bigint, "_offset" bigint) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_pods_by_ids"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) RETURNS SETOF "toit_artemis"."pod"
     LANGUAGE "plpgsql"
@@ -350,7 +420,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_pods_by_ids"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_pods_by_reference"("_fleet_id" "uuid", "_references" "jsonb") RETURNS TABLE("pod_id" "uuid", "name" "text", "revision" integer, "tag" "text")
     LANGUAGE "plpgsql"
@@ -376,7 +448,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_pods_by_reference"("_fleet_id" "uuid", "_references" "jsonb") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_state"("_device_id" "uuid") RETURNS "json"
     LANGUAGE "plpgsql"
@@ -386,7 +460,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."get_state"("_device_id" "uuid") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) RETURNS "void"
     LANGUAGE "plpgsql"
@@ -417,7 +493,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."max_event_age"() RETURNS interval
     LANGUAGE "sql" IMMUTABLE
@@ -425,7 +503,9 @@ CREATE OR REPLACE FUNCTION "toit_artemis"."max_event_age"() RETURNS interval
     SELECT INTERVAL '30 days';
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."max_event_age"() OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") RETURNS "void"
     LANGUAGE "plpgsql"
@@ -436,7 +516,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."remove_device"("_device_id" "uuid") RETURNS "void"
     LANGUAGE "plpgsql"
@@ -446,7 +528,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."remove_device"("_device_id" "uuid") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."report_event"("_device_id" "uuid", "_type" "text", "_data" "jsonb") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -457,7 +541,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."report_event"("_device_id" "uuid", "_type" "text", "_data" "jsonb") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."set_goal"("_device_id" "uuid", "_goal" "jsonb") RETURNS "void"
     LANGUAGE "plpgsql"
@@ -470,7 +556,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."set_goal"("_device_id" "uuid", "_goal" "jsonb") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) RETURNS "void"
     LANGUAGE "plpgsql"
@@ -485,7 +573,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."set_pod_tag"("_pod_id" "uuid", "_pod_description_id" bigint, "_tag" "text", "_force" boolean) RETURNS "void"
     LANGUAGE "plpgsql"
@@ -510,7 +600,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."set_pod_tag"("_pod_id" "uuid", "_pod_description_id" bigint, "_tag" "text", "_force" boolean) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."update_state"("_device_id" "uuid", "_state" "jsonb") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -523,7 +615,9 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."update_state"("_device_id" "uuid", "_state" "jsonb") OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."upsert_pod_description"("_fleet_id" "uuid", "_organization_id" "uuid", "_name" "text", "_description" "text") RETURNS bigint
     LANGUAGE "plpgsql"
@@ -541,26 +635,22 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION "toit_artemis"."upsert_pod_description"("_fleet_id" "uuid", "_organization_id" "uuid", "_name" "text", "_description" "text") OWNER TO "postgres";
 
 SET default_tablespace = '';
 
 SET default_table_access_method = "heap";
 
-CREATE TABLE IF NOT EXISTS "supabase_migrations"."schema_migrations" (
-    "version" "text" NOT NULL,
-    "statements" "text"[],
-    "name" "text"
-);
-
-ALTER TABLE "supabase_migrations"."schema_migrations" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "toit_artemis"."devices" (
     "id" "uuid" NOT NULL,
     "state" "jsonb" NOT NULL
 );
 
+
 ALTER TABLE "toit_artemis"."devices" OWNER TO "postgres";
+
 
 CREATE TABLE IF NOT EXISTS "toit_artemis"."events" (
     "id" integer NOT NULL,
@@ -570,7 +660,9 @@ CREATE TABLE IF NOT EXISTS "toit_artemis"."events" (
     "data" "jsonb" NOT NULL
 );
 
+
 ALTER TABLE "toit_artemis"."events" OWNER TO "postgres";
+
 
 CREATE SEQUENCE IF NOT EXISTS "toit_artemis"."events_id_seq"
     AS integer
@@ -580,16 +672,22 @@ CREATE SEQUENCE IF NOT EXISTS "toit_artemis"."events_id_seq"
     NO MAXVALUE
     CACHE 1;
 
+
 ALTER TABLE "toit_artemis"."events_id_seq" OWNER TO "postgres";
 
+
 ALTER SEQUENCE "toit_artemis"."events_id_seq" OWNED BY "toit_artemis"."events"."id";
+
+
 
 CREATE TABLE IF NOT EXISTS "toit_artemis"."goals" (
     "device_id" "uuid" NOT NULL,
     "goal" "jsonb"
 );
 
+
 ALTER TABLE "toit_artemis"."goals" OWNER TO "postgres";
+
 
 CREATE TABLE IF NOT EXISTS "toit_artemis"."pod_descriptions" (
     "id" bigint NOT NULL,
@@ -600,7 +698,9 @@ CREATE TABLE IF NOT EXISTS "toit_artemis"."pod_descriptions" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
+
 ALTER TABLE "toit_artemis"."pod_descriptions" OWNER TO "postgres";
+
 
 CREATE SEQUENCE IF NOT EXISTS "toit_artemis"."pod_descriptions_id_seq"
     START WITH 1
@@ -609,9 +709,13 @@ CREATE SEQUENCE IF NOT EXISTS "toit_artemis"."pod_descriptions_id_seq"
     NO MAXVALUE
     CACHE 1;
 
+
 ALTER TABLE "toit_artemis"."pod_descriptions_id_seq" OWNER TO "postgres";
 
+
 ALTER SEQUENCE "toit_artemis"."pod_descriptions_id_seq" OWNED BY "toit_artemis"."pod_descriptions"."id";
+
+
 
 CREATE TABLE IF NOT EXISTS "toit_artemis"."pod_tags" (
     "id" bigint NOT NULL,
@@ -622,7 +726,9 @@ CREATE TABLE IF NOT EXISTS "toit_artemis"."pod_tags" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
+
 ALTER TABLE "toit_artemis"."pod_tags" OWNER TO "postgres";
+
 
 CREATE SEQUENCE IF NOT EXISTS "toit_artemis"."pod_tags_id_seq"
     START WITH 1
@@ -631,9 +737,13 @@ CREATE SEQUENCE IF NOT EXISTS "toit_artemis"."pod_tags_id_seq"
     NO MAXVALUE
     CACHE 1;
 
+
 ALTER TABLE "toit_artemis"."pod_tags_id_seq" OWNER TO "postgres";
 
+
 ALTER SEQUENCE "toit_artemis"."pod_tags_id_seq" OWNED BY "toit_artemis"."pod_tags"."id";
+
+
 
 CREATE TABLE IF NOT EXISTS "toit_artemis"."pods" (
     "id" "uuid" NOT NULL,
@@ -643,273 +753,706 @@ CREATE TABLE IF NOT EXISTS "toit_artemis"."pods" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
+
 ALTER TABLE "toit_artemis"."pods" OWNER TO "postgres";
+
 
 ALTER TABLE ONLY "toit_artemis"."events" ALTER COLUMN "id" SET DEFAULT "nextval"('"toit_artemis"."events_id_seq"'::"regclass");
 
+
+
 ALTER TABLE ONLY "toit_artemis"."pod_descriptions" ALTER COLUMN "id" SET DEFAULT "nextval"('"toit_artemis"."pod_descriptions_id_seq"'::"regclass");
+
+
 
 ALTER TABLE ONLY "toit_artemis"."pod_tags" ALTER COLUMN "id" SET DEFAULT "nextval"('"toit_artemis"."pod_tags_id_seq"'::"regclass");
 
-ALTER TABLE ONLY "supabase_migrations"."schema_migrations"
-    ADD CONSTRAINT "schema_migrations_pkey" PRIMARY KEY ("version");
+
 
 ALTER TABLE ONLY "toit_artemis"."devices"
     ADD CONSTRAINT "devices_pkey" PRIMARY KEY ("id");
 
+
+
 ALTER TABLE ONLY "toit_artemis"."events"
     ADD CONSTRAINT "events_pkey" PRIMARY KEY ("id");
+
+
 
 ALTER TABLE ONLY "toit_artemis"."goals"
     ADD CONSTRAINT "goals_pkey" PRIMARY KEY ("device_id");
 
+
+
 ALTER TABLE ONLY "toit_artemis"."pod_descriptions"
     ADD CONSTRAINT "pod_descriptions_pkey" PRIMARY KEY ("id");
+
+
 
 ALTER TABLE ONLY "toit_artemis"."pod_tags"
     ADD CONSTRAINT "pod_tags_pkey" PRIMARY KEY ("id");
 
+
+
 ALTER TABLE ONLY "toit_artemis"."pods"
     ADD CONSTRAINT "pods_pkey" PRIMARY KEY ("id", "fleet_id");
 
+
+
 CREATE INDEX "events_device_id" ON "toit_artemis"."events" USING "btree" ("device_id");
+
+
 
 CREATE INDEX "events_device_id_timestamp_idx" ON "toit_artemis"."events" USING "btree" ("device_id", "timestamp" DESC);
 
+
+
 CREATE INDEX "events_device_id_type_timestamp_idx" ON "toit_artemis"."events" USING "btree" ("device_id", "type", "timestamp" DESC);
+
+
 
 CREATE INDEX "pod_descriptions_name_idx" ON "toit_artemis"."pod_descriptions" USING "btree" ("name");
 
+
+
 CREATE UNIQUE INDEX "pod_tags_pod_description_id_tag_idx" ON "toit_artemis"."pod_tags" USING "btree" ("pod_description_id", "tag");
+
+
 
 CREATE INDEX "pod_tags_pod_id_idx" ON "toit_artemis"."pod_tags" USING "btree" ("pod_id");
 
+
+
 CREATE INDEX "pod_tags_tag_idx" ON "toit_artemis"."pod_tags" USING "btree" ("tag");
+
+
 
 CREATE INDEX "pods_created_at_idx" ON "toit_artemis"."pods" USING "btree" ("created_at" DESC);
 
+
+
 CREATE UNIQUE INDEX "pods_fleet_id_name_idx" ON "toit_artemis"."pod_descriptions" USING "btree" ("fleet_id", "name");
+
+
 
 CREATE INDEX "pods_id_idx" ON "toit_artemis"."pods" USING "btree" ("id");
 
+
+
 CREATE INDEX "pods_pod_description_id_created_at_idx" ON "toit_artemis"."pods" USING "btree" ("pod_description_id", "created_at" DESC);
+
+
 
 CREATE INDEX "pods_pod_description_id_idx" ON "toit_artemis"."pods" USING "btree" ("pod_description_id");
 
+
+
 CREATE UNIQUE INDEX "pods_pod_description_id_revision_idx" ON "toit_artemis"."pods" USING "btree" ("pod_description_id", "revision");
+
+
 
 ALTER TABLE ONLY "toit_artemis"."events"
     ADD CONSTRAINT "events_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "toit_artemis"."devices"("id") ON DELETE CASCADE;
 
+
+
 ALTER TABLE ONLY "toit_artemis"."goals"
     ADD CONSTRAINT "goals_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "toit_artemis"."devices"("id") ON DELETE CASCADE;
+
+
 
 ALTER TABLE ONLY "toit_artemis"."pod_tags"
     ADD CONSTRAINT "pod_tags_pod_description_id_fkey" FOREIGN KEY ("pod_description_id") REFERENCES "toit_artemis"."pod_descriptions"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
+
+
 ALTER TABLE ONLY "toit_artemis"."pod_tags"
     ADD CONSTRAINT "pod_tags_pod_id_fleet_id_fkey" FOREIGN KEY ("pod_id", "fleet_id") REFERENCES "toit_artemis"."pods"("id", "fleet_id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
 
 ALTER TABLE ONLY "toit_artemis"."pods"
     ADD CONSTRAINT "pods_pod_description_id_fkey" FOREIGN KEY ("pod_description_id") REFERENCES "toit_artemis"."pod_descriptions"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
+
+
 CREATE POLICY "Authenticated have full access to devices table" ON "toit_artemis"."devices" TO "authenticated" USING (true) WITH CHECK (true);
+
+
 
 CREATE POLICY "Authenticated have full access to events table" ON "toit_artemis"."events" TO "authenticated" USING (true) WITH CHECK (true);
 
+
+
 CREATE POLICY "Authenticated have full access to goals table" ON "toit_artemis"."goals" TO "authenticated" USING (true) WITH CHECK (true);
+
+
 
 CREATE POLICY "Authenticated have full access to pod_descriptions table" ON "toit_artemis"."pod_descriptions" TO "authenticated" USING (true) WITH CHECK (true);
 
+
+
 CREATE POLICY "Authenticated have full access to pod_tags table" ON "toit_artemis"."pod_tags" TO "authenticated" USING (true) WITH CHECK (true);
+
+
 
 CREATE POLICY "Authenticated have full access to pods table" ON "toit_artemis"."pods" TO "authenticated" USING (true) WITH CHECK (true);
 
+
+
 ALTER TABLE "toit_artemis"."devices" ENABLE ROW LEVEL SECURITY;
+
 
 ALTER TABLE "toit_artemis"."events" ENABLE ROW LEVEL SECURITY;
 
+
 ALTER TABLE "toit_artemis"."goals" ENABLE ROW LEVEL SECURITY;
+
 
 ALTER TABLE "toit_artemis"."pod_descriptions" ENABLE ROW LEVEL SECURITY;
 
+
 ALTER TABLE "toit_artemis"."pod_tags" ENABLE ROW LEVEL SECURITY;
 
+
 ALTER TABLE "toit_artemis"."pods" ENABLE ROW LEVEL SECURITY;
+
+
+
+
+ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+
+
+
+
+
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "service_role";
 
+
+
 GRANT USAGE ON SCHEMA "toit_artemis" TO "anon";
 GRANT USAGE ON SCHEMA "toit_artemis" TO "authenticated";
 GRANT USAGE ON SCHEMA "toit_artemis" TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."delete_old_events"() TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_old_events"() TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_old_events"() TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pod_descriptions"("_fleet_id" "uuid", "_description_ids" bigint[]) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pod_descriptions"("_fleet_id" "uuid", "_description_ids" bigint[]) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pod_descriptions"("_fleet_id" "uuid", "_description_ids" bigint[]) TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pod_tag"("_pod_description_id" bigint, "_tag" "text") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pod_tag"("_pod_description_id" bigint, "_tag" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pod_tag"("_pod_description_id" bigint, "_tag" "text") TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."get_goal"("_device_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_goal"("_device_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_goal"("_device_id" "uuid") TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."get_goal_no_event"("_device_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_goal_no_event"("_device_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_goal_no_event"("_device_id" "uuid") TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."get_pod_descriptions"("_fleet_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pod_descriptions"("_fleet_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pod_descriptions"("_fleet_id" "uuid") TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."get_pod_descriptions_by_ids"("_description_ids" bigint[]) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pod_descriptions_by_ids"("_description_ids" bigint[]) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pod_descriptions_by_ids"("_description_ids" bigint[]) TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."get_pod_descriptions_by_names"("_fleet_id" "uuid", "_organization_id" "uuid", "_names" "text"[], "_create_if_absent" boolean) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pod_descriptions_by_names"("_fleet_id" "uuid", "_organization_id" "uuid", "_names" "text"[], "_create_if_absent" boolean) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pod_descriptions_by_names"("_fleet_id" "uuid", "_organization_id" "uuid", "_names" "text"[], "_create_if_absent" boolean) TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."get_pods"("_pod_description_id" bigint, "_limit" bigint, "_offset" bigint) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pods"("_pod_description_id" bigint, "_limit" bigint, "_offset" bigint) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pods"("_pod_description_id" bigint, "_limit" bigint, "_offset" bigint) TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."get_pods_by_ids"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pods_by_ids"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pods_by_ids"("_fleet_id" "uuid", "_pod_ids" "uuid"[]) TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."get_pods_by_reference"("_fleet_id" "uuid", "_references" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pods_by_reference"("_fleet_id" "uuid", "_references" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_pods_by_reference"("_fleet_id" "uuid", "_references" "jsonb") TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."get_state"("_device_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."get_state"("_device_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."get_state"("_device_id" "uuid") TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."insert_pod"("_pod_id" "uuid", "_pod_description_id" bigint) TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."max_event_age"() TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."max_event_age"() TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."max_event_age"() TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."new_provisioned"("_device_id" "uuid", "_state" "jsonb") TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."remove_device"("_device_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."remove_device"("_device_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."remove_device"("_device_id" "uuid") TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."report_event"("_device_id" "uuid", "_type" "text", "_data" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."report_event"("_device_id" "uuid", "_type" "text", "_data" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."report_event"("_device_id" "uuid", "_type" "text", "_data" "jsonb") TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."set_goal"("_device_id" "uuid", "_goal" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."set_goal"("_device_id" "uuid", "_goal" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."set_goal"("_device_id" "uuid", "_goal" "jsonb") TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."set_goals"("_device_ids" "uuid"[], "_goals" "jsonb"[]) TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."set_pod_tag"("_pod_id" "uuid", "_pod_description_id" bigint, "_tag" "text", "_force" boolean) TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."set_pod_tag"("_pod_id" "uuid", "_pod_description_id" bigint, "_tag" "text", "_force" boolean) TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."set_pod_tag"("_pod_id" "uuid", "_pod_description_id" bigint, "_tag" "text", "_force" boolean) TO "service_role";
 
+
+
 GRANT ALL ON FUNCTION "toit_artemis"."update_state"("_device_id" "uuid", "_state" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."update_state"("_device_id" "uuid", "_state" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."update_state"("_device_id" "uuid", "_state" "jsonb") TO "service_role";
+
+
 
 GRANT ALL ON FUNCTION "toit_artemis"."upsert_pod_description"("_fleet_id" "uuid", "_organization_id" "uuid", "_name" "text", "_description" "text") TO "anon";
 GRANT ALL ON FUNCTION "toit_artemis"."upsert_pod_description"("_fleet_id" "uuid", "_organization_id" "uuid", "_name" "text", "_description" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "toit_artemis"."upsert_pod_description"("_fleet_id" "uuid", "_organization_id" "uuid", "_name" "text", "_description" "text") TO "service_role";
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 GRANT ALL ON TABLE "toit_artemis"."devices" TO "anon";
 GRANT ALL ON TABLE "toit_artemis"."devices" TO "authenticated";
 GRANT ALL ON TABLE "toit_artemis"."devices" TO "service_role";
+
+
 
 GRANT ALL ON TABLE "toit_artemis"."events" TO "anon";
 GRANT ALL ON TABLE "toit_artemis"."events" TO "authenticated";
 GRANT ALL ON TABLE "toit_artemis"."events" TO "service_role";
 
+
+
 GRANT ALL ON SEQUENCE "toit_artemis"."events_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "toit_artemis"."events_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "toit_artemis"."events_id_seq" TO "service_role";
+
+
 
 GRANT ALL ON TABLE "toit_artemis"."goals" TO "anon";
 GRANT ALL ON TABLE "toit_artemis"."goals" TO "authenticated";
 GRANT ALL ON TABLE "toit_artemis"."goals" TO "service_role";
 
+
+
 GRANT ALL ON TABLE "toit_artemis"."pod_descriptions" TO "anon";
 GRANT ALL ON TABLE "toit_artemis"."pod_descriptions" TO "authenticated";
 GRANT ALL ON TABLE "toit_artemis"."pod_descriptions" TO "service_role";
+
+
 
 GRANT ALL ON SEQUENCE "toit_artemis"."pod_descriptions_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "toit_artemis"."pod_descriptions_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "toit_artemis"."pod_descriptions_id_seq" TO "service_role";
 
+
+
 GRANT ALL ON TABLE "toit_artemis"."pod_tags" TO "anon";
 GRANT ALL ON TABLE "toit_artemis"."pod_tags" TO "authenticated";
 GRANT ALL ON TABLE "toit_artemis"."pod_tags" TO "service_role";
+
+
 
 GRANT ALL ON SEQUENCE "toit_artemis"."pod_tags_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "toit_artemis"."pod_tags_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "toit_artemis"."pod_tags_id_seq" TO "service_role";
 
+
+
 GRANT ALL ON TABLE "toit_artemis"."pods" TO "anon";
 GRANT ALL ON TABLE "toit_artemis"."pods" TO "authenticated";
 GRANT ALL ON TABLE "toit_artemis"."pods" TO "service_role";
+
+
+
+
+
+
+
+
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES  TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES  TO "service_role";
 
+
+
+
+
+
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS  TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS  TO "service_role";
+
+
+
+
+
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "service_role";
 
+
+
+
+
+
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON SEQUENCES  TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON SEQUENCES  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON SEQUENCES  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON SEQUENCES  TO "service_role";
+
+
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON FUNCTIONS  TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON FUNCTIONS  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON FUNCTIONS  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON FUNCTIONS  TO "service_role";
 
+
+
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON TABLES  TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON TABLES  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON TABLES  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "toit_artemis" GRANT ALL ON TABLES  TO "service_role";
 
-RESET ALL;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--
+-- Dumped schema changes for auth and storage
+--
+
+CREATE POLICY "Authenticated have full access to pod storage" ON "storage"."objects" TO "authenticated" USING (("bucket_id" = 'toit-artemis-pods'::"text")) WITH CHECK (("bucket_id" = 'toit-artemis-pods'::"text"));
+
+
+
+CREATE POLICY "Authenticated have full access to storage" ON "storage"."objects" TO "authenticated" USING (("bucket_id" = 'toit-artemis-assets'::"text")) WITH CHECK (("bucket_id" = 'toit-artemis-assets'::"text"));
+
+
+
