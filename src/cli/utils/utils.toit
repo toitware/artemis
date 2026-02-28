@@ -78,28 +78,28 @@ read-base64-ubjson path/string -> any:
   return ubjson.decode (base64.decode data)
 
 read-file path/string --cli/Cli [block] -> any:
-  return read-file path block --on-error=: | exception |
+  return read-file path block --if-error=: | exception |
     cli.ui.abort "Failed to open '$path' for reading ($exception)."
 
-read-file path/string [block] [--on-error] -> any:
+read-file path/string [block] [--if-error] -> any:
   stream/file.Stream? := null
   exception := catch: stream = file.Stream.for-read path
   if not stream:
-    return on-error.call exception
+    return if-error.call exception
   try:
     return block.call stream.in
   finally:
     stream.close
 
 write-file path/string --cli/Cli [block] -> none:
-  write-file path block --on-error=: | exception |
+  write-file path block --if-error=: | exception |
     cli.ui.abort "Failed to open '$path' for writing ($exception)."
 
-write-file path/string [block] [--on-error] -> none:
+write-file path/string [block] [--if-error] -> none:
   stream/file.Stream? := null
   exception := catch: stream = file.Stream.for-write path
   if not stream:
-    on-error.call exception
+    if-error.call exception
     return
   try:
     block.call stream.out
@@ -263,24 +263,24 @@ parse-pod-specification-file path/string --cli/Cli -> PodSpecification:
 Parses a string like "1h 30m 10s" or "1h30m10s" into a Duration.
 */
 parse-duration str/string -> Duration:
-  return parse-duration str --on-error=: throw "Invalid duration string: $it"
+  return parse-duration str --if-error=: throw "Invalid duration string: $it"
 
-parse-duration str/string [--on-error] -> Duration:
+parse-duration str/string [--if-error] -> Duration:
   UNITS ::= ["h", "m", "s"]
   splits-with-missing := UNITS.map: str.index-of it
   splits := splits-with-missing.filter: it != -1
   if splits.is-empty or not splits.is-sorted:
-    return on-error.call str
+    return if-error.call str
   if splits.last != str.size - 1:
-    return on-error.call str
+    return if-error.call str
 
   last-unit := -1
   values := {:}
   splits.do: | split/int |
     unit := str[split]
     value-string := str[last-unit + 1..split]
-    value := int.parse value-string.trim --on-error=:
-      return on-error.call str
+    value := int.parse value-string.trim --if-error=:
+      return if-error.call str
     values[unit] = value
     last-unit = split
 

@@ -368,9 +368,9 @@ set-max-offline invocation/Invocation:
   ui := invocation.cli.ui
 
   with-device invocation: | device/DeviceFleet fleet/FleetWithDevices |
-    max-offline-seconds := int.parse max-offline --on-error=:
+    max-offline-seconds := int.parse max-offline --if-error=:
       // Assume it's a duration with units, like "5s".
-      duration := parse-duration max-offline --on-error=:
+      duration := parse-duration max-offline --if-error=:
         ui.abort "Invalid max-offline duration: $max-offline."
       duration.in-s
 

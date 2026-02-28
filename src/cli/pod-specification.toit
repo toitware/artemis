@@ -239,7 +239,7 @@ class JsonMap:
     entry-string = entry-string.trim
     if entry-string == "": return Duration.ZERO
 
-    return parse-duration entry-string --on-error=:
+    return parse-duration entry-string --if-error=:
       format-error_ "$entry-type $key in $holder is not a valid duration: $entry"
 
   get-optional-duration key/string --entry-type/string="Entry" -> Duration?:
