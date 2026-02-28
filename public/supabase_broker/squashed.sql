@@ -100,6 +100,32 @@ CREATE TYPE "toit_artemis"."poddescription" AS (
 ALTER TYPE "toit_artemis"."poddescription" OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."toit_artemis.get_devices"("_device_ids" "uuid"[]) RETURNS TABLE("device_id" "uuid", "goal" "jsonb", "state" "jsonb")
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    RETURN QUERY
+      SELECT * FROM toit_artemis.get_devices(_device_ids);
+END;
+$$;
+
+
+ALTER FUNCTION "public"."toit_artemis.get_devices"("_device_ids" "uuid"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."toit_artemis.get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone DEFAULT '1970-01-01 00:00:00+00'::timestamp with time zone) RETURNS TABLE("device_id" "uuid", "type" "text", "ts" timestamp with time zone, "data" "jsonb")
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    RETURN QUERY
+      SELECT * FROM toit_artemis.get_events(_device_ids, _types, _limit, _since);
+END;
+$$;
+
+
+ALTER FUNCTION "public"."toit_artemis.get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "toit_artemis"."delete_old_events"() RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -161,23 +187,25 @@ ALTER FUNCTION "toit_artemis"."delete_pods"("_fleet_id" "uuid", "_pod_ids" "uuid
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) RETURNS TABLE("device_id" "uuid", "goal" "jsonb", "state" "jsonb")
     LANGUAGE "plpgsql"
-    AS $$
+    AS $_$
 DECLARE filtered_device_ids UUID[];
 BEGIN
-    -- We are using the RLS to filter out device ids the invoker doesn't have
-    -- access to. This is a performance optimization.
-    SELECT array_agg(DISTINCT d.id)
-    INTO filtered_device_ids
-    FROM unnest(_device_ids) as input(id)
-    JOIN toit_artemis.devices d ON input.id = d.id;
+    -- Using EXECUTE to prevent Postgres from caching a generic query plan.
+    -- A generic plan would use Sequential Scans over the RLS policy, timing out.
+    EXECUTE '
+        SELECT array_agg(DISTINCT d.id)
+        FROM unnest($1) as input(id)
+        JOIN toit_artemis.devices d ON input.id = d.id
+    ' INTO filtered_device_ids USING _device_ids;
 
-    RETURN QUERY
+    RETURN QUERY EXECUTE '
         SELECT p.device_id, g.goal, d.state
-        FROM unnest(filtered_device_ids) AS p(device_id)
+        FROM unnest($1) AS p(device_id)
         LEFT JOIN toit_artemis.goals g USING (device_id)
-        LEFT JOIN toit_artemis.devices d ON p.device_id = d.id;
+        LEFT JOIN toit_artemis.devices d ON p.device_id = d.id
+    ' USING filtered_device_ids;
 END;
-$$;
+$_$;
 
 
 ALTER FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) OWNER TO "postgres";
@@ -185,64 +213,67 @@ ALTER FUNCTION "toit_artemis"."get_devices"("_device_ids" "uuid"[]) OWNER TO "po
 
 CREATE OR REPLACE FUNCTION "toit_artemis"."get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone DEFAULT '1970-01-01 00:00:00+00'::timestamp with time zone) RETURNS TABLE("device_id" "uuid", "type" "text", "ts" timestamp with time zone, "data" "jsonb")
     LANGUAGE "plpgsql"
-    AS $$
+    AS $_$
 DECLARE
     _type TEXT;
     filtered_device_ids UUID[];
 BEGIN
-    -- We are using the RLS to filter out device ids the invoker doesn't have
-    -- access to. This is a performance optimization.
-    SELECT array_agg(DISTINCT d.id)
-    INTO filtered_device_ids
-    FROM unnest(_device_ids) as input(id)
-    JOIN toit_artemis.devices d ON input.id = d.id;
+    -- Using EXECUTE to prevent generic plan caching and forced sequential scans.
+    EXECUTE '
+        SELECT array_agg(DISTINCT d.id)
+        FROM unnest($1) as input(id)
+        JOIN toit_artemis.devices d ON input.id = d.id
+    ' INTO filtered_device_ids USING _device_ids;
 
     IF ARRAY_LENGTH(_types, 1) = 1 THEN
         _type := _types[1];
-        RETURN QUERY
+        RETURN QUERY EXECUTE '
             SELECT e.device_id, e.type, e.timestamp, e.data
-            FROM unnest(filtered_device_ids) AS p(device_id)
+            FROM unnest($1) AS p(device_id)
             CROSS JOIN LATERAL (
                 SELECT e.*
                 FROM toit_artemis.events e
                 WHERE e.device_id = p.device_id
-                        AND e.type = _type
-                        AND e.timestamp >= _since
+                        AND e.type = $2
+                        AND e.timestamp >= $3
                 ORDER BY e.timestamp DESC
-                LIMIT _limit
+                LIMIT $4
             ) AS e
-            ORDER BY e.device_id, e.timestamp DESC;
+            ORDER BY e.device_id, e.timestamp DESC
+        ' USING filtered_device_ids, _type, _since, _limit;
     ELSEIF ARRAY_LENGTH(_types, 1) > 1 THEN
-        RETURN QUERY
+        RETURN QUERY EXECUTE '
             SELECT e.device_id, e.type, e.timestamp, e.data
-            FROM unnest(filtered_device_ids) AS p(device_id)
+            FROM unnest($1) AS p(device_id)
             CROSS JOIN LATERAL (
                 SELECT e.*
                 FROM toit_artemis.events e
                 WHERE e.device_id = p.device_id
-                        AND e.type = ANY(_types)
-                        AND e.timestamp >= _since
+                        AND e.type = ANY($2)
+                        AND e.timestamp >= $3
                 ORDER BY e.timestamp DESC
-                LIMIT _limit
+                LIMIT $4
             ) AS e
-            ORDER BY e.device_id, e.timestamp DESC;
+            ORDER BY e.device_id, e.timestamp DESC
+        ' USING filtered_device_ids, _types, _since, _limit;
     ELSE
         -- Note that 'ARRAY_LENGTH' of an empty array does not return 0 but null.
-        RETURN QUERY
+        RETURN QUERY EXECUTE '
             SELECT e.device_id, e.type, e.timestamp, e.data
-            FROM unnest(filtered_device_ids) AS p(device_id)
+            FROM unnest($1) AS p(device_id)
             CROSS JOIN LATERAL (
                 SELECT e.*
                 FROM toit_artemis.events e
                 WHERE e.device_id = p.device_id
-                        AND e.timestamp >= _since
+                        AND e.timestamp >= $2
                 ORDER BY e.timestamp DESC
-                LIMIT _limit
+                LIMIT $3
             ) AS e
-            ORDER BY e.device_id, e.timestamp DESC;
+            ORDER BY e.device_id, e.timestamp DESC
+        ' USING filtered_device_ids, _since, _limit;
     END IF;
 END;
-$$;
+$_$;
 
 
 ALTER FUNCTION "toit_artemis"."get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) OWNER TO "postgres";
@@ -1134,6 +1165,18 @@ GRANT USAGE ON SCHEMA "toit_artemis" TO "service_role";
 
 
 
+
+
+
+GRANT ALL ON FUNCTION "public"."toit_artemis.get_devices"("_device_ids" "uuid"[]) TO "anon";
+GRANT ALL ON FUNCTION "public"."toit_artemis.get_devices"("_device_ids" "uuid"[]) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."toit_artemis.get_devices"("_device_ids" "uuid"[]) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."toit_artemis.get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) TO "anon";
+GRANT ALL ON FUNCTION "public"."toit_artemis.get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."toit_artemis.get_events"("_device_ids" "uuid"[], "_types" "text"[], "_limit" integer, "_since" timestamp with time zone) TO "service_role";
 
 
 
