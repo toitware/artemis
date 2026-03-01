@@ -64,19 +64,16 @@ test-supabase: install-pkgs rebuild-cmake download-sdk
 # From https://app.supabase.com/project/voisfafsfolxhqpkudzd/settings/auth
 ARTEMIS_HOST := artemis-api.toit.io
 ARTEMIS_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvaXNmYWZzZm9seGhxcGt1ZHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQyNDEsImV4cCI6MTk4ODk1MDI0MX0.dmfxNl5WssxnZ8jpvGJeryg4Fd47fOcrlZ8iGrHj2e4
-ARTEMIS_CERTIFICATE := Baltimore CyberTrust Root
 
 # From https://supabase.com/dashboard/project/ezxwpyeoypvnnldpdotx/settings/api
 ARTEMIS_TEST_HOST := ezxwpyeoypvnnldpdotx.supabase.co
 ARTEMIS_TEST_ANON := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6eHdweWVveXB2bm5sZHBkb3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDY3MjQxOTcsImV4cCI6MjAyMjMwMDE5N30.lnzyjQAD1QHqKTCnkuXvuwUuMqDKMw7z7cH8vETeCiQ
-ARTEMIS_TEST_CERTIFICATE := Baltimore CyberTrust Root
 
 .PHONY: setup-remote-test-supabase
 setup-remote-test-supabase:
 	@ $(TOIT) run -- src/cli/cli.toit config broker add supabase \
-		--certificate "$(ARTEMIS_TEST_CERTIFICATE)" \
 		artemis-remote-test-supabase \
-		$(ARTEMIS_TEST_HOST) \
+		https://$(ARTEMIS_TEST_HOST) \
 		$(ARTEMIS_TEST_ANON)
 	@ $(TOIT) run -- src/cli/cli.toit config broker default --artemis artemis-remote-test-supabase
 	@ $(TOIT) run -- src/cli/cli.toit config broker default artemis-remote-test-supabase
@@ -87,21 +84,17 @@ start-http: install-pkgs
 	@ # Use the public IP, so that we can flash devices which then can use
 	@ # the broker.
 	@ $(TOIT) run -- src/cli/cli.toit config broker add http \
-		--host=`$(TOIT) run -- tools/lan_ip/lan-ip.toit` \
-		--port 4999 \
-		--path / \
 		--admin-header "X-Artemis-Header=true" \
 		--device-header "X-Artemis-Header=true" \
-		artemis-local-http
+		artemis-local-http \
+		http://`$(TOIT) run -- tools/lan_ip/lan-ip.toit`:4999/
 	@ $(TOIT) run -- src/cli/cli.toit config broker default --artemis artemis-local-http
 	@ # Adds the local broker and makes it the default.
 	@ $(TOIT) run -- src/cli/cli.toit config broker add http \
-		--host=`$(TOIT) run -- tools/lan_ip/lan-ip.toit` \
-		--port 4998 \
-		--path / \
 		--admin-header "X-Artemis-Header=true" \
 		--device-header "X-Artemis-Header=true" \
-		broker-local-http
+		broker-local-http \
+		http://`$(TOIT) run -- tools/lan_ip/lan-ip.toit`:4998/
 	@ $(TOIT) run -- src/cli/cli.toit config broker default broker-local-http
 	@ rm -rf $$HOME/.cache/artemis/artemis-local-http
 	@ rm -rf $$HOME/.cache/artemis/broker-local-http

@@ -128,7 +128,7 @@ class BrokerCliHttp implements BrokerCli:
 
   send-request_ encoded/ByteArray -> http.Response:
     if not client_:
-      if server-config_.root-certificate-names:
+      if server-config_.use-tls or server-config_.root-certificate-ders:
         client_ = http.Client.tls network_
       else:
         client_ = http.Client network_
