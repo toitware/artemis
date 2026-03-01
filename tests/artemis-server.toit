@@ -137,7 +137,7 @@ with-http-artemis-server [block]:
       --host=host
       --port=port-latch.get
       --path="/"
-      --root-certificate-names=null
+      --use-tls=false
       --root-certificate-ders=null
       --poll-interval=Duration --ms=500
       --admin-headers={
