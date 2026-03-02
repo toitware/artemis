@@ -202,7 +202,7 @@ jobs:
 
       - name: Upload binary artifacts
         if: (!matrix.run_supabase_tests)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: binaries-${{ runner.os }}
           path: build/bin
@@ -210,7 +210,7 @@ jobs:
       - name: Upload snapshot artifacts
         # Use 'always()' to upload them even if an earlier step failed.
         if: (!matrix.run_supabase_tests) && always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: snapshots-${{ runner.os }}
           path: build/snapshots
@@ -218,7 +218,7 @@ jobs:
       - name: Upload other snapshots
         # Use 'always()' to upload them even if an earlier step failed.
         if: (!matrix.run_supabase_tests) && (runner.os != 'Windows') && always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: other-snapshots-${{ runner.os }}
           path: ${{ env.SNAPSHOTS_DIR }}

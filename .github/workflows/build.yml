@@ -160,7 +160,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis
           path: |
@@ -168,7 +168,7 @@ jobs:
             build/snapshots/artemis-${{ env.ARTEMIS_UUID }}.snapshot
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-release-binaries
           path: out/*
@@ -244,7 +244,7 @@ jobs:
           zip -j out/artemis.zip build/macos/artemis
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-packaged-macos
           path: ./out
@@ -316,7 +316,7 @@ jobs:
           cp build/windows/artemis_installer_x64.exe out
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-packaged-windows
           path: ./out
@@ -327,7 +327,7 @@ jobs:
           & $PWD\out/artemis_installer_x64.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /LOG="install.log"
 
       - name: Upload install log
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: install-log
           path: |
@@ -354,7 +354,7 @@ jobs:
           tar c -z -C in/aarch64 -f out/artemis-linux-aarch64.tar.gz artemis
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-packaged-linux
           path: ./out
@@ -473,7 +473,7 @@ jobs:
           mv in-mac/artemis.zip release-assets/artemis-macos.zip
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets
           path: release-assets
