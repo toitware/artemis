@@ -184,7 +184,7 @@ show-config invocation/Invocation:
   default-broker/string? := config.get CONFIG-BROKER-DEFAULT-KEY
   default-org/string? := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
   servers/Map? := config.get CONFIG-SERVERS-KEY
-  auths/List? := config.get CONFIG-SERVER-AUTHS-KEY
+  auths/Map? := config.get CONFIG-SERVER-AUTHS-KEY
   recovery-urls/List? := config.get CONFIG-RECOVERY-SERVERS-KEY
 
   if ui.wants-structured:
