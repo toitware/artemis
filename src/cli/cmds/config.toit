@@ -180,12 +180,12 @@ show-config invocation/Invocation:
   config := cli.config
   ui := cli.ui
 
-  default-device := config.get CONFIG-DEVICE-DEFAULT-KEY
-  default-broker := config.get CONFIG-BROKER-DEFAULT-KEY
-  default-org := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
-  servers := config.get CONFIG-SERVERS-KEY
-  auths := config.get CONFIG-SERVER-AUTHS-KEY
-  recovery-urls := config.get CONFIG-RECOVERY-SERVERS-KEY
+  default-device/string? := config.get CONFIG-DEVICE-DEFAULT-KEY
+  default-broker/string? := config.get CONFIG-BROKER-DEFAULT-KEY
+  default-org/string? := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
+  servers/List? := config.get CONFIG-SERVERS-KEY
+  auths/List? := config.get CONFIG-SERVER-AUTHS-KEY
+  recovery-urls/List? := config.get CONFIG-RECOVERY-SERVERS-KEY
 
   if ui.wants-structured:
     result := {
@@ -232,14 +232,14 @@ default-server invocation/Invocation:
   config := cli.config
   ui := cli.ui
 
-  config-key := invocation["artemis"] ? CONFIG-ARTEMIS-DEFAULT-KEY : CONFIG-BROKER-DEFAULT-KEY
+  config-key/string := invocation["artemis"] ? CONFIG-ARTEMIS-DEFAULT-KEY : CONFIG-BROKER-DEFAULT-KEY
 
   if invocation["clear"]:
     config.remove config-key
     config.write
     return
 
-  name := invocation["name"]
+  name/string? := invocation["name"]
   if not name:
     default-server := config.get config-key
     if default-server:
@@ -260,9 +260,9 @@ add-supabase invocation/Invocation:
   config := cli.config
   ui := cli.ui
 
-  name := params["name"]
-  url-string := params["url"]
-  anon := params["anon"]
+  name/string := params["name"]
+  url-string/string := params["url"]
+  anon/string := params["anon"]
 
   use-tls := false
   host := ""
@@ -366,7 +366,7 @@ add-recovery-server invocation/Invocation:
   config := invocation.cli.config
   ui := invocation.cli.ui
 
-  url := invocation["url"]
+  url/string := invocation["url"]
 
   config-key := CONFIG-RECOVERY-SERVERS-KEY
   recovery-servers := config.get config-key --init=: []
@@ -383,7 +383,7 @@ list-recovery-servers invocation/Invocation:
   ui := invocation.cli.ui
 
   config-key := CONFIG-RECOVERY-SERVERS-KEY
-  recovery-servers := config.get config-key or []
+  recovery-servers/List := config.get config-key or []
 
   ui.emit-list
       --kind=Ui.RESULT
@@ -396,9 +396,9 @@ remove-recovery-servers invocation/Invocation:
   ui := cli.ui
   params := invocation.parameters
 
-  all := params["all"]
-  urls := params["url"]
-  force := params["force"]
+  all/bool? := params["all"]
+  urls/List? := params["url"]
+  force/bool? := params["force"]
 
   config-key := CONFIG-RECOVERY-SERVERS-KEY
   recovery-servers := config.get config-key --init=: []
