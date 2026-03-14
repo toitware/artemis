@@ -269,10 +269,10 @@ add-supabase invocation/Invocation:
 
   if url-string.starts-with "http://":
     use-tls = false
-    host = url-string.trim --prefix "http://"
+    host = url-string.trim --left "http://"
   else if url-string.starts-with "https://":
     use-tls = true
-    host = url-string.trim --prefix "https://"
+    host = url-string.trim --left "https://"
   else:
     ui.abort "Invalid URL '$url-string'. Must start with 'http://' or 'https://'."
 
