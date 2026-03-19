@@ -28,7 +28,7 @@ create-profile-commands -> List:
       ]
       --examples=[
         Example "Update the name"
-            --arguments="--name=John Doe"
+            --arguments="--name=\"John Doe\""
       ]
       --run=:: update-profile it
   profile-cmd.add update-cmd

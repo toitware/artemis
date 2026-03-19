@@ -24,8 +24,6 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> 
     host = host-port[..colon-pos]
     port = int.parse host-port[colon-pos + 1..]
 
-  root-name := server-config.root-certificate-name
-  root-names := root-name ? [root-name] : null
   http-config := ServerConfigHttp
       server-config.name
       --host=host
@@ -33,8 +31,8 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> 
       --path="/functions/v1/b"
       --admin-headers=null
       --device-headers=null
-      --root-certificate-names=root-names
-      --root-certificate-ders=null
+      --use-tls=server-config.use-tls
+      --root-certificate-ders=server-config.root-certificate-der ? [server-config.root-certificate-der] : null
       --poll-interval=server-config.poll-interval
 
   return BrokerCliSupabase --id=id supabase-client http-config

@@ -26,17 +26,20 @@ on:
 
 env:
   SUPPORTED_SDK_VERSIONS: |
-      v2.0.0-alpha.172
-      v2.0.0-alpha.174
-      v2.0.0-alpha.175
       v2.0.0-alpha.176
+      v2.0.0-alpha.180
+      v2.0.0-alpha.182
+      v2.0.0-alpha.184
+      v2.0.0-alpha.186
+      v2.0.0-alpha.189
+      v2.0.0-alpha.190
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Toit
         shell: bash
@@ -50,6 +53,7 @@ jobs:
           echo "TOIT_VERSION=$TOIT_VERSION" >> $GITHUB_ENV
 
       - name: Setup Toit
+        id: setup-toit
         uses: toitlang/action-setup@v1
         with:
           toit-version: ${{ env.TOIT_VERSION }}
@@ -74,7 +78,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p out/linux
-          toit.compile -o out/linux/artemis build/snapshots/artemis.snapshot
+          mkdir -p build/snapshots
+          toit compile --snapshot -o build/snapshots/artemis.snapshot src/cli/cli.toit
+          SDK=${{ steps.setup-toit.outputs.toit-sdk-path }}
+          # TODO: Use 'toit compile', once it can take a snapshot as input.
+          $SDK/lib/toit/bin/toit.compile -o out/linux/artemis build/snapshots/artemis.snapshot
 
           for SYSTEM in windows macos aarch64; do
             if [[ $SYSTEM == "windows" ]]; then
@@ -87,13 +95,15 @@ jobs:
               ARCH="arm64"
             elif [[ $SYSTEM == "macos" ]]; then
               OS="darwin"
-              ARCH="amd64"
+              ARCH="aarch64"
             else
               OS=$SYSTEM
               ARCH="amd64"
             fi
             mkdir -p out/$SYSTEM
-            toit.compile --arch $ARCH --os $OS \
+
+            # TODO: Use 'toit compile', once it can take a snapshot as input.
+            $SDK/lib/toit/bin/toit.compile --arch $ARCH --os $OS \
               -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot
           done
 
@@ -105,7 +115,7 @@ jobs:
           mv build/snapshots/artemis.snapshot build/snapshots/artemis-$UUID.snapshot
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artemis
           path: |
@@ -113,7 +123,7 @@ jobs:
             build/snapshots/artemis-${{ env.ARTEMIS_UUID }}.snapshot
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-release-binaries
           path: out/*
@@ -123,9 +133,9 @@ jobs:
     needs: [build]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: artemis-release-binaries
           path: in
@@ -147,7 +157,7 @@ jobs:
 
       - name: Sign and notarize
         if: github.event_name == 'release' || inputs.sign_macos
-        uses: toitlang/action-macos-sign-notarize@v1.2.1
+        uses: toitlang/action-macos-sign-notarize@v1.3.0
         with:
           certificate: ${{ secrets.MACOS_CERTIFICATE }}
           certificate-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
@@ -175,7 +185,7 @@ jobs:
 
       - name: Sign DMG
         if: github.event_name == 'release' || inputs.sign_macos
-        uses: toitlang/action-macos-sign-notarize@v1.2.1
+        uses: toitlang/action-macos-sign-notarize@v1.3.0
         with:
           certificate: ${{ secrets.MACOS_CERTIFICATE }}
           certificate-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
@@ -189,7 +199,7 @@ jobs:
           zip -j out/artemis.zip build/macos/artemis
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-packaged-macos
           path: ./out
@@ -199,13 +209,18 @@ jobs:
     needs: [build]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Install dependencies
+        shell: powershell
+        run: |
+          choco install -y innosetup
 
       - name: Git version
         id: version
         uses: toitlang/action-git-version@v1.1.0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: artemis-release-binaries
           path: in
@@ -256,7 +271,7 @@ jobs:
           cp build/windows/artemis_installer_x64.exe out
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-packaged-windows
           path: ./out
@@ -267,7 +282,7 @@ jobs:
           & $PWD\out/artemis_installer_x64.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /LOG="install.log"
 
       - name: Upload install log
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: install-log
           path: |
@@ -278,9 +293,9 @@ jobs:
     needs: [build]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: artemis-release-binaries
           path: in
@@ -294,7 +309,7 @@ jobs:
           tar c -z -C in/aarch64 -f out/artemis-linux-aarch64.tar.gz artemis
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-packaged-linux
           path: ./out
@@ -302,17 +317,17 @@ jobs:
   update_public:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Checkout release-repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: toitware/artemis-releases
           path: release-repo
           token: ${{ secrets.LEON_ARTEMIS_RELEASE_PAT }}
 
       - name: Checkout docs-repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: toitware/web-docs
           path: docs-repo
@@ -378,22 +393,22 @@ jobs:
     runs-on: ubuntu-latest
     needs: [package-windows, package-linux, package-macos, update_public]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: artemis-packaged-linux
           path: in-linux
 
       - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: artemis-packaged-macos
           path: in-mac
 
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: artemis-packaged-windows
           path: in-windows
@@ -413,7 +428,7 @@ jobs:
           mv in-mac/artemis.zip release-assets/artemis-macos.zip
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets
           path: release-assets

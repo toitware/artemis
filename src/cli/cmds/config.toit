@@ -73,47 +73,39 @@ create-server-config-commands -> List:
   add-cmd.add
       Command "supabase"
           --help="Add a Supabase broker."
-          --options=[
-            Option "certificate"
-                --help="The certificate to use for the broker.",
-          ]
           --rest=[
             Option "name"
                 --help="The name of the broker."
                 --required,
-            Option "host"
-                --help="The host of the broker."
+            Option "url"
+                --help="The URL of the broker."
                 --required,
             Option "anon"
                 --help="The key for anonymous access."
                 --required,
           ]
+
           --examples=[
             Example "Add a local Supabase broker (anon-token is truncated):"
-                --arguments="my-local-supabase 127.0.0.1:54321 eyJhb...6XHc",
-            Example "Add a Supabase broker with a certificate (anon-token is truncated):"
-                --arguments="my-remote-broker --certificate=\"Baltimore CyberTrust Root\" voisfafsfolxhqpkudzd.subabase.co eyJh...j2e4",
+                --arguments="my-local-supabase http://127.0.0.1:54321 eyJhb...6XHc",
+            Example "Add a Supabase broker over TLS (anon-token is truncated):"
+                --arguments="my-remote-broker https://artemis-api.toit.io eyJh...j2e4",
+
           ]
           --run=:: add-supabase it
 
   add-cmd.add
       Command "http"
           --help="Add an HTTP broker."
-          --options=[
-            OptionInt "port"
-                --help="The port of the broker."
-                --short-name="p"
+          --rest=[
+            Option "name"
+                --help="The name of the broker."
                 --required,
-            Option "host"
-                --help="The host of the broker."
-                --short-name="h"
-                --default="localhost",
-            Option "path"
-                --help="The path of the broker."
-                --default="/",
-            Option "root-certificate"
-                --help="The root certificate name of the broker."
-                --multi,
+            Option "url"
+                --help="The URL of the broker."
+                --required,
+          ]
+          --options=[
             Option "device-header"
                 --help="The HTTP header the device needs to add to the request. Of the form KEY=VALUE."
                 --multi,
@@ -121,12 +113,8 @@ create-server-config-commands -> List:
                 --help="The HTTP header the CLI needs to add to the request. Of the form KEY=VALUE."
                 --multi,
           ]
-          --rest=[
-            Option "name"
-                --help="The name of the broker."
-                --required,
-          ]
           --run=:: add-http it
+
 
   return [config-broker-cmd]
 
@@ -192,12 +180,12 @@ show-config invocation/Invocation:
   config := cli.config
   ui := cli.ui
 
-  default-device := config.get CONFIG-DEVICE-DEFAULT-KEY
-  default-broker := config.get CONFIG-BROKER-DEFAULT-KEY
-  default-org := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
-  servers := config.get CONFIG-SERVERS-KEY
-  auths := config.get CONFIG-SERVER-AUTHS-KEY
-  recovery-urls := config.get CONFIG-RECOVERY-SERVERS-KEY
+  default-device/string? := config.get CONFIG-DEVICE-DEFAULT-KEY
+  default-broker/string? := config.get CONFIG-BROKER-DEFAULT-KEY
+  default-org/string? := config.get CONFIG-ORGANIZATION-DEFAULT-KEY
+  servers/Map? := config.get CONFIG-SERVERS-KEY
+  auths/Map? := config.get CONFIG-SERVER-AUTHS-KEY
+  recovery-urls/List? := config.get CONFIG-RECOVERY-SERVERS-KEY
 
   if ui.wants-structured:
     result := {
@@ -244,14 +232,14 @@ default-server invocation/Invocation:
   config := cli.config
   ui := cli.ui
 
-  config-key := invocation["artemis"] ? CONFIG-ARTEMIS-DEFAULT-KEY : CONFIG-BROKER-DEFAULT-KEY
+  config-key/string := invocation["artemis"] ? CONFIG-ARTEMIS-DEFAULT-KEY : CONFIG-BROKER-DEFAULT-KEY
 
   if invocation["clear"]:
     config.remove config-key
     config.write
     return
 
-  name := invocation["name"]
+  name/string? := invocation["name"]
   if not name:
     default-server := config.get config-key
     if default-server:
@@ -266,33 +254,32 @@ default-server invocation/Invocation:
   config[config-key] = name
   config.write
 
-check-certificate_ name/string --cli/Cli -> none:
-  ui := cli.ui
-  certificate := certificate-roots.MAP.get name
-  if certificate: return
-  ui.emit --error "Unknown certificate."
-  ui.emit-list certificate-roots.MAP.keys --kind=Ui.ERROR --title="Available certificates"
-  ui.abort
-
 add-supabase invocation/Invocation:
   cli := invocation.cli
   params := invocation.parameters
   config := cli.config
   ui := cli.ui
 
-  name := params["name"]
-  host := params["host"]
-  anon := params["anon"]
-  certificate-name := params["certificate"]
+  name/string := params["name"]
+  url-string/string := params["url"]
+  anon/string := params["anon"]
 
-  if host.starts-with "http://" or host.starts-with "https://":
-    host = host.trim --prefix "http://"
-    host = host.trim --prefix "https://"
+  use-tls := false
+  host := ""
+
+  if url-string.starts-with "http://":
+    use-tls = false
+    host = url-string.trim --left "http://"
+  else if url-string.starts-with "https://":
+    use-tls = true
+    host = url-string.trim --left "https://"
+  else:
+    ui.abort "Invalid URL '$url-string'. Must start with 'http://' or 'https://'."
 
   supabase-config := ServerConfigSupabase name
       --host=host
       --anon=anon
-      --root-certificate-name=certificate-name
+      --use-tls=use-tls
 
   add-server-to-config supabase-config --cli=cli
   if params["default"]:
@@ -307,17 +294,39 @@ add-http invocation/Invocation:
   config := cli.config
   ui := cli.ui
 
-  name := params["name"]
-  host := params["host"]
-  port := params["port"]
-  path := params["path"]
-  root-certificate-names := params["root-certificate"]
-  device-headers-list := params["device-header"]
-  admin-headers-list := params["admin-header"]
+  name/string := params["name"]
+  url-string/string := params["url"]
+  device-headers-list/List := params["device-header"]
+  admin-headers-list/List := params["admin-header"]
 
-  root-certificate-names.do: check-certificate_ it --cli=cli
-  if root-certificate-names.is-empty:
-    root-certificate-names = null
+  use-tls := false
+  host := ""
+
+  if url-string.starts-with "http://":
+    use-tls = false
+    host = url-string.trim --left "http://"
+  else if url-string.starts-with "https://":
+    use-tls = true
+    host = url-string.trim --left "https://"
+  else:
+    ui.abort "Invalid URL '$url-string'. Must start with 'http://' or 'https://'."
+
+  port/int? := null
+  path/string := "/"
+
+  colon-index := host.index-of ":"
+  slash-index := host.index-of "/"
+  if slash-index != -1:
+    path = host[slash-index..]
+    if colon-index != -1 and colon-index < slash-index:
+      port = int.parse host[colon-index + 1..slash-index]
+      host = host[..colon-index]
+    else:
+      host = host[..slash-index]
+  else:
+    if colon-index != -1:
+      port = int.parse host[colon-index + 1..]
+      host = host[..colon-index]
 
   header-list-to-map := : | header-list/List |
     headers-map := null
@@ -341,7 +350,7 @@ add-http invocation/Invocation:
       --host=host
       --port=port
       --path=path
-      --root-certificate-names=root-certificate-names
+      --use-tls=use-tls
       --root-certificate-ders=null
       --device-headers=device-headers
       --admin-headers=admin-headers
@@ -357,7 +366,7 @@ add-recovery-server invocation/Invocation:
   config := invocation.cli.config
   ui := invocation.cli.ui
 
-  url := invocation["url"]
+  url/string := invocation["url"]
 
   config-key := CONFIG-RECOVERY-SERVERS-KEY
   recovery-servers := config.get config-key --init=: []
@@ -374,7 +383,7 @@ list-recovery-servers invocation/Invocation:
   ui := invocation.cli.ui
 
   config-key := CONFIG-RECOVERY-SERVERS-KEY
-  recovery-servers := config.get config-key or []
+  recovery-servers/List := config.get config-key or []
 
   ui.emit-list
       --kind=Ui.RESULT
@@ -387,9 +396,9 @@ remove-recovery-servers invocation/Invocation:
   ui := cli.ui
   params := invocation.parameters
 
-  all := params["all"]
-  urls := params["url"]
-  force := params["force"]
+  all/bool? := params["all"]
+  urls/List? := params["url"]
+  force/bool? := params["force"]
 
   config-key := CONFIG-RECOVERY-SERVERS-KEY
   recovery-servers := config.get config-key --init=: []

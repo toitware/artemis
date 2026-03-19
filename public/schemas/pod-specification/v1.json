@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-2020-12/schema",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://toit.io/schemas/artemis/pod-specification/v1.json",
   "title": "Pod specification",
   "description": "Pod specification format of Artemis.",
@@ -21,7 +21,7 @@
           "type": "integer"
         },
         "name": {
-          "description": "Name of the pod.",
+          "description": "Name of the pod. Inferred from the path if not set.",
           "type": "string"
         },
         "sdk-version": {
@@ -218,10 +218,25 @@
           "$ref": "#/$defs/Pin"
         },
         "cellular.log.level": {
-          "description": "Log level for the cellular module. Debug=0, Info=1, Warning=2, Error=3, Fatal=4.",
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 4
+          "description": "Log level for the cellular module. (Int values are deprecated).",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4
+            },
+            {
+              "type": "string",
+              "enum": [
+                "TRACE",
+                "DEBUG",
+                "INFO",
+                "WARNING",
+                "ERROR",
+                "FATAL"
+              ]
+            }
+          ]
         }
       }
     },

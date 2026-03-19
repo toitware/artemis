@@ -36,11 +36,6 @@ abstract class ServerConfig:
   abstract type -> string
 
   /**
-  Fills the certificate DERs for all certificates where we only have the name.
-  */
-  abstract fill-certificate-ders [certificate-getter] -> none
-
-  /**
   Serializes this configuration to a JSON map.
 
   Uses the $der-serializer block to store larger certificates that
@@ -101,19 +96,15 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   anon/string
   poll-interval/Duration := ?
 
-  // TODO(florian): clean up certificates for server configs.
   uri -> string:
-    if root-certificate-der or root-certificate-name:
+    if use-tls or root-certificate-der:
       return "https://$host"
     return "http://$host"
 
   /**
-  The name of the root certificate.
-
-  If both $root-certificate-der and $root-certificate-name are set, then
-    $root-certificate-der is used.
+  Whether to use TLS/HTTPS for the connection.
   */
-  root-certificate-name/string?
+  use-tls/bool
   /**
   The DER binary of the root certificate.
 
@@ -128,43 +119,34 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     if not root-der:
       root-der-id := json.get "root_certificate_der_id"
       root-der = root-der-id and (der-deserializer.call root-der-id)
+    use-tls := json.get "use_tls"
+    if use-tls == null: use-tls = json.contains "root_certificate_name"
+
     return ServerConfigSupabase name
         --host=json["host"]
         --anon=json["anon"]
         --poll-interval=Duration --us=json["poll_interval"]
-        --root-certificate-name=json.get "root_certificate_name"
+        --use-tls=use-tls
         --root-certificate-der=root-der
 
   constructor name/string
       --.host
       --.anon
-      --.root-certificate-name=null
+      --.use-tls=true
       --.root-certificate-der=null
       --.poll-interval=DEFAULT-POLL-INTERVAL:
     super.from-sub_ name
 
-  /**
-  Compares this instance to $other.
-  Does not take the $poll-interval into account.
-  */
   operator== other:
     if other is not ServerConfigSupabase: return false
     return host == other.host and anon == other.anon and
-        root-certificate-name == other.root-certificate-name and
+        use-tls == other.use-tls and
         root-certificate-der == other.root-certificate-der
 
   type -> string: return "supabase"
 
   is-secured -> bool:
-    return root-certificate-name != null or root-certificate-der != null
-
-  /**
-  Fills the certificate text for the root certificate if there
-    is a certificate name and no certificate text.
-  */
-  fill-certificate-ders [certificate-getter] -> none:
-    if root-certificate-name and not root-certificate-der:
-      root-certificate-der = certificate-getter.call root-certificate-name
+    return use-tls or root-certificate-der != null
 
   to-json  [--der-serializer] --base64/bool=false -> Map:
     result := {
@@ -173,8 +155,8 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
       "anon": anon,
       "poll_interval": poll-interval.in-us,
     }
-    if root-certificate-name:
-      result["root_certificate_name"] = root-certificate-name
+    if use-tls:
+      result["use_tls"] = use-tls
     if root-certificate-der:
       if base64:
         result["root_certificate_der64"] = base64-lib.encode root-certificate-der
@@ -200,7 +182,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         --port=http-port
         --path="/functions/v1/b"  // TODO(florian): get the path from the config.
         --poll-interval=poll-interval
-        --root-certificate-names=null
+        --use-tls=use-tls
         --root-certificate-ders=der ? [der] : null
         --admin-headers=null
         --device-headers=null
@@ -211,6 +193,15 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
 
   compute-cache-key_ -> string:
     return host
+
+  with --host/string -> ServerConfigSupabase:
+    return ServerConfigSupabase
+        name
+        --host=host
+        --anon=anon
+        --use-tls=use-tls
+        --root-certificate-der=root-certificate-der
+        --poll-interval=poll-interval
 
 /**
 A broker configuration for an HTTP-based broker.
@@ -223,7 +214,7 @@ class ServerConfigHttp extends ServerConfig:
   host/string
   port/int?
   path/string
-  root-certificate-names/List?
+  use-tls/bool
   root-certificate-ders/List? := ?
   device-headers/Map?
   admin-headers/Map?
@@ -235,11 +226,13 @@ class ServerConfigHttp extends ServerConfig:
       root-certificates-ders = encode-ders64.map: base64-lib.decode it
     else if config.get "root_certificate_ders":
       root-certificates-ders = config["root_certificate_ders"].map: der-deserializer.call it
+    use-tls := config.get "use_tls"
+    if use-tls == null: use-tls = config.contains "root_certificate_names"
     return ServerConfigHttp name
         --host=config["host"]
         --port=config.get "port"
         --path=config["path"]
-        --root-certificate-names=config.get "root_certificate_names"
+        --use-tls=use-tls
         --root-certificate-ders=root-certificates-ders
         --device-headers=config.get "device_headers"
         --admin-headers=config.get "admin_headers"
@@ -249,7 +242,7 @@ class ServerConfigHttp extends ServerConfig:
       --.host
       --.port
       --.path
-      --.root-certificate-names
+      --.use-tls=false
       --.root-certificate-ders
       --.device-headers
       --.admin-headers
@@ -263,10 +256,6 @@ class ServerConfigHttp extends ServerConfig:
 
   type -> string: return "toit-http"
 
-  fill-certificate-ders [certificate-getter] -> none:
-    if root-certificate-names and not root-certificate-ders:
-      root-certificate-ders = root-certificate-names.map: certificate-getter.call it
-
   to-json [--der-serializer] --base64/bool=false -> Map:
     result := {
       "type": type,
@@ -276,8 +265,8 @@ class ServerConfigHttp extends ServerConfig:
     }
     if port:
       result["port"] = port
-    if root-certificate-names:
-      result["root_certificate_names"] = root-certificate-names
+    if use-tls:
+      result["use_tls"] = use-tls
     if root-certificate-ders:
       if base64:
         result["root_certificate_ders64"] = root-certificate-ders.map: base64-lib.encode it

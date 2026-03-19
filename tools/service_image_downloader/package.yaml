@@ -6,16 +6,16 @@ dependencies:
     path: ../..
   certificate_roots:
     url: github.com/toitware/toit-cert-roots
-    version: ^1.8.0
+    version: ^1.11.0
   cli:
     url: github.com/toitlang/pkg-cli
-    version: ^2.2.0
+    version: ^2.6.0
   host:
     url: github.com/toitlang/pkg-host
-    version: ^1.15.3
+    version: ^1.16.2
   http:
     url: github.com/toitlang/pkg-http
-    version: ^2.8.0
+    version: ^2.11.0
   snapshot:
     path: ../snapshot
   supabase:

@@ -5,10 +5,10 @@ import expect show *
 import artemis.cli.utils show parse-duration
 
 parse str/string -> Duration:
-  return parse-duration str --on-error=: throw "Illegal"
+  return parse-duration str --if-error=: throw "Illegal"
 
 expect-parse-error str/string:
-  parse-duration str --on-error=: return
+  parse-duration str --if-error=: return
   throw "Expected parse error"
 
 expect-equals-seconds s/int duration/Duration:

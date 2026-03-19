@@ -422,4 +422,4 @@ get-partition-table -> ByteArray
       --cli=cli
       --after-download=: null  // Do nothing.
 
-  return file.read-content path
+  return file.read-contents path

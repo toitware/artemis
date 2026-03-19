@@ -831,7 +831,7 @@ group-add invocation/Invocation:
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     pod-reference/PodReference? := null
     if pod:
-      pod-reference = PodReference.parse pod --on-error=:
+      pod-reference = PodReference.parse pod --if-error=:
         ui.abort "Invalid pod reference: $pod"
     else if template:
       pod-reference = fleet.pod-reference-for-group template
@@ -877,7 +877,7 @@ group-update invocation/Invocation:
 
     pod-reference/PodReference? := null
     if pod:
-      pod-reference = PodReference.parse pod --on-error=:
+      pod-reference = PodReference.parse pod --if-error=:
         ui.abort "Invalid pod reference: $pod"
     groups.do: | group/string |
       if not fleet-file.group-pods.contains group:

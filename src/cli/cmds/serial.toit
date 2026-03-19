@@ -157,7 +157,7 @@ build-partitions_ partition-list/List --cli/Cli -> List:
         ui.emit --error "No such file: $value."
         ui.abort
     else:
-      size := int.parse value --on-error=:
+      size := int.parse value --if-error=:
         ui.abort "Partition '$type:$name' has illegal size: '$it'."
       if size <= 0:
         ui.abort "Partition '$type:$name' has illegal size: $size."

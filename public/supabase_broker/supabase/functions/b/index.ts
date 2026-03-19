@@ -1,7 +1,6 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
 import { createClient } from "@supabase/supabase-js";
-import { serve } from "std/server";
 
 const STATUS_IM_A_TEAPOT = 418;
 
@@ -275,7 +274,7 @@ async function handleRequest(req: Request) {
   }
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   try {
     const result = await handleRequest(req);
     if (result instanceof Response) {

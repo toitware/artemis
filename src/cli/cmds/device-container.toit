@@ -100,7 +100,7 @@ install-container invocation/Invocation:
       if seen-triggers.contains "interval":
         ui.abort "Duplicate trigger 'interval'."
       seen-triggers.add "interval"
-      duration := parse-duration parsed-trigger["interval"] --on-error=:
+      duration := parse-duration parsed-trigger["interval"] --if-error=:
         ui.abort "Invalid interval '$parsed-trigger'. Use 20s, 5m10s, 12h or similar."
       triggers.add (pod-specification.IntervalTrigger duration)
     else if parsed-trigger is Map and (parsed-trigger.contains "gpio-low" or parsed-trigger.contains "gpio-high"):
@@ -108,7 +108,7 @@ install-container invocation/Invocation:
       seen-triggers.add "gpio"
       on-high := parsed-trigger.contains "gpio-high"
       pin-string := on-high ? parsed-trigger["gpio-high"] : parsed-trigger["gpio-low"]
-      pin := int.parse pin-string --on-error=:
+      pin := int.parse pin-string --if-error=:
         ui.abort "Invalid pin '$pin-string'."
 
       if seen-pins.contains pin:

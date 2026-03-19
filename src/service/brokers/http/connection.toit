@@ -22,7 +22,7 @@ class HttpConnection_:
       client_.close
       client_ = null
 
-    if config_.root-certificate-ders:
+    if config_.use-tls or config_.root-certificate-ders:
       client_ = http.Client.tls network_ --security-store=HttpSecurityStore_
     else:
       client_ = http.Client network_
