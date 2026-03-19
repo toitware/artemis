@@ -8,7 +8,6 @@ import ..cache
 import ..config
 import ..auth show Authenticatable
 import ..server-config
-import ..artemis-servers.artemis-server show with-server ArtemisServerCli
 import ..brokers.broker show with-broker BrokerCli
 
 SIGNIN-OPTIONS ::= [
@@ -24,16 +23,15 @@ SIGNIN-OPTIONS ::= [
 
 create-auth-commands -> List:
   auth-cmd := Command "auth"
-      --help="Authenticate against the Artemis server or a broker."
+      --help="Authenticate against a broker."
 
   sign-up-cmd := Command "signup"
       --aliases=["sign-up"]
       --help="""
-        Sign up for an Artemis account with email and password.
+        Sign up for an account with email and password.
 
-        If '--broker' is provided, signs up for the default broker.
         If a server is provided with '--server', signs up for that server.
-        If neither is provided, signs up for the Artemis server.
+        Otherwise, signs up for the default broker.
         See 'list' for available servers.
 
         The usual way of signing up is to use oauth2. This command is only
@@ -44,7 +42,9 @@ create-auth-commands -> List:
         are available.
         """
       --options=[
-        Flag "broker" --help="Sign up for the broker.",
+        // The --broker flag is kept for backward compatibility. It's now a no-op
+        // since all auth operations go through the broker.
+        Flag "broker" --hidden,
         OptionString "server" --help="Sign up for a specific server.",
         OptionString "email"
             --help="The email address for the account."
@@ -54,7 +54,7 @@ create-auth-commands -> List:
             --required,
       ]
       --examples=[
-        Example "Sign up for an Artemis account with email and password:"
+        Example "Sign up for an account with email and password:"
             --arguments="--email=test@example.com --password=secret",
       ]
       --run=:: sign-up it
@@ -63,28 +63,27 @@ create-auth-commands -> List:
   login-cmd := Command "login"
       --aliases=["signin", "log-in", "sign-in"]
       --help="""
-          Log in to the Artemis server or a broker.
+          Log in to a broker.
 
-          If '--broker' is provided, authenticates with the default broker.
           If a server is provided with '--server', authenticates with that server.
-          If neither is provided, authenticates with the Artemis server.
+          Otherwise, authenticates with the default broker.
           See 'list' for available servers.
           """
       --options=[
-        Flag "broker" --help="Log into the default broker.",
+        Flag "broker" --hidden,  // Kept for backward compatibility (now a no-op).
         OptionString "server" --help="Log into a specific server.",
       ] + SIGNIN-OPTIONS
       --examples=[
-        Example "Log in to the Artemis server using GitHub:"
+        Example "Log in to the default broker using GitHub:"
             --arguments=""
             --global-priority=10,
         Example """
-            Log in to the Artemis server using GitHub without opening the link
+            Log in to the default broker using GitHub without opening the link
             in a browser:"""
             --arguments="--no-open-browser",
-        Example "Log in to the Artemis server using Google:"
+        Example "Log in to the default broker using Google:"
             --arguments="--provider=google",
-        Example "Log in to the Artemis server with email and password:"
+        Example "Log in with email and password:"
             --arguments="--email=test@example.com --password=secret",
       ]
       --run=:: sign-in it
@@ -104,14 +103,13 @@ create-auth-commands -> List:
       --help="""
           Updates the email or password for an account.
 
-          If '--broker' is provided, updates the account on the default broker.
           If a server is provided with '--server', updates the account on
           that server.
-          If neither is provided, updates the account on the Artemis server.
+          Otherwise, updates the account on the default broker.
           See 'list' for available servers.
           """
       --options=[
-        Flag "broker" --help="Update the account on a broker.",
+        Flag "broker" --hidden,  // Kept for backward compatibility (now a no-op).
         OptionString "server" --help="Update the account on a specific server.",
         Option "email" --help="New email for the account.",
         Option "password" --help="New password for the account.",
@@ -126,15 +124,14 @@ create-auth-commands -> List:
   logout-cmd := Command "logout"
       --aliases=["signout", "log-out", "sign-out"]
       --help="""
-        Log out of the Artemis server or a broker.
+        Log out of a broker.
 
-        If '--broker' is provided, logs out of the default broker.
         If a server is provided with '--server', logs out of that server.
-        If neither is provided, logs out of the Artemis server.
+        Otherwise, logs out of the default broker.
         See 'list' for available servers.
         """
       --options=[
-        Flag "broker" --help="Log out of the the broker.",
+        Flag "broker" --hidden,  // Kept for backward compatibility (now a no-op).
         OptionString "server" --help="Log out of a specific server.",
       ]
       --run=:: logout it
@@ -163,26 +160,17 @@ update invocation/Invocation:
 
 
 with-authenticatable invocation/Invocation [block]:
-  broker := invocation["broker"]
   server := invocation["server"]
 
   cli := invocation.cli
-  ui := cli.ui
-
-  if broker and server:
-    ui.abort "Cannot specify both '--broker' and '--server'."
 
   server-config/ServerConfig := ?
-  if broker or server:
-    server-config = broker
-        ? get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-        : get-server-from-config --cli=cli --name=server
-    with-broker --cli=cli server-config: | broker/BrokerCli |
-      block.call server-config.name broker
+  if server:
+    server-config = get-server-from-config --cli=cli --name=server
   else:
-    server-config = get-server-from-config --cli=cli --key=CONFIG-ARTEMIS-DEFAULT-KEY
-    with-server server-config --cli=cli: | server/ArtemisServerCli |
-      block.call server-config.name server
+    server-config = get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
+  with-broker --cli=cli server-config: | broker/BrokerCli |
+    block.call server-config.name broker
 
 sign-in invocation/Invocation:
   with-authenticatable invocation: | name/string authenticatable/Authenticatable |

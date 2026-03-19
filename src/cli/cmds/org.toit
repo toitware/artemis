@@ -9,7 +9,7 @@ import ..config
 import ..cache
 import ..server-config
 import ..organization
-import ..artemis-servers.artemis-server show with-server ArtemisServerCli
+import ..brokers.broker show with-broker AdminBrokerCli BrokerCli
 import ..utils
 
 create-org-commands -> List:
@@ -219,19 +219,21 @@ create-org-commands -> List:
 
   return [org-cmd]
 
-with-org-server invocation/Invocation [block]:
+with-org-admin invocation/Invocation [block]:
   cli := invocation.cli
   ui := cli.ui
 
-  server-config/ServerConfig := ?
-  server-config = get-server-from-config --key=CONFIG-ARTEMIS-DEFAULT-KEY --cli=cli
+  server-config/ServerConfig := get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
 
-  with-server server-config --cli=cli: | server/ArtemisServerCli |
-    server.ensure-authenticated: | error-message |
-      ui.abort "$error-message (artemis)."
-    block.call server
+  with-broker server-config --cli=cli: | broker/BrokerCli |
+    if broker is not AdminBrokerCli:
+      ui.abort "The configured broker does not support organization management."
+    admin := broker as AdminBrokerCli
+    broker.ensure-authenticated: | error-message |
+      ui.abort "$error-message (broker)."
+    block.call admin
 
-with-org-server-id invocation/Invocation [block]:
+with-org-admin-id invocation/Invocation [block]:
   org-id := invocation["organization-id"]
 
   cli := invocation.cli
@@ -242,12 +244,12 @@ with-org-server-id invocation/Invocation [block]:
     if not org-id:
       ui.abort "No default organization set."
 
-  with-org-server invocation: | server |
-    block.call server org-id
+  with-org-admin invocation: | admin |
+    block.call admin org-id
 
 list-orgs invocation/Invocation -> none:
-  with-org-server invocation: | server/ArtemisServerCli |
-    orgs := server.get-organizations
+  with-org-admin invocation: | admin/AdminBrokerCli |
+    orgs := admin.get-organizations
     invocation.cli.ui.emit-table --result
           --header={"id": "ID", "name": "Name"}
           orgs.map: | org/Organization | {
@@ -257,18 +259,18 @@ list-orgs invocation/Invocation -> none:
 
 add-org invocation/Invocation -> none:
   should-make-default := invocation["default"]
-  with-org-server invocation: | server/ArtemisServerCli |
-    org := server.create-organization invocation["name"]
+  with-org-admin invocation: | admin/AdminBrokerCli |
+    org := admin.create-organization invocation["name"]
     invocation.cli.ui.emit --info "Added organization $org.id - $org.name."
     if should-make-default: make-default_ org --cli=invocation.cli
 
 show-org invocation/Invocation -> none:
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
-    print-org org-id server --cli=invocation.cli
+  with-org-admin-id invocation: | admin/AdminBrokerCli org-id/Uuid |
+    print-org org-id admin --cli=invocation.cli
 
-print-org org-id/Uuid server/ArtemisServerCli --cli/Cli -> none:
+print-org org-id/Uuid admin/AdminBrokerCli --cli/Cli -> none:
   ui := cli.ui
-  org := server.get-organization org-id
+  org := admin.get-organization org-id
   if not org:
     ui.abort "Organization $org-id not found."
   if ui.wants-structured --kind=Ui.RESULT:
@@ -309,14 +311,14 @@ default-org invocation/Invocation -> none:
       ui.emit --result "$org-id"
       return
 
-    with-org-server invocation: | server/ArtemisServerCli |
-      print-org org-id server --cli=cli
+    with-org-admin invocation: | admin/AdminBrokerCli |
+      print-org org-id admin --cli=cli
 
     return
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
+  with-org-admin-id invocation: | admin/AdminBrokerCli org-id/Uuid |
     org/OrganizationDetailed? := null
-    exception := catch: org = server.get-organization org-id
+    exception := catch: org = admin.get-organization org-id
     if exception or not org:
       ui.abort "Organization not found."
 
@@ -337,21 +339,21 @@ update-org invocation/Invocation -> none:
   if not name: ui.abort "No name provided."
   if name == "": ui.abort "Name cannot be empty."
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
-    server.update-organization org-id --name=name
+  with-org-admin-id invocation: | admin/AdminBrokerCli org-id/Uuid |
+    admin.update-organization org-id --name=name
     ui.emit --info "Updated organization $org-id."
 
 member-list invocation/Invocation -> none:
   ui := invocation.cli.ui
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
-    members := server.get-organization-members org-id
+  with-org-admin-id invocation: | admin/AdminBrokerCli org-id/Uuid |
+    members := admin.get-organization-members org-id
     if invocation["id-only"]:
       member-ids := members.map: "$it["id"]"
       member-ids.sort --in-place
       ui.emit-list member-ids --kind=Ui.RESULT
       return
-    profiles := members.map: server.get-profile --user-id=it["id"]
+    profiles := members.map: admin.get-profile --user-id=it["id"]
     unsorted-result := List members.size: {
       "id": "$members[it]["id"]",
       "role": members[it]["role"],
@@ -375,11 +377,11 @@ member-add invocation/Invocation -> none:
   user-id := invocation["user-id"]
   role := invocation["role"]
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid|
-    existing-members := server.get-organization-members org-id
+  with-org-admin-id invocation: | admin/AdminBrokerCli org-id/Uuid|
+    existing-members := admin.get-organization-members org-id
     if (existing-members.any: it["id"] == user-id):
       ui.abort "User $user-id is already a member of organization $org-id."
-    server.organization-member-add
+    admin.organization-member-add
         --organization-id=org-id
         --user-id=user-id
         --role=role
@@ -391,12 +393,12 @@ member-remove invocation/Invocation -> none:
   user-id := invocation["user-id"]
   force := invocation["force"]
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid |
+  with-org-admin-id invocation: | admin/AdminBrokerCli org-id/Uuid |
     if not force:
-      current-user-id := server.get-current-user-id
+      current-user-id := admin.get-current-user-id
       if user-id == current-user-id:
         ui.abort "Use '--force' to remove yourself from an organization."
-    server.organization-member-remove --organization-id=org-id --user-id=user-id
+    admin.organization-member-remove --organization-id=org-id --user-id=user-id
     ui.emit --info "Removed user $user-id from organization $org-id."
 
 member-set-role invocation/Invocation -> none:
@@ -405,8 +407,8 @@ member-set-role invocation/Invocation -> none:
   user-id := invocation["user-id"]
   role := invocation["role"]
 
-  with-org-server-id invocation: | server/ArtemisServerCli org-id/Uuid|
-    server.organization-member-set-role
+  with-org-admin-id invocation: | admin/AdminBrokerCli org-id/Uuid|
+    admin.organization-member-set-role
         --organization-id=org-id
         --user-id=user-id
         --role=role

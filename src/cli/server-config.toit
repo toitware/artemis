@@ -34,7 +34,7 @@ get-server-from-config --cli/Cli --key/string -> ServerConfig?:
     return DEFAULT-ARTEMIS-SERVER-CONFIG
 
   if not server-name:
-    if key == CONFIG-ARTEMIS-DEFAULT-KEY or key == CONFIG-BROKER-DEFAULT-KEY:
+    if key == CONFIG-BROKER-DEFAULT-KEY:
       return DEFAULT-ARTEMIS-SERVER-CONFIG
     return null
 

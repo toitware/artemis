@@ -9,7 +9,6 @@ import uuid show Uuid
 import .utils_
 import .device-container
 import .serial show PARTITION-OPTION
-import ..artemis
 import ..cache
 import ..config
 import ..device
@@ -254,7 +253,7 @@ pod-for_ -> Pod?
   return Pod.from-file local
       --organization-id=fleet.organization-id
       --recovery-urls=fleet.recovery-urls
-      --artemis=fleet.artemis
+      --tmp-directory=fleet.tmp-directory
       --broker=fleet.broker
       --cli=cli
 
@@ -342,7 +341,7 @@ show invocation/Invocation:
       if devices.is-empty:
         ui.abort "Device '$device-reference' does not exist on the broker."
       broker-device := devices[fleet-device.id]
-      organization := fleet.artemis.get-organization --id=broker-device.organization-id
+      organization := fleet.broker.get-organization --id=broker-device.organization-id
       events/List? := null
       if max-events != 0:
         events-map := broker.get-events
@@ -419,8 +418,6 @@ extract-device fleet-device/DeviceFleet
     --force/bool
     --cli/Cli:
   ui := cli.ui
-
-  artemis := fleet.artemis
 
   device/Device := identity-path
       ? FleetWithDevices.device-from --identity-path=identity-path

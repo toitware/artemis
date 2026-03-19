@@ -10,7 +10,6 @@ import host.file
 import io
 import uuid show Uuid
 
-import .artemis
 import .broker
 import .cache
 import .device
@@ -60,7 +59,7 @@ class Pod:
       --organization-id/Uuid
       --recovery-urls/List
       --path/string
-      --artemis/Artemis
+      --tmp-directory/string
       --broker/Broker
       --cli/Cli:
     specification := parse-pod-specification-file path --cli=cli
@@ -68,7 +67,7 @@ class Pod:
         --organization-id=organization-id
         --recovery-urls=recovery-urls
         --specification=specification
-        --artemis=artemis
+        --tmp-directory=tmp-directory
         --broker=broker
         --cli=cli
 
@@ -76,15 +75,14 @@ class Pod:
       --organization-id/Uuid
       --recovery-urls/List
       --specification/PodSpecification
+      --tmp-directory/string
       --broker/Broker
-      --artemis/Artemis
       --cli/Cli:
-    envelope-path := generate-envelope-path_ --tmp-directory=artemis.tmp-directory
+    envelope-path := generate-envelope-path_ --tmp-directory=tmp-directory
     broker.customize-envelope
         --organization-id=organization-id
         --recovery-urls=recovery-urls
         --output-path=envelope-path
-        --artemis=artemis
         --specification=specification
     envelope := file.read-contents envelope-path
     id := random-uuid
@@ -95,7 +93,7 @@ class Pod:
     return Pod
         --id=id
         --name=specification.name
-        --tmp-directory=artemis.tmp-directory
+        --tmp-directory=tmp-directory
         --envelope=envelope
         --envelope-path=envelope-path
         --partition-table=partition-table
@@ -163,7 +161,7 @@ class Pod:
       path/string
       --organization-id/Uuid
       --recovery-urls/List
-      --artemis/Artemis
+      --tmp-directory/string
       --broker/Broker
       --cli/Cli:
     if not file.is-file path:
@@ -179,13 +177,13 @@ class Pod:
         stream.close
     pod/Pod := ?
     if is-compiled-pod:
-      return Pod.parse path --tmp-directory=artemis.tmp-directory --cli=cli
+      return Pod.parse path --tmp-directory=tmp-directory --cli=cli
     else:
       return Pod.from-specification
           --organization-id=organization-id
           --recovery-urls=recovery-urls
           --path=path
-          --artemis=artemis
+          --tmp-directory=tmp-directory
           --broker=broker
           --cli=cli
 

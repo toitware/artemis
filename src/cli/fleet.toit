@@ -8,7 +8,6 @@ import encoding.base64
 import host.file
 import uuid show Uuid
 
-import .artemis
 import .broker
 import .cache
 import .config
@@ -330,24 +329,26 @@ class Fleet:
 
   id/Uuid
   organization-id/Uuid
-  artemis/Artemis
   broker/Broker
+  tmp-directory/string
   cli_/Cli
   fleet-root-or-ref_/string
   fleet-file_/FleetFile
 
   constructor fleet-root-or-ref/string
-      artemis/Artemis
+      --tmp-directory/string
       --default-broker-config/ServerConfig
       --cli/Cli:
     fleet-file := load-fleet-file fleet-root-or-ref
         --default-broker-config=default-broker-config
         --cli=cli
-    return Fleet fleet-root-or-ref artemis
+    return Fleet fleet-root-or-ref
+        --tmp-directory=tmp-directory
         --fleet-file=fleet-file
         --cli=cli
 
-  constructor .fleet-root-or-ref_ .artemis
+  constructor .fleet-root-or-ref_
+      --.tmp-directory
       --fleet-file/FleetFile
       --short-strings/Map?=null
       --cli/Cli:
@@ -359,13 +360,13 @@ class Fleet:
         --server-config=fleet-file.broker-config
         --fleet-id=id
         --organization-id=organization-id
-        --tmp-directory=artemis.tmp-directory
+        --tmp-directory=tmp-directory
         --short-strings=short-strings
         --cli=cli
 
-    // TODO(florian): should we always do this check?
-    org := artemis.get-organization --id=organization-id
-    if not org:
+    // Validate the organization if the broker supports it.
+    org := broker.get-organization --id=organization-id
+    if org == null and broker.supports-admin:
       cli.ui.abort "Organization $organization-id does not exist or is not accessible."
 
   static load-fleet-file -> FleetFile
@@ -520,7 +521,8 @@ class FleetWithDevices extends Fleet:
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
-  constructor fleet-root/string artemis/Artemis
+  constructor fleet-root/string
+      --tmp-directory/string
       --default-broker-config/ServerConfig
       --cli/Cli:
     if not file.is-directory fleet-root and file.is-file fleet-root:
@@ -539,12 +541,13 @@ class FleetWithDevices extends Fleet:
     devices_.do: | device/DeviceFleet |
       device-short-strings_[device.id] = device.short-string
     aliases_ = build-alias-map_ devices_ --cli=cli
-    super fleet-root artemis
+    super fleet-root
+        --tmp-directory=tmp-directory
         --fleet-file=fleet-file
         --short-strings=device-short-strings_
         --cli=cli
 
-  static init fleet-root/string artemis/Artemis -> FleetFile
+  static init fleet-root/string -> FleetFile
       --organization-id/Uuid
       --broker-config/ServerConfig
       --recovery-url-prefixes/List
@@ -559,10 +562,6 @@ class FleetWithDevices extends Fleet:
 
     if file.is-file "$fleet-root/$DEVICES-FILE_":
       ui.abort "Fleet root '$fleet-root' already contains a $DEVICES-FILE_ file."
-
-    org := artemis.get-organization --id=organization-id
-    if not org:
-      ui.abort "Organization $organization-id does not exist or is not accessible."
 
     broker-name := broker-config.name
     fleet-id := random-uuid
@@ -703,7 +702,7 @@ class FleetWithDevices extends Fleet:
           --short-strings=device-short-strings_
           --fleet-id=id
           --organization-id=organization-id
-          --tmp-directory=artemis.tmp-directory
+          --tmp-directory=tmp-directory
           --cli=cli_
       old-broker.update --device-id=device-id --pod=pod
 
@@ -747,7 +746,7 @@ class FleetWithDevices extends Fleet:
           --short-strings=device-short-strings_
           --fleet-id=id
           --organization-id=organization-id
-          --tmp-directory=artemis.tmp-directory
+          --tmp-directory=tmp-directory
           --cli=cli_
       // We could filter out devices that were already known in the new broker, but
       // it's easier and more robust to update all devices.
@@ -843,7 +842,7 @@ class FleetWithDevices extends Fleet:
           --organization-id=organization-id
           --short-strings=device-short-strings_
           --cli=cli_
-          --tmp-directory=artemis.tmp-directory
+          --tmp-directory=tmp-directory
 
     all-brokers := [broker] + migrating-from-brokers
 
@@ -1025,26 +1024,20 @@ class FleetWithDevices extends Fleet:
   /**
   Provisions a device.
 
-  Contacts the Artemis server and creates a new device entry with the
-    given $device-id (used as "alias" on the server side) in the
-    organization with the given $organization-id.
+  Creates a new device entry on the broker with the given $device-id
+    (used as "alias" on the server side) in the organization with the
+    given $organization-id.
 
   Writes the identity file to $out-path.
   */
   provision --device-id/Uuid? --out-path/string:
-    // Ensure that we are authenticated with both the Artemis server and the broker.
-    // We don't want to create a device on Artemis and then have an error with the broker.
-    artemis.ensure-authenticated
     broker.ensure-authenticated
 
-    device := artemis.create-device
+    device := broker.create-device
         --device-id=device-id
         --organization-id=organization-id
     assert: device.id == device-id
-    hardware-id := device.hardware-id
 
-    // Insert an initial event mostly for testing purposes.
-    artemis.notify-created --hardware-id=hardware-id
     broker.notify-created device
 
     write-identity-file device --out-path=out-path
@@ -1068,7 +1061,7 @@ class FleetWithDevices extends Fleet:
         --short-strings=device-short-strings_
         --fleet-id=id
         --organization-id=organization-id
-        --tmp-directory=artemis.tmp-directory
+        --tmp-directory=tmp-directory
         --cli=cli_
 
     if new-broker.server-config.name == broker.server-config.name:
@@ -1123,7 +1116,7 @@ class FleetWithDevices extends Fleet:
             --short-strings=device-short-strings_
             --fleet-id=id
             --organization-id=organization-id
-            --tmp-directory=artemis.tmp-directory
+            --tmp-directory=tmp-directory
             --cli=cli_
         current-detailed-devices := current-broker.get-devices --device-ids=device-ids
         current-ids := current-detailed-devices.keys

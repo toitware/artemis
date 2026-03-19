@@ -13,8 +13,8 @@ import .device show
 import .auth as auth-cmd
 import .serial show PARTITION-OPTION
 import .utils_
-import ..artemis
-import ..brokers.broker show BrokerCli
+import ..broker show Broker
+import ..brokers.broker show AdminBrokerCli BrokerCli with-broker
 import ..config
 import ..cache
 import ..device
@@ -640,25 +640,34 @@ init invocation/Invocation:
   default-recovery-urls := (cli.config.get CONFIG-RECOVERY-SERVERS-KEY) or []
 
   fleet-root := compute-fleet-root-or-ref invocation
-  with-artemis invocation: | artemis/Artemis |
-    fleet-file := FleetWithDevices.init fleet-root artemis
-        --organization-id=organization-id
-        --broker-config=broker-config
-        --recovery-url-prefixes=default-recovery-urls
-        --cli=cli
+  // Validate the organization before creating the fleet files.
+  with-broker broker-config --cli=cli: | broker/BrokerCli |
+    if broker is AdminBrokerCli:
+      broker.ensure-authenticated: | error-message |
+        ui.abort "$error-message (broker)."
+      admin := broker as AdminBrokerCli
+      org := admin.get-organization organization-id
+      if not org:
+        ui.abort "Organization $organization-id does not exist or is not accessible."
 
-    fleet-file.recovery-urls.do: | url/string |
-      ui.emit --info "Added recovery URL: $url"
-    ui.emit --info "Fleet root '$fleet-root' initialized."
-    ui.emit --kind=Ui.RESULT
-        --structured=: {
-          "id": "$fleet-file.id",
-          "broker": fleet-file.broker-config.to-json --base64 --der-serializer=: unreachable,
-          "recovery-urls": fleet-file.recovery-urls,
-        }
-        --text=:
-          // Don't print anything.
-          null
+  fleet-file := FleetWithDevices.init fleet-root
+      --organization-id=organization-id
+      --broker-config=broker-config
+      --recovery-url-prefixes=default-recovery-urls
+      --cli=cli
+
+  fleet-file.recovery-urls.do: | url/string |
+    ui.emit --info "Added recovery URL: $url"
+  ui.emit --info "Fleet root '$fleet-root' initialized."
+  ui.emit --kind=Ui.RESULT
+      --structured=: {
+        "id": "$fleet-file.id",
+        "broker": fleet-file.broker-config.to-json --base64 --der-serializer=: unreachable,
+        "recovery-urls": fleet-file.recovery-urls,
+      }
+      --text=:
+        // Don't print anything.
+        null
 
 login invocation/Invocation:
   cli := invocation.cli
@@ -762,7 +771,7 @@ roll-out invocation/Invocation:
   with-devices-fleet invocation: | fleet/FleetWithDevices |
     pod-diff-bases := diff-bases.map: | file-or-ref/string |
       if file.is-file file-or-ref:
-        Pod.parse file-or-ref --tmp-directory=fleet.artemis.tmp-directory --cli=cli
+        Pod.parse file-or-ref --tmp-directory=fleet.tmp-directory --cli=cli
       else:
         fleet.download (PodReference.parse file-or-ref --cli=cli)
     fleet.roll-out --diff-bases=pod-diff-bases

@@ -5,7 +5,6 @@ import host.os
 import partition-table show PartitionTable
 import uuid show Uuid
 
-import ..artemis
 import ..config
 import ..cache
 import ..fleet
@@ -13,20 +12,6 @@ import ..pod
 import ..sdk
 import ..server-config
 import ..utils
-
-with-artemis invocation/Invocation [block]:
-  cli := invocation.cli
-  artemis-config := get-server-from-config --cli=cli --key=CONFIG-ARTEMIS-DEFAULT-KEY
-
-  with-tmp-directory: | tmp-directory/string |
-    artemis := Artemis
-        --cli=invocation.cli
-        --tmp-directory=tmp-directory
-        --server-config=artemis-config
-    try:
-      block.call artemis
-    finally:
-      artemis.close
 
 default-device-from-config --cli/Cli -> Uuid?:
   config := cli.config
@@ -47,9 +32,10 @@ with-devices-fleet invocation/Invocation [block]:
   // the constructor call below will throw.
   fleet-root := compute-fleet-root-or-ref invocation
 
-  with-artemis invocation: | artemis/Artemis |
+  with-tmp-directory: | tmp-directory/string |
     default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-    fleet := FleetWithDevices fleet-root artemis
+    fleet := FleetWithDevices fleet-root
+        --tmp-directory=tmp-directory
         --default-broker-config=default-broker-config
         --cli=cli
     block.call fleet
@@ -59,9 +45,10 @@ with-pod-fleet invocation/Invocation [block]:
 
   fleet-root-or-ref := compute-fleet-root-or-ref invocation
 
-  with-artemis invocation: | artemis/Artemis |
+  with-tmp-directory: | tmp-directory/string |
     default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-    fleet := Fleet fleet-root-or-ref artemis
+    fleet := Fleet fleet-root-or-ref
+        --tmp-directory=tmp-directory
         --default-broker-config=default-broker-config
         --cli=cli
     block.call fleet

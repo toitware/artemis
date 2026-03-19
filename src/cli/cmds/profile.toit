@@ -6,7 +6,7 @@ import net
 import ..config
 import ..cache
 import ..server-config
-import ..artemis-servers.artemis-server show with-server ArtemisServerCli
+import ..brokers.broker show with-broker AdminBrokerCli BrokerCli
 
 create-profile-commands -> List:
   profile-cmd := Command "profile"
@@ -35,20 +35,23 @@ create-profile-commands -> List:
 
   return [profile-cmd]
 
-with-profile-server invocation/Invocation [block]:
+with-profile-admin invocation/Invocation [block]:
   cli := invocation.cli
 
-  server-config := get-server-from-config --key=CONFIG-ARTEMIS-DEFAULT-KEY --cli=cli
+  server-config := get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
 
-  with-server server-config --cli=cli: | server/ArtemisServerCli |
-    server.ensure-authenticated: | error-message |
-      cli.ui.abort "$error-message (artemis)."
-    block.call server
+  with-broker server-config --cli=cli: | broker/BrokerCli |
+    if broker is not AdminBrokerCli:
+      cli.ui.abort "The configured broker does not support profile management."
+    admin := broker as AdminBrokerCli
+    broker.ensure-authenticated: | error-message |
+      cli.ui.abort "$error-message (broker)."
+    block.call admin
 
 show-profile invocation/Invocation:
   ui := invocation.cli.ui
-  with-profile-server invocation: | server/ArtemisServerCli |
-    profile := server.get-profile
+  with-profile-admin invocation: | admin/AdminBrokerCli |
+    profile := admin.get-profile
     if ui.wants-structured --kind=Ui.RESULT:
       // We recreate the map, so we don't show unnecessary entries.
       ui.emit
@@ -73,6 +76,6 @@ update-profile invocation/Invocation:
   if not name:
     ui.abort "No name specified."
 
-  with-profile-server invocation: | server/ArtemisServerCli |
-    server.update-profile --name=name
+  with-profile-admin invocation: | admin/AdminBrokerCli |
+    admin.update-profile --name=name
     ui.emit --info "Profile updated."

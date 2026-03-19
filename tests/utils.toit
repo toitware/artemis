@@ -1104,7 +1104,6 @@ with-tester
     tester.replacements[TEST-ARTEMIS-VERSION] = "TEST_ARTEMIS_VERSION"
 
     try:
-      tester.run ["config", "broker", "--artemis", "default", artemis-config.name]
       tester.run ["config", "broker", "default", broker-config.name]
       block.call tester
     finally:

@@ -11,7 +11,6 @@ import uuid show Uuid
 import encoding.base64
 import encoding.ubjson
 
-import .artemis
 import .cache
 import .config
 import .device
@@ -24,6 +23,7 @@ import ..shared.version
 import ..shared.utils.patch show Patcher PatchObserver
 
 import .brokers.broker
+import .organization
 import .event
 import .firmware
 import .pod-registry
@@ -112,6 +112,46 @@ class Broker:
   */
   ensure-authenticated:
     broker-connection_
+
+  /**
+  Whether the broker supports administrative operations.
+  */
+  supports-admin -> bool:
+    return broker-connection_ is AdminBrokerCli
+
+  /**
+  Returns the admin interface of the broker.
+
+  Throws if the broker does not support administrative operations.
+  */
+  admin-connection -> AdminBrokerCli:
+    connection := broker-connection_
+    if connection is not AdminBrokerCli:
+      throw "The configured broker does not support this operation."
+    return connection as AdminBrokerCli
+
+  /**
+  Fetches the organization with the given $id.
+
+  Returns null if the broker doesn't support administrative operations
+    or if the organization doesn't exist.
+  */
+  get-organization --id/Uuid -> OrganizationDetailed?:
+    connection := broker-connection_
+    if connection is not AdminBrokerCli:
+      return null
+    return (connection as AdminBrokerCli).get-organization id
+
+  /**
+  Creates a device in the organization with the given $organization-id.
+
+  The $device-id may be null in which case the broker creates an alias.
+  Throws if the broker does not support administrative operations.
+  */
+  create-device --device-id/Uuid? --organization-id/Uuid -> Device:
+    return admin-connection.create-device-in-organization
+        --device-id=device-id
+        --organization-id=organization-id
 
   /**
   Closes the broker.
@@ -829,7 +869,6 @@ class Broker:
 
   /**
   Customizes a generic Toit envelope with the given $specification.
-    Also installs the Artemis service.
 
   The image is ready to be flashed together with the identity file.
   */
@@ -837,9 +876,7 @@ class Broker:
       --organization-id/Uuid
       --specification/PodSpecification
       --recovery-urls/List
-      --artemis/Artemis
       --output-path/string:
-    service-version := specification.artemis-version
     sdk-version := specification.sdk-version
 
     envelope-path := get-envelope
@@ -856,7 +893,6 @@ class Broker:
           cli_.ui.abort "The envelope uses SDK version $envelope-sdk-version, but $sdk-version was requested."
     else:
       sdk-version = envelope-sdk-version
-    envelope-word-bit-size := Sdk.get-word-bit-size-from --envelope=envelope
 
     sdk := get-sdk sdk-version --cli=cli_
 
@@ -879,11 +915,10 @@ class Broker:
       connection.to-json
     device-config["connections"] = connections
 
-    // Create the assets for the Artemis service.
+    // Create the assets for the device service.
     // TODO(florian): share this code with the identity creation code.
     der-certificates := {:}
     broker-json := server-config-to-service-json server-config der-certificates
-    artemis-json := server-config-to-service-json artemis.server-config der-certificates
 
     with-tmp-directory: | tmp-dir |
       // Store the containers in the envelope.
@@ -944,7 +979,7 @@ class Broker:
         },
         "artemis.broker": {
           "format": "tison",
-          "json": artemis-json,
+          "json": broker-json,
         },
       }
       der-certificates.do: | name/string value/ByteArray |
@@ -968,61 +1003,6 @@ class Broker:
 
       artemis-assets-path := "$tmp-dir/artemis.assets"
       sdk.assets-create --output-path=artemis-assets-path artemis-assets
-
-
-      // Build the Artemis service image.
-      artemis-container := get-artemis-container service-version --chip-family=envelope-chip-family --cli=cli_
-      artemis-snapshot-path := "$tmp-dir/artemis.snapshot"
-      create-version-file := :: | repo-path/string |
-        // TODO(florian): share this code with the identity creation code.
-        version-path := "$repo-path/src/shared/version.toit"
-        if not file.is-file version-path:
-          // We already have the version form the container.
-          // We still need to extract a major and minor version.
-          artemis-version := artemis-container.git-ref
-          artemis-major/int := ?
-          artemis-minor/int := ?
-          if not artemis-version:
-            cli_.ui.abort "Local Artemis checkouts must have a version.toit file."
-          parts := (artemis-version.trim --left "v").split "."
-          if parts.size < 2:
-            // Probably just a commit hash or full ref.
-            // This should only happen during development. Use our version instead.
-            artemis-major = ARTEMIS-VERSION-MAJOR
-            artemis-minor = ARTEMIS-VERSION-MINOR
-          else:
-            had-error := false
-            artemis-major = int.parse parts[0] --on-error=:
-              had-error = true
-              0
-            artemis-minor = int.parse parts[1] --on-error=:
-              had-error = true
-              0
-            if had-error:
-              artemis-major = ARTEMIS-VERSION-MAJOR
-              artemis-minor = ARTEMIS-VERSION-MINOR
-          version-contents := """
-            // This file is generated by the Toit SDK.
-            // Do not edit.
-            ARTEMIS-VERSION ::= "$artemis-version"
-            ARTEMIS-VERSION-MAJOR ::= $artemis-major
-            ARTEMIS-VERSION-MINOR ::= $artemis-minor
-            """
-          file.write-contents --path=version-path version-contents
-      artemis-container.build-snapshot
-          --pre-compilation-hook=create-version-file
-          --relative-to=specification.relative-to
-          --sdk=sdk
-          --output-path=artemis-snapshot-path
-          --cli=cli_
-      cli_.ui.emit --info "Added Artemis service container to envelope."
-
-      sdk.firmware-add-container "artemis"
-          --envelope=output-path
-          --assets=artemis-assets-path
-          --program-path=artemis-snapshot-path
-          --trigger="boot"
-          --critical
 
     // For convenience save all snapshots in the user's cache.
     cache-snapshots --envelope-path=output-path --cli=cli_

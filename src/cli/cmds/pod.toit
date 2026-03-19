@@ -4,7 +4,6 @@ import cli show *
 import host.file
 
 import .utils_
-import ..artemis
 import ..config
 import ..cache
 import ..fleet
@@ -302,14 +301,12 @@ create-pod invocation/Invocation:
   output := invocation["output"]
 
   with-pod-fleet invocation: | fleet/Fleet |
-    artemis := fleet.artemis
-    broker := fleet.broker
     pod := Pod.from-specification
         --organization-id=fleet.organization-id
         --recovery-urls=fleet.recovery-urls
         --path=specification-path
-        --artemis=artemis
-        --broker=broker
+        --tmp-directory=fleet.tmp-directory
+        --broker=fleet.broker
         --cli=cli
     pod.write output --cli=cli
 
@@ -333,14 +330,12 @@ upload invocation/Invocation:
     tags.add "latest"
 
   with-pod-fleet invocation: | fleet/Fleet |
-    artemis := fleet.artemis
-    broker := fleet.broker
     pod-paths.do: | pod-path/string |
       pod := Pod.from-file pod-path
           --organization-id=fleet.organization-id
           --recovery-urls=fleet.recovery-urls
-          --artemis=artemis
-          --broker=broker
+          --tmp-directory=fleet.tmp-directory
+          --broker=fleet.broker
           --cli=cli
       upload-result := fleet.upload --pod=pod --tags=tags --force-tags=force
       if ui.wants-structured --kind=Ui.RESULT:

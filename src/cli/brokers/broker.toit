@@ -10,6 +10,7 @@ import ..auth
 import ..config
 import ..event
 import ..device
+import ..organization
 import ..pod-registry
 import ...shared.server-config
 import .supabase
@@ -275,6 +276,84 @@ interface BrokerCli implements Authenticatable:
   pod-registry-download-pod-manifest -> ByteArray
       --organization-id/Uuid
       --pod-id/Uuid
+
+/**
+Extends $BrokerCli with administrative operations.
+
+Not all brokers support administrative operations. For example, a
+  file-based broker (like a GitHub Pages broker) would not support
+  user or organization management.
+
+Use `broker is AdminBrokerCli` to check whether a broker supports
+  these operations.
+*/
+interface AdminBrokerCli extends BrokerCli:
+  /** Returns the user-id of the authenticated user. */
+  get-current-user-id -> Uuid
+
+  /**
+  Fetches list of organizations the user has access to.
+
+  The returned list contains instances of type $Organization.
+  */
+  get-organizations -> List
+
+  /**
+  Fetches the organization with the given $id.
+
+  Returns null if the organization doesn't exist.
+  */
+  get-organization id/Uuid -> OrganizationDetailed?
+
+  /** Creates a new organization with the given $name. */
+  create-organization name/string -> Organization
+
+  /** Updates the given organization. */
+  update-organization organization-id/Uuid --name/string -> none
+
+  /**
+  Gets a list of members of the organization with the given $organization-id.
+
+  Each entry is a map consisting of the "id" and "role".
+  */
+  get-organization-members organization-id/Uuid -> List
+
+  /**
+  Adds the user with $user-id as a new member to the organization
+    with $organization-id.
+  */
+  organization-member-add --organization-id/Uuid --user-id/Uuid --role/string
+
+  /**
+  Removes the user with $user-id from the organization with
+    $organization-id.
+  */
+  organization-member-remove --organization-id/Uuid --user-id/Uuid
+
+  /**
+  Updates the role of the user with $user-id in the organization
+    with $organization-id.
+  */
+  organization-member-set-role --organization-id/Uuid --user-id/Uuid --role/string
+
+  /**
+  Gets the profile of the user with the given $user-id.
+
+  If no $user-id is given, the profile of the current user is returned.
+  Returns null if no user with the given ID exists.
+  */
+  get-profile --user-id/Uuid?=null -> Map?
+
+  /** Updates the profile of the current user. */
+  update-profile --name/string -> none
+
+  /**
+  Adds a new device to the organization with the given $organization-id.
+
+  Takes a $device-id, representing the user's chosen name for the device.
+  The $device-id may be null in which case the server creates an alias.
+  */
+  create-device-in-organization --organization-id/Uuid --device-id/Uuid? -> Device
 
 with-broker server-config/ServerConfig --cli/Cli [block]:
   broker := BrokerCli server-config --cli=cli
