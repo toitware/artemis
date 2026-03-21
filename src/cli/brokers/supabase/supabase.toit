@@ -40,10 +40,21 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> 
       --root-certificate-ders=server-config.root-certificate-der ? [server-config.root-certificate-der] : null
       --poll-interval=server-config.poll-interval
 
+  // Check if this Supabase instance supports admin operations by
+  // probing for the organizations table.
+  has-admin := false
+  catch:
+    supabase-client.rest.select "organizations" --filters=[
+      equals "id" "00000000-0000-0000-0000-000000000000"
+    ]
+    has-admin = true
+
+  if has-admin:
+    return BrokerCliSupabaseAdmin --id=id supabase-client http-config
   return BrokerCliSupabase --id=id supabase-client http-config
 
 
-class BrokerCliSupabase extends BrokerCliHttp implements AdminBrokerCli:
+class BrokerCliSupabase extends BrokerCliHttp:
   supabase-client_/supabase.Client? := null
 
   constructor --id/string .supabase-client_ http-config/ServerConfigHttp:
@@ -81,7 +92,9 @@ class BrokerCliSupabase extends BrokerCliHttp implements AdminBrokerCli:
       "Authorization": "Bearer $bearer",
     }
 
-  // AdminBrokerCli implementation.
+class BrokerCliSupabaseAdmin extends BrokerCliSupabase implements AdminBrokerCli:
+  constructor --id/string supabase-client/supabase.Client http-config/ServerConfigHttp:
+    super --id=id supabase-client http-config
 
   get-current-user-id -> Uuid:
     return Uuid.parse supabase-client_.auth.get-current-user["id"]

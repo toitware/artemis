@@ -669,6 +669,10 @@ class FleetWithDevices extends Fleet:
     if not has-group group:
       cli_.ui.abort "Group '$group' not found."
 
+    devices_.do: | existing/DeviceFleet |
+      if existing.id == id:
+        cli_.ui.abort "Device with ID $id already exists in the fleet."
+
     old-size := devices_.size
     new-file := "$output-directory/$(id).identity"
 

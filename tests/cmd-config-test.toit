@@ -36,7 +36,9 @@ run-test fleet/TestFleet:
   expect-equals artemis-server-config.port artemis-config["port"]
   fleet.tester.replacements["$artemis-server-config.port"] = "<A-PORT>"
 
-  fleet.tester.replacements["$artemis-config["auth"]"] = "<ARTEMIS_AUTH>"
+  artemis-auth := artemis-config.get "auth"
+  if artemis-auth:
+    fleet.tester.replacements["$artemis-auth"] = "<ARTEMIS_AUTH>"
 
   fleet.run-gold "BAA-config-show"
       "Print the test config"

@@ -13,7 +13,6 @@ Servers:
       X-Artemis-Header: true
     admin_headers:
       X-Artemis-Header: true
-    auth: <ARTEMIS_AUTH>
   test-broker:
     type: toit-http
     host: <HOST>

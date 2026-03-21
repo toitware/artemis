@@ -226,11 +226,13 @@ with-org-admin invocation/Invocation [block]:
   server-config/ServerConfig := get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
 
   with-broker server-config --cli=cli: | broker/BrokerCli |
+    // Check authentication before checking admin support, so users
+    // get a "not logged in" error rather than "not supported".
+    broker.ensure-authenticated: | error-message |
+      ui.abort "$error-message (broker)."
     if broker is not AdminBrokerCli:
       ui.abort "The configured broker does not support organization management."
     admin := broker as AdminBrokerCli
-    broker.ensure-authenticated: | error-message |
-      ui.abort "$error-message (broker)."
     block.call admin
 
 with-org-admin-id invocation/Invocation [block]:
@@ -316,13 +318,22 @@ default-org invocation/Invocation -> none:
 
     return
 
-  with-org-admin-id invocation: | admin/AdminBrokerCli org-id/Uuid |
-    org/OrganizationDetailed? := null
-    exception := catch: org = admin.get-organization org-id
-    if exception or not org:
-      ui.abort "Organization not found."
-
-    make-default_ org --cli=cli
+  server-config/ServerConfig := get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
+  with-broker server-config --cli=cli: | broker/BrokerCli |
+    broker.ensure-authenticated: | error-message |
+      ui.abort "$error-message (broker)."
+    if broker is AdminBrokerCli:
+      admin := broker as AdminBrokerCli
+      org/OrganizationDetailed? := null
+      exception := catch: org = admin.get-organization org-id
+      if exception or not org:
+        ui.abort "Organization not found."
+      make-default_ org --cli=cli
+    else:
+      // Non-admin broker: set the default without validation.
+      config[CONFIG-ORGANIZATION-DEFAULT-KEY] = "$org-id"
+      config.write
+      ui.emit --info "Default organization set to $org-id."
 
 make-default_ org/Organization --cli/Cli -> none:
   config := cli.config

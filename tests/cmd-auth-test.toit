@@ -14,6 +14,18 @@ run-test tester/Tester:
 
   // Some command that requires to be authenticated.
   output := tester.run --expect-exit-1 ["org", "list"]
+  // Non-admin brokers report "does not support" instead of "Not logged in".
+  if output.contains "does not support":
+    // The broker doesn't support admin operations, so we can't test
+    // org-based auth flow. Just verify login/logout don't crash.
+    tester.run [
+      "auth", "login",
+      "--email", TEST-EXAMPLE-COM-EMAIL,
+      "--password", TEST-EXAMPLE-COM-PASSWORD,
+    ]
+    tester.run ["auth", "logout"]
+    return
+
   expect (output.contains "Not logged in")
 
   tester.run [

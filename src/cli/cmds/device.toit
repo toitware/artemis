@@ -473,14 +473,14 @@ extract-device fleet-device/DeviceFleet
 device-to-json_
     fleet-device/DeviceFleet
     broker-device/DeviceDetailed
-    organization/OrganizationDetailed
+    organization/OrganizationDetailed?
     events/List?:
   result := {
     "id": "$broker-device.id",
     "name": fleet-device.name,
     "aliases": fleet-device.aliases,
     "organization_id": "$broker-device.organization-id",
-    "organization_name": organization.name,
+    "organization_name": organization ? organization.name : null,
     "goal": broker-device.goal,
     "reported_state_goal": broker-device.reported-state-goal,
     "reported_state_current": broker-device.reported-state-current,
@@ -515,11 +515,12 @@ print-device_ -> string
     fleet/FleetWithDevices
     fleet-device/DeviceFleet
     broker-device/DeviceDetailed
-    organization/OrganizationDetailed
+    organization/OrganizationDetailed?
     events/List?:
   printer := Printer_
   printer.emit "Device ID: $broker-device.id"
-  printer.emit "Organization ID: $broker-device.organization-id ($organization.name)"
+  org-suffix := organization ? " ($organization.name)" : ""
+  printer.emit "Organization ID: $broker-device.organization-id$org-suffix"
   printer.emit "Device name: $(fleet-device.name or "")"
   aliases := fleet-device.aliases or []
   printer.emit "Device aliases: $(aliases.join ", ")"
