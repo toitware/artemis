@@ -17,6 +17,7 @@ import .firmware
 import .pod
 import .pod-specification
 import .pod-registry
+import .pod-store show PodInfo UploadResult
 import .utils
 import .utils.names
 import .server-config
@@ -415,7 +416,7 @@ class Fleet:
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
     cli_.ui.emit --info "Uploading pod. This may take a while."
 
-    return broker.upload
+    return broker.pod-store.upload
         --pod=pod
         --tags=tags
         --force-tags=force-tags
@@ -426,39 +427,39 @@ class Fleet:
     pod-id := reference.id
     if not pod-id:
       pod-id = get-pod-id reference
-    if not broker.is-cached --pod-id=pod-id:
+    if not broker.pod-store.is-cached --pod-id=pod-id:
       cli_.ui.emit --info "Downloading pod '$reference'."
     return download --pod-id=pod-id
 
   download --pod-id/Uuid -> Pod:
-    return broker.download --pod-id=pod-id
+    return broker.pod-store.download --pod-id=pod-id
 
   list-pods --names/List -> Map:
-    return broker.list-pods --names=names
+    return broker.pod-store.list-pods --names=names
 
   delete --description-names/List:
-    broker.delete --description-names=description-names
+    broker.pod-store.delete --description-names=description-names
 
   delete --pod-references/List:
-    broker.delete --pod-references=pod-references
+    broker.pod-store.delete --pod-references=pod-references
 
   add-tags --tags/List --force/bool --references/List:
-    broker.add-tags --tags=tags --force=force --references=references
+    broker.pod-store.add-tags --tags=tags --force=force --references=references
 
   remove-tags --tags/List --references/List:
-    broker.remove-tags --tags=tags --references=references
+    broker.pod-store.remove-tags --tags=tags --references=references
 
-  pod pod-id/Uuid -> PodBroker:
-    return broker.pod pod-id
+  pod pod-id/Uuid -> PodInfo:
+    return broker.pod-store.pod pod-id
 
   get-pod-id reference/PodReference -> Uuid:
-    return broker.get-pod-id reference
+    return broker.pod-store.get-pod-id reference
 
   get-pod-id --name/string --tag/string? --revision/int? -> Uuid:
-    return broker.get-pod-id --name=name --tag=tag --revision=revision
+    return broker.pod-store.get-pod-id --name=name --tag=tag --revision=revision
 
   pod-exists reference/PodReference -> bool:
-    return broker.pod-exists reference
+    return broker.pod-store.pod-exists reference
 
   recovery-urls -> List:
     return fleet-file_.recovery-urls
@@ -904,9 +905,9 @@ class FleetWithDevices extends Fleet:
             if detailed-device.pod-id-current: pod-ids.add detailed-device.pod-id-current
             if detailed-device.pod-id-firmware: pod-ids.add detailed-device.pod-id-firmware
 
-      broker-pod-entry-map := current-broker.get-pod-registry-entry-map --pod-ids=pod-ids.to-list
+      broker-pod-entry-map := current-broker.pod-store.get-pod-registry-entry-map --pod-ids=pod-ids.to-list
       pod-entries[current-broker.server-config.name] = broker-pod-entry-map
-      broker-description-map := current-broker.get-pod-descriptions
+      broker-description-map := current-broker.pod-store.get-pod-descriptions
           --pod-registry-entries=broker-pod-entry-map.values
       pod-descriptions[current-broker.server-config.name] = broker-description-map
 
