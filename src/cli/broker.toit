@@ -4,11 +4,9 @@ import cli show Cli FileStore DirectoryStore
 import crypto.sha256
 import host.file
 import host.os
-import io
 import net
 import uuid show Uuid
 
-import encoding.base64
 import encoding.ubjson
 
 import .cache
@@ -18,12 +16,11 @@ import .pod
 import .pod-specification
 
 import .utils
-import .utils.patch-build show build-diff-patch build-trivial-patch
 import ..shared.version
-import ..shared.utils.patch show Patcher PatchObserver
 
 import .auth show Authenticatable
 import .brokers.broker
+import .firmware-patches show FirmwarePatchUploader
 import .organization
 import .event
 import .firmware
@@ -181,7 +178,7 @@ class Broker:
   Also uploads the trivial patches.
   */
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
-    upload-trivial-patches_ --pod=pod
+    patch-uploader_.upload-trivial-patches --pod=pod
 
     pod.split: | manifest/Map parts/Map |
       parts.do: | id/string contents/ByteArray |
@@ -240,108 +237,16 @@ class Broker:
         --tags=sorted-uploaded-tags
         --tag-errors=tag-errors
 
-  upload-trivial-patches_ --pod/Pod -> none:
-    firmware-contents := FirmwareContents.from-envelope pod.envelope-path --cli=cli_
-    upload_ --firmware-contents=firmware-contents
+  patch-uploader__/FirmwarePatchUploader? := null
 
-  upload_ --firmware-contents/FirmwareContents:
-    firmware-contents.trivial-patches.do:
-      upload-patch_ it
-
-  /**
-  Uploads the given $patch to the server under the given $organization-id.
-  */
-  upload-patch_ patch/FirmwarePatch:
-    diff-and-upload_ patch
-
-  /**
-  Computes patches and uploads them to the broker.
-  */
-  diff-and-upload_ patch/FirmwarePatch -> none:
-    // Unless it is already cached, always create/upload the trivial one.
-    trivial-id := id_ --to=patch.to_
-    cache-key := cache-key-patch
-        --broker-config=server-config
-        --organization-id=organization-id
-        --patch-id=trivial-id
-    cli_.cache.get cache-key: | store/FileStore |
-      trivial := build-trivial-patch patch.bits_
-      broker-connection_.upload-firmware trivial
+  patch-uploader_ -> FirmwarePatchUploader:
+    if not patch-uploader__:
+      patch-uploader__ = FirmwarePatchUploader
+          --broker-connection=broker-connection_
+          --server-config=server-config
           --organization-id=organization-id
-          --firmware-id=trivial-id
-      store.save-via-writer: | writer/io.Writer |
-        trivial.do: writer.write it
-
-    if not patch.from_: return
-
-    // Attempt to fetch the old trivial patch and use it to construct
-    // the old bits so we can compute a diff from them.
-    old-id := id_ --to=patch.from_
-    cache-key = cache-key-patch
-        --broker-config=server-config
-        --organization-id=organization-id
-        --patch-id=old-id
-    trivial-old := cli_.cache.get cache-key: | store/FileStore |
-      downloaded := null
-      catch: downloaded = broker-connection_.download-firmware
-          --organization-id=organization-id
-          --id=old-id
-      if not downloaded:
-        cli_.ui.emit --warning "Failed to download old firmware for patch $old-id -> $trivial-id."
-        return
-      store.with-tmp-directory: | tmp-dir |
-        file.write-contents downloaded --path="$tmp-dir/patch"
-        // TODO(florian): we don't have the chunk-size when downloading from the broker.
-        store.move "$tmp-dir/patch"
-
-    bitstream := io.Reader trivial-old
-    patcher := Patcher bitstream null
-    patch-writer := PatchWriter
-    if not patcher.patch patch-writer: return
-    // Build the old bits and check that we get the correct hash.
-    old := patch-writer.buffer.bytes
-    if old.size < patch-writer.size: old += ByteArray (patch-writer.size - old.size)
-    sha := sha256.Sha256
-    sha.add old
-    if patch.from_ != sha.get: return
-
-    diff-id := id_ --from=patch.from_ --to=patch.to_
-    cache-key = cache-key-patch
-        --broker-config=server-config
-        --organization-id=organization-id
-        --patch-id=diff-id
-    cli_.cache.get cache-key: | store/FileStore |
-      // Build the diff and verify that we can apply it and get the
-      // correct hash out before uploading it.
-      diff := build-diff-patch old patch.bits_
-      if patch.to_ != (compute-applied-hash_ diff old): return
-      diff-size-bytes := diff.reduce --initial=0: | size chunk | size + chunk.size
-      diff-size := diff-size-bytes > 4096
-          ? "$((diff-size-bytes + 1023) / 1024) KB"
-          : "$diff-size-bytes B"
-      from64 := base64.encode patch.from_ --url-mode
-      to64 := base64.encode patch.to_ --url-mode
-      cli_.ui.emit --info "Uploading patch $from64 -> $to64 ($diff-size)."
-      broker-connection_.upload-firmware diff
-          --organization-id=organization-id
-          --firmware-id=diff-id
-      store.save-via-writer: | writer/io.Writer |
-        diff.do: writer.write it
-
-  static id_ --from/ByteArray?=null --to/ByteArray -> string:
-    folder := base64.encode to --url-mode
-    entry := from ? (base64.encode from --url-mode) : "none"
-    return "$folder/$entry"
-
-  static compute-applied-hash_ diff/List old/ByteArray -> ByteArray?:
-    combined := diff.reduce --initial=#[]: | acc chunk | acc + chunk
-    bitstream := io.Reader combined
-    patcher := Patcher bitstream old
-    writer := PatchWriter
-    if not patcher.patch writer: return null
-    sha := sha256.Sha256
-    sha.add writer.buffer.bytes
-    return sha.get
+          --cli=cli_
+    return patch-uploader__
 
   is-cached --pod-id/Uuid -> bool:
     manifest-key := cache-key-pod-manifest
@@ -555,28 +460,13 @@ class Broker:
       FirmwareContents.from-envelope diff-base.envelope-path --cli=cli_
 
     base-firmwares.do: | contents/FirmwareContents |
-      trivial-patches := extract-trivial-patches_ contents
-      trivial-patches.do: | _ patch/FirmwarePatch |
-        upload-patch_ patch
+      patch-uploader_.upload-trivial-patches --firmware-contents=contents
 
     update-bulk_
         --devices=devices
         --pods=pods
         --base-firmwares=base-firmwares
         --warn-only-trivial=warn-only-trivial
-  /**
-  Extracts the trivial patches from the given $firmware-contents.
-
-  Returns a mapping from patch-id (as used when diffing to the part) and
-    the patch itself.
-  */
-  extract-trivial-patches_ firmware-contents/FirmwareContents -> Map:
-    result := {:}
-    firmware-contents.trivial-patches.do: | patch/FirmwarePatch |
-      patch-id := id_ --to=patch.to_
-      result[patch-id] = patch
-    return result
-
   /**
   Update the given $devices.
 
@@ -633,7 +523,7 @@ class Broker:
       --base-firmwares/List
       --warn-only-trivial/bool=true:
     device-id := device.id
-    upload_ --firmware-contents=unconfigured-contents
+    patch-uploader_.upload-trivial-patches --firmware-contents=unconfigured-contents
 
     known-encoded-firmwares := {}
     [
@@ -689,7 +579,7 @@ class Broker:
         --cli=cli_
     upgrade-from.do: | old-firmware-contents/FirmwareContents |
       patches := upgrade-to.contents.patches old-firmware-contents
-      patches.do: diff-and-upload_ it
+      patches.do: patch-uploader_.diff-and-upload it
 
     // Build the updated goal and return it.
     sdk := get-sdk pod.sdk-version --cli=cli_
