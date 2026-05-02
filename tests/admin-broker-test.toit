@@ -1,80 +1,56 @@
-// Copyright (C) 2022 Toitware ApS. All rights reserved.
+// Copyright (C) 2026 Toit contributors.
 
-// ARTEMIS_TEST_FLAGS: ARTEMIS
+// Exercises the AdminBrokerCli interface against a Supabase broker that
+// provides admin operations (org/profile/member management). Replaces
+// the historical artemis-server-test, which exercised the old standalone
+// ArtemisServerCli interface that has since been folded into the broker.
 
 import cli show Cli
 import expect show *
-import host.directory
-import log
-import net
 import uuid show Uuid
 
 import .artemis-server
 import .utils
 
-import artemis.cli.artemis-servers.artemis-server show ArtemisServerCli
-import artemis.shared.server-config show ServerConfig
-import artemis.cli.auth as cli-auth
+import artemis.cli.brokers.broker show BrokerCli AdminBrokerCli with-broker
 
 main args:
-  server-type := ?
-  if args.is-empty:
-    server-type = "http"
-  else if args[0] == "--http-server":
-    server-type = "http"
-  else if args[0] == "--supabase-server":
-    server-type = "supabase"
-  else:
-    throw "Unknown server server type: $args[0]"
-  with-artemis-server --args=args --type=server-type: | artemis-server/TestArtemisServer |
-    run-test artemis-server --authenticate=: | server/ArtemisServerCli |
-      server.sign-in
+  with-artemis-server --args=args --type="supabase": | artemis-server/TestArtemisServer |
+    run-test artemis-server --authenticate=: | admin/AdminBrokerCli |
+      admin.sign-in
             --email=TEST-EXAMPLE-COM-EMAIL
             --password=TEST-EXAMPLE-COM-PASSWORD
 
 run-test artemis-server/TestArtemisServer [--authenticate]:
   server-config := artemis-server.server-config
-  backdoor := artemis-server.backdoor
   with-tmp-config-cli: | cli/Cli |
-    network := net.open
-    server-cli := ArtemisServerCli network server-config --cli=cli
-    authenticate.call server-cli
-    hardware-id := test-create-device-in-organization server-cli backdoor
-    test-notify-created server-cli backdoor --hardware-id=hardware-id
+    with-broker server-config --cli=cli: | broker/BrokerCli |
+      if broker is not AdminBrokerCli:
+        throw "Test broker does not support admin operations."
+      admin := broker as AdminBrokerCli
+      authenticate.call admin
+      test-create-device-in-organization admin
+      test-organizations admin
+      test-profile admin
 
-    test-organizations server-cli backdoor
-    test-profile server-cli backdoor
-
-test-create-device-in-organization server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> Uuid:
+test-create-device-in-organization admin/AdminBrokerCli -> Uuid:
   // Test without and with alias.
-  device1 := server-cli.create-device-in-organization
+  device1 := admin.create-device-in-organization
       --device-id=null
       --organization-id=TEST-ORGANIZATION-UUID
-  hardware-id1 := device1.hardware-id
-  data := backdoor.fetch-device-information --hardware-id=hardware-id1
-  expect-equals hardware-id1 data[0]
-  expect-equals TEST-ORGANIZATION-UUID data[1]
+  expect-equals TEST-ORGANIZATION-UUID device1.organization-id
 
   alias-id := random-uuid
-  device2 := server-cli.create-device-in-organization
+  device2 := admin.create-device-in-organization
       --device-id=alias-id
       --organization-id=TEST-ORGANIZATION-UUID
-  sleep --ms=200
-  hardware-id2 := device2.hardware-id
-  data = backdoor.fetch-device-information --hardware-id=hardware-id2
-  expect-equals hardware-id2 data[0]
-  expect-equals TEST-ORGANIZATION-UUID data[1]
-  expect-equals alias-id data[2]
+  expect-equals TEST-ORGANIZATION-UUID device2.organization-id
+  expect-equals alias-id device2.id
 
-  return hardware-id2
+  return device2.hardware-id
 
-test-notify-created server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor --hardware-id/Uuid:
-  expect-not (backdoor.has-event --hardware-id=hardware-id --type="created")
-  server-cli.notify-created --hardware-id=hardware-id
-  expect (backdoor.has-event --hardware-id=hardware-id --type="created")
-
-test-organizations server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
-  original-orgs := server-cli.get-organizations
+test-organizations admin/AdminBrokerCli:
+  original-orgs := admin.get-organizations
 
   // For now we can't be sure that there aren't other organizations from
   // previous runs of the test.
@@ -82,40 +58,40 @@ test-organizations server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   expect original-orgs.size >= 1  // The prefilled organization.
   expect (original-orgs.any: it.id == TEST-ORGANIZATION-UUID)
 
-  org := server-cli.create-organization "Testy"
+  org := admin.create-organization "Testy"
   expect-equals "Testy" org.name
   expect-not-equals "" org.id
   expect-not (original-orgs.any: it.id == org.id)
 
-  new-orgs := server-cli.get-organizations
+  new-orgs := admin.get-organizations
   expect-equals (original-orgs.size + 1) new-orgs.size
   original-orgs.do: | old-org |
     expect (new-orgs.any: it.id == old-org.id)
   expect (new-orgs.any: it.id == org.id)
 
-  detailed := server-cli.get-organization org.id
+  detailed := admin.get-organization org.id
   expect-equals org.id detailed.id
   expect-equals org.name detailed.name
   expect (detailed.created-at < Time.now)
 
-  non-existent := server-cli.get-organization NON-EXISTENT-UUID
+  non-existent := admin.get-organization NON-EXISTENT-UUID
   expect-null non-existent
 
   // Test member functions.
   current-user-id := TEST-EXAMPLE-COM-UUID
   demo-user-id := DEMO-EXAMPLE-COM-UUID
 
-  members := server-cli.get-organization-members org.id
+  members := admin.get-organization-members org.id
   expect-equals 1 members.size
   expect-equals current-user-id members[0]["id"]
   expect-equals "admin" members[0]["role"]
 
   // Add a new member.
-  server-cli.organization-member-add
+  admin.organization-member-add
       --organization-id=org.id
       --user-id=demo-user-id
       --role="member"
-  members = server-cli.get-organization-members org.id
+  members = admin.get-organization-members org.id
   expect-equals 2 members.size
   expect members[0]["id"] != members[1]["id"]
   members.do: | member |
@@ -126,11 +102,11 @@ test-organizations server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
       expect-equals "member" member["role"]
 
   // Update the role of the new member.
-  server-cli.organization-member-set-role
+  admin.organization-member-set-role
       --organization-id=org.id
       --user-id=demo-user-id
       --role="admin"
-  members = server-cli.get-organization-members org.id
+  members = admin.get-organization-members org.id
   expect-equals 2 members.size
   expect members[0]["id"] != members[1]["id"]
   members.do: | member |
@@ -139,21 +115,21 @@ test-organizations server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
     expect-equals "admin" member["role"]
 
   // Remove the new member.
-  server-cli.organization-member-remove
+  admin.organization-member-remove
       --organization-id=org.id
       --user-id=demo-user-id
 
-  members = server-cli.get-organization-members org.id
+  members = admin.get-organization-members org.id
   expect-equals 1 members.size
   expect-equals current-user-id members[0]["id"]
   expect-equals "admin" members[0]["role"]
 
   // Add the new member with admin role.
-  server-cli.organization-member-add
+  admin.organization-member-add
       --organization-id=org.id
       --user-id=demo-user-id
       --role="admin"
-  members = server-cli.get-organization-members org.id
+  members = admin.get-organization-members org.id
   expect-equals 2 members.size
   expect members[0]["id"] != members[1]["id"]
   members.do: | member |
@@ -162,32 +138,32 @@ test-organizations server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
     expect-equals "admin" member["role"]
 
   // Keep the demo user in the same organization as the test user,
-  // so we can read the user's profile in 'test_profile'
+  // so we can read the user's profile in 'test-profile'.
 
-test-profile server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
-  profile := server-cli.get-profile
+test-profile admin/AdminBrokerCli:
+  profile := admin.get-profile
 
-  profile = server-cli.get-profile
+  profile = admin.get-profile
   expect-equals "Test User" profile["name"]
   id := profile["id"]
 
-  server-cli.update-profile --name="Test User updated"
-  profile = server-cli.get-profile
+  admin.update-profile --name="Test User updated"
+  profile = admin.get-profile
   expect-equals "Test User updated" profile["name"]
 
-  profile2 := server-cli.get-profile --user-id=id
+  profile2 := admin.get-profile --user-id=id
   expect-equals profile["id"] profile2["id"]
   expect-equals profile["name"] profile2["name"]
   expect-equals profile["email"] profile2["email"]
 
   // Change it back.
   // Other tests might need the profile to be in a certain state.
-  server-cli.update-profile --name="Test User"
+  admin.update-profile --name="Test User"
 
-  profile-non-existent := server-cli.get-profile --user-id=NON-EXISTENT-UUID
+  profile-non-existent := admin.get-profile --user-id=NON-EXISTENT-UUID
   expect-null profile-non-existent
 
   // The following test requires that we have added the demo user
   // and test user into the same organization.
-  profile-demo := server-cli.get-profile --user-id=DEMO-EXAMPLE-COM-UUID
+  profile-demo := admin.get-profile --user-id=DEMO-EXAMPLE-COM-UUID
   expect-equals DEMO-EXAMPLE-COM-NAME profile-demo["name"]

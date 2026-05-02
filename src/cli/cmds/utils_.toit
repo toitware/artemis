@@ -84,11 +84,12 @@ with-admin-broker invocation/Invocation --capability/string [block]:
   ui := cli.ui
   server-config := get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
   with-broker server-config --cli=cli: | broker/BrokerCli |
-    broker.ensure-authenticated: | error-message |
-      ui.abort "$error-message (broker)."
     if broker is not AdminBrokerCli:
       ui.abort "The configured broker does not support $capability."
-    block.call (broker as AdminBrokerCli)
+    admin := broker as AdminBrokerCli
+    admin.ensure-authenticated: | error-message |
+      ui.abort "$error-message (broker)."
+    block.call admin
 
 /**
 Returns $broker as $AdminBrokerCli, or null if it does not implement

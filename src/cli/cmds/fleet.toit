@@ -11,6 +11,7 @@ import .device show
     EXTRACT-FORMATS-COMMAND-HELP
 
 import .auth as auth-cmd
+import ..auth show Authenticatable
 import .serial show PARTITION-OPTION
 import .utils_
 import ..broker show Broker
@@ -675,9 +676,12 @@ login invocation/Invocation:
   with-pod-fleet invocation: | fleet/Fleet |
     broker := fleet.broker
     broker-name := broker.server-config.name
+    broker-cli := BrokerCli broker.server-config --cli=cli
+    if broker-cli is not Authenticatable:
+      ui.emit --info "Broker '$broker-name' does not require authentication."
+      return
     ui.emit --info "Logging in to broker '$broker-name'."
-    broker-authenticatable := BrokerCli broker.server-config --cli=cli
-    auth-cmd.sign-in invocation --name=broker-name --authenticatable=broker-authenticatable
+    auth-cmd.sign-in invocation --name=broker-name --authenticatable=(broker-cli as Authenticatable)
 
 add-devices invocation/Invocation:
   cli := invocation.cli

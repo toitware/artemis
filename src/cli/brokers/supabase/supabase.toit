@@ -9,6 +9,7 @@ import uuid show Uuid
 
 import ..broker show AdminBrokerCli
 import ..http.base
+import ...auth show Authenticatable
 import ...config
 import ...device
 import ...organization
@@ -54,7 +55,7 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> 
   return BrokerCliSupabase --id=id supabase-client http-config
 
 
-class BrokerCliSupabase extends BrokerCliHttp:
+class BrokerCliSupabase extends BrokerCliHttp implements Authenticatable:
   supabase-client_/supabase.Client? := null
 
   constructor --id/string .supabase-client_ http-config/ServerConfigHttp:

@@ -44,30 +44,6 @@ class BrokerCliHttp implements BrokerCli:
   is-closed -> bool:
     return network_ == null
 
-  ensure-authenticated [block]:
-    // For simplicity do nothing.
-    // This way we can use the same tests for all brokers.
-
-  sign-up --email/string --password/string:
-    // For simplicity do nothing.
-    // This way we can use the same tests for all brokers.
-
-  sign-in --email/string --password/string:
-    // For simplicity do nothing.
-    // This way we can use the same tests for all brokers.
-
-  sign-in --provider/string --cli/Cli --open-browser/bool:
-    // For simplicity do nothing.
-    // This way we can use the same tests for all brokers.
-
-  update --email/string? --password/string?:
-    // For simplicity do nothing.
-    // This way we can use the same tests for all brokers.
-
-  logout:
-    // For simplicity do nothing.
-    // This way we can use the same tests for all brokers.
-
   send-request_ command/int data/any -> any:
     if is-closed: throw "CLOSED"
     encoded/ByteArray := ?

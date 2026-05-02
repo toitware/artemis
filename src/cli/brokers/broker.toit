@@ -18,8 +18,13 @@ import .http.base
 
 /**
 Responsible for allowing the Artemis CLI to talk to Artemis services on devices.
+
+User authentication is not part of this interface. Brokers that require
+  authentication (for example Supabase) implement $Authenticatable in
+  addition. Use `broker is Authenticatable` to check before triggering
+  auth flows.
 */
-interface BrokerCli implements Authenticatable:
+interface BrokerCli:
   // TODO(florian): we probably want to add a `connect` function to this interface.
   // At the moment we require the connection to be open when artemis receives the
   // broker.
@@ -42,38 +47,6 @@ interface BrokerCli implements Authenticatable:
   May contain "/", in which case the cache will use subdirectories.
   */
   id -> string
-
-  /**
-  Ensures that the user is authenticated.
-
-  If the user is not authenticated, the $block is called.
-  */
-  ensure-authenticated [block]
-
-  /**
-  Signs the user up with the given $email and $password.
-  */
-  sign-up --email/string --password/string
-
-  /**
-  Signs the user in with the given $email and $password.
-  */
-  sign-in --email/string --password/string
-
-  /**
-  Signs the user in using OAuth.
-  */
-  sign-in --provider/string --cli/Cli --open-browser
-
-  /**
-  Updates the user's email and/or password.
-  */
-  update --email/string? --password/string?
-
-  /**
-  Signs the user out.
-  */
-  logout
 
   /**
   Updates the goal state of the device with the given $device-id.
@@ -284,10 +257,31 @@ Not all brokers support administrative operations. For example, a
   file-based broker (like a GitHub Pages broker) would not support
   user or organization management.
 
+Admin brokers always require user authentication; the interface
+  therefore extends $Authenticatable.
+
 Use `broker is AdminBrokerCli` to check whether a broker supports
   these operations.
 */
-interface AdminBrokerCli extends BrokerCli:
+interface AdminBrokerCli extends BrokerCli implements Authenticatable:
+  /** See $Authenticatable.ensure-authenticated. */
+  ensure-authenticated [block]
+
+  /** See $Authenticatable.sign-up. */
+  sign-up --email/string --password/string
+
+  /** See $(Authenticatable.sign-in --email --password). */
+  sign-in --email/string --password/string
+
+  /** See $(Authenticatable.sign-in --provider --cli --open-browser). */
+  sign-in --provider/string --cli/Cli --open-browser
+
+  /** See $Authenticatable.update. */
+  update --email/string? --password/string?
+
+  /** See $Authenticatable.logout. */
+  logout
+
   /** Returns the user-id of the authenticated user. */
   get-current-user-id -> Uuid
 

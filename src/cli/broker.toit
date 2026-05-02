@@ -22,6 +22,7 @@ import .utils.patch-build show build-diff-patch build-trivial-patch
 import ..shared.version
 import ..shared.utils.patch show Patcher PatchObserver
 
+import .auth show Authenticatable
 import .brokers.broker
 import .organization
 import .event
@@ -98,9 +99,11 @@ class Broker:
 
   broker-connection_ -> BrokerCli:
     if not broker-connection__:
-      broker-connection__ = BrokerCli server-config --cli=cli_
-      broker-connection__.ensure-authenticated: | error-message |
-        cli_.ui.abort "$error-message (broker)."
+      connection := BrokerCli server-config --cli=cli_
+      if connection is Authenticatable:
+        (connection as Authenticatable).ensure-authenticated: | error-message |
+          cli_.ui.abort "$error-message (broker)."
+      broker-connection__ = connection
     return broker-connection__
 
   short-string-for_ --device-id/Uuid -> string:
@@ -109,6 +112,8 @@ class Broker:
 
   /**
   Ensures that the broker is authenticated.
+
+  Has no effect for brokers that don't require authentication.
   */
   ensure-authenticated:
     broker-connection_

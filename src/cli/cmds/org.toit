@@ -308,10 +308,10 @@ default-org invocation/Invocation -> none:
 
   server-config/ServerConfig := get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
   with-broker server-config --cli=cli: | broker/BrokerCli |
-    broker.ensure-authenticated: | error-message |
-      ui.abort "$error-message (broker)."
     admin := broker-as-admin-or-null broker
     if admin:
+      admin.ensure-authenticated: | error-message |
+        ui.abort "$error-message (broker)."
       org/OrganizationDetailed? := null
       exception := catch: org = admin.get-organization org-id
       if exception or not org:

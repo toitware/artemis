@@ -159,6 +159,13 @@ update invocation/Invocation:
     if exception: ui.abort exception
 
 
+/**
+Calls $block with the broker's $Authenticatable for the configured server.
+
+If the broker does not require authentication (for example a plain HTTP
+  broker), emits an informational message and returns without invoking
+  $block. This keeps tests and scripts portable across broker kinds.
+*/
 with-authenticatable invocation/Invocation [block]:
   server := invocation["server"]
 
@@ -170,7 +177,10 @@ with-authenticatable invocation/Invocation [block]:
   else:
     server-config = get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
   with-broker --cli=cli server-config: | broker/BrokerCli |
-    block.call server-config.name broker
+    if broker is not Authenticatable:
+      cli.ui.emit --info "Broker '$server-config.name' does not require authentication."
+      return
+    block.call server-config.name (broker as Authenticatable)
 
 sign-in invocation/Invocation:
   with-authenticatable invocation: | name/string authenticatable/Authenticatable |
