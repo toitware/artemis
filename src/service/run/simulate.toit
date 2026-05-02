@@ -18,7 +18,6 @@ import ..service show run-artemis
 import ..device
 import ..storage show Storage
 import ..watchdog
-import ...cli.artemis show Artemis
 import ...cli.cache as cli
 import ...cli.device as artemis-device
 import ...cli.firmware as fw

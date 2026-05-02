@@ -11,7 +11,6 @@ import uuid show Uuid
 import encoding.base64
 import encoding.ubjson
 
-import .artemis
 import .cache
 import .config
 import .device
@@ -115,21 +114,13 @@ class Broker:
     broker-connection_
 
   /**
-  Whether the broker supports administrative operations.
+  Returns the admin interface of the broker, or null if the broker
+    does not support administrative operations.
   */
-  supports-admin -> bool:
-    return broker-connection_ is AdminBrokerCli
-
-  /**
-  Returns the admin interface of the broker.
-
-  Throws if the broker does not support administrative operations.
-  */
-  admin-connection -> AdminBrokerCli:
+  admin-connection-or-null -> AdminBrokerCli?:
     connection := broker-connection_
-    if connection is not AdminBrokerCli:
-      throw "The configured broker does not support this operation."
-    return connection as AdminBrokerCli
+    if connection is AdminBrokerCli: return connection as AdminBrokerCli
+    return null
 
   /**
   Fetches the organization with the given $id.

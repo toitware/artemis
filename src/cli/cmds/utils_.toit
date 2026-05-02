@@ -12,6 +12,7 @@ import ..pod
 import ..sdk
 import ..server-config
 import ..utils
+import ..brokers.broker show with-broker BrokerCli AdminBrokerCli
 
 default-device-from-config --cli/Cli -> Uuid?:
   config := cli.config
@@ -67,6 +68,35 @@ compute-fleet-root-or-ref invocation/Invocation -> string:
     ui.emit --debug "Using fleet-root '$fleet-env' provided by environment variable."
     return fleet-env
   return "."
+
+/**
+Calls $block with an $AdminBrokerCli for the default broker.
+
+Aborts if the configured broker does not support administrative
+  operations. The $capability string names the operation in the
+  abort message (for example "organization management").
+
+The user is required to be authenticated; if not, aborts with the
+  authentication error before checking admin support.
+*/
+with-admin-broker invocation/Invocation --capability/string [block]:
+  cli := invocation.cli
+  ui := cli.ui
+  server-config := get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
+  with-broker server-config --cli=cli: | broker/BrokerCli |
+    broker.ensure-authenticated: | error-message |
+      ui.abort "$error-message (broker)."
+    if broker is not AdminBrokerCli:
+      ui.abort "The configured broker does not support $capability."
+    block.call (broker as AdminBrokerCli)
+
+/**
+Returns $broker as $AdminBrokerCli, or null if it does not implement
+  the admin interface.
+*/
+broker-as-admin-or-null broker/BrokerCli -> AdminBrokerCli?:
+  if broker is AdminBrokerCli: return broker as AdminBrokerCli
+  return null
 
 make-default_ --device-id/Uuid --cli/Cli:
   cli.config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"

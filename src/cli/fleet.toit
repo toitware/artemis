@@ -365,8 +365,8 @@ class Fleet:
         --cli=cli
 
     // Validate the organization if the broker supports it.
-    org := broker.get-organization --id=organization-id
-    if org == null and broker.supports-admin:
+    admin := broker.admin-connection-or-null
+    if admin and (admin.get-organization organization-id) == null:
       cli.ui.abort "Organization $organization-id does not exist or is not accessible."
 
   static load-fleet-file -> FleetFile

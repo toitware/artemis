@@ -8,10 +8,12 @@ import host.file
 import host.os
 import io
 import snapshot show cache-snapshot
+import system
 import uuid show Uuid
 import fs
 import semver
 
+import .git
 import .sdk
 import .cache show cache-key-url-artifact CACHE-ARTIFACT-KIND-ENVELOPE CACHE-ARTIFACT-KIND-PARTITION-TABLE
 import .cache as cli
@@ -20,6 +22,48 @@ import .pod
 import .pod-specification
 import .utils
 import ..shared.utils.patch
+
+ARTEMIS-SERVICE-GIT-URL ::= "https://github.com/toitware/artemis"
+
+service-path-in-repository root/string --chip-family/string -> string:
+  return "$root/src/service/run/$(chip-family).toit"
+
+/**
+Resolves the Artemis service container reference for the given $version-or-path.
+
+If $version-or-path is a URL, treats it as a git repository to clone.
+If it starts with "file:/", treats the rest as a local path to use directly.
+Otherwise, treats it as a version tag in the canonical Artemis repository.
+
+In dev setups (or when ARTEMIS_REPO_PATH is set) the function returns a
+  reference to the local checkout instead of cloning.
+*/
+get-artemis-container version-or-path/string --chip-family/string --cli/Cli -> ContainerPath:
+  artemis-root-path := os.env.get "ARTEMIS_REPO_PATH"
+  if artemis-root-path:
+    entrypoint := service-path-in-repository artemis-root-path --chip-family=chip-family
+    return ContainerPath "artemis" --entrypoint=entrypoint
+  if is-dev-setup:
+    git := Git --cli=cli
+    artemis-path := fs.dirname system.program-path
+    root := git.current-repository-root --path=artemis-path
+    entrypoint := service-path-in-repository root --chip-family=chip-family
+    return ContainerPath "artemis" --entrypoint=entrypoint
+
+  url/string := ?
+  if version-or-path.starts-with "http://" or version-or-path.starts-with "https://":
+    url = version-or-path
+  else if version-or-path.starts-with "file:/":
+    return ContainerPath "artemis" --entrypoint=(version-or-path.trim --left "file:/")
+  else:
+    // This is a version string.
+    url = ARTEMIS-SERVICE-GIT-URL
+
+  version := version-or-path
+  return ContainerPath "artemis"
+      --entrypoint=(service-path-in-repository "." --chip-family=chip-family)
+      --git-url=url
+      --git-ref=version
 
 
 /**

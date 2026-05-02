@@ -1,12 +1,9 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import cli show *
-import net
 
-import ..config
-import ..cache
-import ..server-config
-import ..brokers.broker show with-broker AdminBrokerCli BrokerCli
+import .utils_
+import ..brokers.broker show AdminBrokerCli
 
 create-profile-commands -> List:
   profile-cmd := Command "profile"
@@ -36,16 +33,7 @@ create-profile-commands -> List:
   return [profile-cmd]
 
 with-profile-admin invocation/Invocation [block]:
-  cli := invocation.cli
-
-  server-config := get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
-
-  with-broker server-config --cli=cli: | broker/BrokerCli |
-    if broker is not AdminBrokerCli:
-      cli.ui.abort "The configured broker does not support profile management."
-    admin := broker as AdminBrokerCli
-    broker.ensure-authenticated: | error-message |
-      cli.ui.abort "$error-message (broker)."
+  with-admin-broker invocation --capability="profile management": | admin/AdminBrokerCli |
     block.call admin
 
 show-profile invocation/Invocation:

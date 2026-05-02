@@ -642,12 +642,11 @@ init invocation/Invocation:
   fleet-root := compute-fleet-root-or-ref invocation
   // Validate the organization before creating the fleet files.
   with-broker broker-config --cli=cli: | broker/BrokerCli |
-    if broker is AdminBrokerCli:
-      broker.ensure-authenticated: | error-message |
+    admin := broker-as-admin-or-null broker
+    if admin:
+      admin.ensure-authenticated: | error-message |
         ui.abort "$error-message (broker)."
-      admin := broker as AdminBrokerCli
-      org := admin.get-organization organization-id
-      if not org:
+      if not (admin.get-organization organization-id):
         ui.abort "Organization $organization-id does not exist or is not accessible."
 
   fleet-file := FleetWithDevices.init fleet-root
