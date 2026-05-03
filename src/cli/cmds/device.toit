@@ -425,7 +425,8 @@ extract-device fleet-device/DeviceFleet
 
   if format == "identity":
     if not identity-path:
-      fleet.write-identity-file device --out-path=output
+      contents := (base64.encode (ubjson.encode device.to-json-identity)).to-byte-array
+      file.write-contents --path=output contents
     else:
       file.copy --source=identity-path --target=output
     cli.ui.emit --info "Wrote identity to '$output'."

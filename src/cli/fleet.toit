@@ -5,7 +5,7 @@ import cli show Cli
 import encoding.json
 import encoding.ubjson
 import encoding.base64
-import host.file
+import encoding.yaml
 import uuid show Uuid
 
 import .broker
@@ -14,6 +14,7 @@ import .config
 import .device
 import .event
 import .firmware
+import .fleet-storage show FleetStorage
 import .pod
 import .pod-specification
 import .pod-registry
@@ -72,7 +73,6 @@ class Status_:
     return is-fully-updated and missed-checkins == 0
 
 class FleetFile:
-  path/string
   id/Uuid
   organization-id/Uuid
   group-pods/Map
@@ -83,7 +83,6 @@ class FleetFile:
   recovery-urls/List
 
   constructor
-      --.path
       --.id
       --.organization-id
       --.group-pods
@@ -93,20 +92,19 @@ class FleetFile:
       --.servers
       --.recovery-urls:
 
-  static parse path/string --default-broker-config/ServerConfig --cli/Cli -> FleetFile:
+  static parse storage/FleetStorage --default-broker-config/ServerConfig --cli/Cli -> FleetFile:
+    fleet-contents := storage.read-fleet-config
+    return parse-map_ fleet-contents
+        --source=(storage.display-root or "<fleet>")
+        --default-broker-config=default-broker-config
+        --cli=cli
+
+  static parse-map_ fleet-contents/Map --source/string --default-broker-config/ServerConfig --cli/Cli -> FleetFile:
     ui := cli.ui
-    fleet-contents := null
-    exception := catch: fleet-contents = read-json path
-    if exception:
-      ui.emit --error "Fleet file '$path' is not a valid JSON."
-      ui.emit --error exception.message
-      ui.abort
-    if fleet-contents is not Map:
-      ui.abort "Fleet file '$path' has invalid format."
     if not fleet-contents.contains "id":
-      ui.abort "Fleet file '$path' does not contain an ID."
+      ui.abort "Fleet file '$source' does not contain an ID."
     if not fleet-contents.contains "organization":
-      ui.abort "Fleet file '$path' does not contain an organization ID."
+      ui.abort "Fleet file '$source' does not contain an organization ID."
 
     is-reference := fleet-contents.get "is-reference" --if-absent=: false
 
@@ -115,19 +113,19 @@ class FleetFile:
     if is-reference:
       group-pods = {:}
       if group-entry:
-        ui.abort "Fleet file '$path' is a reference file and cannot contain a 'groups' entry."
+        ui.abort "Fleet file '$source' is a reference file and cannot contain a 'groups' entry."
     else:
       if not group-entry:
-        ui.abort "Fleet file '$path' does not contain a 'groups' entry."
+        ui.abort "Fleet file '$source' does not contain a 'groups' entry."
       if group-entry is not Map:
-        ui.abort "Fleet file '$path' has invalid format for 'groups'."
+        ui.abort "Fleet file '$source' has invalid format for 'groups'."
       group-pods = (group-entry as Map).map: | group-name/string entry |
         if entry is not Map:
-          ui.abort "Fleet file '$path' has invalid format for group '$group-name'."
+          ui.abort "Fleet file '$source' has invalid format for group '$group-name'."
         if not entry.contains "pod":
-          ui.abort "Fleet file '$path' does not contain a 'pod' entry for group '$group-name'."
+          ui.abort "Fleet file '$source' does not contain a 'pod' entry for group '$group-name'."
         if entry["pod"] is not string:
-          ui.abort "Fleet file '$path' has invalid format for 'pod' in group '$group-name'."
+          ui.abort "Fleet file '$source' has invalid format for 'pod' in group '$group-name'."
         PodReference.parse entry["pod"] --cli=cli
 
     broker-name := fleet-contents.get "broker"
@@ -138,31 +136,31 @@ class FleetFile:
     servers/Map := ?
     if broker-name:
       if not servers-entry:
-        ui.abort "Fleet file '$path' has invalid format for 'broker' and 'servers'."
+        ui.abort "Fleet file '$source' has invalid format for 'broker' and 'servers'."
       if servers-entry is not Map:
-        ui.abort "Fleet file '$path' has invalid format for 'servers'."
+        ui.abort "Fleet file '$source' has invalid format for 'servers'."
       broker-entry := servers-entry.get broker-name
       if not broker-entry:
-        ui.abort "Fleet file '$path' does not contain a server entry for broker '$broker-name'."
+        ui.abort "Fleet file '$source' does not contain a server entry for broker '$broker-name'."
 
       servers = servers-entry.map: | server-name/string encoded-server |
         if encoded-server is not Map:
-          ui.abort "Fleet file '$path' has invalid format for server '$server-name'."
+          ui.abort "Fleet file '$source' has invalid format for server '$server-name'."
         ServerConfig.from-json server-name encoded-server
           --der-deserializer=: base64.decode it
 
       if migrating-from-entry:
         if migrating-from-entry is not List:
-          ui.abort "Fleet file '$path' has invalid format for 'migrating-from'."
+          ui.abort "Fleet file '$source' has invalid format for 'migrating-from'."
         migrating-from-entry.do: | server-name |
           if server-name is not string:
-            ui.abort "Fleet file '$path' has invalid format for 'migrating-from'."
+            ui.abort "Fleet file '$source' has invalid format for 'migrating-from'."
           if not servers.contains server-name:
-            ui.abort "Fleet file '$path' does not contain a server entry for migrating-from server '$server-name'."
+            ui.abort "Fleet file '$source' does not contain a server entry for migrating-from server '$server-name'."
         migrating-from = migrating-from-entry
     else:
       if migrating-from-entry or servers-entry:
-        ui.abort "Fleet file '$path' has invalid format for 'broker', 'migrating-from' and 'servers'."
+        ui.abort "Fleet file '$source' has invalid format for 'broker', 'migrating-from' and 'servers'."
       broker-name = default-broker-config.name
       servers = {
         default-broker-config.name: default-broker-config,
@@ -185,7 +183,6 @@ class FleetFile:
     recovery-urls := fleet-contents.get "recovery-urls" --if-absent=: []
 
     return FleetFile
-        --path=path
         --id=Uuid.parse fleet-contents["id"]
         --organization-id=Uuid.parse fleet-contents["organization"]
         --group-pods=group-pods
@@ -206,7 +203,6 @@ class FleetFile:
   In order to clear the $migrating-from list, pass an empty list.
   */
   with -> FleetFile
-      --path/string?=null
       --id/Uuid?=null
       --organization-id/Uuid?=null
       --group-pods/Map?=null
@@ -216,7 +212,6 @@ class FleetFile:
       --servers/Map?=null
       --recovery-urls/List?=null:
     return FleetFile
-        --path=(path or this.path)
         --id=(id or this.id)
         --organization-id=(organization-id or this.organization-id)
         --group-pods=(group-pods or this.group-pods)
@@ -226,9 +221,8 @@ class FleetFile:
         --servers=(servers or this.servers)
         --recovery-urls=(recovery-urls or this.recovery-urls)
 
-  write -> none:
-    payload := to-json_
-    write-json-to-file --pretty path payload
+  write storage/FleetStorage -> none:
+    storage.write-fleet-config to-json_
 
   write-reference --path/string -> none:
     payload := to-json_ --reference
@@ -267,28 +261,22 @@ class FleetFile:
     return result
 
 class DevicesFile:
-  path/string
   devices/List
 
-  constructor .path .devices:
+  constructor .devices:
 
-  static parse path/string --cli/Cli -> DevicesFile:
+  static parse storage/FleetStorage --cli/Cli -> DevicesFile:
+    encoded-devices := storage.read-devices
+    return parse-map_ encoded-devices --source=(storage.display-root or "<fleet>") --cli=cli
+
+  static parse-map_ encoded-devices/Map --source/string --cli/Cli -> DevicesFile:
     ui := cli.ui
-
-    encoded-devices := null
-    exception := catch: encoded-devices = read-json path
-    if exception:
-      ui.emit --error "Fleet file '$path' is not a valid JSON."
-      ui.emit --error exception.message
-      ui.abort
-    if encoded-devices is not Map:
-      ui.abort "Fleet file '$path' has invalid format."
 
     devices := []
     encoded-devices.do: | device-id encoded-device |
       if encoded-device is not Map:
-        ui.abort "Fleet file '$path' has invalid format for device ID $device-id."
-      exception = catch:
+        ui.abort "Fleet file '$source' has invalid format for device ID $device-id."
+      exception := catch:
         device := DeviceFleet
             --id=Uuid.parse device-id
             --name=encoded-device.get "name"
@@ -296,18 +284,21 @@ class DevicesFile:
             --group=(encoded-device.get "group") or DEFAULT-GROUP
         devices.add device
       if exception:
-        ui.emit --error "Fleet file '$path' has invalid format for device ID $device-id."
+        ui.emit --error "Fleet file '$source' has invalid format for device ID $device-id."
         ui.emit --error exception.message
         ui.abort
 
-    return DevicesFile path devices
+    return DevicesFile devices
 
   check-groups fleet-file/FleetFile --cli/Cli:
     devices.do: | device/DeviceFleet |
       if not fleet-file.group-pods.contains device.group:
         cli.ui.abort "Device $device.short-string is in group '$device.group' which doesn't exist."
 
-  write -> none:
+  write storage/FleetStorage -> none:
+    storage.write-devices to-json_
+
+  to-json_ -> Map:
     sorted-devices := devices.sort: | a/DeviceFleet b/DeviceFleet | a.compare-to b
     encoded-devices := {:}
     sorted-devices.do: | device/DeviceFleet |
@@ -317,7 +308,7 @@ class DevicesFile:
       group := device.group
       if group != DEFAULT-GROUP: entry["group"] = group
       encoded-devices["$device.id"] = entry
-    write-json-to-file --pretty path encoded-devices
+    return encoded-devices
 
 /**
 A fleet.
@@ -326,33 +317,34 @@ This class, contrary to $FleetWithDevices, can only manipulate the pods of the f
 In return, it can be instantiated with only a fleet-reference file.
 */
 class Fleet:
-  static FLEET-FILE_ ::= "fleet.json"
-
   id/Uuid
   organization-id/Uuid
   broker/Broker
   tmp-directory/string
   cli_/Cli
-  fleet-root-or-ref_/string
+  storage_/FleetStorage
   fleet-file_/FleetFile
 
-  constructor fleet-root-or-ref/string
+  constructor storage/FleetStorage
       --tmp-directory/string
       --default-broker-config/ServerConfig
       --cli/Cli:
-    fleet-file := load-fleet-file fleet-root-or-ref
+    fleet-file := load-fleet-file storage
         --default-broker-config=default-broker-config
         --cli=cli
-    return Fleet fleet-root-or-ref
+    return Fleet
+        --storage=storage
         --tmp-directory=tmp-directory
         --fleet-file=fleet-file
         --cli=cli
 
-  constructor .fleet-root-or-ref_
+  constructor
+      --storage/FleetStorage
       --.tmp-directory
       --fleet-file/FleetFile
       --short-strings/Map?=null
       --cli/Cli:
+    storage_ = storage
     fleet-file_ = fleet-file
     id = fleet-file.id
     organization-id = fleet-file.organization-id
@@ -371,37 +363,23 @@ class Fleet:
       cli.ui.abort "Organization $organization-id does not exist or is not accessible."
 
   static load-fleet-file -> FleetFile
-      fleet-root-or-ref/string
+      storage/FleetStorage
       --default-broker-config/ServerConfig
       --cli/Cli:
     ui := cli.ui
 
-    fleet-path/string := ?
-    must-be-reference/bool := ?
-    if file.is-file fleet-root-or-ref:
-      // Must be a reference.
-      fleet-path = fleet-root-or-ref
-      must-be-reference = true
-    else if file.is-directory fleet-root-or-ref:
-      fleet-path = "$fleet-root-or-ref/$FLEET-FILE_"
-      must-be-reference = false
-    else:
-      ui.abort "Fleet root '$fleet-root-or-ref' is not a directory or a file."
-      unreachable
-
-    if not file.is-file fleet-path:
-      // Can only happen if the fleet-root-or-ref was a directory.
-      ui.emit --error "Fleet root '$fleet-root-or-ref' does not contain a $FLEET-FILE_ file."
+    if not storage.has-fleet-config:
+      ui.emit --error "Fleet root '$(storage.display-root or "<fleet>")' does not contain a fleet config."
       ui.emit --error "Use 'init' to initialize a fleet root."
       ui.abort
 
-    result := FleetFile.parse fleet-path
+    result := FleetFile.parse storage
         --default-broker-config=default-broker-config
         --cli=cli
-    if must-be-reference and not result.is-reference:
-      ui.abort "Provided fleet-file is not a reference."
-    else if not must-be-reference and result.is-reference:
+    if storage.supports-devices and result.is-reference:
       ui.abort "Fleet file in given directory is a reference."
+    else if not storage.supports-devices and not result.is-reference:
+      ui.abort "Provided fleet-file is not a reference."
 
     return result
 
@@ -471,7 +449,7 @@ class Fleet:
       return
     new-urls := old-urls + [url]
     new-file := fleet-file_.with --recovery-urls=new-urls
-    new-file.write
+    new-file.write storage_
 
   recovery-url-remove url/string -> bool:
     old-urls := fleet-file_.recovery-urls
@@ -480,12 +458,12 @@ class Fleet:
       return false
 
     new-file := fleet-file_.with --recovery-urls=new-urls
-    new-file.write
+    new-file.write storage_
     return true
 
   recovery-urls-remove-all -> none:
     new-file := fleet-file_.with --recovery-urls=[]
-    new-file.write
+    new-file.write storage_
 
   recovery-info -> ByteArray:
     json-config := broker.server-config.to-service-json
@@ -500,9 +478,6 @@ Contrary to the $Fleet class, this class needs access to the devices of a fleet.
 It can only be instantiated with a non-reference fleet file.
 */
 class FleetWithDevices extends Fleet:
-  static DEVICES-FILE_ ::= "devices.json"
-  static FLEET-FILE_ ::= Fleet.FLEET-FILE_
-
   /** Signal that an alias is ambiguous. */
   static AMBIGUOUS_ ::= -1
 
@@ -522,19 +497,19 @@ class FleetWithDevices extends Fleet:
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
-  constructor fleet-root/string
+  constructor storage/FleetStorage
       --tmp-directory/string
       --default-broker-config/ServerConfig
       --cli/Cli:
-    if not file.is-directory fleet-root and file.is-file fleet-root:
-      cli.ui.abort "Fleet argument for this operation must be a fleet root (directory) and not a reference file: '$fleet-root'."
+    if not storage.supports-devices:
+      cli.ui.abort "Fleet argument for this operation must be a fleet root (directory) and not a reference file: '$(storage.display-root or "<fleet>")'."
 
-    fleet-file := Fleet.load-fleet-file fleet-root
+    fleet-file := Fleet.load-fleet-file storage
         --default-broker-config=default-broker-config
         --cli=cli
     if fleet-file.is-reference:
-      cli.ui.abort "Fleet root '$fleet-root' is a reference fleet and cannot be used for device management."
-    devices-file := load-devices-file fleet-root --cli=cli
+      cli.ui.abort "Fleet root '$(storage.display-root or "<fleet>")' is a reference fleet and cannot be used for device management."
+    devices-file := load-devices-file storage --cli=cli
     devices-file.check-groups fleet-file --cli=cli
     group-pods_ = fleet-file.group-pods
     devices_ = devices-file.devices
@@ -542,34 +517,34 @@ class FleetWithDevices extends Fleet:
     devices_.do: | device/DeviceFleet |
       device-short-strings_[device.id] = device.short-string
     aliases_ = build-alias-map_ devices_ --cli=cli
-    super fleet-root
+    super
+        --storage=storage
         --tmp-directory=tmp-directory
         --fleet-file=fleet-file
         --short-strings=device-short-strings_
         --cli=cli
 
-  static init fleet-root/string -> FleetFile
+  static init storage/FleetStorage -> FleetFile
       --organization-id/Uuid
       --broker-config/ServerConfig
       --recovery-url-prefixes/List
       --cli/Cli:
     ui := cli.ui
 
-    if not file.is-directory fleet-root:
-      ui.abort "Fleet root '$fleet-root' is not a directory."
+    if not storage.supports-devices:
+      ui.abort "Fleet root '$(storage.display-root or "<fleet>")' is a reference fleet and cannot be initialized."
 
-    if file.is-file "$fleet-root/$FLEET-FILE_":
-      ui.abort "Fleet root '$fleet-root' already contains a $FLEET-FILE_ file."
+    if storage.has-fleet-config:
+      ui.abort "Fleet root '$(storage.display-root or "<fleet>")' already contains a fleet.json file."
 
-    if file.is-file "$fleet-root/$DEVICES-FILE_":
-      ui.abort "Fleet root '$fleet-root' already contains a $DEVICES-FILE_ file."
+    if storage.has-devices:
+      ui.abort "Fleet root '$(storage.display-root or "<fleet>")' already contains a devices.json file."
 
     broker-name := broker-config.name
     fleet-id := random-uuid
     recovery-urls := recovery-url-prefixes.map: | prefix |
       "$prefix/recover-$(fleet-id).json"
     fleet-file := FleetFile
-        --path="$fleet-root/$FLEET-FILE_"
         --id=fleet-id
         --organization-id=organization-id
         --group-pods={
@@ -580,39 +555,35 @@ class FleetWithDevices extends Fleet:
         --migrating-from=[]
         --servers={broker-name: broker-config}
         --recovery-urls=recovery-urls
-    fleet-file.write
+    fleet-file.write storage
 
-    devices-file := DevicesFile "$fleet-root/$DEVICES-FILE_" []
-    devices-file.write
+    devices-file := DevicesFile []
+    devices-file.write storage
 
-    default-specification-path := "$fleet-root/$(INITIAL-POD-NAME).yaml"
-    if not file.is-file default-specification-path:
+    if not storage.has-pod-spec INITIAL-POD-NAME:
       header := "# yaml-language-server: \$schema=$JSON-SCHEMA\n"
-      write-yaml-to-file default-specification-path INITIAL-POD-SPECIFICATION --header=header
+      contents := header.to-byte-array + #['\n'] + (yaml.encode INITIAL-POD-SPECIFICATION)
+      storage.write-pod-spec INITIAL-POD-NAME contents
 
     return fleet-file
 
-  static load-devices-file fleet-root/string --cli/Cli -> DevicesFile:
+  static load-devices-file storage/FleetStorage --cli/Cli -> DevicesFile:
     ui := cli.ui
-    if not file.is-directory fleet-root:
-      ui.abort "Fleet root '$fleet-root' is not a directory."
-    devices-path := "$fleet-root/$DEVICES-FILE_"
-    if not file.is-file devices-path:
-      ui.emit --error "Fleet root '$fleet-root' does not contain a $DEVICES-FILE_ file."
+    if not storage.has-devices:
+      ui.emit --error "Fleet root '$(storage.display-root or "<fleet>")' does not contain a devices file."
       ui.emit --error "Use 'init' to initialize a fleet root."
       ui.abort
 
-    return DevicesFile.parse devices-path --cli=cli
+    return DevicesFile.parse storage --cli=cli
 
   /** The root (directory) of this fleet. */
   root -> string:
-    // Since this is a fleet with devices, we know that the $fleet-root-or-ref_ must be a
-    // directory and not just a ref file.
-    return fleet-root-or-ref_
+    // FleetWithDevices requires a storage that exposes a meaningful display root.
+    return storage_.display-root
 
   write-devices_ -> none:
-    file := DevicesFile "$fleet-root-or-ref_/$DEVICES-FILE_" devices_
-    file.write
+    file := DevicesFile devices_
+    file.write storage_
 
   /**
   Builds an alias map.
@@ -675,9 +646,7 @@ class FleetWithDevices extends Fleet:
         cli_.ui.abort "Device with ID $id already exists in the fleet."
 
     old-size := devices_.size
-    new-file := "$output-directory/$(id).identity"
-
-    provision --device-id=id --out-path=new-file
+    new-file := provision --device-id=id --output-directory=output-directory
 
     device := DeviceFleet
         --id=id
@@ -1033,9 +1002,9 @@ class FleetWithDevices extends Fleet:
     (used as "alias" on the server side) in the organization with the
     given $organization-id.
 
-  Writes the identity file to $out-path.
+  Writes the identity file via the storage; returns the on-disk path.
   */
-  provision --device-id/Uuid? --out-path/string:
+  provision --device-id/Uuid? --output-directory/string -> string:
     broker.ensure-authenticated
 
     device := broker.create-device
@@ -1045,16 +1014,22 @@ class FleetWithDevices extends Fleet:
 
     broker.notify-created device
 
-    write-identity-file device --out-path=out-path
+    return write-identity-file device --output-directory=output-directory
 
   /**
-  Writes an identity file.
+  Writes an identity file via this fleet's storage.
 
   This file is used to build a device image and needs to be given to
     $Pod.compute-device-specific-data.
+
+  Returns the on-disk path to the identity file.
   */
-  write-identity-file --out-path/string device/Device -> none:
-    write-base64-ubjson-to-file out-path device.to-json-identity
+  write-identity-file --output-directory/string device/Device -> string:
+    contents := (base64.encode (ubjson.encode device.to-json-identity)).to-byte-array
+    return storage_.write-identity
+        --device-id=device.id
+        contents
+        --output-directory=output-directory
 
   migration-start --broker-config/ServerConfig:
     // Forward to change the name of the parameter.
@@ -1102,7 +1077,7 @@ class FleetWithDevices extends Fleet:
         --broker-name=new-broker-config.name
         --migrating-from=new-migrating-from
         --servers=new-servers
-    modified-fleet-file.write
+    modified-fleet-file.write storage_
 
   migration-stop broker-names/List --force/bool:
     fleet-file := fleet-file_
@@ -1145,7 +1120,7 @@ class FleetWithDevices extends Fleet:
     modified-fleet-file := fleet-file_.with
         --migrating-from=new-migrating-from
         --servers=new-servers
-    modified-fleet-file.write
+    modified-fleet-file.write storage_
 
   static device-from --identity-path/string -> Device:
     identity := read-base64-ubjson identity-path

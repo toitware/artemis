@@ -21,6 +21,8 @@ import ..cache
 import ..device
 import ..firmware
 import ..fleet
+import ..fleet-storage show FleetStorage
+import ..fleet-storage-fs show FilesystemFleetStorage
 import ..pod
 import ..pod-registry
 import ..server-config show get-server-from-config
@@ -650,7 +652,8 @@ init invocation/Invocation:
       if not (admin.get-organization organization-id):
         ui.abort "Organization $organization-id does not exist or is not accessible."
 
-  fleet-file := FleetWithDevices.init fleet-root
+  storage := FilesystemFleetStorage --root=fleet-root --cli=cli
+  fleet-file := FleetWithDevices.init storage
       --organization-id=organization-id
       --broker-config=broker-config
       --recovery-url-prefixes=default-recovery-urls
@@ -858,7 +861,7 @@ group-add invocation/Invocation:
     if fleet-file.group-pods.contains name:
       ui.abort "Group '$name' already exists."
     fleet-file.group-pods[name] = pod-reference
-    fleet-file.write
+    fleet-file.write fleet.storage_
     ui.emit --info "Added group '$name'."
 
 group-update invocation/Invocation:
@@ -884,7 +887,6 @@ group-update invocation/Invocation:
   executed-actions/List := []
 
   with-devices-fleet invocation: | fleet/FleetWithDevices |
-    fleet-root := fleet.root
     fleet-file := fleet.fleet-file_
 
     pod-reference/PodReference? := null
@@ -914,15 +916,14 @@ group-update invocation/Invocation:
         old-reference := fleet-file.group-pods[group]
         fleet-file.group-pods.remove group
         fleet-file.group-pods[name] = old-reference
-        devices-file := FleetWithDevices.load-devices-file fleet-root --cli=cli
         move-devices_
-            --fleet-root=fleet-root
+            --storage=fleet.storage_
             --ids-to-move={}
             --groups-to-move={group}
             --to=name
             --cli=cli
         executed-actions.add "Renamed group '$group' to '$name'."
-    fleet-file.write
+    fleet-file.write fleet.storage_
     executed-actions.do: ui.emit --info it
 
 group-remove invocation/Invocation:
@@ -937,7 +938,7 @@ group-remove invocation/Invocation:
       ui.emit --info "Group '$group' does not exist."
       return
 
-    device-file := FleetWithDevices.load-devices-file fleet.root --cli=cli
+    device-file := FleetWithDevices.load-devices-file fleet.storage_ --cli=cli
     used-groups := {}
     device-file.devices.do: | device/DeviceFleet |
       used-groups.add device.group
@@ -946,7 +947,7 @@ group-remove invocation/Invocation:
       ui.abort "Group '$group' is in use."
 
     fleet-file.group-pods.remove group
-    fleet-file.write
+    fleet-file.write fleet.storage_
 
     ui.emit --info "Removed group '$group'."
 
@@ -963,8 +964,6 @@ group-move invocation/Invocation:
     devices-to-move.do: | device |
       ids-to-move.add (fleet.resolve-alias device).id
 
-    fleet-root := fleet.root
-
     if groups-to-move.is-empty and devices-to-move.is-empty:
       ui.abort "No devices or groups given."
 
@@ -976,7 +975,7 @@ group-move invocation/Invocation:
     groups-to-move-set.add-all groups-to-move
 
     moved-count := move-devices_
-        --fleet-root=fleet-root
+        --storage=fleet.storage_
         --ids-to-move=ids-to-move
         --groups-to-move=groups-to-move-set
         --to=to
@@ -984,12 +983,12 @@ group-move invocation/Invocation:
     ui.emit --info "Moved $moved-count devices to group '$to'."
 
 move-devices_ -> int
-    --fleet-root/string
+    --storage/FleetStorage
     --ids-to-move/Set
     --groups-to-move/Set
     --to/string
     --cli/Cli:
-  devices-file := FleetWithDevices.load-devices-file fleet-root --cli=cli
+  devices-file := FleetWithDevices.load-devices-file storage --cli=cli
   new-devices := []
 
   moved-count := 0
@@ -1001,8 +1000,8 @@ move-devices_ -> int
       new-devices.add fleet-device
 
   if moved-count != 0:
-    new-devices-file := DevicesFile devices-file.path new-devices
-    new-devices-file.write
+    new-devices-file := DevicesFile new-devices
+    new-devices-file.write storage
 
   return moved-count
 

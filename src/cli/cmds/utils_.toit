@@ -1,6 +1,7 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import cli show *
+import host.file
 import host.os
 import partition-table show PartitionTable
 import uuid show Uuid
@@ -8,6 +9,8 @@ import uuid show Uuid
 import ..config
 import ..cache
 import ..fleet
+import ..fleet-storage show FleetStorage
+import ..fleet-storage-fs show FilesystemFleetStorage ReferenceFleetStorage
 import ..pod
 import ..sdk
 import ..server-config
@@ -29,13 +32,14 @@ default-organization-from-config --cli/Cli -> Uuid?:
 with-devices-fleet invocation/Invocation [block]:
   cli := invocation.cli
 
-  // If the result of the compute-call isn't a root, but a reference, then
-  // the constructor call below will throw.
   fleet-root := compute-fleet-root-or-ref invocation
+  if file.is-file fleet-root:
+    cli.ui.abort "Fleet argument for this operation must be a fleet root (directory) and not a reference file: '$fleet-root'."
+  storage := FilesystemFleetStorage --root=fleet-root --cli=cli
 
   with-tmp-directory: | tmp-directory/string |
     default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-    fleet := FleetWithDevices fleet-root
+    fleet := FleetWithDevices storage
         --tmp-directory=tmp-directory
         --default-broker-config=default-broker-config
         --cli=cli
@@ -45,14 +49,29 @@ with-pod-fleet invocation/Invocation [block]:
   cli := invocation.cli
 
   fleet-root-or-ref := compute-fleet-root-or-ref invocation
+  storage := fleet-storage-from-path_ fleet-root-or-ref --cli=cli
 
   with-tmp-directory: | tmp-directory/string |
     default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-    fleet := Fleet fleet-root-or-ref
+    fleet := Fleet storage
         --tmp-directory=tmp-directory
         --default-broker-config=default-broker-config
         --cli=cli
     block.call fleet
+
+/**
+Constructs a $FleetStorage from a fleet root or reference path.
+
+If $path is a directory, returns a $FilesystemFleetStorage. If $path is
+  a file, returns a $ReferenceFleetStorage. Otherwise aborts.
+*/
+fleet-storage-from-path_ path/string --cli/Cli -> FleetStorage:
+  if file.is-file path:
+    return ReferenceFleetStorage --reference-path=path --cli=cli
+  if file.is-directory path:
+    return FilesystemFleetStorage --root=path --cli=cli
+  cli.ui.abort "Fleet root '$path' is not a directory or a file."
+  unreachable
 
 compute-fleet-root-or-ref invocation/Invocation -> string:
   ui := invocation.cli.ui
