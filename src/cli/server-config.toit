@@ -15,7 +15,7 @@ DEFAULT-ARTEMIS-SERVER-CONFIG ::= ServerConfigSupabase
     "Artemis"
     --host="artemis-api.toit.io"
     --anon="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvaXNmYWZzZm9seGhxcGt1ZHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQyNDEsImV4cCI6MTk4ODk1MDI0MX0.dmfxNl5WssxnZ8jpvGJeryg4Fd47fOcrlZ8iGrHj2e4"
-    --root-certificate-name="Baltimore CyberTrust Root"
+    --use-tls=true
 
 /**
 Reads the server configuration with the given $key from the $cli's config.
@@ -101,6 +101,5 @@ Replaces all certificates with an ID and stores the original bytes in the
   $serialized-certificates map.
 */
 server-config-to-service-json server-config/ServerConfig serialized-certificates/Map -> any:
-  server-config.fill-certificate-ders: certificate-roots.MAP[it].raw
   return server-config.to-service-json --der-serializer=:
     serialize-certificate it serialized-certificates

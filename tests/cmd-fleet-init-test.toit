@@ -54,7 +54,7 @@ run-test tester/Tester:
     default-broker := tester.run --json ["config", "broker", "default"]
     tester.run [
       // Add a non-existing broker, and make it the default.
-      "config", "broker", "add", "http", "--port", "1235", "testy",
+      "config", "broker", "add", "http", "testy", "http://localhost:1235",
     ]
     expect-equals "testy" (tester.run --json ["config", "broker", "default"])
 

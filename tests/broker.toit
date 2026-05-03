@@ -126,7 +126,7 @@ with-http-broker --name="test-broker" [block]:
       --port=port-latch.get
       --path="/"
       --poll-interval=Duration --ms=500
-      --root-certificate-names=null
+      --use-tls=false
       --root-certificate-ders=null
       --admin-headers={
         "X-Artemis-Header": "true",

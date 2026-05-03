@@ -149,25 +149,15 @@ run-test tester/Tester:
               "--service-version", service-version,
               "--commit", TEST-COMMIT,
               "--snapshot-directory", tmp-dir,
+              "--force",
             ]
 
       // Try with local.
 
-      // With service version.
-      local-version := "$service-version-$Time.now"
-      run-main-test tester tmp-dir local-version:
-        uploader.main
-            --cli=cli
-            [
-              "service",
-              "--sdk-version", sdk-version,
-              "--service-version", local-version,
-              "--local",
-              "--snapshot-directory", tmp-dir,
-            ]
-
-      // Without service version.
-      run-main-test tester tmp-dir ARTEMIS-VERSION:
+      // With implicit service version.
+      // The local uploader will default to the ARTEMIS-VERSION compiled into the test
+      // which is already TEST-ARTEMIS-VERSION.
+      run-main-test tester tmp-dir TEST-ARTEMIS-VERSION:
         uploader.main
             --cli=cli
             [
@@ -175,6 +165,7 @@ run-test tester/Tester:
               "--sdk-version", sdk-version,
               "--local",
               "--snapshot-directory", tmp-dir,
+              "--force",
             ]
 
     finally:

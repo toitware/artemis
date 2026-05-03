@@ -31,6 +31,8 @@ env:
       v2.0.0-alpha.182
       v2.0.0-alpha.184
       v2.0.0-alpha.186
+      v2.0.0-alpha.189
+      v2.0.0-alpha.190
 
 jobs:
   build:
@@ -93,12 +95,13 @@ jobs:
               ARCH="arm64"
             elif [[ $SYSTEM == "macos" ]]; then
               OS="darwin"
-              ARCH="amd64"
+              ARCH="aarch64"
             else
               OS=$SYSTEM
               ARCH="amd64"
             fi
             mkdir -p out/$SYSTEM
+
             # TODO: Use 'toit compile', once it can take a snapshot as input.
             $SDK/lib/toit/bin/toit.compile --arch $ARCH --os $OS \
               -o out/$SYSTEM/artemis$BIN_EXTENSION build/snapshots/artemis.snapshot
@@ -157,7 +160,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis
           path: |
@@ -165,7 +168,7 @@ jobs:
             build/snapshots/artemis-${{ env.ARTEMIS_UUID }}.snapshot
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-release-binaries
           path: out/*
@@ -177,7 +180,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: artemis-release-binaries
           path: in
@@ -241,7 +244,7 @@ jobs:
           zip -j out/artemis.zip build/macos/artemis
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-packaged-macos
           path: ./out
@@ -262,7 +265,7 @@ jobs:
         id: version
         uses: toitlang/action-git-version@v1.1.0
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: artemis-release-binaries
           path: in
@@ -313,7 +316,7 @@ jobs:
           cp build/windows/artemis_installer_x64.exe out
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-packaged-windows
           path: ./out
@@ -324,7 +327,7 @@ jobs:
           & $PWD\out/artemis_installer_x64.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /LOG="install.log"
 
       - name: Upload install log
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: install-log
           path: |
@@ -337,7 +340,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: artemis-release-binaries
           path: in
@@ -351,7 +354,7 @@ jobs:
           tar c -z -C in/aarch64 -f out/artemis-linux-aarch64.tar.gz artemis
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-packaged-linux
           path: ./out
@@ -438,19 +441,19 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download Linux artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: artemis-packaged-linux
           path: in-linux
 
       - name: Download macOS artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: artemis-packaged-macos
           path: in-mac
 
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: artemis-packaged-windows
           path: in-windows
@@ -470,7 +473,7 @@ jobs:
           mv in-mac/artemis.zip release-assets/artemis-macos.zip
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets
           path: release-assets

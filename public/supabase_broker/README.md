@@ -85,8 +85,7 @@ Configure the Artemis CLI to use your broker:
 ```shell
 artemis config broker add supabase "my_own_broker" \
     --no-default \
-    --certificate "Baltimore CyberTrust Root" \
-    "<project-ref>.supabase.co" \
+    "https://<project-ref>.supabase.co" \
     "<anon-key>"
 ```
 
