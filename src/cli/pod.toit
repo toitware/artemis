@@ -13,6 +13,7 @@ import uuid show Uuid
 import .broker
 import .cache
 import .device
+import .envelope-customize show customize-envelope
 import .firmware show Firmware get-partition-table
 import .pod-specification
 import .sdk
@@ -79,11 +80,13 @@ class Pod:
       --broker/Broker
       --cli/Cli:
     envelope-path := generate-envelope-path_ --tmp-directory=tmp-directory
-    broker.customize-envelope
+    customize-envelope
         --organization-id=organization-id
         --recovery-urls=recovery-urls
         --output-path=envelope-path
         --specification=specification
+        --server-config=broker.server-config
+        --cli=cli
     envelope := file.read-contents envelope-path
     id := random-uuid
     partition-table/ByteArray? := specification.partition-table
