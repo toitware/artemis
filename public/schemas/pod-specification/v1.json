@@ -2,11 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://toit.io/schemas/artemis/pod-specification/v1.json",
   "title": "Pod specification",
-  "description": "Pod specification format of Artemis.",
-  "type": "object",
   "$ref": "#/$defs/PodSpecification",
   "$defs": {
     "PodSpecification": {
+      "description": "Pod specification format of Artemis.",
       "type": "object",
       "unevaluatedProperties": false,
       "$comment": "We don't 'require' any of the properties here. This is because we allow to extend specifications, and some properties might thus not exist in this file. A flattened pod-specification requires '$schema' (or the deprecated 'version'), 'name', 'sdk-version', and 'artemis-version' to be present.",
