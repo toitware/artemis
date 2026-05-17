@@ -969,7 +969,6 @@ class Broker:
       artemis-assets-path := "$tmp-dir/artemis.assets"
       sdk.assets-create --output-path=artemis-assets-path artemis-assets
 
-
       // Build the Artemis service image.
       artemis-container := get-artemis-container service-version --chip-family=envelope-chip-family --cli=cli_
       artemis-snapshot-path := "$tmp-dir/artemis.snapshot"
@@ -977,7 +976,7 @@ class Broker:
         // TODO(florian): share this code with the identity creation code.
         version-path := "$repo-path/src/shared/version.toit"
         if not file.is-file version-path:
-          // We already have the version form the container.
+          // We already have the version from the container.
           // We still need to extract a major and minor version.
           artemis-version := artemis-container.git-ref
           artemis-major/int := ?
