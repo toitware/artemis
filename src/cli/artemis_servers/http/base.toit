@@ -183,10 +183,6 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
     if response.status-code != http.STATUS-OK and response.status-code != http.STATUS-IM-A-TEAPOT:
       throw "HTTP error: $response.status-code $response.status-message"
 
-    if (command == COMMAND-DOWNLOAD-SERVICE-IMAGE_)
-        and response.status-code != http.STATUS-IM-A-TEAPOT:
-      return utils.read-all response.body
-
     decoded := json.decode-stream response.body
     if response.status-code == http.STATUS-IM-A-TEAPOT:
       throw "Broker error: $decoded"
