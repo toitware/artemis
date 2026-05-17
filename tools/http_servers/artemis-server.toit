@@ -89,25 +89,11 @@ class HttpArtemisServer extends HttpServer:
 
   errors/List := []
 
-  sdk-service-versions := []
-  image-binaries := {:}
-
   constructor port/int:
     super port
 
   run-command command/int encoded/ByteArray user-id/string? -> any:
-    data := ?
-
-    if command == COMMAND-UPLOAD-SERVICE-IMAGE_:
-      meta-end := encoded.index-of '\0'
-      meta := encoded[0..meta-end]
-      contents := encoded[meta-end + 1 ..]
-      data = {
-        "meta": meta,
-        "contents": contents,
-      }
-    else:
-      data = json.decode encoded
+    data := json.decode encoded
 
     print "$Time.now: Artemis request $(ARTEMIS-COMMAND-TO-STRING.get command) ($command) for $user-id with $data."
     if user-id and not users.contains user-id:
@@ -145,12 +131,6 @@ class HttpArtemisServer extends HttpServer:
       return get-profile data user-id
     if command == COMMAND-UPDATE-PROFILE_:
       return update-profile data user-id
-    if command == COMMAND-LIST-SDK-SERVICE-VERSIONS_:
-      return list-sdk-service-versions data user-id
-    if command == COMMAND-DOWNLOAD-SERVICE-IMAGE_:
-      return download-service-image data
-    if command == COMMAND-UPLOAD-SERVICE-IMAGE_:
-      return upload-service-image data
 
     else:
       throw "BAD COMMAND $command"
@@ -335,63 +315,6 @@ class HttpArtemisServer extends HttpServer:
     if not user: throw "User not found"
     if data.contains "name": user.name = data["name"]
     if data.contains "email": user.email = data["email"]
-
-  list-sdk-service-versions data/Map user-id/string? -> List:
-    sdk-version := data.get "sdk_version"
-    service-version := data.get "service_version"
-    organization-id := data.get "organization_id"
-
-    // Only return matching versions.
-    return sdk-service-versions.filter: | entry/Map |
-      if sdk-version and entry["sdk_version"] != sdk-version:
-        continue.filter false
-      if service-version and entry["service_version"] != service-version:
-        continue.filter false
-      entry-org := entry.get "organization_id"
-      if entry-org:
-        // Only return the versions for the given organization.
-        if entry-org != organization-id: continue.filter false
-        // But also check that the user is a member of the organization.
-        if not user-id: continue.filter false
-        organization := organizations.get entry["organization_id"]
-        if not organization: continue.filter false
-        if not organization.members.contains user-id: continue.filter false
-      true
-    return sdk-service-versions
-
-  upload-service-image data/Map:
-    meta := json.decode data["meta"]
-    contents := data["contents"]
-    sdk-version := meta["sdk_version"]
-    service-version := meta["service_version"]
-    image-id := meta["image_id"]
-    organization-id := meta.get "organization_id"
-    force := meta.get "force"
-
-    image-binaries[image-id] = contents
-    // Update any existing entry if there is already one.
-    sdk-service-versions.do: | entry/Map |
-      if entry["sdk_version"] == sdk-version and entry["service_version"] == service-version:
-        if not force:
-          throw "Service version already exists"
-
-        entry["image"] = image-id
-        if organization-id:
-          entry["organization_id"] = organization-id
-        return
-    new-entry := {
-      "sdk_version": sdk-version,
-      "service_version": service-version,
-      "image": image-id,
-    }
-    if organization-id:
-      new-entry["organization_id"] = organization-id
-    sdk-service-versions.add new-entry
-
-  download-service-image data/Map -> BinaryResponse:
-    image-id := data["image"]
-    image-bin := image-binaries.get image-id
-    return BinaryResponse image-bin image-bin.size
 
   sign-up data/Map:
     email := data["email"]
