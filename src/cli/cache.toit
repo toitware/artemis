@@ -10,14 +10,6 @@ import .server-config
 Manages cache keys.
 */
 
-cache-key-service-image -> string
-    --service-version/string
-    --sdk-version/string
-    --artemis-config/ServerConfig
-    --chip-family/string
-    --word-size/int:
-  return "$artemis-config.cache-key/service/$service-version/$(sdk-version)-$(chip-family)-$(word-size).image"
-
 cache-key-application-image id/Uuid --broker-config/ServerConfig -> string:
   return "$broker-config.cache-key/application/images/$(id).image"
 

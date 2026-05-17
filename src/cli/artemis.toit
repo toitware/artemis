@@ -14,7 +14,6 @@ import host.os
 import system
 
 import .cache as cache
-import .cache show cache-key-service-image
 import .config
 import .device
 import .git
