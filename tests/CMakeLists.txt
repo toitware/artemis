@@ -108,8 +108,10 @@ set_tests_properties("ensure-version" PROPERTIES FIXTURES_SETUP "ensure-version"
 # tests mkdtemp their own subdirectory inside it (cleaned up on success), and
 # the cleanup fixture wipes whatever was left behind by tests that exited
 # abruptly (e.g. via expect's exit -1 on a gold mismatch).
+# Lives under the build directory so the path is valid on every platform
+# (Windows' mkdtemp special-cases the prefix "/tmp/").
 string(RANDOM LENGTH 12 _artemis_tmp_suffix)
-set(ARTEMIS_TMP_ROOT "/tmp/artemis-test-ctest-${_artemis_tmp_suffix}")
+set(ARTEMIS_TMP_ROOT "${CMAKE_BINARY_DIR}/test-tmp-${_artemis_tmp_suffix}")
 
 add_test(NAME "tmp-root-setup"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${ARTEMIS_TMP_ROOT}"
