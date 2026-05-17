@@ -104,6 +104,25 @@ add_test(NAME "ensure-version"
 )
 set_tests_properties("ensure-version" PROPERTIES FIXTURES_SETUP "ensure-version")
 
+# Per-build scratch root for tests. The setup fixture creates it, individual
+# tests mkdtemp their own subdirectory inside it (cleaned up on success), and
+# the cleanup fixture wipes whatever was left behind by tests that exited
+# abruptly (e.g. via expect's exit -1 on a gold mismatch).
+string(RANDOM LENGTH 12 _artemis_tmp_suffix)
+set(ARTEMIS_TMP_ROOT "/tmp/artemis-test-ctest-${_artemis_tmp_suffix}")
+
+add_test(NAME "tmp-root-setup"
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${ARTEMIS_TMP_ROOT}"
+  CONFIGURATIONS "default" "supabase" "serial"
+)
+set_tests_properties("tmp-root-setup" PROPERTIES FIXTURES_SETUP "artemis_tmp")
+
+add_test(NAME "tmp-root-cleanup"
+  COMMAND ${CMAKE_COMMAND} -E rm -rf "${ARTEMIS_TMP_ROOT}"
+  CONFIGURATIONS "default" "supabase" "serial"
+)
+set_tests_properties("tmp-root-cleanup" PROPERTIES FIXTURES_CLEANUP "artemis_tmp")
+
 # Compute the absolute path to the toit executable.
 if(EXISTS ${TOIT})
   # It's a relative or absolute path.
@@ -269,7 +288,10 @@ foreach(file ${TESTS})
       CONFIGURATIONS ${TEST_CONFIGURATIONS}
     )
 
-    set_tests_properties("${test_name}" PROPERTIES FIXTURES_REQUIRED "ensure-version")
+    set_tests_properties("${test_name}" PROPERTIES
+      FIXTURES_REQUIRED "ensure-version;artemis_tmp"
+      ENVIRONMENT "ARTEMIS_TEST_TMP_ROOT=${ARTEMIS_TMP_ROOT}"
+    )
 
     if (RESOURCE_LOCKS)
       set_tests_properties("${test_name}" PROPERTIES RESOURCE_LOCK "${RESOURCE_LOCKS}")

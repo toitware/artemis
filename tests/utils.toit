@@ -74,8 +74,20 @@ TEST-SDK-VERSION/string := configured-version.SDK-VERSION
 // Only add the '-TEST' suffix if it's not already there.
 TEST-ARTEMIS-VERSION ::= "$(configured-version.ARTEMIS-VERSION.trim --right "-TEST")-TEST"
 
+/**
+Returns the parent directory for test-created tmp directories.
+
+When running under CTest the "tmp-root" fixture sets $ARTEMIS-TEST-TMP-ROOT-ENV
+  to a per-run scratch directory that the fixture also cleans up. Falls back to
+  "/tmp" for standalone test invocations.
+*/
+ARTEMIS-TEST-TMP-ROOT-ENV ::= "ARTEMIS_TEST_TMP_ROOT"
+
+tmp-parent_ -> string:
+  return (os.env.get ARTEMIS-TEST-TMP-ROOT-ENV) or "/tmp"
+
 with-tmp-directory [block]:
-  tmp-dir := directory.mkdtemp "/tmp/artemis-test-"
+  tmp-dir := directory.mkdtemp "$tmp-parent_/artemis-test-"
   try:
     block.call tmp-dir
   finally:
@@ -829,7 +841,7 @@ class TestDevicePipe extends TestDevice:
       --organization-id/Uuid
       --tar-path/string
       --tester/Tester:
-    tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
+    tmp-dir = directory.mkdtemp "$tmp-parent_/artemis-test-"
     untar tar-path --target=tmp-dir
     boot-sh := "$tmp-dir/boot.sh"
     command_ = ["bash", boot-sh]
