@@ -1,2 +1,3 @@
 # Compile the modified specification.
 # [--fleet-root, TMP_DIR/fleet, pod, build, -o, TMP_DIR/firmware.pod, TMP_DIR/fleet/FLEET-POD-FILE]
+Added Artemis service container to envelope.
