@@ -10,7 +10,7 @@ import encoding.json
 import encoding.base64
 import uuid show Uuid
 
-import ..artemis-server
+import ..auth-provider
 import ...config
 import ...device
 import ...organization
@@ -19,7 +19,7 @@ import ....shared.server-config
 import ....shared.utils as utils
 import ....shared.constants show *
 
-class ArtemisServerCliHttpToit implements ArtemisServerCli:
+class AuthProviderHttpToit implements AuthProvider:
   client_/http.Client? := ?
   server-config_/ServerConfigHttp
   current-user-id_/Uuid? := null

@@ -8,7 +8,7 @@ import ..config
 import ..cache
 import ..fleet
 import ..server-config
-import ..artemis-servers.artemis-server show with-server ArtemisServerCli
+import ..auth-providers.auth-provider show with-auth-provider AuthProvider
 import .utils_
 
 create-sdk-commands -> List:

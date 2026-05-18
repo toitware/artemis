@@ -12,7 +12,7 @@ import uuid show Uuid
 import .artemis-server
 import .utils
 
-import artemis.cli.artemis-servers.artemis-server show ArtemisServerCli
+import artemis.cli.auth-providers.auth-provider show AuthProvider
 import artemis.shared.server-config show ServerConfig
 import artemis.cli.auth as cli-auth
 
@@ -27,7 +27,7 @@ main args:
   else:
     throw "Unknown server server type: $args[0]"
   with-artemis-server --args=args --type=server-type: | artemis-server/TestArtemisServer |
-    run-test artemis-server --authenticate=: | server/ArtemisServerCli |
+    run-test artemis-server --authenticate=: | server/AuthProvider |
       server.sign-in
             --email=TEST-EXAMPLE-COM-EMAIL
             --password=TEST-EXAMPLE-COM-PASSWORD
@@ -37,7 +37,7 @@ run-test artemis-server/TestArtemisServer [--authenticate]:
   backdoor := artemis-server.backdoor
   with-tmp-config-cli: | cli/Cli |
     network := net.open
-    server-cli := ArtemisServerCli network server-config --cli=cli
+    server-cli := AuthProvider network server-config --cli=cli
     authenticate.call server-cli
     hardware-id := test-create-device-in-organization server-cli backdoor
     test-notify-created server-cli backdoor --hardware-id=hardware-id
@@ -45,7 +45,7 @@ run-test artemis-server/TestArtemisServer [--authenticate]:
     test-organizations server-cli backdoor
     test-profile server-cli backdoor
 
-test-create-device-in-organization server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> Uuid:
+test-create-device-in-organization server-cli/AuthProvider backdoor/ArtemisServerBackdoor -> Uuid:
   // Test without and with alias.
   device1 := server-cli.create-device-in-organization
       --device-id=null
@@ -68,12 +68,12 @@ test-create-device-in-organization server-cli/ArtemisServerCli backdoor/ArtemisS
 
   return hardware-id2
 
-test-notify-created server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor --hardware-id/Uuid:
+test-notify-created server-cli/AuthProvider backdoor/ArtemisServerBackdoor --hardware-id/Uuid:
   expect-not (backdoor.has-event --hardware-id=hardware-id --type="created")
   server-cli.notify-created --hardware-id=hardware-id
   expect (backdoor.has-event --hardware-id=hardware-id --type="created")
 
-test-organizations server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
+test-organizations server-cli/AuthProvider backdoor/ArtemisServerBackdoor:
   original-orgs := server-cli.get-organizations
 
   // For now we can't be sure that there aren't other organizations from
@@ -164,7 +164,7 @@ test-organizations server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   // Keep the demo user in the same organization as the test user,
   // so we can read the user's profile in 'test_profile'
 
-test-profile server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
+test-profile server-cli/AuthProvider backdoor/ArtemisServerBackdoor:
   profile := server-cli.get-profile
 
   profile = server-cli.get-profile

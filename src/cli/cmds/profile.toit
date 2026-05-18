@@ -6,7 +6,7 @@ import net
 import ..config
 import ..cache
 import ..server-config
-import ..artemis-servers.artemis-server show with-server ArtemisServerCli
+import ..auth-providers.auth-provider show with-auth-provider AuthProvider
 
 create-profile-commands -> List:
   profile-cmd := Command "profile"
@@ -40,14 +40,14 @@ with-profile-server invocation/Invocation [block]:
 
   server-config := get-server-from-config --key=CONFIG-ARTEMIS-DEFAULT-KEY --cli=cli
 
-  with-server server-config --cli=cli: | server/ArtemisServerCli |
+  with-auth-provider server-config --cli=cli: | server/AuthProvider |
     server.ensure-authenticated: | error-message |
       cli.ui.abort "$error-message (artemis)."
     block.call server
 
 show-profile invocation/Invocation:
   ui := invocation.cli.ui
-  with-profile-server invocation: | server/ArtemisServerCli |
+  with-profile-server invocation: | server/AuthProvider |
     profile := server.get-profile
     if ui.wants-structured --kind=Ui.RESULT:
       // We recreate the map, so we don't show unnecessary entries.
@@ -73,6 +73,6 @@ update-profile invocation/Invocation:
   if not name:
     ui.abort "No name specified."
 
-  with-profile-server invocation: | server/ArtemisServerCli |
+  with-profile-server invocation: | server/AuthProvider |
     server.update-profile --name=name
     ui.emit --info "Profile updated."

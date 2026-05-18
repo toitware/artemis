@@ -8,7 +8,7 @@ import ..cache
 import ..config
 import ..auth show Authenticatable
 import ..server-config
-import ..artemis-servers.artemis-server show with-server ArtemisServerCli
+import ..auth-providers.auth-provider show with-auth-provider AuthProvider
 import ..brokers.broker show with-broker BrokerCli
 
 SIGNIN-OPTIONS ::= [
@@ -181,7 +181,7 @@ with-authenticatable invocation/Invocation [block]:
       block.call server-config.name broker
   else:
     server-config = get-server-from-config --cli=cli --key=CONFIG-ARTEMIS-DEFAULT-KEY
-    with-server server-config --cli=cli: | server/ArtemisServerCli |
+    with-auth-provider server-config --cli=cli: | server/AuthProvider |
       block.call server-config.name server
 
 sign-in invocation/Invocation:

@@ -9,7 +9,7 @@ import supabase
 import supabase.filter show equals is-null orr
 import uuid show Uuid
 
-import ..artemis-server
+import ..auth-provider
 import ...config
 import ...device
 import ...organization
@@ -19,7 +19,7 @@ import ....shared.server-config
 
 TOIT_IO_AUTH_REDIRECT_URL ::= "https://toit.io/auth"
 
-class ArtemisServerCliSupabase implements ArtemisServerCli:
+class AuthProviderSupabase implements AuthProvider:
   client_/supabase.Client? := ?
   server-config_/ServerConfigSupabase
 
