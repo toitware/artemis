@@ -17,6 +17,7 @@ import .config
 import .device
 import .pod
 import .pod-specification
+import .scope show Scope
 
 import .utils
 import .utils.patch-build show build-diff-patch build-trivial-patch
@@ -103,6 +104,16 @@ class Broker:
         cli_.ui.abort "$error-message (broker)."
     return broker-connection__
 
+  /**
+  The $Scope to use when talking to the broker.
+
+  For now derived directly from $organization-id. When the fleet file gains
+    a per-service scope field this will return the broker's own configured
+    scope instead.
+  */
+  scope -> Scope:
+    return Scope.from-organization-id organization-id
+
   short-string-for_ --device-id/Uuid -> string:
     if not device-short-strings_: throw "Access to device in non-device fleet."
     return device-short-strings_[device-id]
@@ -147,7 +158,7 @@ class Broker:
             --part-id=id
         cli_.cache.get-file-path key: | store/FileStore |
           broker-connection_.pod-registry-upload-pod-part contents --part-id=id
-              --organization-id=organization-id
+              --scope=scope
           store.save contents
       key := cache-key-pod-manifest
           --broker-config=server-config
@@ -156,12 +167,12 @@ class Broker:
       cli_.cache.get-file-path key: | store/FileStore |
         encoded := ubjson.encode manifest
         broker-connection_.pod-registry-upload-pod-manifest encoded --pod-id=pod.id
-            --organization-id=organization-id
+            --scope=scope
         store.save encoded
 
     description-ids := broker-connection_.pod-registry-descriptions
         --fleet-id=fleet-id
-        --organization-id=organization-id
+        --scope=scope
         --names=[pod.name]
         --create-if-absent
 
@@ -222,7 +233,7 @@ class Broker:
     cli_.cache.get cache-key: | store/FileStore |
       trivial := build-trivial-patch patch.bits_
       broker-connection_.upload-firmware trivial
-          --organization-id=organization-id
+          --scope=scope
           --firmware-id=trivial-id
       store.save-via-writer: | writer/io.Writer |
         trivial.do: writer.write it
@@ -239,7 +250,7 @@ class Broker:
     trivial-old := cli_.cache.get cache-key: | store/FileStore |
       downloaded := null
       catch: downloaded = broker-connection_.download-firmware
-          --organization-id=organization-id
+          --scope=scope
           --id=old-id
       if not downloaded:
         cli_.ui.emit --warning "Failed to download old firmware for patch $old-id -> $trivial-id."
@@ -278,7 +289,7 @@ class Broker:
       to64 := base64.encode patch.to_ --url-mode
       cli_.ui.emit --info "Uploading patch $from64 -> $to64 ($diff-size)."
       broker-connection_.upload-firmware diff
-          --organization-id=organization-id
+          --scope=scope
           --firmware-id=diff-id
       store.save-via-writer: | writer/io.Writer |
         diff.do: writer.write it
@@ -313,7 +324,7 @@ class Broker:
     encoded-manifest := cli_.cache.get manifest-key: | store/FileStore |
       bytes := broker-connection_.pod-registry-download-pod-manifest
         --pod-id=pod-id
-        --organization-id=organization-id
+        --scope=scope
       store.save bytes
     manifest := ubjson.decode encoded-manifest
     return Pod.from-manifest
@@ -327,7 +338,7 @@ class Broker:
           cli_.cache.get key: | store/FileStore |
             bytes := broker-connection_.pod-registry-download-pod-part
                 part-id
-                --organization-id=organization-id
+                --scope=scope
             store.save bytes
 
   list-pods --names/List -> Map:
@@ -337,7 +348,7 @@ class Broker:
     else:
       descriptions = broker-connection_.pod-registry-descriptions
           --fleet-id=fleet-id
-          --organization-id=organization-id
+          --scope=scope
           --names=names
           --no-create-if-absent
     result := {:}
@@ -349,7 +360,7 @@ class Broker:
   delete --description-names/List:
     descriptions := broker-connection_.pod-registry-descriptions
         --fleet-id=fleet-id
-        --organization-id=organization-id
+        --scope=scope
         --names=description-names
         --no-create-if-absent
     unknown-pod-descriptions := []
@@ -418,7 +429,7 @@ class Broker:
 
     descriptions := broker-connection_.pod-registry-descriptions
         --fleet-id=fleet-id
-        --organization-id=organization-id
+        --scope=scope
         --names=names.to-list
         --no-create-if-absent
 
@@ -762,13 +773,14 @@ class Broker:
         store.with-tmp-directory: | tmp-dir |
           // TODO(florian): do we want to rely on the cache, or should we
           // do a check to see if the files are really uploaded?
+          device-scope := Scope.from-organization-id device.organization-id
           broker-connection_.upload-image program.image32
               --app-id=id
-              --organization-id=device.organization-id
+              --scope=device-scope
               --word-size=32
           file.write-contents program.image32 --path="$tmp-dir/image32.bin"
           broker-connection_.upload-image program.image64
-              --organization-id=device.organization-id
+              --scope=device-scope
               --app-id=id
               --word-size=64
           file.write-contents program.image64 --path="$tmp-dir/image64.bin"

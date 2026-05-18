@@ -13,6 +13,7 @@ import ..broker
 import ...device
 import ...event
 import ...pod-registry
+import ...scope show Scope
 import ....shared.server-config
 import ....shared.utils as utils
 import ....shared.constants show *
@@ -183,16 +184,18 @@ class BrokerCliHttp implements BrokerCli:
     return result
 
   upload-image -> none
-      --organization-id/Uuid
+      --scope/Scope
       --app-id/Uuid
       --word-size/int
       contents/ByteArray:
+    organization-id := scope.as-uuid
     send-request_ COMMAND-UPLOAD_ {
       "path": "/toit-artemis-assets/$organization-id/images/$app-id.$word-size",
       "content": contents,
     }
 
-  upload-firmware --organization-id/Uuid --firmware-id/string chunks/List -> none:
+  upload-firmware --scope/Scope --firmware-id/string chunks/List -> none:
+    organization-id := scope.as-uuid
     firmware := #[]
     chunks.do: firmware += it
     send-request_ COMMAND-UPLOAD_ {
@@ -200,7 +203,8 @@ class BrokerCliHttp implements BrokerCli:
       "content": firmware,
     }
 
-  download-firmware --organization-id/Uuid --id/string -> ByteArray:
+  download-firmware --scope/Scope --id/string -> ByteArray:
+    organization-id := scope.as-uuid
     return send-request_ COMMAND-DOWNLOAD_ {
       "path": "/toit-artemis-assets/$organization-id/firmware/$id",
     }
@@ -241,9 +245,10 @@ class BrokerCliHttp implements BrokerCli:
   /** See $BrokerCli.pod-registry-description-upsert. */
   pod-registry-description-upsert -> int
       --fleet-id/Uuid
-      --organization-id/Uuid
+      --scope/Scope
       --name/string
       --description/string?:
+    organization-id := scope.as-uuid
     return send-request_ COMMAND-POD-REGISTRY-DESCRIPTION-UPSERT_ {
       "_fleet_id": "$fleet-id",
       "_organization_id": "$organization-id",
@@ -310,12 +315,13 @@ class BrokerCliHttp implements BrokerCli:
     }
     return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod-registry-descriptions --fleet-id --organization-id --names --create-if-absent). */
+  /** See $(BrokerCli.pod-registry-descriptions --fleet-id --scope --names --create-if-absent). */
   pod-registry-descriptions -> List
       --fleet-id/Uuid
-      --organization-id/Uuid
+      --scope/Scope
       --names/List
       --create-if-absent/bool:
+    organization-id := scope.as-uuid
     response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-NAMES_ {
       "_fleet_id": "$fleet-id",
       "_organization_id": "$organization-id",
@@ -365,32 +371,36 @@ class BrokerCliHttp implements BrokerCli:
 
   /** See $BrokerCli.pod-registry-upload-pod-part. */
   pod-registry-upload-pod-part -> none
-      --organization-id/Uuid
+      --scope/Scope
       --part-id/string
       contents/ByteArray:
+    organization-id := scope.as-uuid
     send-request_ COMMAND-UPLOAD_ {
       "path": "/toit-artemis-pods/$organization-id/part/$part-id",
       "content": contents,
     }
 
   /** See $BrokerCli.pod-registry-download-pod-part. */
-  pod-registry-download-pod-part part-id/string --organization-id/Uuid -> ByteArray:
+  pod-registry-download-pod-part part-id/string --scope/Scope -> ByteArray:
+    organization-id := scope.as-uuid
     return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
       "path": "/toit-artemis-pods/$organization-id/part/$part-id",
     }
 
   /** See $BrokerCli.pod-registry-upload-pod-manifest. */
   pod-registry-upload-pod-manifest -> none
-      --organization-id/Uuid
+      --scope/Scope
       --pod-id/Uuid
       contents/ByteArray:
+    organization-id := scope.as-uuid
     send-request_ COMMAND-UPLOAD_ {
       "path": "/toit-artemis-pods/$organization-id/manifest/$pod-id",
       "content": contents,
     }
 
   /** See $BrokerCli.pod-registry-download-pod-manifest. */
-  pod-registry-download-pod-manifest --organization-id/Uuid --pod-id/Uuid -> ByteArray:
+  pod-registry-download-pod-manifest --scope/Scope --pod-id/Uuid -> ByteArray:
+    organization-id := scope.as-uuid
     return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
       "path": "/toit-artemis-pods/$organization-id/manifest/$pod-id",
     }

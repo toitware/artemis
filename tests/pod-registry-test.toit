@@ -40,7 +40,7 @@ test-pod-registry --test-broker/TestBroker broker-cli/broker.BrokerCli:
   // Create a description.
   description-id := broker-cli.pod-registry-description-upsert
       --fleet-id=fleet-id
-      --organization-id=TEST-ORGANIZATION-UUID
+      --scope=TEST-SCOPE
       --name="pod1"
       --description=null
   descriptions = broker-cli.pod-registry-descriptions --fleet-id=fleet-id
@@ -52,7 +52,7 @@ test-pod-registry --test-broker/TestBroker broker-cli/broker.BrokerCli:
   // Create the same description again.
   description-id-received := broker-cli.pod-registry-description-upsert
       --fleet-id=fleet-id
-      --organization-id=TEST-ORGANIZATION-UUID
+      --scope=TEST-SCOPE
       --name="pod1"
       --description=null
   expect-equals description-id description-id-received
@@ -60,7 +60,7 @@ test-pod-registry --test-broker/TestBroker broker-cli/broker.BrokerCli:
   // Create another description.
   description-id2 := broker-cli.pod-registry-description-upsert
       --fleet-id=fleet-id
-      --organization-id=TEST-ORGANIZATION-UUID
+      --scope=TEST-SCOPE
       --name="pod2"
       --description="description2"
   descriptions = broker-cli.pod-registry-descriptions --fleet-id=fleet-id
@@ -85,7 +85,7 @@ test-pod-registry --test-broker/TestBroker broker-cli/broker.BrokerCli:
   // Get the descriptions by name.
   descriptions = broker-cli.pod-registry-descriptions
       --fleet-id=fleet-id
-      --organization-id=TEST-ORGANIZATION-UUID
+      --scope=TEST-SCOPE
       --names=["pod1"]
       --no-create-if-absent
   expect-equals 1 descriptions.size
@@ -95,7 +95,7 @@ test-pod-registry --test-broker/TestBroker broker-cli/broker.BrokerCli:
   // Do the same but create the missing description.
   descriptions = broker-cli.pod-registry-descriptions
       --fleet-id=fleet-id
-      --organization-id=TEST-ORGANIZATION-UUID
+      --scope=TEST-SCOPE
       --names=["pod1", "pod3"]
       --create-if-absent
   names = descriptions.map: it.name
@@ -266,13 +266,13 @@ test-pod-registry --test-broker/TestBroker broker-cli/broker.BrokerCli:
 
   description-id3 := broker-cli.pod-registry-description-upsert
       --fleet-id=fleet-id
-      --organization-id=TEST-ORGANIZATION-UUID
+      --scope=TEST-SCOPE
       --name="pod3"
       --description=null
 
   description-id4 := broker-cli.pod-registry-description-upsert
       --fleet-id=fleet-id
-      --organization-id=TEST-ORGANIZATION-UUID
+      --scope=TEST-SCOPE
       --name="pod4"
       --description=null
 
@@ -322,20 +322,20 @@ test-pods --test-broker/TestBroker broker-cli/broker.BrokerCli:
 
     pod-contents.do: | key/string value/string |
       broker-cli.pod-registry-upload-pod-part
-          --organization-id=TEST-ORGANIZATION-UUID
+          --scope=TEST-SCOPE
           --part-id=key
           value.to-byte-array
 
     // Upload the keys as a manifest.
     manifest := ubjson.encode pod
     broker-cli.pod-registry-upload-pod-manifest
-        --organization-id=TEST-ORGANIZATION-UUID
+        --scope=TEST-SCOPE
         --pod-id=pod-id
         manifest
 
     // Download the manifest.
     downloaded-manifest := broker-cli.pod-registry-download-pod-manifest
-        --organization-id=TEST-ORGANIZATION-UUID
+        --scope=TEST-SCOPE
         --pod-id=pod-id
     expect-equals manifest downloaded-manifest
     decoded := ubjson.decode downloaded-manifest
@@ -345,5 +345,5 @@ test-pods --test-broker/TestBroker broker-cli/broker.BrokerCli:
     // Download the parts.
     decoded.do: | _ id/string |
       downloaded-part := broker-cli.pod-registry-download-pod-part id
-          --organization-id=TEST-ORGANIZATION-UUID
+          --scope=TEST-SCOPE
       expect-equals pod-contents[id] downloaded-part.to-string
