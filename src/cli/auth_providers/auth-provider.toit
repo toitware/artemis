@@ -68,14 +68,6 @@ interface AuthProvider implements Authenticatable:
   */
   create-device-in-organization --organization-id/Uuid --device-id/Uuid? -> Device
 
-  /**
-  Notifies the server that the device with the given $hardware-id was created.
-
-  This operation is mostly for debugging purposes, as the $create-device-in-organization
-    already has a similar effect.
-  */
-  notify-created --hardware-id/Uuid
-
   /** Returns the used-id of the authenticated user. */
   get-current-user-id -> string
 

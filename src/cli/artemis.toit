@@ -77,10 +77,6 @@ class Artemis:
   ensure-authenticated -> none:
     connected-auth-provider_
 
-  notify-created --hardware-id/Uuid:
-    server := connected-auth-provider_
-    server.notify-created --hardware-id=hardware-id
-
   create-device --device-id/Uuid? --organization-id/Uuid -> Device:
     return connected-auth-provider_.create-device-in-organization
         --device-id=device-id

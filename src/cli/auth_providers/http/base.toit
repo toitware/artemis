@@ -87,12 +87,6 @@ class AuthProviderHttpToit implements AuthProvider:
         --id=Uuid.parse device-info["alias"]
         --organization-id=Uuid.parse device-info["organization_id"]
 
-  notify-created --hardware-id/Uuid -> none:
-    send-request_ COMMAND-NOTIFY-ARTEMIS-CREATED_ {
-      "hardware_id": "$hardware-id",
-      "data": { "type": "created" },
-    }
-
   get-current-user-id -> Uuid:
     return current-user-id_
 

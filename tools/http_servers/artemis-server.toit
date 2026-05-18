@@ -103,8 +103,6 @@ class HttpArtemisServer extends HttpServer:
       return store-event data
     if command == COMMAND-CREATE-DEVICE-IN-ORGANIZATION_:
       return create-device-in-organization data
-    if command == COMMAND-NOTIFY-ARTEMIS-CREATED_:
-      return store-event data
     if command == COMMAND-SIGN-UP_:
       return sign-up data
     if command == COMMAND-SIGN-IN_:

@@ -73,12 +73,6 @@ class AuthProviderSupabase implements AuthProvider:
         --id=Uuid.parse inserted["alias"]
         --organization-id=Uuid.parse inserted["organization_id"]
 
-  notify-created --hardware-id/Uuid -> none:
-    client_.rest.insert "events" --no-return-inserted {
-      "device_id": "$hardware-id",
-      "data": { "type": "created" }
-    }
-
   get-current-user-id -> Uuid:
     return Uuid.parse client_.auth.get-current-user["id"]
 
