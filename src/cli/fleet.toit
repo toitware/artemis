@@ -72,6 +72,8 @@ class Status_:
     return is-fully-updated and missed-checkins == 0
 
 class FleetFile:
+  static JSON-SCHEMA ::= "https://toit.io/schemas/artemis/fleet/v2.json"
+
   path/string
   id/Uuid
   organization-id/Uuid
@@ -105,7 +107,17 @@ class FleetFile:
       ui.abort "Fleet file '$path' has invalid format."
     if not fleet-contents.contains "id":
       ui.abort "Fleet file '$path' does not contain an ID."
-    if not fleet-contents.contains "organization":
+
+    schema := fleet-contents.get "\$schema"
+    if schema and schema != JSON-SCHEMA:
+      ui.abort "Fleet file '$path' has an unsupported schema: $schema"
+    is-new-format := schema != null
+
+    // The legacy format had a top-level "organization" and a top-level
+    // "broker" string. The new format nests the broker reference under
+    // a "broker" object with "ref" and "scope" fields and has no
+    // top-level "organization".
+    if not is-new-format and not fleet-contents.contains "organization":
       ui.abort "Fleet file '$path' does not contain an organization ID."
 
     is-reference := fleet-contents.get "is-reference" --if-absent=: false
@@ -130,7 +142,28 @@ class FleetFile:
           ui.abort "Fleet file '$path' has invalid format for 'pod' in group '$group-name'."
         PodReference.parse entry["pod"] --cli=cli
 
-    broker-name := fleet-contents.get "broker"
+    broker-entry := fleet-contents.get "broker"
+    broker-name/string? := null
+    organization-id/Uuid? := null
+    if is-new-format:
+      if broker-entry is not Map:
+        ui.abort "Fleet file '$path' has invalid format for 'broker' (expected an object)."
+      broker-map := broker-entry as Map
+      ref-value := broker-map.get "ref"
+      scope-value := broker-map.get "scope"
+      if ref-value is not string:
+        ui.abort "Fleet file '$path' has invalid format for 'broker.ref'."
+      if scope-value is not string:
+        ui.abort "Fleet file '$path' has invalid format for 'broker.scope'."
+      broker-name = ref-value
+      organization-id = Uuid.parse scope-value
+    else:
+      // Legacy format: broker is either a string or absent.
+      if broker-entry and broker-entry is not string:
+        ui.abort "Fleet file '$path' has invalid format for 'broker'."
+      broker-name = broker-entry
+      organization-id = Uuid.parse fleet-contents["organization"]
+
     migrating-from-entry := fleet-contents.get "migrating-from"
     servers-entry := fleet-contents.get "servers"
 
@@ -141,8 +174,8 @@ class FleetFile:
         ui.abort "Fleet file '$path' has invalid format for 'broker' and 'servers'."
       if servers-entry is not Map:
         ui.abort "Fleet file '$path' has invalid format for 'servers'."
-      broker-entry := servers-entry.get broker-name
-      if not broker-entry:
+      broker-server-entry := servers-entry.get broker-name
+      if not broker-server-entry:
         ui.abort "Fleet file '$path' does not contain a server entry for broker '$broker-name'."
 
       servers = servers-entry.map: | server-name/string encoded-server |
@@ -187,7 +220,7 @@ class FleetFile:
     return FleetFile
         --path=path
         --id=Uuid.parse fleet-contents["id"]
-        --organization-id=Uuid.parse fleet-contents["organization"]
+        --organization-id=organization-id
         --group-pods=group-pods
         --is-reference=is-reference
         --broker-name=broker-name
@@ -236,8 +269,8 @@ class FleetFile:
 
   to-json_ --reference/bool=false -> Map:
     result := {
+      "\$schema": JSON-SCHEMA,
       "id": "$id",
-      "organization": "$organization-id",
     }
     if reference:
       result["is-reference"] = true
@@ -258,7 +291,10 @@ class FleetFile:
       result["groups"] = groups
 
     // Add the servers last, so that the file is easier to read.
-    result["broker"] = broker-name
+    result["broker"] = {
+      "ref": broker-name,
+      "scope": "$organization-id",
+    }
     if migrating-from and not migrating-from.is-empty:
       result["migrating-from"] = migrating-from
     result["servers"] = servers.map: | server-name/string server-config/ServerConfig |

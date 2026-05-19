@@ -28,7 +28,7 @@ run-test tester/Tester:
 
     fleet-json := json.decode (file.read-contents "$fleet-tmp-dir/fleet.json")
     // Check that we have a broker entry.
-    broker-name := fleet-json["broker"]
+    broker-name := fleet-json["broker"]["ref"]
     broker-entry := fleet-json["servers"][broker-name]
 
     // We are not allowed to initialize a folder twice.
