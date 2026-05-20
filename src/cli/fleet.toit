@@ -113,10 +113,10 @@ class FleetFile:
       ui.abort "Fleet file '$path' has an unsupported schema: $schema"
     is-new-format := schema != null
 
-    // The legacy format had a top-level "organization" and a top-level
-    // "broker" string. The new format nests the broker reference under
-    // a "broker" object with "ref" and "scope" fields and has no
-    // top-level "organization".
+    // The legacy format had a top-level "organization" UUID; the new
+    // format drops it and stores a per-server "scope" inside each
+    // server entry instead. The "broker" field is a server-name string
+    // in both layouts.
     if not is-new-format and not fleet-contents.contains "organization":
       ui.abort "Fleet file '$path' does not contain an organization ID."
 
