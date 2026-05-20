@@ -4,6 +4,7 @@ import crypto.sha1
 import crypto.sha256
 import encoding.base64
 import uuid show Uuid
+import .scope show Scope
 import .server-config
 
 /**
@@ -15,21 +16,21 @@ cache-key-application-image id/Uuid --broker-config/ServerConfig -> string:
 
 cache-key-pod-parts -> string
     --broker-config/ServerConfig
-    --organization-id/Uuid
+    --scope/Scope
     --part-id/string:
-  return "$broker-config.cache-key/$organization-id/pod/parts/$part-id"
+  return "$broker-config.cache-key/$scope.as-uuid/pod/parts/$part-id"
 
 cache-key-pod-manifest -> string
     --broker-config/ServerConfig
-    --organization-id/Uuid
+    --scope/Scope
     --pod-id/Uuid:
-  return "$broker-config.cache-key/$organization-id/pod/manifest/$pod-id"
+  return "$broker-config.cache-key/$scope.as-uuid/pod/manifest/$pod-id"
 
 cache-key-patch -> string
     --broker-config/ServerConfig
-    --organization-id/Uuid
+    --scope/Scope
     --patch-id/string:
-  return "$broker-config.cache-key/$organization-id/patches/$patch-id"
+  return "$broker-config.cache-key/$scope.as-uuid/patches/$patch-id"
 
 CACHE-ARTIFACT-KIND-ENVELOPE ::= "envelope"
 CACHE-ARTIFACT-KIND-PARTITION-TABLE ::= "partitions"

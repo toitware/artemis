@@ -18,6 +18,7 @@ import .firmware
 import .pod
 import .pod-specification
 import .pod-registry
+import .scope show Scope
 import .utils
 import .utils.names
 import .server-config
@@ -76,7 +77,12 @@ class FleetFile:
 
   path/string
   id/Uuid
-  organization-id/Uuid
+  /**
+  The $Scope to use when talking to the configured broker.
+
+  Mirrors the broker server entry's "scope" field on disk.
+  */
+  broker-scope/Scope
   group-pods/Map
   is-reference/bool
   broker-name/string
@@ -87,13 +93,22 @@ class FleetFile:
   constructor
       --.path
       --.id
-      --.organization-id
+      --.broker-scope
       --.group-pods
       --.is-reference
       --.broker-name
       --.migrating-from
       --.servers
       --.recovery-urls:
+
+  /**
+  The organization-id encoded inside $broker-scope.
+
+  Kept as a derived view for callers that talk to the auth provider
+    (which is still org-id concrete).
+  */
+  organization-id -> Uuid:
+    return broker-scope.as-uuid
 
   static parse path/string --default-broker-config/ServerConfig --cli/Cli -> FleetFile:
     ui := cli.ui
@@ -229,7 +244,7 @@ class FleetFile:
     return FleetFile
         --path=path
         --id=Uuid.parse fleet-contents["id"]
-        --organization-id=organization-id
+        --broker-scope=(Scope.from-organization-id organization-id)
         --group-pods=group-pods
         --is-reference=is-reference
         --broker-name=broker-name
@@ -250,7 +265,7 @@ class FleetFile:
   with -> FleetFile
       --path/string?=null
       --id/Uuid?=null
-      --organization-id/Uuid?=null
+      --broker-scope/Scope?=null
       --group-pods/Map?=null
       --is-reference/bool?=null
       --broker-name/string?=null
@@ -260,7 +275,7 @@ class FleetFile:
     return FleetFile
         --path=(path or this.path)
         --id=(id or this.id)
-        --organization-id=(organization-id or this.organization-id)
+        --broker-scope=(broker-scope or this.broker-scope)
         --group-pods=(group-pods or this.group-pods)
         --is-reference=(is-reference or this.is-reference)
         --broker-name=(broker-name or this.broker-name)
@@ -377,7 +392,12 @@ class Fleet:
   static FLEET-FILE_ ::= "fleet.json"
 
   id/Uuid
-  organization-id/Uuid
+  /**
+  The $Scope to use when talking to the fleet's broker.
+
+  Mirrors $FleetFile.broker-scope.
+  */
+  broker-scope/Scope
   artemis/Artemis
   broker/Broker
   cli_/Cli
@@ -401,12 +421,12 @@ class Fleet:
       --cli/Cli:
     fleet-file_ = fleet-file
     id = fleet-file.id
-    organization-id = fleet-file.organization-id
+    broker-scope = fleet-file.broker-scope
     cli_ = cli
     broker = Broker
         --server-config=fleet-file.broker-config
         --fleet-id=id
-        --organization-id=organization-id
+        --scope=broker-scope
         --tmp-directory=artemis.tmp-directory
         --short-strings=short-strings
         --cli=cli
@@ -415,6 +435,15 @@ class Fleet:
     org := artemis.get-organization --id=organization-id
     if not org:
       cli.ui.abort "Organization $organization-id does not exist or is not accessible."
+
+  /**
+  The organization-id encoded inside $broker-scope.
+
+  Kept as a derived view for callers that talk to the auth provider
+    (which is still org-id concrete).
+  */
+  organization-id -> Uuid:
+    return broker-scope.as-uuid
 
   static load-fleet-file -> FleetFile
       fleet-root-or-ref/string
@@ -619,7 +648,7 @@ class FleetWithDevices extends Fleet:
     fleet-file := FleetFile
         --path="$fleet-root/$FLEET-FILE_"
         --id=fleet-id
-        --organization-id=organization-id
+        --broker-scope=(Scope.from-organization-id organization-id)
         --group-pods={
           DEFAULT-GROUP: PodReference.parse "$INITIAL-POD-NAME@latest" --cli=cli,
         }
@@ -750,7 +779,7 @@ class FleetWithDevices extends Fleet:
           --server-config=server-config
           --short-strings=device-short-strings_
           --fleet-id=id
-          --organization-id=organization-id
+          --scope=broker-scope
           --tmp-directory=artemis.tmp-directory
           --cli=cli_
       old-broker.update --device-id=device-id --pod=pod
@@ -794,7 +823,7 @@ class FleetWithDevices extends Fleet:
           --server-config=server-config
           --short-strings=device-short-strings_
           --fleet-id=id
-          --organization-id=organization-id
+          --scope=broker-scope
           --tmp-directory=artemis.tmp-directory
           --cli=cli_
       // We could filter out devices that were already known in the new broker, but
@@ -888,7 +917,7 @@ class FleetWithDevices extends Fleet:
       Broker
           --server-config=config
           --fleet-id=id
-          --organization-id=organization-id
+          --scope=broker-scope
           --short-strings=device-short-strings_
           --cli=cli_
           --tmp-directory=artemis.tmp-directory
@@ -1112,7 +1141,7 @@ class FleetWithDevices extends Fleet:
         --server-config=new-broker-config
         --short-strings=device-short-strings_
         --fleet-id=id
-        --organization-id=organization-id
+        --scope=broker-scope
         --tmp-directory=artemis.tmp-directory
         --cli=cli_
 
@@ -1167,7 +1196,7 @@ class FleetWithDevices extends Fleet:
             --server-config=fleet-file.servers[name]
             --short-strings=device-short-strings_
             --fleet-id=id
-            --organization-id=organization-id
+            --scope=broker-scope
             --tmp-directory=artemis.tmp-directory
             --cli=cli_
         current-detailed-devices := current-broker.get-devices --device-ids=device-ids

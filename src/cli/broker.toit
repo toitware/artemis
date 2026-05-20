@@ -67,7 +67,12 @@ Manages devices that have an Artemis service running on them.
 */
 class Broker:
   fleet-id/Uuid
-  organization-id/Uuid
+  /**
+  The $Scope to use when talking to this broker.
+
+  Carried over from the fleet file's per-server scope entry.
+  */
+  scope/Scope
   server-config/ServerConfig
   cli_/Cli
   network_/net.Client? := null
@@ -83,7 +88,7 @@ class Broker:
 
   constructor
       --.fleet-id/Uuid
-      --.organization-id/Uuid
+      --.scope/Scope
       --.server-config
       --cli/Cli
       --tmp-directory/string
@@ -103,16 +108,6 @@ class Broker:
       broker-connection__.ensure-authenticated: | error-message |
         cli_.ui.abort "$error-message (broker)."
     return broker-connection__
-
-  /**
-  The $Scope to use when talking to the broker.
-
-  For now derived directly from $organization-id. When the fleet file gains
-    a per-service scope field this will return the broker's own configured
-    scope instead.
-  */
-  scope -> Scope:
-    return Scope.from-organization-id organization-id
 
   short-string-for_ --device-id/Uuid -> string:
     if not device-short-strings_: throw "Access to device in non-device fleet."
@@ -142,7 +137,7 @@ class Broker:
     return error.contains "duplicate key value" or error.contains "already exists"
 
   /**
-  Uploads the given $pod to the broker for the given $fleet-id in $organization-id.
+  Uploads the given $pod to the broker for the given $fleet-id under $scope.
 
   Also uploads the trivial patches.
   */
@@ -154,7 +149,7 @@ class Broker:
         // Only upload if we don't have it in our cache.
         key := cache-key-pod-parts
             --broker-config=server-config
-            --organization-id=organization-id
+            --scope=scope
             --part-id=id
         cli_.cache.get-file-path key: | store/FileStore |
           broker-connection_.pod-registry-upload-pod-part contents --part-id=id
@@ -162,7 +157,7 @@ class Broker:
           store.save contents
       key := cache-key-pod-manifest
           --broker-config=server-config
-          --organization-id=organization-id
+          --scope=scope
           --pod-id=pod.id
       cli_.cache.get-file-path key: | store/FileStore |
         encoded := ubjson.encode manifest
@@ -215,7 +210,7 @@ class Broker:
       upload-patch_ it
 
   /**
-  Uploads the given $patch to the server under the given $organization-id.
+  Uploads the given $patch to the broker under the configured $scope.
   */
   upload-patch_ patch/FirmwarePatch:
     diff-and-upload_ patch
@@ -228,7 +223,7 @@ class Broker:
     trivial-id := id_ --to=patch.to_
     cache-key := cache-key-patch
         --broker-config=server-config
-        --organization-id=organization-id
+        --scope=scope
         --patch-id=trivial-id
     cli_.cache.get cache-key: | store/FileStore |
       trivial := build-trivial-patch patch.bits_
@@ -245,7 +240,7 @@ class Broker:
     old-id := id_ --to=patch.from_
     cache-key = cache-key-patch
         --broker-config=server-config
-        --organization-id=organization-id
+        --scope=scope
         --patch-id=old-id
     trivial-old := cli_.cache.get cache-key: | store/FileStore |
       downloaded := null
@@ -274,7 +269,7 @@ class Broker:
     diff-id := id_ --from=patch.from_ --to=patch.to_
     cache-key = cache-key-patch
         --broker-config=server-config
-        --organization-id=organization-id
+        --scope=scope
         --patch-id=diff-id
     cli_.cache.get cache-key: | store/FileStore |
       // Build the diff and verify that we can apply it and get the
@@ -312,14 +307,14 @@ class Broker:
   is-cached --pod-id/Uuid -> bool:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
-        --organization-id=organization-id
+        --scope=scope
         --pod-id=pod-id
     return cli_.cache.contains manifest-key
 
   download --pod-id/Uuid -> Pod:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
-        --organization-id=organization-id
+        --scope=scope
         --pod-id=pod-id
     encoded-manifest := cli_.cache.get manifest-key: | store/FileStore |
       bytes := broker-connection_.pod-registry-download-pod-manifest
@@ -333,7 +328,7 @@ class Broker:
         --download=: | part-id/string |
           key := cache-key-pod-parts
               --broker-config=server-config
-              --organization-id=organization-id
+              --scope=scope
               --part-id=part-id
           cli_.cache.get key: | store/FileStore |
             bytes := broker-connection_.pod-registry-download-pod-part
