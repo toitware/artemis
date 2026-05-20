@@ -143,7 +143,6 @@ class Broker:
         // Only upload if we don't have it in our cache.
         key := cache-key-pod-parts
             --broker-config=server-config
-            --scope=server-config.scope
             --part-id=id
         cli_.cache.get-file-path key: | store/FileStore |
           broker-connection_.pod-registry-upload-pod-part contents --part-id=id
@@ -151,7 +150,6 @@ class Broker:
           store.save contents
       key := cache-key-pod-manifest
           --broker-config=server-config
-          --scope=server-config.scope
           --pod-id=pod.id
       cli_.cache.get-file-path key: | store/FileStore |
         encoded := ubjson.encode manifest
@@ -217,7 +215,6 @@ class Broker:
     trivial-id := id_ --to=patch.to_
     cache-key := cache-key-patch
         --broker-config=server-config
-        --scope=server-config.scope
         --patch-id=trivial-id
     cli_.cache.get cache-key: | store/FileStore |
       trivial := build-trivial-patch patch.bits_
@@ -234,7 +231,6 @@ class Broker:
     old-id := id_ --to=patch.from_
     cache-key = cache-key-patch
         --broker-config=server-config
-        --scope=server-config.scope
         --patch-id=old-id
     trivial-old := cli_.cache.get cache-key: | store/FileStore |
       downloaded := null
@@ -263,7 +259,6 @@ class Broker:
     diff-id := id_ --from=patch.from_ --to=patch.to_
     cache-key = cache-key-patch
         --broker-config=server-config
-        --scope=server-config.scope
         --patch-id=diff-id
     cli_.cache.get cache-key: | store/FileStore |
       // Build the diff and verify that we can apply it and get the
@@ -301,14 +296,12 @@ class Broker:
   is-cached --pod-id/Uuid -> bool:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
-        --scope=server-config.scope
         --pod-id=pod-id
     return cli_.cache.contains manifest-key
 
   download --pod-id/Uuid -> Pod:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
-        --scope=server-config.scope
         --pod-id=pod-id
     encoded-manifest := cli_.cache.get manifest-key: | store/FileStore |
       bytes := broker-connection_.pod-registry-download-pod-manifest
@@ -322,7 +315,6 @@ class Broker:
         --download=: | part-id/string |
           key := cache-key-pod-parts
               --broker-config=server-config
-              --scope=server-config.scope
               --part-id=part-id
           cli_.cache.get key: | store/FileStore |
             bytes := broker-connection_.pod-registry-download-pod-part
