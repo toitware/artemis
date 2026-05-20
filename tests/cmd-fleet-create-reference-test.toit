@@ -33,7 +33,7 @@ run-test fleet/TestFleet:
 
   fleet-json := json.decode (file.read-contents ref-file)
   // Check that we have a broker entry.
-  broker-name := fleet-json["broker"]["ref"]
+  broker-name := fleet-json["broker"]
   broker-entry := fleet-json["servers"][broker-name]
 
   // We can still use the ref file to list pods.

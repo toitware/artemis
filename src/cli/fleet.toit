@@ -142,26 +142,18 @@ class FleetFile:
           ui.abort "Fleet file '$path' has invalid format for 'pod' in group '$group-name'."
         PodReference.parse entry["pod"] --cli=cli
 
+    // Broker reference is a string in both the new and legacy layouts.
+    // In the new layout the broker's scope lives inside its server entry
+    // (see below); in the legacy layout it's read from the top-level
+    // "organization" field.
     broker-entry := fleet-contents.get "broker"
     broker-name/string? := null
+    if broker-entry and broker-entry is not string:
+      ui.abort "Fleet file '$path' has invalid format for 'broker'."
+    broker-name = broker-entry
+
     organization-id/Uuid? := null
-    if is-new-format:
-      if broker-entry is not Map:
-        ui.abort "Fleet file '$path' has invalid format for 'broker' (expected an object)."
-      broker-map := broker-entry as Map
-      ref-value := broker-map.get "ref"
-      scope-value := broker-map.get "scope"
-      if ref-value is not string:
-        ui.abort "Fleet file '$path' has invalid format for 'broker.ref'."
-      if scope-value is not string:
-        ui.abort "Fleet file '$path' has invalid format for 'broker.scope'."
-      broker-name = ref-value
-      organization-id = Uuid.parse scope-value
-    else:
-      // Legacy format: broker is either a string or absent.
-      if broker-entry and broker-entry is not string:
-        ui.abort "Fleet file '$path' has invalid format for 'broker'."
-      broker-name = broker-entry
+    if not is-new-format:
       organization-id = Uuid.parse fleet-contents["organization"]
 
     migrating-from-entry := fleet-contents.get "migrating-from"
@@ -178,11 +170,28 @@ class FleetFile:
       if not broker-server-entry:
         ui.abort "Fleet file '$path' does not contain a server entry for broker '$broker-name'."
 
+      // The new layout stores each server's scope alongside its
+      // connection info. Strip the scope field before handing the entry
+      // to ServerConfig.from-json. For now only the broker's scope is
+      // actually used (it populates organization-id); scopes on other
+      // server entries are read but ignored. They become load-bearing
+      // once we track per-server scope in memory.
       servers = servers-entry.map: | server-name/string encoded-server |
         if encoded-server is not Map:
           ui.abort "Fleet file '$path' has invalid format for server '$server-name'."
-        ServerConfig.from-json server-name encoded-server
+        encoded-map := encoded-server as Map
+        cleaned := encoded-map
+        if encoded-map.contains "scope":
+          cleaned = encoded-map.copy
+          cleaned.remove "scope"
+        ServerConfig.from-json server-name cleaned
           --der-deserializer=: base64.decode it
+
+      if is-new-format:
+        broker-scope-value := (broker-server-entry as Map).get "scope"
+        if broker-scope-value is not string:
+          ui.abort "Fleet file '$path' is missing 'scope' on broker server '$broker-name'."
+        organization-id = Uuid.parse broker-scope-value
 
       if migrating-from-entry:
         if migrating-from-entry is not List:
@@ -291,14 +300,17 @@ class FleetFile:
       result["groups"] = groups
 
     // Add the servers last, so that the file is easier to read.
-    result["broker"] = {
-      "ref": broker-name,
-      "scope": "$organization-id",
-    }
+    result["broker"] = broker-name
     if migrating-from and not migrating-from.is-empty:
       result["migrating-from"] = migrating-from
+    // Each server entry carries its own scope. For now every entry
+    // uses the fleet's single organization-id; this anticipates a
+    // future world where each server can be scoped independently.
+    scope-string := "$organization-id"
     result["servers"] = servers.map: | server-name/string server-config/ServerConfig |
-      server-config.to-json --der-serializer=: base64.encode it
+      encoded := server-config.to-json --der-serializer=: base64.encode it
+      encoded["scope"] = scope-string
+      encoded
     result["recovery-urls"] = recovery-urls
     return result
 
