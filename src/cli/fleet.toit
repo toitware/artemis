@@ -1132,6 +1132,13 @@ class FleetWithDevices extends Fleet:
     migration-start_ broker-config
 
   migration-start_ new-broker-config/ServerConfig:
+    // The new broker operates under the same scope as the rest of the
+    // fleet. The new-broker-config typically comes from the global CLI
+    // config (which never carries a scope), so attach the fleet's scope
+    // here.
+    // TODO: avoid mutating new-broker-config; clone with scope set.
+    if not new-broker-config.scope:
+      new-broker-config.scope = fleet-file_.broker-scope
     new-broker := Broker
         --server-config=new-broker-config
         --short-strings=device-short-strings_
