@@ -17,7 +17,7 @@ import .config
 import .device
 import .pod
 import .pod-specification
-import .scope show Scope
+import ..shared.scope show Scope
 
 import .utils
 import .utils.patch-build show build-diff-patch build-trivial-patch

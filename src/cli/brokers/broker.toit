@@ -11,7 +11,7 @@ import ..config
 import ..event
 import ..device
 import ..pod-registry
-import ..scope show Scope
+import ...shared.scope show Scope
 import ...shared.server-config
 import .supabase
 import .http.base

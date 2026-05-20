@@ -4,8 +4,8 @@ import crypto.sha1
 import crypto.sha256
 import encoding.base64
 import uuid show Uuid
-import .scope show Scope
 import .server-config
+import ..shared.scope show Scope
 
 /**
 Manages cache keys.

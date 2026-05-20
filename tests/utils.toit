@@ -20,7 +20,7 @@ import uuid show Uuid
 import artemis.cli as artemis-pkg
 import artemis.cli.server-config as cli-server-config
 import artemis.cli.cache as artemis-cache
-import artemis.cli.scope as cli-scope
+import artemis.shared.scope as cli-scope
 import artemis.cli.utils show read-json write-json-to-file untar
 import artemis.shared.server-config
 import artemis.shared.version as configured-version

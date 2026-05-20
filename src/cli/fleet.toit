@@ -18,8 +18,8 @@ import .firmware
 import .pod
 import .pod-specification
 import .pod-registry
-import .scope show Scope
 import .utils
+import ..shared.scope show Scope
 import .utils.names
 import .server-config
 import ..shared.json-diff
@@ -77,29 +77,30 @@ class FleetFile:
 
   path/string
   id/Uuid
-  /**
-  The $Scope to use when talking to the configured broker.
-
-  Mirrors the broker server entry's "scope" field on disk.
-  */
-  broker-scope/Scope
   group-pods/Map
   is-reference/bool
   broker-name/string
   migrating-from/List
-  servers/Map  // From broker-name to ServerConfig.
+  servers/Map  // From broker-name to ServerConfig (each carries its scope).
   recovery-urls/List
 
   constructor
       --.path
       --.id
-      --.broker-scope
       --.group-pods
       --.is-reference
       --.broker-name
       --.migrating-from
       --.servers
       --.recovery-urls:
+
+  /**
+  The $Scope to use when talking to the configured broker.
+
+  Derived from the broker server entry's $ServerConfig.scope.
+  */
+  broker-scope -> Scope:
+    return (servers[broker-name] as ServerConfig).scope
 
   /**
   The organization-id encoded inside $broker-scope.
@@ -186,27 +187,22 @@ class FleetFile:
         ui.abort "Fleet file '$path' does not contain a server entry for broker '$broker-name'."
 
       // The new layout stores each server's scope alongside its
-      // connection info. Strip the scope field before handing the entry
-      // to ServerConfig.from-json. For now only the broker's scope is
-      // actually used (it populates organization-id); scopes on other
-      // server entries are read but ignored. They become load-bearing
-      // once we track per-server scope in memory.
+      // connection info; ServerConfig.from-json reads it.
       servers = servers-entry.map: | server-name/string encoded-server |
         if encoded-server is not Map:
           ui.abort "Fleet file '$path' has invalid format for server '$server-name'."
-        encoded-map := encoded-server as Map
-        cleaned := encoded-map
-        if encoded-map.contains "scope":
-          cleaned = encoded-map.copy
-          cleaned.remove "scope"
-        ServerConfig.from-json server-name cleaned
+        ServerConfig.from-json server-name encoded-server
           --der-deserializer=: base64.decode it
 
+      broker-server/ServerConfig := servers[broker-name]
       if is-new-format:
-        broker-scope-value := (broker-server-entry as Map).get "scope"
-        if broker-scope-value is not string:
+        if not broker-server.scope:
           ui.abort "Fleet file '$path' is missing 'scope' on broker server '$broker-name'."
-        organization-id = Uuid.parse broker-scope-value
+        organization-id = broker-server.scope.as-uuid
+      else:
+        // Legacy format: pin the top-level organization-id onto the
+        // broker server entry so the new in-memory shape is consistent.
+        broker-server.scope = Scope.from-organization-id organization-id
 
       if migrating-from-entry:
         if migrating-from-entry is not List:
@@ -244,7 +240,6 @@ class FleetFile:
     return FleetFile
         --path=path
         --id=Uuid.parse fleet-contents["id"]
-        --broker-scope=(Scope.from-organization-id organization-id)
         --group-pods=group-pods
         --is-reference=is-reference
         --broker-name=broker-name
@@ -265,7 +260,6 @@ class FleetFile:
   with -> FleetFile
       --path/string?=null
       --id/Uuid?=null
-      --broker-scope/Scope?=null
       --group-pods/Map?=null
       --is-reference/bool?=null
       --broker-name/string?=null
@@ -275,7 +269,6 @@ class FleetFile:
     return FleetFile
         --path=(path or this.path)
         --id=(id or this.id)
-        --broker-scope=(broker-scope or this.broker-scope)
         --group-pods=(group-pods or this.group-pods)
         --is-reference=(is-reference or this.is-reference)
         --broker-name=(broker-name or this.broker-name)
@@ -318,14 +311,10 @@ class FleetFile:
     result["broker"] = broker-name
     if migrating-from and not migrating-from.is-empty:
       result["migrating-from"] = migrating-from
-    // Each server entry carries its own scope. For now every entry
-    // uses the fleet's single organization-id; this anticipates a
-    // future world where each server can be scoped independently.
-    scope-string := "$organization-id"
+    // Each server entry carries its own scope (serialized by
+    // ServerConfig.to-json when the scope is non-null).
     result["servers"] = servers.map: | server-name/string server-config/ServerConfig |
-      encoded := server-config.to-json --der-serializer=: base64.encode it
-      encoded["scope"] = scope-string
-      encoded
+      server-config.to-json --der-serializer=: base64.encode it
     result["recovery-urls"] = recovery-urls
     return result
 
@@ -645,10 +634,12 @@ class FleetWithDevices extends Fleet:
     fleet-id := random-uuid
     recovery-urls := recovery-url-prefixes.map: | prefix |
       "$prefix/recover-$(fleet-id).json"
+    // TODO: avoid mutating broker-config (it may come from the global
+    //   config); clone with scope set instead.
+    broker-config.scope = Scope.from-organization-id organization-id
     fleet-file := FleetFile
         --path="$fleet-root/$FLEET-FILE_"
         --id=fleet-id
-        --broker-scope=(Scope.from-organization-id organization-id)
         --group-pods={
           DEFAULT-GROUP: PodReference.parse "$INITIAL-POD-NAME@latest" --cli=cli,
         }
