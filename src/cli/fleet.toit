@@ -200,9 +200,12 @@ class FleetFile:
           ui.abort "Fleet file '$path' is missing 'scope' on broker server '$broker-name'."
         organization-id = broker-server.scope.as-uuid
       else:
-        // Legacy format: pin the top-level organization-id onto the
-        // broker server entry so the new in-memory shape is consistent.
-        broker-server.scope = Scope.from-organization-id organization-id
+        // Legacy format: the top-level organization-id was the same for
+        // every server. Pin it onto every entry so the new in-memory
+        // shape is consistent.
+        legacy-scope := Scope.from-organization-id organization-id
+        servers.do --values: | server-config/ServerConfig |
+          server-config.scope = legacy-scope
 
       if migrating-from-entry:
         if migrating-from-entry is not List:
@@ -217,6 +220,11 @@ class FleetFile:
       if migrating-from-entry or servers-entry:
         ui.abort "Fleet file '$path' has invalid format for 'broker', 'migrating-from' and 'servers'."
       broker-name = default-broker-config.name
+      // Very-legacy fleet file with no broker/servers entry. Attach the
+      // legacy top-level organization-id to the default broker config.
+      // TODO: avoid mutating the default broker config (shared with the
+      //   global CLI config); clone with scope set instead.
+      default-broker-config.scope = Scope.from-organization-id organization-id
       servers = {
         default-broker-config.name: default-broker-config,
       }
@@ -415,7 +423,6 @@ class Fleet:
     broker = Broker
         --server-config=fleet-file.broker-config
         --fleet-id=id
-        --scope=broker-scope
         --tmp-directory=artemis.tmp-directory
         --short-strings=short-strings
         --cli=cli
@@ -770,7 +777,6 @@ class FleetWithDevices extends Fleet:
           --server-config=server-config
           --short-strings=device-short-strings_
           --fleet-id=id
-          --scope=broker-scope
           --tmp-directory=artemis.tmp-directory
           --cli=cli_
       old-broker.update --device-id=device-id --pod=pod
@@ -814,7 +820,6 @@ class FleetWithDevices extends Fleet:
           --server-config=server-config
           --short-strings=device-short-strings_
           --fleet-id=id
-          --scope=broker-scope
           --tmp-directory=artemis.tmp-directory
           --cli=cli_
       // We could filter out devices that were already known in the new broker, but
@@ -908,7 +913,6 @@ class FleetWithDevices extends Fleet:
       Broker
           --server-config=config
           --fleet-id=id
-          --scope=broker-scope
           --short-strings=device-short-strings_
           --cli=cli_
           --tmp-directory=artemis.tmp-directory
@@ -1132,7 +1136,6 @@ class FleetWithDevices extends Fleet:
         --server-config=new-broker-config
         --short-strings=device-short-strings_
         --fleet-id=id
-        --scope=broker-scope
         --tmp-directory=artemis.tmp-directory
         --cli=cli_
 
@@ -1187,7 +1190,6 @@ class FleetWithDevices extends Fleet:
             --server-config=fleet-file.servers[name]
             --short-strings=device-short-strings_
             --fleet-id=id
-            --scope=broker-scope
             --tmp-directory=artemis.tmp-directory
             --cli=cli_
         current-detailed-devices := current-broker.get-devices --device-ids=device-ids

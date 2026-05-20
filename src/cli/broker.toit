@@ -67,12 +67,6 @@ Manages devices that have an Artemis service running on them.
 */
 class Broker:
   fleet-id/Uuid
-  /**
-  The $Scope to use when talking to this broker.
-
-  Carried over from the fleet file's per-server scope entry.
-  */
-  scope/Scope
   server-config/ServerConfig
   cli_/Cli
   network_/net.Client? := null
@@ -88,7 +82,6 @@ class Broker:
 
   constructor
       --.fleet-id/Uuid
-      --.scope/Scope
       --.server-config
       --cli/Cli
       --tmp-directory/string
@@ -137,7 +130,8 @@ class Broker:
     return error.contains "duplicate key value" or error.contains "already exists"
 
   /**
-  Uploads the given $pod to the broker for the given $fleet-id under $scope.
+  Uploads the given $pod to the broker for the given $fleet-id under the
+    broker's configured scope.
 
   Also uploads the trivial patches.
   */
@@ -149,25 +143,25 @@ class Broker:
         // Only upload if we don't have it in our cache.
         key := cache-key-pod-parts
             --broker-config=server-config
-            --scope=scope
+            --scope=server-config.scope
             --part-id=id
         cli_.cache.get-file-path key: | store/FileStore |
           broker-connection_.pod-registry-upload-pod-part contents --part-id=id
-              --scope=scope
+              --scope=server-config.scope
           store.save contents
       key := cache-key-pod-manifest
           --broker-config=server-config
-          --scope=scope
+          --scope=server-config.scope
           --pod-id=pod.id
       cli_.cache.get-file-path key: | store/FileStore |
         encoded := ubjson.encode manifest
         broker-connection_.pod-registry-upload-pod-manifest encoded --pod-id=pod.id
-            --scope=scope
+            --scope=server-config.scope
         store.save encoded
 
     description-ids := broker-connection_.pod-registry-descriptions
         --fleet-id=fleet-id
-        --scope=scope
+        --scope=server-config.scope
         --names=[pod.name]
         --create-if-absent
 
@@ -210,7 +204,7 @@ class Broker:
       upload-patch_ it
 
   /**
-  Uploads the given $patch to the broker under the configured $scope.
+  Uploads the given $patch to the broker.
   */
   upload-patch_ patch/FirmwarePatch:
     diff-and-upload_ patch
@@ -223,12 +217,12 @@ class Broker:
     trivial-id := id_ --to=patch.to_
     cache-key := cache-key-patch
         --broker-config=server-config
-        --scope=scope
+        --scope=server-config.scope
         --patch-id=trivial-id
     cli_.cache.get cache-key: | store/FileStore |
       trivial := build-trivial-patch patch.bits_
       broker-connection_.upload-firmware trivial
-          --scope=scope
+          --scope=server-config.scope
           --firmware-id=trivial-id
       store.save-via-writer: | writer/io.Writer |
         trivial.do: writer.write it
@@ -240,12 +234,12 @@ class Broker:
     old-id := id_ --to=patch.from_
     cache-key = cache-key-patch
         --broker-config=server-config
-        --scope=scope
+        --scope=server-config.scope
         --patch-id=old-id
     trivial-old := cli_.cache.get cache-key: | store/FileStore |
       downloaded := null
       catch: downloaded = broker-connection_.download-firmware
-          --scope=scope
+          --scope=server-config.scope
           --id=old-id
       if not downloaded:
         cli_.ui.emit --warning "Failed to download old firmware for patch $old-id -> $trivial-id."
@@ -269,7 +263,7 @@ class Broker:
     diff-id := id_ --from=patch.from_ --to=patch.to_
     cache-key = cache-key-patch
         --broker-config=server-config
-        --scope=scope
+        --scope=server-config.scope
         --patch-id=diff-id
     cli_.cache.get cache-key: | store/FileStore |
       // Build the diff and verify that we can apply it and get the
@@ -284,7 +278,7 @@ class Broker:
       to64 := base64.encode patch.to_ --url-mode
       cli_.ui.emit --info "Uploading patch $from64 -> $to64 ($diff-size)."
       broker-connection_.upload-firmware diff
-          --scope=scope
+          --scope=server-config.scope
           --firmware-id=diff-id
       store.save-via-writer: | writer/io.Writer |
         diff.do: writer.write it
@@ -307,19 +301,19 @@ class Broker:
   is-cached --pod-id/Uuid -> bool:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
-        --scope=scope
+        --scope=server-config.scope
         --pod-id=pod-id
     return cli_.cache.contains manifest-key
 
   download --pod-id/Uuid -> Pod:
     manifest-key := cache-key-pod-manifest
         --broker-config=server-config
-        --scope=scope
+        --scope=server-config.scope
         --pod-id=pod-id
     encoded-manifest := cli_.cache.get manifest-key: | store/FileStore |
       bytes := broker-connection_.pod-registry-download-pod-manifest
         --pod-id=pod-id
-        --scope=scope
+        --scope=server-config.scope
       store.save bytes
     manifest := ubjson.decode encoded-manifest
     return Pod.from-manifest
@@ -328,12 +322,12 @@ class Broker:
         --download=: | part-id/string |
           key := cache-key-pod-parts
               --broker-config=server-config
-              --scope=scope
+              --scope=server-config.scope
               --part-id=part-id
           cli_.cache.get key: | store/FileStore |
             bytes := broker-connection_.pod-registry-download-pod-part
                 part-id
-                --scope=scope
+                --scope=server-config.scope
             store.save bytes
 
   list-pods --names/List -> Map:
@@ -343,7 +337,7 @@ class Broker:
     else:
       descriptions = broker-connection_.pod-registry-descriptions
           --fleet-id=fleet-id
-          --scope=scope
+          --scope=server-config.scope
           --names=names
           --no-create-if-absent
     result := {:}
@@ -355,7 +349,7 @@ class Broker:
   delete --description-names/List:
     descriptions := broker-connection_.pod-registry-descriptions
         --fleet-id=fleet-id
-        --scope=scope
+        --scope=server-config.scope
         --names=description-names
         --no-create-if-absent
     unknown-pod-descriptions := []
@@ -424,7 +418,7 @@ class Broker:
 
     descriptions := broker-connection_.pod-registry-descriptions
         --fleet-id=fleet-id
-        --scope=scope
+        --scope=server-config.scope
         --names=names.to-list
         --no-create-if-absent
 
