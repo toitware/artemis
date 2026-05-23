@@ -204,8 +204,8 @@ class FleetFile:
         // every server. Pin it onto every entry so the new in-memory
         // shape is consistent.
         legacy-scope := Scope.from-organization-id organization-id
-        servers.do --values: | server-config/ServerConfig |
-          server-config.scope = legacy-scope
+        servers.map --in-place: | _ server-config/ServerConfig |
+          server-config.with --scope=legacy-scope
 
       if migrating-from-entry:
         if migrating-from-entry is not List:
@@ -222,11 +222,9 @@ class FleetFile:
       broker-name = default-broker-config.name
       // Very-legacy fleet file with no broker/servers entry. Attach the
       // legacy top-level organization-id to the default broker config.
-      // TODO: avoid mutating the default broker config (shared with the
-      //   global CLI config); clone with scope set instead.
-      default-broker-config.scope = Scope.from-organization-id organization-id
+      legacy-scope := Scope.from-organization-id organization-id
       servers = {
-        default-broker-config.name: default-broker-config,
+        default-broker-config.name: default-broker-config.with --scope=legacy-scope,
       }
 
     servers.map --in-place: | _ server-config/ServerConfig |
@@ -641,9 +639,8 @@ class FleetWithDevices extends Fleet:
     fleet-id := random-uuid
     recovery-urls := recovery-url-prefixes.map: | prefix |
       "$prefix/recover-$(fleet-id).json"
-    // TODO: avoid mutating broker-config (it may come from the global
-    //   config); clone with scope set instead.
-    broker-config.scope = Scope.from-organization-id organization-id
+    scoped-broker-config := broker-config.with
+        --scope=(Scope.from-organization-id organization-id)
     fleet-file := FleetFile
         --path="$fleet-root/$FLEET-FILE_"
         --id=fleet-id
@@ -653,7 +650,7 @@ class FleetWithDevices extends Fleet:
         --is-reference=false
         --broker-name=broker-name
         --migrating-from=[]
-        --servers={broker-name: broker-config}
+        --servers={broker-name: scoped-broker-config}
         --recovery-urls=recovery-urls
     fleet-file.write
 
@@ -1136,11 +1133,11 @@ class FleetWithDevices extends Fleet:
     // fleet. The new-broker-config typically comes from the global CLI
     // config (which never carries a scope), so attach the fleet's scope
     // here.
-    // TODO: avoid mutating new-broker-config; clone with scope set.
-    if not new-broker-config.scope:
-      new-broker-config.scope = fleet-file_.broker-scope
+    scoped-new-broker-config := new-broker-config.scope
+        ? new-broker-config
+        : new-broker-config.with --scope=fleet-file_.broker-scope
     new-broker := Broker
-        --server-config=new-broker-config
+        --server-config=scoped-new-broker-config
         --short-strings=device-short-strings_
         --fleet-id=id
         --tmp-directory=artemis.tmp-directory
@@ -1160,9 +1157,9 @@ class FleetWithDevices extends Fleet:
 
     old-servers := fleet-file_.servers
     new-servers := old-servers
-    if not old-servers.contains new-broker-config.name:
+    if not old-servers.contains scoped-new-broker-config.name:
       new-servers = old-servers.copy
-      new-servers[new-broker-config.name] = new-broker-config
+      new-servers[scoped-new-broker-config.name] = scoped-new-broker-config
 
     old-migrating-from := fleet-file_.migrating-from
     new-migrating-from := old-migrating-from
