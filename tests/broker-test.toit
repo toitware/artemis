@@ -82,6 +82,15 @@ run-test
       }
       broker-cli.notify-created --hardware-id=device.hardware-id --device-id=device.id --state=state
 
+    if broker-name == "http-toit-shared":
+      // The shared-tenancy HTTP variant must populate the auth-side
+      // device record as part of notify-created.
+      backdoor := test-broker.backdoor as ToitHttpBackdoor
+      [DEVICE1, DEVICE2].do: | device/Device |
+        auth-record := backdoor.get-auth-device --hardware-id=device.hardware-id
+        expect-not-null auth-record
+        expect-equals "$device.id" auth-record["alias"]
+
     network := net.open
     try:
       test-image --test-broker=test-broker broker-cli --network=network

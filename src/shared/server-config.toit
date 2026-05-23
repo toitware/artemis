@@ -387,3 +387,17 @@ class ServerConfigHttp extends ServerConfig:
         --poll-interval=poll-interval
         --scope=scope
         --tenancy=tenancy
+
+  with --tenancy/string -> ServerConfigHttp:
+    return ServerConfigHttp
+        name
+        --host=host
+        --port=port
+        --path=path
+        --use-tls=use-tls
+        --root-certificate-ders=root-certificate-ders
+        --device-headers=device-headers
+        --admin-headers=admin-headers
+        --poll-interval=poll-interval
+        --scope=scope
+        --tenancy=tenancy

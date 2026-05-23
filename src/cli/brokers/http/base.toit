@@ -22,6 +22,10 @@ create-broker-cli-http-toit server-config/ServerConfigHttp -> BrokerCliHttp:
   id := "toit-http/$server-config.host-$server-config.port"
   return BrokerCliHttp server-config --id=id
 
+create-broker-cli-http-toit-shared server-config/ServerConfigHttp -> BrokerCliHttpShared:
+  id := "toit-http/$server-config.host-$server-config.port"
+  return BrokerCliHttpShared server-config --id=id
+
 class BrokerCliHttp implements BrokerCli:
   network_/net.Interface? := ?
   id/string
@@ -401,4 +405,24 @@ class BrokerCliHttp implements BrokerCli:
     scope := server-config_.scope.to-json
     return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
       "path": "/toit-artemis-pods/$scope/manifest/$pod-id",
+    }
+
+/**
+A $BrokerCliHttp specialisation for shared-tenancy HTTP deployments.
+
+In a shared-tenancy deployment the broker also owns the auth-side device
+  record; this override sends the hardware-id and the configured scope
+  (organization-id) so the broker can populate that record alongside the
+  broker-side state.
+*/
+class BrokerCliHttpShared extends BrokerCliHttp:
+  constructor server-config/ServerConfigHttp --id/string:
+    super server-config --id=id
+
+  notify-created --hardware-id/Uuid --device-id/Uuid --state/Map -> none:
+    send-request_ COMMAND-NOTIFY-BROKER-CREATED_ {
+      "_device_id": "$device-id",
+      "_hardware_id": "$hardware-id",
+      "_organization_id": server-config_.scope.to-json,
+      "_state": state,
     }

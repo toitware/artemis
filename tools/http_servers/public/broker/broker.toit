@@ -48,6 +48,11 @@ class HttpBroker extends HttpServer:
   device-goals_/Map := {:}
   events_/Map := {:}  // Map from device-id to list of events.
 
+  // Shared-tenancy auth-side device records. Populated when notify-created
+  // includes a hardware-id / organization-id (i.e. the BrokerCliHttpShared
+  // wire shape). Maps hardware-id -> {alias, organization_id}.
+  auth-devices_/Map := {:}
+
   /* Pod description related fields. */
   pod-description-ids_ := 0
   pod-registry_/Map ::= {:}  // Map from pod-description ID to $PodDescription object.
@@ -123,6 +128,24 @@ class HttpBroker extends HttpServer:
     if device-states_.contains device-id:
       throw "Device $device-id already exists"
     device-states_[device-id] = state
+    hardware-id := data.get "_hardware_id"
+    if hardware-id:
+      if auth-devices_.contains hardware-id:
+        throw "Device with hardware-id $hardware-id already exists"
+      auth-devices_[hardware-id] = {
+        "alias": device-id,
+        "organization_id": data.get "_organization_id",
+      }
+
+  get-auth-device --hardware-id/string -> Map?:
+    return auth-devices_.get hardware-id
+
+  /** Backdoor for inserting an auth-side device record. */
+  insert-auth-device --hardware-id/string --device-id/string --organization-id/any:
+    auth-devices_[hardware-id] = {
+      "alias": device-id,
+      "organization_id": organization-id,
+    }
 
   /** Backdoor for creating a new device. */
   create-device --device-id/string --state/Map:

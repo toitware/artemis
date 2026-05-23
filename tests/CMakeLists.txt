@@ -61,6 +61,7 @@ set (SUPABASE_BROKER_FLAG "--supabase-local-broker")
 set (ARTEMIS_FLAGS ${SUPABASE_ARTEMIS_FLAG} "--http-server")
 set (BROKER_FLAGS
       "--http-toit-broker"
+      "--http-toit-shared-broker"
       ${SUPABASE_BROKER_FLAG}
       ${SUPABASE_ARTEMIS_BROKER_FLAG}
     )
