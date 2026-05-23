@@ -34,6 +34,7 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> 
       --use-tls=server-config.use-tls
       --root-certificate-ders=server-config.root-certificate-der ? [server-config.root-certificate-der] : null
       --poll-interval=server-config.poll-interval
+      --scope=server-config.scope
 
   return BrokerCliSupabase --id=id supabase-client http-config
 

@@ -98,30 +98,30 @@ interface BrokerCli implements Authenticatable:
   update-goals --device-ids/List --goals/List -> none
 
   /**
-  Uploads an application image with the given $app-id so that a device in
-    $scope can fetch it.
+  Uploads an application image with the given $app-id.
+
+  Each $BrokerCli instance is bound to a single $Scope (through its
+    server config); the image is uploaded for devices in that scope.
 
   There may be multiple images for the same $app-id, that differ in the $word-size.
     Generally $word-size is either 32 or 64.
   */
   upload-image
-      --scope/Scope
       --app-id/Uuid
       --word-size/int
       contents/ByteArray -> none
 
   /**
-  Uploads a firmware with the given $firmware-id so that a device in
-    $scope can fetch it.
+  Uploads a firmware with the given $firmware-id.
 
   The $chunks are a list of byte arrays.
   */
-  upload-firmware --scope/Scope --firmware-id/string chunks/List -> none
+  upload-firmware --firmware-id/string chunks/List -> none
 
   /**
-  Downloads a firmware chunk inside the given $scope.
+  Downloads a firmware chunk.
   */
-  download-firmware --scope/Scope --id/string -> ByteArray
+  download-firmware --id/string -> ByteArray
 
   /**
   Informs the broker that a device with the given $device-id has been provisioned.
@@ -155,7 +155,6 @@ interface BrokerCli implements Authenticatable:
   */
   pod-registry-description-upsert -> int
       --fleet-id/Uuid
-      --scope/Scope
       --name/string
       --description/string?
 
@@ -218,7 +217,6 @@ interface BrokerCli implements Authenticatable:
   */
   pod-registry-descriptions -> List
       --fleet-id/Uuid
-      --scope/Scope
       --names/List
       --create-if-absent/bool
 
@@ -250,14 +248,13 @@ interface BrokerCli implements Authenticatable:
   Uploads a pod part to the registry.
   */
   pod-registry-upload-pod-part -> none
-      --scope/Scope
       --part-id/string
       contents/ByteArray
 
   /**
   Downloads a pod part from the registry.
   */
-  pod-registry-download-pod-part part-id/string --scope/Scope -> ByteArray
+  pod-registry-download-pod-part part-id/string -> ByteArray
 
   /**
   Saves the manifest of a pod.
@@ -266,7 +263,6 @@ interface BrokerCli implements Authenticatable:
     a pod from its parts.
   */
   pod-registry-upload-pod-manifest -> none
-      --scope/Scope
       --pod-id/Uuid
       contents/ByteArray
 
@@ -274,7 +270,6 @@ interface BrokerCli implements Authenticatable:
   Downloads the manifest of a pod.
   */
   pod-registry-download-pod-manifest -> ByteArray
-      --scope/Scope
       --pod-id/Uuid
 
 with-broker server-config/ServerConfig --cli/Cli [block]:
