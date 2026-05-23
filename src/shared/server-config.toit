@@ -141,7 +141,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     use-tls := json.get "use_tls"
     if use-tls == null: use-tls = json.contains "root_certificate_name"
     scope-value := json.get "scope"
-    scope/Scope? := scope-value and (Scope.from-organization-id (Uuid.parse scope-value))
+    scope/Scope? := scope-value and (Scope scope-value)
 
     return ServerConfigSupabase name
         --host=json["host"]
@@ -188,7 +188,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         if serialized:
           result["root_certificate_der_id"] = serialized
     if scope:
-      result["scope"] = "$scope.as-uuid"
+      result["scope"] = scope.to-json
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
@@ -265,7 +265,7 @@ class ServerConfigHttp extends ServerConfig:
     use-tls := config.get "use_tls"
     if use-tls == null: use-tls = config.contains "root_certificate_names"
     scope-value := config.get "scope"
-    scope/Scope? := scope-value and (Scope.from-organization-id (Uuid.parse scope-value))
+    scope/Scope? := scope-value and (Scope scope-value)
     return ServerConfigHttp name
         --host=config["host"]
         --port=config.get "port"
@@ -317,7 +317,7 @@ class ServerConfigHttp extends ServerConfig:
     if admin-headers:
       result["admin_headers"] = admin-headers
     if scope:
-      result["scope"] = "$scope.as-uuid"
+      result["scope"] = scope.to-json
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:

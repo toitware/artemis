@@ -60,7 +60,7 @@ ADMIN-NAME ::= "Admin User"
 /** Preseeded "Test Organization". */
 TEST-ORGANIZATION-NAME ::= "Test Organization"
 TEST-ORGANIZATION-UUID ::= Uuid.parse "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
-TEST-SCOPE ::= cli-scope.Scope.from-organization-id TEST-ORGANIZATION-UUID
+TEST-SCOPE ::= cli-scope.Scope "$TEST-ORGANIZATION-UUID"
 
 /** Preseeded test device in $TEST-ORGANIZATION-UUID. */
 TEST-DEVICE-UUID ::= Uuid.parse "eb45c662-356c-4bea-ad8c-ede37688fddf"

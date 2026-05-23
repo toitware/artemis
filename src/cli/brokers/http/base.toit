@@ -187,25 +187,25 @@ class BrokerCliHttp implements BrokerCli:
       --app-id/Uuid
       --word-size/int
       contents/ByteArray:
-    organization-id := server-config_.scope.as-uuid
+    scope := server-config_.scope.to-json
     send-request_ COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-assets/$organization-id/images/$app-id.$word-size",
+      "path": "/toit-artemis-assets/$scope/images/$app-id.$word-size",
       "content": contents,
     }
 
   upload-firmware --firmware-id/string chunks/List -> none:
-    organization-id := server-config_.scope.as-uuid
+    scope := server-config_.scope.to-json
     firmware := #[]
     chunks.do: firmware += it
     send-request_ COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-assets/$organization-id/firmware/$firmware-id",
+      "path": "/toit-artemis-assets/$scope/firmware/$firmware-id",
       "content": firmware,
     }
 
   download-firmware --id/string -> ByteArray:
-    organization-id := server-config_.scope.as-uuid
+    scope := server-config_.scope.to-json
     return send-request_ COMMAND-DOWNLOAD_ {
-      "path": "/toit-artemis-assets/$organization-id/firmware/$id",
+      "path": "/toit-artemis-assets/$scope/firmware/$id",
     }
 
   notify-created --device-id/Uuid --state/Map -> none:
@@ -246,10 +246,10 @@ class BrokerCliHttp implements BrokerCli:
       --fleet-id/Uuid
       --name/string
       --description/string?:
-    organization-id := server-config_.scope.as-uuid
+    scope := server-config_.scope.to-json
     return send-request_ COMMAND-POD-REGISTRY-DESCRIPTION-UPSERT_ {
       "_fleet_id": "$fleet-id",
-      "_organization_id": "$organization-id",
+      "_organization_id": scope,
       "_name": name,
       "_description": description,
     }
@@ -318,10 +318,10 @@ class BrokerCliHttp implements BrokerCli:
       --fleet-id/Uuid
       --names/List
       --create-if-absent/bool:
-    organization-id := server-config_.scope.as-uuid
+    scope := server-config_.scope.to-json
     response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-NAMES_ {
       "_fleet_id": "$fleet-id",
-      "_organization_id": "$organization-id",
+      "_organization_id": scope,
       "_names": names,
       "_create_if_absent": create-if-absent,
     }
@@ -370,32 +370,32 @@ class BrokerCliHttp implements BrokerCli:
   pod-registry-upload-pod-part -> none
       --part-id/string
       contents/ByteArray:
-    organization-id := server-config_.scope.as-uuid
+    scope := server-config_.scope.to-json
     send-request_ COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-pods/$organization-id/part/$part-id",
+      "path": "/toit-artemis-pods/$scope/part/$part-id",
       "content": contents,
     }
 
   /** See $BrokerCli.pod-registry-download-pod-part. */
   pod-registry-download-pod-part part-id/string -> ByteArray:
-    organization-id := server-config_.scope.as-uuid
+    scope := server-config_.scope.to-json
     return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
-      "path": "/toit-artemis-pods/$organization-id/part/$part-id",
+      "path": "/toit-artemis-pods/$scope/part/$part-id",
     }
 
   /** See $BrokerCli.pod-registry-upload-pod-manifest. */
   pod-registry-upload-pod-manifest -> none
       --pod-id/Uuid
       contents/ByteArray:
-    organization-id := server-config_.scope.as-uuid
+    scope := server-config_.scope.to-json
     send-request_ COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-pods/$organization-id/manifest/$pod-id",
+      "path": "/toit-artemis-pods/$scope/manifest/$pod-id",
       "content": contents,
     }
 
   /** See $BrokerCli.pod-registry-download-pod-manifest. */
   pod-registry-download-pod-manifest --pod-id/Uuid -> ByteArray:
-    organization-id := server-config_.scope.as-uuid
+    scope := server-config_.scope.to-json
     return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
-      "path": "/toit-artemis-pods/$organization-id/manifest/$pod-id",
+      "path": "/toit-artemis-pods/$scope/manifest/$pod-id",
     }

@@ -1,7 +1,5 @@
 // Copyright (C) 2026 Toit contributors.
 
-import uuid show Uuid
-
 /**
 A per-service authentication scope.
 
@@ -10,33 +8,33 @@ A $Scope is the additional bit of information a service needs, on top of the
   The user's identity comes from their auth provider session (stored in the
   CLI's config); the scope comes from the fleet file.
 
-For now a $Scope always wraps an organization-id UUID. In the future scopes
-  will become opaque, JSON-encodable blobs that each service's auth provider
-  interprets independently. Calling code that needs a UUID today should go
-  through $as-uuid so the conversion point is greppable when the underlying
-  representation broadens.
+A scope wraps a JSON-encodable value (string, Map, List, etc.). Each
+  service's auth provider issues scopes in whatever shape makes sense for
+  its backend; the consuming backend knows that shape and interprets the
+  $to-json value accordingly. Scopes are opaque to anyone else in the
+  pipeline.
+
+For the current Toit-hosted setup, scopes wrap an organization-id UUID as
+  a string. A hypothetical GitHub-backed pod-store might wrap
+  `{"owner": "toit", "repo": "fleet-pods"}` instead.
 */
 class Scope:
-  organization-id_/Uuid
-
-  constructor.from-organization-id organization-id/Uuid:
-    organization-id_ = organization-id
+  json_/any
 
   /**
-  Returns the scope as a UUID.
+  Constructs a scope from any JSON-encodable value.
 
-  Today the scope is always a UUID; the throw is here for the future
-    when scopes can also be other shapes.
+  The $value is taken as-is; no validation. It is the caller's
+    responsibility to ensure the value is encodable by the JSON encoder.
   */
-  as-uuid -> Uuid:
-    return organization-id_
+  constructor value/any:
+    json_ = value
 
-  operator == other -> bool:
-    if other is not Scope: return false
-    return organization-id_ == (other as Scope).organization-id_
-
-  hash-code -> int:
-    return organization-id_.hash-code
+  /**
+  Returns the scope's JSON-encodable value.
+  */
+  to-json -> any:
+    return json_
 
   stringify -> string:
-    return "Scope($organization-id_)"
+    return "Scope($json_)"

@@ -109,7 +109,7 @@ class FleetFile:
     (which is still org-id concrete).
   */
   organization-id -> Uuid:
-    return broker-scope.as-uuid
+    return Uuid.parse broker-scope.to-json
 
   static parse path/string --default-broker-config/ServerConfig --cli/Cli -> FleetFile:
     ui := cli.ui
@@ -198,12 +198,12 @@ class FleetFile:
       if is-new-format:
         if not broker-server.scope:
           ui.abort "Fleet file '$path' is missing 'scope' on broker server '$broker-name'."
-        organization-id = broker-server.scope.as-uuid
+        organization-id = Uuid.parse broker-server.scope.to-json
       else:
         // Legacy format: the top-level organization-id was the same for
         // every server. Pin it onto every entry so the new in-memory
         // shape is consistent.
-        legacy-scope := Scope.from-organization-id organization-id
+        legacy-scope := Scope "$organization-id"
         servers.map --in-place: | _ server-config/ServerConfig |
           server-config.with --scope=legacy-scope
 
@@ -222,7 +222,7 @@ class FleetFile:
       broker-name = default-broker-config.name
       // Very-legacy fleet file with no broker/servers entry. Attach the
       // legacy top-level organization-id to the default broker config.
-      legacy-scope := Scope.from-organization-id organization-id
+      legacy-scope := Scope "$organization-id"
       servers = {
         default-broker-config.name: default-broker-config.with --scope=legacy-scope,
       }
@@ -437,7 +437,7 @@ class Fleet:
     (which is still org-id concrete).
   */
   organization-id -> Uuid:
-    return broker-scope.as-uuid
+    return Uuid.parse broker-scope.to-json
 
   static load-fleet-file -> FleetFile
       fleet-root-or-ref/string
@@ -640,7 +640,7 @@ class FleetWithDevices extends Fleet:
     recovery-urls := recovery-url-prefixes.map: | prefix |
       "$prefix/recover-$(fleet-id).json"
     scoped-broker-config := broker-config.with
-        --scope=(Scope.from-organization-id organization-id)
+        --scope=(Scope "$organization-id")
     fleet-file := FleetFile
         --path="$fleet-root/$FLEET-FILE_"
         --id=fleet-id
