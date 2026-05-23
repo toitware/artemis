@@ -102,12 +102,13 @@ abstract class ServerConfig:
   abstract compute-cache-key_ -> string
 
   /**
-  Returns a copy of this config with $scope set to the given value.
+  Returns a copy of this config with the non-null fields overridden.
 
   Used to attach a fleet's scope to a $ServerConfig that was loaded from
-    the global CLI config (which never carries a scope).
+    the global CLI config (which never carries a scope), or to tag the
+    config with a tenancy mode.
   */
-  abstract with --scope/Scope -> ServerConfig
+  abstract with --scope/Scope?=null --tenancy/string?=null -> ServerConfig
 
   /**
   A unique key that can be used for caching.
@@ -245,38 +246,19 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   compute-cache-key_ -> string:
     return host
 
-  with --host/string -> ServerConfigSupabase:
+  with -> ServerConfigSupabase
+      --host/string?=null
+      --scope/Scope?=null
+      --tenancy/string?=null:
     return ServerConfigSupabase
         name
-        --host=host
+        --host=(host or this.host)
         --anon=anon
         --use-tls=use-tls
         --root-certificate-der=root-certificate-der
         --poll-interval=poll-interval
-        --scope=scope
-        --tenancy=tenancy
-
-  with --scope/Scope -> ServerConfigSupabase:
-    return ServerConfigSupabase
-        name
-        --host=host
-        --anon=anon
-        --use-tls=use-tls
-        --root-certificate-der=root-certificate-der
-        --poll-interval=poll-interval
-        --scope=scope
-        --tenancy=tenancy
-
-  with --tenancy/string -> ServerConfigSupabase:
-    return ServerConfigSupabase
-        name
-        --host=host
-        --anon=anon
-        --use-tls=use-tls
-        --root-certificate-der=root-certificate-der
-        --poll-interval=poll-interval
-        --scope=scope
-        --tenancy=tenancy
+        --scope=(scope or this.scope)
+        --tenancy=(tenancy or this.tenancy)
 
 /**
 A broker configuration for an HTTP-based broker.
@@ -374,7 +356,9 @@ class ServerConfigHttp extends ServerConfig:
   compute-cache-key_ -> string:
     return "$host:$port:$path"
 
-  with --scope/Scope -> ServerConfigHttp:
+  with -> ServerConfigHttp
+      --scope/Scope?=null
+      --tenancy/string?=null:
     return ServerConfigHttp
         name
         --host=host
@@ -385,19 +369,5 @@ class ServerConfigHttp extends ServerConfig:
         --device-headers=device-headers
         --admin-headers=admin-headers
         --poll-interval=poll-interval
-        --scope=scope
-        --tenancy=tenancy
-
-  with --tenancy/string -> ServerConfigHttp:
-    return ServerConfigHttp
-        name
-        --host=host
-        --port=port
-        --path=path
-        --use-tls=use-tls
-        --root-certificate-ders=root-certificate-ders
-        --device-headers=device-headers
-        --admin-headers=admin-headers
-        --poll-interval=poll-interval
-        --scope=scope
-        --tenancy=tenancy
+        --scope=(scope or this.scope)
+        --tenancy=(tenancy or this.tenancy)
