@@ -1094,22 +1094,23 @@ class FleetWithDevices extends Fleet:
   /**
   Provisions a device.
 
-  Contacts the Artemis server and creates a new device entry with the
-    given $device-id (used as "alias" on the server side) in the
-    organization with the given $organization-id.
+  Mints a fresh hardware-id locally and registers the device with the
+    broker (which, for a shared-tenancy deployment, also creates the
+    corresponding row in the auth provider's device table).
 
   Writes the identity file to $out-path.
   */
-  provision --device-id/Uuid? --out-path/string:
-    // Ensure that we are authenticated with both the Artemis server and the broker.
-    // We don't want to create a device on Artemis and then have an error with the broker.
+  provision --device-id/Uuid --out-path/string:
+    // Ensure that we are authenticated with both the auth provider and
+    // the broker before doing anything visible. The auth-provider check
+    // gates access; the broker is what actually receives the new device.
     artemis.ensure-authenticated
     broker.ensure-authenticated
 
-    device := artemis.create-device
-        --device-id=device-id
+    device := Device
+        --hardware-id=random-uuid
+        --id=device-id
         --organization-id=organization-id
-    assert: device.id == device-id
 
     broker.notify-created device
 

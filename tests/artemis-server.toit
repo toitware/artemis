@@ -32,14 +32,6 @@ interface ArtemisServerBackdoor:
   has-event --hardware-id/Uuid --type/string -> bool
 
   /**
-  Creates a new device in the given $organization-id.
-
-  Returns a map with the device ID ("id"), and alias ID ("alias") of
-    the created device.
-  */
-  create-device --organization-id/Uuid -> Map
-
-  /**
   Removes the device with the given $device-id.
   */
   remove-device device-id/Uuid -> none
@@ -81,19 +73,6 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
           entry.data is Map and (entry.data.get "type") == type:
         return true
     return false
-
-  create-device --organization-id/Uuid -> Map:
-    // TODO(florian): the server should automatically generate an alias
-    // if none is given.
-    alias := random-uuid
-    response := server.create-device-in-organization {
-      "organization_id": "$organization-id",
-      "alias": "$alias",
-    }
-    return {
-      "id": Uuid.parse response["id"],
-      "alias": Uuid.parse response["alias"],
-    }
 
   remove-device device-id/Uuid -> none:
     server.remove-device "$device-id"
@@ -176,19 +155,6 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
           (it["data"].get "type") == type:
         return true
     return false
-
-  create-device --organization-id/Uuid -> Map:
-    alias := random-uuid
-    with-backdoor-client_: | client/supabase.Client |
-      response := client.rest.insert "devices" {
-        "organization_id": "$organization-id",
-        "alias": "$alias",
-      }
-      return {
-        "id": Uuid.parse response["id"],
-        "alias": Uuid.parse response["alias"],
-      }
-    unreachable
 
   remove-device device-id/Uuid -> none:
     with-backdoor-client_: | client/supabase.Client |

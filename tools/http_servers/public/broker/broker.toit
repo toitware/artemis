@@ -120,6 +120,8 @@ class HttpBroker extends HttpServer:
   notify-created data/Map:
     device-id := data["_device_id"]
     state := data["_state"]
+    if device-states_.contains device-id:
+      throw "Device $device-id already exists"
     device-states_[device-id] = state
 
   /** Backdoor for creating a new device. */

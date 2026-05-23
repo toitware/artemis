@@ -80,7 +80,7 @@ run-test
       state := {
         "identity": identity,
       }
-      broker-cli.notify-created --device-id=device.id --state=state
+      broker-cli.notify-created --hardware-id=device.hardware-id --device-id=device.id --state=state
 
     network := net.open
     try:

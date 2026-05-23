@@ -703,7 +703,10 @@ class Broker:
     state := {
       "identity": identity,
     }
-    broker-connection_.notify-created --device-id=device.id --state=state
+    broker-connection_.notify-created
+        --hardware-id=device.hardware-id
+        --device-id=device.id
+        --state=state
 
   device-for --id/Uuid -> DeviceDetailed:
     devices := broker-connection_.get-devices --device-ids=[id]

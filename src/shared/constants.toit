@@ -2,7 +2,6 @@
 
 /* Artemis commands. */
 COMMAND-CHECK-IN_ ::= 0
-COMMAND-CREATE-DEVICE-IN-ORGANIZATION_ ::= 1
 COMMAND-SIGN-UP_ ::= 2
 COMMAND-SIGN-IN_ ::= 3
 COMMAND-GET-ORGANIZATIONS_ ::= 4
@@ -19,7 +18,6 @@ COMMAND-UPDATE-PROFILE_ ::= 14
 
 ARTEMIS-COMMAND-TO-STRING ::= {
   COMMAND-CHECK-IN_: "check-in",
-  COMMAND-CREATE-DEVICE-IN-ORGANIZATION_: "create-device-in-organization",
   COMMAND-SIGN-UP_: "sign-up",
   COMMAND-SIGN-IN_: "sign-in",
   COMMAND-GET-ORGANIZATIONS_: "get-organizations",

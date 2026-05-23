@@ -208,7 +208,10 @@ class BrokerCliHttp implements BrokerCli:
       "path": "/toit-artemis-assets/$scope/firmware/$id",
     }
 
-  notify-created --device-id/Uuid --state/Map -> none:
+  notify-created --hardware-id/Uuid --device-id/Uuid --state/Map -> none:
+    // hardware-id is only used by overrides (e.g., the Supabase variant
+    // writing into the auth-side devices table). The on-the-wire
+    // notify-broker-created RPC takes just the device-id and state.
     send-request_ COMMAND-NOTIFY-BROKER-CREATED_ {
       "_device_id": "$device-id",
       "_state": state,
