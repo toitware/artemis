@@ -205,7 +205,7 @@ class ConnectionCellular extends Connection:
     // if things have changed since last attempt.
     cellular.reset
     config := description_.get "config" --if-absent=: {:}
-    if config.contains-key "log.level":
+    if config.contains "log.level":
       config-level := config["log.level"]
       level := config-level
       if level is string:

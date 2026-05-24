@@ -33,6 +33,10 @@ env:
       v2.0.0-alpha.186
       v2.0.0-alpha.189
       v2.0.0-alpha.190
+      v2.0.0-alpha.191
+      v2.0.0-alpha.192
+      v2.0.0-alpha.193
+      v2.0.0-alpha.194
 
 jobs:
   build:
