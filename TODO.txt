@@ -1,0 +1,56 @@
+Firmware-update timeout is a wall-clock budget, not a stall timeout
+====================================================================
+
+Observed during cellular OTA on a marginal link: firmware update
+fails with DEADLINE_EXCEEDED partway through patch application
+(e.g. "failed to apply patch {offset: 782266}"), even though bytes
+are flowing in steadily the whole time.
+
+Cause
+-----
+`handle-firmware-update_` runs inside the
+`with-timeout TIMEOUT-SYNCHRONIZE-STEP: ...` block at
+src/service/synchronize.toit:464. TIMEOUT-SYNCHRONIZE-STEP is a
+hard 3-minute wall-clock deadline (Toit's `with-timeout` sets
+`Time.monotonic-us + us` once and does not reset on activity, see
+lib/core/utils.toit:188). So the full download + patch application
+of the new firmware must complete in 3 minutes, no matter how
+steadily data is flowing.
+
+The comment above the constant says the intent is to guard against
+"reading from a network connection that is never going to produce
+more bits" — i.e. an *idle/stall* condition. The implementation is
+a total budget. Intent and implementation diverge.
+
+Secondary problem: when DEADLINE_EXCEEDED bubbles up, the
+firmware-update finally block in src/service/firmware-update.toit:54
+treats it as "non-network error" and clears the checkpoint
+(`device.checkpoint-update null`). So the next OTA attempt restarts
+from offset 0 — no resume from where the timeout interrupted.
+
+On a slow cellular link this means OTA can only succeed if the link
+happens to be fast enough end-to-end to fit inside one 3-minute
+window. Each failed attempt costs progress.
+
+Fix options, by effort
+----------------------
+1. Bump TIMEOUT-SYNCHRONIZE-STEP. Cheap but wrong-shaped: a
+   fast-then-stalled link still wastes the whole budget.
+
+2. Drop the outer with-timeout around the firmware-update path
+   specifically; rely on socket-level read timeouts in the broker
+   reader. Right shape. Requires confirming a non-zero socket
+   read timeout is set on the underlying TCP/HTTP layer.
+
+3. Add an idle-timeout helper that wraps a reader and resets a
+   deadline on each successful read. Use it around the firmware
+   fetch. ~30 lines. Drop-in.
+
+(2) is probably the highest-leverage; (3) is the cleanest standalone.
+
+Also worth doing alongside any of the above: in
+firmware-update.toit:54, treat DEADLINE_EXCEEDED (or specifically
+the synchronize-step deadline) the same as
+PATCH-READING-FAILED-EXCEPTION — keep the checkpoint so the next
+attempt resumes from where the previous one stopped. That alone
+makes slow OTAs reliable through incremental progress.
