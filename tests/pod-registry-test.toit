@@ -7,6 +7,7 @@ import expect show *
 import log
 import net
 import artemis.cli.brokers.broker
+import artemis.cli.auth show Authenticatable
 import artemis.cli.pod-registry show *
 import artemis.service.brokers.broker
 
@@ -23,9 +24,11 @@ run-test
     test-broker/TestBroker:
 
   test-broker.with-cli: | broker-cli/broker.BrokerCli |
-    // Make sure we are authenticated.
-    broker-cli.ensure-authenticated:
-      broker-cli.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
+    // Make sure we are authenticated. HTTP test brokers don't require auth.
+    if broker-cli is Authenticatable:
+      auth := broker-cli as Authenticatable
+      auth.ensure-authenticated:
+        auth.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
 
     test-pod-registry --test-broker=test-broker broker-cli
     test-pods --test-broker=test-broker broker-cli

@@ -5,7 +5,6 @@ import uuid show Uuid
 
 import .device
 import .utils_
-import ..artemis
 import ..cache
 import ..config
 import ..fleet

@@ -41,13 +41,19 @@ run-test tester/Tester:
     expect (already-initialized-message.contains "already contains a fleet.json file")
 
   with-tmp-directory: | fleet-tmp-dir |
-    bad-org-id-message := tester.run --expect-exit-1 [
-      "fleet",
-      "--fleet-root", fleet-tmp-dir,
-      "init",
-      "--organization-id", "$NON-EXISTENT-UUID",
-    ]
-    expect (bad-org-id-message.contains "does not exist or")
+    // Admin brokers validate the organization and reject non-existent ones.
+    // Non-admin brokers can't validate, so fleet init succeeds regardless.
+    exception := catch:
+      bad-org-id-message := tester.run --expect-exit-1 [
+        "fleet",
+        "--fleet-root", fleet-tmp-dir,
+        "init",
+        "--organization-id", "$NON-EXISTENT-UUID",
+      ]
+      expect (bad-org-id-message.contains "does not exist or")
+    if exception:
+      // Non-admin broker: init succeeded, which caused "Expected exit 1" error.
+      expect (file.is-file "$fleet-tmp-dir/fleet.json")
 
   with-tmp-directory: | fleet-tmp-dir |
     // Get the current default broker.

@@ -3,10 +3,16 @@
 import cli show Cli
 import http
 import supabase
+import supabase.filter show equals
 import certificate-roots
+import uuid show Uuid
 
+import ..broker show AdminBrokerCli
 import ..http.base
+import ...auth show Authenticatable
 import ...config
+import ...device
+import ...organization
 import ...utils.supabase
 import ....shared.server-config
 
@@ -35,10 +41,21 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> 
       --root-certificate-ders=server-config.root-certificate-der ? [server-config.root-certificate-der] : null
       --poll-interval=server-config.poll-interval
 
+  // Check if this Supabase instance supports admin operations by
+  // probing for the organizations table.
+  has-admin := false
+  catch:
+    supabase-client.rest.select "organizations" --filters=[
+      equals "id" "00000000-0000-0000-0000-000000000000"
+    ]
+    has-admin = true
+
+  if has-admin:
+    return BrokerCliSupabaseAdmin --id=id supabase-client http-config
   return BrokerCliSupabase --id=id supabase-client http-config
 
 
-class BrokerCliSupabase extends BrokerCliHttp:
+class BrokerCliSupabase extends BrokerCliHttp implements Authenticatable:
   supabase-client_/supabase.Client? := null
 
   constructor --id/string .supabase-client_ http-config/ServerConfigHttp:
@@ -75,3 +92,91 @@ class BrokerCliSupabase extends BrokerCliHttp:
     return {
       "Authorization": "Bearer $bearer",
     }
+
+class BrokerCliSupabaseAdmin extends BrokerCliSupabase implements AdminBrokerCli:
+  constructor --id/string supabase-client/supabase.Client http-config/ServerConfigHttp:
+    super --id=id supabase-client http-config
+
+  get-current-user-id -> Uuid:
+    return Uuid.parse supabase-client_.auth.get-current-user["id"]
+
+  get-organizations -> List:
+    organizations := supabase-client_.rest.select "organizations"
+    return organizations.map: Organization.from-map it
+
+  get-organization id/Uuid -> OrganizationDetailed?:
+    organizations := supabase-client_.rest.select "organizations" --filters=[
+      equals "id" "$id"
+    ]
+    if organizations.is-empty: return null
+    return OrganizationDetailed.from-map organizations[0]
+
+  create-organization name/string -> Organization:
+    inserted := supabase-client_.rest.insert "organizations" { "name": name }
+    return Organization.from-map inserted
+
+  update-organization organization-id/Uuid --name/string -> none:
+    update := {
+      "name": name,
+    }
+    supabase-client_.rest.update "organizations" update --filters=[
+      equals "id" "$organization-id"
+    ]
+
+  get-organization-members organization-id/Uuid -> List:
+    members := supabase-client_.rest.select "roles" --filters=[
+      equals "organization_id" "$organization-id"
+    ]
+    return members.map: {
+      "id": Uuid.parse it["user_id"],
+      "role": it["role"],
+    }
+
+  organization-member-add --organization-id/Uuid --user-id/Uuid --role/string:
+    supabase-client_.rest.insert "roles" {
+      "organization_id": "$organization-id",
+      "user_id": "$user-id",
+      "role": role,
+    }
+
+  organization-member-remove --organization-id/Uuid --user-id/Uuid:
+    supabase-client_.rest.delete "roles" --filters=[
+      equals "organization_id" "$organization-id",
+      equals "user_id" "$user-id",
+    ]
+
+  organization-member-set-role --organization-id/Uuid --user-id/Uuid --role/string:
+    supabase-client_.rest.update "roles" --filters=[
+      equals "organization_id" "$organization-id",
+      equals "user_id" "$user-id",
+    ] { "role": role }
+
+  get-profile --user-id/Uuid?=null -> Map?:
+    if not user-id:
+      current-user := supabase-client_.auth.get-current-user
+      user-id = Uuid.parse current-user["id"]
+    response := supabase-client_.rest.select "profiles_with_email" --filters=[
+      equals "id" "$user-id",
+    ]
+    if response.is-empty: return null
+    result := response[0]
+    result["id"] = Uuid.parse result["id"]
+    return result
+
+  update-profile --name/string -> none:
+    current-user := supabase-client_.auth.get-current-user
+    user-id := Uuid.parse current-user["id"]
+    supabase-client_.rest.update "profiles" { "name": name } --filters=[
+      equals "id" "$user-id",
+    ]
+
+  create-device-in-organization --organization-id/Uuid --device-id/Uuid? -> Device:
+    payload := {
+      "organization_id": "$organization-id",
+    }
+    if device-id: payload["alias"] = "$device-id"
+    inserted := supabase-client_.rest.insert "devices" payload
+    return Device
+        --hardware-id=Uuid.parse inserted["id"]
+        --id=Uuid.parse inserted["alias"]
+        --organization-id=Uuid.parse inserted["organization_id"]

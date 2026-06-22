@@ -9,7 +9,6 @@ import uuid show Uuid
 import .utils_
 import .device-container
 import .serial show PARTITION-OPTION
-import ..artemis
 import ..cache
 import ..config
 import ..device
@@ -254,7 +253,7 @@ pod-for_ -> Pod?
   return Pod.from-file local
       --organization-id=fleet.organization-id
       --recovery-urls=fleet.recovery-urls
-      --artemis=fleet.artemis
+      --tmp-directory=fleet.tmp-directory
       --broker=fleet.broker
       --cli=cli
 
@@ -342,7 +341,7 @@ show invocation/Invocation:
       if devices.is-empty:
         ui.abort "Device '$device-reference' does not exist on the broker."
       broker-device := devices[fleet-device.id]
-      organization := fleet.artemis.get-organization --id=broker-device.organization-id
+      organization := fleet.broker.get-organization --id=broker-device.organization-id
       events/List? := null
       if max-events != 0:
         events-map := broker.get-events
@@ -420,8 +419,6 @@ extract-device fleet-device/DeviceFleet
     --cli/Cli:
   ui := cli.ui
 
-  artemis := fleet.artemis
-
   device/Device := identity-path
       ? FleetWithDevices.device-from --identity-path=identity-path
       : fleet.broker.device-for --id=fleet-device.id
@@ -476,14 +473,14 @@ extract-device fleet-device/DeviceFleet
 device-to-json_
     fleet-device/DeviceFleet
     broker-device/DeviceDetailed
-    organization/OrganizationDetailed
+    organization/OrganizationDetailed?
     events/List?:
   result := {
     "id": "$broker-device.id",
     "name": fleet-device.name,
     "aliases": fleet-device.aliases,
     "organization_id": "$broker-device.organization-id",
-    "organization_name": organization.name,
+    "organization_name": organization ? organization.name : null,
     "goal": broker-device.goal,
     "reported_state_goal": broker-device.reported-state-goal,
     "reported_state_current": broker-device.reported-state-current,
@@ -518,11 +515,12 @@ print-device_ -> string
     fleet/FleetWithDevices
     fleet-device/DeviceFleet
     broker-device/DeviceDetailed
-    organization/OrganizationDetailed
+    organization/OrganizationDetailed?
     events/List?:
   printer := Printer_
   printer.emit "Device ID: $broker-device.id"
-  printer.emit "Organization ID: $broker-device.organization-id ($organization.name)"
+  org-suffix := organization ? " ($organization.name)" : ""
+  printer.emit "Organization ID: $broker-device.organization-id$org-suffix"
   printer.emit "Device name: $(fleet-device.name or "")"
   aliases := fleet-device.aliases or []
   printer.emit "Device aliases: $(aliases.join ", ")"

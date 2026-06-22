@@ -9,6 +9,7 @@ import host.directory
 import host.file
 import expect show *
 import uuid show Uuid
+import artemis.shared.server-config show ServerConfigHttp
 import .utils
 
 main args:
@@ -62,13 +63,17 @@ run-test fleet/TestFleet:
         --aliases=aliases
 
     // We can't create the same device twice.
-    fleet.run --expect-exit-1 --allow-exception [
-      "fleet",
-      "add-device",
-      "--format", "identity",
-      "--output", "$tmp-dir/other.identity",
-      "--id", "$id",
-    ]
+    // The duplicate rejection happens server-side for admin brokers.
+    // Non-admin (HTTP) brokers don't have this check, and the local
+    // devices file was cleared by check-and-remove-identity-files.
+    if fleet.tester.broker.server-config is not ServerConfigHttp:
+      fleet.run --expect-exit-1 --allow-exception [
+        "fleet",
+        "add-device",
+        "--format", "identity",
+        "--output", "$tmp-dir/other.identity",
+        "--id", "$id",
+      ]
 
 test-extract-identity fleet/TestFleet tmp-dir/string:
   devices/Map := json.decode (file.read-contents "$fleet.fleet-dir/devices.json")

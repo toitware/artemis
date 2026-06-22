@@ -1,17 +1,12 @@
 // Copyright (C) 2024 Toitware ApS. All rights reserved.
 
-import cli show Cli FileStore DirectoryStore
+import cli show Cli DirectoryStore
 import crypto.sha256
 import host.file
 import host.os
-import io
 import net
 import uuid show Uuid
 
-import encoding.base64
-import encoding.ubjson
-
-import .artemis
 import .cache
 import .config
 import .device
@@ -19,47 +14,18 @@ import .pod
 import .pod-specification
 
 import .utils
-import .utils.patch-build show build-diff-patch build-trivial-patch
 import ..shared.version
-import ..shared.utils.patch show Patcher PatchObserver
 
+import .auth show Authenticatable
 import .brokers.broker
+import .brokers.broker-pod-store show BrokerPodStore
+import .firmware-patches show FirmwarePatchUploader
+import .organization
 import .event
 import .firmware
-import .pod-registry
 import .program
 import .sdk
 import .server-config
-
-class UploadResult:
-  fleet-id/Uuid
-  id/Uuid
-  name/string
-  revision/int
-  tags/List
-  tag-errors/List
-
-  constructor --.fleet-id --.id --.name --.revision --.tags --.tag-errors:
-
-  to-json -> Map:
-    result := {
-      "fleet-id": "$fleet-id",
-      "id": "$id",
-      "name": name,
-      "revision": revision,
-      "tags": tags,
-    }
-    if not tag-errors.is-empty:
-      result["tag-errors"] = tag-errors
-    return result
-
-class PodBroker:
-  id/Uuid
-  name/string?
-  revision/int?
-  tags/List?
-
-  constructor --.id --.name --.revision --.tags:
 
 /**
 Manages devices that have an Artemis service running on them.
@@ -98,9 +64,11 @@ class Broker:
 
   broker-connection_ -> BrokerCli:
     if not broker-connection__:
-      broker-connection__ = BrokerCli server-config --cli=cli_
-      broker-connection__.ensure-authenticated: | error-message |
-        cli_.ui.abort "$error-message (broker)."
+      connection := BrokerCli server-config --cli=cli_
+      if connection is Authenticatable:
+        (connection as Authenticatable).ensure-authenticated: | error-message |
+          cli_.ui.abort "$error-message (broker)."
+      broker-connection__ = connection
     return broker-connection__
 
   short-string-for_ --device-id/Uuid -> string:
@@ -109,9 +77,51 @@ class Broker:
 
   /**
   Ensures that the broker is authenticated.
+
+  Has no effect for brokers that don't require authentication.
   */
   ensure-authenticated:
     broker-connection_
+
+  /**
+  Returns the admin interface of the broker, or null if the broker
+    does not support administrative operations.
+  */
+  admin-connection-or-null -> AdminBrokerCli?:
+    connection := broker-connection_
+    if connection is AdminBrokerCli: return connection as AdminBrokerCli
+    return null
+
+  /**
+  Fetches the organization with the given $id.
+
+  Returns null if the broker doesn't support administrative operations
+    or if the organization doesn't exist.
+  */
+  get-organization --id/Uuid -> OrganizationDetailed?:
+    connection := broker-connection_
+    if connection is not AdminBrokerCli:
+      return null
+    return (connection as AdminBrokerCli).get-organization id
+
+  /**
+  Creates a device in the organization with the given $organization-id.
+
+  The $device-id may be null in which case the broker creates an alias.
+
+  If the broker supports administrative operations, the device is created
+    on the broker. Otherwise, a device identity is created locally.
+  */
+  create-device --device-id/Uuid? --organization-id/Uuid -> Device:
+    connection := broker-connection_
+    if connection is AdminBrokerCli:
+      return (connection as AdminBrokerCli).create-device-in-organization
+          --device-id=device-id
+          --organization-id=organization-id
+    // For non-admin brokers, create the device identity locally.
+    id := device-id or random-uuid
+    hardware-id := random-uuid
+    return Device --hardware-id=hardware-id --id=id --organization-id=organization-id
 
   /**
   Closes the broker.
@@ -126,361 +136,31 @@ class Broker:
       network_.close
       network_ = null
 
-  is-existing-tag-error_ error -> bool:
-    if error is not string: return false
-    return error.contains "duplicate key value" or error.contains "already exists"
+  patch-uploader__/FirmwarePatchUploader? := null
 
-  /**
-  Uploads the given $pod to the broker for the given $fleet-id in $organization-id.
-
-  Also uploads the trivial patches.
-  */
-  upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
-    upload-trivial-patches_ --pod=pod
-
-    pod.split: | manifest/Map parts/Map |
-      parts.do: | id/string contents/ByteArray |
-        // Only upload if we don't have it in our cache.
-        key := cache-key-pod-parts
-            --broker-config=server-config
-            --organization-id=organization-id
-            --part-id=id
-        cli_.cache.get-file-path key: | store/FileStore |
-          broker-connection_.pod-registry-upload-pod-part contents --part-id=id
-              --organization-id=organization-id
-          store.save contents
-      key := cache-key-pod-manifest
-          --broker-config=server-config
+  patch-uploader_ -> FirmwarePatchUploader:
+    if not patch-uploader__:
+      patch-uploader__ = FirmwarePatchUploader
+          --broker-connection=broker-connection_
+          --server-config=server-config
           --organization-id=organization-id
-          --pod-id=pod.id
-      cli_.cache.get-file-path key: | store/FileStore |
-        encoded := ubjson.encode manifest
-        broker-connection_.pod-registry-upload-pod-manifest encoded --pod-id=pod.id
-            --organization-id=organization-id
-        store.save encoded
+          --cli=cli_
+    return patch-uploader__
 
-    description-ids := broker-connection_.pod-registry-descriptions
-        --fleet-id=fleet-id
-        --organization-id=organization-id
-        --names=[pod.name]
-        --create-if-absent
+  pod-store__/BrokerPodStore? := null
 
-    description-id := (description-ids[0] as PodRegistryDescription).id
-
-    broker-connection_.pod-registry-add
-        --pod-description-id=description-id
-        --pod-id=pod.id
-
-    tag-errors := []
-    tags.do: | tag/string |
-      force := force-tags or (tag == "latest")
-      exception := catch --unwind=(: not is-existing-tag-error_ it):
-        broker-connection_.pod-registry-tag-set
-            --pod-description-id=description-id
-            --pod-id=pod.id
-            --tag=tag
-            --force=force
-      if exception:
-        tag-errors.add "Tag '$tag' already exists for pod $pod.name."
-
-    registered-pods := broker-connection_.pod-registry-pods --fleet-id=fleet-id --pod-ids=[pod.id]
-    pod-entry/PodRegistryEntry := registered-pods[0]
-
-    sorted-uploaded-tags := pod-entry.tags.sort
-    return UploadResult
-        --fleet-id=fleet-id
-        --id=pod.id
-        --name=pod.name
-        --revision=pod-entry.revision
-        --tags=sorted-uploaded-tags
-        --tag-errors=tag-errors
-
-  upload-trivial-patches_ --pod/Pod -> none:
-    firmware-contents := FirmwareContents.from-envelope pod.envelope-path --cli=cli_
-    upload_ --firmware-contents=firmware-contents
-
-  upload_ --firmware-contents/FirmwareContents:
-    firmware-contents.trivial-patches.do:
-      upload-patch_ it
-
-  /**
-  Uploads the given $patch to the server under the given $organization-id.
-  */
-  upload-patch_ patch/FirmwarePatch:
-    diff-and-upload_ patch
-
-  /**
-  Computes patches and uploads them to the broker.
-  */
-  diff-and-upload_ patch/FirmwarePatch -> none:
-    // Unless it is already cached, always create/upload the trivial one.
-    trivial-id := id_ --to=patch.to_
-    cache-key := cache-key-patch
-        --broker-config=server-config
-        --organization-id=organization-id
-        --patch-id=trivial-id
-    cli_.cache.get cache-key: | store/FileStore |
-      trivial := build-trivial-patch patch.bits_
-      broker-connection_.upload-firmware trivial
-          --organization-id=organization-id
-          --firmware-id=trivial-id
-      store.save-via-writer: | writer/io.Writer |
-        trivial.do: writer.write it
-
-    if not patch.from_: return
-
-    // Attempt to fetch the old trivial patch and use it to construct
-    // the old bits so we can compute a diff from them.
-    old-id := id_ --to=patch.from_
-    cache-key = cache-key-patch
-        --broker-config=server-config
-        --organization-id=organization-id
-        --patch-id=old-id
-    trivial-old := cli_.cache.get cache-key: | store/FileStore |
-      downloaded := null
-      catch: downloaded = broker-connection_.download-firmware
-          --organization-id=organization-id
-          --id=old-id
-      if not downloaded:
-        cli_.ui.emit --warning "Failed to download old firmware for patch $old-id -> $trivial-id."
-        return
-      store.with-tmp-directory: | tmp-dir |
-        file.write-contents downloaded --path="$tmp-dir/patch"
-        // TODO(florian): we don't have the chunk-size when downloading from the broker.
-        store.move "$tmp-dir/patch"
-
-    bitstream := io.Reader trivial-old
-    patcher := Patcher bitstream null
-    patch-writer := PatchWriter
-    if not patcher.patch patch-writer: return
-    // Build the old bits and check that we get the correct hash.
-    old := patch-writer.buffer.bytes
-    if old.size < patch-writer.size: old += ByteArray (patch-writer.size - old.size)
-    sha := sha256.Sha256
-    sha.add old
-    if patch.from_ != sha.get: return
-
-    diff-id := id_ --from=patch.from_ --to=patch.to_
-    cache-key = cache-key-patch
-        --broker-config=server-config
-        --organization-id=organization-id
-        --patch-id=diff-id
-    cli_.cache.get cache-key: | store/FileStore |
-      // Build the diff and verify that we can apply it and get the
-      // correct hash out before uploading it.
-      diff := build-diff-patch old patch.bits_
-      if patch.to_ != (compute-applied-hash_ diff old): return
-      diff-size-bytes := diff.reduce --initial=0: | size chunk | size + chunk.size
-      diff-size := diff-size-bytes > 4096
-          ? "$((diff-size-bytes + 1023) / 1024) KB"
-          : "$diff-size-bytes B"
-      from64 := base64.encode patch.from_ --url-mode
-      to64 := base64.encode patch.to_ --url-mode
-      cli_.ui.emit --info "Uploading patch $from64 -> $to64 ($diff-size)."
-      broker-connection_.upload-firmware diff
-          --organization-id=organization-id
-          --firmware-id=diff-id
-      store.save-via-writer: | writer/io.Writer |
-        diff.do: writer.write it
-
-  static id_ --from/ByteArray?=null --to/ByteArray -> string:
-    folder := base64.encode to --url-mode
-    entry := from ? (base64.encode from --url-mode) : "none"
-    return "$folder/$entry"
-
-  static compute-applied-hash_ diff/List old/ByteArray -> ByteArray?:
-    combined := diff.reduce --initial=#[]: | acc chunk | acc + chunk
-    bitstream := io.Reader combined
-    patcher := Patcher bitstream old
-    writer := PatchWriter
-    if not patcher.patch writer: return null
-    sha := sha256.Sha256
-    sha.add writer.buffer.bytes
-    return sha.get
-
-  is-cached --pod-id/Uuid -> bool:
-    manifest-key := cache-key-pod-manifest
-        --broker-config=server-config
-        --organization-id=organization-id
-        --pod-id=pod-id
-    return cli_.cache.contains manifest-key
-
-  download --pod-id/Uuid -> Pod:
-    manifest-key := cache-key-pod-manifest
-        --broker-config=server-config
-        --organization-id=organization-id
-        --pod-id=pod-id
-    encoded-manifest := cli_.cache.get manifest-key: | store/FileStore |
-      bytes := broker-connection_.pod-registry-download-pod-manifest
-        --pod-id=pod-id
-        --organization-id=organization-id
-      store.save bytes
-    manifest := ubjson.decode encoded-manifest
-    return Pod.from-manifest
-        manifest
-        --tmp-directory=tmp-directory_
-        --download=: | part-id/string |
-          key := cache-key-pod-parts
-              --broker-config=server-config
-              --organization-id=organization-id
-              --part-id=part-id
-          cli_.cache.get key: | store/FileStore |
-            bytes := broker-connection_.pod-registry-download-pod-part
-                part-id
-                --organization-id=organization-id
-            store.save bytes
-
-  list-pods --names/List -> Map:
-    descriptions := ?
-    if names.is-empty:
-      descriptions = broker-connection_.pod-registry-descriptions --fleet-id=fleet-id
-    else:
-      descriptions = broker-connection_.pod-registry-descriptions
+  /** Pod registry view, lazily constructed on first access. */
+  pod-store -> BrokerPodStore:
+    if not pod-store__:
+      pod-store__ = BrokerPodStore
           --fleet-id=fleet-id
           --organization-id=organization-id
-          --names=names
-          --no-create-if-absent
-    result := {:}
-    descriptions.do: | description/PodRegistryDescription |
-      pods := broker-connection_.pod-registry-pods --pod-description-id=description.id
-      result[description] = pods
-    return result
-
-  delete --description-names/List:
-    descriptions := broker-connection_.pod-registry-descriptions
-        --fleet-id=fleet-id
-        --organization-id=organization-id
-        --names=description-names
-        --no-create-if-absent
-    unknown-pod-descriptions := []
-    description-names.do: | name/string |
-      was-found := descriptions.any: | description/PodRegistryDescription |
-        description.name == name
-      if not was-found: unknown-pod-descriptions.add name
-    if not unknown-pod-descriptions.is-empty:
-      if unknown-pod-descriptions.size == 1:
-        cli_.ui.abort "Unknown pod '$unknown-pod-descriptions[0]'."
-      else:
-        quoted := unknown-pod-descriptions.map: "'$it'"
-        joined := quoted.join ", "
-        cli_.ui.abort "Unknown pods $joined."
-    broker-connection_.pod-registry-descriptions-delete
-        --fleet-id=fleet-id
-        --description-ids=descriptions.map: it.id
-
-  delete --pod-references/List:
-    pod-ids := get-pod-ids pod-references
-    delete --pod-ids=pod-ids
-
-  delete --pod-ids/List:
-    broker-connection_.pod-registry-delete
-        --fleet-id=fleet-id
-        --pod-ids=pod-ids
-
-  add-tags --tags/List --force/bool --references/List:
-    references = references.map: | reference/PodReference |
-      reference.is-name-only
-          ? reference.with --tag="latest"
-          : reference
-
-    pod-ids := get-pod-ids references
-    pod-entries := broker-connection_.pod-registry-pods
-        --fleet-id=fleet-id
-        --pod-ids=pod-ids
-
-    mapping := {:}
-    for i := 0; i < pod-ids.size; i++:
-      mapping[pod-ids[i]] = references[i]
-
-    tag-errors := []
-    tags.do: | tag/string |
-      pod-entries.do: | pod-entry/PodRegistryEntry |
-        print-on-stderr_ "pod-entry: $pod-entry.to-json"
-        exception := catch --unwind=(: not is-existing-tag-error_ it):
-          broker-connection_.pod-registry-tag-set
-              --pod-description-id=pod-entry.pod-description-id
-              --pod-id=pod-entry.id
-              --tag=tag
-              --force=force
-        if exception:
-          ref/PodReference := mapping[pod-entry.id]
-          tag-errors.add "Tag '$tag' already exists for pod $ref.name."
-
-    if not tag-errors.is-empty:
-      tag-errors.do: cli_.ui.emit --error it
-      cli_.ui.abort
-
-  remove-tags --tags/List --references/List:
-    names := {}
-    references.do: | reference/PodReference |
-      assert: reference.is-name-only
-      names.add reference.name
-
-    descriptions := broker-connection_.pod-registry-descriptions
-        --fleet-id=fleet-id
-        --organization-id=organization-id
-        --names=names.to-list
-        --no-create-if-absent
-
-    descriptions.do: | description/PodRegistryDescription |
-      description-id := description.id
-      tags.do: | tag/string |
-        broker-connection_.pod-registry-tag-remove
-            --pod-description-id=description-id
-            --tag=tag
-
-  get-pod-ids references/List -> List:
-    references.do: | reference/PodReference |
-      if not reference.id:
-        if not reference.name:
-          throw "Either id or name must be specified: $reference"
-        if not reference.tag and not reference.revision:
-          throw "Either tag or revision must be specified: $reference"
-
-    missing-ids := references.filter: | reference/PodReference |
-      not reference.id
-    pod-ids-response := broker-connection_.pod-registry-pod-ids
-        --fleet-id=fleet-id
-        --references=missing-ids
-
-    has-errors := false
-    result := references.map: | reference/PodReference |
-      if reference.id: continue.map reference.id
-      resolved := pod-ids-response.get reference
-      if not resolved:
-        has-errors = true
-        if reference.tag:
-          cli_.ui.emit --error "No pod with name '$reference.name' and tag '$reference.tag' in the fleet."
-        else:
-          cli_.ui.emit --error "No pod with name '$reference.name' and revision $reference.revision in the fleet."
-      resolved
-    if has-errors: cli_.ui.abort
-    return result
-
-  pod pod-id/Uuid -> PodBroker:
-    pod-entry := broker-connection_.pod-registry-pods
-        --fleet-id=fleet-id
-        --pod-ids=[pod-id]
-    if not pod-entry.is-empty:
-      description-id := pod-entry[0].pod-description-id
-      description := broker-connection_.pod-registry-descriptions --ids=[description-id]
-      if not description.is-empty:
-        return PodBroker --id=pod-id --name=description[0].name --revision=pod-entry[0].revision --tags=pod-entry[0].tags
-
-    return PodBroker --id=pod-id --name=null --revision=null --tags=null
-
-  get-pod-id reference/PodReference -> Uuid:
-    return (get-pod-ids [reference])[0]
-
-  get-pod-id --name/string --tag/string? --revision/int? -> Uuid:
-    return get-pod-id (PodReference --name=name --tag=tag --revision=revision)
-
-  pod-exists reference/PodReference -> bool:
-    pod-id := get-pod-id reference
-    pod-entry := broker-connection_.pod-registry-pods
-        --fleet-id=fleet-id
-        --pod-ids=[pod-id]
-    return not pod-entry.is-empty
+          --server-config=server-config
+          --broker-connection=broker-connection_
+          --patch-uploader=patch-uploader_
+          --cli=cli_
+          --tmp-directory=tmp-directory_
+    return pod-store__
 
   /**
   Fetches the device details for the given device ids.
@@ -510,28 +190,13 @@ class Broker:
       FirmwareContents.from-envelope diff-base.envelope-path --cli=cli_
 
     base-firmwares.do: | contents/FirmwareContents |
-      trivial-patches := extract-trivial-patches_ contents
-      trivial-patches.do: | _ patch/FirmwarePatch |
-        upload-patch_ patch
+      patch-uploader_.upload-trivial-patches --firmware-contents=contents
 
     update-bulk_
         --devices=devices
         --pods=pods
         --base-firmwares=base-firmwares
         --warn-only-trivial=warn-only-trivial
-  /**
-  Extracts the trivial patches from the given $firmware-contents.
-
-  Returns a mapping from patch-id (as used when diffing to the part) and
-    the patch itself.
-  */
-  extract-trivial-patches_ firmware-contents/FirmwareContents -> Map:
-    result := {:}
-    firmware-contents.trivial-patches.do: | patch/FirmwarePatch |
-      patch-id := id_ --to=patch.to_
-      result[patch-id] = patch
-    return result
-
   /**
   Update the given $devices.
 
@@ -588,7 +253,7 @@ class Broker:
       --base-firmwares/List
       --warn-only-trivial/bool=true:
     device-id := device.id
-    upload_ --firmware-contents=unconfigured-contents
+    patch-uploader_.upload-trivial-patches --firmware-contents=unconfigured-contents
 
     known-encoded-firmwares := {}
     [
@@ -644,7 +309,7 @@ class Broker:
         --cli=cli_
     upgrade-from.do: | old-firmware-contents/FirmwareContents |
       patches := upgrade-to.contents.patches old-firmware-contents
-      patches.do: diff-and-upload_ it
+      patches.do: patch-uploader_.diff-and-upload it
 
     // Build the updated goal and return it.
     sdk := get-sdk pod.sdk-version --cli=cli_
@@ -681,37 +346,6 @@ class Broker:
         --device-ids=device-ids
         --limit=limit
         --types=types
-
-  /**
-  Fetches the pod information for the given $pod-ids.
-
-  Returns a map from pod id to $PodRegistryEntry.
-  */
-  get-pod-registry-entry-map --pod-ids/List -> Map:
-    pod-id-entries := broker-connection_.pod-registry-pods
-        --fleet-id=fleet-id
-        --pod-ids=pod-ids
-    pod-entry-map := {:}
-    pod-id-entries.do: | entry/PodRegistryEntry |
-      pod-entry-map[entry.id] = entry
-    return pod-entry-map
-
-  /**
-  Returns a map from description-id to $PodRegistryDescription.
-
-  The given $pod-registry-entries must be a list of $PodRegistryEntry instances.
-  */
-  get-pod-descriptions --pod-registry-entries/List -> Map:
-    description-set := {}
-    description-set.add-all
-        (pod-registry-entries.map: | entry/PodRegistryEntry | entry.pod-description-id)
-    description-ids := []
-    description-ids.add-all description-set
-    descriptions := broker-connection_.pod-registry-descriptions --ids=description-ids
-    description-map := {:}
-    descriptions.do: | description/PodRegistryDescription |
-      description-map[description.id] = description
-    return description-map
 
   notify-created device/Device -> none:
     identity := {
@@ -829,7 +463,6 @@ class Broker:
 
   /**
   Customizes a generic Toit envelope with the given $specification.
-    Also installs the Artemis service.
 
   The image is ready to be flashed together with the identity file.
   */
@@ -837,7 +470,6 @@ class Broker:
       --organization-id/Uuid
       --specification/PodSpecification
       --recovery-urls/List
-      --artemis/Artemis
       --output-path/string:
     service-version := specification.artemis-version
     sdk-version := specification.sdk-version
@@ -856,7 +488,6 @@ class Broker:
           cli_.ui.abort "The envelope uses SDK version $envelope-sdk-version, but $sdk-version was requested."
     else:
       sdk-version = envelope-sdk-version
-    envelope-word-bit-size := Sdk.get-word-bit-size-from --envelope=envelope
 
     sdk := get-sdk sdk-version --cli=cli_
 
@@ -879,11 +510,10 @@ class Broker:
       connection.to-json
     device-config["connections"] = connections
 
-    // Create the assets for the Artemis service.
+    // Create the assets for the device service.
     // TODO(florian): share this code with the identity creation code.
     der-certificates := {:}
     broker-json := server-config-to-service-json server-config der-certificates
-    artemis-json := server-config-to-service-json artemis.server-config der-certificates
 
     with-tmp-directory: | tmp-dir |
       // Store the containers in the envelope.
@@ -944,7 +574,7 @@ class Broker:
         },
         "artemis.broker": {
           "format": "tison",
-          "json": artemis-json,
+          "json": broker-json,
         },
       }
       der-certificates.do: | name/string value/ByteArray |

@@ -8,6 +8,7 @@ import log
 import monitor
 import net
 import artemis.cli.brokers.broker
+import artemis.cli.auth show Authenticatable
 import artemis.cli.device show DeviceDetailed
 import artemis.service.device show Device
 import artemis.cli.event show Event
@@ -56,9 +57,11 @@ run-test
   // We are going to reuse the cli for all tests (and only authenticate once).
   // However, we will need multiple services.
   test-broker.with-cli: | broker-cli/broker.BrokerCli |
-    // Make sure we are authenticated.
-    broker-cli.ensure-authenticated:
-      broker-cli.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
+    // Make sure we are authenticated. HTTP test brokers don't require auth.
+    if broker-cli is Authenticatable:
+      auth := broker-cli as Authenticatable
+      auth.ensure-authenticated:
+        auth.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
 
     if broker-name == "supabase-local-artemis":
       // Make sure the device is in the database.

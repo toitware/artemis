@@ -5,6 +5,6 @@
 ├──────────────────────────────────────┼───────────────┼───────────────────────────────────────────────┼──────────┼──────────┼─────────────────┼───────────┼─────────┼─────────────┤
 │ -={|~~~~~~~never-started~~~~~~~~|}=-   never-started                                                   x                     ?                 never                 new1        │
 │ -={|~~~~~~~~device-new1~~~~~~~~~|}=-   device-new1     new1-pod#1 auto-tag,latest                                           now                   new1        │
-│ -={|~~~~~~~~~~initial1~~~~~~~~~~|}=-   initial1        new1-pod#1 auto-tag,latest                                           now                   test-broker │
-│ -={|~~~~~~~~~~initial2~~~~~~~~~~|}=-   initial2        new1-pod#1 auto-tag,latest                                           now                   test-broker │
+│ -={|~~~~~~~~~~initial1~~~~~~~~~~|}=-   initial1        new1-pod#1 auto-tag,latest                                             now                   test-broker │
+│ -={|~~~~~~~~~~initial2~~~~~~~~~~|}=-   initial2        new1-pod#1 auto-tag,latest                                             now                   test-broker │
 └──────────────────────────────────────┴───────────────┴───────────────────────────────────────────────┴──────────┴──────────┴─────────────────┴───────────┴─────────┴─────────────┘

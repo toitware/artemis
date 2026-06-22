@@ -4,6 +4,7 @@
 
 import expect show *
 import uuid show Uuid
+import artemis.shared.server-config show ServerConfigHttp
 import .utils
 
 main args:
@@ -14,6 +15,10 @@ run-test tester/Tester:
   test-start := Time.now
 
   tester.login
+
+  // The HTTP broker doesn't support admin operations (org management).
+  if tester.broker.server-config is ServerConfigHttp:
+    return
 
   // We might have orgs from earlier runs.
   // We also always have the Test Organization.

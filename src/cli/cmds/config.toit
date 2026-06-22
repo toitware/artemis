@@ -232,7 +232,10 @@ default-server invocation/Invocation:
   config := cli.config
   ui := cli.ui
 
-  config-key/string := invocation["artemis"] ? CONFIG-ARTEMIS-DEFAULT-KEY : CONFIG-BROKER-DEFAULT-KEY
+  if invocation["artemis"]:
+    ui.emit --warning "The '--artemis' flag is deprecated. Using the default broker instead."
+
+  config-key := CONFIG-BROKER-DEFAULT-KEY
 
   if invocation["clear"]:
     config.remove config-key

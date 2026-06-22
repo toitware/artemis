@@ -1,12 +1,9 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import cli show *
-import net
 
-import ..config
-import ..cache
-import ..server-config
-import ..artemis-servers.artemis-server show with-server ArtemisServerCli
+import .utils_
+import ..brokers.broker show AdminBrokerCli
 
 create-profile-commands -> List:
   profile-cmd := Command "profile"
@@ -35,20 +32,14 @@ create-profile-commands -> List:
 
   return [profile-cmd]
 
-with-profile-server invocation/Invocation [block]:
-  cli := invocation.cli
-
-  server-config := get-server-from-config --key=CONFIG-ARTEMIS-DEFAULT-KEY --cli=cli
-
-  with-server server-config --cli=cli: | server/ArtemisServerCli |
-    server.ensure-authenticated: | error-message |
-      cli.ui.abort "$error-message (artemis)."
-    block.call server
+with-profile-admin invocation/Invocation [block]:
+  with-admin-broker invocation --capability="profile management": | admin/AdminBrokerCli |
+    block.call admin
 
 show-profile invocation/Invocation:
   ui := invocation.cli.ui
-  with-profile-server invocation: | server/ArtemisServerCli |
-    profile := server.get-profile
+  with-profile-admin invocation: | admin/AdminBrokerCli |
+    profile := admin.get-profile
     if ui.wants-structured --kind=Ui.RESULT:
       // We recreate the map, so we don't show unnecessary entries.
       ui.emit
@@ -73,6 +64,6 @@ update-profile invocation/Invocation:
   if not name:
     ui.abort "No name specified."
 
-  with-profile-server invocation: | server/ArtemisServerCli |
-    server.update-profile --name=name
+  with-profile-admin invocation: | admin/AdminBrokerCli |
+    admin.update-profile --name=name
     ui.emit --info "Profile updated."

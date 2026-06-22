@@ -5,7 +5,6 @@ import host.file
 import uuid show Uuid
 
 import .utils_
-import ..artemis
 import ..broker
 import ..cache
 import ..config
@@ -184,9 +183,6 @@ flash invocation/Invocation:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
 
   with-devices-fleet invocation: | fleet/FleetWithDevices |
-    artemis := fleet.artemis
-    broker := fleet.broker
-
     with-tmp-directory: | tmp-dir/string |
       device-id := random-uuid
       identity-path := fleet.create-identity
@@ -203,8 +199,8 @@ flash invocation/Invocation:
         pod = Pod.from-file local
             --organization-id=fleet.organization-id
             --recovery-urls=fleet.recovery-urls
-            --artemis=artemis
-            --broker=broker
+            --tmp-directory=fleet.tmp-directory
+            --broker=fleet.broker
             --cli=cli
         reference = PodReference --id=pod.id
       else:
@@ -250,7 +246,7 @@ flash invocation/Invocation:
       else:
         ui.emit --info "Simulating flash."
         ui.emit --info "Using the local Artemis service and not the one specified in the specification."
-        old-default := cli.config.get CONFIG-ARTEMIS-DEFAULT-KEY
+        old-default := cli.config.get CONFIG-BROKER-DEFAULT-KEY
         if should-make-default: make-default_ --device-id=device-id --cli=cli
         run-host
             --pod=pod
@@ -278,8 +274,8 @@ flash --station/bool invocation/Invocation:
   partitions := build-partitions_ params["partition"] --cli=cli
   force := params["force"]
 
-  with-artemis invocation: | artemis/Artemis |
-    pod := Pod.parse pod-path --tmp-directory=artemis.tmp-directory --cli=cli
+  with-tmp-directory: | tmp-directory/string |
+    pod := Pod.parse pod-path --tmp-directory=tmp-directory --cli=cli
     with-tmp-directory: | tmp-dir/string |
       // Make unique for the given device.
       config-bytes := pod.compute-device-specific-data

@@ -8,7 +8,6 @@ import encoding.base64
 import host.file
 import uuid show Uuid
 
-import .artemis
 import .broker
 import .cache
 import .config
@@ -18,6 +17,7 @@ import .firmware
 import .pod
 import .pod-specification
 import .pod-registry
+import .pod-store show PodInfo UploadResult
 import .utils
 import .utils.names
 import .server-config
@@ -330,24 +330,26 @@ class Fleet:
 
   id/Uuid
   organization-id/Uuid
-  artemis/Artemis
   broker/Broker
+  tmp-directory/string
   cli_/Cli
   fleet-root-or-ref_/string
   fleet-file_/FleetFile
 
   constructor fleet-root-or-ref/string
-      artemis/Artemis
+      --tmp-directory/string
       --default-broker-config/ServerConfig
       --cli/Cli:
     fleet-file := load-fleet-file fleet-root-or-ref
         --default-broker-config=default-broker-config
         --cli=cli
-    return Fleet fleet-root-or-ref artemis
+    return Fleet fleet-root-or-ref
+        --tmp-directory=tmp-directory
         --fleet-file=fleet-file
         --cli=cli
 
-  constructor .fleet-root-or-ref_ .artemis
+  constructor .fleet-root-or-ref_
+      --.tmp-directory
       --fleet-file/FleetFile
       --short-strings/Map?=null
       --cli/Cli:
@@ -359,13 +361,13 @@ class Fleet:
         --server-config=fleet-file.broker-config
         --fleet-id=id
         --organization-id=organization-id
-        --tmp-directory=artemis.tmp-directory
+        --tmp-directory=tmp-directory
         --short-strings=short-strings
         --cli=cli
 
-    // TODO(florian): should we always do this check?
-    org := artemis.get-organization --id=organization-id
-    if not org:
+    // Validate the organization if the broker supports it.
+    admin := broker.admin-connection-or-null
+    if admin and (admin.get-organization organization-id) == null:
       cli.ui.abort "Organization $organization-id does not exist or is not accessible."
 
   static load-fleet-file -> FleetFile
@@ -414,7 +416,7 @@ class Fleet:
   upload --pod/Pod --tags/List --force-tags/bool -> UploadResult:
     cli_.ui.emit --info "Uploading pod. This may take a while."
 
-    return broker.upload
+    return broker.pod-store.upload
         --pod=pod
         --tags=tags
         --force-tags=force-tags
@@ -425,39 +427,39 @@ class Fleet:
     pod-id := reference.id
     if not pod-id:
       pod-id = get-pod-id reference
-    if not broker.is-cached --pod-id=pod-id:
+    if not broker.pod-store.is-cached --pod-id=pod-id:
       cli_.ui.emit --info "Downloading pod '$reference'."
     return download --pod-id=pod-id
 
   download --pod-id/Uuid -> Pod:
-    return broker.download --pod-id=pod-id
+    return broker.pod-store.download --pod-id=pod-id
 
   list-pods --names/List -> Map:
-    return broker.list-pods --names=names
+    return broker.pod-store.list-pods --names=names
 
   delete --description-names/List:
-    broker.delete --description-names=description-names
+    broker.pod-store.delete --description-names=description-names
 
   delete --pod-references/List:
-    broker.delete --pod-references=pod-references
+    broker.pod-store.delete --pod-references=pod-references
 
   add-tags --tags/List --force/bool --references/List:
-    broker.add-tags --tags=tags --force=force --references=references
+    broker.pod-store.add-tags --tags=tags --force=force --references=references
 
   remove-tags --tags/List --references/List:
-    broker.remove-tags --tags=tags --references=references
+    broker.pod-store.remove-tags --tags=tags --references=references
 
-  pod pod-id/Uuid -> PodBroker:
-    return broker.pod pod-id
+  pod pod-id/Uuid -> PodInfo:
+    return broker.pod-store.pod pod-id
 
   get-pod-id reference/PodReference -> Uuid:
-    return broker.get-pod-id reference
+    return broker.pod-store.get-pod-id reference
 
   get-pod-id --name/string --tag/string? --revision/int? -> Uuid:
-    return broker.get-pod-id --name=name --tag=tag --revision=revision
+    return broker.pod-store.get-pod-id --name=name --tag=tag --revision=revision
 
   pod-exists reference/PodReference -> bool:
-    return broker.pod-exists reference
+    return broker.pod-store.pod-exists reference
 
   recovery-urls -> List:
     return fleet-file_.recovery-urls
@@ -520,7 +522,8 @@ class FleetWithDevices extends Fleet:
   /** Map from name, device-id, alias to index in $devices_. */
   aliases_/Map := {:}
 
-  constructor fleet-root/string artemis/Artemis
+  constructor fleet-root/string
+      --tmp-directory/string
       --default-broker-config/ServerConfig
       --cli/Cli:
     if not file.is-directory fleet-root and file.is-file fleet-root:
@@ -539,12 +542,13 @@ class FleetWithDevices extends Fleet:
     devices_.do: | device/DeviceFleet |
       device-short-strings_[device.id] = device.short-string
     aliases_ = build-alias-map_ devices_ --cli=cli
-    super fleet-root artemis
+    super fleet-root
+        --tmp-directory=tmp-directory
         --fleet-file=fleet-file
         --short-strings=device-short-strings_
         --cli=cli
 
-  static init fleet-root/string artemis/Artemis -> FleetFile
+  static init fleet-root/string -> FleetFile
       --organization-id/Uuid
       --broker-config/ServerConfig
       --recovery-url-prefixes/List
@@ -559,10 +563,6 @@ class FleetWithDevices extends Fleet:
 
     if file.is-file "$fleet-root/$DEVICES-FILE_":
       ui.abort "Fleet root '$fleet-root' already contains a $DEVICES-FILE_ file."
-
-    org := artemis.get-organization --id=organization-id
-    if not org:
-      ui.abort "Organization $organization-id does not exist or is not accessible."
 
     broker-name := broker-config.name
     fleet-id := random-uuid
@@ -670,6 +670,10 @@ class FleetWithDevices extends Fleet:
     if not has-group group:
       cli_.ui.abort "Group '$group' not found."
 
+    devices_.do: | existing/DeviceFleet |
+      if existing.id == id:
+        cli_.ui.abort "Device with ID $id already exists in the fleet."
+
     old-size := devices_.size
     new-file := "$output-directory/$(id).identity"
 
@@ -703,7 +707,7 @@ class FleetWithDevices extends Fleet:
           --short-strings=device-short-strings_
           --fleet-id=id
           --organization-id=organization-id
-          --tmp-directory=artemis.tmp-directory
+          --tmp-directory=tmp-directory
           --cli=cli_
       old-broker.update --device-id=device-id --pod=pod
 
@@ -747,7 +751,7 @@ class FleetWithDevices extends Fleet:
           --short-strings=device-short-strings_
           --fleet-id=id
           --organization-id=organization-id
-          --tmp-directory=artemis.tmp-directory
+          --tmp-directory=tmp-directory
           --cli=cli_
       // We could filter out devices that were already known in the new broker, but
       // it's easier and more robust to update all devices.
@@ -843,7 +847,7 @@ class FleetWithDevices extends Fleet:
           --organization-id=organization-id
           --short-strings=device-short-strings_
           --cli=cli_
-          --tmp-directory=artemis.tmp-directory
+          --tmp-directory=tmp-directory
 
     all-brokers := [broker] + migrating-from-brokers
 
@@ -901,9 +905,9 @@ class FleetWithDevices extends Fleet:
             if detailed-device.pod-id-current: pod-ids.add detailed-device.pod-id-current
             if detailed-device.pod-id-firmware: pod-ids.add detailed-device.pod-id-firmware
 
-      broker-pod-entry-map := current-broker.get-pod-registry-entry-map --pod-ids=pod-ids.to-list
+      broker-pod-entry-map := current-broker.pod-store.get-pod-registry-entry-map --pod-ids=pod-ids.to-list
       pod-entries[current-broker.server-config.name] = broker-pod-entry-map
-      broker-description-map := current-broker.get-pod-descriptions
+      broker-description-map := current-broker.pod-store.get-pod-descriptions
           --pod-registry-entries=broker-pod-entry-map.values
       pod-descriptions[current-broker.server-config.name] = broker-description-map
 
@@ -1025,26 +1029,20 @@ class FleetWithDevices extends Fleet:
   /**
   Provisions a device.
 
-  Contacts the Artemis server and creates a new device entry with the
-    given $device-id (used as "alias" on the server side) in the
-    organization with the given $organization-id.
+  Creates a new device entry on the broker with the given $device-id
+    (used as "alias" on the server side) in the organization with the
+    given $organization-id.
 
   Writes the identity file to $out-path.
   */
   provision --device-id/Uuid? --out-path/string:
-    // Ensure that we are authenticated with both the Artemis server and the broker.
-    // We don't want to create a device on Artemis and then have an error with the broker.
-    artemis.ensure-authenticated
     broker.ensure-authenticated
 
-    device := artemis.create-device
+    device := broker.create-device
         --device-id=device-id
         --organization-id=organization-id
     assert: device.id == device-id
-    hardware-id := device.hardware-id
 
-    // Insert an initial event mostly for testing purposes.
-    artemis.notify-created --hardware-id=hardware-id
     broker.notify-created device
 
     write-identity-file device --out-path=out-path
@@ -1068,7 +1066,7 @@ class FleetWithDevices extends Fleet:
         --short-strings=device-short-strings_
         --fleet-id=id
         --organization-id=organization-id
-        --tmp-directory=artemis.tmp-directory
+        --tmp-directory=tmp-directory
         --cli=cli_
 
     if new-broker.server-config.name == broker.server-config.name:
@@ -1123,7 +1121,7 @@ class FleetWithDevices extends Fleet:
             --short-strings=device-short-strings_
             --fleet-id=id
             --organization-id=organization-id
-            --tmp-directory=artemis.tmp-directory
+            --tmp-directory=tmp-directory
             --cli=cli_
         current-detailed-devices := current-broker.get-devices --device-ids=device-ids
         current-ids := current-detailed-devices.keys

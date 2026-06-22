@@ -5,7 +5,6 @@ import host.os
 import partition-table show PartitionTable
 import uuid show Uuid
 
-import ..artemis
 import ..config
 import ..cache
 import ..fleet
@@ -13,20 +12,7 @@ import ..pod
 import ..sdk
 import ..server-config
 import ..utils
-
-with-artemis invocation/Invocation [block]:
-  cli := invocation.cli
-  artemis-config := get-server-from-config --cli=cli --key=CONFIG-ARTEMIS-DEFAULT-KEY
-
-  with-tmp-directory: | tmp-directory/string |
-    artemis := Artemis
-        --cli=invocation.cli
-        --tmp-directory=tmp-directory
-        --server-config=artemis-config
-    try:
-      block.call artemis
-    finally:
-      artemis.close
+import ..brokers.broker show with-broker BrokerCli AdminBrokerCli
 
 default-device-from-config --cli/Cli -> Uuid?:
   config := cli.config
@@ -47,9 +33,10 @@ with-devices-fleet invocation/Invocation [block]:
   // the constructor call below will throw.
   fleet-root := compute-fleet-root-or-ref invocation
 
-  with-artemis invocation: | artemis/Artemis |
+  with-tmp-directory: | tmp-directory/string |
     default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-    fleet := FleetWithDevices fleet-root artemis
+    fleet := FleetWithDevices fleet-root
+        --tmp-directory=tmp-directory
         --default-broker-config=default-broker-config
         --cli=cli
     block.call fleet
@@ -59,9 +46,10 @@ with-pod-fleet invocation/Invocation [block]:
 
   fleet-root-or-ref := compute-fleet-root-or-ref invocation
 
-  with-artemis invocation: | artemis/Artemis |
+  with-tmp-directory: | tmp-directory/string |
     default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-    fleet := Fleet fleet-root-or-ref artemis
+    fleet := Fleet fleet-root-or-ref
+        --tmp-directory=tmp-directory
         --default-broker-config=default-broker-config
         --cli=cli
     block.call fleet
@@ -80,6 +68,36 @@ compute-fleet-root-or-ref invocation/Invocation -> string:
     ui.emit --debug "Using fleet-root '$fleet-env' provided by environment variable."
     return fleet-env
   return "."
+
+/**
+Calls $block with an $AdminBrokerCli for the default broker.
+
+Aborts if the configured broker does not support administrative
+  operations. The $capability string names the operation in the
+  abort message (for example "organization management").
+
+The user is required to be authenticated; if not, aborts with the
+  authentication error before checking admin support.
+*/
+with-admin-broker invocation/Invocation --capability/string [block]:
+  cli := invocation.cli
+  ui := cli.ui
+  server-config := get-server-from-config --key=CONFIG-BROKER-DEFAULT-KEY --cli=cli
+  with-broker server-config --cli=cli: | broker/BrokerCli |
+    if broker is not AdminBrokerCli:
+      ui.abort "The configured broker does not support $capability."
+    admin := broker as AdminBrokerCli
+    admin.ensure-authenticated: | error-message |
+      ui.abort "$error-message (broker)."
+    block.call admin
+
+/**
+Returns $broker as $AdminBrokerCli, or null if it does not implement
+  the admin interface.
+*/
+broker-as-admin-or-null broker/BrokerCli -> AdminBrokerCli?:
+  if broker is AdminBrokerCli: return broker as AdminBrokerCli
+  return null
 
 make-default_ --device-id/Uuid --cli/Cli:
   cli.config[CONFIG-DEVICE-DEFAULT-KEY] = "$device-id"
