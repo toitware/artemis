@@ -111,7 +111,7 @@ jobs:
 
       - name: Install Supabase
         if: matrix.run_supabase_tests
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v2
         with:
           version: ${{ env.SUPABASE_VERSION }}
 
