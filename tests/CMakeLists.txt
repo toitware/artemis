@@ -245,8 +245,8 @@ foreach(file ${TESTS})
     endif()
     if (SUPABASE_ARTEMIS_BROKER_FLAG IN_LIST flag)
       list(APPEND RESOURCE_LOCKS "artemis_broker")
-      # Some broker tests need to modify the Artemis server to ensure that
-      # devices exist. Make sure that the server is locked as well.
+      # Shared broker tests also inspect the auth-side device records.
+      # Make sure that the Artemis server is locked as well.
       list(APPEND RESOURCE_LOCKS "artemis_server")
       set(IS_SUPABASE_TEST TRUE)
     endif()

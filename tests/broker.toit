@@ -8,6 +8,7 @@ import log
 import monitor
 import net
 import supabase
+import supabase.filter show equals
 import system
 import uuid show Uuid
 
@@ -62,6 +63,9 @@ interface BrokerBackdoor:
     auth-side devices table.
   */
   create-device --hardware-id/Uuid --device-id/Uuid --state/Map -> none
+
+  /** Returns the auth-side record for the given $hardware-id. */
+  get-auth-device --hardware-id/Uuid -> Map?
 
   /**
   Removes the device with the given $device-id.
@@ -198,6 +202,15 @@ class SupabaseBackdoor implements BrokerBackdoor:
         "_device_id": "$device-id",
         "_state": state,
       }
+
+  get-auth-device --hardware-id/Uuid -> Map?:
+    with-backdoor-client_: | client/supabase.Client |
+      devices := client.rest.select "devices" --filters=[
+        equals "id" "$hardware-id",
+      ]
+      if devices.is-empty: return null
+      return devices[0]
+    unreachable
 
   remove-device device-id/Uuid -> none:
     with-backdoor-client_: | client/supabase.Client |

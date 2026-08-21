@@ -125,16 +125,23 @@ class HttpBroker extends HttpServer:
   notify-created data/Map:
     device-id := data["_device_id"]
     state := data["_state"]
+    hardware-id := data.get "_hardware_id"
+    organization-id := data.get "_organization_id"
     if device-states_.contains device-id:
       throw "Device $device-id already exists"
-    device-states_[device-id] = state
-    hardware-id := data.get "_hardware_id"
     if hardware-id:
+      if not organization-id:
+        throw "Missing organization-id for hardware-id $hardware-id"
       if auth-devices_.contains hardware-id:
         throw "Device with hardware-id $hardware-id already exists"
+    else if organization-id:
+      throw "Missing hardware-id for organization-id $organization-id"
+
+    device-states_[device-id] = state
+    if hardware-id:
       auth-devices_[hardware-id] = {
         "alias": device-id,
-        "organization_id": data.get "_organization_id",
+        "organization_id": organization-id,
       }
 
   get-auth-device --hardware-id/string -> Map?:
