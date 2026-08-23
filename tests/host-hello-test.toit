@@ -40,9 +40,6 @@ run-test tester/Tester config/TestDeviceConfig:
 
   test-device := tester.create-device
       --alias-id=device-id
-      // We don't know the actual hardware-id.
-      // Cheat by reusing the alias id.
-      --hardware-id=device-id
       --device-config=config
   test-device.start
 

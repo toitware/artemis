@@ -195,7 +195,7 @@ class Tester:
   close:
     test-devices_.do: | device/TestDevice |
       device.close
-      artemis.backdoor.remove-device device.hardware-id
+      artemis.backdoor.remove-device device.id
 
   login:
     run [
@@ -317,14 +317,12 @@ class Tester:
       --organization-id/Uuid=TEST-ORGANIZATION-UUID
       --firmware-token/ByteArray?=null:
     device-description := create-device_ organization-id firmware-token
-    hardware-id/Uuid := device-description["id"]
     alias-id/Uuid := device-description["alias"]
     encoded-firmware := device-description["encoded_firmware"]
 
     result := TestDevicePipe.fake-host
         --broker=broker
         --alias-id=alias-id
-        --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
         --toit=toit-path_
         --encoded-firmware=encoded-firmware
@@ -334,7 +332,6 @@ class Tester:
 
   create-device -> TestDevice
       --alias-id/Uuid
-      --hardware-id/Uuid
       --device-config/TestDeviceConfig
       --organization-id=TEST-ORGANIZATION-UUID:
     result/TestDevice := ?
@@ -342,7 +339,6 @@ class Tester:
       result = TestDevicePipe.qemu
           --broker=broker
           --alias-id=alias-id
-          --hardware-id=hardware-id
           --organization-id=TEST-ORGANIZATION-UUID
           --image-path=device-config.path
           --qemu-path=qemu-path_
@@ -351,7 +347,6 @@ class Tester:
       result = TestDevicePipe.host
           --broker=broker
           --alias-id=alias-id
-          --hardware-id=hardware-id
           --organization-id=TEST-ORGANIZATION-UUID
           --tar-path=device-config.path
           --tester=this
@@ -363,12 +358,10 @@ class Tester:
 
   listen-to-serial-device -> TestDevicePipe
       --alias-id/Uuid
-      --hardware-id/Uuid
       --serial-port/string:
     result := TestDevicePipe.serial
         --broker=broker
         --alias-id=alias-id
-        --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
         --serial-port=serial-port
         --toit=toit-path_
@@ -381,14 +374,12 @@ class Tester:
       --organization-id/Uuid=TEST-ORGANIZATION-UUID
       --firmware-token/ByteArray?=null:
     device-description := create-device_ organization-id firmware-token
-    hardware-id/Uuid := device-description["id"]
     alias-id/Uuid := device-description["alias"]
     encoded-firmware := device-description["encoded_firmware"]
 
     result := FakeDevice
         --broker=broker
         --alias-id=alias-id
-        --hardware-id=hardware-id
         --organization-id=TEST-ORGANIZATION-UUID
         --encoded-firmware=encoded-firmware
         --tester=this
@@ -398,7 +389,6 @@ class Tester:
 
   start-fake-device --identity/Map --firmware-token/ByteArray?=null -> FakeDevice:
     device-description := identity["artemis.device"]
-    hardware-id/Uuid := Uuid.parse device-description["hardware_id"]
     alias-id/Uuid := Uuid.parse device-description["device_id"]
     organization-id/Uuid := Uuid.parse device-description["organization_id"]
 
@@ -406,12 +396,10 @@ class Tester:
         --firmware-token=firmware-token
         --device-id=alias-id
         --organization-id=TEST-ORGANIZATION-UUID
-        --hardware-id=hardware-id
 
     result := FakeDevice
         --broker=broker
         --alias-id=alias-id
-        --hardware-id=hardware-id
         --organization-id=organization-id
         --encoded-firmware=encoded-firmware
         --tester=this
@@ -420,18 +408,16 @@ class Tester:
     return result
 
   create-device_ organization-id/Uuid firmware-token/ByteArray?=null -> Map:
-    hardware-id := random-uuid
     alias-id := random-uuid
     initial-state := {
       "identity": {
         "device_id": "$alias-id",
         "organization_id": "$organization-id",
-        "hardware_id": "$hardware-id",
+        "hardware_id": "$alias-id",
       }
     }
 
     broker.backdoor.create-device
-        --hardware-id=hardware-id
         --device-id=alias-id
         --state=initial-state
 
@@ -439,10 +425,9 @@ class Tester:
         --firmware-token=firmware-token
         --device-id=alias-id
         --organization-id=TEST-ORGANIZATION-UUID
-        --hardware-id=hardware-id
 
     return {
-      "id": hardware-id,
+      "id": alias-id,
       "alias": alias-id,
       "encoded_firmware": encoded-firmware,
     }
@@ -456,14 +441,13 @@ class Tester:
     (broker.backdoor as broker-lib.ToitHttpBackdoor).stop
 
 abstract class TestDevice:
-  hardware-id/Uuid
   alias-id/Uuid
   organization-id/Uuid
   broker/TestBroker
   tester/Tester
   pos_/int := 0
 
-  constructor --.broker --.hardware-id --.alias-id --.organization-id --.tester:
+  constructor --.broker --.alias-id --.organization-id --.tester:
 
   /**
   Starts the device.
@@ -588,7 +572,6 @@ class FakeDevice extends TestDevice:
 
   constructor
       --broker/TestBroker
-      --hardware-id/Uuid
       --alias-id/Uuid
       --organization-id/Uuid
       --encoded-firmware/string
@@ -599,13 +582,11 @@ class FakeDevice extends TestDevice:
     }
     device_ = Device
         --id=alias-id
-        --hardware-id=hardware-id
         --organization-id=organization-id
         --firmware-state=firmware-state
         --storage=Storage
     super
         --broker=broker
-        --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
         --tester=tester
@@ -688,7 +669,6 @@ class FakeDevice extends TestDevice:
     // Replace the whole device object.
     device_ = Device
         --id=alias-id
-        --hardware-id=hardware-id
         --organization-id=organization-id
         --firmware-state=pending-state_
         --storage=Storage
@@ -756,7 +736,6 @@ class TestDevicePipe extends TestDevice:
 
   constructor.fake-host
       --broker/TestBroker
-      --hardware-id/Uuid
       --alias-id/Uuid
       --organization-id/Uuid
       --encoded-firmware/string
@@ -776,7 +755,6 @@ class TestDevicePipe extends TestDevice:
     command_ = [
       toit-run,
       "test-device.toit",
-      "--hardware-id=$hardware-id",
       "--alias-id=$alias-id",
       "--organization-id=$organization-id",
       "--encoded-firmware=$encoded-firmware",
@@ -785,14 +763,12 @@ class TestDevicePipe extends TestDevice:
     has-backdoor = true
     super
         --broker=broker
-        --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
         --tester=tester
 
   constructor.serial
       --broker/TestBroker
-      --hardware-id/Uuid
       --alias-id/Uuid
       --organization-id/Uuid
       --serial-port/string
@@ -812,14 +788,12 @@ class TestDevicePipe extends TestDevice:
     ]
     super
         --broker=broker
-        --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
         --tester=tester
 
   constructor.qemu
         --broker/TestBroker
-        --hardware-id/Uuid
         --alias-id/Uuid
         --organization-id/Uuid
         --image-path/string
@@ -835,14 +809,12 @@ class TestDevicePipe extends TestDevice:
     ]
     super
         --broker=broker
-        --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
         --tester=tester
 
   constructor.host
       --broker/TestBroker
-      --hardware-id/Uuid
       --alias-id/Uuid
       --organization-id/Uuid
       --tar-path/string
@@ -853,7 +825,6 @@ class TestDevicePipe extends TestDevice:
     command_ = ["bash", boot-sh]
     super
         --broker=broker
-        --hardware-id=hardware-id
         --alias-id=alias-id
         --organization-id=organization-id
         --tester=tester
@@ -1133,7 +1104,6 @@ with-tester
 build-encoded-firmware -> string
     --device-id/Uuid
     --organization-id/Uuid=TEST-ORGANIZATION-UUID
-    --hardware-id/Uuid=device-id
     --firmware-token/ByteArray=#[random 256, random 256, random 256, random 256]
     --sdk-version/string=TEST-SDK-VERSION
     --pod-id/Uuid=TEST-POD-UUID:
@@ -1141,7 +1111,7 @@ build-encoded-firmware -> string
     "artemis.device": {
       "device_id": "$device-id",
       "organization_id": "$organization-id",
-      "hardware_id": "$hardware-id",
+      "hardware_id": "$device-id",
     },
     "parts": ubjson.encode [{
       "from": 0,
@@ -1163,7 +1133,6 @@ build-encoded-firmware -> string
   return build-encoded-firmware
       --device-id=device.id
       --organization-id=device.organization-id
-      --hardware-id=device.hardware-id
       --sdk-version=sdk-version
       --pod-id=pod-id
 
@@ -1243,7 +1212,6 @@ class TestFleet:
 
     test-device := tester.create-device
         --alias-id=device-id
-        --hardware-id=device-id  // Not really used anyway.
         --device-config=device-config
 
     tester.replacements["$device-id"] = pad-replacement-id name
@@ -1257,11 +1225,9 @@ class TestFleet:
 
   listen-to-serial-device -> TestDevicePipe
       --alias-id/Uuid
-      --hardware-id/Uuid
       --serial-port/string:
     return tester.listen-to-serial-device
         --alias-id=alias-id
-        --hardware-id=hardware-id
         --serial-port=serial-port
 
   /**

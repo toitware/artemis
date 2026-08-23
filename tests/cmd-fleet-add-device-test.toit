@@ -53,7 +53,6 @@ run-test fleet/TestFleet --args/List:
 
     test-device := fleet.tester.create-device
         --alias-id=tar-device-id
-        --hardware-id=tar-device-id  // Not really used anyway.
         --device-config=device-config
     test-device.start
 
@@ -74,7 +73,6 @@ run-test fleet/TestFleet --args/List:
 
     test-device = fleet.tester.create-device
         --alias-id=new-id
-        --hardware-id=new-id  // Not really used anyway.
         --device-config=device-config
     test-device.start
 

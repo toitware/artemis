@@ -62,7 +62,6 @@ run-host --pod/Pod --identity-path/string --cli/Cli -> none:
   device-identity := identity["artemis.device"]
 
   artemis-device := artemis-device.Device
-      --hardware-id=Uuid.parse device-identity["hardware_id"]
       --organization-id=Uuid.parse device-identity["organization_id"]
       --id=Uuid.parse device-identity["device_id"]
 
@@ -91,7 +90,6 @@ run-host --pod/Pod --identity-path/string --cli/Cli -> none:
     while true:
       device := Device
           --id=artemis-device.id
-          --hardware-id=artemis-device.hardware-id
           --organization-id=artemis-device.organization-id
           --firmware-state=config
           --storage=storage

@@ -39,7 +39,6 @@ run-test fleet/TestFleet --args/List:
 
     test-device := fleet.tester.create-device
         --alias-id=device-id
-        --hardware-id=device-id  // Not really used anyway.
         --device-config=device-config
     test-device.start
 

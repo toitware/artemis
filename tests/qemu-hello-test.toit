@@ -36,9 +36,6 @@ run-test tester/Tester qemu-data/TestDeviceConfig:
 
   test-device := tester.create-device
       --alias-id=device-id
-      // We don't know the actual hardware-id.
-      // Cheat by reusing the alias id.
-      --hardware-id=device-id
       --device-config=qemu-data
   test-device.start
 

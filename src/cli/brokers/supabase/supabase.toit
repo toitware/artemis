@@ -79,14 +79,14 @@ class BrokerCliSupabase extends BrokerCliHttp:
     the device row in the auth-side `devices` table as part of the
     notify-created handshake.
   */
-  notify-created --hardware-id/Uuid --device-id/Uuid --state/Map -> none:
+  notify-created --device-id/Uuid --state/Map -> none:
     if server-config_.tenancy == TENANCY-SHARED:
       supabase-client_.rest.insert "devices" --no-return-inserted {
-        "id": "$hardware-id",
+        "id": "$device-id",
         "alias": "$device-id",
         "organization_id": server-config_.scope.to-json,
       }
-    super --hardware-id=hardware-id --device-id=device-id --state=state
+    super --device-id=device-id --state=state
 
   extra-headers -> Map:
     bearer/string := supabase-client_.session_

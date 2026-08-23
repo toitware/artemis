@@ -698,13 +698,13 @@ class Broker:
     identity := {
       "device_id": "$device.id",
       "organization_id": "$device.organization-id",
-      "hardware_id": "$device.hardware-id",
+      // Kept so older CLI versions can read the initial state.
+      "hardware_id": "$device.id",
     }
     state := {
       "identity": identity,
     }
     broker-connection_.notify-created
-        --hardware-id=device.hardware-id
         --device-id=device.id
         --state=state
 

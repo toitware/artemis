@@ -212,10 +212,7 @@ class BrokerCliHttp implements BrokerCli:
       "path": "/toit-artemis-assets/$scope/firmware/$id",
     }
 
-  notify-created --hardware-id/Uuid --device-id/Uuid --state/Map -> none:
-    // hardware-id is only used by overrides (e.g., the Supabase variant
-    // writing into the auth-side devices table). The on-the-wire
-    // notify-broker-created RPC takes just the device-id and state.
+  notify-created --device-id/Uuid --state/Map -> none:
     send-request_ COMMAND-NOTIFY-BROKER-CREATED_ {
       "_device_id": "$device-id",
       "_state": state,
@@ -411,18 +408,16 @@ class BrokerCliHttp implements BrokerCli:
 A $BrokerCliHttp specialisation for shared-tenancy HTTP deployments.
 
 In a shared-tenancy deployment the broker also owns the auth-side device
-  record; this override sends the hardware-id and the configured scope
-  (organization-id) so the broker can populate that record alongside the
-  broker-side state.
+  record; this override sends the configured scope (organization-id) so the
+  broker can populate that record alongside the broker-side state.
 */
 class BrokerCliHttpShared extends BrokerCliHttp:
   constructor server-config/ServerConfigHttp --id/string:
     super server-config --id=id
 
-  notify-created --hardware-id/Uuid --device-id/Uuid --state/Map -> none:
+  notify-created --device-id/Uuid --state/Map -> none:
     send-request_ COMMAND-NOTIFY-BROKER-CREATED_ {
       "_device_id": "$device-id",
-      "_hardware_id": "$hardware-id",
       "_organization_id": server-config_.scope.to-json,
       "_state": state,
     }

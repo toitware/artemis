@@ -95,9 +95,6 @@ run-test fleet/TestFleet serial-port/string wifi-ssid/string wifi-password/strin
   test-device := fleet.listen-to-serial-device
       --serial-port=serial-port
       --alias-id=device-id
-      // We don't know the actual hardware-id.
-      // Cheat by reusing the alias id.
-      --hardware-id=device-id
 
   synchronizer.signal
 

@@ -42,13 +42,6 @@ class Device:
   id/Uuid
 
   /**
-  The hardware ID of the device.
-
-  This ID was chosen during provisioning and is globally unique.
-  */
-  hardware-id/Uuid
-
-  /**
   The organization ID of the device.
   */
   organization-id/Uuid
@@ -95,7 +88,7 @@ class Device:
 
   storage_/Storage
 
-  constructor --.id --.hardware-id --.organization-id --.firmware-state/Map --storage/Storage:
+  constructor --.id --.organization-id --.firmware-state/Map --storage/Storage:
     storage_ = storage
     current-state = firmware-state
     load_

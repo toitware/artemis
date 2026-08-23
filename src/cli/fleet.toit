@@ -1094,9 +1094,9 @@ class FleetWithDevices extends Fleet:
   /**
   Provisions a device.
 
-  Mints a fresh hardware-id locally and registers the device with the
-    broker (which, for a shared-tenancy deployment, also creates the
-    corresponding row in the auth provider's device table).
+  Registers the device with the broker. For a shared-tenancy deployment,
+    the broker also creates the corresponding row in the auth provider's
+    device table.
 
   Writes the identity file to $out-path.
   */
@@ -1108,7 +1108,6 @@ class FleetWithDevices extends Fleet:
     broker.ensure-authenticated
 
     device := Device
-        --hardware-id=random-uuid
         --id=device-id
         --organization-id=organization-id
 
@@ -1225,6 +1224,5 @@ class FleetWithDevices extends Fleet:
     identity := read-base64-ubjson identity-path
     device-map := identity["artemis.device"]
     return Device
-        --hardware-id=Uuid.parse device-map["hardware_id"]
         --id=Uuid.parse device-map["device_id"]
         --organization-id=Uuid.parse device-map["organization_id"]
