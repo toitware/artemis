@@ -7,7 +7,6 @@ COMMAND-SIGN-UP_ ::= 2
 COMMAND-SIGN-IN_ ::= 3
 COMMAND-GET-ORGANIZATIONS_ ::= 4
 COMMAND-UPDATE-CURRENT-USER_ ::= 18
-COMMAND-NOTIFY-ARTEMIS-CREATED_ ::= 5
 COMMAND-GET-ORGANIZATION-DETAILS_ ::= 6
 COMMAND-CREATE-ORGANIZATION_ ::= 7
 COMMAND-UPDATE-ORGANIZATION_ ::= 8
@@ -25,7 +24,6 @@ ARTEMIS-COMMAND-TO-STRING ::= {
   COMMAND-SIGN-IN_: "sign-in",
   COMMAND-GET-ORGANIZATIONS_: "get-organizations",
   COMMAND-UPDATE-CURRENT-USER_: "update-current-user",
-  COMMAND-NOTIFY-ARTEMIS-CREATED_: "notify-artemis-created",
   COMMAND-GET-ORGANIZATION-DETAILS_: "get-organization-details",
   COMMAND-CREATE-ORGANIZATION_: "create-organization",
   COMMAND-UPDATE-ORGANIZATION_: "update-organization",
@@ -46,12 +44,7 @@ COMMAND-DOWNLOAD-PRIVATE_ ::= 3
 // As of 2024-03-22 unused. Newer CLIs use $COMMAND-UPDATE-GOALS_ instead.
 COMMAND-UPDATE-GOAL_ ::= 4
 COMMAND-GET-DEVICES_ ::= 5
-/**
-Command to notify the Artemis server that a broker has been created.
-
-To avoid accidental confusion with $COMMAND-NOTIFY-ARTEMIS-CREATED_, the
-  command has the same constants.
-*/
+/** Command to notify the broker that a device has been created. */
 COMMAND-NOTIFY-BROKER-CREATED_ ::= 6
 COMMAND-GET-EVENTS_ ::= 7
 COMMAND-UPDATE-GOALS_ ::= 8

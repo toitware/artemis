@@ -5,8 +5,8 @@ import log
 import net
 import uuid show Uuid
 
-import .supabase show ArtemisServerCliSupabase
-import .http.base show ArtemisServerCliHttpToit
+import .supabase show AuthProviderSupabase
+import .http.base show AuthProviderHttpToit
 import ...shared.server-config
 import ..auth
 import ..config
@@ -16,12 +16,12 @@ import ..organization
 /**
 An abstraction for the Artemis server.
 */
-interface ArtemisServerCli implements Authenticatable:
+interface AuthProvider implements Authenticatable:
   constructor network/net.Interface server-config/ServerConfig --cli/Cli:
     if server-config is ServerConfigSupabase:
-      return ArtemisServerCliSupabase network (server-config as ServerConfigSupabase) --cli=cli
+      return AuthProviderSupabase network (server-config as ServerConfigSupabase) --cli=cli
     if server-config is ServerConfigHttp:
-      return ArtemisServerCliHttpToit network (server-config as ServerConfigHttp) --cli=cli
+      return AuthProviderHttpToit network (server-config as ServerConfigHttp) --cli=cli
     throw "UNSUPPORTED ARTEMIS SERVER CONFIG"
 
   is-closed -> bool
@@ -67,14 +67,6 @@ interface ArtemisServerCli implements Authenticatable:
   The $device-id may be null in which case the server creates an alias.
   */
   create-device-in-organization --organization-id/Uuid --device-id/Uuid? -> Device
-
-  /**
-  Notifies the server that the device with the given $hardware-id was created.
-
-  This operation is mostly for debugging purposes, as the $create-device-in-organization
-    already has a similar effect.
-  */
-  notify-created --hardware-id/Uuid
 
   /** Returns the used-id of the authenticated user. */
   get-current-user-id -> string
@@ -140,11 +132,11 @@ interface ArtemisServerCli implements Authenticatable:
   // TODO(florian): add support for changing the email.
   update-profile --name/string
 
-with-server server-config/ServerConfig --cli/Cli [block]:
+with-auth-provider server-config/ServerConfig --cli/Cli [block]:
   network := net.open
-  server/ArtemisServerCli? := null
+  server/AuthProvider? := null
   try:
-    server = ArtemisServerCli network server-config --cli=cli
+    server = AuthProvider network server-config --cli=cli
     block.call server
   finally:
     if server: server.close

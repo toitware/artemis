@@ -9,7 +9,7 @@ import supabase
 import supabase.filter show equals is-null orr
 import uuid show Uuid
 
-import ..artemis-server
+import ..auth-provider
 import ...config
 import ...device
 import ...organization
@@ -19,7 +19,7 @@ import ....shared.server-config
 
 TOIT_IO_AUTH_REDIRECT_URL ::= "https://toit.io/auth"
 
-class ArtemisServerCliSupabase implements ArtemisServerCli:
+class AuthProviderSupabase implements AuthProvider:
   client_/supabase.Client? := ?
   server-config_/ServerConfigSupabase
 
@@ -72,12 +72,6 @@ class ArtemisServerCliSupabase implements ArtemisServerCli:
         --hardware-id=Uuid.parse inserted["id"]
         --id=Uuid.parse inserted["alias"]
         --organization-id=Uuid.parse inserted["organization_id"]
-
-  notify-created --hardware-id/Uuid -> none:
-    client_.rest.insert "events" --no-return-inserted {
-      "device_id": "$hardware-id",
-      "data": { "type": "created" }
-    }
 
   get-current-user-id -> Uuid:
     return Uuid.parse client_.auth.get-current-user["id"]

@@ -1041,10 +1041,7 @@ class FleetWithDevices extends Fleet:
         --device-id=device-id
         --organization-id=organization-id
     assert: device.id == device-id
-    hardware-id := device.hardware-id
 
-    // Insert an initial event mostly for testing purposes.
-    artemis.notify-created --hardware-id=hardware-id
     broker.notify-created device
 
     write-identity-file device --out-path=out-path

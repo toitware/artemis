@@ -10,7 +10,7 @@ import encoding.json
 import encoding.base64
 import uuid show Uuid
 
-import ..artemis-server
+import ..auth-provider
 import ...config
 import ...device
 import ...organization
@@ -19,7 +19,7 @@ import ....shared.server-config
 import ....shared.utils as utils
 import ....shared.constants show *
 
-class ArtemisServerCliHttpToit implements ArtemisServerCli:
+class AuthProviderHttpToit implements AuthProvider:
   client_/http.Client? := ?
   server-config_/ServerConfigHttp
   current-user-id_/Uuid? := null
@@ -86,12 +86,6 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
         --hardware-id=Uuid.parse device-info["id"]
         --id=Uuid.parse device-info["alias"]
         --organization-id=Uuid.parse device-info["organization_id"]
-
-  notify-created --hardware-id/Uuid -> none:
-    send-request_ COMMAND-NOTIFY-ARTEMIS-CREATED_ {
-      "hardware_id": "$hardware-id",
-      "data": { "type": "created" },
-    }
 
   get-current-user-id -> Uuid:
     return current-user-id_

@@ -21,7 +21,7 @@ import .pod-specification
 
 import .utils
 
-import .artemis-servers.artemis-server
+import .auth-providers.auth-provider
 import .brokers.broker
 import .sdk
 import .organization
@@ -31,7 +31,7 @@ import .server-config
 Manages devices that have an Artemis service running on them.
 */
 class Artemis:
-  artemis-server_/ArtemisServerCli? := null
+  auth-provider_/AuthProvider? := null
   network_/net.Interface? := null
 
   cli_/Cli
@@ -47,9 +47,9 @@ class Artemis:
   If the manager opened any connections, closes them as well.
   */
   close:
-    if artemis-server_: artemis-server_.close
+    if auth-provider_: auth-provider_.close
     if network_: network_.close
-    artemis-server_ = null
+    auth-provider_ = null
     network_ = null
 
   /** Opens the network. */
@@ -58,31 +58,27 @@ class Artemis:
     network_ = net.open
 
   /**
-  Returns a connected artemis-server, using the $server-config to connect.
+  Returns a connected auth provider, using the $server-config to connect.
 
-  If $authenticated is true (the default), calls $ArtemisServerCli.ensure-authenticated.
+  If $authenticated is true (the default), calls $AuthProvider.ensure-authenticated.
   */
-  connected-artemis-server_ --authenticated/bool=true -> ArtemisServerCli:
-    if not artemis-server_:
+  connected-auth-provider_ --authenticated/bool=true -> AuthProvider:
+    if not auth-provider_:
       connect-network_
-      artemis-server_ = ArtemisServerCli network_ server-config --cli=cli_
+      auth-provider_ = AuthProvider network_ server-config --cli=cli_
     if authenticated:
-      artemis-server_.ensure-authenticated: | error-message |
+      auth-provider_.ensure-authenticated: | error-message |
         cli_.ui.abort "$error-message (artemis)."
-    return artemis-server_
+    return auth-provider_
 
   /**
   Ensures that the user is authenticated with the Artemis server.
   */
   ensure-authenticated -> none:
-    connected-artemis-server_
-
-  notify-created --hardware-id/Uuid:
-    server := connected-artemis-server_
-    server.notify-created --hardware-id=hardware-id
+    connected-auth-provider_
 
   create-device --device-id/Uuid? --organization-id/Uuid -> Device:
-    return connected-artemis-server_.create-device-in-organization
+    return connected-auth-provider_.create-device-in-organization
         --device-id=device-id
         --organization-id=organization-id
 
@@ -92,7 +88,7 @@ class Artemis:
   Returns null if the organization doesn't exist.
   */
   get-organization --id/Uuid -> OrganizationDetailed?:
-    return connected-artemis-server_.get-organization id
+    return connected-auth-provider_.get-organization id
 
 service-path-in-repository root/string --chip-family/string -> string:
   return "$root/src/service/run/$(chip-family).toit"
