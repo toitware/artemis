@@ -32,18 +32,6 @@ interface ArtemisServerBackdoor:
   has-event --hardware-id/Uuid --type/string -> bool
 
   /**
-  Installs the given images.
-
-  The $images parameter is a list of maps, each containing the
-    following entries:
-  - sdk_version: The SDK version of the image.
-  - service_version: The service version of the image.
-  - image: The image identifier.
-  - contents: The image contents (a byte array).
-  */
-  install-service-images images/List
-
-  /**
   Creates a new device in the given $organization-id.
 
   Returns a map with the device ID ("id"), and alias ID ("alias") of
@@ -93,20 +81,6 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
           entry.data is Map and (entry.data.get "type") == type:
         return true
     return false
-
-  install-service-images images/List -> none:
-    image-binaries := {:}
-    sdk-service-versions := []
-    images.do: | entry/Map |
-      sdk-service-versions.add {
-        "sdk_version": entry["sdk_version"],
-        "service_version": entry["service_version"],
-        "image": entry["image"],
-      }
-      image-binaries[entry["image"]] = entry["content"]
-
-    server.sdk-service-versions = sdk-service-versions
-    server.image-binaries = image-binaries
 
   create-device --organization-id/Uuid -> Map:
     // TODO(florian): the server should automatically generate an alias
@@ -202,43 +176,6 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
           (it["data"].get "type") == type:
         return true
     return false
-
-  install-service-images images/List -> none:
-    with-backdoor-client_: | client/supabase.Client |
-      // Clear the sdks, service-versions and images table.
-      // Deletes require a where clause, so we use a filter that matches all IDs.
-      filter := greater-than-or-equal "id" 0
-      client.rest.delete "sdks" --filters=[filter]
-      client.rest.delete "artemis_services" --filters=[filter]
-      client.rest.delete "service_images" --filters=[filter]
-
-      sdk-versions := {:}
-      service-versions := {:}
-
-      images.do: | entry/Map |
-        sdk-version := entry["sdk_version"]
-        service-version := entry["service_version"]
-        image := entry["image"]
-        contents := entry["contents"]
-
-        sdk-id := sdk-versions.get sdk-version --init=:
-          new-entry := client.rest.insert "sdks" {
-            "version": sdk-version,
-          }
-          new-entry["id"]
-        service-id := service-versions.get service-version --init=:
-          new-entry := client.rest.insert "artemis_services" {
-            "version": service-version,
-          }
-          new-entry["id"]
-
-        client.rest.insert "service_images" {
-          "sdk_id": sdk-id,
-          "service_id": service-id,
-          "image": image,
-        }
-
-        client.storage.upload --path="service-images/$image" --content=contents
 
   create-device --organization-id/Uuid -> Map:
     alias := random-uuid

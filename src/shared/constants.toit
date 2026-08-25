@@ -17,12 +17,6 @@ COMMAND-ORGANIZATION-MEMBER-REMOVE_ ::= 11
 COMMAND-ORGANIZATION-MEMBER-SET-ROLE_ ::= 12
 COMMAND-GET-PROFILE_ ::= 13
 COMMAND-UPDATE-PROFILE_ ::= 14
-/// Deprecated and unused in newer CLIs.
-COMMAND-LIST-SDK-SERVICE-VERSIONS_ ::= 15
-/// Deprecated and unused in newer CLIs.
-COMMAND-DOWNLOAD-SERVICE-IMAGE_ ::= 16
-/// Deprecated and unused in newer CLIs.
-COMMAND-UPLOAD-SERVICE-IMAGE_ ::= 17
 
 ARTEMIS-COMMAND-TO-STRING ::= {
   COMMAND-CHECK-IN_: "check-in",
@@ -41,9 +35,6 @@ ARTEMIS-COMMAND-TO-STRING ::= {
   COMMAND-ORGANIZATION-MEMBER-SET-ROLE_: "organization-member-set-role",
   COMMAND-GET-PROFILE_: "get-profile",
   COMMAND-UPDATE-PROFILE_: "update-profile",
-  COMMAND-LIST-SDK-SERVICE-VERSIONS_: "list-sdk-service-versions",
-  COMMAND-DOWNLOAD-SERVICE-IMAGE_: "download-service-image",
-  COMMAND-UPLOAD-SERVICE-IMAGE_: "upload-service-image"
 }
 
 /* Broker commands */

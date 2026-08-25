@@ -13,8 +13,6 @@ import snapshot show cache-snapshot
 import supabase
 import system
 
-import .utils
-
 main args/List:
   // Use the same application name as the
   // This way we get the same config and cache.
