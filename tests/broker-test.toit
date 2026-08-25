@@ -166,11 +166,9 @@ test-image broker-cli/broker.BrokerCli broker-service/broker.BrokerService --net
       contents-64 = ("test-image 64" * 10_000).to-byte-array
 
     broker-cli.upload-image contents-32
-        --scope=TEST-SCOPE
         --app-id=APP-ID
         --word-size=32
     broker-cli.upload-image contents-64
-        --scope=TEST-SCOPE
         --app-id=APP-ID
         --word-size=64
 
@@ -209,11 +207,9 @@ test-firmware broker-cli/broker.BrokerCli broker-service/broker.BrokerService --
 
     broker-cli.upload-firmware chunks
         --firmware-id=FIRMWARE-ID
-        --scope=TEST-SCOPE
 
     downloaded-bytes := broker-cli.download-firmware
         --id=FIRMWARE-ID
-        --scope=TEST-SCOPE
     expect-bytes-equal contents downloaded-bytes
 
     broker-connection := broker-service.connect --network=network --device=DEVICE1

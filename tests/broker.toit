@@ -34,7 +34,11 @@ class TestBroker:
     with-tmp-config-cli: | cli/Cli |
       broker-cli/BrokerCli? := null
       try:
-        broker-cli = BrokerCli server-config --cli=cli
+        // The BrokerCli operates inside a fleet's scope; attach
+        // TEST-SCOPE here rather than on the bare server-config (which
+        // is also reused as a global-config entry in the tests).
+        scoped-config := server-config.with --scope=TEST-SCOPE
+        broker-cli = BrokerCli scoped-config --cli=cli
         block.call broker-cli
       finally:
         if broker-cli: broker-cli.close
