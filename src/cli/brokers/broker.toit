@@ -28,7 +28,10 @@ interface BrokerCli implements Authenticatable:
     if server-config is ServerConfigSupabase:
       return create-broker-cli-supabase-http (server-config as ServerConfigSupabase) --cli=cli
     if server-config is ServerConfigHttp:
-      return create-broker-cli-http-toit (server-config as ServerConfigHttp)
+      http-config := server-config as ServerConfigHttp
+      if http-config.tenancy == TENANCY-SHARED:
+        return create-broker-cli-http-toit-shared http-config
+      return create-broker-cli-http-toit http-config
     throw "Unknown broker config type"
 
   /** Closes this broker. */

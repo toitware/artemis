@@ -14,17 +14,10 @@ import artemis.cli.event show Event
 import artemis.service.brokers.broker
 import artemis.service.storage show Storage
 import artemis.cli.brokers.http.base as http-broker
-import supabase
-import supabase.auth as supabase
 import system
 import artemis.shared.utils
 import uuid show Uuid
 
-import .artemis-server
-  show
-    with-artemis-server
-    TestArtemisServer
-    SupabaseBackdoor
 import .broker
 import .utils
 
@@ -46,10 +39,9 @@ DEVICE2 ::= Device
 main args:
   broker-type := broker-type-from-args args
   with-broker --args=args --type=broker-type: | test-broker/TestBroker |
-    run-test broker-type test-broker --args=args
+    run-test broker-type test-broker
 
 run-test
-    --args/List
     broker-name/string
     test-broker/TestBroker:
 
@@ -59,17 +51,6 @@ run-test
     // Make sure we are authenticated.
     broker-cli.ensure-authenticated:
       broker-cli.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
-
-    if broker-name == "supabase-local-artemis":
-      // Make sure the device is in the database.
-      with-artemis-server --args=args --type="supabase": | server/TestArtemisServer |
-        backdoor := server.backdoor as SupabaseBackdoor
-        backdoor.with-backdoor-client_: | client/supabase.Client |
-          [DEVICE1, DEVICE2].do: | device/Device |
-            client.rest.insert "devices" {
-              "alias": "$device.id",
-              "organization_id": "$device.organization-id",
-            }
 
     [DEVICE1, DEVICE2].do: | device/Device |
       identity := {
@@ -81,6 +62,15 @@ run-test
         "identity": identity,
       }
       broker-cli.notify-created --hardware-id=device.hardware-id --device-id=device.id --state=state
+
+    if broker-name == "http-toit-shared" or broker-name == "supabase-local-artemis":
+      // A shared-tenancy broker must populate the auth-side device record
+      // as part of notify-created.
+      [DEVICE1, DEVICE2].do: | device/Device |
+        auth-record := test-broker.backdoor.get-auth-device --hardware-id=device.hardware-id
+        expect-not-null auth-record
+        expect-equals "$device.id" auth-record["alias"]
+        expect-equals "$device.organization-id" auth-record["organization_id"]
 
     network := net.open
     try:

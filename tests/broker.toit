@@ -8,6 +8,7 @@ import log
 import monitor
 import net
 import supabase
+import supabase.filter show equals
 import system
 import uuid show Uuid
 
@@ -63,6 +64,9 @@ interface BrokerBackdoor:
   */
   create-device --hardware-id/Uuid --device-id/Uuid --state/Map -> none
 
+  /** Returns the auth-side record for the given $hardware-id. */
+  get-auth-device --hardware-id/Uuid -> Map?
+
   /**
   Removes the device with the given $device-id.
   */
@@ -108,15 +112,25 @@ with-broker
     block.call test-server
   else if type == "http" or type == "http-toit":
     with-http-broker block
+  else if type == "http-toit-shared":
+    with-http-broker --tenancy=TENANCY-SHARED block
   else:
     throw "Unknown broker type: $type"
 
 class ToitHttpBackdoor implements BrokerBackdoor:
   server/HttpBroker
+  server-config_/ServerConfigHttp
 
-  constructor .server:
+  constructor .server .server-config_:
 
   create-device --hardware-id/Uuid --device-id/Uuid --state/Map:
+    if server-config_.tenancy == TENANCY-SHARED:
+      // Shared-tenancy: the broker also owns the auth-side devices
+      // record. Mirror what BrokerCliHttpShared does at notify-created.
+      server.insert-auth-device
+          --hardware-id="$hardware-id"
+          --device-id="$device-id"
+          --organization-id=server-config_.scope.to-json
     server.create-device --device-id="$device-id" --state=state
 
   remove-device device-id/Uuid -> none:
@@ -128,10 +142,13 @@ class ToitHttpBackdoor implements BrokerBackdoor:
   clear-events -> none:
     server.clear-events
 
+  get-auth-device --hardware-id/Uuid -> Map?:
+    return server.get-auth-device --hardware-id="$hardware-id"
+
   stop -> none:
     server.stop
 
-with-http-broker --name="test-broker" [block]:
+with-http-broker --name="test-broker" --tenancy/string?=null [block]:
   server := HttpBroker 0
   port-latch := monitor.Latch
   server-task := task:: server.start port-latch
@@ -151,8 +168,12 @@ with-http-broker --name="test-broker" [block]:
       --device-headers={
         "X-Artemis-Header": "true",
       }
+  if tenancy: server-config = server-config.with --tenancy=tenancy
 
-  backdoor/ToitHttpBackdoor := ToitHttpBackdoor server
+  // The backdoor operates inside a fleet's scope (TEST-SCOPE in
+  // tests); the TestBroker's server-config stays scope-less because
+  // it's also reused as a global-config entry.
+  backdoor/ToitHttpBackdoor := ToitHttpBackdoor server (server-config.with --scope=TEST-SCOPE)
 
   test-server := TestBroker server-config backdoor
   try:
@@ -181,6 +202,15 @@ class SupabaseBackdoor implements BrokerBackdoor:
         "_device_id": "$device-id",
         "_state": state,
       }
+
+  get-auth-device --hardware-id/Uuid -> Map?:
+    with-backdoor-client_: | client/supabase.Client |
+      devices := client.rest.select "devices" --filters=[
+        equals "id" "$hardware-id",
+      ]
+      if devices.is-empty: return null
+      return devices[0]
+    unreachable
 
   remove-device device-id/Uuid -> none:
     with-backdoor-client_: | client/supabase.Client |
