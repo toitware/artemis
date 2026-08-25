@@ -13,7 +13,7 @@ import ..broker
 import ...device
 import ...event
 import ...pod-registry
-import ...scope show Scope
+import ....shared.scope show Scope
 import ....shared.server-config
 import ....shared.utils as utils
 import ....shared.constants show *

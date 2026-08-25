@@ -15,21 +15,18 @@ cache-key-application-image id/Uuid --broker-config/ServerConfig -> string:
 
 cache-key-pod-parts -> string
     --broker-config/ServerConfig
-    --organization-id/Uuid
     --part-id/string:
-  return "$broker-config.cache-key/$organization-id/pod/parts/$part-id"
+  return "$broker-config.cache-key/$broker-config.scope.as-uuid/pod/parts/$part-id"
 
 cache-key-pod-manifest -> string
     --broker-config/ServerConfig
-    --organization-id/Uuid
     --pod-id/Uuid:
-  return "$broker-config.cache-key/$organization-id/pod/manifest/$pod-id"
+  return "$broker-config.cache-key/$broker-config.scope.as-uuid/pod/manifest/$pod-id"
 
 cache-key-patch -> string
     --broker-config/ServerConfig
-    --organization-id/Uuid
     --patch-id/string:
-  return "$broker-config.cache-key/$organization-id/patches/$patch-id"
+  return "$broker-config.cache-key/$broker-config.scope.as-uuid/patches/$patch-id"
 
 CACHE-ARTIFACT-KIND-ENVELOPE ::= "envelope"
 CACHE-ARTIFACT-KIND-PARTITION-TABLE ::= "partitions"

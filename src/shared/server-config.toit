@@ -4,14 +4,25 @@ import crypto.sha1
 import encoding.base64 as base64-lib
 import supabase
 import tls
+import uuid show Uuid
+
+import .scope show Scope
 
 abstract class ServerConfig:
   name/string
 
+  /**
+  The $Scope this fleet uses when talking to the server.
+
+  Null outside of fleet-file contexts (e.g., entries in the global CLI
+    config don't carry a scope — scope is a fleet-level concept).
+  */
+  scope/Scope? := null
+
   cache-key_/string? := null
   ders-already-installed_/bool := false
 
-  constructor.from-sub_ .name:
+  constructor.from-sub_ .name --.scope=null:
 
   /**
   Creates a new broker-config from a JSON map.
@@ -121,6 +132,8 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
       root-der = root-der-id and (der-deserializer.call root-der-id)
     use-tls := json.get "use_tls"
     if use-tls == null: use-tls = json.contains "root_certificate_name"
+    scope-value := json.get "scope"
+    scope/Scope? := scope-value and (Scope.from-organization-id (Uuid.parse scope-value))
 
     return ServerConfigSupabase name
         --host=json["host"]
@@ -128,14 +141,16 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         --poll-interval=Duration --us=json["poll_interval"]
         --use-tls=use-tls
         --root-certificate-der=root-der
+        --scope=scope
 
   constructor name/string
       --.host
       --.anon
       --.use-tls=true
       --.root-certificate-der=null
-      --.poll-interval=DEFAULT-POLL-INTERVAL:
-    super.from-sub_ name
+      --.poll-interval=DEFAULT-POLL-INTERVAL
+      --scope/Scope?=null:
+    super.from-sub_ name --scope=scope
 
   operator== other:
     if other is not ServerConfigSupabase: return false
@@ -164,6 +179,8 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         serialized := der-serializer.call root-certificate-der
         if serialized:
           result["root_certificate_der_id"] = serialized
+    if scope:
+      result["scope"] = "$scope.as-uuid"
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
@@ -202,6 +219,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         --use-tls=use-tls
         --root-certificate-der=root-certificate-der
         --poll-interval=poll-interval
+        --scope=scope
 
 /**
 A broker configuration for an HTTP-based broker.
@@ -228,6 +246,8 @@ class ServerConfigHttp extends ServerConfig:
       root-certificates-ders = config["root_certificate_ders"].map: der-deserializer.call it
     use-tls := config.get "use_tls"
     if use-tls == null: use-tls = config.contains "root_certificate_names"
+    scope-value := config.get "scope"
+    scope/Scope? := scope-value and (Scope.from-organization-id (Uuid.parse scope-value))
     return ServerConfigHttp name
         --host=config["host"]
         --port=config.get "port"
@@ -237,6 +257,7 @@ class ServerConfigHttp extends ServerConfig:
         --device-headers=config.get "device_headers"
         --admin-headers=config.get "admin_headers"
         --poll-interval=Duration --us=config["poll_interval"]
+        --scope=scope
 
   constructor name/string
       --.host
@@ -246,9 +267,10 @@ class ServerConfigHttp extends ServerConfig:
       --.root-certificate-ders
       --.device-headers
       --.admin-headers
-      --.poll-interval=DEFAULT-POLL-INTERVAL:
+      --.poll-interval=DEFAULT-POLL-INTERVAL
+      --scope/Scope?=null:
 
-    super.from-sub_ name
+    super.from-sub_ name --scope=scope
 
   operator== other:
     if other is not ServerConfigHttp: return false
@@ -276,11 +298,14 @@ class ServerConfigHttp extends ServerConfig:
       result["device_headers"] = device-headers
     if admin-headers:
       result["admin_headers"] = admin-headers
+    if scope:
+      result["scope"] = "$scope.as-uuid"
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
     result := to-json --der-serializer=der-serializer --base64=base64
     result.remove "admin_headers"
+    result.remove "scope"
     return result
 
   compute-cache-key_ -> string:
