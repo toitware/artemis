@@ -22,7 +22,7 @@ run-test fleet/TestFleet:
       """
 
   fleet.run [
-    "device", "default", "$device.alias-id"
+    "device", "default", "$device.device-id"
   ]
 
   fleet.run-gold "200_install"

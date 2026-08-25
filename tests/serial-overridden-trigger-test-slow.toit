@@ -94,7 +94,7 @@ run-test fleet/TestFleet serial-port/string wifi-ssid/string wifi-password/strin
 
   test-device := fleet.listen-to-serial-device
       --serial-port=serial-port
-      --alias-id=device-id
+      --device-id=device-id
 
   synchronizer.signal
 

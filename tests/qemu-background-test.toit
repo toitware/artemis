@@ -84,7 +84,7 @@ run-test tester/Tester synchro-done-latch/monitor.Latch qemu-data/TestDeviceConf
   lan-ip := get-lan-ip
 
   test-device := tester.create-device
-      --alias-id=device-id
+      --device-id=device-id
       --device-config=qemu-data
   test-device.start
 

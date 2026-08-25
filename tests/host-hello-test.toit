@@ -39,7 +39,7 @@ run-test tester/Tester config/TestDeviceConfig:
   device-id := config.device-id
 
   test-device := tester.create-device
-      --alias-id=device-id
+      --device-id=device-id
       --device-config=config
   test-device.start
 

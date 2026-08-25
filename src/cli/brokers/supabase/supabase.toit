@@ -81,6 +81,7 @@ class BrokerCliSupabase extends BrokerCliHttp:
   */
   notify-created --device-id/Uuid --state/Map -> none:
     if server-config_.tenancy == TENANCY-SHARED:
+      // The existing schema keeps both columns; they now hold the same ID.
       supabase-client_.rest.insert "devices" --no-return-inserted {
         "id": "$device-id",
         "alias": "$device-id",

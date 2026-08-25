@@ -47,7 +47,7 @@ run-test fleet/TestFleet:
   fake-device := fleet.devices.values[0] as FakeDevice
 
   fleet.run [
-    "device", "default", "$fake-device.alias-id",
+    "device", "default", "$fake-device.device-id",
   ]
 
   fleet.run [
@@ -72,7 +72,7 @@ run-test fleet/TestFleet:
   json-config = fleet.run --json [
     "config", "show"
   ]
-  expect-equals "$fake-device.alias-id" json-config["default-device"]
+  expect-equals "$fake-device.device-id" json-config["default-device"]
   expect-equals "$fake-device.organization-id" json-config["default-org"]
   expect-list-equals RECOVERY-SERVERS json-config["recovery-servers"]
 

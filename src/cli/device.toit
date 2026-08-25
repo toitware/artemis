@@ -8,7 +8,6 @@ class Device:
   The device ID.
 
   This ID is the one under which users identify a device.
-  It's also called "alias" in the Artemis server.
   */
   id/Uuid
 

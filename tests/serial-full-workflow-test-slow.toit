@@ -291,7 +291,7 @@ run-test tester/Tester serial-port/string wifi-ssid/string wifi-password/string:
 
   test-device := tester.listen-to-serial-device
       --serial-port=serial-port
-      --alias-id=Uuid.parse device-id
+      --device-id=Uuid.parse device-id
 
   pos := test-device.wait-for-synchronized --start-at=0
 

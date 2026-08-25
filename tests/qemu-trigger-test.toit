@@ -54,7 +54,7 @@ run-test tester/Tester qemu-data/TestDeviceConfig:
   device-id := qemu-data.device-id
 
   test-device := tester.create-device
-      --alias-id=device-id
+      --device-id=device-id
       --device-config=qemu-data
   test-device.start
 

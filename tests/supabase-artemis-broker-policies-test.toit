@@ -29,18 +29,24 @@ main args:
     organization-id := organization["id"]
 
     // Add the devices into the Artemis database.
-    device1 := client1.rest.insert "devices" {
+    device-id1 := "$(random-uuid)"
+    client1.rest.insert "devices" --no-return-inserted {
+      "id": "$device-id1",
+      "alias": "$device-id1",
       "organization_id": organization-id,
     }
-    device-id1 := device1["alias"]
-    device2 := client1.rest.insert "devices" {
+    device-id2 := "$(random-uuid)"
+    client1.rest.insert "devices" --no-return-inserted {
+      "id": "$device-id2",
+      "alias": "$device-id2",
       "organization_id": organization-id,
     }
-    device-id2 := device2["alias"]
-    device3 := client1.rest.insert "devices" {
+    device-id3 := "$(random-uuid)"
+    client1.rest.insert "devices" --no-return-inserted {
+      "id": "$device-id3",
+      "alias": "$device-id3",
       "organization_id": organization-id,
     }
-    device-id3 := device3["alias"]
 
     run-shared-test
         --client1=client1

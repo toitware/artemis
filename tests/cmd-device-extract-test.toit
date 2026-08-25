@@ -38,7 +38,7 @@ run-test fleet/TestFleet --args/List:
         --path=tar-file
 
     test-device := fleet.tester.create-device
-        --alias-id=device-id
+        --device-id=device-id
         --device-config=device-config
     test-device.start
 

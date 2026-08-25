@@ -36,13 +36,13 @@ main args:
   cmd := Command "root"
     --options=[
       Option "broker-config-json" --required,
-      OptionUuid "alias-id" --required,
+      OptionUuid "device-id" --required,
       OptionUuid "organization-id" --required,
       Option "encoded-firmware" --required,
     ]
     --run=::
       run
-          --alias-id=it["alias-id"]
+          --device-id=it["device-id"]
           --organization-id=it["organization-id"]
           --encoded-firmware=it["encoded-firmware"]
           --broker-config-json=it["broker-config-json"]
@@ -110,7 +110,7 @@ class Backdoor:
       writer.out.write (json.encode "ok")
 
 run
-    --alias-id/Uuid
+    --device-id/Uuid
     --organization-id/Uuid
     --encoded-firmware/string
     --broker-config-json/string:
@@ -124,7 +124,7 @@ run
 
   storage := Storage
   device := service.Device
-      --id=alias-id
+      --id=device-id
       --organization-id=organization-id
       --firmware-state={
         "firmware": encoded-firmware,

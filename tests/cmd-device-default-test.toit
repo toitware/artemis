@@ -24,7 +24,7 @@ run-test fleet/TestFleet:
   fleet.run-gold "20-set-default"
       "Set the default device"
       [
-        "device", "default", "$device.id"
+        "device", "default", "$device.device-id"
       ]
 
   fleet.run-gold "30-default-is-set"
@@ -37,4 +37,4 @@ run-test fleet/TestFleet:
       [
         "device", "default"
       ]
-  expect-equals "$device.id" json-output
+  expect-equals "$device.device-id" json-output

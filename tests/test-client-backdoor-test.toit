@@ -14,7 +14,7 @@ main args:
     device.wait-until-connected
 
     expect device.has-backdoor
-    expect-equals device.id device.backdoor.device-id
+    expect-equals device.device-id device.backdoor.device-id
 
     device.backdoor.set-storage --ram "test-key" "test-value"
     expect-equals "test-value" (device.backdoor.get-storage --ram "test-key")

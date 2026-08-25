@@ -21,10 +21,10 @@ run-test fleet/TestFleet:
     main:
       print "Hello world"
     """
-  fleet.run ["device", "-d", "$device.id", "container", "install", "hello", hello-path]
+  fleet.run ["device", "-d", "$device.device-id", "container", "install", "hello", hello-path]
   device.wait-for "Hello world"
 
-  fleet.run ["device", "-d", "$device.id", "container", "uninstall", "hello"]
+  fleet.run ["device", "-d", "$device.device-id", "container", "uninstall", "hello"]
   device.wait-for "[artemis.containers] INFO: uninstall {name: hello"
 
   device.wait-for "[artemis.containers] INFO: image uninstalled"
