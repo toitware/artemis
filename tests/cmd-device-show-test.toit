@@ -19,11 +19,11 @@ run-test fleet/TestFleet:
   fleet.run-gold "110-device-show"
       "Show the given device"
       [
-        "device", "show", "-d", "$fake-device1.alias-id",
+        "device", "show", "-d", "$fake-device1.device-id",
       ]
 
   fleet.run-gold "111-device-show"
       "Show the given device"
       [
-        "device", "show", "$fake-device1.alias-id",
+        "device", "show", "$fake-device1.device-id",
       ]

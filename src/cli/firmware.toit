@@ -45,9 +45,9 @@ class Firmware:
   The device-specific data.
 
   This data contains information such as the device ID, the organization ID,
-    the hardware ID and the wifi configuration. It also contains the "parts"
-    field which describes the individual parts of the firmware, and the sdk
-    version that was used to create the firmware.
+    and the wifi configuration. It also contains the "parts" field which
+    describes the individual parts of the firmware, and the sdk version that
+    was used to create the firmware.
   */
   device-specific-data/ByteArray
   /** A decoded version of the $device-specific-data. */
@@ -98,7 +98,8 @@ class Firmware:
     device-map := {
       "device_id":       "$device.id",
       "organization_id": "$device.organization-id",
-      "hardware_id":     "$device.hardware-id",
+      // Kept so older Artemis service images can read new firmware.
+      "hardware_id":     "$device.id",
     }
     while true:
       device-specific := ubjson.encode {
@@ -124,7 +125,6 @@ class Firmware:
     return Device
         --id=Uuid.parse device-map["device_id"]
         --organization-id=Uuid.parse device-map["organization_id"]
-        --hardware-id=Uuid.parse device-map["hardware_id"]
 
   /** The sdk version that was used for this firmware. */
   sdk-version -> string:

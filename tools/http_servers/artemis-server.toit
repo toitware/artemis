@@ -132,15 +132,15 @@ class HttpArtemisServer extends HttpServer:
       throw "BAD COMMAND $command"
 
   store-event data/Map:
-    device-id := data["hardware_id"]
+    device-id := data["device_id"]
     if not devices.contains device-id:
       errors.add [DEVICE-NOT-FOUND, device-id]
       throw "Device not found"
     events.add
         EventEntry device-id --data=data["data"]
 
-  remove-device hardware-id/string -> none:
-    devices.remove hardware-id
+  remove-device device-id/string -> none:
+    devices.remove device-id
 
   create-user --email/string --name/string --id/string?=null -> string:
     if not id: id = (Uuid.uuid5 "" "user_id - $Time.monotonic-us").stringify

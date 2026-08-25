@@ -22,14 +22,14 @@ class TestArtemisServer:
 
 interface ArtemisServerBackdoor:
   /**
-  Fetches the information of the device with the given $hardware-id.
+  Fetches the information of the device with the given $device-id.
 
-  Returns a list of [hardware_id, fleet_id, alias]. If no alias exists, uses "" instead.
+  Returns a list of [device_id, fleet_id, alias]. If no alias exists, uses "" instead.
   */
-  fetch-device-information --hardware-id/Uuid -> List
+  fetch-device-information --device-id/Uuid -> List
 
-  /** Whether there exists a '$type'-event for the given $hardware-id. */
-  has-event --hardware-id/Uuid --type/string -> bool
+  /** Whether there exists a '$type'-event for the given $device-id. */
+  has-event --device-id/Uuid --type/string -> bool
 
   /**
   Removes the device with the given $device-id.
@@ -58,18 +58,18 @@ class ToitHttpBackdoor implements ArtemisServerBackdoor:
 
   constructor .server:
 
-  fetch-device-information --hardware-id/Uuid -> List:
-    entry/DeviceEntry := server.devices["$hardware-id"]
+  fetch-device-information --device-id/Uuid -> List:
+    entry/DeviceEntry := server.devices["$device-id"]
     return [
       Uuid.parse entry.id,
       Uuid.parse entry.organization-id,
       Uuid.parse entry.alias,
     ]
 
-  has-event --hardware-id/Uuid --type/string -> bool:
-    hardware-id-string := "$hardware-id"
+  has-event --device-id/Uuid --type/string -> bool:
+    device-id-string := "$device-id"
     server.events.do: | entry/EventEntry |
-      if entry.device-id == hardware-id-string and
+      if entry.device-id == device-id-string and
           entry.data is Map and (entry.data.get "type") == type:
         return true
     return false
@@ -133,9 +133,9 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
 
   constructor .server-config_ .service-key_:
 
-  fetch-device-information --hardware-id/Uuid -> List:
+  fetch-device-information --device-id/Uuid -> List:
     entry := query_ "devices" [
-      equals "id" "$hardware-id",
+      equals "id" "$device-id",
     ]
     return [
       Uuid.parse entry[0]["id"],
@@ -143,11 +143,11 @@ class SupabaseBackdoor implements ArtemisServerBackdoor:
       Uuid.parse entry[0]["alias"],
     ]
 
-  has-event --hardware-id/Uuid --type/string -> bool:
+  has-event --device-id/Uuid --type/string -> bool:
     // For simplicity just run through all entries.
     // In the test-setup we should not have that many.
     entries := query_ "events" [
-      equals "device_id" "$hardware-id",
+      equals "device_id" "$device-id",
     ]
     if not entries: return false
     entries.do:

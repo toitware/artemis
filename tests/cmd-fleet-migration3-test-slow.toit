@@ -30,9 +30,9 @@ main args:
 
     // Start by updating device2 (which is stopped).
     // We will check that it hasn't changed after device1 is updated.
-    fleet.run ["device", "update", "-d", "$device2.id", "$pod-id"]
+    fleet.run ["device", "update", "-d", "$device2.device-id", "$pod-id"]
 
-    fleet.run ["device", "update", "-d", "$device.id", "$pod-id"]
+    fleet.run ["device", "update", "-d", "$device.device-id", "$pod-id"]
     // Wait for the device to be on the new pod.
     device.wait-to-be-on-pod pod-id
     // Check that the device is on the new broker.
@@ -43,7 +43,7 @@ main args:
 
     // Update the device2 again.
     pod-id2 := fleet.upload-pod "pod2" --format="tar"
-    fleet.run ["device", "update", "-d", "$device2.id", "$pod-id2"]
+    fleet.run ["device", "update", "-d", "$device2.device-id", "$pod-id2"]
     // Start the device2. It should move to the new pod on the new broker.
     device2.start
     device2.wait-to-be-on-pod pod-id2

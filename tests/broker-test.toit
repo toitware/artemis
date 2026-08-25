@@ -25,13 +25,11 @@ import .utils
 // that are not already in the database.
 DEVICE1 ::= Device
     --id=random-uuid
-    --hardware-id=random-uuid
     --organization-id=TEST-ORGANIZATION-UUID
     --firmware-state={:}
     --storage=Storage
 DEVICE2 ::= Device
     --id=random-uuid
-    --hardware-id=random-uuid
     --organization-id=TEST-ORGANIZATION-UUID
     --firmware-state={:}
     --storage=Storage
@@ -56,19 +54,19 @@ run-test
       identity := {
         "device_id": "$device.id",
         "organization_id": "$device.organization-id",
-        "hardware_id": "$device.hardware-id",
       }
       state := {
         "identity": identity,
       }
-      broker-cli.notify-created --hardware-id=device.hardware-id --device-id=device.id --state=state
+      broker-cli.notify-created --device-id=device.id --state=state
 
     if broker-name == "http-toit-shared" or broker-name == "supabase-local-artemis":
       // A shared-tenancy broker must populate the auth-side device record
       // as part of notify-created.
       [DEVICE1, DEVICE2].do: | device/Device |
-        auth-record := test-broker.backdoor.get-auth-device --hardware-id=device.hardware-id
+        auth-record := test-broker.backdoor.get-auth-device --device-id=device.id
         expect-not-null auth-record
+        expect-equals "$device.id" auth-record["id"]
         expect-equals "$device.id" auth-record["alias"]
         expect-equals "$device.organization-id" auth-record["organization_id"]
 

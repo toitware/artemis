@@ -56,16 +56,15 @@ class TestBroker:
 
 interface BrokerBackdoor:
   /**
-  Creates a new device with the given $hardware-id and $device-id (alias)
-    and initial $state.
+  Creates a new device with the given $device-id and initial $state.
 
   For a shared-tenancy broker this also writes the device into the
     auth-side devices table.
   */
-  create-device --hardware-id/Uuid --device-id/Uuid --state/Map -> none
+  create-device --device-id/Uuid --state/Map -> none
 
-  /** Returns the auth-side record for the given $hardware-id. */
-  get-auth-device --hardware-id/Uuid -> Map?
+  /** Returns the auth-side record for the given $device-id. */
+  get-auth-device --device-id/Uuid -> Map?
 
   /**
   Removes the device with the given $device-id.
@@ -123,12 +122,11 @@ class ToitHttpBackdoor implements BrokerBackdoor:
 
   constructor .server .server-config_:
 
-  create-device --hardware-id/Uuid --device-id/Uuid --state/Map:
+  create-device --device-id/Uuid --state/Map:
     if server-config_.tenancy == TENANCY-SHARED:
       // Shared-tenancy: the broker also owns the auth-side devices
       // record. Mirror what BrokerCliHttpShared does at notify-created.
       server.insert-auth-device
-          --hardware-id="$hardware-id"
           --device-id="$device-id"
           --organization-id=server-config_.scope.to-json
     server.create-device --device-id="$device-id" --state=state
@@ -142,8 +140,8 @@ class ToitHttpBackdoor implements BrokerBackdoor:
   clear-events -> none:
     server.clear-events
 
-  get-auth-device --hardware-id/Uuid -> Map?:
-    return server.get-auth-device --hardware-id="$hardware-id"
+  get-auth-device --device-id/Uuid -> Map?:
+    return server.get-auth-device --device-id="$device-id"
 
   stop -> none:
     server.stop
@@ -188,13 +186,13 @@ class SupabaseBackdoor implements BrokerBackdoor:
 
   constructor .server-config_ .service-key_:
 
-  create-device --hardware-id/Uuid --device-id/Uuid --state/Map:
+  create-device --device-id/Uuid --state/Map:
     with-backdoor-client_: | client/supabase.Client |
       if server-config_.tenancy == TENANCY-SHARED:
         // Shared-tenancy: the broker also owns the auth-side devices
         // table. Mirror what BrokerCliSupabase does at notify-created.
         client.rest.insert "devices" --no-return-inserted {
-          "id": "$hardware-id",
+          "id": "$device-id",
           "alias": "$device-id",
           "organization_id": server-config_.scope.to-json,
         }
@@ -203,10 +201,10 @@ class SupabaseBackdoor implements BrokerBackdoor:
         "_state": state,
       }
 
-  get-auth-device --hardware-id/Uuid -> Map?:
+  get-auth-device --device-id/Uuid -> Map?:
     with-backdoor-client_: | client/supabase.Client |
       devices := client.rest.select "devices" --filters=[
-        equals "id" "$hardware-id",
+        equals "id" "$device-id",
       ]
       if devices.is-empty: return null
       return devices[0]

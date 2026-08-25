@@ -45,7 +45,6 @@ main arguments:
   artemis-device-map := device-specific "artemis.device"
   device := Device
       --id=Uuid.parse artemis-device-map["device_id"]
-      --hardware-id=Uuid.parse artemis-device-map["hardware_id"]
       --organization-id=Uuid.parse artemis-device-map["organization_id"]
       --firmware-state=config
       --storage=storage

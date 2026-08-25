@@ -49,8 +49,8 @@ class HttpBroker extends HttpServer:
   events_/Map := {:}  // Map from device-id to list of events.
 
   // Shared-tenancy auth-side device records. Populated when notify-created
-  // includes a hardware-id / organization-id (i.e. the BrokerCliHttpShared
-  // wire shape). Maps hardware-id -> {alias, organization_id}.
+  // includes an organization-id (i.e. the BrokerCliHttpShared wire shape).
+  // Maps device-id -> {id, alias, organization_id}.
   auth-devices_/Map := {:}
 
   /* Pod description related fields. */
@@ -125,31 +125,27 @@ class HttpBroker extends HttpServer:
   notify-created data/Map:
     device-id := data["_device_id"]
     state := data["_state"]
-    hardware-id := data.get "_hardware_id"
     organization-id := data.get "_organization_id"
     if device-states_.contains device-id:
       throw "Device $device-id already exists"
-    if hardware-id:
-      if not organization-id:
-        throw "Missing organization-id for hardware-id $hardware-id"
-      if auth-devices_.contains hardware-id:
-        throw "Device with hardware-id $hardware-id already exists"
-    else if organization-id:
-      throw "Missing hardware-id for organization-id $organization-id"
+    if organization-id and auth-devices_.contains device-id:
+      throw "Auth device $device-id already exists"
 
     device-states_[device-id] = state
-    if hardware-id:
-      auth-devices_[hardware-id] = {
+    if organization-id:
+      auth-devices_[device-id] = {
+        "id": device-id,
         "alias": device-id,
         "organization_id": organization-id,
       }
 
-  get-auth-device --hardware-id/string -> Map?:
-    return auth-devices_.get hardware-id
+  get-auth-device --device-id/string -> Map?:
+    return auth-devices_.get device-id
 
   /** Backdoor for inserting an auth-side device record. */
-  insert-auth-device --hardware-id/string --device-id/string --organization-id/any:
-    auth-devices_[hardware-id] = {
+  insert-auth-device --device-id/string --organization-id/any:
+    auth-devices_[device-id] = {
+      "id": device-id,
       "alias": device-id,
       "organization_id": organization-id,
     }

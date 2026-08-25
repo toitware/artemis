@@ -21,13 +21,13 @@ main args:
         "--fleet-root", tester.tmp-dir,
         "--organization-id", "$device.organization-id",
     ]
-    tester.run ["fleet", "add-existing-device", "--fleet-root", tester.tmp-dir, "$device.alias-id"]
+    tester.run ["fleet", "add-existing-device", "--fleet-root", tester.tmp-dir, "$device.device-id"]
 
     tester.run [
       "--fleet-root", tester.tmp-dir,
       "device",
       "set-max-offline",
-      "--device", "$device.alias-id",
+      "--device", "$device.device-id",
       "1",
     ]
 
@@ -42,7 +42,7 @@ main args:
       "--fleet-root", tester.tmp-dir,
       "device",
       "set-max-offline",
-      "--device", "$device.alias-id",
+      "--device", "$device.device-id",
       "3m",
     ]
 

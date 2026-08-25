@@ -85,10 +85,7 @@ run-test fleet/TestFleet serial-port/string wifi-ssid/string wifi-password/strin
 
   test-device := fleet.listen-to-serial-device
       --serial-port=serial-port
-      --alias-id=device-id
-      // We don't know the actual hardware-id.
-      // Cheat by reusing the alias id.
-      --hardware-id=device-id
+      --device-id=device-id
 
   pos := test-device.wait-for "done without closing" --start-at=0
   pos = test-device.wait-for "reason: Trigger - pin 32-1" --start-at=pos
