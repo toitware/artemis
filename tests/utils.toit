@@ -20,6 +20,7 @@ import uuid show Uuid
 import artemis.cli as artemis-pkg
 import artemis.cli.server-config as cli-server-config
 import artemis.cli.cache as artemis-cache
+import artemis.cli.scope as cli-scope
 import artemis.cli.utils show read-json write-json-to-file untar
 import artemis.shared.server-config
 import artemis.shared.version as configured-version
@@ -59,6 +60,7 @@ ADMIN-NAME ::= "Admin User"
 /** Preseeded "Test Organization". */
 TEST-ORGANIZATION-NAME ::= "Test Organization"
 TEST-ORGANIZATION-UUID ::= Uuid.parse "4b6d9e35-cae9-44c0-8da0-6b0e485987e2"
+TEST-SCOPE ::= cli-scope.Scope.from-organization-id TEST-ORGANIZATION-UUID
 
 /** Preseeded test device in $TEST-ORGANIZATION-UUID. */
 TEST-DEVICE-UUID ::= Uuid.parse "eb45c662-356c-4bea-ad8c-ede37688fddf"
