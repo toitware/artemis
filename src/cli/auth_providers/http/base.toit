@@ -75,18 +75,6 @@ class AuthProviderHttpToit implements AuthProvider:
     cli_.config.remove "$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)"
     cli_.config.write
 
-  create-device-in-organization --organization-id/Uuid --device-id/Uuid? -> Device:
-    map := {
-      "organization_id": "$organization-id",
-    }
-    if device-id: map["alias"] = "$device-id"
-
-    device-info := send-request_ COMMAND-CREATE-DEVICE-IN-ORGANIZATION_ map
-    return Device
-        --hardware-id=Uuid.parse device-info["id"]
-        --id=Uuid.parse device-info["alias"]
-        --organization-id=Uuid.parse device-info["organization_id"]
-
   get-current-user-id -> Uuid:
     return current-user-id_
 

@@ -420,9 +420,8 @@ class Tester:
     return result
 
   create-device_ organization-id/Uuid firmware-token/ByteArray?=null -> Map:
-    device-description := artemis.backdoor.create-device --organization-id=organization-id
-    hardware-id/Uuid := device-description["id"]
-    alias-id/Uuid := device-description["alias"]
+    hardware-id := random-uuid
+    alias-id := random-uuid
     initial-state := {
       "identity": {
         "device_id": "$alias-id",
@@ -431,7 +430,10 @@ class Tester:
       }
     }
 
-    broker.backdoor.create-device --device-id=alias-id --state=initial-state
+    broker.backdoor.create-device
+        --hardware-id=hardware-id
+        --device-id=alias-id
+        --state=initial-state
 
     encoded-firmware := build-encoded-firmware
         --firmware-token=firmware-token
@@ -439,9 +441,11 @@ class Tester:
         --organization-id=TEST-ORGANIZATION-UUID
         --hardware-id=hardware-id
 
-    device-description["encoded_firmware"] = encoded-firmware
-
-    return device-description
+    return {
+      "id": hardware-id,
+      "alias": alias-id,
+      "encoded_firmware": encoded-firmware,
+    }
 
   /**
   Stops the main broker.

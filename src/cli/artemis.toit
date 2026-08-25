@@ -77,11 +77,6 @@ class Artemis:
   ensure-authenticated -> none:
     connected-auth-provider_
 
-  create-device --device-id/Uuid? --organization-id/Uuid -> Device:
-    return connected-auth-provider_.create-device-in-organization
-        --device-id=device-id
-        --organization-id=organization-id
-
   /**
   Fetches the organizations with the given $id.
 

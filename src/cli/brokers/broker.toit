@@ -124,11 +124,15 @@ interface BrokerCli implements Authenticatable:
   download-firmware --id/string -> ByteArray
 
   /**
-  Informs the broker that a device with the given $device-id has been provisioned.
-  The $state map is the initial state of the device. Until it connects to the
-    broker there is (probably) only identity information in it.
+  Informs the broker that a new device has been provisioned.
+
+  The broker registers the device under the configured scope (from its
+    server-config). For a shared-tenancy broker, this also creates the
+    corresponding record on the auth side. The $state map is the initial
+    state of the device; until it connects to the broker there is
+    (probably) only identity information in it.
   */
-  notify-created --device-id/Uuid --state/Map -> none
+  notify-created --hardware-id/Uuid --device-id/Uuid --state/Map -> none
 
   /**
   Fetches all events of the given $types for all devices in the $device-ids list.

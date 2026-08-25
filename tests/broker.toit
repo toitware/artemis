@@ -22,6 +22,7 @@ import artemis.shared.server-config
     ServerConfig
     ServerConfigHttp
     ServerConfigSupabase
+    TENANCY-SHARED
 import .utils
 
 class TestBroker:
@@ -54,9 +55,13 @@ class TestBroker:
 
 interface BrokerBackdoor:
   /**
-  Creates a new device with the given $device-id and initial $state.
+  Creates a new device with the given $hardware-id and $device-id (alias)
+    and initial $state.
+
+  For a shared-tenancy broker this also writes the device into the
+    auth-side devices table.
   */
-  create-device --device-id/Uuid --state/Map -> none
+  create-device --hardware-id/Uuid --device-id/Uuid --state/Map -> none
 
   /**
   Removes the device with the given $device-id.
@@ -90,7 +95,15 @@ with-broker
     server-config := get-supabase-config --sub-directory=sub-dir
     service-key := get-supabase-service-key --sub-directory=sub-dir
     server-config.poll-interval = Duration --ms=500
-    backdoor := SupabaseBackdoor server-config service-key
+    // The artemis-supabase broker is the toit-hosted, shared-tenancy
+    // deployment that also owns the auth-side devices table; the
+    // public-supabase broker is dedicated.
+    if type == "supabase-local-artemis":
+      server-config = server-config.with --tenancy=TENANCY-SHARED
+    // The backdoor operates inside a fleet's scope (TEST-SCOPE in
+    // tests); the TestBroker's server-config stays scope-less because
+    // it's also reused as a global-config entry.
+    backdoor := SupabaseBackdoor (server-config.with --scope=TEST-SCOPE) service-key
     test-server := TestBroker server-config backdoor
     block.call test-server
   else if type == "http" or type == "http-toit":
@@ -103,7 +116,7 @@ class ToitHttpBackdoor implements BrokerBackdoor:
 
   constructor .server:
 
-  create-device --device-id/Uuid --state/Map:
+  create-device --hardware-id/Uuid --device-id/Uuid --state/Map:
     server.create-device --device-id="$device-id" --state=state
 
   remove-device device-id/Uuid -> none:
@@ -154,8 +167,16 @@ class SupabaseBackdoor implements BrokerBackdoor:
 
   constructor .server-config_ .service-key_:
 
-  create-device --device-id/Uuid --state/Map:
+  create-device --hardware-id/Uuid --device-id/Uuid --state/Map:
     with-backdoor-client_: | client/supabase.Client |
+      if server-config_.tenancy == TENANCY-SHARED:
+        // Shared-tenancy: the broker also owns the auth-side devices
+        // table. Mirror what BrokerCliSupabase does at notify-created.
+        client.rest.insert "devices" --no-return-inserted {
+          "id": "$hardware-id",
+          "alias": "$device-id",
+          "organization_id": server-config_.scope.to-json,
+        }
       client.rest.rpc --schema="toit_artemis" "new_provisioned" {
         "_device_id": "$device-id",
         "_state": state,

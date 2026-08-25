@@ -101,8 +101,6 @@ class HttpArtemisServer extends HttpServer:
 
     if command == COMMAND-CHECK-IN_:
       return store-event data
-    if command == COMMAND-CREATE-DEVICE-IN-ORGANIZATION_:
-      return create-device-in-organization data
     if command == COMMAND-SIGN-UP_:
       return sign-up data
     if command == COMMAND-SIGN-IN_:
@@ -140,26 +138,6 @@ class HttpArtemisServer extends HttpServer:
       throw "Device not found"
     events.add
         EventEntry device-id --data=data["data"]
-
-  create-device-in-organization data/Map:
-    organization-id := data["organization_id"]
-    alias := data.get "alias"
-
-    hardware-id := "$(Uuid.uuid5 "" "hardware_id - $Time.monotonic-us")"
-    alias-id := alias or "$(Uuid.uuid5 "" "alias_id - $Time.monotonic-us")"
-
-    devices.do: | key entry/DeviceEntry |
-      if entry.alias == alias-id:
-        throw "Alias already exists"
-
-    devices[hardware-id] = DeviceEntry hardware-id
-        --alias=alias-id
-        --organization-id=organization-id
-    return {
-      "id": hardware-id,
-      "alias": alias-id,
-      "organization_id": organization-id,
-    }
 
   remove-device hardware-id/string -> none:
     devices.remove hardware-id

@@ -60,14 +60,6 @@ interface AuthProvider implements Authenticatable:
   */
   logout
 
-  /**
-  Adds a new device to the organization with the given $organization-id.
-
-  Takes a $device-id, representing the user's chosen name for the device.
-  The $device-id may be null in which case the server creates an alias.
-  */
-  create-device-in-organization --organization-id/Uuid --device-id/Uuid? -> Device
-
   /** Returns the used-id of the authenticated user. */
   get-current-user-id -> string
 

@@ -4,6 +4,7 @@ import cli show Cli
 import http
 import supabase
 import certificate-roots
+import uuid show Uuid
 
 import ..http.base
 import ...config
@@ -35,6 +36,7 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> 
       --root-certificate-ders=server-config.root-certificate-der ? [server-config.root-certificate-der] : null
       --poll-interval=server-config.poll-interval
       --scope=server-config.scope
+      --tenancy=server-config.tenancy
 
   return BrokerCliSupabase --id=id supabase-client http-config
 
@@ -68,6 +70,23 @@ class BrokerCliSupabase extends BrokerCliHttp:
 
   logout:
     supabase-client_.auth.logout
+
+  /**
+  Registers a newly provisioned device with the broker.
+
+  For a shared-tenancy deployment the broker and the auth provider live
+    in the same Supabase project; the broker is responsible for creating
+    the device row in the auth-side `devices` table as part of the
+    notify-created handshake.
+  */
+  notify-created --hardware-id/Uuid --device-id/Uuid --state/Map -> none:
+    if server-config_.tenancy == TENANCY-SHARED:
+      supabase-client_.rest.insert "devices" --no-return-inserted {
+        "id": "$hardware-id",
+        "alias": "$device-id",
+        "organization_id": server-config_.scope.to-json,
+      }
+    super --hardware-id=hardware-id --device-id=device-id --state=state
 
   extra-headers -> Map:
     bearer/string := supabase-client_.session_

@@ -60,19 +60,6 @@ class AuthProviderSupabase implements AuthProvider:
   logout:
     client_.auth.logout
 
-  create-device-in-organization --organization-id/Uuid --device-id/Uuid? -> Device:
-    payload := {
-      "organization_id": "$organization-id",
-    }
-
-    if device-id: payload["alias"] = "$device-id"
-
-    inserted := client_.rest.insert "devices" payload
-    return Device
-        --hardware-id=Uuid.parse inserted["id"]
-        --id=Uuid.parse inserted["alias"]
-        --organization-id=Uuid.parse inserted["organization_id"]
-
   get-current-user-id -> Uuid:
     return Uuid.parse client_.auth.get-current-user["id"]
 

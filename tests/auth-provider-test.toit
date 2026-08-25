@@ -39,31 +39,9 @@ run-test artemis-server/TestArtemisServer [--authenticate]:
     network := net.open
     server-cli := AuthProvider network server-config --cli=cli
     authenticate.call server-cli
-    test-create-device-in-organization server-cli backdoor
 
     test-organizations server-cli backdoor
     test-profile server-cli backdoor
-
-test-create-device-in-organization server-cli/AuthProvider backdoor/ArtemisServerBackdoor:
-  // Test without and with alias.
-  device1 := server-cli.create-device-in-organization
-      --device-id=null
-      --organization-id=TEST-ORGANIZATION-UUID
-  hardware-id1 := device1.hardware-id
-  data := backdoor.fetch-device-information --hardware-id=hardware-id1
-  expect-equals hardware-id1 data[0]
-  expect-equals TEST-ORGANIZATION-UUID data[1]
-
-  alias-id := random-uuid
-  device2 := server-cli.create-device-in-organization
-      --device-id=alias-id
-      --organization-id=TEST-ORGANIZATION-UUID
-  sleep --ms=200
-  hardware-id2 := device2.hardware-id
-  data = backdoor.fetch-device-information --hardware-id=hardware-id2
-  expect-equals hardware-id2 data[0]
-  expect-equals TEST-ORGANIZATION-UUID data[1]
-  expect-equals alias-id data[2]
 
 test-organizations server-cli/AuthProvider backdoor/ArtemisServerBackdoor:
   original-orgs := server-cli.get-organizations
