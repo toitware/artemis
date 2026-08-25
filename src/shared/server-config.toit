@@ -17,12 +17,12 @@ abstract class ServerConfig:
   Null outside of fleet-file contexts (e.g., entries in the global CLI
     config don't carry a scope — scope is a fleet-level concept).
   */
-  scope/Scope? := null
+  scope/Scope?
 
   cache-key_/string? := null
   ders-already-installed_/bool := false
 
-  constructor.from-sub_ .name --.scope=null:
+  constructor.from-sub_ .name --.scope/Scope?=null:
 
   /**
   Creates a new broker-config from a JSON map.
@@ -79,6 +79,14 @@ abstract class ServerConfig:
   Computes a unique key that can be used for caching.
   */
   abstract compute-cache-key_ -> string
+
+  /**
+  Returns a copy of this config with $scope set to the given value.
+
+  Used to attach a fleet's scope to a $ServerConfig that was loaded from
+    the global CLI config (which never carries a scope).
+  */
+  abstract with --scope/Scope -> ServerConfig
 
   /**
   A unique key that can be used for caching.
@@ -221,6 +229,16 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         --poll-interval=poll-interval
         --scope=scope
 
+  with --scope/Scope -> ServerConfigSupabase:
+    return ServerConfigSupabase
+        name
+        --host=host
+        --anon=anon
+        --use-tls=use-tls
+        --root-certificate-der=root-certificate-der
+        --poll-interval=poll-interval
+        --scope=scope
+
 /**
 A broker configuration for an HTTP-based broker.
 
@@ -310,3 +328,16 @@ class ServerConfigHttp extends ServerConfig:
 
   compute-cache-key_ -> string:
     return "$host:$port:$path"
+
+  with --scope/Scope -> ServerConfigHttp:
+    return ServerConfigHttp
+        name
+        --host=host
+        --port=port
+        --path=path
+        --use-tls=use-tls
+        --root-certificate-ders=root-certificate-ders
+        --device-headers=device-headers
+        --admin-headers=admin-headers
+        --poll-interval=poll-interval
+        --scope=scope
