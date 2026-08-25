@@ -140,30 +140,6 @@ interface ArtemisServerCli implements Authenticatable:
   // TODO(florian): add support for changing the email.
   update-profile --name/string
 
-  /**
-  List all SDK/service version combinations.
-
-  Returns a list of maps with the following keys:
-  - "sdk_version": the SDK version
-  - "service_version": the service version
-  - "image": the name of the image
-
-  If provided, the given $sdk-version and $service-version can be
-    used to filter the results.
-  */
-  list-sdk-service-versions -> List
-      --organization-id/Uuid
-      --sdk-version/string?=null
-      --service-version/string?=null
-
-  /**
-  Downloads the given $image.
-
-  The $image must be a valid image name, as returned by
-    $list-sdk-service-versions.
-  */
-  download-service-image image/string -> ByteArray
-
 with-server server-config/ServerConfig --cli/Cli [block]:
   network := net.open
   server/ArtemisServerCli? := null

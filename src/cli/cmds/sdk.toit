@@ -20,7 +20,7 @@ create-sdk-commands -> List:
 
   list-cmd := Command "list"
       --aliases=["ls"]
-      --help="List supported SDKs."
+      --help="List supported SDKs. REMOVED."
       --options=[
         Option "sdk-version" --help="The SDK version to list.",
         Option "service-version" --help="The service version to list.",
@@ -39,31 +39,5 @@ create-sdk-commands -> List:
   return [sdk-cmd]
 
 list-sdks invocation/Invocation:
-  sdk-version := invocation["sdk-version"]
-  service-version := invocation["service-version"]
-
-  with-pod-fleet invocation: | fleet/Fleet |
-    artemis := fleet.artemis
-    versions/List := artemis.list-sdk-service-versions
-        --organization-id=fleet.organization-id
-        --sdk-version=sdk-version
-        --service-version=service-version
-
-    versions.sort --in-place: | a/Map b/Map |
-      semver.compare a["sdk_version"] b["sdk_version"] --if-equal=:
-        semver.compare a["service_version"] b["service_version"] --if-equal=:
-          // As a last effort compare the strings directly.
-          // This also includes the build metadata, which is ignored for semver comparisons.
-          "$a["sdk_version"]-$a["service_version"]".compare-to "$b["sdk_version"]-$b["service_version"]"
-
-    output := versions.map: {
-      "sdk-version": it["sdk_version"],
-      "service-version": it["service_version"],
-    }
-
-    invocation.cli.ui.emit-table --result
-        --header={
-          "sdk-version": "SDK Version",
-          "service-version": "Service Version",
-        }
-        output
+  print "Artemis now compiles the service locally, and services are not downloaded from the server anymore."
+  invocation.cli.ui.abort "UNSUPPORTED"

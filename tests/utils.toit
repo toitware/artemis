@@ -28,7 +28,6 @@ import artemis.service.brokers.broker show BrokerConnection BrokerService
 import artemis.service.device show Device
 import artemis.service.storage show Storage
 import artemis.cli.utils show write-blob-to-file read-base64-ubjson
-import ..tools.service-image-uploader.uploader as uploader
 import monitor
 import .artemis-server
 import .broker
@@ -75,8 +74,20 @@ TEST-SDK-VERSION/string := configured-version.SDK-VERSION
 // Only add the '-TEST' suffix if it's not already there.
 TEST-ARTEMIS-VERSION ::= "$(configured-version.ARTEMIS-VERSION.trim --right "-TEST")-TEST"
 
+/**
+Returns the parent directory for test-created tmp directories.
+
+When running under CTest the "tmp-root" fixture sets $ARTEMIS-TEST-TMP-ROOT-ENV
+  to a per-run scratch directory that the fixture also cleans up. Falls back to
+  "/tmp" for standalone test invocations.
+*/
+ARTEMIS-TEST-TMP-ROOT-ENV ::= "ARTEMIS_TEST_TMP_ROOT"
+
+tmp-parent_ -> string:
+  return (os.env.get ARTEMIS-TEST-TMP-ROOT-ENV) or "/tmp"
+
 with-tmp-directory [block]:
-  tmp-dir := directory.mkdtemp "/tmp/artemis-test-"
+  tmp-dir := directory.mkdtemp "$tmp-parent_/artemis-test-"
   try:
     block.call tmp-dir
   finally:
@@ -429,43 +440,6 @@ class Tester:
     device-description["encoded_firmware"] = encoded-firmware
 
     return device-description
-
-  /**
-  Ensures that there exists a service image uploaded.
-  */
-  ensure-available-artemis-service
-      --sdk-version=TEST-SDK-VERSION
-      --artemis-version=TEST-ARTEMIS-VERSION:
-    if TEST-ARTEMIS-VERSION != configured-version.ARTEMIS-VERSION:
-      // The uploader will call 'make' if the versions don't match.
-      // That's not safe when multiple tests run in parallel. The
-      // testing framework has a pre-build step that ensures that the
-      // versions match.
-      throw "The configured version is not the test version"
-    with-tmp-directory: | admin-tmp-dir |
-      admin-config := cli-pkg.Config
-          --app-name="test"
-          --path="$admin-tmp-dir/config"
-          --data=(deep-copy_ cli.config.data)
-      ui := TestUi
-      admin-cli := cli-pkg.Cli "test"
-          --config=admin-config
-          --ui=ui
-          --cache=cli.cache
-      artemis-pkg.main --cli=admin-cli [
-            "auth", "login",
-            "--email", ADMIN-EMAIL,
-            "--password", ADMIN-PASSWORD,
-          ]
-      uploader.main --cli=admin-cli
-          [
-            "service",
-            "--sdk-version", sdk-version,
-            "--service-version", artemis-version,
-            "--force",
-            "--local"
-          ]
-
 
   /**
   Stops the main broker.
@@ -867,7 +841,7 @@ class TestDevicePipe extends TestDevice:
       --organization-id/Uuid
       --tar-path/string
       --tester/Tester:
-    tmp-dir = directory.mkdtemp "/tmp/artemis-test-"
+    tmp-dir = directory.mkdtemp "$tmp-parent_/artemis-test-"
     untar tar-path --target=tmp-dir
     boot-sh := "$tmp-dir/boot.sh"
     command_ = ["bash", boot-sh]

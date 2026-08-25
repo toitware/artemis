@@ -9,11 +9,16 @@ import uuid show Uuid
 import encoding.base64
 import encoding.ubjson
 import encoding.json
+import fs
+import host.os
+import system
 
 import .cache as cache
 import .cache show cache-key-service-image
 import .config
 import .device
+import .git
+import .pod-specification
 
 import .utils
 
@@ -73,19 +78,6 @@ class Artemis:
   ensure-authenticated -> none:
     connected-artemis-server_
 
-  /**
-  Checks whether the given $sdk version and $service version is supported by
-    the Artemis server.
-  */
-  check-is-supported-version_ --organization-id/Uuid --sdk/string?=null --service/string?=null:
-    server := connected-artemis-server_
-    versions := server.list-sdk-service-versions
-        --organization-id=organization-id
-        --sdk-version=sdk
-        --service-version=service
-    if versions.is-empty:
-      cli_.ui.abort "Unsupported Artemis/SDK versions ($service/$sdk)."
-
   notify-created --hardware-id/Uuid:
     server := connected-artemis-server_
     server.notify-created --hardware-id=hardware-id
@@ -96,49 +88,6 @@ class Artemis:
         --organization-id=organization-id
 
   /**
-  Gets the Artemis service image for the given $sdk and $service versions.
-
-  Returns a path to the cached image.
-  */
-  get-service-image-path -> string
-      --organization-id/Uuid
-      --sdk/string
-      --service/string
-      --chip-family/string
-      --word-size/int:
-    if word-size != 32 and word-size != 64: throw "INVALID_ARGUMENT"
-    service-key := cache-key-service-image
-        --service-version=service
-        --sdk-version=sdk
-        --artemis-config=server-config
-        --chip-family=chip-family
-        --word-size=word-size
-    return cli_.cache.get-file-path service-key: | store/FileStore |
-      server := connected-artemis-server_ --no-authenticated
-      entry := server.list-sdk-service-versions
-          --organization-id=organization-id
-          --sdk-version=sdk
-          --service-version=service
-      if entry.is-empty:
-        cli_.ui.abort "Unsupported Artemis/SDK versions."
-      image-name := entry.first["image"]
-      service-image-bytes := server.download-service-image image-name
-      ar-reader := ar.ArReader.from-bytes service-image-bytes
-      artemis-file := ar-reader.find "artemis"
-      metadata := json.decode artemis-file.contents
-      // Reset the reader. The images should be after the metadata, but
-      // doesn't hurt.
-      ar-reader = ar.ArReader.from-bytes service-image-bytes
-      if metadata["version"] == 1:
-        if chip-family != "esp32":
-          cli_.ui.abort "Unsupported chip family '$chip-family' for service $service and SDK $sdk."
-        ar-file := ar-reader.find "service-$(word-size).img"
-        store.save ar-file.contents
-      else:
-        ar-file := ar-reader.find "$(chip-family)-$(word-size).img"
-        store.save ar-file.contents
-
-  /**
   Fetches the organizations with the given $id.
 
   Returns null if the organization doesn't exist.
@@ -146,22 +95,34 @@ class Artemis:
   get-organization --id/Uuid -> OrganizationDetailed?:
     return connected-artemis-server_.get-organization id
 
-  /**
-  List all SDK/service version combinations.
+service-path-in-repository root/string --chip-family/string -> string:
+  return "$root/src/service/run/$(chip-family).toit"
 
-  Returns a list of maps with the following keys:
-  - "sdk_version": the SDK version
-  - "service_version": the service version
-  - "image": the name of the image
+ARTEMIS-SERVICE-GIT-URL ::= "https://github.com/toitware/artemis"
 
-  If provided, the given $sdk-version and $service-version can be
-    used to filter the results.
-  */
-  list-sdk-service-versions -> List
-      --organization-id/Uuid
-      --sdk-version/string?
-      --service-version/string?:
-    return connected-artemis-server_.list-sdk-service-versions
-        --organization-id=organization-id
-        --sdk-version=sdk-version
-        --service-version=service-version
+get-artemis-container version-or-path/string --chip-family/string --cli/Cli -> ContainerPath:
+  artemis-root-path := os.env.get "ARTEMIS_REPO_PATH"
+  if artemis-root-path:
+    entrypoint := service-path-in-repository artemis-root-path --chip-family=chip-family
+    return ContainerPath "artemis" --entrypoint=entrypoint
+  if is-dev-setup:
+    git := Git --cli=cli
+    artemis-path := fs.dirname system.program-path
+    root := git.current-repository-root --path=artemis-path
+    entrypoint := service-path-in-repository root --chip-family=chip-family
+    return ContainerPath "artemis" --entrypoint=entrypoint
+
+  url/string := ?
+  if version-or-path.starts-with "http://" or version-or-path.starts-with "https://":
+    url = version-or-path
+  else if version-or-path.starts-with "file:/":
+    return ContainerPath "artemis" --entrypoint=(version-or-path.trim --left "file:/")
+  else:
+    // This is a version string.
+    url = ARTEMIS-SERVICE-GIT-URL
+
+  version := version-or-path
+  return ContainerPath "artemis"
+      --entrypoint=(service-path-in-repository "." --chip-family=chip-family)
+      --git-url=url
+      --git-ref=version

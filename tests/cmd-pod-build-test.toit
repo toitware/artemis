@@ -20,7 +20,6 @@ run-test fleet/TestFleet:
   fleet-dir := fleet.fleet-dir
   tester := fleet.tester
   ui := TestUi
-  fleet.tester.ensure-available-artemis-service
 
   spec := {
       "\$schema": "https://toit.io/schemas/artemis/pod-specification/v1.json",

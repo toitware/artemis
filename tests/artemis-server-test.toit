@@ -44,7 +44,6 @@ run-test artemis-server/TestArtemisServer [--authenticate]:
 
     test-organizations server-cli backdoor
     test-profile server-cli backdoor
-    test-sdk server-cli backdoor
 
 test-create-device-in-organization server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor -> Uuid:
   // Test without and with alias.
@@ -192,94 +191,3 @@ test-profile server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
   // and test user into the same organization.
   profile-demo := server-cli.get-profile --user-id=DEMO-EXAMPLE-COM-UUID
   expect-equals DEMO-EXAMPLE-COM-NAME profile-demo["name"]
-
-test-sdk server-cli/ArtemisServerCli backdoor/ArtemisServerBackdoor:
-  SDK-V1 ::= "v2.0.0-alpha.46"
-  SDK-V2 ::= "v2.0.0-alpha.47"
-  SERVICE-V1 ::= "v0.0.1"
-  SERVICE-V2 ::= "v0.0.2"
-
-  IMAGE-V1-V1 ::= "foobar"
-  IMAGE-V2-V1 ::= "toto"
-  IMAGE-V2-V2 ::= "titi"
-
-  CONTENTS-V1-V1 ::= "foobar_contents".to-byte-array
-  CONTENTS-V2-V1 ::= "toto_contents".to-byte-array
-  CONTENTS-V2-V2 ::= "titi_contents".to-byte-array
-
-  test-images := [
-    {
-      "sdk_version": SDK-V1,
-      "service_version": SERVICE-V1,
-      "image": IMAGE-V1-V1,
-      "content": CONTENTS-V1-V1,
-    },
-    {
-      "sdk_version": SDK-V2,
-      "service_version": SERVICE-V1,
-      "image": IMAGE-V2-V1,
-      "content": CONTENTS-V2-V1,
-    },
-    {
-      "sdk_version": SDK-V2,
-      "service_version": SERVICE-V2,
-      "image": IMAGE-V2-V2,
-      "content": CONTENTS-V2-V2,
-    },
-  ]
-  backdoor.install-service-images test-images
-
-  images := server-cli.list-sdk-service-versions --organization-id=TEST-ORGANIZATION-UUID
-  expect-equals test-images.size images.size
-
-  test-images.do: | test-image |
-    filtered-image := images.filter: | image |
-      image["sdk_version"] == test-image["sdk_version"] and
-        image["service_version"] == test-image["service_version"]
-    expect-equals 1 filtered-image.size
-    image := filtered-image[0]["image"]
-    expect-equals test-image["image"] image
-
-    downloaded-contents := server-cli.download-service-image image
-    expect-equals test-image["content"] downloaded-contents
-
-  // Test that the filters on list_sdk_service_versions work.
-  images = server-cli.list-sdk-service-versions
-      --organization-id=TEST-ORGANIZATION-UUID
-      --sdk-version=SDK-V1
-  expect-equals 1 images.size
-  expect-equals SDK-V1 images[0]["sdk_version"]
-  expect-equals SERVICE-V1 images[0]["service_version"]
-
-  images = server-cli.list-sdk-service-versions
-      --organization-id=TEST-ORGANIZATION-UUID
-      --sdk-version=SDK-V2
-  expect-equals 2 images.size
-  images.do: | image |
-    expect-equals SDK-V2 image["sdk_version"]
-    expect (image["service_version"] == SERVICE-V1 or
-        image["service_version"] == SERVICE-V2)
-
-  images = server-cli.list-sdk-service-versions
-      --organization-id=TEST-ORGANIZATION-UUID
-      --service-version=SERVICE-V1
-  expect-equals 2 images.size
-  images.do: | image |
-    expect-equals SERVICE-V1 image["service_version"]
-    expect (image["sdk_version"] == SDK-V1 or
-        image["sdk_version"] == SDK-V2)
-
-  images = server-cli.list-sdk-service-versions
-      --organization-id=TEST-ORGANIZATION-UUID
-      --service-version=SERVICE-V2
-  expect-equals 1 images.size
-  expect-equals SERVICE-V2 images[0]["service_version"]
-  expect-equals SDK-V2 images[0]["sdk_version"]
-
-  images = server-cli.list-sdk-service-versions
-      --organization-id=TEST-ORGANIZATION-UUID
-      --sdk-version=SDK-V2
-      --service-version=SERVICE-V1
-  expect-equals 1 images.size
-  expect-equals SERVICE-V1 images[0]["service_version"]
-  expect-equals SDK-V2 images[0]["sdk_version"]

@@ -164,21 +164,6 @@ class ArtemisServerCliHttpToit implements ArtemisServerCli:
       "name": name,
     }
 
-  list-sdk-service-versions -> List
-      --organization-id/Uuid
-      --sdk-version/string?=null
-      --service-version/string?=null:
-    return send-request_ COMMAND-LIST-SDK-SERVICE-VERSIONS_ {
-      "organization_id": "$organization-id",
-      "sdk_version": sdk-version,
-      "service_version": service-version,
-    }
-
-  download-service-image image/string -> ByteArray:
-    return send-request_ COMMAND-DOWNLOAD-SERVICE-IMAGE_ {
-      "image": image,
-    }
-
   send-request_ command/int data/Map -> any:
     encoded/ByteArray := #[command] + (json.encode data)
     headers := http.Headers
