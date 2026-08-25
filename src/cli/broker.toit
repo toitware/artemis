@@ -698,7 +698,7 @@ class Broker:
     identity := {
       "device_id": "$device.id",
       "organization_id": "$device.organization-id",
-      // Kept so older CLI versions can read the initial state.
+      // Retained while the current broker API persists the legacy state shape.
       "hardware_id": "$device.id",
     }
     state := {
