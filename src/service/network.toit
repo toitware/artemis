@@ -216,7 +216,7 @@ class ConnectionCellular extends Connection:
         // Decrement to handle the log-level change below.
         level--
       // Log levels have changed with SDK alpha.189. Adjust accordingly.
-      needs-adjustment := (semver.compare system.vm-sdk-version "2.0.0-alpha.189") >= 0
+      needs-adjustment := (semver.compare system.vm-sdk-version "2.0.0-alpha.189" --accept-v) >= 0
       if needs-adjustment:
         level++
       else if level < 0:

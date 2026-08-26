@@ -19,7 +19,7 @@ import .pod-specification
 import .sdk
 import .server-config
 import .utils
-import ..shared.api-version show is-supported-artemis-target
+import ..shared.api-version show parse-artemis-version
 import ..shared.version show ARTEMIS-VERSION ARTEMIS-VERSION-MAJOR
 
 /**
@@ -85,10 +85,9 @@ class Pod:
       --broker/Broker
       --artemis/Artemis
       --cli/Cli:
-    if not (is-supported-artemis-target
-        ARTEMIS-VERSION-MAJOR
-        specification.artemis-version):
-      cli.ui.abort "Artemis $ARTEMIS-VERSION only builds V1 pods. The requested service version is '$specification.artemis-version'."
+    target-version := parse-artemis-version specification.artemis-version
+    if not target-version or target-version.major != ARTEMIS-VERSION-MAJOR:
+      cli.ui.abort "Artemis $ARTEMIS-VERSION only builds pods for API generation V$ARTEMIS-VERSION-MAJOR. The requested service version is '$specification.artemis-version'."
 
     envelope-path := generate-envelope-path_ --tmp-directory=artemis.tmp-directory
     broker.customize-envelope
@@ -239,14 +238,11 @@ class Pod:
     return cached
 
   /**
-  Ensures that this pod is a valid update target for the running CLI.
-
-  Pre-V1 CLIs remain permissive so this change can land before the first V1
-    release. V1 and later CLIs only generate firmware for their matching API
-    generation.
+  Ensures that this pod uses the running CLI's API generation.
   */
   ensure-supported-target --cli/Cli -> none:
-    if is-supported-artemis-target ARTEMIS-VERSION-MAJOR artemis-version: return
+    target-version := parse-artemis-version artemis-version
+    if target-version and target-version.major == ARTEMIS-VERSION-MAJOR: return
     version-description := artemis-version or "unknown"
     cli.ui.abort "Artemis $ARTEMIS-VERSION cannot generate firmware for pod service version '$version-description'."
 
@@ -273,9 +269,9 @@ class Pod:
       ar-writer := ArWriter writer
       ar-writer.add MAGIC-NAME_ MAGIC-CONTENTS_
       ar-writer.add ID-NAME_ id.to-byte-array
-      ar-writer.add NAME-NAME_ name.to-byte-array
+      ar-writer.add NAME-NAME_ name
       if artemis-version:
-        ar-writer.add ARTEMIS-VERSION-NAME_ artemis-version.to-byte-array
+        ar-writer.add ARTEMIS-VERSION-NAME_ artemis-version
       ar-writer.add CUSTOMIZED-ENVELOPE-NAME_ envelope
       if partition-table:
         ar-writer.add PARTITION-TABLE-NAME_ partition-table

@@ -19,7 +19,6 @@ import .device
 import .pod
 import .pod-specification
 import .utils
-import ..shared.api-version show artemis-version-major
 import ..shared.utils.patch
 
 
@@ -97,9 +96,7 @@ class Firmware:
     unconfigured := unconfigured-contents or
         FirmwareContents.from-envelope pod.envelope-path --cli=cli
     encoded-parts := unconfigured.encoded-parts
-    target-major := artemis-version-major pod.artemis-version
-    if not target-major: target-major = 0
-    identity := device.to-json-identity --artemis-major=target-major
+    identity := device.to-json-identity
     device-map := identity["artemis.device"]
     while true:
       device-specific := ubjson.encode {
@@ -312,7 +309,7 @@ build-envelope-url --sdk-version/string? --envelope/string -> string:
   if is-valid-release-artifact-name_ envelope:
     if not sdk-version:
       throw "No sdk_version given"
-    if (semver.compare sdk-version "2.0.0-alpha.97") < 0:
+    if (semver.compare sdk-version "2.0.0-alpha.97" --accept-v) < 0:
       // Backwards compatibility for old SDKs.
       return "https://github.com/toitlang/toit/releases/download/$sdk-version/firmware-$(envelope).gz"
     return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/firmware-$(envelope).envelope.gz"
@@ -328,7 +325,7 @@ build-partition-table-url --sdk-version/string? --partition-table/string -> stri
   if is-valid-release-artifact-name_ partition-table:
     if not sdk-version:
       throw "No sdk_version given"
-    if (semver.compare sdk-version "2.0.0-alpha.167") < 0:
+    if (semver.compare sdk-version "2.0.0-alpha.167" --accept-v) < 0:
       throw "Partition tables are not supported for SDK versions older than 2.0.0-alpha.167"
     return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/partitions-$(partition-table).csv"
 

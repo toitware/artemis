@@ -9,8 +9,6 @@ import host.directory
 import host.file
 import expect show *
 import uuid show Uuid
-import artemis.shared.api-version show ARTEMIS-V1-MAJOR
-import artemis.shared.version show ARTEMIS-VERSION-MAJOR
 import .utils
 
 main args:
@@ -122,7 +120,4 @@ check-identity-file identity-path/string --id/string:
   identity := ubjson.decode (base64.decode (file.read-contents identity-path))
   expect-equals id identity["artemis.device"]["device_id"]
   expect-equals "$TEST-ORGANIZATION-UUID" identity["artemis.device"]["organization_id"]
-  if ARTEMIS-VERSION-MAJOR < ARTEMIS-V1-MAJOR:
-    expect-equals id identity["artemis.device"]["hardware_id"]
-  else:
-    expect-not (identity["artemis.device"].contains "hardware_id")
+  expect-not (identity["artemis.device"].contains "hardware_id")

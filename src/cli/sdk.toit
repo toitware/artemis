@@ -38,7 +38,7 @@ class Sdk:
     return sdk-path.ends-with "build/host"
 
   compile-to-snapshot path/string --out/string --flags/List=["-O2"] -> none:
-    if (semver.compare version "v2.0.0-alpha.161") < 0:
+    if (semver.compare version "v2.0.0-alpha.161" --accept-v) < 0:
       arguments := ["-w", "$out"] + flags
       run-toit-compile arguments + [path]
     else:
@@ -211,7 +211,7 @@ class Sdk:
     // Newer versions of the SDK require explictly asking
     // for the JSON output.
     output-format := []
-    if (semver.compare version "v2.0.0-alpha.88") >= 0:
+    if (semver.compare version "v2.0.0-alpha.88" --accept-v) >= 0:
       output-format = ["--output-format", "json"]
 
     firmware := executable_ "firmware"
@@ -239,7 +239,7 @@ class Sdk:
     run-firmware args
 
   chip-for --envelope-path/string -> string?:
-    if (semver.compare version "v2.0.0-alpha.150") < 0:
+    if (semver.compare version "v2.0.0-alpha.150" --accept-v) < 0:
       throw "Unsupported for SDK versions older than v2.0.0-alpha.150"
     firmware := executable_ "firmware"
     json-output := pipe.backticks firmware + ["show", "--output-format", "json", "-e", envelope-path]
@@ -259,10 +259,10 @@ class Sdk:
       --port/string
       --baud-rate/string?
       --partitions/List?:
-    if not is-dev-setup and (semver.compare version "v2.0.0-alpha.152") < 0:
+    if not is-dev-setup and (semver.compare version "v2.0.0-alpha.152" --accept-v) < 0:
       throw "Flashing is not supported for SDK versions older than v2.0.0-alpha.152"
 
-    if not is-dev-setup and partition-table-path and (semver.compare version "v2.0.0-alpha.167") < 0:
+    if not is-dev-setup and partition-table-path and (semver.compare version "v2.0.0-alpha.167" --accept-v) < 0:
       throw "Partition tables are not supported for SDK versions older than v2.0.0-alpha.167."
 
     // TODO(florian): we shouldn't need to pass `chip` to the firmware tool.
@@ -294,7 +294,7 @@ class Sdk:
       throw "Partitions are not supported for binary images."
 
     format/string := ?
-    if (semver.compare version "v2.0.0-alpha.167") < 0:
+    if (semver.compare version "v2.0.0-alpha.167" --accept-v) < 0:
       format = "qemu"
     else:
       format = "image"
@@ -362,7 +362,7 @@ class Sdk:
   }
 
   executable_ name/string -> List:
-    cmd := (semver.compare version "v2.0.0-alpha.161") < 0
+    cmd := (semver.compare version "v2.0.0-alpha.161" --accept-v) < 0
         ? PRE-161-EXECUTABLES[name]
         : POST-161-EXECUTABLES[name]
     exe-extension := (system.platform == system.PLATFORM-WINDOWS) ? ".exe" : ""
@@ -424,7 +424,7 @@ sdk-url version/string -> string:
   arch := system.architecture
   platform := system.platform
   selector/string := ?
-  if (semver.compare version "v2.0.0-alpha.163") < 0:
+  if (semver.compare version "v2.0.0-alpha.163" --accept-v) < 0:
     if platform == system.PLATFORM-LINUX:
       if arch == system.ARCHITECTURE-X86-64:
         selector = "linux"
@@ -465,7 +465,7 @@ sdk-url version/string -> string:
     else:
       throw "Unsupported architecture: $platform-$arch"
 
-    if platform-string == "macos" and (semver.compare version "v2.0.0-alpha.190") >= 0:
+    if platform-string == "macos" and (semver.compare version "v2.0.0-alpha.190" --accept-v) >= 0:
       // Starting with 190, the macOS executable is a fat binary.
       selector = platform-string
     else:

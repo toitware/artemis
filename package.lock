@@ -85,8 +85,8 @@ packages:
   toit-semver:
     url: github.com/toitware/toit-semver
     name: semver
-    version: 1.1.0
-    hash: a681bad211f7d4803dfdc2a0068706559458274e
+    version: 1.2.0
+    hash: 7b862ca7b40601ae2a63ec6ffbacebb48c929e02
   toit-supabase:
     url: github.com/toitware/toit-supabase
     name: supabase
