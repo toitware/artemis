@@ -30,8 +30,6 @@ class Device:
       "artemis.device": {
         "device_id"       : "$id",
         "organization_id" : "$organization-id",
-        // Kept so older Artemis service images can read new identities.
-        "hardware_id"     : "$id",
       },
     }
 

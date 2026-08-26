@@ -91,16 +91,13 @@ class Firmware:
     the process is repeated until the encoded parts do not change anymore.
   */
   constructor --device/Device --pod/Pod --cli/Cli --unconfigured-contents/FirmwareContents?=null:
+    pod.ensure-supported-target --cli=cli
     sdk-version := Sdk.get-sdk-version-from --envelope-path=pod.envelope-path
     unconfigured := unconfigured-contents or
         FirmwareContents.from-envelope pod.envelope-path --cli=cli
     encoded-parts := unconfigured.encoded-parts
-    device-map := {
-      "device_id":       "$device.id",
-      "organization_id": "$device.organization-id",
-      // Kept so older Artemis service images can read new firmware.
-      "hardware_id":     "$device.id",
-    }
+    identity := device.to-json-identity
+    device-map := identity["artemis.device"]
     while true:
       device-specific := ubjson.encode {
         "artemis.device" : device-map,
@@ -312,7 +309,7 @@ build-envelope-url --sdk-version/string? --envelope/string -> string:
   if is-valid-release-artifact-name_ envelope:
     if not sdk-version:
       throw "No sdk_version given"
-    if (semver.compare sdk-version "2.0.0-alpha.97") < 0:
+    if (semver.compare sdk-version "2.0.0-alpha.97" --accept-v) < 0:
       // Backwards compatibility for old SDKs.
       return "https://github.com/toitlang/toit/releases/download/$sdk-version/firmware-$(envelope).gz"
     return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/firmware-$(envelope).envelope.gz"
@@ -328,7 +325,7 @@ build-partition-table-url --sdk-version/string? --partition-table/string -> stri
   if is-valid-release-artifact-name_ partition-table:
     if not sdk-version:
       throw "No sdk_version given"
-    if (semver.compare sdk-version "2.0.0-alpha.167") < 0:
+    if (semver.compare sdk-version "2.0.0-alpha.167" --accept-v) < 0:
       throw "Partition tables are not supported for SDK versions older than 2.0.0-alpha.167"
     return "https://github.com/toitlang/envelopes/releases/download/$sdk-version/partitions-$(partition-table).csv"
 

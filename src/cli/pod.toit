@@ -19,6 +19,8 @@ import .pod-specification
 import .sdk
 import .server-config
 import .utils
+import ..shared.api-version show parse-artemis-version
+import ..shared.version show ARTEMIS-VERSION ARTEMIS-VERSION-MAJOR
 
 /**
 An Artemis pod contains all the information to run containers on a device.
@@ -30,6 +32,7 @@ class Pod:
   static MAGIC-NAME_ ::= "artemis-pod"
   static ID-NAME_ ::= "id"
   static NAME-NAME_ ::= "name"
+  static ARTEMIS-VERSION-NAME_ ::= "artemis-ver"
   static CUSTOMIZED-ENVELOPE-NAME_ := "customized.env"
   static PARTITION-TABLE-NAME_ ::= "part-table"
 
@@ -38,6 +41,8 @@ class Pod:
   envelope/ByteArray
   id/Uuid
   name/string
+  /** The Artemis service version embedded in this pod. */
+  artemis-version/string?
   partition-table/ByteArray? := null
 
   envelope-path_/string? := null
@@ -49,6 +54,7 @@ class Pod:
   constructor
       --.id
       --.name
+      --.artemis-version/string?=null
       --tmp-directory/string
       --.envelope
       --envelope-path/string?=null
@@ -79,6 +85,10 @@ class Pod:
       --broker/Broker
       --artemis/Artemis
       --cli/Cli:
+    target-version := parse-artemis-version specification.artemis-version
+    if target-version and target-version.major != ARTEMIS-VERSION-MAJOR:
+      cli.ui.abort "Artemis $ARTEMIS-VERSION only builds pods for API generation V$ARTEMIS-VERSION-MAJOR. The requested service version is '$specification.artemis-version'."
+
     envelope-path := generate-envelope-path_ --tmp-directory=artemis.tmp-directory
     broker.customize-envelope
         --organization-id=organization-id
@@ -95,6 +105,7 @@ class Pod:
     return Pod
         --id=id
         --name=specification.name
+        --artemis-version=ARTEMIS-VERSION
         --tmp-directory=artemis.tmp-directory
         --envelope=envelope
         --envelope-path=envelope-path
@@ -103,6 +114,7 @@ class Pod:
   constructor.from-manifest manifest/Map [--download] --tmp-directory/string:
     id = Uuid.parse manifest[ID-NAME_]
     name = manifest[NAME-NAME_]
+    artemis-version = manifest.get "artemis-version"
     if manifest.contains PARTITION-TABLE-NAME_:
       partition-table = manifest[PARTITION-TABLE-NAME_]
     parts := manifest["parts"]
@@ -119,6 +131,7 @@ class Pod:
     read-file path --cli=cli: | reader/io.Reader |
       id/Uuid? := null
       name/string? := null
+      artemis-version/string? := null
       envelope/ByteArray? := null
       partition-table/ByteArray? := null
 
@@ -138,6 +151,10 @@ class Pod:
           if name:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple names."
           name = file.contents.to-string
+        else if file.name == ARTEMIS-VERSION-NAME_:
+          if artemis-version:
+            cli.ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple Artemis versions."
+          artemis-version = file.contents.to-string
         else if file.name == CUSTOMIZED-ENVELOPE-NAME_:
           if envelope:
             ui.abort "The file at '$path' is not a valid Artemis pod. It contains multiple envelopes."
@@ -154,6 +171,7 @@ class Pod:
       return Pod
           --id=id
           --name=name
+          --artemis-version=artemis-version
           --envelope=envelope
           --partition-table=partition-table
           --tmp-directory=tmp-directory
@@ -219,6 +237,15 @@ class Pod:
     partition-table-path_ = cached
     return cached
 
+  /**
+  Ensures that this pod uses the running CLI's API generation.
+  */
+  ensure-supported-target --cli/Cli -> none:
+    target-version := parse-artemis-version artemis-version
+    if target-version and target-version.major == ARTEMIS-VERSION-MAJOR: return
+    version-description := artemis-version or "unknown"
+    cli.ui.abort "Artemis $ARTEMIS-VERSION cannot generate firmware for pod service version '$version-description'."
+
   device-config --sdk/Sdk -> Map:
     cached := device-config_
     if cached: return cached
@@ -242,7 +269,9 @@ class Pod:
       ar-writer := ArWriter writer
       ar-writer.add MAGIC-NAME_ MAGIC-CONTENTS_
       ar-writer.add ID-NAME_ id.to-byte-array
-      ar-writer.add NAME-NAME_ name.to-byte-array
+      ar-writer.add NAME-NAME_ name
+      if artemis-version:
+        ar-writer.add ARTEMIS-VERSION-NAME_ artemis-version
       ar-writer.add CUSTOMIZED-ENVELOPE-NAME_ envelope
       if partition-table:
         ar-writer.add PARTITION-TABLE-NAME_ partition-table
@@ -259,6 +288,8 @@ class Pod:
     manifest := {:}
     manifest[ID-NAME_] = "$id"
     manifest[NAME-NAME_] = name
+    if artemis-version:
+      manifest["artemis-version"] = artemis-version
     if partition-table:
       manifest[PARTITION-TABLE-NAME_] = partition-table
     part-names := {:}

@@ -302,7 +302,7 @@ class PodSpecification:
     sdk-version = json-map.get-optional-string "sdk-version"
     json-envelope := json-map.get-optional-string "firmware-envelope"
 
-    if sdk-version and not semver.is-valid sdk-version:
+    if sdk-version and not semver.is-valid sdk-version --accept-v:
       format-error_ "Invalid sdk-version: $sdk-version"
 
     if not sdk-version:

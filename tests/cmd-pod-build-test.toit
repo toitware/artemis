@@ -161,6 +161,7 @@ validate-pod pod-path/string --name/string --containers/List --tester/Tester:
         --ui=TestUi --no-quiet
     pod := Pod.parse pod-path --tmp-directory=tmp-dir --cli=cli
     expect-equals name pod.name
+    expect-equals TEST-ARTEMIS-VERSION pod.artemis-version
     envelope := pod.envelope
     seen := {}
     reader := ArReader (io.Reader envelope)

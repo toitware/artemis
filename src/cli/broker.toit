@@ -695,12 +695,7 @@ class Broker:
     return description-map
 
   notify-created device/Device -> none:
-    identity := {
-      "device_id": "$device.id",
-      "organization_id": "$device.organization-id",
-      // Retained while the current broker API persists the legacy state shape.
-      "hardware_id": "$device.id",
-    }
+    identity := device.to-json-identity["artemis.device"]
     state := {
       "identity": identity,
     }

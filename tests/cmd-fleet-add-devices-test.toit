@@ -120,5 +120,4 @@ check-identity-file identity-path/string --id/string:
   identity := ubjson.decode (base64.decode (file.read-contents identity-path))
   expect-equals id identity["artemis.device"]["device_id"]
   expect-equals "$TEST-ORGANIZATION-UUID" identity["artemis.device"]["organization_id"]
-  // Kept as a wire-compatibility alias for older Artemis service images.
-  expect-equals id identity["artemis.device"]["hardware_id"]
+  expect-not (identity["artemis.device"].contains "hardware_id")
