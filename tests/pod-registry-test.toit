@@ -7,6 +7,7 @@ import expect show *
 import log
 import net
 import artemis.cli.brokers.broker
+import artemis.cli.brokers.stores
 import artemis.cli.pod-registry show *
 import artemis.service.brokers.broker
 
@@ -22,15 +23,16 @@ run-test
     broker-name/string
     test-broker/TestBroker:
 
-  test-broker.with-cli: | broker-cli/broker.BrokerCli |
+  test-broker.with-cli: | backend/broker.CombinedBackend |
     // Make sure we are authenticated.
-    broker-cli.ensure-authenticated:
-      broker-cli.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
+    backend.ensure-authenticated:
+      backend.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
 
-    test-pod-registry --test-broker=test-broker broker-cli
-    test-pods --test-broker=test-broker broker-cli
+    pod-store := backend.pod-store
+    test-pod-registry --test-broker=test-broker pod-store
+    test-pods --test-broker=test-broker pod-store
 
-test-pod-registry --test-broker/TestBroker broker-cli/broker.BrokerCli:
+test-pod-registry --test-broker/TestBroker broker-cli/stores.PodStore:
   fleet-id := random-uuid
 
   // Get the list of descriptions. Should be emtpy.
@@ -296,7 +298,7 @@ test-pod-registry --test-broker/TestBroker broker-cli/broker.BrokerCli:
   expect-equals 0 pods.size
 
 
-test-pods --test-broker/TestBroker broker-cli/broker.BrokerCli:
+test-pods --test-broker/TestBroker broker-cli/stores.PodStore:
   3.repeat: | iteration |
     pod-id := random-uuid
     id1 := "$random-uuid"

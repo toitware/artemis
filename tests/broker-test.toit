@@ -8,6 +8,7 @@ import log
 import monitor
 import net
 import artemis.cli.brokers.broker
+import artemis.cli.brokers.stores
 import artemis.cli.device show DeviceDetailed
 import artemis.service.device show Device
 import artemis.cli.event show Event
@@ -45,10 +46,14 @@ run-test
 
   // We are going to reuse the cli for all tests (and only authenticate once).
   // However, we will need multiple services.
-  test-broker.with-cli: | broker-cli/broker.BrokerCli |
+  test-broker.with-cli: | backend/broker.CombinedBackend |
     // Make sure we are authenticated.
-    broker-cli.ensure-authenticated:
-      broker-cli.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
+    backend.ensure-authenticated:
+      backend.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
+
+    artifact-store := backend.artifact-store
+    update-broker := backend.update-broker
+    fleet-store := backend.fleet-store
 
     [DEVICE1, DEVICE2].do: | device/Device |
       identity := {
@@ -58,7 +63,7 @@ run-test
       state := {
         "identity": identity,
       }
-      broker-cli.notify-created --device-id=device.id --state=state
+      fleet-store.notify-created --device-id=device.id --state=state
 
     if broker-name == "http-toit-shared" or broker-name == "supabase-local-artemis":
       // A shared-tenancy broker must populate the auth-side device record
@@ -72,23 +77,27 @@ run-test
 
     network := net.open
     try:
-      test-image --test-broker=test-broker broker-cli --network=network
-      test-firmware --test-broker=test-broker broker-cli --network=network
-      test-goal --test-broker=test-broker broker-cli --network=network
-      test-state-devices --test-broker=test-broker broker-cli --network=network
+      test-image --test-broker=test-broker artifact-store --network=network
+      test-firmware --test-broker=test-broker artifact-store --network=network
+      test-goal --test-broker=test-broker update-broker --network=network
+      test-state-devices
+          --test-broker=test-broker
+          update-broker
+          fleet-store
+          --network=network
       // Test the events last, as it depends on test_goal to have run.
       // It also does state updates which could interfere with the other tests,
       // like the health test.
-      test-events --test-broker=test-broker broker-cli --network=network
+      test-events --test-broker=test-broker fleet-store --network=network
 
     finally:
       network.close
 
-test-goal --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.Client:
+test-goal --test-broker/TestBroker broker-cli/stores.UpdateBroker --network/net.Client:
   test-broker.with-service: | broker-service/broker.BrokerService |
     test-goal broker-cli broker-service --network=network
 
-test-goal broker-cli/broker.BrokerCli broker-service/broker.BrokerService --network/net.Client:
+test-goal broker-cli/stores.UpdateBroker broker-service/broker.BrokerService --network/net.Client:
   3.repeat: | test-iteration |
     if test-iteration == 2:
       // Send a config update while the service is not connected.
@@ -137,11 +146,11 @@ test-goal broker-cli/broker.BrokerCli broker-service/broker.BrokerService --netw
     finally:
       broker-connection.close
 
-test-image --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.Client:
+test-image --test-broker/TestBroker broker-cli/stores.ArtifactStore --network/net.Client:
   test-broker.with-service: | broker-service/broker.BrokerService |
     test-image broker-cli broker-service --network=network
 
-test-image broker-cli/broker.BrokerCli broker-service/broker.BrokerService --network/net.Client:
+test-image broker-cli/stores.ArtifactStore broker-service/broker.BrokerService --network/net.Client:
   2.repeat: | iteration |
     APP-ID ::= Uuid.uuid5 "app-$random" "test-app-$iteration-$Time.monotonic-us"
     contents-32 := ?
@@ -172,11 +181,11 @@ test-image broker-cli/broker.BrokerCli broker-service/broker.BrokerService --net
     finally:
       broker-connection.close
 
-test-firmware --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.Client:
+test-firmware --test-broker/TestBroker broker-cli/stores.ArtifactStore --network/net.Client:
   test-broker.with-service: | broker-service/broker.BrokerService |
     test-firmware broker-cli broker-service --network=network
 
-test-firmware broker-cli/broker.BrokerCli broker-service/broker.BrokerService --network/net.Client:
+test-firmware broker-cli/stores.ArtifactStore broker-service/broker.BrokerService --network/net.Client:
   3.repeat: | iteration |
     FIRMWARE-ID ::= "test-app-$iteration"
     contents := ?
@@ -232,17 +241,25 @@ build-state_ device/Device token/string -> Map:
     "firmware": build-encoded-firmware --device=device,
   }
 
-test-state-devices --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.Client:
+test-state-devices
+    --test-broker/TestBroker
+    update-broker/stores.UpdateBroker
+    fleet-store/stores.FleetStore
+    --network/net.Client:
   test-broker.with-service: | broker-service/broker.BrokerService |
-    test-state-devices broker-cli broker-service --network=network
+    test-state-devices update-broker fleet-store broker-service --network=network
 
-test-state-devices broker-cli/broker.BrokerCli broker-service/broker.BrokerService --network/net.Client:
-  broker-cli.update-goal --device-id=DEVICE1.id: | device/DeviceDetailed |
+test-state-devices
+    update-broker/stores.UpdateBroker
+    fleet-store/stores.FleetStore
+    broker-service/broker.BrokerService
+    --network/net.Client:
+  update-broker.update-goal --device-id=DEVICE1.id: | device/DeviceDetailed |
     {
       "state-test": "1234",
     }
 
-  broker-cli.update-goal --device-id=DEVICE2.id: | device/DeviceDetailed |
+  update-broker.update-goal --device-id=DEVICE2.id: | device/DeviceDetailed |
     {
       "state-test": "5678",
     }
@@ -281,14 +298,14 @@ test-state-devices broker-cli/broker.BrokerCli broker-service/broker.BrokerServi
     device1/DeviceDetailed := ?
     device2/DeviceDetailed := ?
     if it == 0:
-      devices := broker-cli.get-devices --device-ids=[DEVICE1.id]
+      devices := fleet-store.get-devices --device-ids=[DEVICE1.id]
       expect-equals 1 devices.size
       device1 = devices[DEVICE1.id]
-      devices = broker-cli.get-devices --device-ids=[DEVICE2.id]
+      devices = fleet-store.get-devices --device-ids=[DEVICE2.id]
       expect-equals 1 devices.size
       device2 = devices[DEVICE2.id]
     else:
-      devices := broker-cli.get-devices --device-ids=[DEVICE1.id, DEVICE2.id]
+      devices := fleet-store.get-devices --device-ids=[DEVICE1.id, DEVICE2.id]
       expect-equals 2 devices.size
       device1 = devices[DEVICE1.id]
       device2 = devices[DEVICE2.id]
@@ -307,7 +324,7 @@ test-state-devices broker-cli/broker.BrokerCli broker-service/broker.BrokerServi
       expect-equals "goal2" device2.reported-state-goal["token"]
       expect-equals "pending-firmware2" device2.pending-firmware
 
-test-events --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.Client:
+test-events --test-broker/TestBroker broker-cli/stores.FleetStore --network/net.Client:
   test-broker.with-service: | broker-service1/broker.BrokerService |
     test-broker.with-service: | broker-service2/broker.BrokerService |
       broker-connection1 := null
@@ -328,7 +345,7 @@ test-events --test-broker/TestBroker broker-cli/broker.BrokerCli --network/net.C
 
 test-events
     test-broker/TestBroker
-    broker-cli/broker.BrokerCli
+    broker-cli/stores.FleetStore
     broker-service1/broker.BrokerService
     broker-service2/broker.BrokerService
     broker-connection1/broker.BrokerConnection

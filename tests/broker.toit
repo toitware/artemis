@@ -12,7 +12,7 @@ import supabase.filter show equals
 import system
 import uuid show Uuid
 
-import artemis.cli.brokers.broker show BrokerCli
+import artemis.cli.brokers.broker show CombinedBackend
 import artemis.service.brokers.broker show BrokerService
 
 import .supabase-local-server
@@ -34,16 +34,16 @@ class TestBroker:
 
   with-cli [block]:
     with-tmp-config-cli: | cli/Cli |
-      broker-cli/BrokerCli? := null
+      backend/CombinedBackend? := null
       try:
-        // The BrokerCli operates inside a fleet's scope; attach
+        // The combined backend operates inside a fleet's scope; attach
         // TEST-SCOPE here rather than on the bare server-config (which
         // is also reused as a global-config entry in the tests).
         scoped-config := server-config.with --scope=TEST-SCOPE
-        broker-cli = BrokerCli scoped-config --cli=cli
-        block.call broker-cli
+        backend = CombinedBackend scoped-config --cli=cli
+        block.call backend
       finally:
-        if broker-cli: broker-cli.close
+        if backend: backend.close
 
   with-service [block]:
     logger := log.default.with-name "testing-service"
@@ -125,7 +125,7 @@ class ToitHttpBackdoor implements BrokerBackdoor:
   create-device --device-id/Uuid --state/Map:
     if server-config_.tenancy == TENANCY-SHARED:
       // Shared-tenancy: the broker also owns the auth-side devices
-      // record. Mirror what BrokerCliHttpShared does at notify-created.
+      // record. Mirror what CombinedBackendHttpShared does at notify-created.
       server.insert-auth-device
           --device-id="$device-id"
           --organization-id=server-config_.scope.to-json
@@ -190,7 +190,7 @@ class SupabaseBackdoor implements BrokerBackdoor:
     with-backdoor-client_: | client/supabase.Client |
       if server-config_.tenancy == TENANCY-SHARED:
         // Shared-tenancy: the broker also owns the auth-side devices
-        // table. Mirror what BrokerCliSupabase does at notify-created.
+        // table. Mirror what CombinedBackendSupabase does at notify-created.
         client.rest.insert "devices" --no-return-inserted {
           "id": "$device-id",
           "alias": "$device-id",

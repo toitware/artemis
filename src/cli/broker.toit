@@ -25,6 +25,7 @@ import ..shared.version
 import ..shared.utils.patch show Patcher PatchObserver
 
 import .brokers.broker
+import .brokers.stores
 import .event
 import .firmware
 import .pod-registry
@@ -78,7 +79,11 @@ class Broker:
   */
   device-short-strings_/Map?
 
-  broker-connection__/BrokerCli? := null
+  combined-backend__/CombinedBackend? := null
+  artifact-store__/ArtifactStore? := null
+  update-broker__/UpdateBroker? := null
+  fleet-store__/FleetStore? := null
+  pod-store__/PodStore? := null
 
   constructor
       --.fleet-id/Uuid
@@ -95,12 +100,28 @@ class Broker:
     if network_: return
     network_ = net.open
 
-  broker-connection_ -> BrokerCli:
-    if not broker-connection__:
-      broker-connection__ = BrokerCli server-config --cli=cli_
-      broker-connection__.ensure-authenticated: | error-message |
-        cli_.ui.abort "$error-message (broker)."
-    return broker-connection__
+  combined-backend_ -> CombinedBackend:
+    if not combined-backend__:
+      combined-backend__ = CombinedBackend server-config --cli=cli_
+      combined-backend__.ensure-authenticated: | error-message |
+        cli_.ui.abort "$error-message (backend)."
+    return combined-backend__
+
+  artifact-store_ -> ArtifactStore:
+    if not artifact-store__: artifact-store__ = combined-backend_.artifact-store
+    return artifact-store__
+
+  update-broker_ -> UpdateBroker:
+    if not update-broker__: update-broker__ = combined-backend_.update-broker
+    return update-broker__
+
+  fleet-store_ -> FleetStore:
+    if not fleet-store__: fleet-store__ = combined-backend_.fleet-store
+    return fleet-store__
+
+  pod-store_ -> PodStore:
+    if not pod-store__: pod-store__ = combined-backend_.pod-store
+    return pod-store__
 
   short-string-for_ --device-id/Uuid -> string:
     if not device-short-strings_: throw "Access to device in non-device fleet."
@@ -110,7 +131,7 @@ class Broker:
   Ensures that the broker is authenticated.
   */
   ensure-authenticated:
-    broker-connection_
+    combined-backend_
 
   /**
   Closes the broker.
@@ -118,9 +139,13 @@ class Broker:
   If the broker opened any connections, closes them as well.
   */
   close:
-    if broker-connection__:
-      broker-connection__.close
-      broker-connection__ = null
+    artifact-store__ = null
+    update-broker__ = null
+    fleet-store__ = null
+    pod-store__ = null
+    if combined-backend__:
+      combined-backend__.close
+      combined-backend__ = null
     if network_:
       network_.close
       network_ = null
@@ -145,24 +170,24 @@ class Broker:
             --broker-config=server-config
             --part-id=id
         cli_.cache.get-file-path key: | store/FileStore |
-          broker-connection_.pod-registry-upload-pod-part contents --part-id=id
+          pod-store_.pod-registry-upload-pod-part contents --part-id=id
           store.save contents
       key := cache-key-pod-manifest
           --broker-config=server-config
           --pod-id=pod.id
       cli_.cache.get-file-path key: | store/FileStore |
         encoded := ubjson.encode manifest
-        broker-connection_.pod-registry-upload-pod-manifest encoded --pod-id=pod.id
+        pod-store_.pod-registry-upload-pod-manifest encoded --pod-id=pod.id
         store.save encoded
 
-    description-ids := broker-connection_.pod-registry-descriptions
+    description-ids := pod-store_.pod-registry-descriptions
         --fleet-id=fleet-id
         --names=[pod.name]
         --create-if-absent
 
     description-id := (description-ids[0] as PodRegistryDescription).id
 
-    broker-connection_.pod-registry-add
+    pod-store_.pod-registry-add
         --pod-description-id=description-id
         --pod-id=pod.id
 
@@ -170,7 +195,7 @@ class Broker:
     tags.do: | tag/string |
       force := force-tags or (tag == "latest")
       exception := catch --unwind=(: not is-existing-tag-error_ it):
-        broker-connection_.pod-registry-tag-set
+        pod-store_.pod-registry-tag-set
             --pod-description-id=description-id
             --pod-id=pod.id
             --tag=tag
@@ -178,7 +203,7 @@ class Broker:
       if exception:
         tag-errors.add "Tag '$tag' already exists for pod $pod.name."
 
-    registered-pods := broker-connection_.pod-registry-pods --fleet-id=fleet-id --pod-ids=[pod.id]
+    registered-pods := pod-store_.pod-registry-pods --fleet-id=fleet-id --pod-ids=[pod.id]
     pod-entry/PodRegistryEntry := registered-pods[0]
 
     sorted-uploaded-tags := pod-entry.tags.sort
@@ -215,7 +240,7 @@ class Broker:
         --patch-id=trivial-id
     cli_.cache.get cache-key: | store/FileStore |
       trivial := build-trivial-patch patch.bits_
-      broker-connection_.upload-firmware trivial
+      artifact-store_.upload-firmware trivial
           --firmware-id=trivial-id
       store.save-via-writer: | writer/io.Writer |
         trivial.do: writer.write it
@@ -230,7 +255,7 @@ class Broker:
         --patch-id=old-id
     trivial-old := cli_.cache.get cache-key: | store/FileStore |
       downloaded := null
-      catch: downloaded = broker-connection_.download-firmware
+      catch: downloaded = artifact-store_.download-firmware
           --id=old-id
       if not downloaded:
         cli_.ui.emit --warning "Failed to download old firmware for patch $old-id -> $trivial-id."
@@ -267,7 +292,7 @@ class Broker:
       from64 := base64.encode patch.from_ --url-mode
       to64 := base64.encode patch.to_ --url-mode
       cli_.ui.emit --info "Uploading patch $from64 -> $to64 ($diff-size)."
-      broker-connection_.upload-firmware diff
+      artifact-store_.upload-firmware diff
           --firmware-id=diff-id
       store.save-via-writer: | writer/io.Writer |
         diff.do: writer.write it
@@ -298,7 +323,7 @@ class Broker:
         --broker-config=server-config
         --pod-id=pod-id
     encoded-manifest := cli_.cache.get manifest-key: | store/FileStore |
-      bytes := broker-connection_.pod-registry-download-pod-manifest
+      bytes := pod-store_.pod-registry-download-pod-manifest
         --pod-id=pod-id
       store.save bytes
     manifest := ubjson.decode encoded-manifest
@@ -310,27 +335,27 @@ class Broker:
               --broker-config=server-config
               --part-id=part-id
           cli_.cache.get key: | store/FileStore |
-            bytes := broker-connection_.pod-registry-download-pod-part
+            bytes := pod-store_.pod-registry-download-pod-part
                 part-id
             store.save bytes
 
   list-pods --names/List -> Map:
     descriptions := ?
     if names.is-empty:
-      descriptions = broker-connection_.pod-registry-descriptions --fleet-id=fleet-id
+      descriptions = pod-store_.pod-registry-descriptions --fleet-id=fleet-id
     else:
-      descriptions = broker-connection_.pod-registry-descriptions
+      descriptions = pod-store_.pod-registry-descriptions
           --fleet-id=fleet-id
           --names=names
           --no-create-if-absent
     result := {:}
     descriptions.do: | description/PodRegistryDescription |
-      pods := broker-connection_.pod-registry-pods --pod-description-id=description.id
+      pods := pod-store_.pod-registry-pods --pod-description-id=description.id
       result[description] = pods
     return result
 
   delete --description-names/List:
-    descriptions := broker-connection_.pod-registry-descriptions
+    descriptions := pod-store_.pod-registry-descriptions
         --fleet-id=fleet-id
         --names=description-names
         --no-create-if-absent
@@ -346,7 +371,7 @@ class Broker:
         quoted := unknown-pod-descriptions.map: "'$it'"
         joined := quoted.join ", "
         cli_.ui.abort "Unknown pods $joined."
-    broker-connection_.pod-registry-descriptions-delete
+    pod-store_.pod-registry-descriptions-delete
         --fleet-id=fleet-id
         --description-ids=descriptions.map: it.id
 
@@ -355,7 +380,7 @@ class Broker:
     delete --pod-ids=pod-ids
 
   delete --pod-ids/List:
-    broker-connection_.pod-registry-delete
+    pod-store_.pod-registry-delete
         --fleet-id=fleet-id
         --pod-ids=pod-ids
 
@@ -366,7 +391,7 @@ class Broker:
           : reference
 
     pod-ids := get-pod-ids references
-    pod-entries := broker-connection_.pod-registry-pods
+    pod-entries := pod-store_.pod-registry-pods
         --fleet-id=fleet-id
         --pod-ids=pod-ids
 
@@ -379,7 +404,7 @@ class Broker:
       pod-entries.do: | pod-entry/PodRegistryEntry |
         print-on-stderr_ "pod-entry: $pod-entry.to-json"
         exception := catch --unwind=(: not is-existing-tag-error_ it):
-          broker-connection_.pod-registry-tag-set
+          pod-store_.pod-registry-tag-set
               --pod-description-id=pod-entry.pod-description-id
               --pod-id=pod-entry.id
               --tag=tag
@@ -398,7 +423,7 @@ class Broker:
       assert: reference.is-name-only
       names.add reference.name
 
-    descriptions := broker-connection_.pod-registry-descriptions
+    descriptions := pod-store_.pod-registry-descriptions
         --fleet-id=fleet-id
         --names=names.to-list
         --no-create-if-absent
@@ -406,7 +431,7 @@ class Broker:
     descriptions.do: | description/PodRegistryDescription |
       description-id := description.id
       tags.do: | tag/string |
-        broker-connection_.pod-registry-tag-remove
+        pod-store_.pod-registry-tag-remove
             --pod-description-id=description-id
             --tag=tag
 
@@ -420,7 +445,7 @@ class Broker:
 
     missing-ids := references.filter: | reference/PodReference |
       not reference.id
-    pod-ids-response := broker-connection_.pod-registry-pod-ids
+    pod-ids-response := pod-store_.pod-registry-pod-ids
         --fleet-id=fleet-id
         --references=missing-ids
 
@@ -439,12 +464,12 @@ class Broker:
     return result
 
   pod pod-id/Uuid -> PodBroker:
-    pod-entry := broker-connection_.pod-registry-pods
+    pod-entry := pod-store_.pod-registry-pods
         --fleet-id=fleet-id
         --pod-ids=[pod-id]
     if not pod-entry.is-empty:
       description-id := pod-entry[0].pod-description-id
-      description := broker-connection_.pod-registry-descriptions --ids=[description-id]
+      description := pod-store_.pod-registry-descriptions --ids=[description-id]
       if not description.is-empty:
         return PodBroker --id=pod-id --name=description[0].name --revision=pod-entry[0].revision --tags=pod-entry[0].tags
 
@@ -458,7 +483,7 @@ class Broker:
 
   pod-exists reference/PodReference -> bool:
     pod-id := get-pod-id reference
-    pod-entry := broker-connection_.pod-registry-pods
+    pod-entry := pod-store_.pod-registry-pods
         --fleet-id=fleet-id
         --pod-ids=[pod-id]
     return not pod-entry.is-empty
@@ -468,7 +493,7 @@ class Broker:
   Returns a map from id to $DeviceDetailed.
   */
   get-devices --device-ids/List -> Map:
-    return broker-connection_.get-devices --device-ids=device-ids
+    return fleet-store_.get-devices --device-ids=device-ids
 
   update --device-id/Uuid --pod/Pod --base-firmwares/List=[]:
     update-bulk_ --devices=[device-for --id=device-id] --pods=[pod] --base-firmwares=base-firmwares
@@ -552,7 +577,7 @@ class Broker:
           --warn-only-trivial=warn-only-trivial
       goals.add goal
 
-    broker-connection_.update-goals
+    update-broker_.update-goals
         --device-ids=devices.map: it.id
         --goals=goals
 
@@ -634,7 +659,7 @@ class Broker:
     return goal
 
   get-goal-request-events --device-ids/List --limit/int -> Map:
-    return broker-connection_.get-events
+    return fleet-store_.get-events
         --device-ids=device-ids
         --limit=limit
         --types=["get-goal"]
@@ -645,7 +670,7 @@ class Broker:
   Returns a map from device-id to $Event.
   */
   get-last-events --device-ids/List -> Map:
-    result := broker-connection_.get-events
+    result := fleet-store_.get-events
         --device-ids=device-ids
         --limit=1
     result.map --in-place: | _ events/List | events[0]
@@ -658,7 +683,7 @@ class Broker:
   Returns a map from device-id to List of $Event.
   */
   get-events --device-ids/List --limit/int --types/List? -> Map:
-    return broker-connection_.get-events
+    return fleet-store_.get-events
         --device-ids=device-ids
         --limit=limit
         --types=types
@@ -669,7 +694,7 @@ class Broker:
   Returns a map from pod id to $PodRegistryEntry.
   */
   get-pod-registry-entry-map --pod-ids/List -> Map:
-    pod-id-entries := broker-connection_.pod-registry-pods
+    pod-id-entries := pod-store_.pod-registry-pods
         --fleet-id=fleet-id
         --pod-ids=pod-ids
     pod-entry-map := {:}
@@ -688,7 +713,7 @@ class Broker:
         (pod-registry-entries.map: | entry/PodRegistryEntry | entry.pod-description-id)
     description-ids := []
     description-ids.add-all description-set
-    descriptions := broker-connection_.pod-registry-descriptions --ids=description-ids
+    descriptions := pod-store_.pod-registry-descriptions --ids=description-ids
     description-map := {:}
     descriptions.do: | description/PodRegistryDescription |
       description-map[description.id] = description
@@ -699,12 +724,12 @@ class Broker:
     state := {
       "identity": identity,
     }
-    broker-connection_.notify-created
+    fleet-store_.notify-created
         --device-id=device.id
         --state=state
 
   device-for --id/Uuid -> DeviceDetailed:
-    devices := broker-connection_.get-devices --device-ids=[id]
+    devices := fleet-store_.get-devices --device-ids=[id]
     if devices.is-empty:
       short := short-string-for_ --device-id=id
       cli_.ui.abort "Device $short does not exist on server."
@@ -713,10 +738,10 @@ class Broker:
   /**
   Updates the goal state of the device with the given $device-id.
 
-  See $BrokerCli.update-goal.
+  See $UpdateBroker.update-goal.
   */
   update-goal_ --device-id/Uuid [block]:
-    broker-connection_.update-goal --device-id=device-id block
+    update-broker_.update-goal --device-id=device-id block
 
   container-install -> none
       --device-id/Uuid
@@ -744,11 +769,11 @@ class Broker:
           // Note: every device in this fleet uses the broker's scope.
           // device.organization-id is guaranteed to equal the broker's
           // configured scope, so we don't need to pass it explicitly.
-          broker-connection_.upload-image program.image32
+          artifact-store_.upload-image program.image32
               --app-id=id
               --word-size=32
           file.write-contents program.image32 --path="$tmp-dir/image32.bin"
-          broker-connection_.upload-image program.image64
+          artifact-store_.upload-image program.image64
               --app-id=id
               --word-size=64
           file.write-contents program.image64 --path="$tmp-dir/image64.bin"

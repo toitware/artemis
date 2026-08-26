@@ -11,7 +11,7 @@ import ...config
 import ...utils.supabase
 import ....shared.server-config
 
-create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> BrokerCliSupabase:
+create-combined-backend-supabase-http server-config/ServerConfigSupabase --cli/Cli -> CombinedBackendSupabase:
   local-storage := ConfigLocalStorage --cli=cli --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
   supabase-client := supabase.Client --server-config=server-config --local-storage=local-storage
   id := "supabase/$server-config.host"
@@ -38,10 +38,10 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> 
       --scope=server-config.scope
       --tenancy=server-config.tenancy
 
-  return BrokerCliSupabase --id=id supabase-client http-config
+  return CombinedBackendSupabase --id=id supabase-client http-config
 
 
-class BrokerCliSupabase extends BrokerCliHttp:
+class CombinedBackendSupabase extends CombinedBackendHttp:
   supabase-client_/supabase.Client? := null
 
   constructor --id/string .supabase-client_ http-config/ServerConfigHttp:

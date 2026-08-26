@@ -10,6 +10,7 @@ import tls
 import uuid show Uuid
 
 import ..broker
+import ..stores
 import ...device
 import ...event
 import ...pod-registry
@@ -18,15 +19,15 @@ import ....shared.server-config
 import ....shared.utils as utils
 import ....shared.constants show *
 
-create-broker-cli-http-toit server-config/ServerConfigHttp -> BrokerCliHttp:
+create-combined-backend-http-toit server-config/ServerConfigHttp -> CombinedBackendHttp:
   id := "toit-http/$server-config.host-$server-config.port"
-  return BrokerCliHttp server-config --id=id
+  return CombinedBackendHttp server-config --id=id
 
-create-broker-cli-http-toit-shared server-config/ServerConfigHttp -> BrokerCliHttpShared:
+create-combined-backend-http-toit-shared server-config/ServerConfigHttp -> CombinedBackendHttpShared:
   id := "toit-http/$server-config.host-$server-config.port"
-  return BrokerCliHttpShared server-config --id=id
+  return CombinedBackendHttpShared server-config --id=id
 
-class BrokerCliHttp implements BrokerCli:
+class CombinedBackendHttp implements CombinedBackend:
   network_/net.Interface? := ?
   id/string
   server-config_/ServerConfigHttp
@@ -72,6 +73,18 @@ class BrokerCliHttp implements BrokerCli:
   logout:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
+
+  artifact-store -> ArtifactStore:
+    return CombinedArtifactStore_ this
+
+  update-broker -> UpdateBroker:
+    return CombinedUpdateBroker_ this
+
+  fleet-store -> FleetStore:
+    return CombinedFleetStore_ this
+
+  pod-store -> PodStore:
+    return CombinedPodStore_ this
 
   send-request_ command/int data/any -> any:
     if is-closed: throw "CLOSED"
@@ -245,7 +258,7 @@ class BrokerCliHttp implements BrokerCli:
       current-list.add (Event event-type time data)
     return result
 
-  /** See $BrokerCli.pod-registry-description-upsert. */
+  /** See $PodStore.pod-registry-description-upsert. */
   pod-registry-description-upsert -> int
       --fleet-id/Uuid
       --name/string
@@ -258,14 +271,14 @@ class BrokerCliHttp implements BrokerCli:
       "_description": description,
     }
 
-  /** See $BrokerCli.pod-registry-descriptions-delete. */
+  /** See $PodStore.pod-registry-descriptions-delete. */
   pod-registry-descriptions-delete --fleet-id/Uuid --description-ids/List -> none:
     send-request_ COMMAND-POD-REGISTRY-DELETE-DESCRIPTIONS_ {
       "_fleet_id": "$fleet-id",
       "_description_ids": description-ids,
     }
 
-  /** See $BrokerCli.pod-registry-add. */
+  /** See $PodStore.pod-registry-add. */
   pod-registry-add -> none
       --pod-description-id/int
       --pod-id/Uuid:
@@ -274,14 +287,14 @@ class BrokerCliHttp implements BrokerCli:
       "_pod_id": "$pod-id",
     }
 
-  /** See $BrokerCli.pod-registry-delete. */
+  /** See $PodStore.pod-registry-delete. */
   pod-registry-delete --fleet-id/Uuid --pod-ids/List -> none:
     send-request_ COMMAND-POD-REGISTRY-DELETE_ {
       "_fleet_id": "$fleet-id",
       "_pod_ids": pod-ids.map: "$it",
     }
 
-  /** See $BrokerCli.pod-registry-tag-set. */
+  /** See $PodStore.pod-registry-tag-set. */
   pod-registry-tag-set -> none
       --pod-description-id/int
       --pod-id/Uuid
@@ -294,7 +307,7 @@ class BrokerCliHttp implements BrokerCli:
       "_force": force,
     }
 
-  /** See $BrokerCli.pod-registry-tag-remove. */
+  /** See $PodStore.pod-registry-tag-remove. */
   pod-registry-tag-remove -> none
       --pod-description-id/int
       --tag/string:
@@ -303,21 +316,21 @@ class BrokerCliHttp implements BrokerCli:
       "_tag": tag,
     }
 
-  /** See $BrokerCli.pod-registry-descriptions. */
+  /** See $PodStore.pod-registry-descriptions. */
   pod-registry-descriptions --fleet-id/Uuid -> List:
     response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS_ {
       "_fleet_id": "$fleet-id",
     }
     return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod-registry-descriptions --ids). */
+  /** See $(PodStore.pod-registry-descriptions --ids). */
   pod-registry-descriptions --ids/List -> List:
     response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-IDS_ {
       "_description_ids": ids,
     }
     return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod-registry-descriptions --fleet-id --names --create-if-absent). */
+  /** See $(PodStore.pod-registry-descriptions --fleet-id --names --create-if-absent). */
   pod-registry-descriptions -> List
       --fleet-id/Uuid
       --names/List
@@ -331,7 +344,7 @@ class BrokerCliHttp implements BrokerCli:
     }
     return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod-registry-pods --pod-description-id). */
+  /** See $(PodStore.pod-registry-pods --pod-description-id). */
   pod-registry-pods --pod-description-id/int -> List:
     response := send-request_ COMMAND-POD-REGISTRY-PODS_ {
       "_pod_description_id": pod-description-id,
@@ -340,7 +353,7 @@ class BrokerCliHttp implements BrokerCli:
     }
     return response.map: PodRegistryEntry.from-map it
 
-  /** See $(BrokerCli.pod-registry-pods --fleet-id --pod-ids). */
+  /** See $(PodStore.pod-registry-pods --fleet-id --pod-ids). */
   pod-registry-pods --fleet-id/Uuid --pod-ids/List -> List:
     response := send-request_ COMMAND-POD-REGISTRY-PODS-BY-IDS_ {
       "_fleet_id": "$fleet-id",
@@ -348,7 +361,7 @@ class BrokerCliHttp implements BrokerCli:
     }
     return response.map: PodRegistryEntry.from-map it
 
-  /** See $BrokerCli.pod-registry-pod-ids. */
+  /** See $PodStore.pod-registry-pod-ids. */
   pod-registry-pod-ids --fleet-id/Uuid --references/List -> Map:
     response := send-request_ COMMAND-POD-REGISTRY-POD-IDS-BY-REFERENCE_ {
       "_fleet_id": "$fleet-id",
@@ -370,7 +383,7 @@ class BrokerCliHttp implements BrokerCli:
       result[reference] = pod-id
     return result
 
-  /** See $BrokerCli.pod-registry-upload-pod-part. */
+  /** See $PodStore.pod-registry-upload-pod-part. */
   pod-registry-upload-pod-part -> none
       --part-id/string
       contents/ByteArray:
@@ -380,14 +393,14 @@ class BrokerCliHttp implements BrokerCli:
       "content": contents,
     }
 
-  /** See $BrokerCli.pod-registry-download-pod-part. */
+  /** See $PodStore.pod-registry-download-pod-part. */
   pod-registry-download-pod-part part-id/string -> ByteArray:
     scope := server-config_.scope.to-json
     return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
       "path": "/toit-artemis-pods/$scope/part/$part-id",
     }
 
-  /** See $BrokerCli.pod-registry-upload-pod-manifest. */
+  /** See $PodStore.pod-registry-upload-pod-manifest. */
   pod-registry-upload-pod-manifest -> none
       --pod-id/Uuid
       contents/ByteArray:
@@ -397,7 +410,7 @@ class BrokerCliHttp implements BrokerCli:
       "content": contents,
     }
 
-  /** See $BrokerCli.pod-registry-download-pod-manifest. */
+  /** See $PodStore.pod-registry-download-pod-manifest. */
   pod-registry-download-pod-manifest --pod-id/Uuid -> ByteArray:
     scope := server-config_.scope.to-json
     return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
@@ -405,13 +418,13 @@ class BrokerCliHttp implements BrokerCli:
     }
 
 /**
-A $BrokerCliHttp specialisation for shared-tenancy HTTP deployments.
+A $CombinedBackendHttp specialisation for shared-tenancy HTTP deployments.
 
 In a shared-tenancy deployment the broker also owns the auth-side device
   record; this override sends the configured scope (organization-id) so the
   broker can populate that record alongside the broker-side state.
 */
-class BrokerCliHttpShared extends BrokerCliHttp:
+class CombinedBackendHttpShared extends CombinedBackendHttp:
   constructor server-config/ServerConfigHttp --id/string:
     super server-config --id=id
 
@@ -421,3 +434,131 @@ class BrokerCliHttpShared extends BrokerCliHttp:
       "_organization_id": server-config_.scope.to-json,
       "_state": state,
     }
+
+class CombinedArtifactStore_ implements ArtifactStore:
+  backend_/CombinedBackendHttp
+
+  constructor .backend_:
+
+  upload-image --app-id/Uuid --word-size/int contents/ByteArray -> none:
+    backend_.upload-image contents --app-id=app-id --word-size=word-size
+
+  upload-firmware --firmware-id/string chunks/List -> none:
+    backend_.upload-firmware chunks --firmware-id=firmware-id
+
+  download-firmware --id/string -> ByteArray:
+    return backend_.download-firmware --id=id
+
+class CombinedFleetStore_ implements FleetStore:
+  backend_/CombinedBackendHttp
+
+  constructor .backend_:
+
+  notify-created --device-id/Uuid --state/Map -> none:
+    backend_.notify-created --device-id=device-id --state=state
+
+  get-events -> Map
+      --types/List?=null
+      --device-ids/List
+      --limit/int=10
+      --since/Time?=null:
+    return backend_.get-events
+        --types=types
+        --device-ids=device-ids
+        --limit=limit
+        --since=since
+
+  get-devices --device-ids/List -> Map:
+    return backend_.get-devices --device-ids=device-ids
+
+class CombinedUpdateBroker_ implements UpdateBroker:
+  backend_/CombinedBackendHttp
+
+  constructor .backend_:
+
+  update-goal --device-id/Uuid [block] -> none:
+    backend_.update-goal --device-id=device-id block
+
+  update-goals --device-ids/List --goals/List -> none:
+    backend_.update-goals --device-ids=device-ids --goals=goals
+
+class CombinedPodStore_ implements PodStore:
+  backend_/CombinedBackendHttp
+
+  constructor .backend_:
+
+  pod-registry-description-upsert -> int
+      --fleet-id/Uuid
+      --name/string
+      --description/string?:
+    return backend_.pod-registry-description-upsert
+        --fleet-id=fleet-id
+        --name=name
+        --description=description
+
+  pod-registry-descriptions-delete --fleet-id/Uuid --description-ids/List -> none:
+    backend_.pod-registry-descriptions-delete
+        --fleet-id=fleet-id
+        --description-ids=description-ids
+
+  pod-registry-add --pod-description-id/int --pod-id/Uuid -> none:
+    backend_.pod-registry-add
+        --pod-description-id=pod-description-id
+        --pod-id=pod-id
+
+  pod-registry-delete --fleet-id/Uuid --pod-ids/List -> none:
+    backend_.pod-registry-delete --fleet-id=fleet-id --pod-ids=pod-ids
+
+  pod-registry-tag-set -> none
+      --pod-description-id/int
+      --pod-id/Uuid
+      --tag/string
+      --force/bool=false:
+    backend_.pod-registry-tag-set
+        --pod-description-id=pod-description-id
+        --pod-id=pod-id
+        --tag=tag
+        --force=force
+
+  pod-registry-tag-remove --pod-description-id/int --tag/string -> none:
+    backend_.pod-registry-tag-remove
+        --pod-description-id=pod-description-id
+        --tag=tag
+
+  pod-registry-descriptions --fleet-id/Uuid -> List:
+    return backend_.pod-registry-descriptions --fleet-id=fleet-id
+
+  pod-registry-descriptions --ids/List -> List:
+    return backend_.pod-registry-descriptions --ids=ids
+
+  pod-registry-descriptions -> List
+      --fleet-id/Uuid
+      --names/List
+      --create-if-absent/bool:
+    return backend_.pod-registry-descriptions
+        --fleet-id=fleet-id
+        --names=names
+        --create-if-absent=create-if-absent
+
+  pod-registry-pods --pod-description-id/int -> List:
+    return backend_.pod-registry-pods --pod-description-id=pod-description-id
+
+  pod-registry-pods --fleet-id/Uuid --pod-ids/List -> List:
+    return backend_.pod-registry-pods --fleet-id=fleet-id --pod-ids=pod-ids
+
+  pod-registry-pod-ids --fleet-id/Uuid --references/List -> Map:
+    return backend_.pod-registry-pod-ids
+        --fleet-id=fleet-id
+        --references=references
+
+  pod-registry-upload-pod-part --part-id/string contents/ByteArray -> none:
+    backend_.pod-registry-upload-pod-part contents --part-id=part-id
+
+  pod-registry-download-pod-part part-id/string -> ByteArray:
+    return backend_.pod-registry-download-pod-part part-id
+
+  pod-registry-upload-pod-manifest --pod-id/Uuid contents/ByteArray -> none:
+    backend_.pod-registry-upload-pod-manifest contents --pod-id=pod-id
+
+  pod-registry-download-pod-manifest --pod-id/Uuid -> ByteArray:
+    return backend_.pod-registry-download-pod-manifest --pod-id=pod-id
