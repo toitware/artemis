@@ -6,7 +6,8 @@ import encoding.ubjson
 import expect show *
 import log
 import net
-import artemis.cli.brokers.broker
+import artemis.cli.brokers.server
+import artemis.cli.brokers.implementations
 import artemis.cli.brokers.stores
 import artemis.cli.pod-registry show *
 import artemis.service.brokers.broker
@@ -23,12 +24,12 @@ run-test
     broker-name/string
     test-broker/TestBroker:
 
-  test-broker.with-cli: | backend/broker.CombinedBackend |
+  test-broker.with-cli: | configured-server/server.Server |
     // Make sure we are authenticated.
-    backend.ensure-authenticated:
-      backend.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
+    configured-server.ensure-authenticated:
+      configured-server.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
 
-    pod-store := backend.pod-store
+    pod-store := implementations.create-pod-store configured-server
     test-pod-registry --test-broker=test-broker pod-store
     test-pods --test-broker=test-broker pod-store
 

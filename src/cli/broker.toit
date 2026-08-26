@@ -24,7 +24,8 @@ import .utils.patch-build show build-diff-patch build-trivial-patch
 import ..shared.version
 import ..shared.utils.patch show Patcher PatchObserver
 
-import .brokers.broker
+import .brokers.server
+import .brokers.implementations
 import .brokers.stores
 import .event
 import .firmware
@@ -79,10 +80,11 @@ class Broker:
   */
   device-short-strings_/Map?
 
-  combined-backend__/CombinedBackend? := null
+  server__/Server? := null
   artifact-store__/ArtifactStore? := null
   update-broker__/UpdateBroker? := null
-  fleet-store__/FleetStore? := null
+  broker-state-reader__/BrokerStateReader? := null
+  broker-event-reader__/BrokerEventReader? := null
   pod-store__/PodStore? := null
 
   constructor
@@ -100,27 +102,33 @@ class Broker:
     if network_: return
     network_ = net.open
 
-  combined-backend_ -> CombinedBackend:
-    if not combined-backend__:
-      combined-backend__ = CombinedBackend server-config --cli=cli_
-      combined-backend__.ensure-authenticated: | error-message |
-        cli_.ui.abort "$error-message (backend)."
-    return combined-backend__
+  server_ -> Server:
+    if not server__:
+      server__ = Server server-config --cli=cli_
+      server__.ensure-authenticated: | error-message |
+        cli_.ui.abort "$error-message (server)."
+    return server__
 
   artifact-store_ -> ArtifactStore:
-    if not artifact-store__: artifact-store__ = combined-backend_.artifact-store
+    if not artifact-store__: artifact-store__ = create-artifact-store server_
     return artifact-store__
 
   update-broker_ -> UpdateBroker:
-    if not update-broker__: update-broker__ = combined-backend_.update-broker
+    if not update-broker__: update-broker__ = create-update-broker server_
     return update-broker__
 
-  fleet-store_ -> FleetStore:
-    if not fleet-store__: fleet-store__ = combined-backend_.fleet-store
-    return fleet-store__
+  broker-state-reader_ -> BrokerStateReader:
+    if not broker-state-reader__:
+      broker-state-reader__ = create-broker-state-reader server_
+    return broker-state-reader__
+
+  broker-event-reader_ -> BrokerEventReader:
+    if not broker-event-reader__:
+      broker-event-reader__ = create-broker-event-reader server_
+    return broker-event-reader__
 
   pod-store_ -> PodStore:
-    if not pod-store__: pod-store__ = combined-backend_.pod-store
+    if not pod-store__: pod-store__ = create-pod-store server_
     return pod-store__
 
   short-string-for_ --device-id/Uuid -> string:
@@ -131,7 +139,7 @@ class Broker:
   Ensures that the broker is authenticated.
   */
   ensure-authenticated:
-    combined-backend_
+    server_
 
   /**
   Closes the broker.
@@ -141,11 +149,12 @@ class Broker:
   close:
     artifact-store__ = null
     update-broker__ = null
-    fleet-store__ = null
+    broker-state-reader__ = null
+    broker-event-reader__ = null
     pod-store__ = null
-    if combined-backend__:
-      combined-backend__.close
-      combined-backend__ = null
+    if server__:
+      server__.close
+      server__ = null
     if network_:
       network_.close
       network_ = null
@@ -493,7 +502,7 @@ class Broker:
   Returns a map from id to $DeviceDetailed.
   */
   get-devices --device-ids/List -> Map:
-    return fleet-store_.get-devices --device-ids=device-ids
+    return broker-state-reader_.get-devices --device-ids=device-ids
 
   update --device-id/Uuid --pod/Pod --base-firmwares/List=[]:
     update-bulk_ --devices=[device-for --id=device-id] --pods=[pod] --base-firmwares=base-firmwares
@@ -659,7 +668,7 @@ class Broker:
     return goal
 
   get-goal-request-events --device-ids/List --limit/int -> Map:
-    return fleet-store_.get-events
+    return broker-event-reader_.get-events
         --device-ids=device-ids
         --limit=limit
         --types=["get-goal"]
@@ -670,7 +679,7 @@ class Broker:
   Returns a map from device-id to $Event.
   */
   get-last-events --device-ids/List -> Map:
-    result := fleet-store_.get-events
+    result := broker-event-reader_.get-events
         --device-ids=device-ids
         --limit=1
     result.map --in-place: | _ events/List | events[0]
@@ -683,7 +692,7 @@ class Broker:
   Returns a map from device-id to List of $Event.
   */
   get-events --device-ids/List --limit/int --types/List? -> Map:
-    return fleet-store_.get-events
+    return broker-event-reader_.get-events
         --device-ids=device-ids
         --limit=limit
         --types=types
@@ -724,12 +733,12 @@ class Broker:
     state := {
       "identity": identity,
     }
-    fleet-store_.notify-created
+    update-broker_.notify-created
         --device-id=device.id
         --state=state
 
   device-for --id/Uuid -> DeviceDetailed:
-    devices := fleet-store_.get-devices --device-ids=[id]
+    devices := broker-state-reader_.get-devices --device-ids=[id]
     if devices.is-empty:
       short := short-string-for_ --device-id=id
       cli_.ui.abort "Device $short does not exist on server."

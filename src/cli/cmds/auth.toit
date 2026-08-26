@@ -9,7 +9,7 @@ import ..config
 import ..auth show Authenticatable
 import ..server-config
 import ..auth-providers.auth-provider show with-auth-provider AuthProvider
-import ..brokers.broker show with-combined-backend CombinedBackend
+import ..brokers.server show with-server Server
 
 SIGNIN-OPTIONS ::= [
   OptionEnum "provider" ["github", "google"]
@@ -177,8 +177,8 @@ with-authenticatable invocation/Invocation [block]:
     server-config = broker
         ? get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
         : get-server-from-config --cli=cli --name=server
-    with-combined-backend --cli=cli server-config: | backend/CombinedBackend |
-      block.call server-config.name backend
+    with-server --cli=cli server-config: | configured-server/Server |
+      block.call server-config.name configured-server
   else:
     server-config = get-server-from-config --cli=cli --key=CONFIG-ARTEMIS-DEFAULT-KEY
     with-auth-provider server-config --cli=cli: | server/AuthProvider |

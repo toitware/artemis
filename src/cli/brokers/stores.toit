@@ -21,20 +21,22 @@ interface UpdateBroker:
   /** Updates several device goals in one operation. */
   update-goals --device-ids/List --goals/List -> none
 
-/** Stores the current inventory, reported state, and event history of a fleet. */
-interface FleetStore:
   /** Registers a newly provisioned device and its initial $state. */
   notify-created --device-id/Uuid --state/Map -> none
 
+/** Reads the broker's goal and reported-state snapshot for known devices. */
+interface BrokerStateReader:
+  /** Fetches device details keyed by device ID. */
+  get-devices --device-ids/List -> Map
+
+/** Reads the optional event history recorded by a broker. */
+interface BrokerEventReader:
   /** Fetches events for the selected devices. */
   get-events -> Map
       --types/List?=null
       --device-ids/List
       --limit/int=10
       --since/Time?=null
-
-  /** Fetches device details keyed by device ID. */
-  get-devices --device-ids/List -> Map
 
 /** Stores pod metadata, manifests, and content-addressed parts. */
 interface PodStore:

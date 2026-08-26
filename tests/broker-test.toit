@@ -7,7 +7,8 @@ import io
 import log
 import monitor
 import net
-import artemis.cli.brokers.broker
+import artemis.cli.brokers.server
+import artemis.cli.brokers.implementations
 import artemis.cli.brokers.stores
 import artemis.cli.device show DeviceDetailed
 import artemis.service.device show Device
@@ -46,14 +47,15 @@ run-test
 
   // We are going to reuse the cli for all tests (and only authenticate once).
   // However, we will need multiple services.
-  test-broker.with-cli: | backend/broker.CombinedBackend |
+  test-broker.with-cli: | configured-server/server.Server |
     // Make sure we are authenticated.
-    backend.ensure-authenticated:
-      backend.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
+    configured-server.ensure-authenticated:
+      configured-server.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
 
-    artifact-store := backend.artifact-store
-    update-broker := backend.update-broker
-    fleet-store := backend.fleet-store
+    artifact-store := implementations.create-artifact-store configured-server
+    update-broker := implementations.create-update-broker configured-server
+    state-reader := implementations.create-broker-state-reader configured-server
+    event-reader := implementations.create-broker-event-reader configured-server
 
     [DEVICE1, DEVICE2].do: | device/Device |
       identity := {
@@ -63,7 +65,7 @@ run-test
       state := {
         "identity": identity,
       }
-      fleet-store.notify-created --device-id=device.id --state=state
+      update-broker.notify-created --device-id=device.id --state=state
 
     if broker-name == "http-toit-shared" or broker-name == "supabase-local-artemis":
       // A shared-tenancy broker must populate the auth-side device record
@@ -83,12 +85,12 @@ run-test
       test-state-devices
           --test-broker=test-broker
           update-broker
-          fleet-store
+          state-reader
           --network=network
       // Test the events last, as it depends on test_goal to have run.
       // It also does state updates which could interfere with the other tests,
       // like the health test.
-      test-events --test-broker=test-broker fleet-store --network=network
+      test-events --test-broker=test-broker event-reader --network=network
 
     finally:
       network.close
@@ -244,14 +246,14 @@ build-state_ device/Device token/string -> Map:
 test-state-devices
     --test-broker/TestBroker
     update-broker/stores.UpdateBroker
-    fleet-store/stores.FleetStore
+    state-reader/stores.BrokerStateReader
     --network/net.Client:
   test-broker.with-service: | broker-service/broker.BrokerService |
-    test-state-devices update-broker fleet-store broker-service --network=network
+    test-state-devices update-broker state-reader broker-service --network=network
 
 test-state-devices
     update-broker/stores.UpdateBroker
-    fleet-store/stores.FleetStore
+    state-reader/stores.BrokerStateReader
     broker-service/broker.BrokerService
     --network/net.Client:
   update-broker.update-goal --device-id=DEVICE1.id: | device/DeviceDetailed |
@@ -298,14 +300,14 @@ test-state-devices
     device1/DeviceDetailed := ?
     device2/DeviceDetailed := ?
     if it == 0:
-      devices := fleet-store.get-devices --device-ids=[DEVICE1.id]
+      devices := state-reader.get-devices --device-ids=[DEVICE1.id]
       expect-equals 1 devices.size
       device1 = devices[DEVICE1.id]
-      devices = fleet-store.get-devices --device-ids=[DEVICE2.id]
+      devices = state-reader.get-devices --device-ids=[DEVICE2.id]
       expect-equals 1 devices.size
       device2 = devices[DEVICE2.id]
     else:
-      devices := fleet-store.get-devices --device-ids=[DEVICE1.id, DEVICE2.id]
+      devices := state-reader.get-devices --device-ids=[DEVICE1.id, DEVICE2.id]
       expect-equals 2 devices.size
       device1 = devices[DEVICE1.id]
       device2 = devices[DEVICE2.id]
@@ -324,7 +326,7 @@ test-state-devices
       expect-equals "goal2" device2.reported-state-goal["token"]
       expect-equals "pending-firmware2" device2.pending-firmware
 
-test-events --test-broker/TestBroker broker-cli/stores.FleetStore --network/net.Client:
+test-events --test-broker/TestBroker event-reader/stores.BrokerEventReader --network/net.Client:
   test-broker.with-service: | broker-service1/broker.BrokerService |
     test-broker.with-service: | broker-service2/broker.BrokerService |
       broker-connection1 := null
@@ -334,7 +336,7 @@ test-events --test-broker/TestBroker broker-cli/stores.FleetStore --network/net.
         broker-connection2 = broker-service2.connect --network=network --device=DEVICE2
         test-events
             test-broker
-            broker-cli
+            event-reader
             broker-service1
             broker-service2
             broker-connection1
@@ -345,7 +347,7 @@ test-events --test-broker/TestBroker broker-cli/stores.FleetStore --network/net.
 
 test-events
     test-broker/TestBroker
-    broker-cli/stores.FleetStore
+    event-reader/stores.BrokerEventReader
     broker-service1/broker.BrokerService
     broker-service2/broker.BrokerService
     broker-connection1/broker.BrokerConnection
@@ -356,7 +358,7 @@ test-events
   // on the previous tests to do that for us.
 
   // Services poll for the goals, which lead to events.
-  events := broker-cli.get-events
+  events := event-reader.get-events
       --device-ids=[DEVICE1.id]
       --types=["get-goal"]
       --limit=1000
@@ -366,10 +368,10 @@ test-events
   test-broker.backdoor.clear-events
 
   start := Time.now
-  events = broker-cli.get-events --device-ids=[DEVICE1.id] --types=["test-event"]
+  events = event-reader.get-events --device-ids=[DEVICE1.id] --types=["test-event"]
   expect-not (events.contains DEVICE1.id)
 
-  events = broker-cli.get-events --device-ids=[DEVICE1.id, DEVICE2.id] --types=["test-event"]
+  events = event-reader.get-events --device-ids=[DEVICE1.id, DEVICE2.id] --types=["test-event"]
   expect-not (events.contains DEVICE1.id)
   expect-not (events.contains DEVICE2.id)
 
@@ -379,7 +381,7 @@ test-events
 
   2.repeat:
     device-ids := it == 0 ? [DEVICE1.id] : [DEVICE1.id, DEVICE2.id]
-    events = broker-cli.get-events
+    events = event-reader.get-events
         --device-ids=device-ids
         --types=["test-event"]
     expect (events.contains DEVICE1.id)
@@ -390,7 +392,7 @@ test-events
 
     // Test the since parameter.
     now := Time.now
-    events = broker-cli.get-events
+    events = event-reader.get-events
         --device-ids=device-ids
         --types=["test-event"]
         --since=now
@@ -401,7 +403,7 @@ test-events
     total-events1++
     broker-connection2.report-event --type="test-event2" "test-data-$it"
 
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id, DEVICE2.id]
       --types=["test-event2"]
       --limit=100
@@ -420,7 +422,7 @@ test-events
     expected-suffix--
 
   // Limit to 5 per device.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id, DEVICE2.id]
       --types=["test-event2"]
       --limit=5
@@ -444,7 +446,7 @@ test-events
 
   // Limit to 20 per device.
   // Device 1 should have 10 events, device 2 should have 15 events.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id, DEVICE2.id]
       --types=["test-event2"]
       --limit=20
@@ -463,7 +465,7 @@ test-events
     expected-suffix--
 
   // Make sure we test one of the most common use cases: getting just one event.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id, DEVICE2.id]
       --types=["test-event2"]
       --limit=1
@@ -483,7 +485,7 @@ test-events
     broker-connection2.report-event --type="test-event2" "test-data-$(it + 20)"
 
   // Limit to events since 'checkpoint'.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id, DEVICE2.id]
       --types=["test-event2"]
       --since=checkpoint
@@ -502,7 +504,7 @@ test-events
     expected-suffix--
 
   // Limit to events since 'checkpoint' and limit to 3.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id, DEVICE2.id]
       --types=["test-event2"]
       --since=checkpoint
@@ -522,7 +524,7 @@ test-events
     expected-suffix--
 
   // Limit to events since 'checkpoint' and limit to 10.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id, DEVICE2.id]
       --types=["test-event2"]
       --since=checkpoint
@@ -551,7 +553,7 @@ test-events
     broker-connection2.report-event --type="test-event4" "test-data-$(it + 40)"
 
   // Get events for type 3 and 4.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id]
       --types=["test-event3", "test-event4"]
   expect (events.contains DEVICE1.id)
@@ -570,7 +572,7 @@ test-events
     expect4 = not expect4
 
   // Same for both devices at the same time.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id, DEVICE2.id]
       --types=["test-event3", "test-event4"]
   expect (events.contains DEVICE1.id)
@@ -593,14 +595,14 @@ test-events
       expect4 = not expect4
 
   // Get all events for device 1.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id]
       --limit=1000
   expect (events.contains DEVICE1.id)
   expect-equals total-events1 events[DEVICE1.id].size
 
   // Only get the last event for device 1.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id]
       --limit=1
   expect (events.contains DEVICE1.id)
@@ -612,7 +614,7 @@ test-events
   total-events1++
 
   // Get all events for device 1 again.
-  events = broker-cli.get-events
+  events = event-reader.get-events
       --device-ids=[DEVICE1.id]
       --limit=1000
   expect (events.contains DEVICE1.id)
