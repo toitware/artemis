@@ -39,7 +39,9 @@ is sent to and from your devices via the broker.
    https://supabase.com/dashboard/project/YOUR-PROJECT-ID/settings/api
 8. Push the edge functions:
     ```
-    supabase functions deploy --no-verify-jwt b
+    for name in b artifact-store update-broker broker-state-reader broker-event-reader pod-store; do
+      supabase functions deploy --no-verify-jwt "$name"
+    done
     ```
 9. Disable user sign-up and enable OAuth2. (See below).
 

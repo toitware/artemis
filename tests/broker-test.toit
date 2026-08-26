@@ -53,9 +53,7 @@ run-test
       configured-server.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
 
     artifact-store := implementations.create-artifact-store configured-server
-    update-broker := implementations.create-update-broker
-        configured-server
-        --combined=test-broker.combined
+    update-broker := implementations.create-update-broker configured-server
     state-reader := implementations.create-broker-state-reader configured-server
     event-reader := implementations.create-broker-event-reader configured-server
 

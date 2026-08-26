@@ -37,8 +37,11 @@ interface Server implements Authenticatable:
   /** Scope used by implementations connected to this server. */
   scope -> Scope
 
-  /** Sends one request using this server's transport and authentication. */
-  send-request command/int data/any -> any
+  /** Sends a request using this server's transport and authentication. */
+  send-request method/string path/string data/any=null -> any
+      --query-parameters/Map?=null
+      --binary-request/bool=false
+      --binary-response/bool=false
 
   /** See $Authenticatable.ensure-authenticated. */
   ensure-authenticated [block]

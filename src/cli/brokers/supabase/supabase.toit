@@ -4,7 +4,6 @@ import cli show Cli
 import http
 import supabase
 import certificate-roots
-import uuid show Uuid
 
 import ..http.base
 import ..server
@@ -30,7 +29,7 @@ create-server-supabase-http server-config/ServerConfigSupabase --cli/Cli -> Serv
       server-config.name
       --host=host
       --port=port
-      --path="/functions/v1/b"
+      --path="/functions/v1"
       --admin-headers=null
       --device-headers=null
       --use-tls=server-config.use-tls
@@ -71,20 +70,6 @@ class ServerSupabase extends ServerHttp:
   logout:
     supabase-client_.auth.logout
 
-  /**
-  Creates the auth-side record for a newly provisioned device.
-
-  $UpdateBrokerSupabaseCombined uses this before it notifies the broker about
-    the device's initial state.
-  */
-  register-device --device-id/Uuid -> none:
-    // The existing schema keeps both columns; they now hold the same ID.
-    supabase-client_.rest.insert "devices" --no-return-inserted {
-      "id": "$device-id",
-      "alias": "$device-id",
-      "organization_id": scope.to-json,
-    }
-
   extra-headers -> Map:
     bearer/string := supabase-client_.session_
         ? supabase-client_.session_.access-token
@@ -98,14 +83,6 @@ class UpdateBrokerSupabase extends UpdateBrokerHttp:
 
   constructor .supabase-server_:
     super supabase-server_
-
-class UpdateBrokerSupabaseCombined extends UpdateBrokerSupabase:
-  constructor server/ServerSupabase:
-    super server
-
-  notify-created --device-id/Uuid --state/Map -> none:
-    supabase-server_.register-device --device-id=device-id
-    super --device-id=device-id --state=state
 
 class ArtifactStoreSupabase extends ArtifactStoreHttp:
   constructor server/ServerSupabase:

@@ -149,7 +149,7 @@ class ToitHttpBackdoor implements BrokerBackdoor:
     server.stop
 
 with-http-broker --name="test-broker" --combined/bool=false [block]:
-  server := HttpBroker 0
+  server := HttpBroker 0 --combined=combined
   port-latch := monitor.Latch
   server-task := task:: server.start port-latch
 

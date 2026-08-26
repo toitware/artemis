@@ -40,6 +40,10 @@ abstract class HttpServer:
 
   abstract run-command command/int encoded/ByteArray user-id/string? -> any
 
+  /** Handles the conventional interface-oriented API used by new CLIs. */
+  run-request method/string path/string query/Map body/ByteArray user-id/string? -> any:
+    throw "Conventional API not supported"
+
   /**
   Starts the server in a blocking way.
 
@@ -53,30 +57,39 @@ abstract class HttpServer:
     if port-latch: port-latch.set port
     server := http.Server --max-tasks=64 --logger=(log.default.with-level log.INFO-LEVEL)
     print "Listening on port $socket.local-address.port"
-    server.listen socket:: | request/http.Request writer/http.ResponseWriter |
-      bytes := request.body.read-all
-      command := bytes[0]
-      encoded := bytes[1..]
+    server.listen socket:: | request/http.RequestIncoming writer/http.ResponseWriter |
       user-id := request.headers.single "X-User-Id"
       if not request.headers.single "X-Artemis-Header":
         throw "Missing X-Artemis-Header"
 
-      listeners.do: it.call "pre" command encoded user-id
-      reply_ command encoded user-id writer
+      bytes := request.body.read-all
+      resource := request.query.resource
+      if resource == "/":
+        command := bytes[0]
+        encoded := bytes[1..]
+        listeners.do: it.call "pre" command encoded user-id
+        reply_ command writer --legacy=true:
+          run-command command encoded user-id
+      else:
+        listeners.do: it.call "pre" resource bytes user-id
+        reply_ resource writer --legacy=false:
+          run-request request.method resource request.query.parameters bytes user-id
 
-  reply_ command/int encoded/ByteArray user-id/string? writer/http.ResponseWriter:
+  reply_ request-id/any writer/http.ResponseWriter --legacy/bool [block]:
     response-data := null
     exception := catch --trace:
       with-timeout --ms=3_000:
-        response-data = run-command command encoded user-id
+        response-data = block.call
     if exception:
-      listeners.do: it.call "error" command exception
-      encoded-response := json.encode exception
+      listeners.do: it.call "error" request-id exception
+      encoded-response := legacy
+          ? json.encode exception
+          : json.encode {"message": "$exception"}
       writer.headers.set "Content-Length" "$encoded-response.size"
-      writer.write-headers http.STATUS-IM-A-TEAPOT --message="Error"
+      writer.write-headers (legacy ? http.STATUS-IM-A-TEAPOT : http.STATUS-INTERNAL-SERVER-ERROR) --message="Error"
       writer.out.write encoded-response
     else:
-      listeners.do: it.call "post" command response-data
+      listeners.do: it.call "post" request-id response-data
       if response-data is BinaryResponse:
         binary := response-data as BinaryResponse
         status := http.STATUS-OK

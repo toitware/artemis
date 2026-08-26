@@ -68,8 +68,23 @@ secret = ""
 # or any other third-party OIDC providers.
 url = ""
 
-# Don't check the bearer token on requests to the 'b' edge function.
+# Don't check the bearer token on requests to the Artemis edge functions.
 # Our api-key is public anyway, and this saves us from sending it for every request.
 # Without any bearer token the request will now simply use the anon key.
 [functions.b]
+verify_jwt = false
+
+[functions.artifact-store]
+verify_jwt = false
+
+[functions.update-broker]
+verify_jwt = false
+
+[functions.broker-state-reader]
+verify_jwt = false
+
+[functions.broker-event-reader]
+verify_jwt = false
+
+[functions.pod-store]
 verify_jwt = false
