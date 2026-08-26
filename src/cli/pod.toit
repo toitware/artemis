@@ -86,7 +86,7 @@ class Pod:
       --artemis/Artemis
       --cli/Cli:
     target-version := parse-artemis-version specification.artemis-version
-    if not target-version or target-version.major != ARTEMIS-VERSION-MAJOR:
+    if target-version and target-version.major != ARTEMIS-VERSION-MAJOR:
       cli.ui.abort "Artemis $ARTEMIS-VERSION only builds pods for API generation V$ARTEMIS-VERSION-MAJOR. The requested service version is '$specification.artemis-version'."
 
     envelope-path := generate-envelope-path_ --tmp-directory=artemis.tmp-directory
@@ -105,7 +105,7 @@ class Pod:
     return Pod
         --id=id
         --name=specification.name
-        --artemis-version=specification.artemis-version
+        --artemis-version=ARTEMIS-VERSION
         --tmp-directory=artemis.tmp-directory
         --envelope=envelope
         --envelope-path=envelope-path
