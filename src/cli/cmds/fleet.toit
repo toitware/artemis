@@ -14,7 +14,7 @@ import .auth as auth-cmd
 import .serial show PARTITION-OPTION
 import .utils_
 import ..artemis
-import ..brokers.broker show BrokerCli
+import ..brokers.server show Server
 import ..config
 import ..cache
 import ..device
@@ -668,7 +668,7 @@ login invocation/Invocation:
     broker := fleet.broker
     broker-name := broker.server-config.name
     ui.emit --info "Logging in to broker '$broker-name'."
-    broker-authenticatable := BrokerCli broker.server-config --cli=cli
+    broker-authenticatable := Server broker.server-config --cli=cli
     auth-cmd.sign-in invocation --name=broker-name --authenticatable=broker-authenticatable
 
 add-devices invocation/Invocation:

@@ -8,19 +8,6 @@ import uuid show Uuid
 
 import .scope show Scope
 
-/**
-A multi-tenant deployment: the broker shares its underlying storage with
-  an auth provider (so creating a device on the broker also has to land
-  a row in the auth provider's device table).
-*/
-TENANCY-SHARED ::= "shared"
-
-/**
-A single-tenant deployment: the broker is self-contained and does not
-  need to coordinate with an auth provider's storage.
-*/
-TENANCY-DEDICATED ::= "dedicated"
-
 abstract class ServerConfig:
   name/string
 
@@ -32,18 +19,10 @@ abstract class ServerConfig:
   */
   scope/Scope?
 
-  /**
-  The deployment shape of this server.
-
-  Either $TENANCY-SHARED, $TENANCY-DEDICATED, or null (caller hasn't
-    specified; treated as dedicated by consumers).
-  */
-  tenancy/string?
-
   cache-key_/string? := null
   ders-already-installed_/bool := false
 
-  constructor.from-sub_ .name --.scope/Scope?=null --.tenancy/string?=null:
+  constructor.from-sub_ .name --.scope/Scope?=null:
 
   /**
   Creates a new broker-config from a JSON map.
@@ -105,10 +84,9 @@ abstract class ServerConfig:
   Returns a copy of this config with the non-null fields overridden.
 
   Used to attach a fleet's scope to a $ServerConfig that was loaded from
-    the global CLI config (which never carries a scope), or to tag the
-    config with a tenancy mode.
+    the global CLI config, which never carries a scope.
   */
-  abstract with --scope/Scope?=null --tenancy/string?=null -> ServerConfig
+  abstract with --scope/Scope?=null -> ServerConfig
 
   /**
   A unique key that can be used for caching.
@@ -164,8 +142,6 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     if use-tls == null: use-tls = json.contains "root_certificate_name"
     scope-value := json.get "scope"
     scope/Scope? := scope-value and (Scope scope-value)
-    tenancy/string? := json.get "tenancy"
-
     return ServerConfigSupabase name
         --host=json["host"]
         --anon=json["anon"]
@@ -173,7 +149,6 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         --use-tls=use-tls
         --root-certificate-der=root-der
         --scope=scope
-        --tenancy=tenancy
 
   constructor name/string
       --.host
@@ -181,9 +156,8 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
       --.use-tls=true
       --.root-certificate-der=null
       --.poll-interval=DEFAULT-POLL-INTERVAL
-      --scope/Scope?=null
-      --tenancy/string?=null:
-    super.from-sub_ name --scope=scope --tenancy=tenancy
+      --scope/Scope?=null:
+    super.from-sub_ name --scope=scope
 
   operator== other:
     if other is not ServerConfigSupabase: return false
@@ -214,8 +188,6 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
           result["root_certificate_der_id"] = serialized
     if scope:
       result["scope"] = scope.to-json
-    if tenancy:
-      result["tenancy"] = tenancy
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
@@ -248,8 +220,7 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
 
   with -> ServerConfigSupabase
       --host/string?=null
-      --scope/Scope?=null
-      --tenancy/string?=null:
+      --scope/Scope?=null:
     return ServerConfigSupabase
         name
         --host=(host or this.host)
@@ -258,7 +229,6 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         --root-certificate-der=root-certificate-der
         --poll-interval=poll-interval
         --scope=(scope or this.scope)
-        --tenancy=(tenancy or this.tenancy)
 
 /**
 A broker configuration for an HTTP-based broker.
@@ -287,7 +257,6 @@ class ServerConfigHttp extends ServerConfig:
     if use-tls == null: use-tls = config.contains "root_certificate_names"
     scope-value := config.get "scope"
     scope/Scope? := scope-value and (Scope scope-value)
-    tenancy/string? := config.get "tenancy"
     return ServerConfigHttp name
         --host=config["host"]
         --port=config.get "port"
@@ -298,7 +267,6 @@ class ServerConfigHttp extends ServerConfig:
         --admin-headers=config.get "admin_headers"
         --poll-interval=Duration --us=config["poll_interval"]
         --scope=scope
-        --tenancy=tenancy
 
   constructor name/string
       --.host
@@ -309,10 +277,9 @@ class ServerConfigHttp extends ServerConfig:
       --.device-headers
       --.admin-headers
       --.poll-interval=DEFAULT-POLL-INTERVAL
-      --scope/Scope?=null
-      --tenancy/string?=null:
+      --scope/Scope?=null:
 
-    super.from-sub_ name --scope=scope --tenancy=tenancy
+    super.from-sub_ name --scope=scope
 
   operator== other:
     if other is not ServerConfigHttp: return false
@@ -342,23 +309,19 @@ class ServerConfigHttp extends ServerConfig:
       result["admin_headers"] = admin-headers
     if scope:
       result["scope"] = scope.to-json
-    if tenancy:
-      result["tenancy"] = tenancy
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
     result := to-json --der-serializer=der-serializer --base64=base64
     result.remove "admin_headers"
     result.remove "scope"
-    result.remove "tenancy"
     return result
 
   compute-cache-key_ -> string:
     return "$host:$port:$path"
 
   with -> ServerConfigHttp
-      --scope/Scope?=null
-      --tenancy/string?=null:
+      --scope/Scope?=null:
     return ServerConfigHttp
         name
         --host=host
@@ -370,4 +333,3 @@ class ServerConfigHttp extends ServerConfig:
         --admin-headers=admin-headers
         --poll-interval=poll-interval
         --scope=(scope or this.scope)
-        --tenancy=(tenancy or this.tenancy)

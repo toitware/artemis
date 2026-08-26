@@ -7,11 +7,12 @@ import certificate-roots
 import uuid show Uuid
 
 import ..http.base
+import ..server
 import ...config
 import ...utils.supabase
 import ....shared.server-config
 
-create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> BrokerCliSupabase:
+create-server-supabase-http server-config/ServerConfigSupabase --cli/Cli -> ServerSupabase:
   local-storage := ConfigLocalStorage --cli=cli --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
   supabase-client := supabase.Client --server-config=server-config --local-storage=local-storage
   id := "supabase/$server-config.host"
@@ -36,12 +37,11 @@ create-broker-cli-supabase-http server-config/ServerConfigSupabase --cli/Cli -> 
       --root-certificate-ders=server-config.root-certificate-der ? [server-config.root-certificate-der] : null
       --poll-interval=server-config.poll-interval
       --scope=server-config.scope
-      --tenancy=server-config.tenancy
 
-  return BrokerCliSupabase --id=id supabase-client http-config
+  return ServerSupabase --id=id supabase-client http-config
 
 
-class BrokerCliSupabase extends BrokerCliHttp:
+class ServerSupabase extends ServerHttp:
   supabase-client_/supabase.Client? := null
 
   constructor --id/string .supabase-client_ http-config/ServerConfigHttp:
@@ -72,22 +72,18 @@ class BrokerCliSupabase extends BrokerCliHttp:
     supabase-client_.auth.logout
 
   /**
-  Registers a newly provisioned device with the broker.
+  Creates the auth-side record for a newly provisioned device.
 
-  For a shared-tenancy deployment the broker and the auth provider live
-    in the same Supabase project; the broker is responsible for creating
-    the device row in the auth-side `devices` table as part of the
-    notify-created handshake.
+  $UpdateBrokerSupabaseCombined uses this before it notifies the broker about
+    the device's initial state.
   */
-  notify-created --device-id/Uuid --state/Map -> none:
-    if server-config_.tenancy == TENANCY-SHARED:
-      // The existing schema keeps both columns; they now hold the same ID.
-      supabase-client_.rest.insert "devices" --no-return-inserted {
-        "id": "$device-id",
-        "alias": "$device-id",
-        "organization_id": server-config_.scope.to-json,
-      }
-    super --device-id=device-id --state=state
+  register-device --device-id/Uuid -> none:
+    // The existing schema keeps both columns; they now hold the same ID.
+    supabase-client_.rest.insert "devices" --no-return-inserted {
+      "id": "$device-id",
+      "alias": "$device-id",
+      "organization_id": scope.to-json,
+    }
 
   extra-headers -> Map:
     bearer/string := supabase-client_.session_
@@ -96,3 +92,33 @@ class BrokerCliSupabase extends BrokerCliHttp:
     return {
       "Authorization": "Bearer $bearer",
     }
+
+class UpdateBrokerSupabase extends UpdateBrokerHttp:
+  supabase-server_/ServerSupabase
+
+  constructor .supabase-server_:
+    super supabase-server_
+
+class UpdateBrokerSupabaseCombined extends UpdateBrokerSupabase:
+  constructor server/ServerSupabase:
+    super server
+
+  notify-created --device-id/Uuid --state/Map -> none:
+    supabase-server_.register-device --device-id=device-id
+    super --device-id=device-id --state=state
+
+class ArtifactStoreSupabase extends ArtifactStoreHttp:
+  constructor server/ServerSupabase:
+    super server
+
+class BrokerStateReaderSupabase extends BrokerStateReaderHttp:
+  constructor server/ServerSupabase:
+    super server
+
+class BrokerEventReaderSupabase extends BrokerEventReaderHttp:
+  constructor server/ServerSupabase:
+    super server
+
+class PodStoreSupabase extends PodStoreHttp:
+  constructor server/ServerSupabase:
+    super server

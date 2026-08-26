@@ -9,7 +9,8 @@ import net.x509
 import tls
 import uuid show Uuid
 
-import ..broker
+import ..server
+import ..stores
 import ...device
 import ...event
 import ...pod-registry
@@ -18,15 +19,11 @@ import ....shared.server-config
 import ....shared.utils as utils
 import ....shared.constants show *
 
-create-broker-cli-http-toit server-config/ServerConfigHttp -> BrokerCliHttp:
+create-server-http-toit server-config/ServerConfigHttp -> ServerHttp:
   id := "toit-http/$server-config.host-$server-config.port"
-  return BrokerCliHttp server-config --id=id
+  return ServerHttp server-config --id=id
 
-create-broker-cli-http-toit-shared server-config/ServerConfigHttp -> BrokerCliHttpShared:
-  id := "toit-http/$server-config.host-$server-config.port"
-  return BrokerCliHttpShared server-config --id=id
-
-class BrokerCliHttp implements BrokerCli:
+class ServerHttp implements Server:
   network_/net.Interface? := ?
   id/string
   server-config_/ServerConfigHttp
@@ -73,7 +70,10 @@ class BrokerCliHttp implements BrokerCli:
     // For simplicity do nothing.
     // This way we can use the same tests for all brokers.
 
-  send-request_ command/int data/any -> any:
+  scope -> Scope:
+    return server-config_.scope
+
+  send-request command/int data/any -> any:
     if is-closed: throw "CLOSED"
     encoded/ByteArray := ?
     if command == COMMAND-UPLOAD_:
@@ -83,7 +83,7 @@ class BrokerCliHttp implements BrokerCli:
     else:
       encoded = #[command] + (json.encode data)
 
-    send-request_ encoded: | response/http.Response |
+    send-encoded-request_ encoded: | response/http.Response |
       body := response.body
       // Teapot status codes are exceptions from our server code.
       // They are handled below.
@@ -115,10 +115,10 @@ class BrokerCliHttp implements BrokerCli:
       return decoded
     unreachable
 
-  send-request_ encoded/ByteArray [block]:
+  send-encoded-request_ encoded/ByteArray [block]:
     MAX-ATTEMPTS ::= 3
     MAX-ATTEMPTS.repeat: | attempt/int |
-      response := send-request_ encoded
+      response := send-encoded-request_ encoded
       // Cloudflare frequently rejects our requests with a 502, 520 or 546.
       // Just try again.
       status-code := response.status-code
@@ -131,7 +131,7 @@ class BrokerCliHttp implements BrokerCli:
         block.call response
         return
 
-  send-request_ encoded/ByteArray -> http.Response:
+  send-encoded-request_ encoded/ByteArray -> http.Response:
     if not client_:
       if server-config_.use-tls or server-config_.root-certificate-ders:
         client_ = http.Client.tls network_
@@ -158,25 +158,40 @@ class BrokerCliHttp implements BrokerCli:
 
   extra-headers -> Map?:
     return null
+class ArtifactStoreHttp implements ArtifactStore:
+  server/Server
 
-  update-goal --device-id/Uuid [block] -> none:
-    detailed-devices := get-devices --device-ids=[device-id]
-    if detailed-devices.size != 1: throw "Device not found: $device-id"
-    detailed-device := detailed-devices[device-id]
-    new-goal := block.call detailed-device
-    send-request_ COMMAND-UPDATE-GOAL_ {
-      "_device_id": "$device-id",
-      "_goal": new-goal
+  constructor .server:
+
+  upload-image --app-id/Uuid --word-size/int contents/ByteArray -> none:
+    scope := server.scope.to-json
+    server.send-request COMMAND-UPLOAD_ {
+      "path": "/toit-artemis-assets/$scope/images/$app-id.$word-size",
+      "content": contents,
     }
 
-  update-goals --device-ids/List --goals/List -> none:
-    send-request_ COMMAND-UPDATE-GOALS_ {
-      "_device_ids": device-ids.map: "$it",
-      "_goals": goals
+  upload-firmware --firmware-id/string chunks/List -> none:
+    scope := server.scope.to-json
+    firmware := #[]
+    chunks.do: firmware += it
+    server.send-request COMMAND-UPLOAD_ {
+      "path": "/toit-artemis-assets/$scope/firmware/$firmware-id",
+      "content": firmware,
     }
+
+  download-firmware --id/string -> ByteArray:
+    scope := server.scope.to-json
+    return server.send-request COMMAND-DOWNLOAD_ {
+      "path": "/toit-artemis-assets/$scope/firmware/$id",
+    }
+
+class BrokerStateReaderHttp implements BrokerStateReader:
+  server/Server
+
+  constructor .server:
 
   get-devices --device-ids/List -> Map:
-    response := send-request_ COMMAND-GET-DEVICES_ {
+    response := server.send-request COMMAND-GET-DEVICES_ {
       "_device_ids": device-ids.map: "$it"
     }
     result := {:}
@@ -187,36 +202,10 @@ class BrokerCliHttp implements BrokerCli:
       result[device-id] = DeviceDetailed --goal=goal --state=state
     return result
 
-  upload-image -> none
-      --app-id/Uuid
-      --word-size/int
-      contents/ByteArray:
-    scope := server-config_.scope.to-json
-    send-request_ COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-assets/$scope/images/$app-id.$word-size",
-      "content": contents,
-    }
+class BrokerEventReaderHttp implements BrokerEventReader:
+  server/Server
 
-  upload-firmware --firmware-id/string chunks/List -> none:
-    scope := server-config_.scope.to-json
-    firmware := #[]
-    chunks.do: firmware += it
-    send-request_ COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-assets/$scope/firmware/$firmware-id",
-      "content": firmware,
-    }
-
-  download-firmware --id/string -> ByteArray:
-    scope := server-config_.scope.to-json
-    return send-request_ COMMAND-DOWNLOAD_ {
-      "path": "/toit-artemis-assets/$scope/firmware/$id",
-    }
-
-  notify-created --device-id/Uuid --state/Map -> none:
-    send-request_ COMMAND-NOTIFY-BROKER-CREATED_ {
-      "_device_id": "$device-id",
-      "_state": state,
-    }
+  constructor .server:
 
   get-events -> Map
       --types/List?=null
@@ -229,7 +218,7 @@ class BrokerCliHttp implements BrokerCli:
       "_limit": limit,
     }
     if since: payload["_since"] = since.utc.to-iso8601-string
-    response := send-request_ COMMAND-GET-EVENTS_ payload
+    response := server.send-request COMMAND-GET-EVENTS_ payload
     result := {:}
     current-list/List? := null
     current-id/Uuid? := null
@@ -245,85 +234,117 @@ class BrokerCliHttp implements BrokerCli:
       current-list.add (Event event-type time data)
     return result
 
-  /** See $BrokerCli.pod-registry-description-upsert. */
+class UpdateBrokerHttp implements UpdateBroker:
+  server/Server
+  state-reader_/BrokerStateReader
+
+  constructor .server:
+    state-reader_ = BrokerStateReaderHttp server
+
+  update-goal --device-id/Uuid [block] -> none:
+    detailed-devices := state-reader_.get-devices --device-ids=[device-id]
+    if detailed-devices.size != 1: throw "Device not found: $device-id"
+    detailed-device := detailed-devices[device-id]
+    new-goal := block.call detailed-device
+    server.send-request COMMAND-UPDATE-GOAL_ {
+      "_device_id": "$device-id",
+      "_goal": new-goal
+    }
+
+  update-goals --device-ids/List --goals/List -> none:
+    server.send-request COMMAND-UPDATE-GOALS_ {
+      "_device_ids": device-ids.map: "$it",
+      "_goals": goals
+    }
+
+  notify-created --device-id/Uuid --state/Map -> none:
+    server.send-request COMMAND-NOTIFY-BROKER-CREATED_ {
+      "_device_id": "$device-id",
+      "_state": state,
+    }
+
+class UpdateBrokerHttpCombined extends UpdateBrokerHttp:
+  constructor server/Server:
+    super server
+
+  notify-created --device-id/Uuid --state/Map -> none:
+    server.send-request COMMAND-NOTIFY-BROKER-CREATED_ {
+      "_device_id": "$device-id",
+      "_organization_id": server.scope.to-json,
+      "_state": state,
+    }
+
+class PodStoreHttp implements PodStore:
+  server/Server
+
+  constructor .server:
+
   pod-registry-description-upsert -> int
       --fleet-id/Uuid
       --name/string
       --description/string?:
-    scope := server-config_.scope.to-json
-    return send-request_ COMMAND-POD-REGISTRY-DESCRIPTION-UPSERT_ {
+    scope := server.scope.to-json
+    return server.send-request COMMAND-POD-REGISTRY-DESCRIPTION-UPSERT_ {
       "_fleet_id": "$fleet-id",
       "_organization_id": scope,
       "_name": name,
       "_description": description,
     }
 
-  /** See $BrokerCli.pod-registry-descriptions-delete. */
   pod-registry-descriptions-delete --fleet-id/Uuid --description-ids/List -> none:
-    send-request_ COMMAND-POD-REGISTRY-DELETE-DESCRIPTIONS_ {
+    server.send-request COMMAND-POD-REGISTRY-DELETE-DESCRIPTIONS_ {
       "_fleet_id": "$fleet-id",
       "_description_ids": description-ids,
     }
 
-  /** See $BrokerCli.pod-registry-add. */
-  pod-registry-add -> none
-      --pod-description-id/int
-      --pod-id/Uuid:
-    send-request_ COMMAND-POD-REGISTRY-ADD_ {
+  pod-registry-add --pod-description-id/int --pod-id/Uuid -> none:
+    server.send-request COMMAND-POD-REGISTRY-ADD_ {
       "_pod_description_id": pod-description-id,
       "_pod_id": "$pod-id",
     }
 
-  /** See $BrokerCli.pod-registry-delete. */
   pod-registry-delete --fleet-id/Uuid --pod-ids/List -> none:
-    send-request_ COMMAND-POD-REGISTRY-DELETE_ {
+    server.send-request COMMAND-POD-REGISTRY-DELETE_ {
       "_fleet_id": "$fleet-id",
       "_pod_ids": pod-ids.map: "$it",
     }
 
-  /** See $BrokerCli.pod-registry-tag-set. */
   pod-registry-tag-set -> none
       --pod-description-id/int
       --pod-id/Uuid
       --tag/string
       --force/bool=false:
-    send-request_ COMMAND-POD-REGISTRY-TAG-SET_ {
+    server.send-request COMMAND-POD-REGISTRY-TAG-SET_ {
       "_pod_description_id": pod-description-id,
       "_pod_id": "$pod-id",
       "_tag": tag,
       "_force": force,
     }
 
-  /** See $BrokerCli.pod-registry-tag-remove. */
-  pod-registry-tag-remove -> none
-      --pod-description-id/int
-      --tag/string:
-    send-request_ COMMAND-POD-REGISTRY-TAG-REMOVE_ {
+  pod-registry-tag-remove --pod-description-id/int --tag/string -> none:
+    server.send-request COMMAND-POD-REGISTRY-TAG-REMOVE_ {
       "_pod_description_id": pod-description-id,
       "_tag": tag,
     }
 
-  /** See $BrokerCli.pod-registry-descriptions. */
   pod-registry-descriptions --fleet-id/Uuid -> List:
-    response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS_ {
+    response := server.send-request COMMAND-POD-REGISTRY-DESCRIPTIONS_ {
       "_fleet_id": "$fleet-id",
     }
     return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod-registry-descriptions --ids). */
   pod-registry-descriptions --ids/List -> List:
-    response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-IDS_ {
+    response := server.send-request COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-IDS_ {
       "_description_ids": ids,
     }
     return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod-registry-descriptions --fleet-id --names --create-if-absent). */
   pod-registry-descriptions -> List
       --fleet-id/Uuid
       --names/List
       --create-if-absent/bool:
-    scope := server-config_.scope.to-json
-    response := send-request_ COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-NAMES_ {
+    scope := server.scope.to-json
+    response := server.send-request COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-NAMES_ {
       "_fleet_id": "$fleet-id",
       "_organization_id": scope,
       "_names": names,
@@ -331,26 +352,23 @@ class BrokerCliHttp implements BrokerCli:
     }
     return response.map: PodRegistryDescription.from-map it
 
-  /** See $(BrokerCli.pod-registry-pods --pod-description-id). */
   pod-registry-pods --pod-description-id/int -> List:
-    response := send-request_ COMMAND-POD-REGISTRY-PODS_ {
+    response := server.send-request COMMAND-POD-REGISTRY-PODS_ {
       "_pod_description_id": pod-description-id,
       "_limit": 1000,
       "_offset": 0,
     }
     return response.map: PodRegistryEntry.from-map it
 
-  /** See $(BrokerCli.pod-registry-pods --fleet-id --pod-ids). */
   pod-registry-pods --fleet-id/Uuid --pod-ids/List -> List:
-    response := send-request_ COMMAND-POD-REGISTRY-PODS-BY-IDS_ {
+    response := server.send-request COMMAND-POD-REGISTRY-PODS-BY-IDS_ {
       "_fleet_id": "$fleet-id",
-      "_pod_ids": (pod-ids.map: "$it"),
+      "_pod_ids": pod-ids.map: "$it",
     }
     return response.map: PodRegistryEntry.from-map it
 
-  /** See $BrokerCli.pod-registry-pod-ids. */
   pod-registry-pod-ids --fleet-id/Uuid --references/List -> Map:
-    response := send-request_ COMMAND-POD-REGISTRY-POD-IDS-BY-REFERENCE_ {
+    response := server.send-request COMMAND-POD-REGISTRY-POD-IDS-BY-REFERENCE_ {
       "_fleet_id": "$fleet-id",
       "_references": references.map: | reference/PodReference |
         ref := {
@@ -370,54 +388,28 @@ class BrokerCliHttp implements BrokerCli:
       result[reference] = pod-id
     return result
 
-  /** See $BrokerCli.pod-registry-upload-pod-part. */
-  pod-registry-upload-pod-part -> none
-      --part-id/string
-      contents/ByteArray:
-    scope := server-config_.scope.to-json
-    send-request_ COMMAND-UPLOAD_ {
+  pod-registry-upload-pod-part --part-id/string contents/ByteArray -> none:
+    scope := server.scope.to-json
+    server.send-request COMMAND-UPLOAD_ {
       "path": "/toit-artemis-pods/$scope/part/$part-id",
       "content": contents,
     }
 
-  /** See $BrokerCli.pod-registry-download-pod-part. */
   pod-registry-download-pod-part part-id/string -> ByteArray:
-    scope := server-config_.scope.to-json
-    return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
+    scope := server.scope.to-json
+    return server.send-request COMMAND-DOWNLOAD-PRIVATE_ {
       "path": "/toit-artemis-pods/$scope/part/$part-id",
     }
 
-  /** See $BrokerCli.pod-registry-upload-pod-manifest. */
-  pod-registry-upload-pod-manifest -> none
-      --pod-id/Uuid
-      contents/ByteArray:
-    scope := server-config_.scope.to-json
-    send-request_ COMMAND-UPLOAD_ {
+  pod-registry-upload-pod-manifest --pod-id/Uuid contents/ByteArray -> none:
+    scope := server.scope.to-json
+    server.send-request COMMAND-UPLOAD_ {
       "path": "/toit-artemis-pods/$scope/manifest/$pod-id",
       "content": contents,
     }
 
-  /** See $BrokerCli.pod-registry-download-pod-manifest. */
   pod-registry-download-pod-manifest --pod-id/Uuid -> ByteArray:
-    scope := server-config_.scope.to-json
-    return send-request_ COMMAND-DOWNLOAD-PRIVATE_ {
+    scope := server.scope.to-json
+    return server.send-request COMMAND-DOWNLOAD-PRIVATE_ {
       "path": "/toit-artemis-pods/$scope/manifest/$pod-id",
-    }
-
-/**
-A $BrokerCliHttp specialisation for shared-tenancy HTTP deployments.
-
-In a shared-tenancy deployment the broker also owns the auth-side device
-  record; this override sends the configured scope (organization-id) so the
-  broker can populate that record alongside the broker-side state.
-*/
-class BrokerCliHttpShared extends BrokerCliHttp:
-  constructor server-config/ServerConfigHttp --id/string:
-    super server-config --id=id
-
-  notify-created --device-id/Uuid --state/Map -> none:
-    send-request_ COMMAND-NOTIFY-BROKER-CREATED_ {
-      "_device_id": "$device-id",
-      "_organization_id": server-config_.scope.to-json,
-      "_state": state,
     }
