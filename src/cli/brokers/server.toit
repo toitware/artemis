@@ -37,9 +37,6 @@ interface Server implements Authenticatable:
   /** Scope used by implementations connected to this server. */
   scope -> Scope
 
-  /** Tenancy model used by implementations connected to this server. */
-  tenancy -> string?
-
   /** Sends one request using this server's transport and authentication. */
   send-request command/int data/any -> any
 

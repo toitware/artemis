@@ -37,7 +37,6 @@ create-server-supabase-http server-config/ServerConfigSupabase --cli/Cli -> Serv
       --root-certificate-ders=server-config.root-certificate-der ? [server-config.root-certificate-der] : null
       --poll-interval=server-config.poll-interval
       --scope=server-config.scope
-      --tenancy=server-config.tenancy
 
   return ServerSupabase --id=id supabase-client http-config
 
@@ -75,8 +74,8 @@ class ServerSupabase extends ServerHttp:
   /**
   Creates the auth-side record for a newly provisioned device.
 
-  $UpdateBrokerSupabase uses this for shared-tenancy deployments before it
-    notifies the broker about the device's initial state.
+  $UpdateBrokerSupabaseCombined uses this before it notifies the broker about
+    the device's initial state.
   */
   register-device --device-id/Uuid -> none:
     // The existing schema keeps both columns; they now hold the same ID.
@@ -100,9 +99,12 @@ class UpdateBrokerSupabase extends UpdateBrokerHttp:
   constructor .supabase-server_:
     super supabase-server_
 
+class UpdateBrokerSupabaseCombined extends UpdateBrokerSupabase:
+  constructor server/ServerSupabase:
+    super server
+
   notify-created --device-id/Uuid --state/Map -> none:
-    if supabase-server_.tenancy == TENANCY-SHARED:
-      supabase-server_.register-device --device-id=device-id
+    supabase-server_.register-device --device-id=device-id
     super --device-id=device-id --state=state
 
 class ArtifactStoreSupabase extends ArtifactStoreHttp:

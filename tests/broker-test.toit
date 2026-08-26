@@ -53,7 +53,9 @@ run-test
       configured-server.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
 
     artifact-store := implementations.create-artifact-store configured-server
-    update-broker := implementations.create-update-broker configured-server
+    update-broker := implementations.create-update-broker
+        configured-server
+        --combined=test-broker.combined
     state-reader := implementations.create-broker-state-reader configured-server
     event-reader := implementations.create-broker-event-reader configured-server
 
@@ -67,9 +69,9 @@ run-test
       }
       update-broker.notify-created --device-id=device.id --state=state
 
-    if broker-name == "http-toit-shared" or broker-name == "supabase-local-artemis":
-      // A shared-tenancy broker must populate the auth-side device record
-      // as part of notify-created.
+    if test-broker.combined:
+      // A combined broker must populate the auth-side device record as part
+      // of notify-created.
       [DEVICE1, DEVICE2].do: | device/Device |
         auth-record := test-broker.backdoor.get-auth-device --device-id=device.id
         expect-not-null auth-record

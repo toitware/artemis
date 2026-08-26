@@ -23,14 +23,14 @@ import artemis.shared.server-config
     ServerConfig
     ServerConfigHttp
     ServerConfigSupabase
-    TENANCY-SHARED
 import .utils
 
 class TestBroker:
   server-config/ServerConfig
   backdoor/BrokerBackdoor
+  combined/bool
 
-  constructor .server-config .backdoor:
+  constructor .server-config .backdoor --.combined:
 
   with-cli [block]:
     with-tmp-config-cli: | cli/Cli |
@@ -58,8 +58,8 @@ interface BrokerBackdoor:
   /**
   Creates a new device with the given $device-id and initial $state.
 
-  For a shared-tenancy broker this also writes the device into the
-    auth-side devices table.
+  For a combined broker this also writes the device into the auth-side
+    devices table.
   */
   create-device --device-id/Uuid --state/Map -> none
 
@@ -98,34 +98,36 @@ with-broker
     server-config := get-supabase-config --sub-directory=sub-dir
     service-key := get-supabase-service-key --sub-directory=sub-dir
     server-config.poll-interval = Duration --ms=500
-    // The artemis-supabase broker is the toit-hosted, shared-tenancy
-    // deployment that also owns the auth-side devices table; the
-    // public-supabase broker is dedicated.
-    if type == "supabase-local-artemis":
-      server-config = server-config.with --tenancy=TENANCY-SHARED
+    // The Artemis Supabase project provides both the device registry and
+    // broker, while the public Supabase broker only provides broker roles.
+    combined := type == "supabase-local-artemis"
     // The backdoor operates inside a fleet's scope (TEST-SCOPE in
     // tests); the TestBroker's server-config stays scope-less because
     // it's also reused as a global-config entry.
-    backdoor := SupabaseBackdoor (server-config.with --scope=TEST-SCOPE) service-key
-    test-server := TestBroker server-config backdoor
+    backdoor := SupabaseBackdoor
+        (server-config.with --scope=TEST-SCOPE)
+        service-key
+        --combined=combined
+    test-server := TestBroker server-config backdoor --combined=combined
     block.call test-server
   else if type == "http" or type == "http-toit":
     with-http-broker block
-  else if type == "http-toit-shared":
-    with-http-broker --tenancy=TENANCY-SHARED block
+  else if type == "http-toit-combined":
+    with-http-broker --combined block
   else:
     throw "Unknown broker type: $type"
 
 class ToitHttpBackdoor implements BrokerBackdoor:
   server/HttpBroker
   server-config_/ServerConfigHttp
+  combined_/bool
 
-  constructor .server .server-config_:
+  constructor .server .server-config_ --combined/bool:
+    combined_ = combined
 
   create-device --device-id/Uuid --state/Map:
-    if server-config_.tenancy == TENANCY-SHARED:
-      // Shared-tenancy: the broker also owns the auth-side devices
-      // record. Mirror what UpdateBrokerHttp does at notify-created.
+    if combined_:
+      // The combined server also owns the auth-side device record.
       server.insert-auth-device
           --device-id="$device-id"
           --organization-id=server-config_.scope.to-json
@@ -146,7 +148,7 @@ class ToitHttpBackdoor implements BrokerBackdoor:
   stop -> none:
     server.stop
 
-with-http-broker --name="test-broker" --tenancy/string?=null [block]:
+with-http-broker --name="test-broker" --combined/bool=false [block]:
   server := HttpBroker 0
   port-latch := monitor.Latch
   server-task := task:: server.start port-latch
@@ -166,14 +168,15 @@ with-http-broker --name="test-broker" --tenancy/string?=null [block]:
       --device-headers={
         "X-Artemis-Header": "true",
       }
-  if tenancy: server-config = server-config.with --tenancy=tenancy
-
   // The backdoor operates inside a fleet's scope (TEST-SCOPE in
   // tests); the TestBroker's server-config stays scope-less because
   // it's also reused as a global-config entry.
-  backdoor/ToitHttpBackdoor := ToitHttpBackdoor server (server-config.with --scope=TEST-SCOPE)
+  backdoor/ToitHttpBackdoor := ToitHttpBackdoor
+      server
+      (server-config.with --scope=TEST-SCOPE)
+      --combined=combined
 
-  test-server := TestBroker server-config backdoor
+  test-server := TestBroker server-config backdoor --combined=combined
   try:
     block.call test-server
   finally:
@@ -183,14 +186,15 @@ with-http-broker --name="test-broker" --tenancy/string?=null [block]:
 class SupabaseBackdoor implements BrokerBackdoor:
   server-config_/ServerConfigSupabase
   service-key_/string
+  combined_/bool
 
-  constructor .server-config_ .service-key_:
+  constructor .server-config_ .service-key_ --combined/bool:
+    combined_ = combined
 
   create-device --device-id/Uuid --state/Map:
     with-backdoor-client_: | client/supabase.Client |
-      if server-config_.tenancy == TENANCY-SHARED:
-        // Shared-tenancy: the broker also owns the auth-side devices
-        // table. Mirror what UpdateBrokerSupabase does at notify-created.
+      if combined_:
+        // The combined project also owns the auth-side devices table.
         client.rest.insert "devices" --no-return-inserted {
           "id": "$device-id",
           "alias": "$device-id",

@@ -79,6 +79,7 @@ class Broker:
   This field is only set if the fleet has devices.
   */
   device-short-strings_/Map?
+  combined_/bool
 
   server__/Server? := null
   artifact-store__/ArtifactStore? := null
@@ -90,10 +91,12 @@ class Broker:
   constructor
       --.fleet-id/Uuid
       --.server-config
+      --combined/bool
       --cli/Cli
       --tmp-directory/string
       --short-strings/Map?:
     cli_ = cli
+    combined_ = combined
     tmp-directory_ = tmp-directory
     device-short-strings_ = short-strings
 
@@ -114,7 +117,8 @@ class Broker:
     return artifact-store__
 
   update-broker_ -> UpdateBroker:
-    if not update-broker__: update-broker__ = create-update-broker server_
+    if not update-broker__:
+      update-broker__ = create-update-broker server_ --combined=combined_
     return update-broker__
 
   broker-state-reader_ -> BrokerStateReader:

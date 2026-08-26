@@ -48,8 +48,8 @@ class HttpBroker extends HttpServer:
   device-goals_/Map := {:}
   events_/Map := {:}  // Map from device-id to list of events.
 
-  // Shared-tenancy auth-side device records. Populated when notify-created
-  // includes an organization-id (i.e. the BrokerCliHttpShared wire shape).
+  // Auth-side device records for a combined server. Populated when
+  // notify-created includes an organization-id.
   // Maps device-id -> {id, alias, organization_id}.
   auth-devices_/Map := {:}
 

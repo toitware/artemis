@@ -11,10 +11,19 @@ create-artifact-store server/Server -> ArtifactStore:
     return ArtifactStoreSupabase (server as ServerSupabase)
   return ArtifactStoreHttp server
 
-/** Constructs the update broker configured to use $server. */
-create-update-broker server/Server -> UpdateBroker:
+/**
+Constructs the update broker configured to use $server.
+
+If $combined is true, the same server also provides the Artemis device
+  registry and provisioning updates both services.
+*/
+create-update-broker server/Server --combined/bool -> UpdateBroker:
   if server is ServerSupabase:
+    if combined:
+      return UpdateBrokerSupabaseCombined (server as ServerSupabase)
     return UpdateBrokerSupabase (server as ServerSupabase)
+  if combined:
+    return UpdateBrokerHttpCombined server
   return UpdateBrokerHttp server
 
 /** Constructs the optional broker-state reader configured to use $server. */

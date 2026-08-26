@@ -73,9 +73,6 @@ class ServerHttp implements Server:
   scope -> Scope:
     return server-config_.scope
 
-  tenancy -> string?:
-    return server-config_.tenancy
-
   send-request command/int data/any -> any:
     if is-closed: throw "CLOSED"
     encoded/ByteArray := ?
@@ -261,13 +258,21 @@ class UpdateBrokerHttp implements UpdateBroker:
     }
 
   notify-created --device-id/Uuid --state/Map -> none:
-    payload := {
+    server.send-request COMMAND-NOTIFY-BROKER-CREATED_ {
       "_device_id": "$device-id",
       "_state": state,
     }
-    if server.tenancy == TENANCY-SHARED:
-      payload["_organization_id"] = server.scope.to-json
-    server.send-request COMMAND-NOTIFY-BROKER-CREATED_ payload
+
+class UpdateBrokerHttpCombined extends UpdateBrokerHttp:
+  constructor server/Server:
+    super server
+
+  notify-created --device-id/Uuid --state/Map -> none:
+    server.send-request COMMAND-NOTIFY-BROKER-CREATED_ {
+      "_device_id": "$device-id",
+      "_organization_id": server.scope.to-json,
+      "_state": state,
+    }
 
 class PodStoreHttp implements PodStore:
   server/Server
