@@ -4,7 +4,6 @@ import certificate-roots
 import cli show Cli
 import encoding.json
 import http
-import io
 import net
 import net.x509
 import tls
@@ -167,15 +166,12 @@ class ServerHttp implements Server:
     base-path := server-config_.path
     if base-path.ends-with "/": base-path = base-path[..base-path.size - 1]
     if not path.starts-with "/": path = "/$path"
-    request := client_.new-request method
+    return client_.request method encoded
         --host=server-config_.host
         --port=server-config_.port
         --path="$base-path$path"
         --query-parameters=query-parameters
         --headers=headers
-    if encoded:
-      request.body = io.Reader encoded
-    return request.send
 
   extra-headers -> Map?:
     return null
