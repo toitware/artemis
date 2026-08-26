@@ -19,6 +19,7 @@ import .device
 import .pod
 import .pod-specification
 import .utils
+import ..shared.api-version show artemis-version-major
 import ..shared.utils.patch
 
 
@@ -91,16 +92,15 @@ class Firmware:
     the process is repeated until the encoded parts do not change anymore.
   */
   constructor --device/Device --pod/Pod --cli/Cli --unconfigured-contents/FirmwareContents?=null:
+    pod.ensure-supported-target --cli=cli
     sdk-version := Sdk.get-sdk-version-from --envelope-path=pod.envelope-path
     unconfigured := unconfigured-contents or
         FirmwareContents.from-envelope pod.envelope-path --cli=cli
     encoded-parts := unconfigured.encoded-parts
-    device-map := {
-      "device_id":       "$device.id",
-      "organization_id": "$device.organization-id",
-      // Kept so older Artemis service images can read new firmware.
-      "hardware_id":     "$device.id",
-    }
+    target-major := artemis-version-major pod.artemis-version
+    if not target-major: target-major = 0
+    identity := device.to-json-identity --artemis-major=target-major
+    device-map := identity["artemis.device"]
     while true:
       device-specific := ubjson.encode {
         "artemis.device" : device-map,

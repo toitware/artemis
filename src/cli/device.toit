@@ -2,6 +2,8 @@
 
 import uuid show Uuid
 import .firmware
+import ..shared.api-version show ARTEMIS-V1-MAJOR
+import ..shared.version show ARTEMIS-VERSION-MAJOR
 
 class Device:
   /**
@@ -25,15 +27,14 @@ class Device:
     id = Uuid.parse device["device_id"]
     organization-id = Uuid.parse device["organization_id"]
 
-  to-json-identity -> Map:
-    return {
-      "artemis.device": {
-        "device_id"       : "$id",
-        "organization_id" : "$organization-id",
-        // Kept so older Artemis service images can read new identities.
-        "hardware_id"     : "$id",
-      },
+  to-json-identity --artemis-major/int=ARTEMIS-VERSION-MAJOR -> Map:
+    device := {
+      "device_id"       : "$id",
+      "organization_id" : "$organization-id",
     }
+    if artemis-major < ARTEMIS-V1-MAJOR:
+      device["hardware_id"] = "$id"
+    return {"artemis.device": device}
 
 /**
 A detailed version of the $Device class.
