@@ -24,6 +24,7 @@ class AuthProviderSupabase implements AuthProvider:
   server-config_/ServerConfigSupabase
 
   constructor network/net.Interface .server-config_/ServerConfigSupabase --cli/Cli:
+    server-config_.install-root-certificates
     local-storage := ConfigLocalStorage --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config_.name)" --cli=cli
     client_ = supabase.Client network --server-config=server-config_ --local-storage=local-storage
 

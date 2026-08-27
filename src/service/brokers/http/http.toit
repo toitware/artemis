@@ -10,26 +10,26 @@ import uuid show Uuid
 import .connection
 import ..broker
 import ...device
-import ....shared.server-config show ServerConfigHttpTemplates
+import ....shared.broker-config show BrokerConfig
 
-class BrokerServiceHttpTemplates implements BrokerService:
+class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
-  server-config_/ServerConfigHttpTemplates
+  broker-config_/BrokerConfig
 
-  constructor .logger_ .server-config_:
+  constructor .logger_ .broker-config_:
 
   connect --network/net.Client --device/Device -> BrokerConnection:
-    connection := HttpTemplateConnection_ network server-config_
-    return BrokerConnectionHttpTemplates
+    connection := HttpConnection_ network broker-config_
+    return BrokerConnectionHttp
         logger_
         device
         connection
-        server-config_
+        broker-config_
 
-class BrokerConnectionHttpTemplates implements BrokerConnection:
+class BrokerConnectionHttp implements BrokerConnection:
   device_/Device
-  connection_/HttpTemplateConnection_
-  config_/ServerConfigHttpTemplates
+  connection_/HttpConnection_
+  config_/BrokerConfig
   logger_/log.Logger
 
   last-poll-us_/int? := null

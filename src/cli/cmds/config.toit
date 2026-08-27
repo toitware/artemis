@@ -264,22 +264,12 @@ add-supabase invocation/Invocation:
   url-string/string := params["url"]
   anon/string := params["anon"]
 
-  use-tls := false
-  host := ""
-
-  if url-string.starts-with "http://":
-    use-tls = false
-    host = url-string.trim --left "http://"
-  else if url-string.starts-with "https://":
-    use-tls = true
-    host = url-string.trim --left "https://"
-  else:
+  if not url-string.starts-with "http://" and not url-string.starts-with "https://":
     ui.abort "Invalid URL '$url-string'. Must start with 'http://' or 'https://'."
 
   supabase-config := ServerConfigSupabase name
-      --host=host
+      --url=url-string
       --anon=anon
-      --use-tls=use-tls
 
   add-server-to-config supabase-config --cli=cli
   if params["default"]:
@@ -299,34 +289,8 @@ add-http invocation/Invocation:
   device-headers-list/List := params["device-header"]
   admin-headers-list/List := params["admin-header"]
 
-  use-tls := false
-  host := ""
-
-  if url-string.starts-with "http://":
-    use-tls = false
-    host = url-string.trim --left "http://"
-  else if url-string.starts-with "https://":
-    use-tls = true
-    host = url-string.trim --left "https://"
-  else:
+  if not url-string.starts-with "http://" and not url-string.starts-with "https://":
     ui.abort "Invalid URL '$url-string'. Must start with 'http://' or 'https://'."
-
-  port/int? := null
-  path/string := "/"
-
-  colon-index := host.index-of ":"
-  slash-index := host.index-of "/"
-  if slash-index != -1:
-    path = host[slash-index..]
-    if colon-index != -1 and colon-index < slash-index:
-      port = int.parse host[colon-index + 1..slash-index]
-      host = host[..colon-index]
-    else:
-      host = host[..slash-index]
-  else:
-    if colon-index != -1:
-      port = int.parse host[colon-index + 1..]
-      host = host[..colon-index]
 
   header-list-to-map := : | header-list/List |
     headers-map := null
@@ -347,10 +311,7 @@ add-http invocation/Invocation:
   admin-headers := header-list-to-map.call admin-headers-list
 
   http-config := ServerConfigHttp name
-      --host=host
-      --port=port
-      --path=path
-      --use-tls=use-tls
+      --url=url-string
       --root-certificate-ders=null
       --device-headers=device-headers
       --admin-headers=admin-headers

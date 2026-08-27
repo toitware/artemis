@@ -23,7 +23,7 @@ import .jobs
 import .ntp
 import .storage
 
-import ..shared.server-config show ServerConfig
+import ..shared.broker-config show BrokerConfig
 import ..shared.json-diff show Modification json-equals
 
 /**
@@ -658,9 +658,9 @@ class SynchronizeJob extends TaskJob:
         if status != http.STATUS-OK:
           logger_.warn "recovery query failed" --tags={"url": url, "status": status}
           return null
-        config := ServerConfig.from-json "broker" (json.decode-stream response.body)
+        config := BrokerConfig.from-json (json.decode-stream response.body)
             --der-deserializer=: unreachable
-        logger_.info "recovery query succeeded" --tags={"url": url, "broker": config.name}
+        logger_.info "recovery query succeeded" --tags={"url": url}
         return BrokerService logger_ config
       finally:
         client.close

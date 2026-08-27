@@ -17,7 +17,7 @@ import .null-pin-trigger
 import ..device
 import ..service show run-artemis
 import ..storage show Storage
-import ..utils show decode-server-config
+import ..utils show decode-broker-config
 import ..watchdog
 
 main arguments:
@@ -53,8 +53,8 @@ main arguments:
   recovery-urls/List? :=
       recovery-urls-encoded and (tison.decode recovery-urls-encoded)
 
-  server-config := decode-server-config "broker" artemis-assets
-  sleep-duration := run-artemis device server-config
+  broker-config := decode-broker-config "broker" artemis-assets
+  sleep-duration := run-artemis device broker-config
       --recovery-urls=recovery-urls
       --watchdog=watchdog
       --storage=storage

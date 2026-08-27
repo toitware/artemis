@@ -4,7 +4,7 @@ import encoding.json
 import http
 import net
 import system.storage
-import ....shared.server-config show ServerConfigHttpTemplates
+import ....shared.broker-config show BrokerConfig
 
 class HttpSecurityStore_ extends http.SecurityStore:
   // We store the cached session data in RTC memory. This means that
@@ -24,9 +24,9 @@ class HttpSecurityStore_ extends http.SecurityStore:
   key_ host/string port/int -> string:
     return "$host:$port"
 
-class HttpTemplateConnection_:
+class HttpConnection_:
   client_/http.Client? := null
-  config_/ServerConfigHttpTemplates
+  config_/BrokerConfig
   network_/net.Interface
 
   constructor .network_ .config_:

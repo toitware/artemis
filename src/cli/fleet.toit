@@ -234,10 +234,10 @@ class FleetFile:
         // If the server config is for supabase, and it uses the original
         // server URI, update it to use the new one.
         supabase-config := server-config as ServerConfigSupabase
-        if supabase-config.host == ORIGINAL-SUPABASE-SERVER-URI:
+        if supabase-config.url == ORIGINAL-SUPABASE-SERVER-URL:
           cli.ui.emit --info
-              "Using updated Artemis server URI: $DEFAULT-ARTEMIS-SERVER-CONFIG.host"
-          supabase-config.with --host=DEFAULT-ARTEMIS-SERVER-CONFIG.host
+              "Using updated Artemis server URL: $DEFAULT-ARTEMIS-SERVER-CONFIG.url"
+          supabase-config.with --url=DEFAULT-ARTEMIS-SERVER-CONFIG.url
         else:
           supabase-config
 
