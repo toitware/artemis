@@ -23,7 +23,7 @@ import .jobs
 import .ntp
 import .storage
 
-import ..shared.server-config show ServerConfig ServerConfigHttp
+import ..shared.server-config show ServerConfig
 import ..shared.json-diff show Modification json-equals
 
 /**
@@ -660,10 +660,7 @@ class SynchronizeJob extends TaskJob:
           return null
         config := ServerConfig.from-json "broker" (json.decode-stream response.body)
             --der-deserializer=: unreachable
-        broker-host := config is ServerConfigHttp
-            ? (config as ServerConfigHttp).host
-            : null
-        logger_.info "recovery query succeeded" --tags={"url": url, "broker": broker-host}
+        logger_.info "recovery query succeeded" --tags={"url": url, "broker": config.name}
         return BrokerService logger_ config
       finally:
         client.close

@@ -10,76 +10,89 @@ import uuid show Uuid
 import .connection
 import ..broker
 import ...device
-import ....shared.constants show *
-import ....shared.server-config show ServerConfigHttp
+import ....shared.server-config show ServerConfigHttpTemplates
 
-class BrokerServiceHttp implements BrokerService:
+class BrokerServiceHttpTemplates implements BrokerService:
   logger_/log.Logger
-  server-config_/ServerConfigHttp
+  server-config_/ServerConfigHttpTemplates
 
   constructor .logger_ .server-config_:
 
   connect --network/net.Client --device/Device -> BrokerConnection:
-    connection := HttpConnection_ network server-config_
-    return BrokerConnectionHttp logger_ device connection server-config_.poll-interval
+    connection := HttpTemplateConnection_ network server-config_
+    return BrokerConnectionHttpTemplates
+        logger_
+        device
+        connection
+        server-config_
 
-class BrokerConnectionHttp implements BrokerConnection:
+class BrokerConnectionHttpTemplates implements BrokerConnection:
   device_/Device
-  connection_/HttpConnection_
+  connection_/HttpTemplateConnection_
+  config_/ServerConfigHttpTemplates
   logger_/log.Logger
 
-  poll-interval_/Duration
   last-poll-us_/int? := null
 
-  constructor .logger_ .device_ .connection_ .poll-interval_:
+  constructor .logger_ .device_ .connection_ .config_:
 
   fetch-goal-state --wait/bool -> Map?:
-    // We deliberately delay fetching from the cloud, so we
-    // can avoid fetching from the cloud over and over again.
     last := last-poll-us_
     if last:
       elapsed := Duration --us=(Time.monotonic-us - last)
-      interval := poll-interval_
+      interval := config_.poll-interval
       if elapsed < interval:
-        // We are not yet supposed to go online.
-        // If we are allowed to wait, do so. Otherwise return null.
         if not wait: return null
         sleep interval - elapsed
-    result := connection_.send-request COMMAND-GET-GOAL_ {
-      "_device_id": "$device_.id",
-    }
+    values := template-values_
+    values["wait"] = wait
+    url := expand-template_ config_.fetch-goal-state-url-template values
+    result := connection_.send-json http.GET url
     last-poll-us_ = Time.monotonic-us
     return result
 
   fetch-image id/Uuid [block] -> none:
-    payload :=  {
-      "path": "/toit-artemis-assets/$device_.organization-id/images/$id.$BITS-PER-WORD",
-    }
-    connection_.send-request COMMAND-DOWNLOAD_ payload: | reader/Reader |
+    values := template-values_
+    values["id"] = id
+    values["word-size"] = BITS-PER-WORD
+    url := expand-template_ config_.fetch-image-url-template values
+    connection_.download url: | reader/Reader |
       block.call reader
 
   fetch-firmware id/string --offset/int=0 [block] -> none:
-    payload := {
-      "path": "/toit-artemis-assets/$device_.organization-id/firmware/$id",
-      "offset": offset,
-    }
-    expected-status := offset == 0 ? null : http.STATUS-PARTIAL-CONTENT
-    connection_.send-request COMMAND-DOWNLOAD_ payload --expected-status=expected-status:
-      | reader/Reader |
+    values := template-values_
+    values["id"] = id
+    values["offset"] = offset
+    url := expand-template_ config_.fetch-firmware-url-template values
+    connection_.download url --offset=offset: | reader/Reader |
       block.call reader offset
 
   report-state state/Map -> none:
-    connection_.send-request COMMAND-REPORT-STATE_ {
-      "_device_id": "$device_.id",
-      "_state": state,
-    }
+    url := expand-template_ config_.report-state-url-template template-values_
+    connection_.send-json http.PUT url state
 
   report-event --type/string data/any -> none:
-    connection_.send-request COMMAND-REPORT-EVENT_ {
-      "_device_id": "$device_.id",
-      "_type": type,
-      "_data": data,
+    values := template-values_
+    values["type"] = type
+    url := expand-template_ config_.report-event-url-template values
+    connection_.send-json http.POST url {
+      "type": type,
+      "data": data,
     }
 
   close -> none:
     connection_.close
+
+  template-values_ -> Map:
+    return {
+      "device-id": "$device_.id",
+      "organization-id": "$device_.organization-id",
+    }
+
+expand-template_ template/string values/Map -> string:
+  result := template
+  values.do: | name/string value/any |
+    placeholder := "{$name}"
+    if result.contains placeholder:
+      result = result.replace --all placeholder "$value"
+  return result

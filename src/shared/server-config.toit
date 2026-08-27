@@ -40,6 +40,9 @@ abstract class ServerConfig:
     else if json-map["type"] == "toit-http":
       config = ServerConfigHttp.from-json name json-map
           --der-deserializer=der-deserializer
+    else if json-map["type"] == "http-templates":
+      config = ServerConfigHttpTemplates.from-json name json-map
+          --der-deserializer=der-deserializer
     else:
       throw "Unknown broker type: $json-map"
     return config
@@ -191,26 +194,19 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
-    // The device only knows about HTTP-configs. Convert this Supabase config into
-    // an HTTP one.
-    http-host := host
-    http-port := null
-    colon-pos := http-host.index-of ":"
-    if colon-pos >= 0:
-      http-port = int.parse http-host[colon-pos + 1..]
-      http-host = http-host[..colon-pos]
-    der := root-certificate-der
-    http-config := ServerConfigHttp
+    scheme := use-tls ? "https" : "http"
+    base-url := "$scheme://$host"
+    template-config := ServerConfigHttpTemplates
         name
-        --host=http-host
-        --port=http-port
-        --path="/functions/v1/b"  // TODO(florian): get the path from the config.
+        --fetch-goal-state-url-template="$base-url/functions/v1/device/{device-id}/goal"
+        --fetch-image-url-template="$base-url/storage/v1/object/public/toit-artemis-assets/{organization-id}/images/{id}.{word-size}"
+        --fetch-firmware-url-template="$base-url/storage/v1/object/public/toit-artemis-assets/{organization-id}/firmware/{id}"
+        --report-state-url-template="$base-url/functions/v1/device/{device-id}/state"
+        --report-event-url-template="$base-url/functions/v1/device/{device-id}/events"
         --poll-interval=poll-interval
-        --use-tls=use-tls
-        --root-certificate-ders=der ? [der] : null
-        --admin-headers=null
-        --device-headers=null
-    return http-config.to-service-json --der-serializer=der-serializer --base64=base64
+        --root-certificate-ders=root-certificate-der ? [root-certificate-der] : null
+        --headers=null
+    return template-config.to-service-json --der-serializer=der-serializer --base64=base64
 
   root-certificate-ders -> List?:
     return root-certificate-der and [root-certificate-der]
@@ -233,7 +229,9 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
 /**
 A broker configuration for an HTTP-based broker.
 
-This broker uses the light-weight unsecured protocol we use internally.
+The CLI uses this configuration for the server's administrative interfaces.
+Device configurations generated from it contain operation-specific URL
+  templates instead.
 */
 class ServerConfigHttp extends ServerConfig:
   static DEFAULT-POLL-INTERVAL ::= Duration --s=20
@@ -312,10 +310,22 @@ class ServerConfigHttp extends ServerConfig:
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
-    result := to-json --der-serializer=der-serializer --base64=base64
-    result.remove "admin_headers"
-    result.remove "scope"
-    return result
+    scheme := use-tls ? "https" : "http"
+    port-suffix := port ? ":$port" : ""
+    base-path := path
+    if base-path.ends-with "/": base-path = base-path[..base-path.size - 1]
+    base-url := "$scheme://$(host)$(port-suffix)$(base-path)"
+    template-config := ServerConfigHttpTemplates
+        name
+        --fetch-goal-state-url-template="$base-url/device/{device-id}/goal"
+        --fetch-image-url-template="$base-url/artifacts/{organization-id}/images/{id}.{word-size}"
+        --fetch-firmware-url-template="$base-url/artifacts/{organization-id}/firmware/{id}"
+        --report-state-url-template="$base-url/device/{device-id}/state"
+        --report-event-url-template="$base-url/device/{device-id}/events"
+        --poll-interval=poll-interval
+        --root-certificate-ders=root-certificate-ders
+        --headers=device-headers
+    return template-config.to-json --der-serializer=der-serializer --base64=base64
 
   compute-cache-key_ -> string:
     return "$host:$port:$path"
@@ -331,5 +341,104 @@ class ServerConfigHttp extends ServerConfig:
         --root-certificate-ders=root-certificate-ders
         --device-headers=device-headers
         --admin-headers=admin-headers
+        --poll-interval=poll-interval
+        --scope=(scope or this.scope)
+
+/**
+An HTTP configuration with one URL template for each device broker operation.
+
+All templates may use `{device-id}` and `{organization-id}`. The goal template
+  may additionally use `{wait}`; the image template `{id}` and `{word-size}`;
+  the firmware template `{id}` and `{offset}`; and the event template `{type}`.
+*/
+class ServerConfigHttpTemplates extends ServerConfig:
+  static DEFAULT-POLL-INTERVAL ::= Duration --s=20
+
+  fetch-goal-state-url-template/string
+  fetch-image-url-template/string
+  fetch-firmware-url-template/string
+  report-state-url-template/string
+  report-event-url-template/string
+  root-certificate-ders/List? := ?
+  headers/Map?
+  poll-interval/Duration := ?
+
+  constructor.from-json name/string config/Map [--der-deserializer]:
+    root-certificates-ders/List? := null
+    if encoded-ders64 := config.get "root_certificate_ders64":
+      root-certificates-ders = encoded-ders64.map: base64-lib.decode it
+    else if config.get "root_certificate_ders":
+      root-certificates-ders = config["root_certificate_ders"].map: der-deserializer.call it
+    scope-value := config.get "scope"
+    scope/Scope? := scope-value and (Scope scope-value)
+    return ServerConfigHttpTemplates name
+        --fetch-goal-state-url-template=config["fetch_goal_state_url_template"]
+        --fetch-image-url-template=config["fetch_image_url_template"]
+        --fetch-firmware-url-template=config["fetch_firmware_url_template"]
+        --report-state-url-template=config["report_state_url_template"]
+        --report-event-url-template=config["report_event_url_template"]
+        --root-certificate-ders=root-certificates-ders
+        --headers=config.get "headers"
+        --poll-interval=Duration --us=config["poll_interval"]
+        --scope=scope
+
+  constructor name/string
+      --.fetch-goal-state-url-template
+      --.fetch-image-url-template
+      --.fetch-firmware-url-template
+      --.report-state-url-template
+      --.report-event-url-template
+      --.root-certificate-ders
+      --.headers
+      --.poll-interval=DEFAULT-POLL-INTERVAL
+      --scope/Scope?=null:
+    super.from-sub_ name --scope=scope
+
+  type -> string: return "http-templates"
+
+  to-json [--der-serializer] --base64/bool=false -> Map:
+    result := {
+      "type": type,
+      "fetch_goal_state_url_template": fetch-goal-state-url-template,
+      "fetch_image_url_template": fetch-image-url-template,
+      "fetch_firmware_url_template": fetch-firmware-url-template,
+      "report_state_url_template": report-state-url-template,
+      "report_event_url_template": report-event-url-template,
+      "poll_interval": poll-interval.in-us,
+    }
+    if root-certificate-ders:
+      if base64:
+        result["root_certificate_ders64"] = root-certificate-ders.map: base64-lib.encode it
+      else:
+        result["root_certificate_ders"] = root-certificate-ders.map: der-serializer.call it
+    if headers: result["headers"] = headers
+    if scope: result["scope"] = scope.to-json
+    return result
+
+  to-service-json [--der-serializer] --base64/bool=false -> Map:
+    result := to-json --der-serializer=der-serializer --base64=base64
+    result.remove "scope"
+    return result
+
+  compute-cache-key_ -> string:
+    return [
+      fetch-goal-state-url-template,
+      fetch-image-url-template,
+      fetch-firmware-url-template,
+      report-state-url-template,
+      report-event-url-template,
+    ].join ":"
+
+  with -> ServerConfigHttpTemplates
+      --scope/Scope?=null:
+    return ServerConfigHttpTemplates
+        name
+        --fetch-goal-state-url-template=fetch-goal-state-url-template
+        --fetch-image-url-template=fetch-image-url-template
+        --fetch-firmware-url-template=fetch-firmware-url-template
+        --report-state-url-template=report-state-url-template
+        --report-event-url-template=report-event-url-template
+        --root-certificate-ders=root-certificate-ders
+        --headers=headers
         --poll-interval=poll-interval
         --scope=(scope or this.scope)
