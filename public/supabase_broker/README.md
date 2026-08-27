@@ -39,9 +39,8 @@ is sent to and from your devices via the broker.
    https://supabase.com/dashboard/project/YOUR-PROJECT-ID/settings/api
 8. Push the edge functions:
     ```
-    supabase functions deploy --no-verify-jwt b
-    for name in artifact-store broker pod-store; do
-      supabase functions deploy "$name"
+    for name in b artifact-store broker pod-store; do
+      supabase functions deploy --no-verify-jwt "$name"
     done
     ```
 9. Disable user sign-up and enable OAuth2. (See below).
@@ -60,6 +59,11 @@ the firmware on your devices.
 This standalone setup uses the Supabase project as its security boundary:
 every authenticated user has access to every Artemis device in the project.
 Only add users who should be administrators of the entire broker.
+
+The CLI-facing edge functions forward bearer tokens to the database and storage
+APIs. Row-level security applies the authenticated user's permissions. Gateway
+JWT verification is disabled because authorization happens in those backend
+APIs and the gateway does not support every Supabase signing key.
 
 To disable sign-up, go to your project settings -> Authentication and disable
 "User Signups": https://supabase.com/dashboard/project/YOUR-PROJECT-ID/settings/auth.

@@ -19,9 +19,8 @@ For development it's thus recommended to call `supabase functions serve`
 To deploy the edge functions, run:
 
 ```sh
-supabase functions deploy --no-verify-jwt b
-for name in artifact-store broker pod-store; do
-  supabase functions deploy "$name"
+for name in b artifact-store broker pod-store; do
+  supabase functions deploy --no-verify-jwt "$name"
 done
 ```
 
@@ -29,4 +28,5 @@ done
 The other functions form the interface-oriented v1 API used by new CLIs.
 
 The v0 endpoint must skip gateway JWT verification because devices call it
-without a user JWT. The v1 functions are CLI-facing and require one.
+without a user JWT. The v1 functions are CLI-facing and forward their bearer
+tokens to the RLS-protected APIs.

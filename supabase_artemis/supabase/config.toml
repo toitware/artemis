@@ -78,11 +78,13 @@ url = ""
 [functions.b]
 verify_jwt = false
 
+# The CLI-facing functions forward user tokens to the RLS-protected APIs.
+# Gateway verification is unnecessary and doesn't support every signing key.
 [functions.artifact-store]
-verify_jwt = true
+verify_jwt = false
 
 [functions.broker]
-verify_jwt = true
+verify_jwt = false
 
 [functions.pod-store]
-verify_jwt = true
+verify_jwt = false
