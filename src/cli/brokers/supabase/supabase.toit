@@ -75,6 +75,7 @@ class ServerSupabase extends ServerHttp:
         ? supabase-client_.session_.access-token
         : supabase-client_.anon_
     return {
+      "apikey": supabase-client_.anon_,
       "Authorization": "Bearer $bearer",
     }
 
