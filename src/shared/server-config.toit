@@ -198,8 +198,11 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     base-url := "$scheme://$host"
     template-config := ServerConfigHttpTemplates
         name
-        --broker-url-template="$base-url/functions/v1/device/{device-id}/{operation}"
-        --artifact-url-template="$base-url/storage/v1/object/public/toit-artemis-assets/{path}"
+        --fetch-goal-state-url-template="$base-url/functions/v1/device/{device-id}/goal"
+        --fetch-image-url-template="$base-url/storage/v1/object/public/toit-artemis-assets/{organization-id}/images/{id}.{word-size}"
+        --fetch-firmware-url-template="$base-url/storage/v1/object/public/toit-artemis-assets/{organization-id}/firmware/{id}"
+        --report-state-url-template="$base-url/functions/v1/device/{device-id}/state"
+        --report-event-url-template="$base-url/functions/v1/device/{device-id}/events"
         --poll-interval=poll-interval
         --root-certificate-ders=root-certificate-der ? [root-certificate-der] : null
         --headers=null
@@ -226,7 +229,9 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
 /**
 A broker configuration for an HTTP-based broker.
 
-This broker uses the light-weight unsecured protocol we use internally.
+The CLI uses this configuration for the server's administrative interfaces.
+Device configurations generated from it contain operation-specific URL
+  templates instead.
 */
 class ServerConfigHttp extends ServerConfig:
   static DEFAULT-POLL-INTERVAL ::= Duration --s=20
@@ -312,8 +317,11 @@ class ServerConfigHttp extends ServerConfig:
     base-url := "$scheme://$(host)$(port-suffix)$(base-path)"
     template-config := ServerConfigHttpTemplates
         name
-        --broker-url-template="$base-url/device/{device-id}/{operation}"
-        --artifact-url-template="$base-url/artifacts/{path}"
+        --fetch-goal-state-url-template="$base-url/device/{device-id}/goal"
+        --fetch-image-url-template="$base-url/artifacts/{organization-id}/images/{id}.{word-size}"
+        --fetch-firmware-url-template="$base-url/artifacts/{organization-id}/firmware/{id}"
+        --report-state-url-template="$base-url/device/{device-id}/state"
+        --report-event-url-template="$base-url/device/{device-id}/events"
         --poll-interval=poll-interval
         --root-certificate-ders=root-certificate-ders
         --headers=device-headers
@@ -337,16 +345,20 @@ class ServerConfigHttp extends ServerConfig:
         --scope=(scope or this.scope)
 
 /**
-An HTTP configuration that addresses device operations through URL templates.
+An HTTP configuration with one URL template for each device broker operation.
 
-The $broker-url-template accepts the placeholders `{device-id}` and
-  `{operation}`. The $artifact-url-template accepts `{path}`.
+All templates may use `{device-id}` and `{organization-id}`. The goal template
+  may additionally use `{wait}`; the image template `{id}` and `{word-size}`;
+  the firmware template `{id}` and `{offset}`; and the event template `{type}`.
 */
 class ServerConfigHttpTemplates extends ServerConfig:
   static DEFAULT-POLL-INTERVAL ::= Duration --s=20
 
-  broker-url-template/string
-  artifact-url-template/string
+  fetch-goal-state-url-template/string
+  fetch-image-url-template/string
+  fetch-firmware-url-template/string
+  report-state-url-template/string
+  report-event-url-template/string
   root-certificate-ders/List? := ?
   headers/Map?
   poll-interval/Duration := ?
@@ -360,16 +372,22 @@ class ServerConfigHttpTemplates extends ServerConfig:
     scope-value := config.get "scope"
     scope/Scope? := scope-value and (Scope scope-value)
     return ServerConfigHttpTemplates name
-        --broker-url-template=config["broker_url_template"]
-        --artifact-url-template=config["artifact_url_template"]
+        --fetch-goal-state-url-template=config["fetch_goal_state_url_template"]
+        --fetch-image-url-template=config["fetch_image_url_template"]
+        --fetch-firmware-url-template=config["fetch_firmware_url_template"]
+        --report-state-url-template=config["report_state_url_template"]
+        --report-event-url-template=config["report_event_url_template"]
         --root-certificate-ders=root-certificates-ders
         --headers=config.get "headers"
         --poll-interval=Duration --us=config["poll_interval"]
         --scope=scope
 
   constructor name/string
-      --.broker-url-template
-      --.artifact-url-template
+      --.fetch-goal-state-url-template
+      --.fetch-image-url-template
+      --.fetch-firmware-url-template
+      --.report-state-url-template
+      --.report-event-url-template
       --.root-certificate-ders
       --.headers
       --.poll-interval=DEFAULT-POLL-INTERVAL
@@ -381,8 +399,11 @@ class ServerConfigHttpTemplates extends ServerConfig:
   to-json [--der-serializer] --base64/bool=false -> Map:
     result := {
       "type": type,
-      "broker_url_template": broker-url-template,
-      "artifact_url_template": artifact-url-template,
+      "fetch_goal_state_url_template": fetch-goal-state-url-template,
+      "fetch_image_url_template": fetch-image-url-template,
+      "fetch_firmware_url_template": fetch-firmware-url-template,
+      "report_state_url_template": report-state-url-template,
+      "report_event_url_template": report-event-url-template,
       "poll_interval": poll-interval.in-us,
     }
     if root-certificate-ders:
@@ -400,14 +421,23 @@ class ServerConfigHttpTemplates extends ServerConfig:
     return result
 
   compute-cache-key_ -> string:
-    return "$broker-url-template:$artifact-url-template"
+    return [
+      fetch-goal-state-url-template,
+      fetch-image-url-template,
+      fetch-firmware-url-template,
+      report-state-url-template,
+      report-event-url-template,
+    ].join ":"
 
   with -> ServerConfigHttpTemplates
       --scope/Scope?=null:
     return ServerConfigHttpTemplates
         name
-        --broker-url-template=broker-url-template
-        --artifact-url-template=artifact-url-template
+        --fetch-goal-state-url-template=fetch-goal-state-url-template
+        --fetch-image-url-template=fetch-image-url-template
+        --fetch-firmware-url-template=fetch-firmware-url-template
+        --report-state-url-template=report-state-url-template
+        --report-event-url-template=report-event-url-template
         --root-certificate-ders=root-certificate-ders
         --headers=headers
         --poll-interval=poll-interval

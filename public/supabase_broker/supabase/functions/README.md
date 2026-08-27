@@ -29,8 +29,10 @@ The other functions form the interface-oriented v1 API.
 
 The `device` function accepts device requests without a user JWT. It exposes
 `GET /device/{device-id}/goal`, `PUT /device/{device-id}/state`, and
-`POST /device/{device-id}/events`. New device configurations receive that URL
-as a template and a separate template for direct artifact downloads.
+`POST /device/{device-id}/events`. New device configurations receive one URL
+template per broker operation. The Supabase templates send goal, state, and
+event requests to this function and download images and firmware directly from
+public storage.
 
 The remaining v1 functions are CLI-facing and forward their bearer tokens to
 the RLS-protected APIs.

@@ -20,11 +20,20 @@ test-supabase-templates:
   encoded := config.to-service-json --base64 --der-serializer=: unreachable
   expect-equals "http-templates" encoded["type"]
   expect-equals
-      "http://localhost:54321/functions/v1/device/{device-id}/{operation}"
-      encoded["broker_url_template"]
+      "http://localhost:54321/functions/v1/device/{device-id}/goal"
+      encoded["fetch_goal_state_url_template"]
   expect-equals
-      "http://localhost:54321/storage/v1/object/public/toit-artemis-assets/{path}"
-      encoded["artifact_url_template"]
+      "http://localhost:54321/storage/v1/object/public/toit-artemis-assets/{organization-id}/images/{id}.{word-size}"
+      encoded["fetch_image_url_template"]
+  expect-equals
+      "http://localhost:54321/storage/v1/object/public/toit-artemis-assets/{organization-id}/firmware/{id}"
+      encoded["fetch_firmware_url_template"]
+  expect-equals
+      "http://localhost:54321/functions/v1/device/{device-id}/state"
+      encoded["report_state_url_template"]
+  expect-equals
+      "http://localhost:54321/functions/v1/device/{device-id}/events"
+      encoded["report_event_url_template"]
 
   decoded := ServerConfig.from-json
       "supabase"
@@ -43,9 +52,18 @@ test-http-templates:
       --admin-headers=null
   encoded := config.to-service-json --base64 --der-serializer=: unreachable
   expect-equals
-      "http://localhost:1234/api/device/{device-id}/{operation}"
-      encoded["broker_url_template"]
+      "http://localhost:1234/api/device/{device-id}/goal"
+      encoded["fetch_goal_state_url_template"]
   expect-equals
-      "http://localhost:1234/api/artifacts/{path}"
-      encoded["artifact_url_template"]
+      "http://localhost:1234/api/artifacts/{organization-id}/images/{id}.{word-size}"
+      encoded["fetch_image_url_template"]
+  expect-equals
+      "http://localhost:1234/api/artifacts/{organization-id}/firmware/{id}"
+      encoded["fetch_firmware_url_template"]
+  expect-equals
+      "http://localhost:1234/api/device/{device-id}/state"
+      encoded["report_state_url_template"]
+  expect-equals
+      "http://localhost:1234/api/device/{device-id}/events"
+      encoded["report_event_url_template"]
   expect-equals "true" encoded["headers"]["X-Device"]
