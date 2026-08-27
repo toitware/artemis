@@ -179,9 +179,10 @@ fleet-root/
 - [ ] **B5 — Prove replaceability.** Add a small in-memory test implementation or
   contract suite to show that commands do not depend on file layout. This proves
   that a database implementation is possible without implementing one.
-- [ ] **B6 — Migrate without data loss.** Read the existing `fleet.json` and
-  `devices.json`, write the new layout explicitly, and make repeated migration
-  safe. Decide separately how long the old format remains writable.
+- [ ] **B6 — Migrate without data loss.** Use the explicit migration tooling in
+  G to convert the existing `fleet.json` and `devices.json` into the new layout.
+  Do not make the normal fleet-state implementation a permanent reader for all
+  historical layouts.
 
 The manifest may still contain backend configuration because that is precisely
 how the CLI accesses the fleet. The separation is between access/wiring and
@@ -290,6 +291,214 @@ database-backed broker for desired-state delivery.
 - [ ] Consider MQTT goal notification later, while retaining HTTP artifact
   downloads. MQTT is an optimization/adapter, not a V1 device requirement.
 
+## Workstream G: migration from V0 to V1
+
+Migration is a product feature, not a collection of compatibility branches.
+The desired steady state is one strict current-format reader plus explicit,
+versioned migration code that can eventually be removed with its source format.
+
+### Local configuration and fleet files
+
+The current readers accept several historical shapes inline:
+
+- Supabase's singular `root_certificate_der64` and
+  `root_certificate_der_id` fields;
+- historical `root_certificate_name` and `root_certificate_names` references;
+- separate `host`, `port`, `path`, and `use_tls` fields instead of a URL;
+- a top-level fleet `organization` instead of per-server `scope`;
+- very old fleet files without explicit broker/server entries.
+
+This is useful during development, but keeping these branches in
+`ServerConfig.from-json` and `FleetFile.parse` indefinitely makes every future
+refactor harder.
+
+- [ ] **G1 — Version every persisted format.** The global CLI configuration,
+  fleet manifest, and file-backed fleet state each need an explicit schema
+  version. A missing version identifies a known legacy input, not an unbounded
+  promise of compatibility.
+- [ ] **G2 — Add an explicit migration command.** Provide a command such as
+  `artemis config migrate`, with an option to include a selected fleet root.
+  Avoid overloading the existing fleet broker-migration commands. Support
+  `--check`/dry-run, print every planned file change, write atomically, retain a
+  backup, and make rerunning the migration safe.
+- [ ] **G3 — Isolate legacy decoders.** The migration command owns small decoders
+  for each supported source version. Normal commands accept only the current
+  format and return an actionable message telling the user which migration to
+  run.
+- [ ] **G4 — Cover the known conversions.** Convert singular certificates to
+  lists, connection components to URLs, the fleet organization to server scope,
+  and the old fleet layout to the manifest/state-store layout. Preserve auth
+  data, certificate bytes, file permissions, comments where the format permits,
+  and stable fleet/device identities. Resolve old named certificates to their
+  DER bytes during migration instead of merely treating their presence as
+  `use_tls=true`.
+- [ ] **G5 — Test real historical fixtures.** Keep sanitized configuration and
+  fleet files produced by selected released CLIs. Test migration output rather
+  than testing that the production reader silently accepts those inputs.
+- [ ] **G6 — Define the support window.** State which source versions can migrate
+  directly and whether older versions must first use an intermediate CLI. Once
+  the migration command is released and tested, remove inline legacy parsing and
+  its compatibility tests.
+
+The migration command necessarily knows how to decode old data. That does not
+mean the rest of the CLI must continue to do so.
+
+### Server upgrade
+
+The first V1 server upgrade is additive: the existing database, storage, RLS
+policies, and multiplexed `b` edge function remain, and operators deploy the new
+interface-oriented functions next to it. We should package and test that fact
+instead of relying on a README loop.
+
+- [ ] **G7 — Provide one server upgrade entry point.** A script or command takes
+  the deployment variant and project reference, performs preflight checks,
+  applies forward-only database migrations if any, deploys the required
+  functions, and verifies their health/capabilities. It must be usable for both
+  the combined Artemis deployment and the standalone broker deployment.
+- [ ] **G8 — Keep the initial upgrade zero-downtime.** Deploy V1 endpoints before
+  changing any CLI default. Keep `b` and its database contract available while
+  V0 devices exist. New migrations must be additive during this period, with a
+  documented rollback for the functions.
+- [ ] **G9 — Test upgrades, not only fresh installs.** Start the last supported V0
+  database/deployment, seed representative data, apply the upgrade, and run both
+  V0 and V1 API suites against the upgraded server. Test the combined and
+  standalone variants.
+- [ ] **G10 — Make retirement observable.** Define how an operator can determine
+  that no V0 devices remain before removing `b` or old database compatibility.
+  Reported service version is a better gate than elapsed time alone.
+
+### Old-device migration test
+
+Released CLI binaries make this a realistic end-to-end test. For example,
+[v0.36.0](https://github.com/toitware/artemis/releases/tag/v0.36.0) has Linux,
+macOS, and Windows CLI assets on the main Artemis GitHub release, including
+published SHA-256 metadata. The repository does not need to commit an old
+executable.
+
+- [ ] **G11 — Pin an old-CLI fixture.** Store the release tag, asset name, and
+  expected digest in the test definition. Download/cache it in CI and verify the
+  digest. Keep the selected version fixed until deliberately advancing the
+  oldest supported migration source. The verified initial Linux candidate is
+  `v0.36.0/artemis-linux.tar.gz`, SHA-256
+  `170b347dd84dde4c228638e90a10a7e87e8026132a5a30a9ba503792a625aea9`.
+- [ ] **G12 — Exercise the complete handover.** Use the old CLI to create a V0
+  fleet, pod, and device against the V0 server; upgrade the server; migrate the
+  local configuration with the new CLI; then use the new CLI to upload and roll
+  out a V1 pod.
+- [ ] **G13 — Prove the device crosses APIs.** The V0 device must receive the V1
+  goal and artifacts through `b`, reboot into the V1 Artemis service, and then
+  fetch/report through the new operation-specific device URLs. Instrument or
+  disable `b` after the reboot so the test cannot pass while silently staying on
+  the old API.
+- [ ] **G14 — Cover identity and interrupted updates.** Verify that the device ID,
+  fleet membership, desired state, and reported state survive the handover.
+  Include an interrupted firmware update so the upgrade does not bypass the
+  checkpoint/integrity behavior.
+
+This test is a CLI migration test even though it observes a device: the new CLI
+must migrate the files, publish compatible state through V1 server interfaces,
+and build the V1 pod that moves the device.
+
+## Workstream H: one source for Supabase deployments
+
+There are currently two Supabase project trees:
+`supabase_artemis` is the combined Artemis server and broker, while
+`public/supabase_broker` is the standalone broker. Their database histories and
+some policies are legitimately different. The edge-function code is mostly
+duplicated, however: `b`, `device`, `artifact-store`, `pod-store`, `_shared`, and
+the dependency configuration are copies. The new `broker` function has already
+drifted because the combined deployment also inserts into its `public.devices`
+inventory table.
+
+The recommended layout is one canonical function implementation plus two small
+deployment descriptions:
+
+```text
+supabase/
+  functions/                 # Canonical handlers and shared code.
+  deployments/
+    combined/                # Config, seed, migrations, and thin adapters.
+    standalone-broker/       # Config, seed, migrations, and thin adapters.
+```
+
+- [ ] **H1 — Extract canonical handlers.** Shared request parsing, RLS clients,
+  storage operations, and RPC calls live in one function tree.
+- [ ] **H2 — Model real differences as adapters.** The combined broker's
+  additional `public.devices` insert becomes an explicit `notify-created` hook
+  or thin entrypoint, rather than a fork of the whole broker function.
+- [ ] **H3 — Select a Supabase CLI layout.** Supabase supports
+  [per-function custom entrypoints](https://supabase.com/docs/guides/local-development/cli/config#functionsfunction_nameentrypoint)
+  relative to the project root. Validate with the repository's pinned Supabase
+  CLI version that a shared path works for both local `supabase start` and
+  remote deployment. If either path is unsupported, generate complete temporary
+  project workdirs from the canonical tree; do not check generated function
+  copies into Git.
+- [ ] **H4 — Keep migration histories deployment-specific initially.** Existing
+  remote migration histories must not be rewritten. New shared broker SQL can be
+  authored once and assembled into each deployment's forward migrations, but
+  historical combined and standalone migrations remain distinct.
+- [ ] **H5 — Test both assembled projects.** CI performs Deno checks once on the
+  canonical functions, starts both deployment variants, and runs their policy
+  and API suites. It also fails if a generated workdir is dirty or differs from
+  the canonical source.
+- [ ] **H6 — Make deploy artifacts reproducible.** The server-upgrade entry point
+  from G7 records the Artemis commit and deployment variant used to assemble the
+  functions and migrations.
+
+The custom-entrypoint option is documented by Supabase, but it should be proven
+with the exact CLI version used by Artemis before choosing it over staging. A
+staging tool is still a substantial improvement: duplication exists only in
+temporary output, not as two manually maintained source trees.
+
+## Workstream I: open-source repository and release cleanup
+
+The release workflow still reflects the former private/public split. It checks
+out `toitware/artemis-releases` and `toitware/web-docs`, copies the contents of
+`public/`, commits those copies, and finally creates a second release in
+`artemis-releases`. The main Artemis repository already publishes the same
+release assets; v0.36.0, for example, has matching SHA-256 digests in both
+repositories.
+
+The `public/` directory is now a staging boundary rather than a meaningful
+ownership boundary. Its contents should move to descriptive canonical paths:
+
+```text
+docs/fleet/                  # Artemis documentation source.
+examples/                    # Versioned examples.
+schemas/                     # Schema source; public URLs remain stable.
+supabase/deployments/...     # Standalone broker deployment.
+```
+
+- [ ] **I1 — Release only from this repository.** Keep binaries and installers on
+  `toitware/artemis` releases. Remove the duplicate `Create public release` step,
+  the release-repository checkout, and the personal access token dependency.
+- [ ] **I2 — Move canonical source out of `public/`.** Relocate docs, examples,
+  schemas, and the standalone Supabase deployment; update Make, CMake, tests,
+  local-development commands, and CI paths in the same change.
+- [ ] **I3 — Update download consumers first.** `action-setup-artemis`, fleet
+  documentation, and the Toit product website currently reference
+  `artemis-releases`. Point them at `toitware/artemis` before stopping duplicate
+  releases. Preserve historical releases in the old repository and mark it as
+  archived/redirected rather than deleting it.
+- [ ] **I4 — Decouple documentation publication from releases.** Keep docs
+  canonical here. Have the documentation site consume a pinned Artemis ref or a
+  documentation artifact without committing a generated copy back to
+  `web-docs`. Documentation changes should be previewable before an Artemis
+  release.
+- [ ] **I5 — Preserve public schema URLs.** Moving `public/schemas` in Git must not
+  break `https://toit.io/schemas/artemis/...`. Identify the current publisher,
+  change its source path, and add an HTTP test for every stable schema URL.
+- [ ] **I6 — Preserve example links.** Change documentation links from the
+  release repository to versioned or main-branch paths in this repository and
+  decide whether examples use placeholders or release-time generated values.
+- [ ] **I7 — Remove the old copy job and `public/`.** Do this only after external
+  consumers and publication jobs use the canonical paths. Verify a dry-run
+  release without access to the old PAT.
+
+This cleanup can proceed independently of device/API migration except that the
+standalone Supabase deployment should move only once; coordinate I2 with H's
+canonical layout.
+
 ## Explicit dependencies
 
 Anything not listed here may be developed and reviewed independently.
@@ -303,6 +512,13 @@ Anything not listed here may be developed and reviewed independently.
 | B5 replaceability proof | B1 and one implementation | The contract needs something concrete to test |
 | Provider demos | D1 stable relevant contracts | Demos should validate rather than redefine boundaries |
 | GitHub Pages device demo | A1/A2 plus relevant HTTP contracts | It needs the V1 device protocol and static layout |
+| Strict current-format readers | G1–G5 migration tooling and fixtures | Users need a safe path before inline compatibility is removed |
+| Remove singular/legacy config parsing | Released migration command | The CLI must still be able to convert supported installations |
+| Remove the V0 `b` endpoint | G10 reports no V0 devices | Old devices need it to receive their V1 upgrade goal |
+| G13 end-to-end API handover | V1 device service and additive server upgrade | The test needs both sides of the handover |
+| One-source Supabase deployment | H1/H2 plus a proven entrypoint or staging strategy | Both variants must still express their real difference |
+| Delete `public/` | I2–I6 source moves and consumer updates | Published downloads, docs, schemas, and examples must remain available |
+| Stop releases to `artemis-releases` | I3 consumer updates | Installers and actions must use the main repository first |
 
 C (recovery ownership) and E (internal responsibility cleanup) can proceed at
 any time. B and D can overlap: conformance tests may be developed while the file
@@ -323,6 +539,16 @@ These are independent candidates for follow-up PRs, not a prescribed queue:
   default (C1/C2/C4).
 - Add backend conformance tests independent of any new provider (D1/D2).
 - Build the GitHub Pages static proof of concept (F/GitHub Pages).
+- Add format versions and a dry-run config/fleet migration command (G1–G5).
+- Add a pinned v0.36.0 CLI fixture and the V0-to-V1 handover test
+  (G11–G14).
+- Extract canonical Supabase function handlers and thin deployment adapters
+  (H1/H2).
+- Prototype custom Supabase entrypoints versus generated temporary workdirs
+  (H3/H5).
+- Move release consumers to the main repository, then remove the duplicate
+  release job (I1/I3/I7).
+- Move one `public/` category at a time to its canonical path (I2/I4–I6).
 
 ## Cross-cutting acceptance criteria
 
@@ -336,5 +562,13 @@ These are independent candidates for follow-up PRs, not a prescribed queue:
   selected.
 - Existing V0 clients and the old edge function remain isolated from V1 design
   constraints; compatibility does not distort the new interfaces.
+- Supported V0 installations have a tested, explicit, and reversible migration
+  path; normal current-format readers do not accumulate legacy branches.
+- A server upgrade is tested against existing data and keeps V0 and V1 endpoints
+  working concurrently during the migration window.
+- Shared Supabase functions have one canonical source regardless of deployment
+  variant.
+- Releases, documentation, schemas, and examples originate from this repository
+  without a private-to-public copy step.
 - Documentation and configuration use "fleet manifest" and "fleet state"
   consistently.
