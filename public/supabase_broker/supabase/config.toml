@@ -68,8 +68,17 @@ secret = ""
 # or any other third-party OIDC providers.
 url = ""
 
-# Don't check the bearer token on requests to the 'b' edge function.
-# Our api-key is public anyway, and this saves us from sending it for every request.
-# Without any bearer token the request will now simply use the anon key.
+# The v0 endpoint is also called by devices, which do not have a user JWT.
 [functions.b]
+verify_jwt = false
+
+# The CLI-facing functions forward user tokens to the RLS-protected APIs.
+# Gateway verification is unnecessary and doesn't support every signing key.
+[functions.artifact-store]
+verify_jwt = false
+
+[functions.broker]
+verify_jwt = false
+
+[functions.pod-store]
 verify_jwt = false

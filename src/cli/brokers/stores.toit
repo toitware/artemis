@@ -13,8 +13,8 @@ interface ArtifactStore:
   /** Downloads the firmware stored under $id. */
   download-firmware --id/string -> ByteArray
 
-/** Publishes desired update state for devices. */
-interface UpdateBroker:
+/** Manages desired and reported device state, and optional event history. */
+interface BrokerBackend:
   /** Updates one device's goal using $block. */
   update-goal --device-id/Uuid [block] -> none
 
@@ -24,13 +24,9 @@ interface UpdateBroker:
   /** Registers a newly provisioned device and its initial $state. */
   notify-created --device-id/Uuid --state/Map -> none
 
-/** Reads the broker's goal and reported-state snapshot for known devices. */
-interface BrokerStateReader:
   /** Fetches device details keyed by device ID. */
   get-devices --device-ids/List -> Map
 
-/** Reads the optional event history recorded by a broker. */
-interface BrokerEventReader:
   /** Fetches events for the selected devices. */
   get-events -> Map
       --types/List?=null

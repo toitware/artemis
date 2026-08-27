@@ -17,7 +17,10 @@ import ...pod-registry
 import ....shared.scope show Scope
 import ....shared.server-config
 import ....shared.utils as utils
-import ....shared.constants show *
+
+ARTIFACT-STORE-PATH_ ::= "/artifact-store"
+BROKER-PATH_ ::= "/broker"
+POD-STORE-PATH_ ::= "/pod-store"
 
 create-server-http-toit server-config/ServerConfigHttp -> ServerHttp:
   id := "toit-http/$server-config.host-$server-config.port"
@@ -73,22 +76,22 @@ class ServerHttp implements Server:
   scope -> Scope:
     return server-config_.scope
 
-  send-request command/int data/any -> any:
+  send-request method/string path/string data/any=null -> any
+      --query-parameters/Map?=null
+      --binary-request/bool=false
+      --binary-response/bool=false:
     if is-closed: throw "CLOSED"
-    encoded/ByteArray := ?
-    if command == COMMAND-UPLOAD_:
-      path := data["path"]
-      contents := data["content"]
-      encoded = #[COMMAND-UPLOAD_] + path.to-byte-array + #[0] + contents
-    else:
-      encoded = #[command] + (json.encode data)
+    encoded/ByteArray? := null
+    if data != null:
+      encoded = binary-request ? data : json.encode data
 
-    send-encoded-request_ encoded: | response/http.Response |
+    content-type := binary-request ? "application/octet-stream" : "application/json"
+    send-encoded-request_ method path encoded
+        --query-parameters=query-parameters
+        --content-type=content-type:
+      | response/http.Response |
       body := response.body
-      // Teapot status codes are exceptions from our server code.
-      // They are handled below.
-      if response.status-code != http.STATUS-IM-A-TEAPOT and
-          not http.is-success-status-code response.status-code:
+      if not http.is-success-status-code response.status-code:
         body-bytes := utils.read-all body
         message := ""
         exception := catch:
@@ -105,20 +108,22 @@ class ServerHttp implements Server:
           message = " - $message"
         throw "HTTP error: $response.status-code - $response.status-message$message"
 
-      if (command == COMMAND-DOWNLOAD_ or command == COMMAND-DOWNLOAD-PRIVATE_)
-          and response.status-code != http.STATUS-IM-A-TEAPOT:
+      if binary-response:
         return utils.read-all response.body
 
       decoded := json.decode-stream response.body
-      if response.status-code == http.STATUS-IM-A-TEAPOT:
-        throw "Broker error: $decoded"
       return decoded
     unreachable
 
-  send-encoded-request_ encoded/ByteArray [block]:
+  send-encoded-request_ method/string path/string encoded/ByteArray?
+      --query-parameters/Map?=null
+      --content-type/string
+      [block]:
     MAX-ATTEMPTS ::= 3
     MAX-ATTEMPTS.repeat: | attempt/int |
-      response := send-encoded-request_ encoded
+      response := send-encoded-request_ method path encoded
+          --query-parameters=query-parameters
+          --content-type=content-type
       // Cloudflare frequently rejects our requests with a 502, 520 or 546.
       // Just try again.
       status-code := response.status-code
@@ -131,7 +136,10 @@ class ServerHttp implements Server:
         block.call response
         return
 
-  send-encoded-request_ encoded/ByteArray -> http.Response:
+  send-encoded-request_ method/string path/string encoded/ByteArray?
+      --query-parameters/Map?=null
+      --content-type/string
+      -> http.Response:
     if not client_:
       if server-config_.use-tls or server-config_.root-certificate-ders:
         client_ = http.Client.tls network_
@@ -149,11 +157,18 @@ class ServerHttp implements Server:
       if not headers: headers = http.Headers
       extra.do: | key value |
         headers.add key value
+    if encoded:
+      if not headers: headers = http.Headers
+      headers.set "Content-Type" content-type
 
-    return client_.post encoded
+    base-path := server-config_.path
+    if base-path.ends-with "/": base-path = base-path[..base-path.size - 1]
+    if not path.starts-with "/": path = "/$path"
+    return client_.request method encoded
         --host=server-config_.host
         --port=server-config_.port
-        --path=server-config_.path
+        --path="$base-path$path"
+        --query-parameters=query-parameters
         --headers=headers
 
   extra-headers -> Map?:
@@ -165,34 +180,32 @@ class ArtifactStoreHttp implements ArtifactStore:
 
   upload-image --app-id/Uuid --word-size/int contents/ByteArray -> none:
     scope := server.scope.to-json
-    server.send-request COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-assets/$scope/images/$app-id.$word-size",
-      "content": contents,
-    }
+    server.send-request http.PUT "$ARTIFACT-STORE-PATH_/images" contents
+        --query-parameters={"scope": scope, "app_id": "$app-id", "word_size": "$word-size"}
+        --binary-request
 
   upload-firmware --firmware-id/string chunks/List -> none:
     scope := server.scope.to-json
     firmware := #[]
     chunks.do: firmware += it
-    server.send-request COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-assets/$scope/firmware/$firmware-id",
-      "content": firmware,
-    }
+    server.send-request http.PUT "$ARTIFACT-STORE-PATH_/firmware" firmware
+        --query-parameters={"scope": scope, "id": firmware-id}
+        --binary-request
 
   download-firmware --id/string -> ByteArray:
     scope := server.scope.to-json
-    return server.send-request COMMAND-DOWNLOAD_ {
-      "path": "/toit-artemis-assets/$scope/firmware/$id",
-    }
+    return server.send-request http.GET "$ARTIFACT-STORE-PATH_/firmware"
+        --query-parameters={"scope": scope, "id": id}
+        --binary-response
 
-class BrokerStateReaderHttp implements BrokerStateReader:
+class BrokerBackendHttp implements BrokerBackend:
   server/Server
 
   constructor .server:
 
   get-devices --device-ids/List -> Map:
-    response := server.send-request COMMAND-GET-DEVICES_ {
-      "_device_ids": device-ids.map: "$it"
+    response := server.send-request http.POST "$BROKER-PATH_/devices/query" {
+      "device_ids": device-ids.map: "$it"
     }
     result := {:}
     response.do: | row/Map |
@@ -202,23 +215,18 @@ class BrokerStateReaderHttp implements BrokerStateReader:
       result[device-id] = DeviceDetailed --goal=goal --state=state
     return result
 
-class BrokerEventReaderHttp implements BrokerEventReader:
-  server/Server
-
-  constructor .server:
-
   get-events -> Map
       --types/List?=null
       --device-ids/List
       --limit/int=10
       --since/Time?=null:
     payload := {
-      "_types": types,
-      "_device_ids": device-ids.map: "$it",
-      "_limit": limit,
+      "types": types,
+      "device_ids": device-ids.map: "$it",
+      "limit": limit,
     }
-    if since: payload["_since"] = since.utc.to-iso8601-string
-    response := server.send-request COMMAND-GET-EVENTS_ payload
+    if since: payload["since"] = since.utc.to-iso8601-string
+    response := server.send-request http.POST "$BROKER-PATH_/events/query" payload
     result := {:}
     current-list/List? := null
     current-id/Uuid? := null
@@ -234,44 +242,27 @@ class BrokerEventReaderHttp implements BrokerEventReader:
       current-list.add (Event event-type time data)
     return result
 
-class UpdateBrokerHttp implements UpdateBroker:
-  server/Server
-  state-reader_/BrokerStateReader
-
-  constructor .server:
-    state-reader_ = BrokerStateReaderHttp server
-
   update-goal --device-id/Uuid [block] -> none:
-    detailed-devices := state-reader_.get-devices --device-ids=[device-id]
+    detailed-devices := get-devices --device-ids=[device-id]
     if detailed-devices.size != 1: throw "Device not found: $device-id"
     detailed-device := detailed-devices[device-id]
     new-goal := block.call detailed-device
-    server.send-request COMMAND-UPDATE-GOAL_ {
-      "_device_id": "$device-id",
-      "_goal": new-goal
+    server.send-request http.PUT "$BROKER-PATH_/goal" {
+      "device_id": "$device-id",
+      "goal": new-goal
     }
 
   update-goals --device-ids/List --goals/List -> none:
-    server.send-request COMMAND-UPDATE-GOALS_ {
-      "_device_ids": device-ids.map: "$it",
-      "_goals": goals
+    server.send-request http.PUT "$BROKER-PATH_/goals" {
+      "device_ids": device-ids.map: "$it",
+      "goals": goals
     }
 
   notify-created --device-id/Uuid --state/Map -> none:
-    server.send-request COMMAND-NOTIFY-BROKER-CREATED_ {
-      "_device_id": "$device-id",
-      "_state": state,
-    }
-
-class UpdateBrokerHttpCombined extends UpdateBrokerHttp:
-  constructor server/Server:
-    super server
-
-  notify-created --device-id/Uuid --state/Map -> none:
-    server.send-request COMMAND-NOTIFY-BROKER-CREATED_ {
-      "_device_id": "$device-id",
-      "_organization_id": server.scope.to-json,
-      "_state": state,
+    server.send-request http.POST "$BROKER-PATH_/devices" {
+      "device_id": "$device-id",
+      "organization_id": server.scope.to-json,
+      "state": state,
     }
 
 class PodStoreHttp implements PodStore:
@@ -284,29 +275,29 @@ class PodStoreHttp implements PodStore:
       --name/string
       --description/string?:
     scope := server.scope.to-json
-    return server.send-request COMMAND-POD-REGISTRY-DESCRIPTION-UPSERT_ {
-      "_fleet_id": "$fleet-id",
-      "_organization_id": scope,
-      "_name": name,
-      "_description": description,
+    return server.send-request http.PUT "$POD-STORE-PATH_/descriptions" {
+      "fleet_id": "$fleet-id",
+      "organization_id": scope,
+      "name": name,
+      "description": description,
     }
 
   pod-registry-descriptions-delete --fleet-id/Uuid --description-ids/List -> none:
-    server.send-request COMMAND-POD-REGISTRY-DELETE-DESCRIPTIONS_ {
-      "_fleet_id": "$fleet-id",
-      "_description_ids": description-ids,
+    server.send-request http.DELETE "$POD-STORE-PATH_/descriptions" {
+      "fleet_id": "$fleet-id",
+      "description_ids": description-ids,
     }
 
   pod-registry-add --pod-description-id/int --pod-id/Uuid -> none:
-    server.send-request COMMAND-POD-REGISTRY-ADD_ {
-      "_pod_description_id": pod-description-id,
-      "_pod_id": "$pod-id",
+    server.send-request http.POST "$POD-STORE-PATH_/pods" {
+      "pod_description_id": pod-description-id,
+      "pod_id": "$pod-id",
     }
 
   pod-registry-delete --fleet-id/Uuid --pod-ids/List -> none:
-    server.send-request COMMAND-POD-REGISTRY-DELETE_ {
-      "_fleet_id": "$fleet-id",
-      "_pod_ids": pod-ids.map: "$it",
+    server.send-request http.DELETE "$POD-STORE-PATH_/pods" {
+      "fleet_id": "$fleet-id",
+      "pod_ids": pod-ids.map: "$it",
     }
 
   pod-registry-tag-set -> none
@@ -314,28 +305,30 @@ class PodStoreHttp implements PodStore:
       --pod-id/Uuid
       --tag/string
       --force/bool=false:
-    server.send-request COMMAND-POD-REGISTRY-TAG-SET_ {
-      "_pod_description_id": pod-description-id,
-      "_pod_id": "$pod-id",
-      "_tag": tag,
-      "_force": force,
+    server.send-request http.PUT "$POD-STORE-PATH_/tags" {
+      "pod_description_id": pod-description-id,
+      "pod_id": "$pod-id",
+      "tag": tag,
+      "force": force,
     }
 
   pod-registry-tag-remove --pod-description-id/int --tag/string -> none:
-    server.send-request COMMAND-POD-REGISTRY-TAG-REMOVE_ {
-      "_pod_description_id": pod-description-id,
-      "_tag": tag,
+    server.send-request http.DELETE "$POD-STORE-PATH_/tags" {
+      "pod_description_id": pod-description-id,
+      "tag": tag,
     }
 
   pod-registry-descriptions --fleet-id/Uuid -> List:
-    response := server.send-request COMMAND-POD-REGISTRY-DESCRIPTIONS_ {
-      "_fleet_id": "$fleet-id",
+    response := server.send-request http.POST "$POD-STORE-PATH_/descriptions/query" {
+      "query": "fleet",
+      "fleet_id": "$fleet-id",
     }
     return response.map: PodRegistryDescription.from-map it
 
   pod-registry-descriptions --ids/List -> List:
-    response := server.send-request COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-IDS_ {
-      "_description_ids": ids,
+    response := server.send-request http.POST "$POD-STORE-PATH_/descriptions/query" {
+      "query": "ids",
+      "description_ids": ids,
     }
     return response.map: PodRegistryDescription.from-map it
 
@@ -344,33 +337,36 @@ class PodStoreHttp implements PodStore:
       --names/List
       --create-if-absent/bool:
     scope := server.scope.to-json
-    response := server.send-request COMMAND-POD-REGISTRY-DESCRIPTIONS-BY-NAMES_ {
-      "_fleet_id": "$fleet-id",
-      "_organization_id": scope,
-      "_names": names,
-      "_create_if_absent": create-if-absent,
+    response := server.send-request http.POST "$POD-STORE-PATH_/descriptions/query" {
+      "query": "names",
+      "fleet_id": "$fleet-id",
+      "organization_id": scope,
+      "names": names,
+      "create_if_absent": create-if-absent,
     }
     return response.map: PodRegistryDescription.from-map it
 
   pod-registry-pods --pod-description-id/int -> List:
-    response := server.send-request COMMAND-POD-REGISTRY-PODS_ {
-      "_pod_description_id": pod-description-id,
-      "_limit": 1000,
-      "_offset": 0,
+    response := server.send-request http.POST "$POD-STORE-PATH_/pods/query" {
+      "query": "description",
+      "pod_description_id": pod-description-id,
+      "limit": 1000,
+      "offset": 0,
     }
     return response.map: PodRegistryEntry.from-map it
 
   pod-registry-pods --fleet-id/Uuid --pod-ids/List -> List:
-    response := server.send-request COMMAND-POD-REGISTRY-PODS-BY-IDS_ {
-      "_fleet_id": "$fleet-id",
-      "_pod_ids": pod-ids.map: "$it",
+    response := server.send-request http.POST "$POD-STORE-PATH_/pods/query" {
+      "query": "ids",
+      "fleet_id": "$fleet-id",
+      "pod_ids": pod-ids.map: "$it",
     }
     return response.map: PodRegistryEntry.from-map it
 
   pod-registry-pod-ids --fleet-id/Uuid --references/List -> Map:
-    response := server.send-request COMMAND-POD-REGISTRY-POD-IDS-BY-REFERENCE_ {
-      "_fleet_id": "$fleet-id",
-      "_references": references.map: | reference/PodReference |
+    response := server.send-request http.POST "$POD-STORE-PATH_/references/resolve" {
+      "fleet_id": "$fleet-id",
+      "references": references.map: | reference/PodReference |
         ref := {
           "name": reference.name,
         }
@@ -390,26 +386,24 @@ class PodStoreHttp implements PodStore:
 
   pod-registry-upload-pod-part --part-id/string contents/ByteArray -> none:
     scope := server.scope.to-json
-    server.send-request COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-pods/$scope/part/$part-id",
-      "content": contents,
-    }
+    server.send-request http.PUT "$POD-STORE-PATH_/parts" contents
+        --query-parameters={"scope": scope, "id": part-id}
+        --binary-request
 
   pod-registry-download-pod-part part-id/string -> ByteArray:
     scope := server.scope.to-json
-    return server.send-request COMMAND-DOWNLOAD-PRIVATE_ {
-      "path": "/toit-artemis-pods/$scope/part/$part-id",
-    }
+    return server.send-request http.GET "$POD-STORE-PATH_/parts"
+        --query-parameters={"scope": scope, "id": part-id}
+        --binary-response
 
   pod-registry-upload-pod-manifest --pod-id/Uuid contents/ByteArray -> none:
     scope := server.scope.to-json
-    server.send-request COMMAND-UPLOAD_ {
-      "path": "/toit-artemis-pods/$scope/manifest/$pod-id",
-      "content": contents,
-    }
+    server.send-request http.PUT "$POD-STORE-PATH_/manifests" contents
+        --query-parameters={"scope": scope, "id": "$pod-id"}
+        --binary-request
 
   pod-registry-download-pod-manifest --pod-id/Uuid -> ByteArray:
     scope := server.scope.to-json
-    return server.send-request COMMAND-DOWNLOAD-PRIVATE_ {
-      "path": "/toit-artemis-pods/$scope/manifest/$pod-id",
-    }
+    return server.send-request http.GET "$POD-STORE-PATH_/manifests"
+        --query-parameters={"scope": scope, "id": "$pod-id"}
+        --binary-response

@@ -4,6 +4,7 @@
 
 import cli show *
 import encoding.json
+import http
 import monitor
 
 import .base
@@ -43,6 +44,7 @@ class PodDescription:
     pod-created-ats = {:}
 
 class HttpBroker extends HttpServer:
+  combined/bool
   storage_/Map := {:}
   device-states_/Map := {:}
   device-goals_/Map := {:}
@@ -59,8 +61,70 @@ class HttpBroker extends HttpServer:
 
   is-stopped_/bool := false
 
-  constructor port/int:
+  constructor port/int --.combined=false:
     super port
+
+  run-request method/string path/string query/Map body/ByteArray _ -> any:
+    if is-stopped_: throw "Broker is stopped."
+
+    if path == "/artifact-store/images" and method == http.PUT:
+      return upload {
+        "path": "/toit-artemis-assets/$(query["scope"])/images/$(query["app_id"]).$(query["word_size"])",
+        "contents": body,
+      }
+    if path == "/artifact-store/firmware":
+      storage-path := "/toit-artemis-assets/$(query["scope"])/firmware/$(query["id"])"
+      if method == http.PUT: return upload {"path": storage-path, "contents": body}
+      if method == http.GET: return download {"path": storage-path}
+
+    if path == "/pod-store/parts":
+      storage-path := "/toit-artemis-pods/$(query["scope"])/part/$(query["id"])"
+      if method == http.PUT: return upload {"path": storage-path, "contents": body}
+      if method == http.GET: return download {"path": storage-path}
+    if path == "/pod-store/manifests":
+      storage-path := "/toit-artemis-pods/$(query["scope"])/manifest/$(query["id"])"
+      if method == http.PUT: return upload {"path": storage-path, "contents": body}
+      if method == http.GET: return download {"path": storage-path}
+
+    data := body.is-empty ? {:} : rpc-data_ (json.decode body)
+    if path == "/broker/goal" and method == http.PUT: return update-goal data
+    if path == "/broker/goals" and method == http.PUT: return update-goals data
+    if path == "/broker/devices" and method == http.POST:
+      if not combined: data.remove "_organization_id"
+      return notify-created data
+    if path == "/broker/devices/query" and method == http.POST: return get-devices data
+    if path == "/broker/events/query" and method == http.POST: return get-events data
+
+    if path == "/pod-store/descriptions" and method == http.PUT:
+      return pod-registry-description-upsert data
+    if path == "/pod-store/descriptions" and method == http.DELETE:
+      return pod-registry-delete-descriptions data
+    if path == "/pod-store/pods" and method == http.POST: return pod-registry-add data
+    if path == "/pod-store/pods" and method == http.DELETE: return pod-registry-delete data
+    if path == "/pod-store/tags" and method == http.PUT: return pod-registry-tag-set data
+    if path == "/pod-store/tags" and method == http.DELETE: return pod-registry-tag-remove data
+    if path == "/pod-store/descriptions/query" and method == http.POST:
+      query-type := data["query"]
+      data.remove "query"
+      if query-type == "fleet": return pod-registry-descriptions data
+      if query-type == "ids": return pod-registry-descriptions-by-ids data
+      if query-type == "names": return pod-registry-descriptions-by-names data
+    if path == "/pod-store/pods/query" and method == http.POST:
+      query-type := data["query"]
+      data.remove "query"
+      if query-type == "description": return pod-registry-pods data
+      if query-type == "ids": return pod-registry-pods-by-ids data
+    if path == "/pod-store/references/resolve" and method == http.POST:
+      return pod-registry-pod-ids-by-reference data
+
+    throw "Unsupported request: $method $path"
+
+  /** Converts the public HTTP field names to the existing database API names. */
+  rpc-data_ data/Map -> Map:
+    result := {:}
+    data.do: | key value |
+      result[key == "query" ? key : "_$key"] = value
+    return result
 
   run-command command/int encoded/ByteArray _ -> any:
     if is-stopped_: throw "Broker is stopped."

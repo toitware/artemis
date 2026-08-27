@@ -419,10 +419,8 @@ class Fleet:
     broker-scope = fleet-file.broker-scope
     cli_ = cli
     broker-config := fleet-file.broker-config
-    combined := broker-config == artemis.server-config
     broker = Broker
         --server-config=broker-config
-        --combined=combined
         --fleet-id=id
         --tmp-directory=artemis.tmp-directory
         --short-strings=short-strings
@@ -432,10 +430,6 @@ class Fleet:
     org := artemis.get-organization --id=organization-id
     if not org:
       cli.ui.abort "Organization $organization-id does not exist or is not accessible."
-
-  /** Reports whether $server-config also provides this fleet's Artemis roles. */
-  is-combined-server_ server-config/ServerConfig -> bool:
-    return server-config == artemis.server-config
 
   /**
   The organization-id encoded inside $broker-scope.
@@ -779,7 +773,6 @@ class FleetWithDevices extends Fleet:
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
-          --combined=is-combined-server_ server-config
           --short-strings=device-short-strings_
           --fleet-id=id
           --tmp-directory=artemis.tmp-directory
@@ -823,7 +816,6 @@ class FleetWithDevices extends Fleet:
       server-config := fleet-file_.servers.get server-name
       old-broker := Broker
           --server-config=server-config
-          --combined=is-combined-server_ server-config
           --short-strings=device-short-strings_
           --fleet-id=id
           --tmp-directory=artemis.tmp-directory
@@ -918,7 +910,6 @@ class FleetWithDevices extends Fleet:
       config := fleet-file.servers[name]
       Broker
           --server-config=config
-          --combined=is-combined-server_ config
           --fleet-id=id
           --short-strings=device-short-strings_
           --cli=cli_
@@ -1148,7 +1139,6 @@ class FleetWithDevices extends Fleet:
         : new-broker-config.with --scope=fleet-file_.broker-scope
     new-broker := Broker
         --server-config=scoped-new-broker-config
-        --combined=is-combined-server_ scoped-new-broker-config
         --short-strings=device-short-strings_
         --fleet-id=id
         --tmp-directory=artemis.tmp-directory
@@ -1203,7 +1193,6 @@ class FleetWithDevices extends Fleet:
       broker-names.do: | name/string |
         current-broker := Broker
             --server-config=fleet-file.servers[name]
-            --combined=is-combined-server_ fleet-file.servers[name]
             --short-strings=device-short-strings_
             --fleet-id=id
             --tmp-directory=artemis.tmp-directory
