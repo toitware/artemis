@@ -134,11 +134,15 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
       url = "$scheme://$(json["host"])"
     scope-value := json.get "scope"
     scope/Scope? := scope-value and (Scope scope-value)
+    poll-interval-value := json.get "poll_interval"
+    poll-interval := poll-interval-value
+        ? Duration --us=poll-interval-value
+        : BrokerConfig.DEFAULT-POLL-INTERVAL
     return ServerConfigSupabase name
         --url=url
         --anon=json["anon"]
         --root-certificate-ders=roots
-        --poll-interval=Duration --us=json["poll_interval"]
+        --poll-interval=poll-interval
         --scope=scope
 
   constructor name/string
@@ -220,12 +224,16 @@ class ServerConfigHttp extends ServerConfig:
       url = "$scheme://$(config["host"])$port-suffix$(config["path"])"
     scope-value := config.get "scope"
     scope/Scope? := scope-value and (Scope scope-value)
+    poll-interval-value := config.get "poll_interval"
+    poll-interval := poll-interval-value
+        ? Duration --us=poll-interval-value
+        : BrokerConfig.DEFAULT-POLL-INTERVAL
     return ServerConfigHttp name
         --url=url
         --root-certificate-ders=roots
         --device-headers=config.get "device_headers"
         --admin-headers=config.get "admin_headers"
-        --poll-interval=Duration --us=config["poll_interval"]
+        --poll-interval=poll-interval
         --scope=scope
 
   constructor name/string

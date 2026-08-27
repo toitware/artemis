@@ -1,0 +1,162 @@
+// Copyright (C) 2026 Toitware ApS. All rights reserved.
+
+import artemis.cli.workspace show
+    FileBackendConfig
+    HttpBackendConfig
+    Workspace
+    WorkspaceException
+import artemis.shared.broker-config show BrokerConfig
+import artemis.shared.server-config show ServerConfigSupabase
+import expect show *
+import host.directory
+import host.file
+
+main:
+  test-server-indirection
+  test-round-trip
+  test-yaml-file
+  test-validation
+
+test-server-indirection:
+  workspace := Workspace.from-map {
+    "version": 1,
+    "servers": {
+      "production": {
+        "type": "supabase",
+        "url": "https://example.supabase.co/",
+        "anon": "anon-key",
+      },
+    },
+    "backends": {
+      "fleet": {
+        "type": "file",
+        "directory": "fleet",
+      },
+      "broker": {
+        "type": "http",
+        "server": "production",
+        "endpoint": "/functions/v2/broker",
+      },
+      "pods": {
+        "type": "http",
+        "server": "production",
+        "endpoint": "/functions/v2/pods",
+      },
+      "artifacts": {
+        "type": "http",
+        "server": "production",
+        "endpoint": "/functions/v2/artifacts",
+      },
+    },
+  } --path="/work/artemis.yaml"
+
+  fleet := workspace.fleet as FileBackendConfig
+  broker := workspace.broker as HttpBackendConfig
+  pods := workspace.pods as HttpBackendConfig
+  artifacts := workspace.artifacts as HttpBackendConfig
+
+  expect-equals "/work/fleet" (workspace.resolve fleet.directory)
+  expect-identical broker.server-config pods.server-config
+  expect-identical broker.server-config artifacts.server-config
+  expect broker.server-config is ServerConfigSupabase
+  expect-equals "https://example.supabase.co"
+      (broker.server-config as ServerConfigSupabase).url
+  expect-equals BrokerConfig.DEFAULT-POLL-INTERVAL
+      (broker.server-config as ServerConfigSupabase).poll-interval
+
+test-round-trip:
+  encoded := {
+    "version": 1,
+    "servers": {
+      "local": {
+        "type": "toit-http",
+        "url": "http://localhost:4998",
+        "admin_headers": {"Authorization": "Bearer token"},
+      },
+    },
+    "backends": {
+      "broker": {
+        "type": "http",
+        "server": "local",
+        "endpoint": "/broker",
+      },
+    },
+  }
+
+  workspace := Workspace.from-map encoded
+  decoded := Workspace.from-map workspace.to-map
+  backend := decoded.broker as HttpBackendConfig
+  expect-equals "local" backend.server-name
+  expect-equals "/broker" backend.endpoint
+  server-map := backend.server-config.to-json
+      --base64
+      --der-serializer=: unreachable
+  expect-equals "Bearer token" server-map["admin_headers"]["Authorization"]
+
+test-yaml-file:
+  tmp := directory.mkdtemp "/tmp/artemis-workspace-test-"
+  try:
+    path := "$tmp/artemis.yaml"
+    workspace := Workspace.from-map {
+      "version": 1,
+      "servers": {:},
+      "backends": {
+        "fleet": {
+          "type": "file",
+          "directory": "fleet",
+        },
+      },
+    } --path=path
+    workspace.write
+
+    expect (file.is-file path)
+    loaded := Workspace.load tmp
+    fleet := loaded.fleet as FileBackendConfig
+    expect-equals "$tmp/fleet" (loaded.resolve fleet.directory)
+  finally:
+    directory.rmdir --recursive tmp
+
+test-validation:
+  expect-workspace-error "HTTP backend 'broker' references unknown server 'missing'.":
+    Workspace.from-map {
+      "version": 1,
+      "servers": {:},
+      "backends": {
+        "broker": {
+          "type": "http",
+          "server": "missing",
+          "endpoint": "/broker",
+        },
+      },
+    }
+
+  expect-workspace-error "Server 'production' cannot contain a fleet scope.":
+    Workspace.from-map {
+      "version": 1,
+      "servers": {
+        "production": {
+          "type": "toit-http",
+          "url": "https://example.com",
+          "scope": "organization",
+        },
+      },
+      "backends": {:},
+    }
+
+  expect-workspace-error "Server 'production' cannot contain embedded device configuration.":
+    Workspace.from-map {
+      "version": 1,
+      "servers": {
+        "production": {
+          "type": "toit-http",
+          "url": "https://example.com",
+          "poll_interval": 20_000_000,
+        },
+      },
+      "backends": {:},
+    }
+
+expect-workspace-error message/string [block]:
+  exception := catch: block.call
+  expect exception is WorkspaceException
+  expect-equals message (exception as WorkspaceException).message
