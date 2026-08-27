@@ -19,13 +19,14 @@ For development it's thus recommended to call `supabase functions serve`
 To deploy the edge functions, run:
 
 ```sh
-for name in b artifact-store update-broker broker-state-reader broker-event-reader pod-store; do
-  supabase functions deploy --no-verify-jwt "$name"
+supabase functions deploy --no-verify-jwt b
+for name in artifact-store broker pod-store; do
+  supabase functions deploy "$name"
 done
 ```
 
 `b` is the multiplexed v0 endpoint used by existing devices and older CLIs.
 The other functions form the interface-oriented v1 API used by new CLIs.
 
-(The `--no-verify-jwt` might not be necessary, since the `config.toml` already
-has entries for the functions. I haven't tested it without it, though.)
+The v0 endpoint must skip gateway JWT verification because devices call it
+without a user JWT. The v1 functions are CLI-facing and require one.

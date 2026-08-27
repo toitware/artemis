@@ -2,8 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export function client(req: Request, schema = "toit_artemis"): SupabaseClient {
-  const authorization = req.headers.get("Authorization") ??
-    `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`;
+  const authorization = req.headers.get("Authorization");
+  if (!authorization) throw new Error("Missing Authorization header");
   return createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_ANON_KEY") ?? "",

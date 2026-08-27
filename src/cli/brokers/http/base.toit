@@ -19,9 +19,7 @@ import ....shared.server-config
 import ....shared.utils as utils
 
 ARTIFACT-STORE-PATH_ ::= "/artifact-store"
-UPDATE-BROKER-PATH_ ::= "/update-broker"
-BROKER-STATE-READER-PATH_ ::= "/broker-state-reader"
-BROKER-EVENT-READER-PATH_ ::= "/broker-event-reader"
+BROKER-PATH_ ::= "/broker"
 POD-STORE-PATH_ ::= "/pod-store"
 
 create-server-http-toit server-config/ServerConfigHttp -> ServerHttp:
@@ -200,13 +198,13 @@ class ArtifactStoreHttp implements ArtifactStore:
         --query-parameters={"scope": scope, "id": id}
         --binary-response
 
-class BrokerStateReaderHttp implements BrokerStateReader:
+class BrokerBackendHttp implements BrokerBackend:
   server/Server
 
   constructor .server:
 
   get-devices --device-ids/List -> Map:
-    response := server.send-request http.POST "$BROKER-STATE-READER-PATH_/devices/query" {
+    response := server.send-request http.POST "$BROKER-PATH_/devices/query" {
       "device_ids": device-ids.map: "$it"
     }
     result := {:}
@@ -216,11 +214,6 @@ class BrokerStateReaderHttp implements BrokerStateReader:
       state := row["state"]
       result[device-id] = DeviceDetailed --goal=goal --state=state
     return result
-
-class BrokerEventReaderHttp implements BrokerEventReader:
-  server/Server
-
-  constructor .server:
 
   get-events -> Map
       --types/List?=null
@@ -233,7 +226,7 @@ class BrokerEventReaderHttp implements BrokerEventReader:
       "limit": limit,
     }
     if since: payload["since"] = since.utc.to-iso8601-string
-    response := server.send-request http.POST "$BROKER-EVENT-READER-PATH_/events/query" payload
+    response := server.send-request http.POST "$BROKER-PATH_/events/query" payload
     result := {:}
     current-list/List? := null
     current-id/Uuid? := null
@@ -249,31 +242,24 @@ class BrokerEventReaderHttp implements BrokerEventReader:
       current-list.add (Event event-type time data)
     return result
 
-class UpdateBrokerHttp implements UpdateBroker:
-  server/Server
-  state-reader_/BrokerStateReader
-
-  constructor .server:
-    state-reader_ = BrokerStateReaderHttp server
-
   update-goal --device-id/Uuid [block] -> none:
-    detailed-devices := state-reader_.get-devices --device-ids=[device-id]
+    detailed-devices := get-devices --device-ids=[device-id]
     if detailed-devices.size != 1: throw "Device not found: $device-id"
     detailed-device := detailed-devices[device-id]
     new-goal := block.call detailed-device
-    server.send-request http.PUT "$UPDATE-BROKER-PATH_/goal" {
+    server.send-request http.PUT "$BROKER-PATH_/goal" {
       "device_id": "$device-id",
       "goal": new-goal
     }
 
   update-goals --device-ids/List --goals/List -> none:
-    server.send-request http.PUT "$UPDATE-BROKER-PATH_/goals" {
+    server.send-request http.PUT "$BROKER-PATH_/goals" {
       "device_ids": device-ids.map: "$it",
       "goals": goals
     }
 
   notify-created --device-id/Uuid --state/Map -> none:
-    server.send-request http.POST "$UPDATE-BROKER-PATH_/devices" {
+    server.send-request http.POST "$BROKER-PATH_/devices" {
       "device_id": "$device-id",
       "organization_id": server.scope.to-json,
       "state": state,

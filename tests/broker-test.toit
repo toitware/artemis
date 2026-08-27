@@ -53,9 +53,7 @@ run-test
       configured-server.sign-in --email=TEST-EXAMPLE-COM-EMAIL --password=TEST-EXAMPLE-COM-PASSWORD
 
     artifact-store := implementations.create-artifact-store configured-server
-    update-broker := implementations.create-update-broker configured-server
-    state-reader := implementations.create-broker-state-reader configured-server
-    event-reader := implementations.create-broker-event-reader configured-server
+    broker-backend := implementations.create-broker-backend configured-server
 
     [DEVICE1, DEVICE2].do: | device/Device |
       identity := {
@@ -65,7 +63,7 @@ run-test
       state := {
         "identity": identity,
       }
-      update-broker.notify-created --device-id=device.id --state=state
+      broker-backend.notify-created --device-id=device.id --state=state
 
     if test-broker.combined:
       // A combined broker must populate the auth-side device record as part
@@ -81,25 +79,24 @@ run-test
     try:
       test-image --test-broker=test-broker artifact-store --network=network
       test-firmware --test-broker=test-broker artifact-store --network=network
-      test-goal --test-broker=test-broker update-broker --network=network
+      test-goal --test-broker=test-broker broker-backend --network=network
       test-state-devices
           --test-broker=test-broker
-          update-broker
-          state-reader
+          broker-backend
           --network=network
       // Test the events last, as it depends on test_goal to have run.
       // It also does state updates which could interfere with the other tests,
       // like the health test.
-      test-events --test-broker=test-broker event-reader --network=network
+      test-events --test-broker=test-broker broker-backend --network=network
 
     finally:
       network.close
 
-test-goal --test-broker/TestBroker broker-cli/stores.UpdateBroker --network/net.Client:
+test-goal --test-broker/TestBroker broker-cli/stores.BrokerBackend --network/net.Client:
   test-broker.with-service: | broker-service/broker.BrokerService |
     test-goal broker-cli broker-service --network=network
 
-test-goal broker-cli/stores.UpdateBroker broker-service/broker.BrokerService --network/net.Client:
+test-goal broker-cli/stores.BrokerBackend broker-service/broker.BrokerService --network/net.Client:
   3.repeat: | test-iteration |
     if test-iteration == 2:
       // Send a config update while the service is not connected.
@@ -245,23 +242,21 @@ build-state_ device/Device token/string -> Map:
 
 test-state-devices
     --test-broker/TestBroker
-    update-broker/stores.UpdateBroker
-    state-reader/stores.BrokerStateReader
+    broker-backend/stores.BrokerBackend
     --network/net.Client:
   test-broker.with-service: | broker-service/broker.BrokerService |
-    test-state-devices update-broker state-reader broker-service --network=network
+    test-state-devices broker-backend broker-service --network=network
 
 test-state-devices
-    update-broker/stores.UpdateBroker
-    state-reader/stores.BrokerStateReader
+    broker-backend/stores.BrokerBackend
     broker-service/broker.BrokerService
     --network/net.Client:
-  update-broker.update-goal --device-id=DEVICE1.id: | device/DeviceDetailed |
+  broker-backend.update-goal --device-id=DEVICE1.id: | device/DeviceDetailed |
     {
       "state-test": "1234",
     }
 
-  update-broker.update-goal --device-id=DEVICE2.id: | device/DeviceDetailed |
+  broker-backend.update-goal --device-id=DEVICE2.id: | device/DeviceDetailed |
     {
       "state-test": "5678",
     }
@@ -300,14 +295,14 @@ test-state-devices
     device1/DeviceDetailed := ?
     device2/DeviceDetailed := ?
     if it == 0:
-      devices := state-reader.get-devices --device-ids=[DEVICE1.id]
+      devices := broker-backend.get-devices --device-ids=[DEVICE1.id]
       expect-equals 1 devices.size
       device1 = devices[DEVICE1.id]
-      devices = state-reader.get-devices --device-ids=[DEVICE2.id]
+      devices = broker-backend.get-devices --device-ids=[DEVICE2.id]
       expect-equals 1 devices.size
       device2 = devices[DEVICE2.id]
     else:
-      devices := state-reader.get-devices --device-ids=[DEVICE1.id, DEVICE2.id]
+      devices := broker-backend.get-devices --device-ids=[DEVICE1.id, DEVICE2.id]
       expect-equals 2 devices.size
       device1 = devices[DEVICE1.id]
       device2 = devices[DEVICE2.id]
@@ -326,7 +321,7 @@ test-state-devices
       expect-equals "goal2" device2.reported-state-goal["token"]
       expect-equals "pending-firmware2" device2.pending-firmware
 
-test-events --test-broker/TestBroker event-reader/stores.BrokerEventReader --network/net.Client:
+test-events --test-broker/TestBroker event-reader/stores.BrokerBackend --network/net.Client:
   test-broker.with-service: | broker-service1/broker.BrokerService |
     test-broker.with-service: | broker-service2/broker.BrokerService |
       broker-connection1 := null
@@ -347,7 +342,7 @@ test-events --test-broker/TestBroker event-reader/stores.BrokerEventReader --net
 
 test-events
     test-broker/TestBroker
-    event-reader/stores.BrokerEventReader
+    event-reader/stores.BrokerBackend
     broker-service1/broker.BrokerService
     broker-service2/broker.BrokerService
     broker-connection1/broker.BrokerConnection

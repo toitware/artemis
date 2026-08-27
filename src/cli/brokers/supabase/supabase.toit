@@ -78,21 +78,13 @@ class ServerSupabase extends ServerHttp:
       "Authorization": "Bearer $bearer",
     }
 
-class UpdateBrokerSupabase extends UpdateBrokerHttp:
+class BrokerBackendSupabase extends BrokerBackendHttp:
   supabase-server_/ServerSupabase
 
   constructor .supabase-server_:
     super supabase-server_
 
 class ArtifactStoreSupabase extends ArtifactStoreHttp:
-  constructor server/ServerSupabase:
-    super server
-
-class BrokerStateReaderSupabase extends BrokerStateReaderHttp:
-  constructor server/ServerSupabase:
-    super server
-
-class BrokerEventReaderSupabase extends BrokerEventReaderHttp:
   constructor server/ServerSupabase:
     super server
 

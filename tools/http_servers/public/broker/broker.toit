@@ -87,13 +87,13 @@ class HttpBroker extends HttpServer:
       if method == http.GET: return download {"path": storage-path}
 
     data := body.is-empty ? {:} : rpc-data_ (json.decode body)
-    if path == "/update-broker/goal" and method == http.PUT: return update-goal data
-    if path == "/update-broker/goals" and method == http.PUT: return update-goals data
-    if path == "/update-broker/devices" and method == http.POST:
+    if path == "/broker/goal" and method == http.PUT: return update-goal data
+    if path == "/broker/goals" and method == http.PUT: return update-goals data
+    if path == "/broker/devices" and method == http.POST:
       if not combined: data.remove "_organization_id"
       return notify-created data
-    if path == "/broker-state-reader/devices/query" and method == http.POST: return get-devices data
-    if path == "/broker-event-reader/events/query" and method == http.POST: return get-events data
+    if path == "/broker/devices/query" and method == http.POST: return get-devices data
+    if path == "/broker/events/query" and method == http.POST: return get-events data
 
     if path == "/pod-store/descriptions" and method == http.PUT:
       return pod-registry-description-upsert data

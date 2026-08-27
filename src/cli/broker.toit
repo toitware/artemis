@@ -82,9 +82,7 @@ class Broker:
 
   server__/Server? := null
   artifact-store__/ArtifactStore? := null
-  update-broker__/UpdateBroker? := null
-  broker-state-reader__/BrokerStateReader? := null
-  broker-event-reader__/BrokerEventReader? := null
+  broker-backend__/BrokerBackend? := null
   pod-store__/PodStore? := null
 
   constructor
@@ -113,20 +111,9 @@ class Broker:
     if not artifact-store__: artifact-store__ = create-artifact-store server_
     return artifact-store__
 
-  update-broker_ -> UpdateBroker:
-    if not update-broker__:
-      update-broker__ = create-update-broker server_
-    return update-broker__
-
-  broker-state-reader_ -> BrokerStateReader:
-    if not broker-state-reader__:
-      broker-state-reader__ = create-broker-state-reader server_
-    return broker-state-reader__
-
-  broker-event-reader_ -> BrokerEventReader:
-    if not broker-event-reader__:
-      broker-event-reader__ = create-broker-event-reader server_
-    return broker-event-reader__
+  broker-backend_ -> BrokerBackend:
+    if not broker-backend__: broker-backend__ = create-broker-backend server_
+    return broker-backend__
 
   pod-store_ -> PodStore:
     if not pod-store__: pod-store__ = create-pod-store server_
@@ -149,9 +136,7 @@ class Broker:
   */
   close:
     artifact-store__ = null
-    update-broker__ = null
-    broker-state-reader__ = null
-    broker-event-reader__ = null
+    broker-backend__ = null
     pod-store__ = null
     if server__:
       server__.close
@@ -503,7 +488,7 @@ class Broker:
   Returns a map from id to $DeviceDetailed.
   */
   get-devices --device-ids/List -> Map:
-    return broker-state-reader_.get-devices --device-ids=device-ids
+    return broker-backend_.get-devices --device-ids=device-ids
 
   update --device-id/Uuid --pod/Pod --base-firmwares/List=[]:
     update-bulk_ --devices=[device-for --id=device-id] --pods=[pod] --base-firmwares=base-firmwares
@@ -587,7 +572,7 @@ class Broker:
           --warn-only-trivial=warn-only-trivial
       goals.add goal
 
-    update-broker_.update-goals
+    broker-backend_.update-goals
         --device-ids=devices.map: it.id
         --goals=goals
 
@@ -669,7 +654,7 @@ class Broker:
     return goal
 
   get-goal-request-events --device-ids/List --limit/int -> Map:
-    return broker-event-reader_.get-events
+    return broker-backend_.get-events
         --device-ids=device-ids
         --limit=limit
         --types=["get-goal"]
@@ -680,7 +665,7 @@ class Broker:
   Returns a map from device-id to $Event.
   */
   get-last-events --device-ids/List -> Map:
-    result := broker-event-reader_.get-events
+    result := broker-backend_.get-events
         --device-ids=device-ids
         --limit=1
     result.map --in-place: | _ events/List | events[0]
@@ -693,7 +678,7 @@ class Broker:
   Returns a map from device-id to List of $Event.
   */
   get-events --device-ids/List --limit/int --types/List? -> Map:
-    return broker-event-reader_.get-events
+    return broker-backend_.get-events
         --device-ids=device-ids
         --limit=limit
         --types=types
@@ -734,12 +719,12 @@ class Broker:
     state := {
       "identity": identity,
     }
-    update-broker_.notify-created
+    broker-backend_.notify-created
         --device-id=device.id
         --state=state
 
   device-for --id/Uuid -> DeviceDetailed:
-    devices := broker-state-reader_.get-devices --device-ids=[id]
+    devices := broker-backend_.get-devices --device-ids=[id]
     if devices.is-empty:
       short := short-string-for_ --device-id=id
       cli_.ui.abort "Device $short does not exist on server."
@@ -748,10 +733,10 @@ class Broker:
   /**
   Updates the goal state of the device with the given $device-id.
 
-  See $UpdateBroker.update-goal.
+  See $BrokerBackend.update-goal.
   */
   update-goal_ --device-id/Uuid [block]:
-    update-broker_.update-goal --device-id=device-id block
+    broker-backend_.update-goal --device-id=device-id block
 
   container-install -> none
       --device-id/Uuid
