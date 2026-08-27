@@ -3,6 +3,9 @@
 Artemis consists of two parts:  A service that runs on the devices, and a CLI
 that allows you to control the devices.
 
+The [backend and fleet architecture roadmap](ROADMAP.md) tracks the ongoing
+work to make those parts independent of any particular hosting provider.
+
 They communicate together using HTTP via a cloud service.  Currently the
 cloud service is AWS's IoT service or a Supabase instance.  On the ESP32, the
 device keeps track of its device id after the initial flashing.
