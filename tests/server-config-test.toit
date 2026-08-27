@@ -21,6 +21,9 @@ test-supabase-templates:
   expect-equals "http://localhost:54321" cli-json["url"]
   expect-not (cli-json.contains "host")
   expect-not (cli-json.contains "use_tls")
+  workspace-json := config.to-workspace-json --base64 --der-serializer=: unreachable
+  expect-not (workspace-json.contains "poll_interval")
+  expect-not (workspace-json.contains "scope")
   encoded := config.to-service-json --base64 --der-serializer=: unreachable
   expect-not (encoded.contains "type")
   expect-equals
@@ -57,6 +60,10 @@ test-http-templates:
   expect-not (cli-json.contains "port")
   expect-not (cli-json.contains "path")
   expect-not (cli-json.contains "use_tls")
+  workspace-json := config.to-workspace-json --base64 --der-serializer=: unreachable
+  expect-not (workspace-json.contains "poll_interval")
+  expect-not (workspace-json.contains "device_headers")
+  expect-not (workspace-json.contains "scope")
   encoded := config.to-service-json --base64 --der-serializer=: unreachable
   expect-equals
       "http://localhost:1234/api/device/{device-id}/goal"

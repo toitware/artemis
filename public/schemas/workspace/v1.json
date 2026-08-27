@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://toit.io/schemas/artemis/workspace/v1.json",
+  "title": "Artemis workspace",
+  "description": "Configures reusable servers and backend strategies for an Artemis workspace.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "servers",
+    "backends"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://toit.io/schemas/artemis/workspace/v1.json"
+    },
+    "servers": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/$defs/SupabaseServer" },
+          { "$ref": "#/$defs/HttpServer" }
+        ]
+      }
+    },
+    "backends": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/$defs/FileBackend" },
+          { "$ref": "#/$defs/HttpBackend" }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "SupabaseServer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "url",
+        "anon"
+      ],
+      "properties": {
+        "type": { "const": "supabase" },
+        "url": { "type": "string", "format": "uri" },
+        "anon": { "type": "string" },
+        "root_certificate_ders64": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "HttpServer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "url"
+      ],
+      "properties": {
+        "type": { "const": "toit-http" },
+        "url": { "type": "string", "format": "uri" },
+        "root_certificate_ders64": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "admin_headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "FileBackend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "directory"
+      ],
+      "properties": {
+        "type": { "const": "file" },
+        "directory": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "HttpBackend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "server",
+        "endpoint"
+      ],
+      "properties": {
+        "type": { "const": "http" },
+        "server": {
+          "type": "string",
+          "minLength": 1
+        },
+        "endpoint": {
+          "type": "string",
+          "pattern": "^/"
+        }
+      }
+    }
+  }
+}

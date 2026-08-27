@@ -5,11 +5,11 @@ import artemis.cli.workspace show
     HttpBackendConfig
     Workspace
     WorkspaceException
-import artemis.shared.broker-config show BrokerConfig
+    WORKSPACE-SCHEMA
 import artemis.shared.server-config show ServerConfigSupabase
 import expect show *
-import host.directory
 import host.file
+import .utils show with-tmp-directory
 
 main:
   test-server-indirection
@@ -18,8 +18,8 @@ main:
   test-validation
 
 test-server-indirection:
-  workspace := Workspace.from-map {
-    "version": 1,
+  workspace := Workspace.from-map --path="/work/artemis.yaml" {
+    "\$schema": WORKSPACE-SCHEMA,
     "servers": {
       "production": {
         "type": "supabase",
@@ -48,7 +48,7 @@ test-server-indirection:
         "endpoint": "/functions/v2/artifacts",
       },
     },
-  } --path="/work/artemis.yaml"
+  }
 
   fleet := workspace.fleet as FileBackendConfig
   broker := workspace.broker as HttpBackendConfig
@@ -61,12 +61,10 @@ test-server-indirection:
   expect broker.server-config is ServerConfigSupabase
   expect-equals "https://example.supabase.co"
       (broker.server-config as ServerConfigSupabase).url
-  expect-equals BrokerConfig.DEFAULT-POLL-INTERVAL
-      (broker.server-config as ServerConfigSupabase).poll-interval
 
 test-round-trip:
   encoded := {
-    "version": 1,
+    "\$schema": WORKSPACE-SCHEMA,
     "servers": {
       "local": {
         "type": "toit-http",
@@ -94,11 +92,10 @@ test-round-trip:
   expect-equals "Bearer token" server-map["admin_headers"]["Authorization"]
 
 test-yaml-file:
-  tmp := directory.mkdtemp "/tmp/artemis-workspace-test-"
-  try:
+  with-tmp-directory: | tmp/string |
     path := "$tmp/artemis.yaml"
-    workspace := Workspace.from-map {
-      "version": 1,
+    workspace := Workspace.from-map --path=path {
+      "\$schema": WORKSPACE-SCHEMA,
       "servers": {:},
       "backends": {
         "fleet": {
@@ -106,20 +103,24 @@ test-yaml-file:
           "directory": "fleet",
         },
       },
-    } --path=path
+    }
     workspace.write
 
     expect (file.is-file path)
     loaded := Workspace.load tmp
     fleet := loaded.fleet as FileBackendConfig
     expect-equals "$tmp/fleet" (loaded.resolve fleet.directory)
-  finally:
-    directory.rmdir --recursive tmp
 
 test-validation:
+  expect-workspace-error "Workspace file 'artemis.yaml' has unsupported schema 'null'.":
+    Workspace.from-map {
+      "servers": {:},
+      "backends": {:},
+    }
+
   expect-workspace-error "HTTP backend 'broker' references unknown server 'missing'.":
     Workspace.from-map {
-      "version": 1,
+      "\$schema": WORKSPACE-SCHEMA,
       "servers": {:},
       "backends": {
         "broker": {
@@ -132,7 +133,7 @@ test-validation:
 
   expect-workspace-error "Server 'production' cannot contain a fleet scope.":
     Workspace.from-map {
-      "version": 1,
+      "\$schema": WORKSPACE-SCHEMA,
       "servers": {
         "production": {
           "type": "toit-http",
@@ -145,7 +146,7 @@ test-validation:
 
   expect-workspace-error "Server 'production' cannot contain embedded device configuration.":
     Workspace.from-map {
-      "version": 1,
+      "\$schema": WORKSPACE-SCHEMA,
       "servers": {
         "production": {
           "type": "toit-http",

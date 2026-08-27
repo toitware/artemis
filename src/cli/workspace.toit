@@ -8,7 +8,7 @@ import .server-config
 import .utils show read-yaml write-yaml-to-file
 
 ARTEMIS-FILE ::= "artemis.yaml"
-WORKSPACE-VERSION ::= 1
+WORKSPACE-SCHEMA ::= "https://toit.io/schemas/artemis/workspace/v1.json"
 
 FLEET-BACKEND ::= "fleet"
 BROKER-BACKEND ::= "broker"
@@ -39,24 +39,10 @@ abstract class BackendConfig:
 
     type := encoded.get "type"
     if type == "file":
-      directory := encoded.get "directory"
-      if directory is not string or directory.is-empty:
-        workspace-error_ "File backend '$name' must have a non-empty 'directory'."
-      return FileBackendConfig name --directory=directory
+      return FileBackendConfig.from-map name encoded
 
     if type == "http":
-      server-name := encoded.get "server"
-      if server-name is not string or server-name.is-empty:
-        workspace-error_ "HTTP backend '$name' must reference a server."
-      if not servers.contains server-name:
-        workspace-error_ "HTTP backend '$name' references unknown server '$server-name'."
-
-      endpoint := encoded.get "endpoint"
-      if endpoint is not string or not endpoint.starts-with "/":
-        workspace-error_ "HTTP backend '$name' must have an absolute-path 'endpoint'."
-      return HttpBackendConfig name
-          --server-config=servers[server-name]
-          --endpoint=endpoint
+      return HttpBackendConfig.from-map name encoded servers
 
     workspace-error_ "Backend '$name' has unknown type '$type'."
     unreachable
@@ -67,6 +53,12 @@ abstract class BackendConfig:
 /** Stores an interface in a directory relative to the workspace file. */
 class FileBackendConfig extends BackendConfig:
   directory/string
+
+  constructor.from-map name/string encoded/Map:
+    directory := encoded.get "directory"
+    if directory is not string or directory.is-empty:
+      workspace-error_ "File backend '$name' must have a non-empty 'directory'."
+    return FileBackendConfig name --directory=directory
 
   constructor name/string --.directory:
     super.from-sub_ name
@@ -81,6 +73,20 @@ class FileBackendConfig extends BackendConfig:
 class HttpBackendConfig extends BackendConfig:
   server-config/ServerConfig
   endpoint/string
+
+  constructor.from-map name/string encoded/Map servers/Map:
+    server-name := encoded.get "server"
+    if server-name is not string or server-name.is-empty:
+      workspace-error_ "HTTP backend '$name' must reference a server."
+    if not servers.contains server-name:
+      workspace-error_ "HTTP backend '$name' references unknown server '$server-name'."
+
+    endpoint := encoded.get "endpoint"
+    if endpoint is not string or not endpoint.starts-with "/":
+      workspace-error_ "HTTP backend '$name' must have an absolute-path 'endpoint'."
+    return HttpBackendConfig name
+        --server-config=servers[server-name]
+        --endpoint=endpoint
 
   constructor name/string --.server-config --.endpoint:
     super.from-sub_ name
@@ -126,9 +132,9 @@ class Workspace:
     if encoded is not Map:
       workspace-error_ "Workspace file '$path' must contain a map."
 
-    version := encoded.get "version"
-    if version != WORKSPACE-VERSION:
-      workspace-error_ "Workspace file '$path' has unsupported version '$version'."
+    schema := encoded.get "\$schema"
+    if schema != WORKSPACE-SCHEMA:
+      workspace-error_ "Workspace file '$path' has unsupported schema '$schema'."
 
     encoded-servers := encoded.get "servers"
     if encoded-servers is not Map:
@@ -187,13 +193,9 @@ class Workspace:
     encoded-servers := {:}
     servers.keys.sort.do: | name/string |
       server-config/ServerConfig := servers[name]
-      encoded := server-config.to-json --base64 --der-serializer=: unreachable
-      // Polling and device headers are part of embedded device configuration,
-      //   not reusable CLI server connections.
-      encoded.remove "poll_interval"
-      encoded.remove "device_headers"
-      encoded.remove "scope"
-      encoded-servers[name] = encoded
+      encoded-servers[name] = server-config.to-workspace-json
+          --base64
+          --der-serializer=: unreachable
 
     encoded-backends := {:}
     backends.keys.sort.do: | name/string |
@@ -201,7 +203,7 @@ class Workspace:
       encoded-backends[name] = backend-config.to-map
 
     return {
-      "version": WORKSPACE-VERSION,
+      "\$schema": WORKSPACE-SCHEMA,
       "servers": encoded-servers,
       "backends": encoded-backends,
     }
