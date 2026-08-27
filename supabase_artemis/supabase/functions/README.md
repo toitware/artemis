@@ -19,14 +19,18 @@ For development it's thus recommended to call `supabase functions serve`
 To deploy the edge functions, run:
 
 ```sh
-for name in b artifact-store broker pod-store; do
+for name in b device artifact-store broker pod-store; do
   supabase functions deploy --no-verify-jwt "$name"
 done
 ```
 
 `b` is the multiplexed v0 endpoint used by existing devices and older CLIs.
-The other functions form the interface-oriented v1 API used by new CLIs.
+The other functions form the interface-oriented v1 API.
 
-The v0 endpoint must skip gateway JWT verification because devices call it
-without a user JWT. The v1 functions are CLI-facing and forward their bearer
-tokens to the RLS-protected APIs.
+The `device` function accepts device requests without a user JWT. It exposes
+`GET /device/{device-id}/goal`, `PUT /device/{device-id}/state`, and
+`POST /device/{device-id}/events`. New device configurations receive that URL
+as a template and a separate template for direct artifact downloads.
+
+The remaining v1 functions are CLI-facing and forward their bearer tokens to
+the RLS-protected APIs.

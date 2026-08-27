@@ -64,7 +64,7 @@ class HttpBroker extends HttpServer:
   constructor port/int --.combined=false:
     super port
 
-  run-request method/string path/string query/Map body/ByteArray _ -> any:
+  run-request method/string path/string query/Map body/ByteArray headers/http.Headers _ -> any:
     if is-stopped_: throw "Broker is stopped."
 
     if path == "/artifact-store/images" and method == http.PUT:
@@ -85,6 +85,36 @@ class HttpBroker extends HttpServer:
       storage-path := "/toit-artemis-pods/$(query["scope"])/manifest/$(query["id"])"
       if method == http.PUT: return upload {"path": storage-path, "contents": body}
       if method == http.GET: return download {"path": storage-path}
+
+    if path.starts-with "/artifacts/" and method == http.GET:
+      storage-path := "/toit-artemis-assets/$(path["/artifacts/".size..])"
+      offset := 0
+      if range := headers.single "Range":
+        if not range.starts-with "bytes=" or not range.ends-with "-":
+          throw "Unsupported range: $range"
+        offset = int.parse range["bytes=".size..range.size - 1]
+      return download {"path": storage-path, "offset": offset}
+
+    if path.starts-with "/device/":
+      parts := path.split "/"
+      if parts.size != 4: throw "Invalid device URL: $path"
+      device-id := parts[2]
+      operation := parts[3]
+      if operation == "goal" and method == http.GET:
+        return get-goal {"_device_id": device-id}
+      if operation == "state" and method == http.PUT:
+        return report-state {
+          "_device_id": device-id,
+          "_state": json.decode body,
+        }
+      if operation == "events" and method == http.POST:
+        event := json.decode body
+        return report-event {
+          "_device_id": device-id,
+          "_type": event["type"],
+          "_data": event["data"],
+        }
+      throw "Unsupported device request: $method $path"
 
     data := body.is-empty ? {:} : rpc-data_ (json.decode body)
     if path == "/broker/goal" and method == http.PUT: return update-goal data

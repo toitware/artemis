@@ -39,7 +39,7 @@ is sent to and from your devices via the broker.
    https://supabase.com/dashboard/project/YOUR-PROJECT-ID/settings/api
 8. Push the edge functions:
     ```
-    for name in b artifact-store broker pod-store; do
+    for name in b device artifact-store broker pod-store; do
       supabase functions deploy --no-verify-jwt "$name"
     done
     ```
@@ -64,6 +64,10 @@ The CLI-facing edge functions forward bearer tokens to the database and storage
 APIs. Row-level security applies the authenticated user's permissions. Gateway
 JWT verification is disabled because authorization happens in those backend
 APIs and the gateway does not support every Supabase signing key.
+
+Devices use the unauthenticated `device` function to read goals and report
+state and events. As with the old `b` function, the device ID acts as the
+device's capability. Artifact downloads use the public storage URL directly.
 
 To disable sign-up, go to your project settings -> Authentication and disable
 "User Signups": https://supabase.com/dashboard/project/YOUR-PROJECT-ID/settings/auth.

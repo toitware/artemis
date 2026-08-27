@@ -41,7 +41,7 @@ abstract class HttpServer:
   abstract run-command command/int encoded/ByteArray user-id/string? -> any
 
   /** Handles the conventional interface-oriented API used by new CLIs. */
-  run-request method/string path/string query/Map body/ByteArray user-id/string? -> any:
+  run-request method/string path/string query/Map body/ByteArray headers/http.Headers user-id/string? -> any:
     throw "Conventional API not supported"
 
   /**
@@ -73,7 +73,13 @@ abstract class HttpServer:
       else:
         listeners.do: it.call "pre" resource bytes user-id
         reply_ resource writer --legacy=false:
-          run-request request.method resource request.query.parameters bytes user-id
+          run-request
+              request.method
+              resource
+              request.query.parameters
+              bytes
+              request.headers
+              user-id
 
   reply_ request-id/any writer/http.ResponseWriter --legacy/bool [block]:
     response-data := null

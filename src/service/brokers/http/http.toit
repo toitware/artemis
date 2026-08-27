@@ -11,7 +11,7 @@ import .connection
 import ..broker
 import ...device
 import ....shared.constants show *
-import ....shared.server-config show ServerConfigHttp
+import ....shared.server-config show ServerConfigHttp ServerConfigHttpTemplates
 
 class BrokerServiceHttp implements BrokerService:
   logger_/log.Logger
@@ -83,3 +83,79 @@ class BrokerConnectionHttp implements BrokerConnection:
 
   close -> none:
     connection_.close
+
+class BrokerServiceHttpTemplates implements BrokerService:
+  logger_/log.Logger
+  server-config_/ServerConfigHttpTemplates
+
+  constructor .logger_ .server-config_:
+
+  connect --network/net.Client --device/Device -> BrokerConnection:
+    connection := HttpTemplateConnection_ network server-config_
+    return BrokerConnectionHttpTemplates
+        logger_
+        device
+        connection
+        server-config_
+
+class BrokerConnectionHttpTemplates implements BrokerConnection:
+  device_/Device
+  connection_/HttpTemplateConnection_
+  config_/ServerConfigHttpTemplates
+  logger_/log.Logger
+
+  last-poll-us_/int? := null
+
+  constructor .logger_ .device_ .connection_ .config_:
+
+  fetch-goal-state --wait/bool -> Map?:
+    last := last-poll-us_
+    if last:
+      elapsed := Duration --us=(Time.monotonic-us - last)
+      interval := config_.poll-interval
+      if elapsed < interval:
+        if not wait: return null
+        sleep interval - elapsed
+    result := connection_.send-json http.GET (broker-url_ "goal")
+    last-poll-us_ = Time.monotonic-us
+    return result
+
+  fetch-image id/Uuid [block] -> none:
+    path := "$device_.organization-id/images/$id.$BITS-PER-WORD"
+    connection_.download (artifact-url_ path): | reader/Reader |
+      block.call reader
+
+  fetch-firmware id/string --offset/int=0 [block] -> none:
+    path := "$device_.organization-id/firmware/$id"
+    connection_.download (artifact-url_ path) --offset=offset: | reader/Reader |
+      block.call reader offset
+
+  report-state state/Map -> none:
+    connection_.send-json http.PUT (broker-url_ "state") state
+
+  report-event --type/string data/any -> none:
+    connection_.send-json http.POST (broker-url_ "events") {
+      "type": type,
+      "data": data,
+    }
+
+  close -> none:
+    connection_.close
+
+  broker-url_ operation/string -> string:
+    return expand-template_ config_.broker-url-template {
+      "device-id": "$device_.id",
+      "operation": operation,
+    }
+
+  artifact-url_ path/string -> string:
+    return expand-template_ config_.artifact-url-template {"path": path}
+
+expand-template_ template/string values/Map -> string:
+  result := template
+  values.do: | name/string value/any |
+    placeholder := "{$name}"
+    if not result.contains placeholder:
+      throw "URL template is missing $placeholder"
+    result = result.replace --all placeholder "$value"
+  return result

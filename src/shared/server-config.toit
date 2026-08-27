@@ -40,6 +40,9 @@ abstract class ServerConfig:
     else if json-map["type"] == "toit-http":
       config = ServerConfigHttp.from-json name json-map
           --der-deserializer=der-deserializer
+    else if json-map["type"] == "http-templates":
+      config = ServerConfigHttpTemplates.from-json name json-map
+          --der-deserializer=der-deserializer
     else:
       throw "Unknown broker type: $json-map"
     return config
@@ -191,26 +194,16 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
-    // The device only knows about HTTP-configs. Convert this Supabase config into
-    // an HTTP one.
-    http-host := host
-    http-port := null
-    colon-pos := http-host.index-of ":"
-    if colon-pos >= 0:
-      http-port = int.parse http-host[colon-pos + 1..]
-      http-host = http-host[..colon-pos]
-    der := root-certificate-der
-    http-config := ServerConfigHttp
+    scheme := use-tls ? "https" : "http"
+    base-url := "$scheme://$host"
+    template-config := ServerConfigHttpTemplates
         name
-        --host=http-host
-        --port=http-port
-        --path="/functions/v1/b"  // TODO(florian): get the path from the config.
+        --broker-url-template="$base-url/functions/v1/device/{device-id}/{operation}"
+        --artifact-url-template="$base-url/storage/v1/object/public/toit-artemis-assets/{path}"
         --poll-interval=poll-interval
-        --use-tls=use-tls
-        --root-certificate-ders=der ? [der] : null
-        --admin-headers=null
-        --device-headers=null
-    return http-config.to-service-json --der-serializer=der-serializer --base64=base64
+        --root-certificate-ders=root-certificate-der ? [root-certificate-der] : null
+        --headers=null
+    return template-config.to-service-json --der-serializer=der-serializer --base64=base64
 
   root-certificate-ders -> List?:
     return root-certificate-der and [root-certificate-der]
@@ -312,10 +305,19 @@ class ServerConfigHttp extends ServerConfig:
     return result
 
   to-service-json [--der-serializer] --base64/bool=false -> Map:
-    result := to-json --der-serializer=der-serializer --base64=base64
-    result.remove "admin_headers"
-    result.remove "scope"
-    return result
+    scheme := use-tls ? "https" : "http"
+    port-suffix := port ? ":$port" : ""
+    base-path := path
+    if base-path.ends-with "/": base-path = base-path[..base-path.size - 1]
+    base-url := "$scheme://$(host)$(port-suffix)$(base-path)"
+    template-config := ServerConfigHttpTemplates
+        name
+        --broker-url-template="$base-url/device/{device-id}/{operation}"
+        --artifact-url-template="$base-url/artifacts/{path}"
+        --poll-interval=poll-interval
+        --root-certificate-ders=root-certificate-ders
+        --headers=device-headers
+    return template-config.to-json --der-serializer=der-serializer --base64=base64
 
   compute-cache-key_ -> string:
     return "$host:$port:$path"
@@ -331,5 +333,82 @@ class ServerConfigHttp extends ServerConfig:
         --root-certificate-ders=root-certificate-ders
         --device-headers=device-headers
         --admin-headers=admin-headers
+        --poll-interval=poll-interval
+        --scope=(scope or this.scope)
+
+/**
+An HTTP configuration that addresses device operations through URL templates.
+
+The $broker-url-template accepts the placeholders `{device-id}` and
+  `{operation}`. The $artifact-url-template accepts `{path}`.
+*/
+class ServerConfigHttpTemplates extends ServerConfig:
+  static DEFAULT-POLL-INTERVAL ::= Duration --s=20
+
+  broker-url-template/string
+  artifact-url-template/string
+  root-certificate-ders/List? := ?
+  headers/Map?
+  poll-interval/Duration := ?
+
+  constructor.from-json name/string config/Map [--der-deserializer]:
+    root-certificates-ders/List? := null
+    if encoded-ders64 := config.get "root_certificate_ders64":
+      root-certificates-ders = encoded-ders64.map: base64-lib.decode it
+    else if config.get "root_certificate_ders":
+      root-certificates-ders = config["root_certificate_ders"].map: der-deserializer.call it
+    scope-value := config.get "scope"
+    scope/Scope? := scope-value and (Scope scope-value)
+    return ServerConfigHttpTemplates name
+        --broker-url-template=config["broker_url_template"]
+        --artifact-url-template=config["artifact_url_template"]
+        --root-certificate-ders=root-certificates-ders
+        --headers=config.get "headers"
+        --poll-interval=Duration --us=config["poll_interval"]
+        --scope=scope
+
+  constructor name/string
+      --.broker-url-template
+      --.artifact-url-template
+      --.root-certificate-ders
+      --.headers
+      --.poll-interval=DEFAULT-POLL-INTERVAL
+      --scope/Scope?=null:
+    super.from-sub_ name --scope=scope
+
+  type -> string: return "http-templates"
+
+  to-json [--der-serializer] --base64/bool=false -> Map:
+    result := {
+      "type": type,
+      "broker_url_template": broker-url-template,
+      "artifact_url_template": artifact-url-template,
+      "poll_interval": poll-interval.in-us,
+    }
+    if root-certificate-ders:
+      if base64:
+        result["root_certificate_ders64"] = root-certificate-ders.map: base64-lib.encode it
+      else:
+        result["root_certificate_ders"] = root-certificate-ders.map: der-serializer.call it
+    if headers: result["headers"] = headers
+    if scope: result["scope"] = scope.to-json
+    return result
+
+  to-service-json [--der-serializer] --base64/bool=false -> Map:
+    result := to-json --der-serializer=der-serializer --base64=base64
+    result.remove "scope"
+    return result
+
+  compute-cache-key_ -> string:
+    return "$broker-url-template:$artifact-url-template"
+
+  with -> ServerConfigHttpTemplates
+      --scope/Scope?=null:
+    return ServerConfigHttpTemplates
+        name
+        --broker-url-template=broker-url-template
+        --artifact-url-template=artifact-url-template
+        --root-certificate-ders=root-certificate-ders
+        --headers=headers
         --poll-interval=poll-interval
         --scope=(scope or this.scope)

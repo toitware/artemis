@@ -6,7 +6,7 @@ import net
 import reader show Reader  // For toitdoc.
 import uuid show Uuid
 
-import .http show BrokerServiceHttp
+import .http show BrokerServiceHttp BrokerServiceHttpTemplates
 
 import ..device
 import ...shared.server-config
@@ -69,6 +69,8 @@ interface BrokerService:
   constructor logger/log.Logger server-config/ServerConfig:
     if server-config is ServerConfigHttp:
       return BrokerServiceHttp logger (server-config as ServerConfigHttp)
+    else if server-config is ServerConfigHttpTemplates:
+      return BrokerServiceHttpTemplates logger (server-config as ServerConfigHttpTemplates)
     else:
       throw "unknown broker $server-config"
 
