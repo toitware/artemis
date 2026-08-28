@@ -169,10 +169,15 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
   type -> string: return "supabase"
 
   to-json [--der-serializer] --base64/bool=false -> Map:
-    result := to-workspace-json
+    result := {
+      "type": type,
+      "url": url,
+      "anon": anon,
+      "poll_interval": poll-interval.in-us,
+    }
+    add-root-certificates_ result root-certificate-ders
         --der-serializer=der-serializer
         --base64=base64
-    result["poll_interval"] = poll-interval.in-us
     if scope: result["scope"] = scope.to-json
     return result
 
@@ -266,11 +271,16 @@ class ServerConfigHttp extends ServerConfig:
   type -> string: return "toit-http"
 
   to-json [--der-serializer] --base64/bool=false -> Map:
-    result := to-workspace-json
+    result := {
+      "type": type,
+      "url": url,
+      "poll_interval": poll-interval.in-us,
+    }
+    add-root-certificates_ result root-certificate-ders
         --der-serializer=der-serializer
         --base64=base64
-    result["poll_interval"] = poll-interval.in-us
     if device-headers: result["device_headers"] = device-headers
+    if admin-headers: result["admin_headers"] = admin-headers
     if scope: result["scope"] = scope.to-json
     return result
 

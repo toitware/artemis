@@ -18,10 +18,12 @@ test-supabase-templates:
       --url="http://localhost:54321/"
       --anon="anon"
   cli-json := config.to-json --base64 --der-serializer=: unreachable
+  expect-equals ["type", "url", "anon", "poll_interval"] cli-json.keys
   expect-equals "http://localhost:54321" cli-json["url"]
   expect-not (cli-json.contains "host")
   expect-not (cli-json.contains "use_tls")
   workspace-json := config.to-workspace-json --base64 --der-serializer=: unreachable
+  expect-equals ["type", "url", "anon"] workspace-json.keys
   expect-not (workspace-json.contains "poll_interval")
   expect-not (workspace-json.contains "scope")
   encoded := config.to-service-json --base64 --der-serializer=: unreachable
@@ -53,14 +55,18 @@ test-http-templates:
       --url="http://localhost:1234/api/"
       --root-certificate-ders=null
       --device-headers={"X-Device": "true"}
-      --admin-headers=null
+      --admin-headers={"X-Admin": "true"}
   cli-json := config.to-json --base64 --der-serializer=: unreachable
+  expect-equals
+      ["type", "url", "poll_interval", "device_headers", "admin_headers"]
+      cli-json.keys
   expect-equals "http://localhost:1234/api" cli-json["url"]
   expect-not (cli-json.contains "host")
   expect-not (cli-json.contains "port")
   expect-not (cli-json.contains "path")
   expect-not (cli-json.contains "use_tls")
   workspace-json := config.to-workspace-json --base64 --der-serializer=: unreachable
+  expect-equals ["type", "url", "admin_headers"] workspace-json.keys
   expect-not (workspace-json.contains "poll_interval")
   expect-not (workspace-json.contains "device_headers")
   expect-not (workspace-json.contains "scope")
