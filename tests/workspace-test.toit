@@ -8,6 +8,7 @@ import artemis.cli.workspace show
     WORKSPACE-SCHEMA
 import artemis.shared.server-config show ServerConfigSupabase
 import expect show *
+import fs
 import host
 import host.file
 
@@ -55,7 +56,8 @@ test-server-indirection:
   pods := workspace.pods as HttpBackendConfig
   artifacts := workspace.artifacts as HttpBackendConfig
 
-  expect-equals "/work/fleet" (workspace.resolve fleet.directory)
+  expected-fleet-path := fs.join (fs.dirname workspace.path) fleet.directory
+  expect-equals expected-fleet-path (workspace.resolve fleet.directory)
   expect-identical broker.server-config pods.server-config
   expect-identical broker.server-config artifacts.server-config
   expect broker.server-config is ServerConfigSupabase
