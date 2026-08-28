@@ -8,8 +8,8 @@ import artemis.cli.workspace show
     WORKSPACE-SCHEMA
 import artemis.shared.server-config show ServerConfigSupabase
 import expect show *
+import host
 import host.file
-import .utils show with-tmp-directory
 
 main:
   test-server-indirection
@@ -92,7 +92,7 @@ test-round-trip:
   expect-equals "Bearer token" server-map["admin_headers"]["Authorization"]
 
 test-yaml-file:
-  with-tmp-directory: | tmp/string |
+  host.with-tmp-directory: | tmp/string |
     path := "$tmp/artemis.yaml"
     workspace := Workspace.from-map --path=path {
       "\$schema": WORKSPACE-SCHEMA,
