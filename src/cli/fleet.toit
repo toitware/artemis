@@ -821,7 +821,6 @@ class Fleet:
         --aliases=aliases
         --name=name
     devices_.add device
-    aliases_ = build-alias-map_ devices_ --cli=cli_
     write-devices_
 
     return new-file
@@ -964,7 +963,6 @@ class Fleet:
   add-device --device-id/Uuid --name/string? --group/string --aliases/List?:
     if aliases and aliases.is-empty: aliases = null
     devices_.add (DeviceFleet --id=device-id --group=group --name=name --aliases=aliases)
-    aliases_ = build-alias-map_ devices_ --cli=cli_
     write-devices_
 
   static build-status_ device/DeviceDetailed get-state-events/List? last-event/Event? -> Status_:
