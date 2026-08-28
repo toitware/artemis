@@ -641,7 +641,7 @@ init invocation/Invocation:
 
   fleet-root := compute-fleet-root-or-ref invocation
   with-artemis invocation: | artemis/Artemis |
-    fleet-file := FleetWithDevices.init fleet-root artemis
+    fleet-file := Fleet.init fleet-root artemis
         --organization-id=organization-id
         --broker-config=broker-config
         --recovery-url-prefixes=default-recovery-urls
@@ -684,7 +684,7 @@ add-devices invocation/Invocation:
 
   written-ids := {:}
   try:
-    with-devices-fleet invocation: | fleet/FleetWithDevices |
+    with-devices-fleet invocation: | fleet/Fleet |
       count.repeat:
         id := random-uuid
         path := fleet.create-identity
@@ -723,7 +723,7 @@ add-device invocation/Invocation:
   if output and not format:
     ui.abort "Output file given without format."
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     with-tmp-directory: | tmp-dir |
       identity-path := fleet.create-identity
           --id=id
@@ -759,7 +759,7 @@ roll-out invocation/Invocation:
 
   diff-bases := invocation["diff-base"]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     pod-diff-bases := diff-bases.map: | file-or-ref/string |
       if file.is-file file-or-ref:
         Pod.parse file-or-ref --tmp-directory=fleet.artemis.tmp-directory --cli=cli
@@ -774,7 +774,7 @@ status invocation/Invocation:
   include-healthy := invocation["include-healthy"]
   include-never-seen := invocation["include-never-seen"]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     fleet.status --include-healthy=include-healthy --include-never-seen=include-never-seen
 
 add-existing-device invocation/Invocation:
@@ -786,7 +786,7 @@ add-existing-device invocation/Invocation:
   aliases := invocation["alias"]
   group := invocation["group"]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     if not fleet.has-group group:
       ui.abort "Group '$group' not found."
 
@@ -806,11 +806,9 @@ group-list invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
-    fleet-file := fleet.fleet-file_
-
+  with-devices-fleet invocation: | fleet/Fleet |
     structured := []
-    fleet-file.group-pods.do: | name pod-reference/PodReference |
+    fleet.groups.do: | name pod-reference/PodReference |
       structured.add {
         "name": name,
         "pod": pod-reference.to-string,
@@ -828,7 +826,7 @@ group-add invocation/Invocation:
   name := invocation["name"]
   force := invocation["force"]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     pod-reference/PodReference? := null
     if pod:
       pod-reference = PodReference.parse pod --if-error=:
@@ -842,11 +840,7 @@ group-add invocation/Invocation:
       if not fleet.pod-exists pod-reference:
         ui.abort "Pod '$pod-reference' does not exist."
 
-    fleet-file := fleet.fleet-file_
-    if fleet-file.group-pods.contains name:
-      ui.abort "Group '$name' already exists."
-    fleet-file.group-pods[name] = pod-reference
-    fleet-file.write
+    fleet.add-group name pod-reference
     ui.emit --info "Added group '$name'."
 
 group-update invocation/Invocation:
@@ -871,46 +865,33 @@ group-update invocation/Invocation:
 
   executed-actions/List := []
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
-    fleet-root := fleet.root
-    fleet-file := fleet.fleet-file_
-
+  with-devices-fleet invocation: | fleet/Fleet |
     pod-reference/PodReference? := null
     if pod:
       pod-reference = PodReference.parse pod --if-error=:
         ui.abort "Invalid pod reference: $pod"
     groups.do: | group/string |
-      if not fleet-file.group-pods.contains group:
+      if not fleet.has-group group:
         ui.abort "Group '$group' does not exist."
 
-      if name and fleet-file.group-pods.contains name:
+      if name and fleet.has-group name:
         ui.abort "Group '$name' already exists."
 
       if tag:
-        old-pod-reference/PodReference := fleet-file.group-pods[group]
+        old-pod-reference := fleet.pod-reference-for-group group
         pod-reference = old-pod-reference.with --tag=tag
 
-      if not force:
+      if pod-reference and not force:
         if not fleet.pod-exists pod-reference:
           ui.abort "Pod '$pod-reference' does not exist."
 
       if pod-reference:
-        fleet-file.group-pods[group] = pod-reference
+        fleet.update-group group pod-reference
         executed-actions.add "Updated group '$group' to pod '$pod-reference'."
 
       if name:
-        old-reference := fleet-file.group-pods[group]
-        fleet-file.group-pods.remove group
-        fleet-file.group-pods[name] = old-reference
-        devices-file := FleetWithDevices.load-devices-file fleet-root --cli=cli
-        move-devices_
-            --fleet-root=fleet-root
-            --ids-to-move={}
-            --groups-to-move={group}
-            --to=name
-            --cli=cli
+        fleet.rename-group group name
         executed-actions.add "Renamed group '$group' to '$name'."
-    fleet-file.write
     executed-actions.do: ui.emit --info it
 
 group-remove invocation/Invocation:
@@ -919,22 +900,10 @@ group-remove invocation/Invocation:
 
   group := invocation["group"]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
-    fleet-file := fleet.fleet-file_
-    if not fleet-file.group-pods.contains group:
+  with-devices-fleet invocation: | fleet/Fleet |
+    if not fleet.remove-group group:
       ui.emit --info "Group '$group' does not exist."
       return
-
-    device-file := FleetWithDevices.load-devices-file fleet.root --cli=cli
-    used-groups := {}
-    device-file.devices.do: | device/DeviceFleet |
-      used-groups.add device.group
-
-    if used-groups.contains group:
-      ui.abort "Group '$group' is in use."
-
-    fleet-file.group-pods.remove group
-    fleet-file.write
 
     ui.emit --info "Removed group '$group'."
 
@@ -947,52 +916,21 @@ group-move invocation/Invocation:
   devices-to-move := invocation["device"]
 
   ids-to-move := {}
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     devices-to-move.do: | device |
       ids-to-move.add (fleet.resolve-alias device).id
-
-    fleet-root := fleet.root
 
     if groups-to-move.is-empty and devices-to-move.is-empty:
       ui.abort "No devices or groups given."
 
-    fleet-file := fleet.fleet-file_
-    if not fleet-file.group-pods.contains to:
-      ui.abort "Group '$to' does not exist."
-
     groups-to-move-set := {}
     groups-to-move-set.add-all groups-to-move
 
-    moved-count := move-devices_
-        --fleet-root=fleet-root
-        --ids-to-move=ids-to-move
-        --groups-to-move=groups-to-move-set
+    moved-count := fleet.move-devices
+        --ids=ids-to-move
+        --groups=groups-to-move-set
         --to=to
-        --cli=cli
     ui.emit --info "Moved $moved-count devices to group '$to'."
-
-move-devices_ -> int
-    --fleet-root/string
-    --ids-to-move/Set
-    --groups-to-move/Set
-    --to/string
-    --cli/Cli:
-  devices-file := FleetWithDevices.load-devices-file fleet-root --cli=cli
-  new-devices := []
-
-  moved-count := 0
-  devices-file.devices.do: | fleet-device/DeviceFleet |
-    if ids-to-move.contains fleet-device.id or groups-to-move.contains fleet-device.group:
-      new-devices.add (fleet-device.with --group=to)
-      moved-count++
-    else:
-      new-devices.add fleet-device
-
-  if moved-count != 0:
-    new-devices-file := DevicesFile devices-file.path new-devices
-    new-devices-file.write
-
-  return moved-count
 
 create-reference invocation/Invocation:
   cli := invocation.cli
@@ -1010,7 +948,7 @@ migration-start invocation/Invocation:
 
   broker-name := invocation["broker"]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     new-broker := get-server-from-config --name=broker-name --cli=cli
     fleet.migration-start --broker-config=new-broker
     ui.emit --info "Started migration to broker '$broker-name'. Use 'fleet status' to monitor the migration."
@@ -1022,7 +960,7 @@ migration-stop invocation/Invocation:
   force := invocation["force"]
   brokers := invocation["broker"]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     fleet.migration-stop brokers --force=force
     if brokers.is-empty:
       ui.emit --info "Stopped all migration."
@@ -1046,7 +984,7 @@ recovery-add invocation/Invocation:
   if url.ends-with "/":
     url = url[..url.size - 1]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     fleet.recovery-url-add url
 
     ui.emit --info "Added recovery URL '$url'."
@@ -1059,7 +997,7 @@ recovery-remove invocation/Invocation:
   force := invocation["force"]
   urls := invocation["url"]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     if all:
       fleet.recovery-urls-remove-all
       ui.emit --info "Removed all recovery URLs."
@@ -1079,7 +1017,7 @@ recovery-list invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     recovery-urls := fleet.recovery-urls
     if ui.wants-structured --kind=Ui.RESULT:
       ui.emit --kind=Ui.RESULT
@@ -1100,7 +1038,7 @@ recovery-export invocation/Invocation:
 
   output := invocation["output"]
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/Fleet |
     recovery-info := fleet.recovery-info
     file.write-contents --path=output recovery-info
     ui.emit --info "Exported recovery information to '$output'."

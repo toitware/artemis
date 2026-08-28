@@ -49,7 +49,7 @@ with-devices-fleet invocation/Invocation [block]:
 
   with-artemis invocation: | artemis/Artemis |
     default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-    fleet := FleetWithDevices fleet-root artemis
+    fleet := Fleet.with-devices fleet-root artemis
         --default-broker-config=default-broker-config
         --cli=cli
     block.call fleet
