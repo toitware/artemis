@@ -111,7 +111,7 @@ test-yaml-file:
     expect (file.is-file path)
     loaded := Workspace.load tmp
     fleet := loaded.fleet as FileBackendConfig
-    expect-equals "$tmp/fleet" (loaded.resolve fleet.directory)
+    expect-equals (fs.join tmp "fleet") (loaded.resolve fleet.directory)
 
 test-validation:
   expect-workspace-error "Workspace file 'artemis.yaml' has unsupported schema 'null'.":
