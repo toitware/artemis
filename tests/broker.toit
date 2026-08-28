@@ -3,6 +3,7 @@
 import cli show Cli
 import encoding.json
 import encoding.ubjson
+import host.os
 import log show Logger
 import log
 import monitor
@@ -149,7 +150,11 @@ class ToitHttpBackdoor implements BrokerBackdoor:
     server.stop
 
 with-http-broker --name="test-broker" --combined/bool=false [block]:
-  server := HttpBroker 0 --combined=combined
+  debug-timing := false
+  if os.env.get "ARTEMIS_DEBUG_TIMING": debug-timing = true
+  server := HttpBroker 0
+      --combined=combined
+      --debug-timing=debug-timing
   port-latch := monitor.Latch
   server-task := task:: server.start port-latch
 

@@ -61,8 +61,8 @@ class HttpBroker extends HttpServer:
 
   is-stopped_/bool := false
 
-  constructor port/int --.combined=false:
-    super port
+  constructor port/int --.combined=false --debug-timing/bool=false:
+    super port --debug-timing=debug-timing
 
   run-request method/string path/string query/Map body/ByteArray headers/http.Headers _ -> any:
     if is-stopped_: throw "Broker is stopped."

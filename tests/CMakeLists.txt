@@ -293,7 +293,7 @@ foreach(file ${TESTS})
 
     set_tests_properties("${test_name}" PROPERTIES
       FIXTURES_REQUIRED "ensure-version;artemis_tmp"
-      ENVIRONMENT "ARTEMIS_TEST_TMP_ROOT=${ARTEMIS_TMP_ROOT}"
+      ENVIRONMENT "ARTEMIS_TEST_TMP_ROOT=${ARTEMIS_TMP_ROOT};ARTEMIS_DEBUG_TIMING=1"
     )
 
     if (RESOURCE_LOCKS)

@@ -9,6 +9,50 @@ import log
 import net
 import net.tcp
 import monitor
+import system
+
+BODY-PROGRESS-INTERVAL_ ::= 1 * 1024 * 1024
+
+class TimingReader_ extends io.Reader:
+  reader_/io.Reader
+  request-id_/string
+  total-size_/int
+  read-size_/int := 0
+  chunk-count_/int := 0
+  next-report_/int := BODY-PROGRESS-INTERVAL_
+  last-report-us_/int := Time.monotonic-us
+  last-report-chunk-count_/int := 0
+  finished_/bool := false
+
+  constructor .reader_ .request-id_ .total-size_:
+
+  read_ -> ByteArray?:
+    data := reader_.read
+    if not data:
+      if not finished_:
+        finished_ = true
+        report_ "finished"
+      return null
+
+    read-size_ += data.size
+    chunk-count_++
+    if read-size_ >= next-report_:
+      report_ "progress"
+      next-report_ = ((read-size_ / BODY-PROGRESS-INTERVAL_) + 1) * BODY-PROGRESS-INTERVAL_
+    return data
+
+  report_ phase/string -> none:
+    now-us := Time.monotonic-us
+    elapsed-ms := (now-us - last-report-us_) / 1_000
+    chunks := chunk-count_ - last-report-chunk-count_
+    stats := system.process-stats
+    message := "$Time.now: HTTP server body $phase $request-id_: "
+    message += "$read-size_/$total-size_ bytes, $chunks chunks in $(elapsed-ms)ms, "
+    message += "GC $(stats[system.STATS-INDEX-GC-COUNT])/$(stats[system.STATS-INDEX-FULL-GC-COUNT]), "
+    message += "heap $(stats[system.STATS-INDEX-ALLOCATED-MEMORY])/$(stats[system.STATS-INDEX-RESERVED-MEMORY])"
+    print-on-stderr_ message
+    last-report-us_ = now-us
+    last-report-chunk-count_ = chunk-count_
 
 class BinaryResponse:
   bytes/ByteArray
@@ -18,6 +62,7 @@ class BinaryResponse:
 
 abstract class HttpServer:
   port/int? := null
+  debug-timing_/bool
 
   socket_/tcp.ServerSocket? := null
 
@@ -31,7 +76,12 @@ abstract class HttpServer:
   */
   listeners/List := []
 
-  constructor .port:
+  constructor .port --debug-timing/bool=false:
+    debug-timing_ = debug-timing
+
+  debug-timing_ message/string -> none:
+    if debug-timing_:
+      print-on-stderr_ "$Time.now: $message"
 
   close:
     if socket_:
@@ -62,8 +112,14 @@ abstract class HttpServer:
       if not request.headers.single "X-Artemis-Header":
         throw "Missing X-Artemis-Header"
 
-      bytes := request.body.read-all
       resource := request.query.resource
+      content-length := request.content-length
+      debug-timing_ "HTTP server reading $request.method $resource with Content-Length $content-length"
+      body/io.Reader := request.body
+      if debug-timing_ and content-length and content-length >= BODY-PROGRESS-INTERVAL_:
+        body = TimingReader_ body "$request.method $resource" content-length
+      bytes := body.read-all
+      debug-timing_ "HTTP server read $bytes.size bytes for $request.method $resource"
       if resource == "/":
         command := bytes[0]
         encoded := bytes[1..]
@@ -82,11 +138,15 @@ abstract class HttpServer:
               user-id
 
   reply_ request-id/any writer/http.ResponseWriter --legacy/bool [block]:
+    start-us := Time.monotonic-us
+    debug-timing_ "HTTP server handling $request-id"
     response-data := null
     exception := catch --trace:
       with-timeout --ms=3_000:
         response-data = block.call
     if exception:
+      elapsed-ms := (Time.monotonic-us - start-us) / 1_000
+      debug-timing_ "HTTP server failed $request-id after $(elapsed-ms)ms: $exception"
       listeners.do: it.call "error" request-id exception
       encoded-response := legacy
           ? json.encode exception
@@ -95,6 +155,8 @@ abstract class HttpServer:
       writer.write-headers (legacy ? http.STATUS-IM-A-TEAPOT : http.STATUS-INTERNAL-SERVER-ERROR) --message="Error"
       writer.out.write encoded-response
     else:
+      elapsed-ms := (Time.monotonic-us - start-us) / 1_000
+      debug-timing_ "HTTP server handled $request-id after $(elapsed-ms)ms"
       listeners.do: it.call "post" request-id response-data
       if response-data is BinaryResponse:
         binary := response-data as BinaryResponse

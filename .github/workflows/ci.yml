@@ -21,6 +21,9 @@ env:
 jobs:
   build:
     strategy:
+      # Temporary while diagnosing intermittent host-runtime failures: retain
+      # every platform's evidence if another matrix entry fails first.
+      fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         run_supabase_tests: [ false ]
@@ -155,6 +158,12 @@ jobs:
         run: |
           make
 
+      - name: Configure macOS core dumps
+        if: (!matrix.run_supabase_tests) && (runner.os == 'macOS')
+        shell: bash
+        run: |
+          sudo sysctl -w kern.corefile="$PWD/build/core.%P" || true
+
       - name: Test supabase
         if: matrix.run_supabase_tests
         shell: bash
@@ -166,8 +175,64 @@ jobs:
         if: (!matrix.run_supabase_tests)
         shell: bash
         run: |
+          if [[ "$RUNNER_OS" = "macOS" ]]; then
+            ulimit -c unlimited
+          fi
+          if [[ "$RUNNER_OS" = "Linux" ]]; then
+            while true; do
+              date --iso-8601=ns
+              if [[ -f /sys/fs/cgroup/cpu.stat ]]; then
+                cat /sys/fs/cgroup/cpu.stat
+              fi
+              ps -eo pid,ppid,stat,pcpu,pmem,comm --sort=-pcpu | head -20
+              ss -tinp
+              sleep 5
+            done > build/tcp-state.log &
+            tcp_monitor_pid=$!
+            trap 'kill "$tcp_monitor_pid" || true' EXIT
+          fi
           make disable-supabase-tests
           make test
+
+      - name: Stress macOS Qemu teardown
+        # Temporary: qemu-trigger-test intermittently segfaults the host Toit
+        # VM while terminating Qemu and cancelling its pipe-reader tasks.
+        if: (!matrix.run_supabase_tests) && (runner.os == 'macOS')
+        shell: bash
+        run: |
+          ulimit -c unlimited
+          for attempt in {1..20}; do
+            echo "Qemu teardown attempt $attempt/20"
+            ctest --test-dir build/tests -C default -j2 \
+                --no-tests=error \
+                --output-on-failure \
+                -I 66,67,1
+          done
+
+      - name: Stress Windows Qemu networking
+        # Temporary: qemu-hello-test intermittently boots without an Ethernet
+        # connection on the Windows runner and then times out.
+        if: (!matrix.run_supabase_tests) && (runner.os == 'Windows')
+        shell: bash
+        run: |
+          for attempt in {1..10}; do
+            echo "Qemu networking attempt $attempt/10"
+            ctest --test-dir build/tests -C default -j2 \
+                --no-tests=error \
+                --output-on-failure \
+                -I 64,65,1
+          done
+
+      - name: Collect macOS native backtrace
+        if: (!matrix.run_supabase_tests) && (runner.os == 'macOS') && always()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          cores=(build/core.*)
+          for core in "${cores[@]}"; do
+            echo "Backtrace for $core"
+            lldb --batch -o 'thread backtrace all' -c "$core"
+          done > build/macos-native-backtrace.log
 
       - name: Upload binary artifacts
         if: (!matrix.run_supabase_tests)
@@ -183,6 +248,46 @@ jobs:
         with:
           name: snapshots-${{ runner.os }}
           path: build/snapshots
+
+      - name: Collect test diagnostics
+        if: (!matrix.run_supabase_tests) && always()
+        shell: bash
+        run: |
+          find build -path '*/Testing/Temporary/LastTest.log*' -type f \
+              -exec grep -h -E \
+              "Test #[0-9]+:|Starting SDK tool|SDK tool .* exited|HTTP client|HTTP server" \
+              {} + > build/test-diagnostics.log || true
+
+      - name: Upload test diagnostics
+        # CTest suppresses successful test output in the workflow log. Upload
+        # only the sanitized timing lines: its complete log contains test
+        # authentication payloads.
+        if: (!matrix.run_supabase_tests) && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-diagnostics-${{ runner.os }}
+          path: build/test-diagnostics.log
+
+      - name: Upload Linux TCP diagnostics
+        if: (!matrix.run_supabase_tests) && (runner.os == 'Linux') && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tcp-state-${{ runner.os }}
+          path: build/tcp-state.log
+          if-no-files-found: ignore
+
+      - name: Upload macOS crash reports
+        # The macOS crash is below the Toit language stack. Preserve the native
+        # report when CrashReporter produces one.
+        if: (!matrix.run_supabase_tests) && (runner.os == 'macOS') && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: crash-reports-${{ runner.os }}
+          path: |
+            ~/Library/Logs/DiagnosticReports/toit.run*
+            /Library/Logs/DiagnosticReports/toit.run*
+            build/macos-native-backtrace.log
+          if-no-files-found: ignore
 
       - name: Upload other snapshots
         # Use 'always()' to upload them even if an earlier step failed.
@@ -275,6 +380,9 @@ jobs:
           kill $HTTP_PID
 
   serial:
+    # The hardware suite is already running for this commit series. Avoid
+    # occupying the single serial runner again for hosted-runtime probes.
+    if: false
     runs-on: serial-artemis
 
     steps:
