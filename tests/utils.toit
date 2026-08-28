@@ -1199,6 +1199,10 @@ class TestFleet:
         --fleet=this
         --gold-name=gold-name
         --format=format
+        // Integration tests need devices to pick up changes made after their
+        // initial synchronization. Use a short, positive interval; the
+        // synchronize service applies its minimum interval on top of this.
+        --pod-spec={"max-offline": "1s"}
 
   create-host-device name/string --start/bool -> TestDevicePipe:
     tar-file := "$tester.tmp-dir/dev-$(name).tar"

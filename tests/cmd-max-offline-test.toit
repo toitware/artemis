@@ -4,6 +4,7 @@
 
 import .utils
 import artemis.service.synchronize show SynchronizeJob
+import expect show expect
 
 main args:
   with-tester --args=args: | tester/Tester |
@@ -22,6 +23,15 @@ main args:
         "--organization-id", "$device.organization-id",
     ]
     tester.run ["fleet", "add-existing-device", "--fleet-root", tester.tmp-dir, "$device.device-id"]
+
+    failure := tester.run --expect-exit-1 [
+      "--fleet-root", tester.tmp-dir,
+      "device",
+      "set-max-offline",
+      "--device", "$device.device-id",
+      "0s",
+    ]
+    expect: failure.contains "Max-offline must be greater than zero."
 
     tester.run [
       "--fleet-root", tester.tmp-dir,

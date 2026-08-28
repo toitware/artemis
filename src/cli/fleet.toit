@@ -23,6 +23,7 @@ import ..shared.scope show Scope
 import .utils.names
 import .server-config
 import ..shared.json-diff
+import ..shared.device-config show DEFAULT-MAX-OFFLINE
 
 DEFAULT-GROUP ::= "default"
 
@@ -870,11 +871,9 @@ class FleetWithDevices extends Fleet:
     else:
       is-updated = json-equals (current-state or firmware-state) goal
     max-offline-s/int? := (current-state or firmware-state).get "max-offline"
-    // If the device has no max_offline, we assume it's 20 seconds.
-    // TODO(florian): handle this better.
-    if not max-offline-s:
-      max-offline-s = 20
-    max-offline := Duration --s=max-offline-s
+    max-offline := max-offline-s and max-offline-s > 0
+        ? Duration --s=max-offline-s
+        : DEFAULT-MAX-OFFLINE
 
     missed-checkins/int := ?
     if not get-state-events or get-state-events.is-empty:

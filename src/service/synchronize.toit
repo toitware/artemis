@@ -290,17 +290,13 @@ class SynchronizeJob extends TaskJob:
     if control-level-offline_ > 0: return null
     if control-level-online_ > 0: return now
     max-offline := device_.max-offline
-    schedule/JobTime := ?
-    if max-offline:
-      // Allow the device to connect more often if we're having
-      // trouble synchronzing. This is particularly welcome on
-      // devices with a high max-offline setting (multiple hours).
-      status := determine-status_
-      if status > STATUS-YELLOW:
-        max-offline /= (status == STATUS-RED) ? 4 : 2
-      schedule = last + (max max-offline OFFLINE-MINIMUM)
-    else:
-      schedule = last + OFFLINE-MINIMUM
+    // Allow the device to connect more often if we're having
+    // trouble synchronzing. This is particularly welcome on
+    // devices with a high max-offline setting (multiple hours).
+    status := determine-status_
+    if status > STATUS-YELLOW:
+      max-offline /= (status == STATUS-RED) ? 4 : 2
+    schedule := last + (max max-offline OFFLINE-MINIMUM)
     if now < schedule:
       // If we're not going to schedule the synchronization
       // job now, we allow running all other jobs.
@@ -472,7 +468,7 @@ class SynchronizeJob extends TaskJob:
           // We are now synchronized. We cannot get here in safe mode, because
           // we reboot just after synchronizing in that case.
           assert: not safe-mode_
-          if device_.max-offline and control-level-online_ == 0: return true
+          if control-level-online_ == 0: return true
     finally:
       with-timeout TIMEOUT-BROKER-CLOSE: broker-connection.close
 
@@ -560,7 +556,7 @@ class SynchronizeJob extends TaskJob:
         tags = {"safe-mode": true}
       if state == STATE-SYNCHRONIZED:
         max-offline := device_.max-offline
-        if max-offline and control-level-online_ == 0:
+        if control-level-online_ == 0:
           tags = tags or {:}
           tags["max-offline"] = max-offline
       logger_.info STATE-SUCCESS[state] --tags=tags
@@ -689,12 +685,10 @@ class SynchronizeJob extends TaskJob:
     else:
       return STATUS-RED
 
-  static compute-status-limit-us_ max-offline/Duration? -> int:
+  static compute-status-limit-us_ max-offline/Duration -> int:
     // Compute the number of time units that correspond to
     // the max-offline setting by using ceiling division.
-    max-offline-units := max-offline
-        ? 1 + (max-offline.in-us - 1) / STATUS-LIMIT-UNIT-US
-        : 1
+    max-offline-units := 1 + (max-offline.in-us - 1) / STATUS-LIMIT-UNIT-US
     // Convert the units back to a number of microseconds and
     // derive the limit from that and the number of attempts
     // between status changes.
@@ -709,10 +703,10 @@ class SynchronizeJob extends TaskJob:
     some time. It is a redundant safety mechanism, as there is
     already a reboot strategy implemented.
   */
-  static start-watchdog_ watchdog/Watchdog? max-offline/Duration? -> none:
+  static start-watchdog_ watchdog/Watchdog? max-offline/Duration -> none:
     if not watchdog: return
     // TODO(florian): make this configurable?
-    max-watchdog-offline := max-offline ? max-offline * 5 : Duration.ZERO
+    max-watchdog-offline := max-offline * 5
     max-watchdog-offline = max max-watchdog-offline (Duration --h=2)
 
     watchdog.start --s=max-watchdog-offline.in-s
@@ -865,7 +859,7 @@ class SynchronizeJob extends TaskJob:
   handle-set-max-offline_ value/any -> none:
     max-offline := (value is int) ? Duration --s=value : null
     device_.state-set-max-offline max-offline
-    status-limit-us_ = compute-status-limit-us_ max-offline
+    status-limit-us_ = compute-status-limit-us_ device_.max-offline
 
   handle-firmware-update_ broker-connection/BrokerConnection new/string -> none:
     storage_.ram-store RAM-FIRMWARE-IS-CLEAN-KEY null  // Not necessarily clean anymore.

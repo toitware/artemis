@@ -41,7 +41,7 @@
           "type": "string"
         },
         "max-offline": {
-          "description": "Maximum duration before Artemis should attempt to synchronize. For example '30m'.",
+          "description": "Strictly positive maximum duration before Artemis should attempt to synchronize. Defaults to '5m'.",
           "type": "string"
         },
         "extends": {

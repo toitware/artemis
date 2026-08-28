@@ -9,6 +9,7 @@ import .utils show deep-copy
 import .periodic-network-request show PeriodicNetworkRequest  // For toitdoc.
 import ..shared.json-diff show json-equals Modification
 import .storage
+import ..shared.device-config show DEFAULT-MAX-OFFLINE
 
 /**
 A representation of the device we are running on.
@@ -112,9 +113,10 @@ class Device:
   /**
   The current max-offline as a Duration.
   */
-  max-offline -> Duration?:
-    max-offline-s/int? := current-state.get "max-offline"
-    if not max-offline-s: return null
+  max-offline -> Duration:
+    max-offline-s := current-state.get "max-offline"
+    if max-offline-s is not int or max-offline-s <= 0:
+      return DEFAULT-MAX-OFFLINE
     return Duration --s=max-offline-s
 
   /**
@@ -129,6 +131,8 @@ class Device:
 
   /**
   Sets the max-offline of the current state.
+
+  A null or non-positive value restores the compatibility default.
   */
   state-set-max-offline new-max-offline/Duration?:
     state := current-state-modifiable_

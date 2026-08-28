@@ -105,7 +105,7 @@ $schema: https://toit.io/schemas/artemis/pod-specification/v1.json
 name: example
 sdk-version: SDK-VERSION
 artemis-version: ARTEMIS-VERSION
-max-offline: 0s
+max-offline: 5m
 connections:
   - type: wifi
     ssid: YOUR-WIFI-SSID
@@ -129,8 +129,8 @@ The two version entries are for the SDK and Artemis versions. Be aware that not
 all combinations of those are supported. Use `artemis sdk list` to see the
 valid combinations.
 
-The `max-offline` entry is optional and defaults to 0s. Use it to control for how
-long your device is allowed to stay offline.
+The optional `max-offline` entry controls how long your device is allowed to
+stay offline. It must be greater than zero and defaults to five minutes.
 
 The `connections` section contains a prioritized list of ways to connect to the
 Internet. You can have multiple `wifi` entries and Artemis will attempt to
