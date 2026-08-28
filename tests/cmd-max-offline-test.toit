@@ -31,6 +31,11 @@ main args:
       "1",
     ]
 
+    // The device has disconnected using the default max-offline. Restart it
+    // so it picks up the shorter interval without waiting five minutes.
+    device.stop
+    device.start
+
     // We give the infrastructure some time to react.
     slack := Duration --s=10
 
