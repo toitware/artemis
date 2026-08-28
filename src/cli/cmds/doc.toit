@@ -48,10 +48,10 @@ SPECIFICATION-FORMAT-HELP ::= """
       A 'null' entry can be used to signal that the entry should not be
       extended.
 
-  'max-offline': optional. The duration the device can be offline before it
+  'max-offline': The duration the device can be offline before it
       attempts to connect to the broker to sync. Expressed as
       string of the form '1h2m3s' or '1h 2m 3s'.
-      If no value is specified, the default is '0s'.
+      The duration must be greater than zero.
   'connections': a list of connections, each of which must be a
       connection object. At least one connection must be provided.
       See below for the format of a connection object.

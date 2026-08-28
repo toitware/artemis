@@ -9,7 +9,7 @@
     "PodSpecification": {
       "type": "object",
       "unevaluatedProperties": false,
-      "$comment": "We don't 'require' any of the properties here. This is because we allow to extend specifications, and some properties might thus not exist in this file. A flattened pod-specification requires '$schema' (or the deprecated 'version'), 'name', 'sdk-version', and 'artemis-version' to be present.",
+      "$comment": "We don't 'require' any of the properties here. This is because we allow to extend specifications, and some properties might thus not exist in this file. A flattened pod-specification requires '$schema' (or the deprecated 'version'), 'name', 'sdk-version', 'artemis-version', and 'max-offline' to be present.",
       "properties": {
         "$schema": {
           "description": "Schema of the pod specification.",
@@ -41,7 +41,7 @@
           "type": "string"
         },
         "max-offline": {
-          "description": "Maximum duration before Artemis should attempt to synchronize. For example '30m'.",
+          "description": "Strictly positive maximum duration before Artemis should attempt to synchronize. For example '30m'.",
           "type": "string"
         },
         "extends": {

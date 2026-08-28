@@ -372,8 +372,10 @@ class PodSpecification:
       json-connection-info.warn-unused
       connection
 
-    max-offline := json-map.get-optional-duration "max-offline"
-    max-offline-seconds = max-offline ? max-offline.in-s : 0
+    max-offline := json-map.get-duration "max-offline"
+    if max-offline <= Duration.ZERO:
+      format-error_ "Entry max-offline in pod specification must be positive."
+    max-offline-seconds = max-offline.in-s
 
     json-map.warn-unused
     validate_

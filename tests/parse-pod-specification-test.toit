@@ -217,8 +217,15 @@ test-errors:
 
   no-max-offline := new-valid
   no-max-offline.remove "max-offline"
-  no-max-offline-spec := PodSpecification.from-json no-max-offline --path="ignored" --cli=TestCli
-  expect-equals 0 no-max-offline-spec.max-offline-seconds
+  expect-format-error
+      "Missing max-offline in pod specification."
+      no-max-offline
+
+  zero-max-offline := new-valid
+  zero-max-offline["max-offline"] = "0s"
+  expect-format-error
+      "Entry max-offline in pod specification must be positive."
+      zero-max-offline
 
   no-connections := new-valid
   no-connections.remove "connections"

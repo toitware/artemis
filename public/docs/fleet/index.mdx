@@ -145,7 +145,7 @@ $schema: https://toit.io/schemas/artemis/pod-specification/v1.json
 name: my-pod
 sdk-version: SDK-VERSION
 artemis-version: ARTEMIS-VERSION
-max-offline: 0s
+max-offline: 5m
 connections:
   - type: wifi
     ssid: YOUR WIFI SSID
@@ -263,15 +263,10 @@ these changes are lost at the next firmware upgrade.
 Devices managed by Artemis need to connect to the cloud to receive updated information.
 The frequency at which they synchronize can be configured by the user.
 
-Devices that connect frequently or all the time are easy
-to interact with and manage, but they spend a lot of power on staying connected
-all the time. The pod specification in the example `my-pod.yaml` does not specify
-how often to connect, so Artemis assumes that you want an interactive device.
-
-If you don't need your device to stay connected all the time, you can
-give it a 'max-offline' setting. This tells the Artemis service that it is
-okay to be offline for 5m, 1h30m, or 24h without necessarily connecting to the
-Internet.
+Devices that connect frequently are easy to interact with and manage, but they
+spend more power and place more load on the broker. The required `max-offline`
+setting tells the Artemis service that it is okay to be offline for 5m, 1h30m,
+or 24h without necessarily connecting to the Internet.
 
 You can set this through:
 
@@ -281,13 +276,6 @@ artemis device set-max-offline 1m19s
 
 If you monitor the output of your device, you'll see that the device goes
 to sleep between its cloud synchronizations.
-
-You can go back to the original setting, where the device tries to
-stay online all the time by giving it a 'max-offline' setting of 0s:
-
-``` sh
-artemis device set-max-offline 0s
-```
 
 ### Installing code
 

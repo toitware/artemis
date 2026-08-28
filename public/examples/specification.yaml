@@ -4,7 +4,7 @@ $schema: https://toit.io/schemas/artemis/pod-specification/v1.json
 name: example
 sdk-version: SDK-VERSION
 artemis-version: ARTEMIS-VERSION
-max-offline: 0s
+max-offline: 5m
 connections:
   - type: wifi
     ssid: YOUR-WIFI-SSID

@@ -818,10 +818,7 @@ class Broker:
         throw "No known firmware information for device."
       new-goal := device.goal or device.reported-state-firmware
       cli_.ui.emit --info "Setting max-offline to $(Duration --s=max-offline-seconds)."
-      if max-offline-seconds > 0:
-        new-goal["max-offline"] = max-offline-seconds
-      else:
-        new-goal.remove "max-offline"
+      new-goal["max-offline"] = max-offline-seconds
       new-goal
 
   static has-implicit-network_ chip-family/string -> bool:
@@ -866,12 +863,8 @@ class Broker:
       "sdk-version": sdk-version,
     }
 
-    // Add the max-offline setting if is non-zero. The device service
-    // handles the absence of the max-offline setting differently, so
-    // we cannot just add zero seconds to the config. This matches what
-    // we do in $config_set_max_offline.
     max-offline-seconds := specification.max-offline-seconds
-    if max-offline-seconds > 0: device-config["max-offline"] = max-offline-seconds
+    device-config["max-offline"] = max-offline-seconds
 
     if specification.connections.is-empty and not has-implicit-network_ envelope-chip-family:
       cli_.ui.emit --warning "No network connections configured."

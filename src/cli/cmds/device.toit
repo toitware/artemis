@@ -373,6 +373,8 @@ set-max-offline invocation/Invocation:
       duration := parse-duration max-offline --if-error=:
         ui.abort "Invalid max-offline duration: $max-offline."
       duration.in-s
+    if max-offline-seconds <= 0:
+      ui.abort "Max-offline must be greater than zero."
 
     fleet.broker.config-set-max-offline --device-id=device.id
           --max-offline-seconds=max-offline-seconds

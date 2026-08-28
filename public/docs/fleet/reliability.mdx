@@ -29,10 +29,9 @@ guards against the Artemis service itself getting into a bad state.
 ## Max offline
 
 The frequency at which Artemis contacts the broker can be configured using the
-`max-offline` setting in the pod specification. A value of `0s` means that the
-device stays connected to the broker and polls it continuously (but at most
-every 20 seconds). A value of `1h` means that the device can be offline for
-up to an hour before it tries to reconnect.
+`max-offline` setting in the pod specification. A value of `1h` means that the
+device can be offline for up to an hour before it tries to reconnect. The value
+must be greater than zero.
 
 Here is a pod specification with a `max-offline` value of `1h`:
 
