@@ -88,6 +88,7 @@ main args:
           "host-recovery-source.toit": source,
         }
         --pod-spec={
+          "max-offline": "1s",
           "containers": {
             "recovery": {
               "entrypoint": "host-recovery-source.toit",
