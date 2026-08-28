@@ -16,6 +16,7 @@ import .server-config
 import .utils
 import .git
 
+import ..shared.device-config show DEFAULT-MAX-OFFLINE
 import ..shared.version show SDK-VERSION ARTEMIS-VERSION
 
 JSON-SCHEMA ::= "https://toit.io/schemas/artemis/pod-specification/v1.json"
@@ -372,7 +373,7 @@ class PodSpecification:
       json-connection-info.warn-unused
       connection
 
-    max-offline := json-map.get-duration "max-offline"
+    max-offline := json-map.get-optional-duration "max-offline" or DEFAULT-MAX-OFFLINE
     if max-offline <= Duration.ZERO:
       format-error_ "Entry max-offline in pod specification must be positive."
     max-offline-seconds = max-offline.in-s

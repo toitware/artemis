@@ -264,9 +264,10 @@ Devices managed by Artemis need to connect to the cloud to receive updated infor
 The frequency at which they synchronize can be configured by the user.
 
 Devices that connect frequently are easy to interact with and manage, but they
-spend more power and place more load on the broker. The required `max-offline`
+spend more power and place more load on the broker. The optional `max-offline`
 setting tells the Artemis service that it is okay to be offline for 5m, 1h30m,
-or 24h without necessarily connecting to the Internet.
+or 24h without necessarily connecting to the Internet. It defaults to five
+minutes.
 
 You can set this through:
 

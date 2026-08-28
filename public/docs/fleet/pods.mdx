@@ -129,8 +129,8 @@ The two version entries are for the SDK and Artemis versions. Be aware that not
 all combinations of those are supported. Use `artemis sdk list` to see the
 valid combinations.
 
-The required `max-offline` entry controls how long your device is allowed to
-stay offline. It must be greater than zero.
+The optional `max-offline` entry controls how long your device is allowed to
+stay offline. It must be greater than zero and defaults to five minutes.
 
 The `connections` section contains a prioritized list of ways to connect to the
 Internet. You can have multiple `wifi` entries and Artemis will attempt to
