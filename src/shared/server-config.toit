@@ -64,6 +64,13 @@ abstract class ServerConfig:
   abstract to-json [--der-serializer] --base64/bool=false -> Map
 
   /**
+  Serializes the reusable connection settings for an Artemis workspace.
+
+  Device behavior and fleet scope are intentionally omitted.
+  */
+  abstract to-workspace-json [--der-serializer] --base64/bool=false -> Map
+
+  /**
   Creates the broker configuration used by the Artemis service.
   */
   abstract to-broker-config -> BrokerConfig
@@ -134,11 +141,15 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
       url = "$scheme://$(json["host"])"
     scope-value := json.get "scope"
     scope/Scope? := scope-value and (Scope scope-value)
+    poll-interval-value := json.get "poll_interval"
+    poll-interval := poll-interval-value
+        ? Duration --us=poll-interval-value
+        : BrokerConfig.DEFAULT-POLL-INTERVAL
     return ServerConfigSupabase name
         --url=url
         --anon=json["anon"]
         --root-certificate-ders=roots
-        --poll-interval=Duration --us=json["poll_interval"]
+        --poll-interval=poll-interval
         --scope=scope
 
   constructor name/string
@@ -168,6 +179,17 @@ class ServerConfigSupabase extends ServerConfig implements supabase.ServerConfig
         --der-serializer=der-serializer
         --base64=base64
     if scope: result["scope"] = scope.to-json
+    return result
+
+  to-workspace-json [--der-serializer] --base64/bool=false -> Map:
+    result := {
+      "type": type,
+      "url": url,
+      "anon": anon,
+    }
+    add-root-certificates_ result root-certificate-ders
+        --der-serializer=der-serializer
+        --base64=base64
     return result
 
   to-broker-config -> BrokerConfig:
@@ -220,12 +242,16 @@ class ServerConfigHttp extends ServerConfig:
       url = "$scheme://$(config["host"])$port-suffix$(config["path"])"
     scope-value := config.get "scope"
     scope/Scope? := scope-value and (Scope scope-value)
+    poll-interval-value := config.get "poll_interval"
+    poll-interval := poll-interval-value
+        ? Duration --us=poll-interval-value
+        : BrokerConfig.DEFAULT-POLL-INTERVAL
     return ServerConfigHttp name
         --url=url
         --root-certificate-ders=roots
         --device-headers=config.get "device_headers"
         --admin-headers=config.get "admin_headers"
-        --poll-interval=Duration --us=config["poll_interval"]
+        --poll-interval=poll-interval
         --scope=scope
 
   constructor name/string
@@ -256,6 +282,17 @@ class ServerConfigHttp extends ServerConfig:
     if device-headers: result["device_headers"] = device-headers
     if admin-headers: result["admin_headers"] = admin-headers
     if scope: result["scope"] = scope.to-json
+    return result
+
+  to-workspace-json [--der-serializer] --base64/bool=false -> Map:
+    result := {
+      "type": type,
+      "url": url,
+    }
+    add-root-certificates_ result root-certificate-ders
+        --der-serializer=der-serializer
+        --base64=base64
+    if admin-headers: result["admin_headers"] = admin-headers
     return result
 
   to-broker-config -> BrokerConfig:
