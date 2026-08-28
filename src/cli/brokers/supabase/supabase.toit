@@ -12,29 +12,17 @@ import ...utils.supabase
 import ....shared.server-config
 
 create-server-supabase-http server-config/ServerConfigSupabase --cli/Cli -> ServerSupabase:
+  server-config.install-root-certificates
   local-storage := ConfigLocalStorage --cli=cli --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
   supabase-client := supabase.Client --server-config=server-config --local-storage=local-storage
-  id := "supabase/$server-config.host"
-
-  host-port := server-config.host
-
-  host := host-port
-  port := null
-  colon-pos := host-port.index-of ":"
-  if colon-pos >= 0:
-    host = host-port[..colon-pos]
-    port = int.parse host-port[colon-pos + 1..]
+  id := "supabase/$server-config.url"
 
   http-config := ServerConfigHttp
       server-config.name
-      --host=host
-      --port=port
-      --path="/functions/v1"
+      --url="$(server-config.url)/functions/v1"
       --admin-headers=null
       --device-headers=null
-      --use-tls=server-config.use-tls
-      --root-certificate-ders=server-config.root-certificate-der ? [server-config.root-certificate-der] : null
-      --poll-interval=server-config.poll-interval
+      --root-certificate-ders=server-config.root-certificate-ders
       --scope=server-config.scope
 
   return ServerSupabase --id=id supabase-client http-config

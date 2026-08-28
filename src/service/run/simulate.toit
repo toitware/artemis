@@ -13,7 +13,7 @@ import watchdog show Watchdog WatchdogServiceClient
 
 import .null-pin-trigger
 import .null-watchdog
-import ..utils show decode-server-config
+import ..utils show decode-broker-config
 import ..service show run-artemis
 import ..device
 import ..storage show Storage
@@ -93,10 +93,10 @@ run-host --pod/Pod --identity-path/string --cli/Cli -> none:
           --organization-id=artemis-device.organization-id
           --firmware-state=config
           --storage=storage
-      server-config := decode-server-config "broker" identity
+      broker-config := decode-broker-config "broker" identity
       sleep-duration := run-artemis
           device
-          server-config
+          broker-config
           --recovery-urls=null
           --watchdog=watchdog
           --storage=storage

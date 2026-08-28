@@ -5,10 +5,8 @@ Default broker: test-broker
 Servers:
   test-artemis-server:
     type: toit-http
-    host: <HOST>
-    path: /
+    url: <A-URL>
     poll_interval: 500000
-    port: <A-PORT>
     device_headers:
       X-Artemis-Header: true
     admin_headers:
@@ -16,10 +14,8 @@ Servers:
     auth: <ARTEMIS_AUTH>
   test-broker:
     type: toit-http
-    host: <HOST>
-    path: /
+    url: <B-URL>
     poll_interval: 500000
-    port: <B-PORT>
     device_headers:
       X-Artemis-Header: true
     admin_headers:

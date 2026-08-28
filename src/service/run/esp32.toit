@@ -19,7 +19,7 @@ import ..esp32.pin-trigger
 import ..network show NetworkManager
 import ..service show run-artemis
 import ..storage show Storage
-import ..utils show decode-server-config
+import ..utils show decode-broker-config
 import ..watchdog
 
 ESP32-WAKEUP-CAUSES ::= {
@@ -72,8 +72,8 @@ main arguments:
   network-manager := NetworkManager log.default device
   network-manager.install
 
-  server-config := decode-server-config "broker" artemis-assets
-  sleep-duration := run-artemis device server-config
+  broker-config := decode-broker-config "broker" artemis-assets
+  sleep-duration := run-artemis device broker-config
       --recovery-urls=recovery-urls
       --watchdog=watchdog
       --cause=ESP32-WAKEUP-CAUSES.get esp32.wakeup-cause

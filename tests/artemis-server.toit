@@ -87,10 +87,7 @@ with-http-artemis-server [block]:
   host = host.replace "localhost" lan-ip
 
   server-config := ServerConfigHttp "test-artemis-server"
-      --host=host
-      --port=port-latch.get
-      --path="/"
-      --use-tls=false
+      --url="http://$host:$(port-latch.get)"
       --root-certificate-ders=null
       --poll-interval=Duration --ms=500
       --admin-headers={

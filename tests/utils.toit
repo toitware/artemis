@@ -828,10 +828,11 @@ class TestDevicePipe extends TestDevice:
 
   start --env/Map?=null:
     if child-process_: throw "Already started"
+    output-start := output_.size
     fork_ --env=env
     if has-backdoor:
-      wait-for BACKDOOR-FOOTER
-      backdoor-address := extract-backdoor-url output_[..pos_]
+      wait-for BACKDOOR-FOOTER --start-at=output-start
+      backdoor-address := extract-backdoor-url output_[output-start..pos_]
       backdoor = TestDeviceBackdoor backdoor-address
 
   stop:
@@ -843,6 +844,9 @@ class TestDevicePipe extends TestDevice:
     if stderr-task_:
       stderr-task_.cancel
       stderr-task_ = null
+    if backdoor:
+      backdoor.close
+      backdoor = null
 
   fork_ --env/Map?=null:
     child-process_ = pipe.fork

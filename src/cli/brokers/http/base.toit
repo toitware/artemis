@@ -3,6 +3,7 @@
 import certificate-roots
 import cli show Cli
 import encoding.json
+import encoding.url
 import http
 import net
 import net.x509
@@ -23,7 +24,7 @@ BROKER-PATH_ ::= "/broker"
 POD-STORE-PATH_ ::= "/pod-store"
 
 create-server-http-toit server-config/ServerConfigHttp -> ServerHttp:
-  id := "toit-http/$server-config.host-$server-config.port"
+  id := "toit-http/$server-config.url"
   return ServerHttp server-config --id=id
 
 class ServerHttp implements Server:
@@ -140,11 +141,7 @@ class ServerHttp implements Server:
       --query-parameters/Map?=null
       --content-type/string
       -> http.Response:
-    if not client_:
-      if server-config_.use-tls or server-config_.root-certificate-ders:
-        client_ = http.Client.tls network_
-      else:
-        client_ = http.Client network_
+    if not client_: client_ = http.Client network_
 
     headers := null
     if server-config_.admin-headers:
@@ -161,15 +158,18 @@ class ServerHttp implements Server:
       if not headers: headers = http.Headers
       headers.set "Content-Type" content-type
 
-    base-path := server-config_.path
-    if base-path.ends-with "/": base-path = base-path[..base-path.size - 1]
     if not path.starts-with "/": path = "/$path"
+    request-url := "$(server-config_.url)$path"
+    if query-parameters and not query-parameters.is-empty:
+      parts := []
+      query-parameters.do: | key/string value/any |
+        encoded-value := value is ByteArray ? value : value.stringify
+        parts.add "$(url.encode key)=$(url.encode encoded-value)"
+      request-url += "?$(parts.join "&")"
     return client_.request method encoded
-        --host=server-config_.host
-        --port=server-config_.port
-        --path="$base-path$path"
-        --query-parameters=query-parameters
+        --uri=request-url
         --headers=headers
+        --retry-on-connection-close
 
   extra-headers -> Map?:
     return null

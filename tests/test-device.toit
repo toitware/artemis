@@ -2,7 +2,7 @@
 
 import encoding.json
 
-import artemis.shared.server-config
+import artemis.shared.broker-config show BrokerConfig
 import artemis.service.service
 import artemis.service.device as service
 import artemis.service.storage show Storage
@@ -117,8 +117,7 @@ run
   (watchdog.WatchdogServiceProvider --system-watchdog=NullWatchdog).install
 
   decoded-broker-config := json.parse broker-config-json
-  broker-config := server-config.ServerConfig.from-json
-      "device-broker"
+  broker-config := BrokerConfig.from-json
       decoded-broker-config
       --der-deserializer=: unreachable
 

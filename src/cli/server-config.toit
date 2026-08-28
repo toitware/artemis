@@ -9,13 +9,12 @@ import encoding.base64
 
 export ServerConfig ServerConfigSupabase ServerConfigHttp
 
-ORIGINAL-SUPABASE-SERVER-URI ::= "voisfafsfolxhqpkudzd.supabase.co"
+ORIGINAL-SUPABASE-SERVER-URL ::= "https://voisfafsfolxhqpkudzd.supabase.co"
 
 DEFAULT-ARTEMIS-SERVER-CONFIG ::= ServerConfigSupabase
     "Artemis"
-    --host="artemis-api.toit.io"
+    --url="https://artemis-api.toit.io"
     --anon="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvaXNmYWZzZm9seGhxcGt1ZHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzMzNzQyNDEsImV4cCI6MTk4ODk1MDI0MX0.dmfxNl5WssxnZ8jpvGJeryg4Fd47fOcrlZ8iGrHj2e4"
-    --use-tls=true
 
 /**
 Reads the server configuration with the given $key from the $cli's config.

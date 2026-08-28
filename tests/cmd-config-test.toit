@@ -27,14 +27,10 @@ run-test fleet/TestFleet:
   artemis-server-config := fleet.tester.artemis.server-config as ServerConfigHttp
   broker-server-config := fleet.tester.broker.server-config as ServerConfigHttp
 
-  expect-equals artemis-server-config.host broker-server-config.host
-  fleet.tester.replacements[artemis-server-config.host] = "<HOST>"
-  expect-equals broker-server-config.host broker-config["host"]
-  expect-equals artemis-server-config.host artemis-config["host"]
-  expect-equals broker-server-config.port broker-config["port"]
-  fleet.tester.replacements["$broker-server-config.port"] = "<B-PORT>"
-  expect-equals artemis-server-config.port artemis-config["port"]
-  fleet.tester.replacements["$artemis-server-config.port"] = "<A-PORT>"
+  expect-equals broker-server-config.url broker-config["url"]
+  expect-equals artemis-server-config.url artemis-config["url"]
+  fleet.tester.replacements[broker-server-config.url] = "<B-URL>"
+  fleet.tester.replacements[artemis-server-config.url] = "<A-URL>"
 
   fleet.tester.replacements["$artemis-config["auth"]"] = "<ARTEMIS_AUTH>"
 

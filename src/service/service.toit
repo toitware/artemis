@@ -30,10 +30,10 @@ import .scheduler show Scheduler
 import .storage show Storage
 import .synchronize show SynchronizeJob
 
-import ..shared.server-config
+import ..shared.broker-config show BrokerConfig
 import ..shared.version
 
-run-artemis device/Device server-config/ServerConfig -> Duration
+run-artemis device/Device broker-config/BrokerConfig -> Duration
     --recovery-urls/List?
     --start-ntp/bool=true
     --watchdog/Watchdog
@@ -51,7 +51,7 @@ run-artemis device/Device server-config/ServerConfig -> Duration
 
   scheduler ::= Scheduler logger device --watchdog=watchdog
   containers ::= ContainerManager logger scheduler pin-trigger-manager
-  broker := BrokerService logger server-config
+  broker := BrokerService logger broker-config
 
   // Steal the job states, so if we do not shut down
   // cleanly, we start in a fresh state.

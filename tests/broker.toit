@@ -14,6 +14,7 @@ import uuid show Uuid
 
 import artemis.cli.brokers.server show Server
 import artemis.service.brokers.broker show BrokerService
+import artemis.shared.broker-config show BrokerConfig
 
 import .supabase-local-server
 import ..tools.http-servers.public.broker show HttpBroker
@@ -47,10 +48,10 @@ class TestBroker:
 
   with-service [block]:
     logger := log.default.with-name "testing-service"
-    service-config := ServerConfig.from-json
-        server-config.name
+    service-config := BrokerConfig.from-json
         server-config.to-service-json --der-serializer=: unreachable
         --der-deserializer=: unreachable
+    service-config.poll-interval = Duration --ms=500
     broker-service := BrokerService logger service-config
     block.call broker-service
 
@@ -97,7 +98,6 @@ with-broker
     sub-dir := type == "supabase-local" ? SUPABASE-BROKER : SUPABASE-ARTEMIS
     server-config := get-supabase-config --sub-directory=sub-dir
     service-key := get-supabase-service-key --sub-directory=sub-dir
-    server-config.poll-interval = Duration --ms=500
     // The Artemis Supabase project provides both the device registry and
     // broker, while the public Supabase broker only provides broker roles.
     combined := type == "supabase-local-artemis"
@@ -156,11 +156,8 @@ with-http-broker --name="test-broker" --combined/bool=false [block]:
   host := get-lan-ip
 
   server-config := ServerConfigHttp name
-      --host=host
-      --port=port-latch.get
-      --path="/"
+      --url="http://$host:$(port-latch.get)"
       --poll-interval=Duration --ms=500
-      --use-tls=false
       --root-certificate-ders=null
       --admin-headers={
         "X-Artemis-Header": "true",

@@ -19,18 +19,15 @@ get-supabase-config --sub-directory/string -> ServerConfigSupabase:
   api-url = status["API_URL"]
   anon-key = status["ANON_KEY"]
 
-  use-tls := api-url.starts-with "https://"
-  host := api-url.trim --left "https://"
-  host = host.trim --left "http://"
-  print-on-stderr_ "HOST: $host ANON_KEY: $anon-key"
+  print-on-stderr_ "URL: $api-url ANON_KEY: $anon-key"
   name := sub-directory.trim --left "../"
 
   if system.platform != system.PLATFORM-WINDOWS:
     lan-ip := get-lan-ip
-    host = host.replace "localhost" lan-ip
-    host = host.replace "127.0.0.1" lan-ip
+    api-url = api-url.replace "localhost" lan-ip
+    api-url = api-url.replace "127.0.0.1" lan-ip
 
-  return ServerConfigSupabase name --host=host --anon=anon-key --use-tls=use-tls
+  return ServerConfigSupabase name --url=api-url --anon=anon-key
 
 get-supabase-service-key --sub-directory/string -> string:
   status := get-status_ sub-directory
@@ -50,5 +47,4 @@ main args:
   sub-directory := args[0]
   config := get-supabase-config --sub-directory=sub-directory
 
-  scheme := config.use-tls ? "https" : "http"
-  print "$scheme://$config.host $config.anon"
+  print "$config.url $config.anon"

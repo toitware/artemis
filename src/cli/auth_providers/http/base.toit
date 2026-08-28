@@ -26,6 +26,7 @@ class AuthProviderHttpToit implements AuthProvider:
   cli_/Cli
 
   constructor network/net.Interface .server-config_/ServerConfigHttp --cli/Cli:
+    server-config_.install-root-certificates
     client_ = http.Client network
     cli_ = cli
 
@@ -156,11 +157,10 @@ class AuthProviderHttpToit implements AuthProvider:
       server-config_.admin-headers.do: | key value |
         headers.add key value
 
-    response := client_.post encoded
-        --host=server-config_.host
-        --port=server-config_.port
-        --path="/"
+    response := client_.request http.POST encoded
+        --uri=server-config_.url
         --headers=headers
+        --retry-on-connection-close
 
     if response.status-code != http.STATUS-OK and response.status-code != http.STATUS-IM-A-TEAPOT:
       throw "HTTP error: $response.status-code $response.status-message"
