@@ -56,9 +56,9 @@ packages:
     url: github.com/toitlang/pkg-fs
     version: 2.3.1
   github.com/toitlang/pkg-host-1:
-    hash: d7a30b86c73cf8d9cd5dd0211031c76b68706738
+    hash: 8747d4d7895c7274faec09f5565f748b1bc625e8
     url: github.com/toitlang/pkg-host
-    version: 1.19.0
+    version: 1.20.0
   github.com/toitlang/pkg-http-2:
     hash: dbe7effdb578273b940b2cd789ecd0ca0a588d85
     url: github.com/toitlang/pkg-http
