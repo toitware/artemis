@@ -200,6 +200,9 @@ jobs:
                 separate 20 toit tests/http-upload-diagnostic.toit tests
             echo "Stress the original slow HTTP test"
             make disable-supabase-tests
+            # Populate the SDK and envelope arguments that the normal
+            # `make test` target prepares before invoking CTest.
+            make download-sdk
             for attempt in {1..10}; do
               echo "Original slow HTTP test attempt $attempt/10"
               ctest --test-dir build/tests -C default \
