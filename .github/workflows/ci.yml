@@ -200,13 +200,13 @@ jobs:
                 separate 20 toit tests/http-upload-diagnostic.toit tests
             echo "Stress the original slow HTTP test"
             make disable-supabase-tests
-            ctest --test-dir build/tests -C default \
-                --no-tests=error \
-                --verbose \
-                --repeat until-fail:10 \
-                -R '^/tests/cmd-pod-list-test-slow\.toit --http-server --http-toit-broker$' \
-              2>&1 | grep -E \
-                'Start [0-9]+:|Test #[0-9]+:|HTTP client|HTTP server|Passed|Failed|tests passed|Total Test time|Error|Exception'
+            for attempt in {1..10}; do
+              echo "Original slow HTTP test attempt $attempt/10"
+              ctest --test-dir build/tests -C default \
+                  --no-tests=error \
+                  --verbose \
+                  -R '^/tests/cmd-pod-list-test-slow\.toit --http-server --http-toit-broker$'
+            done
             echo "CPU state after HTTP diagnostic"
             cat /sys/fs/cgroup/cpu.stat
           } 2>&1 | tee build/http-upload-diagnostic.log
@@ -306,6 +306,7 @@ jobs:
           path: |
             build/http-upload-diagnostic.log
             build/http-upload-sockets.log
+            build/tests/Testing/Temporary/LastTest.log
           if-no-files-found: ignore
 
       - name: Upload macOS crash reports
