@@ -171,25 +171,55 @@ jobs:
           make reload-supabase-schemas
           make test-supabase
 
+      - name: Diagnose HTTP upload scheduling
+        # Compare a client/server pair in one Toit VM with the same server in a
+        # child VM. Sample socket queues faster than the observed ~200 ms cycle.
+        if: (!matrix.run_supabase_tests) && (runner.os == 'Linux')
+        shell: bash
+        run: |
+          while true; do
+            date --iso-8601=ns
+            ss -Htinmp state established
+            sleep 0.1
+          done > build/http-upload-sockets.log &
+          http_socket_monitor_pid=$!
+
+          stop_http_socket_monitor() {
+            kill "$http_socket_monitor_pid" 2>/dev/null || true
+            wait "$http_socket_monitor_pid" 2>/dev/null || true
+          }
+          trap stop_http_socket_monitor EXIT
+
+          {
+            echo "CPU state before HTTP diagnostic"
+            cat /sys/fs/cgroup/cpu.stat
+            toit run --project-root tests tests/http-upload-diagnostic.toit -- same 20
+            echo "CPU state between HTTP diagnostic modes"
+            cat /sys/fs/cgroup/cpu.stat
+            toit run --project-root tests tests/http-upload-diagnostic.toit -- \
+                separate 20 toit tests/http-upload-diagnostic.toit tests
+            echo "Stress the original slow HTTP test"
+            make disable-supabase-tests
+            ctest --test-dir build/tests -C default \
+                --no-tests=error \
+                --verbose \
+                --repeat until-fail:10 \
+                -R '^/tests/cmd-pod-list-test-slow\.toit --http-server --http-toit-broker$' \
+              2>&1 | grep -E \
+                'Start [0-9]+:|Test #[0-9]+:|HTTP client|HTTP server|Passed|Failed|tests passed|Total Test time|Error|Exception'
+            echo "CPU state after HTTP diagnostic"
+            cat /sys/fs/cgroup/cpu.stat
+          } 2>&1 | tee build/http-upload-diagnostic.log
+
+          stop_http_socket_monitor
+          trap - EXIT
+
       - name: Test
         if: (!matrix.run_supabase_tests)
         shell: bash
         run: |
           if [[ "$RUNNER_OS" = "macOS" ]]; then
             ulimit -c unlimited
-          fi
-          if [[ "$RUNNER_OS" = "Linux" ]]; then
-            while true; do
-              date --iso-8601=ns
-              if [[ -f /sys/fs/cgroup/cpu.stat ]]; then
-                cat /sys/fs/cgroup/cpu.stat
-              fi
-              ps -eo pid,ppid,stat,pcpu,pmem,comm --sort=-pcpu | head -20
-              ss -tinp
-              sleep 5
-            done > build/tcp-state.log &
-            tcp_monitor_pid=$!
-            trap 'kill "$tcp_monitor_pid" || true' EXIT
           fi
           make disable-supabase-tests
           make test
@@ -268,12 +298,14 @@ jobs:
           name: test-diagnostics-${{ runner.os }}
           path: build/test-diagnostics.log
 
-      - name: Upload Linux TCP diagnostics
+      - name: Upload Linux HTTP diagnostics
         if: (!matrix.run_supabase_tests) && (runner.os == 'Linux') && always()
         uses: actions/upload-artifact@v7
         with:
-          name: tcp-state-${{ runner.os }}
-          path: build/tcp-state.log
+          name: http-upload-diagnostics-${{ runner.os }}
+          path: |
+            build/http-upload-diagnostic.log
+            build/http-upload-sockets.log
           if-no-files-found: ignore
 
       - name: Upload macOS crash reports

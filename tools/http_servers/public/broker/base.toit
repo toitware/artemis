@@ -13,7 +13,7 @@ import system
 
 BODY-PROGRESS-INTERVAL_ ::= 1 * 1024 * 1024
 
-class TimingReader_ extends io.Reader:
+class TimingReader extends io.Reader:
   reader_/io.Reader
   request-id_/string
   total-size_/int
@@ -21,13 +21,23 @@ class TimingReader_ extends io.Reader:
   chunk-count_/int := 0
   next-report_/int := BODY-PROGRESS-INTERVAL_
   last-report-us_/int := Time.monotonic-us
-  last-report-chunk-count_/int := 0
+  interval-chunk-count_/int := 0
+  interval-read-wait-us_/int := 0
+  interval-max-read-wait-us_/int := 0
+  interval-min-chunk-size_/int := 0
+  interval-max-chunk-size_/int := 0
+  interval-waits-over-1-ms_/int := 0
+  interval-waits-over-10-ms_/int := 0
+  interval-waits-over-50-ms_/int := 0
+  interval-waits-over-100-ms_/int := 0
   finished_/bool := false
 
   constructor .reader_ .request-id_ .total-size_:
 
   read_ -> ByteArray?:
+    start-us := Time.monotonic-us
     data := reader_.read
+    read-wait-us := Time.monotonic-us - start-us
     if not data:
       if not finished_:
         finished_ = true
@@ -36,6 +46,20 @@ class TimingReader_ extends io.Reader:
 
     read-size_ += data.size
     chunk-count_++
+    interval-chunk-count_++
+    interval-read-wait-us_ += read-wait-us
+    if read-wait-us > interval-max-read-wait-us_:
+      interval-max-read-wait-us_ = read-wait-us
+    if interval-min-chunk-size_ == 0:
+      interval-min-chunk-size_ = data.size
+    else if data.size < interval-min-chunk-size_:
+      interval-min-chunk-size_ = data.size
+    if data.size > interval-max-chunk-size_:
+      interval-max-chunk-size_ = data.size
+    if read-wait-us >= 1_000: interval-waits-over-1-ms_++
+    if read-wait-us >= 10_000: interval-waits-over-10-ms_++
+    if read-wait-us >= 50_000: interval-waits-over-50-ms_++
+    if read-wait-us >= 100_000: interval-waits-over-100-ms_++
     if read-size_ >= next-report_:
       report_ "progress"
       next-report_ = ((read-size_ / BODY-PROGRESS-INTERVAL_) + 1) * BODY-PROGRESS-INTERVAL_
@@ -44,15 +68,28 @@ class TimingReader_ extends io.Reader:
   report_ phase/string -> none:
     now-us := Time.monotonic-us
     elapsed-ms := (now-us - last-report-us_) / 1_000
-    chunks := chunk-count_ - last-report-chunk-count_
+    average-read-wait-us := interval-chunk-count_ == 0
+        ? 0
+        : interval-read-wait-us_ / interval-chunk-count_
     stats := system.process-stats
     message := "$Time.now: HTTP server body $phase $request-id_: "
-    message += "$read-size_/$total-size_ bytes, $chunks chunks in $(elapsed-ms)ms, "
+    message += "$read-size_/$total-size_ bytes, $interval-chunk-count_ chunks in $(elapsed-ms)ms, "
+    message += "read wait $(interval-read-wait-us_ / 1_000)ms total/$(average-read-wait-us)us avg/$(interval-max-read-wait-us_)us max, "
+    message += "waits >=1/10/50/100ms $(interval-waits-over-1-ms_)/$(interval-waits-over-10-ms_)/$(interval-waits-over-50-ms_)/$(interval-waits-over-100-ms_), "
+    message += "chunk min/max $interval-min-chunk-size_/$interval-max-chunk-size_, "
     message += "GC $(stats[system.STATS-INDEX-GC-COUNT])/$(stats[system.STATS-INDEX-FULL-GC-COUNT]), "
     message += "heap $(stats[system.STATS-INDEX-ALLOCATED-MEMORY])/$(stats[system.STATS-INDEX-RESERVED-MEMORY])"
     print-on-stderr_ message
     last-report-us_ = now-us
-    last-report-chunk-count_ = chunk-count_
+    interval-chunk-count_ = 0
+    interval-read-wait-us_ = 0
+    interval-max-read-wait-us_ = 0
+    interval-min-chunk-size_ = 0
+    interval-max-chunk-size_ = 0
+    interval-waits-over-1-ms_ = 0
+    interval-waits-over-10-ms_ = 0
+    interval-waits-over-50-ms_ = 0
+    interval-waits-over-100-ms_ = 0
 
 class BinaryResponse:
   bytes/ByteArray
@@ -117,7 +154,7 @@ abstract class HttpServer:
       debug-timing_ "HTTP server reading $request.method $resource with Content-Length $content-length"
       body/io.Reader := request.body
       if debug-timing_ and content-length and content-length >= BODY-PROGRESS-INTERVAL_:
-        body = TimingReader_ body "$request.method $resource" content-length
+        body = TimingReader body "$request.method $resource" content-length
       bytes := body.read-all
       debug-timing_ "HTTP server read $bytes.size bytes for $request.method $resource"
       if resource == "/":
