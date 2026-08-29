@@ -224,8 +224,44 @@ jobs:
           if [[ "$RUNNER_OS" = "macOS" ]]; then
             ulimit -c unlimited
           fi
+
+          # The HTTP slowdown has only reproduced while the full suite is
+          # running concurrently. Keep the socket and scheduler monitors alive
+          # around that suite so a failure shows whether the client is blocked
+          # by TCP backpressure or by process scheduling.
+          if [[ "$RUNNER_OS" = "Linux" ]]; then
+            while true; do
+              date --iso-8601=ns
+              ss -Htinmp state established
+              sleep 0.1
+            done > build/full-suite-sockets.log &
+            full_suite_socket_monitor_pid=$!
+
+            while true; do
+              date --iso-8601=ns
+              cat /sys/fs/cgroup/cpu.stat
+              cat /proc/pressure/cpu /proc/pressure/io /proc/pressure/memory
+              ps -eLo pid,ppid,tid,stat,psr,pcpu,wchan:32,comm
+              sleep 1
+            done > build/full-suite-system.log &
+            full_suite_system_monitor_pid=$!
+
+            stop_full_suite_monitors() {
+              kill "$full_suite_socket_monitor_pid" \
+                  "$full_suite_system_monitor_pid" 2>/dev/null || true
+              wait "$full_suite_socket_monitor_pid" \
+                  "$full_suite_system_monitor_pid" 2>/dev/null || true
+            }
+            trap stop_full_suite_monitors EXIT
+          fi
+
           make disable-supabase-tests
           make test
+
+          if [[ "$RUNNER_OS" = "Linux" ]]; then
+            stop_full_suite_monitors
+            trap - EXIT
+          fi
 
       - name: Stress macOS Qemu teardown
         # Temporary: qemu-trigger-test intermittently segfaults the host Toit
@@ -309,6 +345,8 @@ jobs:
           path: |
             build/http-upload-diagnostic.log
             build/http-upload-sockets.log
+            build/full-suite-sockets.log
+            build/full-suite-system.log
             build/tests/Testing/Temporary/LastTest.log
           if-no-files-found: ignore
 
