@@ -12,12 +12,12 @@ dependencies:
     version: ^2.6.0
   host:
     url: github.com/toitlang/pkg-host
-    version: ^1.16.2
+    version: ^1.20.0
   http:
     url: github.com/toitlang/pkg-http
-    version: ^2.11.0
+    version: ^2.15.0
   snapshot:
     path: ../snapshot
   supabase:
     url: github.com/toitware/toit-supabase
-    version: ^0.3.1
+    version: ~0.3.1
