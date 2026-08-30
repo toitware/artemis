@@ -1,100 +1,113 @@
 sdk: ^2.0.0-alpha.190
 prefixes:
-  ar: github.com/toitlang/pkg-ar-1
-  artemis: artemis
-  certificate_roots: github.com/toitware/toit-cert-roots-1
-  cli: github.com/toitlang/pkg-cli-2
-  host: github.com/toitlang/pkg-host-1
-  http: github.com/toitlang/pkg-http-2
+  ar: pkg-ar
+  artemis: ..
+  certificate_roots: toit-cert-roots
+  cli: pkg-cli
+  host: pkg-host
+  http: pkg-http
   snapshot: snapshot
-  supabase: github.com/toitware/toit-supabase-0
+  supabase: toit-supabase
 packages:
-  artemis:
+  ..:
     path: ../..
     prefixes:
-      ar: github.com/toitlang/pkg-ar-1
-      artemis: github.com/toitware/toit-artemis-0
+      ar: pkg-ar
+      artemis: toit-artemis
       artemis-pkg: artemis-pkg-copy
-      certificate_roots: github.com/toitware/toit-cert-roots-1
-      cli: github.com/toitlang/pkg-cli-2
-      fs: github.com/toitlang/pkg-fs-2
-      host: github.com/toitlang/pkg-host-1
-      http: github.com/toitlang/pkg-http-2
-      ntp: github.com/toitlang/pkg-ntp-1
-      partition-table: github.com/toitware/toit-partition-table-esp32-1
-      semver: github.com/toitware/toit-semver-1
+      certificate_roots: toit-cert-roots
+      cli: pkg-cli
+      fs: pkg-fs
+      host: pkg-host
+      http: pkg-http
+      ntp: pkg-ntp
+      partition-table: toit-partition-table-esp32
+      semver: toit-semver
       snapshot: snapshot
-      supabase: github.com/toitware/toit-supabase-0
-      watchdog: github.com/toitware/toit-watchdog-1
+      supabase: toit-supabase
+      watchdog: toit-watchdog
   artemis-pkg-copy:
     path: ../../artemis-pkg-copy
-  github.com/toitlang/pkg-ar-1:
-    hash: 66f0359ed405dbebbc06a0cda9864b10b2d6aa34
+  pkg-ar:
     url: github.com/toitlang/pkg-ar
+    name: ar
     version: 1.4.1
-  github.com/toitlang/pkg-cli-2:
+    hash: 66f0359ed405dbebbc06a0cda9864b10b2d6aa34
+  pkg-cli:
+    url: github.com/toitlang/pkg-cli
+    name: cli
+    version: 2.6.0
     hash: ff1d3307badd9877e7513175d923947bf01753af
     prefixes:
-      desktop: github.com/toitlang/pkg-desktop-1
-      fs: github.com/toitlang/pkg-fs-2
-      host: github.com/toitlang/pkg-host-1
-    url: github.com/toitlang/pkg-cli
-    version: 2.6.0
-  github.com/toitlang/pkg-desktop-1:
+      desktop: pkg-desktop
+      fs: pkg-fs
+      host: pkg-host
+  pkg-desktop:
+    url: github.com/toitlang/pkg-desktop
+    name: desktop
+    version: 1.1.0
     hash: d6ad1d5c25e16d0c2910a132acba426251b5d87f
     prefixes:
-      host: github.com/toitlang/pkg-host-1
-    url: github.com/toitlang/pkg-desktop
-    version: 1.1.0
-  github.com/toitlang/pkg-fs-2:
+      host: pkg-host
+  pkg-fs:
+    url: github.com/toitlang/pkg-fs
+    name: fs
+    version: 2.3.1
     hash: 60836d4500317af2093d59d50c117d612c33f1fa
     prefixes:
-      host: github.com/toitlang/pkg-host-1
-    url: github.com/toitlang/pkg-fs
-    version: 2.3.1
-  github.com/toitlang/pkg-host-1:
-    hash: 8747d4d7895c7274faec09f5565f748b1bc625e8
+      host: pkg-host
+  pkg-host:
     url: github.com/toitlang/pkg-host
+    name: host
     version: 1.20.0
-  github.com/toitlang/pkg-http-2:
-    hash: dbe7effdb578273b940b2cd789ecd0ca0a588d85
+    hash: 8747d4d7895c7274faec09f5565f748b1bc625e8
+  pkg-http:
     url: github.com/toitlang/pkg-http
+    name: http
     version: 2.15.0
-  github.com/toitlang/pkg-ntp-1:
-    hash: e69bb1abc0d3d4aa7642eec3360e52744e4d011d
+    hash: dbe7effdb578273b940b2cd789ecd0ca0a588d85
+  pkg-ntp:
     url: github.com/toitlang/pkg-ntp
+    name: ntp
     version: 1.1.0
-  github.com/toitware/toit-artemis-0:
-    hash: 6e9a5abce9499a47bfd97277dae6ab71f1c65849
-    url: github.com/toitware/toit-artemis
-    version: 0.1.1
-  github.com/toitware/toit-cert-roots-1:
-    hash: c117dbba4757d7c69e91af7a875ab6989f051a33
-    url: github.com/toitware/toit-cert-roots
-    version: 1.11.0
-  github.com/toitware/toit-partition-table-esp32-1:
-    hash: 9ee4032b913a00d0c0f87446261d034842b707f1
-    url: github.com/toitware/toit-partition-table-esp32
-    version: 1.4.0
-  github.com/toitware/toit-semver-1:
-    hash: 7b862ca7b40601ae2a63ec6ffbacebb48c929e02
-    url: github.com/toitware/toit-semver
-    version: 1.2.0
-  github.com/toitware/toit-supabase-0:
-    hash: bcf10850b0fae0592bb0af6563fb994cececb8f9
-    prefixes:
-      host: github.com/toitlang/pkg-host-1
-      http: github.com/toitlang/pkg-http-2
-    url: github.com/toitware/toit-supabase
-    version: 0.3.1
-  github.com/toitware/toit-watchdog-1:
-    hash: 2621b25fca45f4f91c0b951f3658f3c18821edc4
-    url: github.com/toitware/toit-watchdog
-    version: 1.4.1
+    hash: e69bb1abc0d3d4aa7642eec3360e52744e4d011d
   snapshot:
     path: ../snapshot
     prefixes:
-      ar: github.com/toitlang/pkg-ar-1
-      cli: github.com/toitlang/pkg-cli-2
-      fs: github.com/toitlang/pkg-fs-2
-      host: github.com/toitlang/pkg-host-1
+      ar: pkg-ar
+      cli: pkg-cli
+      fs: pkg-fs
+      host: pkg-host
+  toit-artemis:
+    url: github.com/toitware/toit-artemis
+    name: artemis
+    version: 0.1.1
+    hash: 6e9a5abce9499a47bfd97277dae6ab71f1c65849
+  toit-cert-roots:
+    url: github.com/toitware/toit-cert-roots
+    name: certificate-roots
+    version: 1.11.0
+    hash: c117dbba4757d7c69e91af7a875ab6989f051a33
+  toit-partition-table-esp32:
+    url: github.com/toitware/toit-partition-table-esp32
+    name: partition-table
+    version: 1.4.0
+    hash: 9ee4032b913a00d0c0f87446261d034842b707f1
+  toit-semver:
+    url: github.com/toitware/toit-semver
+    name: semver
+    version: 1.2.0
+    hash: 7b862ca7b40601ae2a63ec6ffbacebb48c929e02
+  toit-supabase:
+    url: github.com/toitware/toit-supabase
+    name: supabase
+    version: 0.3.1
+    hash: bcf10850b0fae0592bb0af6563fb994cececb8f9
+    prefixes:
+      host: pkg-host
+      http: pkg-http
+  toit-watchdog:
+    url: github.com/toitware/toit-watchdog
+    name: watchdog
+    version: 1.4.1
+    hash: 2621b25fca45f4f91c0b951f3658f3c18821edc4
