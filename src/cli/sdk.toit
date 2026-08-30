@@ -318,40 +318,32 @@ class Sdk:
     ]
 
   run-assets arguments/List -> none:
-    exit-status := run-tool_ "assets" (executable_ "assets") + arguments
+    exit-status := pipe.run-program (executable_ "assets") + arguments
     if exit-status != 0: throw "assets tool failed with exit code $(pipe.exit-code exit-status)"
 
   run-firmware arguments/List -> none:
-    exit-status := run-tool_ "firmware" (executable_ "firmware") + arguments
+    exit-status := pipe.run-program (executable_ "firmware") + arguments
     if exit-status != 0: throw "firmware tool failed with exit code $(pipe.exit-code exit-status)"
 
   // Runs 'toit.compile'.
   // This is for older SDKs only.
   run-toit-compile arguments/List -> none:
-    exit-status := run-tool_ "toit.compile" (executable_ "toit.compile") + arguments
+    exit-status := pipe.run-program (executable_ "toit.compile") + arguments
     if exit-status != 0: throw "toit.compile failed with exit code $(pipe.exit-code exit-status)"
 
   // Runs 'toit compile'.
   // This is for newer SDKs.
   run-compile arguments/List -> none:
-    exit-status := run-tool_ "toit compile" (executable_ "compile") + arguments
+    exit-status := pipe.run-program (executable_ "compile") + arguments
     if exit-status != 0: throw "toit.compile failed with exit code $(pipe.exit-code exit-status)"
 
   run-pkg arguments/List -> none:
-    exit-status := run-tool_ "toit pkg" (executable_ "pkg") + arguments
+    exit-status := pipe.run-program (executable_ "pkg") + arguments
     if exit-status != 0: throw "toit.pkg failed with exit code $(pipe.exit-code exit-status)"
 
   run-snapshot-to-image arguments/List -> none:
-    exit-status := run-tool_ "snapshot-to-image" (executable_ "snapshot_to_image") + arguments
+    exit-status := pipe.run-program (executable_ "snapshot_to_image") + arguments
     if exit-status != 0: throw "snapshot_to_image tool failed with exit code $(pipe.exit-code exit-status)"
-
-  run-tool_ name/string command/List -> int:
-    start-us := Time.monotonic-us
-    debug-timing_ "Starting SDK tool '$name'"
-    exit-status := pipe.run-program command
-    elapsed-ms := (Time.monotonic-us - start-us) / 1_000
-    debug-timing_ "SDK tool '$name' exited with $exit-status after $(elapsed-ms)ms"
-    return exit-status
 
   static PRE-161-EXECUTABLES ::= {
     "toit.compile": ["bin/toit.compile"],
@@ -482,10 +474,6 @@ sdk-url version/string -> string:
   return "https://github.com/toitlang/toit/releases/download/$version/toit-$(selector).tar.gz"
 
 reported-local-sdk-use_/bool := false
-
-debug-timing_ message/string -> none:
-  if os.env.get "ARTEMIS_DEBUG_TIMING":
-    print-on-stderr_ "$Time.now: $message"
 
 get-sdk version-or-path/string --cli/Cli -> Sdk:
   if is-dev-setup:

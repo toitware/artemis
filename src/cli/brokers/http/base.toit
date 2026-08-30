@@ -4,7 +4,6 @@ import certificate-roots
 import cli show Cli
 import encoding.json
 import encoding.url
-import host.os
 import http
 import net
 import net.x509
@@ -23,10 +22,6 @@ import ....shared.utils as utils
 ARTIFACT-STORE-PATH_ ::= "/artifact-store"
 BROKER-PATH_ ::= "/broker"
 POD-STORE-PATH_ ::= "/pod-store"
-
-debug-timing_ message/string -> none:
-  if os.env.get "ARTEMIS_DEBUG_TIMING":
-    print-on-stderr_ "$Time.now: $message"
 
 create-server-http-toit server-config/ServerConfigHttp -> ServerHttp:
   id := "toit-http/$server-config.url"
@@ -115,12 +110,9 @@ class ServerHttp implements Server:
         throw "HTTP error: $response.status-code - $response.status-message$message"
 
       if binary-response:
-        result := utils.read-all response.body
-        debug-timing_ "HTTP client read $result.size response bytes for $method $path"
-        return result
+        return utils.read-all response.body
 
       decoded := json.decode-stream response.body
-      debug-timing_ "HTTP client decoded response body for $method $path"
       return decoded
     unreachable
 
@@ -174,17 +166,10 @@ class ServerHttp implements Server:
         encoded-value := value is ByteArray ? value : value.stringify
         parts.add "$(url.encode key)=$(url.encode encoded-value)"
       request-url += "?$(parts.join "&")"
-    body-size := encoded ? encoded.size : 0
-    start-us := Time.monotonic-us
-    debug-timing_ "HTTP client sending $method $path with $body-size bytes"
-    response := client_.request method encoded
+    return client_.request method encoded
         --uri=request-url
         --headers=headers
         --retry-on-connection-close
-    elapsed-ms := (Time.monotonic-us - start-us) / 1_000
-    debug-timing_
-        "HTTP client received headers for $method $path: $response.status-code after $(elapsed-ms)ms"
-    return response
 
   extra-headers -> Map?:
     return null

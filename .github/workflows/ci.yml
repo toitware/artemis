@@ -21,9 +21,6 @@ env:
 jobs:
   build:
     strategy:
-      # Temporary while diagnosing intermittent host-runtime failures: retain
-      # every platform's evidence if another matrix entry fails first.
-      fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         run_supabase_tests: [ false ]
@@ -158,12 +155,6 @@ jobs:
         run: |
           make
 
-      - name: Configure macOS core dumps
-        if: (!matrix.run_supabase_tests) && (runner.os == 'macOS')
-        shell: bash
-        run: |
-          sudo sysctl -w kern.corefile="$PWD/build/core.%P" || true
-
       - name: Test supabase
         if: matrix.run_supabase_tests
         shell: bash
@@ -171,137 +162,12 @@ jobs:
           make reload-supabase-schemas
           make test-supabase
 
-      - name: Diagnose HTTP upload scheduling
-        # Compare a client/server pair in one Toit VM with the same server in a
-        # child VM. Sample socket queues faster than the observed ~200 ms cycle.
-        if: (!matrix.run_supabase_tests) && (runner.os == 'Linux')
-        shell: bash
-        run: |
-          while true; do
-            date --iso-8601=ns
-            ss -Htinmp state established
-            sleep 0.1
-          done > build/http-upload-sockets.log &
-          http_socket_monitor_pid=$!
-
-          stop_http_socket_monitor() {
-            kill "$http_socket_monitor_pid" 2>/dev/null || true
-            wait "$http_socket_monitor_pid" 2>/dev/null || true
-          }
-          trap stop_http_socket_monitor EXIT
-
-          {
-            echo "CPU state before HTTP diagnostic"
-            cat /sys/fs/cgroup/cpu.stat
-            toit run --project-root tests tests/http-upload-diagnostic.toit -- same 20
-            echo "CPU state between HTTP diagnostic modes"
-            cat /sys/fs/cgroup/cpu.stat
-            toit run --project-root tests tests/http-upload-diagnostic.toit -- \
-                separate 20 toit tests/http-upload-diagnostic.toit tests
-            echo "Stress the original slow HTTP test"
-            make disable-supabase-tests
-            # Populate the SDK and envelope arguments that the normal
-            # `make test` target prepares before invoking CTest.
-            make download-sdk
-            for attempt in {1..10}; do
-              echo "Original slow HTTP test attempt $attempt/10"
-              ctest --test-dir build/tests -C default \
-                  --no-tests=error \
-                  --verbose \
-                  -R '^/tests/cmd-pod-list-test-slow\.toit --http-server --http-toit-broker$'
-            done
-            echo "CPU state after HTTP diagnostic"
-            cat /sys/fs/cgroup/cpu.stat
-          } 2>&1 | tee build/http-upload-diagnostic.log
-
-          stop_http_socket_monitor
-          trap - EXIT
-
       - name: Test
         if: (!matrix.run_supabase_tests)
         shell: bash
         run: |
-          if [[ "$RUNNER_OS" = "macOS" ]]; then
-            ulimit -c unlimited
-          fi
-
-          # The HTTP slowdown has only reproduced while the full suite is
-          # running concurrently. Keep the socket and scheduler monitors alive
-          # around that suite so a failure shows whether the client is blocked
-          # by TCP backpressure or by process scheduling.
-          if [[ "$RUNNER_OS" = "Linux" ]]; then
-            while true; do
-              date --iso-8601=ns
-              ss -Htinmp state established
-              sleep 0.1
-            done > build/full-suite-sockets.log &
-            full_suite_socket_monitor_pid=$!
-
-            while true; do
-              date --iso-8601=ns
-              cat /sys/fs/cgroup/cpu.stat
-              cat /proc/pressure/cpu /proc/pressure/io /proc/pressure/memory
-              ps -eLo pid,ppid,tid,stat,psr,pcpu,wchan:32,comm
-              sleep 1
-            done > build/full-suite-system.log &
-            full_suite_system_monitor_pid=$!
-
-            stop_full_suite_monitors() {
-              kill "$full_suite_socket_monitor_pid" \
-                  "$full_suite_system_monitor_pid" 2>/dev/null || true
-              wait "$full_suite_socket_monitor_pid" \
-                  "$full_suite_system_monitor_pid" 2>/dev/null || true
-            }
-            trap stop_full_suite_monitors EXIT
-          fi
-
           make disable-supabase-tests
           make test
-
-          if [[ "$RUNNER_OS" = "Linux" ]]; then
-            stop_full_suite_monitors
-            trap - EXIT
-          fi
-
-      - name: Stress macOS Qemu teardown
-        # Temporary: qemu-trigger-test intermittently segfaults the host Toit
-        # VM while terminating Qemu and cancelling its pipe-reader tasks.
-        if: (!matrix.run_supabase_tests) && (runner.os == 'macOS')
-        shell: bash
-        run: |
-          ulimit -c unlimited
-          for attempt in {1..20}; do
-            echo "Qemu teardown attempt $attempt/20"
-            ctest --test-dir build/tests -C default -j2 \
-                --no-tests=error \
-                --output-on-failure \
-                -I 66,67,1
-          done
-
-      - name: Stress Windows Qemu networking
-        # Temporary: qemu-hello-test intermittently boots without an Ethernet
-        # connection on the Windows runner and then times out.
-        if: (!matrix.run_supabase_tests) && (runner.os == 'Windows')
-        shell: bash
-        run: |
-          for attempt in {1..10}; do
-            echo "Qemu networking attempt $attempt/10"
-            ctest --test-dir build/tests -C default -j2 \
-                --no-tests=error \
-                --output-on-failure \
-                -I 64,65,1
-          done
-
-      - name: Collect macOS native backtrace
-        if: (!matrix.run_supabase_tests) && (runner.os == 'macOS') && always()
-        shell: bash
-        run: |
-          shopt -s nullglob
-          cores=(build/core.*)
-          for core in "${cores[@]}"; do
-            echo "Backtrace for $core"
-            lldb --batch -o 'thread backtrace all' -c "$core"
-          done > build/macos-native-backtrace.log
 
       - name: Upload binary artifacts
         if: (!matrix.run_supabase_tests)
@@ -317,51 +183,6 @@ jobs:
         with:
           name: snapshots-${{ runner.os }}
           path: build/snapshots
-
-      - name: Collect test diagnostics
-        if: (!matrix.run_supabase_tests) && always()
-        shell: bash
-        run: |
-          find build -path '*/Testing/Temporary/LastTest.log*' -type f \
-              -exec grep -h -E \
-              "Test #[0-9]+:|Starting SDK tool|SDK tool .* exited|HTTP client|HTTP server" \
-              {} + > build/test-diagnostics.log || true
-
-      - name: Upload test diagnostics
-        # CTest suppresses successful test output in the workflow log. Upload
-        # only the sanitized timing lines: its complete log contains test
-        # authentication payloads.
-        if: (!matrix.run_supabase_tests) && always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-diagnostics-${{ runner.os }}
-          path: build/test-diagnostics.log
-
-      - name: Upload Linux HTTP diagnostics
-        if: (!matrix.run_supabase_tests) && (runner.os == 'Linux') && always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: http-upload-diagnostics-${{ runner.os }}
-          path: |
-            build/http-upload-diagnostic.log
-            build/http-upload-sockets.log
-            build/full-suite-sockets.log
-            build/full-suite-system.log
-            build/tests/Testing/Temporary/LastTest.log
-          if-no-files-found: ignore
-
-      - name: Upload macOS crash reports
-        # The macOS crash is below the Toit language stack. Preserve the native
-        # report when CrashReporter produces one.
-        if: (!matrix.run_supabase_tests) && (runner.os == 'macOS') && always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: crash-reports-${{ runner.os }}
-          path: |
-            ~/Library/Logs/DiagnosticReports/toit.run*
-            /Library/Logs/DiagnosticReports/toit.run*
-            build/macos-native-backtrace.log
-          if-no-files-found: ignore
 
       - name: Upload other snapshots
         # Use 'always()' to upload them even if an earlier step failed.
@@ -454,9 +275,6 @@ jobs:
           kill $HTTP_PID
 
   serial:
-    # The hardware suite is already running for this commit series. Avoid
-    # occupying the single serial runner again for hosted-runtime probes.
-    if: false
     runs-on: serial-artemis
 
     steps:
