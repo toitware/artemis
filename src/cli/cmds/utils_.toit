@@ -1,14 +1,18 @@
 // Copyright (C) 2022 Toitware ApS. All rights reserved.
 
 import cli show *
+import host.file
 import host.os
 import partition-table show PartitionTable
 import uuid show Uuid
 
 import ..artemis
+import ..broker-strategy
 import ..config
 import ..cache
 import ..fleet
+import ..file-fleet-store
+import ..fleet-store
 import ..pod
 import ..sdk
 import ..server-config
@@ -43,14 +47,19 @@ default-organization-from-config --cli/Cli -> Uuid?:
 with-devices-fleet invocation/Invocation [block]:
   cli := invocation.cli
 
-  // If the result of the compute-call isn't a root, but a reference, then
-  // the constructor call below will throw.
+  // Device operations require complete declared state. The store strategy
+  // rejects legacy access-only references.
   fleet-root := compute-fleet-root-or-ref invocation
 
   with-artemis invocation: | artemis/Artemis |
     default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-    fleet := Fleet.with-devices fleet-root artemis
-        --default-broker-config=default-broker-config
+    strategy := FileFleetStoreStrategy
+        --root=fleet-root
+        --legacy-default-broker-config=default-broker-config
+        --cli=cli
+    store := strategy.open
+    fleet := open-legacy-fleet_ store artemis
+        --fleet=(Fleet store --cli=cli)
         --cli=cli
     block.call fleet
 
@@ -61,10 +70,46 @@ with-pod-fleet invocation/Invocation [block]:
 
   with-artemis invocation: | artemis/Artemis |
     default-broker-config := get-server-from-config --cli=cli --key=CONFIG-BROKER-DEFAULT-KEY
-    fleet := Fleet fleet-root-or-ref artemis
-        --default-broker-config=default-broker-config
+    strategy := FileFleetStoreStrategy
+        --root=fleet-root-or-ref
+        --legacy-default-broker-config=default-broker-config
         --cli=cli
+    fleet/LegacyFleet := ?
+    if file.is-file fleet-root-or-ref:
+      wiring := strategy.open-reference
+      fleet = open-legacy-fleet_ wiring artemis --cli=cli
+    else:
+      store := strategy.open
+      fleet = open-legacy-fleet_ store artemis
+          --fleet=(Fleet store --cli=cli)
+          --cli=cli
     block.call fleet
+
+open-legacy-fleet_ wiring/LegacyFleetWiring artemis/Artemis
+    --fleet/Fleet?=null
+    --cli/Cli
+    -> LegacyFleet:
+  short-strings/Map? := null
+  if fleet:
+    short-strings = {:}
+    fleet.devices.do: | device/DeviceFleet |
+      short-strings[device.id] = device.short-string
+  open-broker := : | configuration/ServerConfig |
+    strategy := LegacyBrokerStrategy
+        --configuration=configuration
+        --fleet-id=wiring.id
+        --tmp-directory=artemis.tmp-directory
+        --short-strings=short-strings
+        --cli=cli
+    strategy.open
+  broker := open-broker.call wiring.servers[wiring.broker-name]
+  migrating-brokers := {:}
+  wiring.migrating-from.do: | name/string |
+    migrating-brokers[name] = open-broker.call wiring.servers[name]
+  return LegacyFleet wiring artemis broker
+      --fleet=fleet
+      --migrating-brokers=migrating-brokers
+      --cli=cli
 
 compute-fleet-root-or-ref invocation/Invocation -> string:
   ui := invocation.cli.ui

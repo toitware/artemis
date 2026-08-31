@@ -2,6 +2,7 @@
 
 // ARTEMIS_TEST_FLAGS: ARTEMIS
 
+import artemis.cli.file-fleet-store as file-fleet-store
 import artemis.cli.fleet as fleet-lib
 import expect show *
 import .utils
@@ -143,7 +144,7 @@ run-test fleet/TestFleet:
   expect-equals "test-group-5" groups[2]["name"]
 
   // Check that the devices now correctly reference the new group name.
-  devices-file := fleet-lib.FileFleetStore.load-devices-file fleet.fleet-dir --cli=fleet.tester.cli
+  devices-file := file-fleet-store.FileFleetStore.load-devices-file fleet.fleet-dir --cli=fleet.tester.cli
   expect-equals DEVICE-COUNT devices-file.devices.size
   devices-file.devices.do: | device/fleet-lib.DeviceFleet |
     expect-equals "test-group-5" device.group
@@ -155,7 +156,7 @@ run-test fleet/TestFleet:
         "--force",
       ]
 
-  devices-file = fleet-lib.FileFleetStore.load-devices-file fleet.fleet-dir --cli=fleet.tester.cli
+  devices-file = file-fleet-store.FileFleetStore.load-devices-file fleet.fleet-dir --cli=fleet.tester.cli
   expect-equals DEVICE-COUNT devices-file.devices.size
   devices-file.devices.do: | device/fleet-lib.DeviceFleet |
     expect-equals "default" device.group
@@ -236,7 +237,7 @@ run-test fleet/TestFleet:
           "fleet", "group", "remove", "test-group-2",
       ]
 
-  device-file := fleet-lib.FileFleetStore.load-devices-file fleet.fleet-dir --cli=fleet.tester.cli
+  device-file := file-fleet-store.FileFleetStore.load-devices-file fleet.fleet-dir --cli=fleet.tester.cli
   fleet-devices := device-file.devices
 
   // Move individual devices to group-4.

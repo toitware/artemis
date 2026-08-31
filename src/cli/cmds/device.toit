@@ -221,7 +221,7 @@ with-device invocation/Invocation --allow-rest-device/bool=false [block]:
 
     if device-rest-reference: device-reference = device-rest-reference
 
-  with-devices-fleet invocation: | fleet/Fleet |
+  with-devices-fleet invocation: | fleet/LegacyFleet |
     device/DeviceFleet := ?
     if not device-reference:
       device-id := default-device-from-config --cli=cli
@@ -236,7 +236,7 @@ with-device invocation/Invocation --allow-rest-device/bool=false [block]:
 pod-for_ -> Pod?
     --local/string?
     --remote/string?
-    --fleet/Fleet
+    --fleet/LegacyFleet
     --cli/Cli
     [--on-absent]:
   reference/PodReference? := null
@@ -266,7 +266,7 @@ update invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
 
-  with-device invocation: | device/DeviceFleet fleet/Fleet |
+  with-device invocation: | device/DeviceFleet fleet/LegacyFleet |
     pod := pod-for_ --local=local --remote=remote --fleet=fleet --cli=cli --on-absent=:
       ui.abort "No pod specified."
     fleet.update --device-id=device.id --pod=pod
@@ -298,7 +298,7 @@ default-device invocation/Invocation:
   if device-reference and device-rest-reference:
     ui.abort "Cannot specify a device both with '-d' and without it: '$device-reference', '$device-rest-reference'."
 
-  with-devices-fleet invocation: | fleet/Fleet |
+  with-devices-fleet invocation: | fleet/LegacyFleet |
     // We allow to set the default with `-d` or by giving it as rest argument.
     device := device-reference or device-rest-reference
     device-id := ?
@@ -336,7 +336,7 @@ show invocation/Invocation:
   if max-events < 0:
     ui.abort "max-events must be >= 0."
 
-  with-device invocation --allow-rest-device: | fleet-device/DeviceFleet fleet/Fleet |
+  with-device invocation --allow-rest-device: | fleet-device/DeviceFleet fleet/LegacyFleet |
       broker := fleet.broker
       devices := broker.get-devices --device-ids=[fleet-device.id]
       if devices.is-empty:
@@ -367,7 +367,7 @@ set-max-offline invocation/Invocation:
 
   ui := invocation.cli.ui
 
-  with-device invocation: | device/DeviceFleet fleet/Fleet |
+  with-device invocation: | device/DeviceFleet fleet/LegacyFleet |
     max-offline-seconds := int.parse max-offline --if-error=:
       // Assume it's a duration with units, like "5s".
       duration := parse-duration max-offline --if-error=:
@@ -392,7 +392,7 @@ extract-device invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
 
-  with-device invocation: | fleet-device/DeviceFleet fleet/Fleet |
+  with-device invocation: | fleet-device/DeviceFleet fleet/LegacyFleet |
     pod/Pod? := null
     if local or remote:
       pod = pod-for_
@@ -412,7 +412,7 @@ extract-device invocation/Invocation:
     ui.emit --info "Firmware successfully written to '$output'."
 
 extract-device fleet-device/DeviceFleet
-    --fleet/Fleet
+    --fleet/LegacyFleet
     --pod/Pod?=null
     --identity-path/string?=null
     --format/string
@@ -425,7 +425,7 @@ extract-device fleet-device/DeviceFleet
   artemis := fleet.artemis
 
   device/Device := identity-path
-      ? Fleet.device-from --identity-path=identity-path
+      ? LegacyFleet.device-from --identity-path=identity-path
       : fleet.broker.device-for --id=fleet-device.id
 
   if format == "identity":
@@ -517,7 +517,7 @@ class Printer_:
 
 print-device_ -> string
     --show-event-values/bool
-    fleet/Fleet
+    fleet/LegacyFleet
     fleet-device/DeviceFleet
     broker-device/DeviceDetailed
     organization/OrganizationDetailed
@@ -672,7 +672,7 @@ print-list_ list/List printer/Printer_ --indentation/int=0:
     else:
       printer.emit "$indentation-str* $value"
 
-print-modification_ modification/Modification --to/Map --fleet/Fleet printer/Printer_:
+print-modification_ modification/Modification --to/Map --fleet/LegacyFleet printer/Printer_:
   modification.on-value "firmware"
       --added=: printer.emit   "  +pod: $(firmware-to-pod-description_ it --fleet=fleet)"
       --removed=: printer.emit "  -pod"
@@ -737,7 +737,7 @@ prettify-firmware firmware/string -> string:
   if firmware.size <= 80: return firmware
   return firmware[0..40] + "..." + firmware[firmware.size - 40..]
 
-firmware-to-pod-description_ --fleet/Fleet encoded-firmware/string -> string:
+firmware-to-pod-description_ --fleet/LegacyFleet encoded-firmware/string -> string:
   firmware := Firmware.encoded encoded-firmware
   pod-id := firmware.pod-id
   fleet-pod := fleet.pod pod-id

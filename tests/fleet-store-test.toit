@@ -1,14 +1,11 @@
-// Copyright (C) 2026 Toitware ApS. All rights reserved.
+// Copyright (C) 2026 Toit contributors. All rights reserved.
 
-import artemis.cli.artemis show Artemis
 import artemis.cli.fleet show
     DEFAULT-GROUP
     DeviceFleet
-    DevicesFile
-    FileFleetStore
     Fleet
-    FleetFile
-    FleetStore
+import artemis.cli.file-fleet-store show FileFleetStoreStrategy
+import artemis.cli.fleet-store show FleetStore
 import artemis.cli.pod-registry show PodReference
 import artemis.cli.server-config show ServerConfigHttp
 import artemis.shared.scope show Scope
@@ -22,85 +19,59 @@ FLEET-ID ::= "00000000-0000-0000-0000-000000000001"
 DEVICE-ID ::= "00000000-0000-0000-0000-000000000002"
 ORGANIZATION-ID ::= "00000000-0000-0000-0000-000000000003"
 
-class MemoryFleetStore extends FleetStore:
+class MemoryFleetStore implements FleetStore:
   id/Uuid
-  is-reference/bool
   group-pods/Map := ?
   devices/List := ?
-  broker-name/string := ?
-  migrating-from/List := ?
-  servers/Map := ?
-  recovery-urls/List := ?
 
   constructor
       --.id
       --.group-pods
-      --.devices
-      --.broker-name
-      --.servers
-      --.migrating-from=[]
-      --.recovery-urls=[]
-      --.is-reference=false:
-
-  root -> string?: return null
-  has-devices -> bool: return true
+      --.devices:
 
   save-fleet -> none
-      --group-pods/Map?=null
-      --broker-name/string?=null
-      --migrating-from/List?=null
-      --servers/Map?=null
-      --recovery-urls/List?=null:
+      --group-pods/Map?=null:
     if group-pods != null: this.group-pods = group-pods
-    if broker-name != null: this.broker-name = broker-name
-    if migrating-from != null: this.migrating-from = migrating-from
-    if servers != null: this.servers = servers
-    if recovery-urls != null: this.recovery-urls = recovery-urls
 
   save-devices devices/List -> none:
     this.devices = devices
 
-  write-reference --path/string -> none:
-    throw "Memory fleet stores cannot write reference files."
-
 main:
   host.with-tmp-directory: | tmp/string |
     cli := TestCli
-    server-config := ServerConfigHttp "test"
-        --url="http://localhost"
-        --scope=(Scope ORGANIZATION-ID)
 
     memory-store := MemoryFleetStore
-        --id=(Uuid.parse FLEET-ID)
-        --group-pods=(initial-groups cli)
+        --id=Uuid.parse FLEET-ID
+        --group-pods=initial-groups cli
         --devices=initial-devices
-        --broker-name=server-config.name
-        --servers={server-config.name: server-config}
-    exercise-contract memory-store tmp --server-config=server-config --cli=cli
+    exercise-contract memory-store --cli=cli
 
-    fleet-file := FleetFile
-        --path="$tmp/$(FileFleetStore.FLEET-FILE)"
-        --id=(Uuid.parse FLEET-ID)
-        --group-pods=(initial-groups cli)
-        --is-reference=false
-        --broker-name=server-config.name
-        --migrating-from=[]
-        --servers={server-config.name: server-config}
-        --recovery-urls=[]
-    fleet-file.write
-    (DevicesFile "$tmp/$(FileFleetStore.DEVICES-FILE)" initial-devices).write
+    server-config := ServerConfigHttp "test"
+        --url="http://localhost"
+        --scope=Scope ORGANIZATION-ID
 
-    file-store := FileFleetStore.load tmp
-        --default-broker-config=server-config
-        --require-devices
+    file-strategy := FileFleetStoreStrategy
+        --root=tmp
+        --legacy-default-broker-config=server-config
         --cli=cli
-    exercise-contract file-store tmp --server-config=server-config --cli=cli
+    file-store := file-strategy.create
+        --id=Uuid.parse FLEET-ID
+        --group-pods=initial-groups cli
+        --devices=initial-devices
+    exercise-contract file-store --cli=cli
 
-    reloaded := FileFleetStore.load tmp
-        --default-broker-config=server-config
-        --require-devices
-        --cli=cli
+    reloaded := file-strategy.open
     expect-final-state reloaded
+
+    reference-path := "$tmp/fleet-reference.json"
+    file-store.write-reference --path=reference-path
+    reference-strategy := FileFleetStoreStrategy
+        --root=reference-path
+        --legacy-default-broker-config=server-config
+        --cli=cli
+    reference := reference-strategy.open-reference
+    expect-equals FLEET-ID "$reference.id"
+    expect-equals server-config.name reference.broker-name
 
 initial-groups cli/TestCli -> Map:
   return {
@@ -110,21 +81,13 @@ initial-groups cli/TestCli -> Map:
 initial-devices -> List:
   return [
     DeviceFleet
-        --id=(Uuid.parse DEVICE-ID)
+        --id=Uuid.parse DEVICE-ID
         --name="device"
         --group=DEFAULT-GROUP,
   ]
 
-exercise-contract store/FleetStore tmp/string
-    --server-config/ServerConfigHttp
-    --cli/TestCli:
-  artemis := Artemis
-      --cli=cli
-      --tmp-directory=tmp
-      --server-config=server-config
-  fleet := Fleet.with-store store artemis
-      --cli=cli
-      --no-validate-organization
+exercise-contract store/FleetStore --cli/TestCli:
+  fleet := Fleet store --cli=cli
 
   staging := PodReference.parse "staging@latest" --cli=cli
   production := PodReference.parse "production@v1" --cli=cli
@@ -132,7 +95,7 @@ exercise-contract store/FleetStore tmp/string
   expect-equals "staging@latest" "$(store.group-pods["staging"])"
 
   moved := fleet.move-devices
-      --ids={(Uuid.parse DEVICE-ID)}
+      --ids={Uuid.parse DEVICE-ID}
       --groups={}
       --to="staging"
   expect-equals 1 moved
