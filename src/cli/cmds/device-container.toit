@@ -130,7 +130,7 @@ install-container invocation/Invocation:
     // Non-critical containers get a boot and an install trigger by default.
     triggers = [pod-specification.BootTrigger, pod-specification.InstallTrigger]
 
-  with-device invocation: | device/DeviceFleet fleet/FleetWithDevices |
+  with-device invocation: | device/DeviceFleet fleet/LegacyFleet |
     fleet.broker.container-install
         --device-id=device.id
         --app-name=container-name
@@ -145,6 +145,6 @@ uninstall-container invocation/Invocation:
   container-name := invocation["name"]
   force := invocation["force"]
 
-  with-device invocation: | device/DeviceFleet fleet/FleetWithDevices |
+  with-device invocation: | device/DeviceFleet fleet/LegacyFleet |
     fleet.broker.container-uninstall --device-id=device.id --app-name=container-name --force=force
     invocation.cli.ui.emit --info "Request sent to broker. Container will be uninstalled when device synchronizes."

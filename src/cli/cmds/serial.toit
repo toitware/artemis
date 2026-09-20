@@ -183,7 +183,7 @@ flash invocation/Invocation:
   if local and remote:
     ui.abort "Cannot specify both a local pod file and a remote pod reference."
 
-  with-devices-fleet invocation: | fleet/FleetWithDevices |
+  with-devices-fleet invocation: | fleet/LegacyFleet |
     artemis := fleet.artemis
     broker := fleet.broker
 

@@ -1,20 +1,17 @@
 // Copyright (C) 2023 Toitware ApS. All rights reserved.
 
-import certificate-roots
 import cli show Cli
 import encoding.json
 import encoding.ubjson
-import encoding.base64
-import host.file
 import uuid show Uuid
 
 import .artemis
 import .broker
 import .cache
-import .config
 import .device
 import .event
 import .firmware
+import .fleet-store
 import .pod
 import .pod-specification
 import .pod-registry
@@ -73,364 +70,201 @@ class Status_:
   is-healthy -> bool:
     return is-fully-updated and missed-checkins == 0
 
-class FleetFile:
-  static JSON-SCHEMA ::= "https://toit.io/schemas/artemis/fleet/v2.json"
+/** Represents complete declared fleet state. */
+class Fleet:
+  static AMBIGUOUS_ ::= -1
 
-  path/string
+  store/FleetStore
   id/Uuid
-  group-pods/Map
-  is-reference/bool
-  broker-name/string
-  migrating-from/List
-  servers/Map  // From broker-name to ServerConfig (each carries its scope).
-  recovery-urls/List
 
-  constructor
-      --.path
-      --.id
-      --.group-pods
-      --.is-reference
-      --.broker-name
-      --.migrating-from
-      --.servers
-      --.recovery-urls:
+  cli_/Cli
+  devices_/List := ?
+  group-pods_/Map
+  aliases_/Map := {:}
 
-  /**
-  The $Scope to use when talking to the configured broker.
+  constructor .store --cli/Cli:
+    id = store.id
+    cli_ = cli
+    devices_ = store.devices
+    group-pods_ = store.group-pods
+    aliases_ = build-alias-map_ devices_ --cli=cli
 
-  Derived from the broker server entry's $ServerConfig.scope.
-  */
-  broker-scope -> Scope:
-    return (servers[broker-name] as ServerConfig).scope
+  /** Returns the declared groups and their desired pod references. */
+  groups -> Map:
+    return group-pods_
 
-  /**
-  The organization-id encoded inside $broker-scope.
+  /** Returns the complete declared device inventory. */
+  devices -> List:
+    return devices_
 
-  Kept as a derived view for callers that talk to the auth provider
-    (which is still org-id concrete).
-  */
-  organization-id -> Uuid:
-    return Uuid.parse broker-scope.to-json
+  /** Returns the desired pod reference for $name. */
+  pod-reference-for-group name/string -> PodReference:
+    return group-pods_.get name
+        --if-absent=: cli_.ui.abort "Unknown group '$name'"
 
-  static parse path/string --default-broker-config/ServerConfig --cli/Cli -> FleetFile:
-    ui := cli.ui
-    fleet-contents := null
-    exception := catch: fleet-contents = read-json path
-    if exception:
-      ui.emit --error "Fleet file '$path' is not a valid JSON."
-      ui.emit --error exception.message
-      ui.abort
-    if fleet-contents is not Map:
-      ui.abort "Fleet file '$path' has invalid format."
-    if not fleet-contents.contains "id":
-      ui.abort "Fleet file '$path' does not contain an ID."
+  /** Returns whether the fleet contains $group. */
+  has-group group/string -> bool:
+    return group-pods_.contains group
 
-    schema := fleet-contents.get "\$schema"
-    if schema and schema != JSON-SCHEMA:
-      ui.abort "Fleet file '$path' has an unsupported schema: $schema"
-    is-new-format := schema != null
+  /** Adds a group. */
+  add-group name/string pod-reference/PodReference -> none:
+    if has-group name:
+      cli_.ui.abort "Group '$name' already exists."
+    group-pods_[name] = pod-reference
+    store.save-fleet --group-pods=group-pods_
 
-    // The legacy format had a top-level "organization" UUID; the new
-    // format drops it and stores a per-server "scope" inside each
-    // server entry instead. The "broker" field is a server-name string
-    // in both layouts.
-    if not is-new-format and not fleet-contents.contains "organization":
-      ui.abort "Fleet file '$path' does not contain an organization ID."
+  /** Updates a group's desired pod reference. */
+  update-group name/string pod-reference/PodReference -> none:
+    if not has-group name:
+      cli_.ui.abort "Group '$name' does not exist."
+    group-pods_[name] = pod-reference
+    store.save-fleet --group-pods=group-pods_
 
-    is-reference := fleet-contents.get "is-reference" --if-absent=: false
+  /** Renames a group and moves its devices to the new name. */
+  rename-group from/string to/string -> none:
+    if not has-group from:
+      cli_.ui.abort "Group '$from' does not exist."
+    if has-group to:
+      cli_.ui.abort "Group '$to' already exists."
 
-    group-entry := fleet-contents.get "groups"
-    group-pods/Map := ?
-    if is-reference:
-      group-pods = {:}
-      if group-entry:
-        ui.abort "Fleet file '$path' is a reference file and cannot contain a 'groups' entry."
-    else:
-      if not group-entry:
-        ui.abort "Fleet file '$path' does not contain a 'groups' entry."
-      if group-entry is not Map:
-        ui.abort "Fleet file '$path' has invalid format for 'groups'."
-      group-pods = (group-entry as Map).map: | group-name/string entry |
-        if entry is not Map:
-          ui.abort "Fleet file '$path' has invalid format for group '$group-name'."
-        if not entry.contains "pod":
-          ui.abort "Fleet file '$path' does not contain a 'pod' entry for group '$group-name'."
-        if entry["pod"] is not string:
-          ui.abort "Fleet file '$path' has invalid format for 'pod' in group '$group-name'."
-        PodReference.parse entry["pod"] --cli=cli
+    pod-reference := group-pods_[from]
+    group-pods_.remove from
+    group-pods_[to] = pod-reference
+    devices_ = devices_.map: | device/DeviceFleet |
+      device.group == from ? device.with --group=to : device
+    save-devices_
+    store.save-fleet --group-pods=group-pods_
 
-    // Broker reference is a string in both the new and legacy layouts.
-    // In the new layout the broker's scope lives inside its server entry
-    // (see below); in the legacy layout it's read from the top-level
-    // "organization" field.
-    broker-entry := fleet-contents.get "broker"
-    broker-name/string? := null
-    if broker-entry and broker-entry is not string:
-      ui.abort "Fleet file '$path' has invalid format for 'broker'."
-    broker-name = broker-entry
+  /** Removes an unused group. */
+  remove-group group/string -> bool:
+    if not has-group group: return false
+    if (devices_.any: it.group == group):
+      cli_.ui.abort "Group '$group' is in use."
+    group-pods_.remove group
+    store.save-fleet --group-pods=group-pods_
+    return true
 
-    organization-id/Uuid? := null
-    if not is-new-format:
-      organization-id = Uuid.parse fleet-contents["organization"]
+  /** Moves selected devices to a group and returns the number moved. */
+  move-devices -> int
+      --ids/Set
+      --groups/Set
+      --to/string:
+    if not has-group to:
+      cli_.ui.abort "Group '$to' does not exist."
 
-    migrating-from-entry := fleet-contents.get "migrating-from"
-    servers-entry := fleet-contents.get "servers"
-
-    migrating-from/List := []
-    servers/Map := ?
-    if broker-name:
-      if not servers-entry:
-        ui.abort "Fleet file '$path' has invalid format for 'broker' and 'servers'."
-      if servers-entry is not Map:
-        ui.abort "Fleet file '$path' has invalid format for 'servers'."
-      broker-server-entry := servers-entry.get broker-name
-      if not broker-server-entry:
-        ui.abort "Fleet file '$path' does not contain a server entry for broker '$broker-name'."
-
-      // The new layout stores each server's scope alongside its
-      // connection info; ServerConfig.from-json reads it.
-      servers = servers-entry.map: | server-name/string encoded-server |
-        if encoded-server is not Map:
-          ui.abort "Fleet file '$path' has invalid format for server '$server-name'."
-        ServerConfig.from-json server-name encoded-server
-          --der-deserializer=: base64.decode it
-
-      broker-server/ServerConfig := servers[broker-name]
-      if is-new-format:
-        if not broker-server.scope:
-          ui.abort "Fleet file '$path' is missing 'scope' on broker server '$broker-name'."
-        organization-id = Uuid.parse broker-server.scope.to-json
+    moved-count := 0
+    devices_ = devices_.map: | device/DeviceFleet |
+      if ids.contains device.id or groups.contains device.group:
+        moved-count++
+        device.with --group=to
       else:
-        // Legacy format: the top-level organization-id was the same for
-        // every server. Pin it onto every entry so the new in-memory
-        // shape is consistent.
-        legacy-scope := Scope "$organization-id"
-        servers.map --in-place: | _ server-config/ServerConfig |
-          server-config.with --scope=legacy-scope
+        device
+    if moved-count != 0: save-devices_
+    return moved-count
 
-      if migrating-from-entry:
-        if migrating-from-entry is not List:
-          ui.abort "Fleet file '$path' has invalid format for 'migrating-from'."
-        migrating-from-entry.do: | server-name |
-          if server-name is not string:
-            ui.abort "Fleet file '$path' has invalid format for 'migrating-from'."
-          if not servers.contains server-name:
-            ui.abort "Fleet file '$path' does not contain a server entry for migrating-from server '$server-name'."
-        migrating-from = migrating-from-entry
-    else:
-      if migrating-from-entry or servers-entry:
-        ui.abort "Fleet file '$path' has invalid format for 'broker', 'migrating-from' and 'servers'."
-      broker-name = default-broker-config.name
-      // Very-legacy fleet file with no broker/servers entry. Attach the
-      // legacy top-level organization-id to the default broker config.
-      legacy-scope := Scope "$organization-id"
-      servers = {
-        default-broker-config.name: default-broker-config.with --scope=legacy-scope,
-      }
+  /** Adds a declared device. */
+  add-device --device-id/Uuid --name/string? --group/string --aliases/List?:
+    if aliases and aliases.is-empty: aliases = null
+    devices_.add
+        DeviceFleet
+            --id=device-id
+            --group=group
+            --name=name
+            --aliases=aliases
+    save-devices_
+    aliases_ = build-alias-map_ devices_ --cli=cli_
 
-    servers.map --in-place: | _ server-config/ServerConfig |
-      if server-config is not ServerConfigSupabase:
-        server-config
-      else:
-        // If the server config is for supabase, and it uses the original
-        // server URI, update it to use the new one.
-        supabase-config := server-config as ServerConfigSupabase
-        if supabase-config.url == ORIGINAL-SUPABASE-SERVER-URL:
-          cli.ui.emit --info
-              "Using updated Artemis server URL: $DEFAULT-ARTEMIS-SERVER-CONFIG.url"
-          supabase-config.with --url=DEFAULT-ARTEMIS-SERVER-CONFIG.url
+  /** Resolves a device ID, name, or alias. */
+  resolve-alias alias/string -> DeviceFleet:
+    if not aliases_.contains alias:
+      cli_.ui.abort "No device with name, device-id, or alias '$alias' in the fleet."
+    index := aliases_[alias]
+    if index == AMBIGUOUS_:
+      cli_.ui.abort "The name, device-id, or alias '$alias' is ambiguous."
+    return devices_[index]
+
+  /** Returns the declared device with $device-id. */
+  device device-id/Uuid -> DeviceFleet:
+    devices_.do: | fleet-device/DeviceFleet |
+      if fleet-device.id == device-id: return fleet-device
+    cli_.ui.abort "No device with id $device-id in the fleet."
+    unreachable
+
+  save-devices_ -> none:
+    store.save-devices devices_
+
+  static build-alias-map_ devices/List --cli/Cli -> Map:
+    result := {:}
+    ambiguous-ids := {:}
+    devices.size.repeat: | index/int |
+      device/DeviceFleet := devices[index]
+      add-alias := : | id/string |
+        if result.contains id:
+          old := result[id]
+          if old == index:
+            // The name, device-id or alias appears twice for the same
+            // device. Not best practice, but not ambiguous.
+            continue.add-alias
+
+          if old == AMBIGUOUS_:
+            ambiguous-ids[id].add index
+          else:
+            ambiguous-ids[id] = [old, index]
+            result[id] = AMBIGUOUS_
         else:
-          supabase-config
-
-    recovery-urls := fleet-contents.get "recovery-urls" --if-absent=: []
-
-    return FleetFile
-        --path=path
-        --id=Uuid.parse fleet-contents["id"]
-        --group-pods=group-pods
-        --is-reference=is-reference
-        --broker-name=broker-name
-        --migrating-from=migrating-from
-        --servers=servers
-        --recovery-urls=recovery-urls
-
-  broker-config -> ServerConfig:
-    return servers[broker-name]
-
-  /**
-  Creates a new fleet file with the given parameters.
-
-  Mutable objects are *not* copied. Do not modify directly group-pods or servers.
-
-  In order to clear the $migrating-from list, pass an empty list.
-  */
-  with -> FleetFile
-      --path/string?=null
-      --id/Uuid?=null
-      --group-pods/Map?=null
-      --is-reference/bool?=null
-      --broker-name/string?=null
-      --migrating-from/List?=null
-      --servers/Map?=null
-      --recovery-urls/List?=null:
-    return FleetFile
-        --path=(path or this.path)
-        --id=(id or this.id)
-        --group-pods=(group-pods or this.group-pods)
-        --is-reference=(is-reference or this.is-reference)
-        --broker-name=(broker-name or this.broker-name)
-        --migrating-from=(migrating-from or this.migrating-from)
-        --servers=(servers or this.servers)
-        --recovery-urls=(recovery-urls or this.recovery-urls)
-
-  write -> none:
-    payload := to-json_
-    write-json-to-file --pretty path payload
-
-  write-reference --path/string -> none:
-    payload := to-json_ --reference
-    write-json-to-file --pretty path payload
-
-  to-json_ --reference/bool=false -> Map:
-    result := {
-      "\$schema": JSON-SCHEMA,
-      "id": "$id",
-    }
-    if reference:
-      result["is-reference"] = true
-    else:
-      groups := {:}
-      sorted-keys := group-pods.keys.sort
-
-      // Write the default group at the top.
-      if group-pods.contains DEFAULT-GROUP:
-        groups[DEFAULT-GROUP] = {
-          "pod": group-pods[DEFAULT-GROUP].to-string
-        }
-      sorted-keys.do: | group-name |
-        if group-name == DEFAULT-GROUP: continue.do
-        groups[group-name] = {
-          "pod": group-pods[group-name].to-string
-        }
-      result["groups"] = groups
-
-    // Add the servers last, so that the file is easier to read.
-    result["broker"] = broker-name
-    if migrating-from and not migrating-from.is-empty:
-      result["migrating-from"] = migrating-from
-    // Each server entry carries its own scope (serialized by
-    // ServerConfig.to-json when the scope is non-null).
-    result["servers"] = servers.map: | server-name/string server-config/ServerConfig |
-      server-config.to-json --der-serializer=: base64.encode it
-    result["recovery-urls"] = recovery-urls
+          result[id] = index
+      add-alias.call "$device.id"
+      if device.name:
+        add-alias.call device.name
+      device.aliases.do: | alias/string |
+        add-alias.call alias
+    if ambiguous-ids.size > 0:
+      cli.ui.emit --warning "The following names, device-ids or aliases are ambiguous:"
+      ambiguous-ids.do: | id/string index-list/List |
+        uuid-list := index-list.map: devices[it].id
+        cli.ui.emit --warning "  $id maps to $(uuid-list.join ", ")"
     return result
 
-class DevicesFile:
-  path/string
-  devices/List
-
-  constructor .path .devices:
-
-  static parse path/string --cli/Cli -> DevicesFile:
-    ui := cli.ui
-
-    encoded-devices := null
-    exception := catch: encoded-devices = read-json path
-    if exception:
-      ui.emit --error "Fleet file '$path' is not a valid JSON."
-      ui.emit --error exception.message
-      ui.abort
-    if encoded-devices is not Map:
-      ui.abort "Fleet file '$path' has invalid format."
-
-    devices := []
-    encoded-devices.do: | device-id encoded-device |
-      if encoded-device is not Map:
-        ui.abort "Fleet file '$path' has invalid format for device ID $device-id."
-      exception = catch:
-        device := DeviceFleet
-            --id=Uuid.parse device-id
-            --name=encoded-device.get "name"
-            --aliases=encoded-device.get "aliases"
-            --group=(encoded-device.get "group") or DEFAULT-GROUP
-        devices.add device
-      if exception:
-        ui.emit --error "Fleet file '$path' has invalid format for device ID $device-id."
-        ui.emit --error exception.message
-        ui.abort
-
-    return DevicesFile path devices
-
-  check-groups fleet-file/FleetFile --cli/Cli:
-    devices.do: | device/DeviceFleet |
-      if not fleet-file.group-pods.contains device.group:
-        cli.ui.abort "Device $device.short-string is in group '$device.group' which doesn't exist."
-
-  write -> none:
-    sorted-devices := devices.sort: | a/DeviceFleet b/DeviceFleet | a.compare-to b
-    encoded-devices := {:}
-    sorted-devices.do: | device/DeviceFleet |
-      entry := {:}
-      if device.name: entry["name"] = device.name
-      if not device.aliases.is-empty: entry["aliases"] = device.aliases
-      group := device.group
-      if group != DEFAULT-GROUP: entry["group"] = group
-      encoded-devices["$device.id"] = entry
-    write-json-to-file --pretty path encoded-devices
-
 /**
-A fleet.
+Provides the legacy combined fleet, broker, pod, and artifact command surface.
 
-This class, contrary to $FleetWithDevices, can only manipulate the pods of the fleet.
-In return, it can be instantiated with only a fleet-reference file.
+Workspace-backed orchestration replaces this compatibility façade. New fleet
+  state operations should use $Fleet.
 */
-class Fleet:
-  static FLEET-FILE_ ::= "fleet.json"
-
+class LegacyFleet:
   id/Uuid
-  /**
-  The $Scope to use when talking to the fleet's broker.
-
-  Mirrors $FleetFile.broker-scope.
-  */
   broker-scope/Scope
   artemis/Artemis
   broker/Broker
+  migrating-brokers_/Map
+  wiring/LegacyFleetWiring
+  declared-fleet_/Fleet?
+
   cli_/Cli
-  fleet-root-or-ref_/string
-  fleet-file_/FleetFile
 
-  constructor fleet-root-or-ref/string
-      artemis/Artemis
-      --default-broker-config/ServerConfig
-      --cli/Cli:
-    fleet-file := load-fleet-file fleet-root-or-ref
-        --default-broker-config=default-broker-config
-        --cli=cli
-    return Fleet fleet-root-or-ref artemis
-        --fleet-file=fleet-file
-        --cli=cli
-
-  constructor .fleet-root-or-ref_ .artemis
-      --fleet-file/FleetFile
-      --short-strings/Map?=null
-      --cli/Cli:
-    fleet-file_ = fleet-file
-    id = fleet-file.id
-    broker-scope = fleet-file.broker-scope
+  /** Constructs the compatibility façade from already-opened dependencies. */
+  constructor .wiring .artemis .broker
+      --fleet/Fleet?=null
+      --migrating-brokers/Map
+      --cli/Cli
+      --validate-organization/bool=true:
+    id = wiring.id
+    broker-config/ServerConfig := wiring.servers[wiring.broker-name]
+    broker-scope = broker-config.scope
     cli_ = cli
-    broker-config := fleet-file.broker-config
-    broker = Broker
-        --server-config=broker-config
-        --fleet-id=id
-        --tmp-directory=artemis.tmp-directory
-        --short-strings=short-strings
-        --cli=cli
+    migrating-brokers_ = migrating-brokers
+    declared-fleet_ = fleet
 
-    // TODO(florian): should we always do this check?
-    org := artemis.get-organization --id=organization-id
-    if not org:
-      cli.ui.abort "Organization $organization-id does not exist or is not accessible."
+    if validate-organization:
+      // TODO(florian): should we always do this check?
+      org := artemis.get-organization --id=organization-id
+      if not org:
+        cli.ui.abort "Organization $organization-id does not exist or is not accessible."
+
+  fleet_ -> Fleet:
+    if not declared-fleet_:
+      cli_.ui.abort "This operation requires complete declared fleet state."
+    return declared-fleet_
 
   /**
   The organization-id encoded inside $broker-scope.
@@ -441,43 +275,8 @@ class Fleet:
   organization-id -> Uuid:
     return Uuid.parse broker-scope.to-json
 
-  static load-fleet-file -> FleetFile
-      fleet-root-or-ref/string
-      --default-broker-config/ServerConfig
-      --cli/Cli:
-    ui := cli.ui
-
-    fleet-path/string := ?
-    must-be-reference/bool := ?
-    if file.is-file fleet-root-or-ref:
-      // Must be a reference.
-      fleet-path = fleet-root-or-ref
-      must-be-reference = true
-    else if file.is-directory fleet-root-or-ref:
-      fleet-path = "$fleet-root-or-ref/$FLEET-FILE_"
-      must-be-reference = false
-    else:
-      ui.abort "Fleet root '$fleet-root-or-ref' is not a directory or a file."
-      unreachable
-
-    if not file.is-file fleet-path:
-      // Can only happen if the fleet-root-or-ref was a directory.
-      ui.emit --error "Fleet root '$fleet-root-or-ref' does not contain a $FLEET-FILE_ file."
-      ui.emit --error "Use 'init' to initialize a fleet root."
-      ui.abort
-
-    result := FleetFile.parse fleet-path
-        --default-broker-config=default-broker-config
-        --cli=cli
-    if must-be-reference and not result.is-reference:
-      ui.abort "Provided fleet-file is not a reference."
-    else if not must-be-reference and result.is-reference:
-      ui.abort "Fleet file in given directory is a reference."
-
-    return result
-
   write-reference --path/string -> none:
-    fleet-file_.write-reference --path=path
+    wiring.write-reference --path=path
 
   /**
   Uploads the given $pod to the broker.
@@ -533,200 +332,33 @@ class Fleet:
     return broker.pod-exists reference
 
   recovery-urls -> List:
-    return fleet-file_.recovery-urls
+    return wiring.recovery-urls
 
   recovery-url-add url/string -> none:
-    old-urls := fleet-file_.recovery-urls
+    old-urls := wiring.recovery-urls
     if old-urls.contains url:
       cli_.ui.emit --info "Recovery URL '$url' already exists."
       return
     new-urls := old-urls + [url]
-    new-file := fleet-file_.with --recovery-urls=new-urls
-    new-file.write
+    wiring.save-wiring --recovery-urls=new-urls
 
   recovery-url-remove url/string -> bool:
-    old-urls := fleet-file_.recovery-urls
+    old-urls := wiring.recovery-urls
     new-urls := old-urls.filter: it != url
     if old-urls.size == new-urls.size:
       return false
 
-    new-file := fleet-file_.with --recovery-urls=new-urls
-    new-file.write
+    wiring.save-wiring --recovery-urls=new-urls
     return true
 
   recovery-urls-remove-all -> none:
-    new-file := fleet-file_.with --recovery-urls=[]
-    new-file.write
+    wiring.save-wiring --recovery-urls=[]
 
   recovery-info -> ByteArray:
     json-config := broker.server-config.to-service-json
         --base64
         --der-serializer=: unreachable
     return json.encode json-config
-
-/**
-A fleet with devices.
-
-Contrary to the $Fleet class, this class needs access to the devices of a fleet.
-It can only be instantiated with a non-reference fleet file.
-*/
-class FleetWithDevices extends Fleet:
-  static DEVICES-FILE_ ::= "devices.json"
-  static FLEET-FILE_ ::= Fleet.FLEET-FILE_
-
-  /** Signal that an alias is ambiguous. */
-  static AMBIGUOUS_ ::= -1
-
-  /** List of $DeviceFleet objects. */
-  devices_/List
-
-  /**
-  Mapping from device-id to short-name.
-  This information is redundant with $devices_, as the $DeviceFleet objects
-  contain the same information.
-  */
-  device-short-strings_/Map
-
-  /** A map from group-name to $PodReference. */
-  group-pods_/Map
-
-  /** Map from name, device-id, alias to index in $devices_. */
-  aliases_/Map := {:}
-
-  constructor fleet-root/string artemis/Artemis
-      --default-broker-config/ServerConfig
-      --cli/Cli:
-    if not file.is-directory fleet-root and file.is-file fleet-root:
-      cli.ui.abort "Fleet argument for this operation must be a fleet root (directory) and not a reference file: '$fleet-root'."
-
-    fleet-file := Fleet.load-fleet-file fleet-root
-        --default-broker-config=default-broker-config
-        --cli=cli
-    if fleet-file.is-reference:
-      cli.ui.abort "Fleet root '$fleet-root' is a reference fleet and cannot be used for device management."
-    devices-file := load-devices-file fleet-root --cli=cli
-    devices-file.check-groups fleet-file --cli=cli
-    group-pods_ = fleet-file.group-pods
-    devices_ = devices-file.devices
-    device-short-strings_ = {:}
-    devices_.do: | device/DeviceFleet |
-      device-short-strings_[device.id] = device.short-string
-    aliases_ = build-alias-map_ devices_ --cli=cli
-    super fleet-root artemis
-        --fleet-file=fleet-file
-        --short-strings=device-short-strings_
-        --cli=cli
-
-  static init fleet-root/string artemis/Artemis -> FleetFile
-      --organization-id/Uuid
-      --broker-config/ServerConfig
-      --recovery-url-prefixes/List
-      --cli/Cli:
-    ui := cli.ui
-
-    if not file.is-directory fleet-root:
-      ui.abort "Fleet root '$fleet-root' is not a directory."
-
-    if file.is-file "$fleet-root/$FLEET-FILE_":
-      ui.abort "Fleet root '$fleet-root' already contains a $FLEET-FILE_ file."
-
-    if file.is-file "$fleet-root/$DEVICES-FILE_":
-      ui.abort "Fleet root '$fleet-root' already contains a $DEVICES-FILE_ file."
-
-    org := artemis.get-organization --id=organization-id
-    if not org:
-      ui.abort "Organization $organization-id does not exist or is not accessible."
-
-    broker-name := broker-config.name
-    fleet-id := random-uuid
-    recovery-urls := recovery-url-prefixes.map: | prefix |
-      "$prefix/recover-$(fleet-id).json"
-    scoped-broker-config := broker-config.with
-        --scope=(Scope "$organization-id")
-    fleet-file := FleetFile
-        --path="$fleet-root/$FLEET-FILE_"
-        --id=fleet-id
-        --group-pods={
-          DEFAULT-GROUP: PodReference.parse "$INITIAL-POD-NAME@latest" --cli=cli,
-        }
-        --is-reference=false
-        --broker-name=broker-name
-        --migrating-from=[]
-        --servers={broker-name: scoped-broker-config}
-        --recovery-urls=recovery-urls
-    fleet-file.write
-
-    devices-file := DevicesFile "$fleet-root/$DEVICES-FILE_" []
-    devices-file.write
-
-    default-specification-path := "$fleet-root/$(INITIAL-POD-NAME).yaml"
-    if not file.is-file default-specification-path:
-      header := "# yaml-language-server: \$schema=$JSON-SCHEMA\n"
-      write-yaml-to-file default-specification-path INITIAL-POD-SPECIFICATION --header=header
-
-    return fleet-file
-
-  static load-devices-file fleet-root/string --cli/Cli -> DevicesFile:
-    ui := cli.ui
-    if not file.is-directory fleet-root:
-      ui.abort "Fleet root '$fleet-root' is not a directory."
-    devices-path := "$fleet-root/$DEVICES-FILE_"
-    if not file.is-file devices-path:
-      ui.emit --error "Fleet root '$fleet-root' does not contain a $DEVICES-FILE_ file."
-      ui.emit --error "Use 'init' to initialize a fleet root."
-      ui.abort
-
-    return DevicesFile.parse devices-path --cli=cli
-
-  /** The root (directory) of this fleet. */
-  root -> string:
-    // Since this is a fleet with devices, we know that the $fleet-root-or-ref_ must be a
-    // directory and not just a ref file.
-    return fleet-root-or-ref_
-
-  write-devices_ -> none:
-    file := DevicesFile "$fleet-root-or-ref_/$DEVICES-FILE_" devices_
-    file.write
-
-  /**
-  Builds an alias map.
-
-  When referring to devices we allow names, device-ids and aliases as
-    designators. This function builds a map for these and warns the
-    user if any of them is ambiguous.
-  */
-  static build-alias-map_ devices/List --cli/Cli -> Map:
-    result := {:}
-    ambiguous-ids := {:}
-    devices.size.repeat: | index/int |
-      device/DeviceFleet := devices[index]
-      add-alias := : | id/string |
-        if result.contains id:
-          old := result[id]
-          if old == index:
-            // The name, device-id or alias appears twice for the same
-            // device. Not best practice, but not ambiguous.
-            continue.add-alias
-
-          if old == AMBIGUOUS_:
-            ambiguous-ids[id].add index
-          else:
-            ambiguous-ids[id] = [old, index]
-            result[id] = AMBIGUOUS_
-        else:
-          result[id] = index
-
-      add-alias.call "$device.id"
-      if device.name:
-        add-alias.call device.name
-      device.aliases.do: | alias/string |
-        add-alias.call alias
-    if ambiguous-ids.size > 0:
-      cli.ui.emit --warning "The following names, device-ids or aliases are ambiguous:"
-      ambiguous-ids.do: | id/string index-list/List |
-        uuid-list := index-list.map: devices[it].id
-        cli.ui.emit --warning "  $id maps to $(uuid-list.join ", ")"
-    return result
 
   /**
   Creates a new identity file.
@@ -744,18 +376,15 @@ class FleetWithDevices extends Fleet:
     if not has-group group:
       cli_.ui.abort "Group '$group' not found."
 
-    old-size := devices_.size
     new-file := "$output-directory/$(id).identity"
 
     provision --device-id=id --out-path=new-file
 
-    device := DeviceFleet
-        --id=id
+    fleet_.add-device
+        --device-id=id
         --group=group
         --aliases=aliases
         --name=name
-    devices_.add device
-    write-devices_
 
     return new-file
 
@@ -769,15 +398,9 @@ class FleetWithDevices extends Fleet:
     broker.update --device-id=device-id --pod=pod
 
     // We need to notify the migrating-from brokers.
-    fleet-file_.migrating-from.do: | server-name |
+    wiring.migrating-from.do: | server-name |
       cli_.ui.emit --info "Updating on '$server-name' broker (migration in progress)."
-      server-config := fleet-file_.servers.get server-name
-      old-broker := Broker
-          --server-config=server-config
-          --short-strings=device-short-strings_
-          --fleet-id=id
-          --tmp-directory=artemis.tmp-directory
-          --cli=cli_
+      old-broker/Broker := migrating-brokers_[server-name]
       old-broker.update --device-id=device-id --pod=pod
 
   /**
@@ -789,7 +412,7 @@ class FleetWithDevices extends Fleet:
   roll-out --diff-bases/List:
     ui := cli_.ui
 
-    fleet-devices := devices_
+    fleet-devices := fleet_.devices
     device-ids := fleet-devices.map: it.id
 
     detailed-devices := broker.get-devices --device-ids=device-ids
@@ -802,7 +425,7 @@ class FleetWithDevices extends Fleet:
       group-name := fleet-device.group
       pods-per-group.get group-name --init=: download (pod-reference-for-group group-name)
 
-    is-migrating := not fleet-file_.migrating-from.is-empty
+    is-migrating := not wiring.migrating-from.is-empty
     broker.roll-out
         --devices=detailed-devices.values
         --pods=pods
@@ -812,15 +435,9 @@ class FleetWithDevices extends Fleet:
     ui.emit --info "Successfully updated $(fleet-devices.size) device$(fleet-devices.size == 1 ? "" : "s")."
 
     // We need to notify the migrating-from brokers.
-    fleet-file_.migrating-from.do: | server-name |
+    wiring.migrating-from.do: | server-name |
       ui.emit --info "Rolling out to '$server-name' broker (migration in progress)."
-      server-config := fleet-file_.servers.get server-name
-      old-broker := Broker
-          --server-config=server-config
-          --short-strings=device-short-strings_
-          --fleet-id=id
-          --tmp-directory=artemis.tmp-directory
-          --cli=cli_
+      old-broker/Broker := migrating-brokers_[server-name]
       // We could filter out devices that were already known in the new broker, but
       // it's easier and more robust to update all devices.
       // This also makes it possible to move forward and backward between two brokers.
@@ -829,16 +446,43 @@ class FleetWithDevices extends Fleet:
       ui.emit --info "Successfully rolled out to '$server-name' broker (migration in progress)."
 
   pod-reference-for-group name/string -> PodReference:
-    return group-pods_.get name
-        --if-absent=: cli_.ui.abort "Unknown group '$name'"
+    return fleet_.pod-reference-for-group name
+
+  /** Returns the declared groups and their desired pod references. */
+  groups -> Map:
+    return fleet_.groups
+
+  /** Returns the declared device inventory. */
+  devices -> List:
+    return fleet_.devices
 
   has-group group/string -> bool:
-    return group-pods_.contains group
+    return fleet_.has-group group
+
+  add-group name/string pod-reference/PodReference -> none:
+    fleet_.add-group name pod-reference
+
+  update-group name/string pod-reference/PodReference -> none:
+    fleet_.update-group name pod-reference
+
+  rename-group from/string to/string -> none:
+    fleet_.rename-group from to
+
+  remove-group group/string -> bool:
+    return fleet_.remove-group group
+
+  move-devices -> int
+      --ids/Set
+      --groups/Set
+      --to/string:
+    return fleet_.move-devices --ids=ids --groups=groups --to=to
 
   add-device --device-id/Uuid --name/string? --group/string --aliases/List?:
-    if aliases and aliases.is-empty: aliases = null
-    devices_.add (DeviceFleet --id=device-id --group=group --name=name --aliases=aliases)
-    write-devices_
+    fleet_.add-device
+        --device-id=device-id
+        --name=name
+        --group=group
+        --aliases=aliases
 
   static build-status_ device/DeviceDetailed get-state-events/List? last-event/Event? -> Status_:
     CHECKIN-VERIFICATIONS ::= 5
@@ -904,21 +548,14 @@ class FleetWithDevices extends Fleet:
         --is-modified=device.reported-state-current != null
 
   status --include-healthy/bool --include-never-seen/bool:
-    fleet-file := fleet-file_
-    migrating-from-brokers := fleet-file.migrating-from.map: | name/string |
-      config := fleet-file.servers[name]
-      Broker
-          --server-config=config
-          --fleet-id=id
-          --short-strings=device-short-strings_
-          --cli=cli_
-          --tmp-directory=artemis.tmp-directory
+    migrating-from-brokers := wiring.migrating-from.map: | name/string |
+      migrating-brokers_[name]
 
     all-brokers := [broker] + migrating-from-brokers
 
-    device-ids := devices_.map: it.id
+    device-ids := fleet_.devices.map: it.id
     id-to-fleet-device := {:}
-    devices_.do: | device/DeviceFleet |
+    fleet_.devices.do: | device/DeviceFleet |
       id-to-fleet-device[device.id] = device
 
     // We use the broker that has the last event for each device.
@@ -1077,19 +714,10 @@ class FleetWithDevices extends Fleet:
     cli_.ui.emit-table --result --header=header rows
 
   resolve-alias alias/string -> DeviceFleet:
-    if not aliases_.contains alias:
-      cli_.ui.abort "No device with name, device-id, or alias '$alias' in the fleet."
-    device-index := aliases_[alias]
-    if device-index == AMBIGUOUS_:
-      cli_.ui.abort "The name, device-id, or alias '$alias' is ambiguous."
-    return devices_[device-index]
+    return fleet_.resolve-alias alias
 
   device device-id/Uuid ->  DeviceFleet:
-    devices_.do: | device/DeviceFleet |
-      if device.id == device-id:
-        return device
-    cli_.ui.abort "No device with id $device-id in the fleet."
-    unreachable
+    return fleet_.device device-id
 
   /**
   Provisions a device.
@@ -1124,44 +752,28 @@ class FleetWithDevices extends Fleet:
   write-identity-file --out-path/string device/Device -> none:
     write-base64-ubjson-to-file out-path device.to-json-identity
 
-  migration-start --broker-config/ServerConfig:
-    // Forward to change the name of the parameter.
-    migration-start_ broker-config
-
-  migration-start_ new-broker-config/ServerConfig:
-    // The new broker operates under the same scope as the rest of the
-    // fleet. The new-broker-config typically comes from the global CLI
-    // config (which never carries a scope), so attach the fleet's scope
-    // here.
-    scoped-new-broker-config := new-broker-config.scope
-        ? new-broker-config
-        : new-broker-config.with --scope=fleet-file_.broker-scope
-    new-broker := Broker
-        --server-config=scoped-new-broker-config
-        --short-strings=device-short-strings_
-        --fleet-id=id
-        --tmp-directory=artemis.tmp-directory
-        --cli=cli_
+  migration-start new-broker/Broker:
+    new-broker-config := new-broker.server-config
 
     if new-broker.server-config.name == broker.server-config.name:
       // Do nothing. We are already running on this broker.
       return
 
-    detailed-devices := broker.get-devices --device-ids=(devices_.map: it.id)
-    new-devices := new-broker.get-devices --device-ids=(devices_.map: it.id)
+    detailed-devices := broker.get-devices --device-ids=(fleet_.devices.map: it.id)
+    new-devices := new-broker.get-devices --device-ids=(fleet_.devices.map: it.id)
 
     detailed-devices.do --values: | device/Device |
       // Only notify the new broker about devices that are not known to it.
       if not new-devices.contains device.id:
         new-broker.notify-created device
 
-    old-servers := fleet-file_.servers
+    old-servers := wiring.servers
     new-servers := old-servers
-    if not old-servers.contains scoped-new-broker-config.name:
+    if not old-servers.contains new-broker-config.name:
       new-servers = old-servers.copy
-      new-servers[scoped-new-broker-config.name] = scoped-new-broker-config
+      new-servers[new-broker-config.name] = new-broker-config
 
-    old-migrating-from := fleet-file_.migrating-from
+    old-migrating-from := wiring.migrating-from
     new-migrating-from := old-migrating-from
     if old-migrating-from.is-empty:
       new-migrating-from = [broker.server-config.name]
@@ -1172,36 +784,30 @@ class FleetWithDevices extends Fleet:
     new-migrating-from.filter --in-place: | name/string |
       name != new-broker-config.name
 
-    modified-fleet-file := fleet-file_.with
+    wiring.save-wiring
         --broker-name=new-broker-config.name
         --migrating-from=new-migrating-from
         --servers=new-servers
-    modified-fleet-file.write
 
   migration-stop broker-names/List --force/bool:
-    fleet-file := fleet-file_
+    migrating-from := wiring.migrating-from
 
-    if broker-names.is-empty: broker-names = fleet-file.migrating-from
+    if broker-names.is-empty: broker-names = migrating-from
 
     if not force:
       // Check that all devices have migrated.
-      device-ids := devices_.map: it.id
+      device-ids := fleet_.devices.map: it.id
       detailed-devices := broker.get-devices --device-ids=device-ids
       last-events := broker.get-last-events --device-ids=device-ids
 
       broker-names.do: | name/string |
-        current-broker := Broker
-            --server-config=fleet-file.servers[name]
-            --short-strings=device-short-strings_
-            --fleet-id=id
-            --tmp-directory=artemis.tmp-directory
-            --cli=cli_
+        current-broker/Broker := migrating-brokers_[name]
         current-detailed-devices := current-broker.get-devices --device-ids=device-ids
         current-ids := current-detailed-devices.keys
         current-last-events := current-broker.get-last-events --device-ids=current-ids
         current-last-events.do: | device-id/Uuid event/Event |
           if not last-events.contains device-id or last-events[device-id].timestamp < event.timestamp:
-            devices_.do: | fleet-device/DeviceFleet |
+            fleet_.devices.do: | fleet-device/DeviceFleet |
               if fleet-device.id == device-id:
                 cli_.ui.abort "Device $fleet-device.short-string has not migrated yet."
             unreachable
@@ -1209,16 +815,15 @@ class FleetWithDevices extends Fleet:
     brokers-set := Set
     new-migrating-from := ?
     brokers-set.add-all broker-names
-    new-migrating-from = fleet-file.migrating-from.filter: not brokers-set.contains it
+    new-migrating-from = migrating-from.filter: not brokers-set.contains it
 
-    main-broker := fleet-file.broker-name
-    new-servers := fleet-file.servers.filter: | name/string _ |
+    main-broker := wiring.broker-name
+    new-servers := wiring.servers.filter: | name/string _ |
       name == main-broker or not brokers-set.contains name
 
-    modified-fleet-file := fleet-file_.with
+    wiring.save-wiring
         --migrating-from=new-migrating-from
         --servers=new-servers
-    modified-fleet-file.write
 
   static device-from --identity-path/string -> Device:
     identity := read-base64-ubjson identity-path

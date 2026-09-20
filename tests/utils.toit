@@ -890,15 +890,9 @@ class TestDevicePipe extends TestDevice:
         stderr.close
 
   kill-subprocess_:
-    SIGTERM ::= 15
-    SIGKILL ::= 9
-    [SIGTERM, SIGKILL].do: | signal |
-      catch:
-        with-timeout --ms=250:
-          pipe.kill_ child-process_.pid signal
-          child-process_.wait
-          child-process_ = null
-        return
+    child-process := child-process_
+    child-process.kill --wait --hard-after-ms=250
+    child-process_ = null
 
   close:
     critical-do:

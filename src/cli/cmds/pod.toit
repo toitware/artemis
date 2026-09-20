@@ -301,7 +301,7 @@ create-pod invocation/Invocation:
   specification-path := invocation["specification"]
   output := invocation["output"]
 
-  with-pod-fleet invocation: | fleet/Fleet |
+  with-pod-fleet invocation: | fleet/LegacyFleet |
     artemis := fleet.artemis
     broker := fleet.broker
     pod := Pod.from-specification
@@ -332,7 +332,7 @@ upload invocation/Invocation:
   else:
     tags.add "latest"
 
-  with-pod-fleet invocation: | fleet/Fleet |
+  with-pod-fleet invocation: | fleet/LegacyFleet |
     artemis := fleet.artemis
     broker := fleet.broker
     pod-paths.do: | pod-path/string |
@@ -367,7 +367,7 @@ download invocation/Invocation:
 
   reference := PodReference.parse reference-string --allow-name-only --cli=cli
 
-  with-pod-fleet invocation: | fleet/Fleet |
+  with-pod-fleet invocation: | fleet/LegacyFleet |
     pod := fleet.download reference
     pod.write output --cli=cli
     cli.ui.emit --info "Downloaded pod '$reference-string' to '$output'."
@@ -378,7 +378,7 @@ list invocation/Invocation:
 
   names := invocation["name"]
 
-  with-pod-fleet invocation: | fleet/Fleet |
+  with-pod-fleet invocation: | fleet/LegacyFleet |
     pods := fleet.list-pods --names=names
     // TODO(florian):
     // we want to have 'created_at' in the registry entry.
@@ -461,7 +461,7 @@ delete invocation/Invocation:
   reference-strings := invocation["name-or-reference"]
   all := invocation["all"]
 
-  with-pod-fleet invocation: | fleet/Fleet |
+  with-pod-fleet invocation: | fleet/LegacyFleet |
     if all:
       fleet.delete --description-names=reference-strings
     else:
@@ -480,7 +480,7 @@ tag-add invocation/Invocation:
   force := invocation["force"]
   references := invocation["reference"]
 
-  with-pod-fleet invocation: | fleet/Fleet |
+  with-pod-fleet invocation: | fleet/LegacyFleet |
     refs := references.map: | name/string |
       PodReference.parse name --allow-name-only --cli=cli
     fleet.add-tags --tags=tags --force=force --references=refs
@@ -496,7 +496,7 @@ tag-remove invocation/Invocation:
   tags := invocation["tag"]
   pod-names := invocation["pod-name"]
 
-  with-pod-fleet invocation: | fleet/Fleet |
+  with-pod-fleet invocation: | fleet/LegacyFleet |
     refs := pod-names.map: | name/string |
       ref := PodReference.parse name --allow-name-only --cli=cli
       if not ref.is-name-only:
