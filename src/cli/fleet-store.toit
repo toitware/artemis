@@ -5,8 +5,8 @@ import uuid show Uuid
 /**
 Stores the declared state of a fleet.
 
-Every store contains the complete declared device inventory. Access wiring,
-  broker configuration, and legacy fleet references are not fleet state.
+Every store contains the fleet identity, groups and their desired pod references,
+  and the complete declared device inventory.
 */
 interface FleetStore:
   /** Returns the fleet identity. */
