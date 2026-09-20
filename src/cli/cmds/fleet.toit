@@ -61,17 +61,20 @@ create-fleet-commands -> List:
         This command initializes a fleet root in a directory, so it can be
         used by the other fleet commands.
 
-        The directory can be specified using the '--fleet-root' option.
+        Select the directory or artemis.yaml using '--fleet'.
 
-        The fleet will be in the given organization id. If no organization id
-        is given, the default organization is used.
+        If artemis.yaml exists, initialize its configured file-backed fleet
+        locally. Configure backend scopes and credentials in the workspace.
+
+        Otherwise initialize the existing fleet.json layout. That fleet will
+        use the given organization id, or the default organization.
 
         If a broker is given, it must match the name of one that has been added using
         the 'config broker add' command. If no broker is given, the default broker is used.
         """
       --options=[
         OptionUuid "organization-id"
-            --help="The organization to use.",
+            --help="The organization to use for a legacy fleet. Workspace scopes are configured in artemis.yaml.",
         Option "broker"
             --help="The broker to use.",
       ]
@@ -624,6 +627,16 @@ init invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
 
+  if workspace := find-workspace invocation:
+    if invocation["organization-id"] or invocation["broker"]:
+      ui.abort "Configure backend servers and scopes in artemis.yaml for workspace fleets."
+    id := Artemis.initialize-workspace workspace --cli=cli
+    ui.emit --info "Workspace fleet initialized."
+    ui.emit --kind=Ui.RESULT
+        --structured=: {"id": "$id"}
+        --text=: null
+    return
+
   fleet-root-flag := invocation["fleet-root"]
   organization-id := invocation["organization-id"]
   broker-name := invocation["broker"]
@@ -825,7 +838,7 @@ group-list invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
 
-  with-devices-fleet invocation: | fleet/LegacyFleet |
+  with-declared-fleet invocation: | fleet/Fleet |
     structured := []
     fleet.groups.do: | name pod-reference/PodReference |
       structured.add {
@@ -845,7 +858,7 @@ group-add invocation/Invocation:
   name := invocation["name"]
   force := invocation["force"]
 
-  with-devices-fleet invocation: | fleet/LegacyFleet |
+  with-declared-fleet invocation: | fleet/Fleet |
     pod-reference/PodReference? := null
     if pod:
       pod-reference = PodReference.parse pod --if-error=:
@@ -856,7 +869,7 @@ group-add invocation/Invocation:
       pod-reference = fleet.pod-reference-for-group DEFAULT-GROUP
 
     if not force:
-      if not fleet.pod-exists pod-reference:
+      if not fleet-pod-exists invocation pod-reference:
         ui.abort "Pod '$pod-reference' does not exist."
 
     fleet.add-group name pod-reference
@@ -884,7 +897,7 @@ group-update invocation/Invocation:
 
   executed-actions/List := []
 
-  with-devices-fleet invocation: | fleet/LegacyFleet |
+  with-declared-fleet invocation: | fleet/Fleet |
     pod-reference/PodReference? := null
     if pod:
       pod-reference = PodReference.parse pod --if-error=:
@@ -901,7 +914,7 @@ group-update invocation/Invocation:
         pod-reference = old-pod-reference.with --tag=tag
 
       if pod-reference and not force:
-        if not fleet.pod-exists pod-reference:
+        if not fleet-pod-exists invocation pod-reference:
           ui.abort "Pod '$pod-reference' does not exist."
 
       if pod-reference:
@@ -919,7 +932,7 @@ group-remove invocation/Invocation:
 
   group := invocation["group"]
 
-  with-devices-fleet invocation: | fleet/LegacyFleet |
+  with-declared-fleet invocation: | fleet/Fleet |
     if not fleet.remove-group group:
       ui.emit --info "Group '$group' does not exist."
       return
@@ -935,7 +948,7 @@ group-move invocation/Invocation:
   devices-to-move := invocation["device"]
 
   ids-to-move := {}
-  with-devices-fleet invocation: | fleet/LegacyFleet |
+  with-declared-fleet invocation: | fleet/Fleet |
     devices-to-move.do: | device |
       ids-to-move.add (fleet.resolve-alias device).id
 

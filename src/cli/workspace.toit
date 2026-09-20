@@ -6,6 +6,7 @@ import host.file
 
 import .server-config
 import .utils show read-yaml write-yaml-to-file
+import ..shared.scope show Scope
 
 ARTEMIS-FILE ::= "artemis.yaml"
 WORKSPACE-SCHEMA ::= "https://toit.io/schemas/artemis/workspace/v1.json"
@@ -25,6 +26,11 @@ class WorkspaceException:
 
 workspace-error_ message/string:
   throw (WorkspaceException message)
+
+validate-keys_ encoded/Map allowed/List context/string:
+  encoded.keys.do: | key |
+    if not allowed.contains key:
+      workspace-error_ "$context has unknown field '$key'."
 
 /** Describes the implementation selected for one Artemis interface. */
 abstract class BackendConfig:
@@ -55,6 +61,7 @@ class FileBackendConfig extends BackendConfig:
   directory/string
 
   constructor.from-map name/string encoded/Map:
+    validate-keys_ encoded ["type", "directory"] "File backend '$name'"
     directory := encoded.get "directory"
     if directory is not string or directory.is-empty:
       workspace-error_ "File backend '$name' must have a non-empty 'directory'."
@@ -73,8 +80,10 @@ class FileBackendConfig extends BackendConfig:
 class HttpBackendConfig extends BackendConfig:
   server-config/ServerConfig
   endpoint/string
+  scope/Scope
 
   constructor.from-map name/string encoded/Map servers/Map:
+    validate-keys_ encoded ["type", "server", "endpoint", "scope"] "HTTP backend '$name'"
     server-name := encoded.get "server"
     if server-name is not string or server-name.is-empty:
       workspace-error_ "HTTP backend '$name' must reference a server."
@@ -84,11 +93,14 @@ class HttpBackendConfig extends BackendConfig:
     endpoint := encoded.get "endpoint"
     if endpoint is not string or not endpoint.starts-with "/":
       workspace-error_ "HTTP backend '$name' must have an absolute-path 'endpoint'."
+    if endpoint.starts-with "//" or endpoint.contains "?" or endpoint.contains "#":
+      workspace-error_ "HTTP backend '$name' must have an endpoint without a host, query, or fragment."
     return HttpBackendConfig name
         --server-config=servers[server-name]
         --endpoint=endpoint
+        --scope=(Scope (encoded.get "scope"))
 
-  constructor name/string --.server-config --.endpoint:
+  constructor name/string --.server-config --.endpoint --.scope=(Scope null):
     super.from-sub_ name
 
   server-name -> string:
@@ -99,20 +111,29 @@ class HttpBackendConfig extends BackendConfig:
       "type": "http",
       "server": server-name,
       "endpoint": endpoint,
+      "scope": scope.to-json,
     }
 
 /**
 Configuration and local context used by Artemis.
 
-Named servers own reusable connection and authentication settings. Backend
-  configurations select independently which server and implementation to use.
+Named servers own reusable connection settings and references to local
+  credentials. Backend configurations select independently which server,
+  implementation, and scope to use.
 */
 class Workspace:
   path/string
   servers/Map
   backends/Map
+  credential-references/Map
 
-  constructor --.path --.servers --.backends:
+  constructor --.path --.servers --.backends --.credential-references={:}:
+
+  /** Finds a workspace at the selected directory or manifest path. */
+  static find root-or-path/string -> Workspace?:
+    path := file.is-directory root-or-path ? fs.join root-or-path ARTEMIS-FILE : root-or-path
+    if (fs.basename path) != ARTEMIS-FILE or not file.is-file path: return null
+    return load path
 
   /** Loads an `artemis.yaml` from $root-or-path. */
   static load root-or-path/string -> Workspace:
@@ -131,6 +152,7 @@ class Workspace:
   static from-map encoded/any --path/string=ARTEMIS-FILE -> Workspace:
     if encoded is not Map:
       workspace-error_ "Workspace file '$path' must contain a map."
+    validate-keys_ encoded ["\$schema", "servers", "backends"] "Workspace file '$path'"
 
     schema := encoded.get "\$schema"
     if schema != WORKSPACE-SCHEMA:
@@ -139,6 +161,7 @@ class Workspace:
     encoded-servers := encoded.get "servers"
     if encoded-servers is not Map:
       workspace-error_ "Workspace file '$path' must contain a 'servers' map."
+    credential-references := {:}
     servers := encoded-servers.map: | name encoded-server |
       if name is not string or name.is-empty:
         workspace-error_ "Workspace file '$path' contains an invalid server name."
@@ -148,6 +171,24 @@ class Workspace:
         workspace-error_ "Server '$name' cannot contain a fleet scope."
       if encoded-server.contains "poll_interval" or encoded-server.contains "device_headers":
         workspace-error_ "Server '$name' cannot contain embedded device configuration."
+      if encoded-server.contains "admin_headers":
+        workspace-error_ "Server '$name' must reference local credentials instead of embedding admin_headers."
+      type := encoded-server.get "type"
+      if type != "supabase" and type != "toit-http":
+        workspace-error_ "Server '$name' has unknown type '$type'."
+      allowed := ["type", "url", "credentials", "root_certificate_ders64"]
+      if type == "supabase": allowed.add "anon"
+      validate-keys_ encoded-server allowed "Server '$name'"
+      url := encoded-server.get "url"
+      if url is not string or not (url.starts-with "http://" or url.starts-with "https://"):
+        workspace-error_ "Server '$name' must have an HTTP or HTTPS URL."
+      if url.contains "?" or url.contains "#" or url.contains "@":
+        workspace-error_ "Server '$name' URL must not contain credentials, a query, or a fragment."
+      if encoded-server.contains "credentials":
+        reference := encoded-server["credentials"]
+        if reference is not string or reference.is-empty:
+          workspace-error_ "Server '$name' must have a non-empty credentials reference."
+        credential-references[name] = reference
       ServerConfig.from-json name encoded-server
           --der-deserializer=: base64.decode it
 
@@ -160,6 +201,7 @@ class Workspace:
       BackendConfig.from-map name encoded-backend servers
 
     return Workspace --path=path --servers=servers --backends=backends
+        --credential-references=credential-references
 
   /** Returns the configuration for the backend named $name. */
   backend name/string -> BackendConfig:
@@ -196,6 +238,9 @@ class Workspace:
       encoded-servers[name] = server-config.to-workspace-json
           --base64
           --der-serializer=: unreachable
+      encoded-servers[name].remove "admin_headers"
+      if reference := credential-references.get name:
+        encoded-servers[name]["credentials"] = reference
 
     encoded-backends := {:}
     backends.keys.sort.do: | name/string |

@@ -11,9 +11,7 @@
     "backends"
   ],
   "properties": {
-    "$schema": {
-      "const": "https://toit.io/schemas/artemis/workspace/v1.json"
-    },
+    "$schema": { "const": "https://toit.io/schemas/artemis/workspace/v1.json" },
     "servers": {
       "type": "object",
       "additionalProperties": {
@@ -44,11 +42,19 @@
       ],
       "properties": {
         "type": { "const": "supabase" },
-        "url": { "type": "string", "format": "uri" },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
         "anon": { "type": "string" },
         "root_certificate_ders64": {
           "type": "array",
           "items": { "type": "string" }
+        },
+        "credentials": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the matching server in local CLI configuration whose credentials to use."
         }
       }
     },
@@ -61,14 +67,18 @@
       ],
       "properties": {
         "type": { "const": "toit-http" },
-        "url": { "type": "string", "format": "uri" },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
         "root_certificate_ders64": {
           "type": "array",
           "items": { "type": "string" }
         },
-        "admin_headers": {
-          "type": "object",
-          "additionalProperties": { "type": "string" }
+        "credentials": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the matching server in local CLI configuration whose credentials to use."
         }
       }
     },
@@ -103,7 +113,10 @@
         },
         "endpoint": {
           "type": "string",
-          "pattern": "^/"
+          "pattern": "^/(?!/)[^?#]*$"
+        },
+        "scope": {
+          "description": "Opaque scope interpreted by this backend; null when omitted."
         }
       }
     }

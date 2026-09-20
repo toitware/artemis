@@ -17,6 +17,62 @@ import ..pod
 import ..sdk
 import ..server-config
 import ..utils
+import ..workspace
+import ..workspace-backends
+import ..pod-registry show PodReference PodRegistryDescription
+
+find-workspace invocation/Invocation -> Workspace?:
+  workspace/Workspace? := null
+  exception := catch: workspace = Workspace.find (compute-fleet-root-or-ref invocation)
+  if exception: invocation.cli.ui.abort "$exception"
+  return workspace
+
+with-declared-fleet invocation/Invocation [block]:
+  if workspace := find-workspace invocation:
+    backends := WorkspaceBackends workspace --cli=invocation.cli
+    try:
+      block.call (Fleet backends.fleet-strategy.open --cli=invocation.cli)
+    finally:
+      backends.close
+  else:
+    with-devices-fleet invocation: | legacy/LegacyFleet |
+      block.call legacy.declared-fleet
+
+fleet-pod-exists invocation/Invocation reference/PodReference -> bool:
+  if workspace := find-workspace invocation:
+    backends := WorkspaceBackends workspace --cli=invocation.cli
+    try:
+      fleet-id := backends.fleet-strategy.open.id
+      pods := backends.pods
+      id := reference.id
+      if not id:
+        id = (pods.pod-registry-pod-ids --fleet-id=fleet-id --references=[reference]).get reference
+      if not id: return false
+      return not (pods.pod-registry-pods --fleet-id=fleet-id --pod-ids=[id]).is-empty
+    finally:
+      backends.close
+  with-pod-fleet invocation: | legacy/LegacyFleet |
+    return legacy.pod-exists reference
+  unreachable
+
+with-listed-pods invocation/Invocation names/List [block]:
+  if workspace := find-workspace invocation:
+    backends := WorkspaceBackends workspace --cli=invocation.cli
+    try:
+      fleet-id := backends.fleet-strategy.open.id
+      pods := backends.pods
+      descriptions := names.is-empty
+          ? pods.pod-registry-descriptions --fleet-id=fleet-id
+          : pods.pod-registry-descriptions --fleet-id=fleet-id --names=names --no-create-if-absent
+      result := {:}
+      descriptions.do: | description/PodRegistryDescription |
+        result[description] = pods.pod-registry-pods --pod-description-id=description.id
+      block.call result
+    finally:
+      backends.close
+  else:
+    with-pod-fleet invocation: | legacy/LegacyFleet |
+      block.call (legacy.list-pods --names=names)
 
 with-artemis invocation/Invocation [block]:
   cli := invocation.cli
@@ -46,6 +102,8 @@ default-organization-from-config --cli/Cli -> Uuid?:
 
 with-devices-fleet invocation/Invocation [block]:
   cli := invocation.cli
+  if find-workspace invocation:
+    cli.ui.abort "This device workflow is not yet available for workspace fleets."
 
   // Device operations require complete declared state. The store strategy
   // rejects legacy access-only references.
@@ -65,6 +123,8 @@ with-devices-fleet invocation/Invocation [block]:
 
 with-pod-fleet invocation/Invocation [block]:
   cli := invocation.cli
+  if find-workspace invocation:
+    cli.ui.abort "This workflow is not yet available for workspace fleets."
 
   fleet-root-or-ref := compute-fleet-root-or-ref invocation
 

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://toit.io/schemas/artemis/fleet-state/v1.json",
+  "title": "Artemis fleet identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "id"],
+  "properties": {
+    "$schema": {"const": "https://toit.io/schemas/artemis/fleet-state/v1.json"},
+    "id": {"type": "string", "format": "uuid"}
+  }
+}

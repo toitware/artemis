@@ -7,6 +7,7 @@ import artemis.cli.workspace show
     WorkspaceException
     WORKSPACE-SCHEMA
 import artemis.shared.server-config show ServerConfigSupabase
+import artemis.shared.json-diff show json-equals
 import expect show *
 import fs
 import host
@@ -17,6 +18,7 @@ main:
   test-round-trip
   test-yaml-file
   test-validation
+  test-endpoint-validation
 
 test-server-indirection:
   workspace := Workspace.from-map --path="/work/artemis.yaml" {
@@ -71,7 +73,7 @@ test-round-trip:
       "local": {
         "type": "toit-http",
         "url": "http://localhost:4998",
-        "admin_headers": {"Authorization": "Bearer token"},
+        "credentials": "local-login",
       },
     },
     "backends": {
@@ -79,6 +81,7 @@ test-round-trip:
         "type": "http",
         "server": "local",
         "endpoint": "/broker",
+        "scope": {"tenant": "test", "namespace": ["devices"]},
       },
     },
   }
@@ -88,10 +91,10 @@ test-round-trip:
   backend := decoded.broker as HttpBackendConfig
   expect-equals "local" backend.server-name
   expect-equals "/broker" backend.endpoint
-  server-map := backend.server-config.to-json
-      --base64
-      --der-serializer=: unreachable
-  expect-equals "Bearer token" server-map["admin_headers"]["Authorization"]
+  expect-equals "local-login" decoded.credential-references["local"]
+  expect (json-equals {"tenant": "test", "namespace": ["devices"]} backend.scope.to-json)
+  expect-not (decoded.to-map["servers"]["local"].contains "scope")
+  expect-not (decoded.to-map["servers"]["local"].contains "admin_headers")
 
 test-yaml-file:
   host.with-tmp-directory: | tmp/string |
@@ -114,6 +117,14 @@ test-yaml-file:
     expect-equals (fs.join tmp "fleet") (loaded.resolve fleet.directory)
 
 test-validation:
+  expect-workspace-error "Server 'local' must reference local credentials instead of embedding admin_headers.":
+    Workspace.from-map {
+      "\$schema": WORKSPACE-SCHEMA,
+      "servers": {
+        "local": {"type": "toit-http", "url": "http://localhost", "admin_headers": {"Authorization": "secret"}},
+      },
+      "backends": {:},
+    }
   expect-workspace-error "Workspace file 'artemis.yaml' has unsupported schema 'null'.":
     Workspace.from-map {
       "servers": {:},
@@ -163,3 +174,18 @@ expect-workspace-error message/string [block]:
   exception := catch: block.call
   expect exception is WorkspaceException
   expect-equals message (exception as WorkspaceException).message
+
+test-endpoint-validation:
+  ["//other.example/path", "/pods?key=value", "/pods#fragment"].do: | endpoint/string |
+    expect-workspace-error "HTTP backend 'pods' must have an endpoint without a host, query, or fragment.":
+      Workspace.from-map {
+        "\$schema": WORKSPACE-SCHEMA,
+        "servers": {"local": {"type": "toit-http", "url": "https://example.net"}},
+        "backends": {"pods": {"type": "http", "server": "local", "endpoint": endpoint}},
+      }
+  expect-workspace-error "Server 'local' has unknown field 'credential'.":
+    Workspace.from-map {
+      "\$schema": WORKSPACE-SCHEMA,
+      "servers": {"local": {"type": "toit-http", "url": "https://example.net", "credential": "typo"}},
+      "backends": {:},
+    }

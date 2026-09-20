@@ -5,6 +5,7 @@ import artemis.cli.fleet show
     DeviceFleet
     Fleet
 import artemis.cli.file-fleet-store show FileFleetStoreStrategy
+import artemis.cli.directory-fleet-store show DirectoryFleetStoreStrategy
 import artemis.cli.fleet-store show FleetStore
 import artemis.cli.pod-registry show PodReference
 import artemis.cli.server-config show ServerConfigHttp
@@ -62,6 +63,14 @@ main:
 
     reloaded := file-strategy.open
     expect-final-state reloaded
+
+    directory-strategy := DirectoryFleetStoreStrategy --root="$tmp/fleet" --cli=cli
+    directory-store := directory-strategy.create
+        --id=Uuid.parse FLEET-ID
+        --group-pods=initial-groups cli
+        --devices=initial-devices
+    exercise-contract directory-store --cli=cli
+    expect-final-state directory-strategy.open
 
     reference-path := "$tmp/fleet-reference.json"
     file-store.write-reference --path=reference-path
