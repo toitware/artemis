@@ -11,9 +11,7 @@
     "backends"
   ],
   "properties": {
-    "$schema": {
-      "const": "https://toit.io/schemas/artemis/workspace/v1.json"
-    },
+    "$schema": { "const": "https://toit.io/schemas/artemis/workspace/v1.json" },
     "servers": {
       "type": "object",
       "additionalProperties": {
@@ -44,11 +42,17 @@
       ],
       "properties": {
         "type": { "const": "supabase" },
-        "url": { "type": "string", "format": "uri" },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
         "anon": { "type": "string" },
         "root_certificate_ders64": {
           "type": "array",
           "items": { "type": "string" }
+        },
+        "credentials": {
+          "$ref": "#/$defs/CliConfigCredentials"
         }
       }
     },
@@ -61,14 +65,30 @@
       ],
       "properties": {
         "type": { "const": "toit-http" },
-        "url": { "type": "string", "format": "uri" },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
         "root_certificate_ders64": {
           "type": "array",
           "items": { "type": "string" }
         },
-        "admin_headers": {
-          "type": "object",
-          "additionalProperties": { "type": "string" }
+        "credentials": {
+          "$ref": "#/$defs/CliConfigCredentials"
+        }
+      }
+    },
+    "CliConfigCredentials": {
+      "description": "Looks up credentials outside the workspace in the user's local CLI configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name"],
+      "properties": {
+        "type": { "const": "cli-config" },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the local CLI server entry, whose type and URL must match this workspace server."
         }
       }
     },
@@ -103,7 +123,10 @@
         },
         "endpoint": {
           "type": "string",
-          "pattern": "^/"
+          "pattern": "^/(?!/)[^?#]*$"
+        },
+        "scope": {
+          "description": "Opaque scope interpreted by this backend; null when omitted."
         }
       }
     }

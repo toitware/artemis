@@ -266,6 +266,10 @@ class LegacyFleet:
       cli_.ui.abort "This operation requires complete declared fleet state."
     return declared-fleet_
 
+  /** Returns the declared fleet used by local state operations. */
+  declared-fleet -> Fleet:
+    return fleet_
+
   /**
   The organization-id encoded inside $broker-scope.
 

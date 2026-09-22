@@ -55,8 +55,8 @@ main args --cli/Cli?:
             --help="Specify the fleet root. Can also be set with the ARTEMIS_FLEET_ROOT environment variable."
             --hidden,
         Option "fleet"
-            --type="directory|reference"
-            --help="Specify the fleet. Can also be set with the ARTEMIS_FLEET environment variable.",
+            --type="directory|workspace|reference"
+            --help="Specify the fleet directory, artemis.yaml, or legacy reference. Can also be set with the ARTEMIS_FLEET environment variable.",
       ]
 
   create-config-commands.do: root-cmd.add it

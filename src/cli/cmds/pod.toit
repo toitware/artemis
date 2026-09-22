@@ -378,8 +378,7 @@ list invocation/Invocation:
 
   names := invocation["name"]
 
-  with-pod-fleet invocation: | fleet/LegacyFleet |
-    pods := fleet.list-pods --names=names
+  with-listed-pods invocation names: | pods/Map |
     // TODO(florian):
     // we want to have 'created_at' in the registry entry.
     // we want to have a second way of listing: one where we only list the ones that

@@ -25,6 +25,10 @@ import .auth-providers.auth-provider
 import .sdk
 import .organization
 import .server-config
+import .workspace
+import .workspace-backends
+import .fleet show DEFAULT-GROUP
+import .pod-registry show PodReference
 
 /**
 Manages devices that have an Artemis service running on them.
@@ -39,6 +43,18 @@ class Artemis:
 
   constructor --cli/Cli --.tmp-directory --.server-config:
     cli_ = cli
+
+  /** Initializes declared fleet state using the workspace's fleet strategy. */
+  static initialize-workspace workspace/Workspace --cli/Cli -> Uuid:
+    backends := WorkspaceBackends workspace --cli=cli
+    try:
+      store := backends.fleet-strategy.create
+          --id=random-uuid
+          --group-pods={DEFAULT-GROUP: PodReference.parse "$INITIAL-POD-NAME@latest" --cli=cli}
+          --devices=[]
+      return store.id
+    finally:
+      backends.close
 
   /**
   Closes the manager.

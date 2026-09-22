@@ -11,15 +11,18 @@ import ...config
 import ...utils.supabase
 import ....shared.server-config
 
-create-server-supabase-http server-config/ServerConfigSupabase --cli/Cli -> ServerSupabase:
+create-server-supabase-http server-config/ServerConfigSupabase --cli/Cli
+    --path-prefix/string="/functions/v1" --use-local-auth/bool=true -> ServerSupabase:
   server-config.install-root-certificates
-  local-storage := ConfigLocalStorage --cli=cli --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
+  local-storage/supabase.LocalStorage := use-local-auth
+      ? ConfigLocalStorage --cli=cli --auth-key="$(CONFIG-SERVER-AUTHS-KEY).$(server-config.name)"
+      : supabase.NoLocalStorage
   supabase-client := supabase.Client --server-config=server-config --local-storage=local-storage
   id := "supabase/$server-config.url"
 
   http-config := ServerConfigHttp
       server-config.name
-      --url="$(server-config.url)/functions/v1"
+      --url="$(server-config.url)$path-prefix"
       --admin-headers=null
       --device-headers=null
       --root-certificate-ders=server-config.root-certificate-ders

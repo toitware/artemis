@@ -163,7 +163,9 @@ class ServerHttp implements Server:
     if query-parameters and not query-parameters.is-empty:
       parts := []
       query-parameters.do: | key/string value/any |
-        encoded-value := value is ByteArray ? value : value.stringify
+        encoded-value := value is ByteArray
+            ? value
+            : value is Map or value is List ? json.encode value : value.stringify
         parts.add "$(url.encode key)=$(url.encode encoded-value)"
       request-url += "?$(parts.join "&")"
     return client_.request method encoded
@@ -175,36 +177,50 @@ class ServerHttp implements Server:
     return null
 class ArtifactStoreHttp implements ArtifactStore:
   server/Server
+  endpoint_/string
+  scope_/Scope?
 
-  constructor .server:
+  constructor .server --endpoint/string=ARTIFACT-STORE-PATH_ --scope/Scope?=null:
+    endpoint_ = endpoint
+    scope_ = scope
+
+  scope -> Scope:
+    return scope_ or server.scope
 
   upload-image --app-id/Uuid --word-size/int contents/ByteArray -> none:
-    scope := server.scope.to-json
-    server.send-request http.PUT "$ARTIFACT-STORE-PATH_/images" contents
+    scope := this.scope.to-json
+    server.send-request http.PUT "$endpoint_/images" contents
         --query-parameters={"scope": scope, "app_id": "$app-id", "word_size": "$word-size"}
         --binary-request
 
   upload-firmware --firmware-id/string chunks/List -> none:
-    scope := server.scope.to-json
+    scope := this.scope.to-json
     firmware := #[]
     chunks.do: firmware += it
-    server.send-request http.PUT "$ARTIFACT-STORE-PATH_/firmware" firmware
+    server.send-request http.PUT "$endpoint_/firmware" firmware
         --query-parameters={"scope": scope, "id": firmware-id}
         --binary-request
 
   download-firmware --id/string -> ByteArray:
-    scope := server.scope.to-json
-    return server.send-request http.GET "$ARTIFACT-STORE-PATH_/firmware"
+    scope := this.scope.to-json
+    return server.send-request http.GET "$endpoint_/firmware"
         --query-parameters={"scope": scope, "id": id}
         --binary-response
 
 class BrokerBackendHttp implements BrokerBackend:
   server/Server
+  endpoint_/string
+  scope_/Scope?
 
-  constructor .server:
+  constructor .server --endpoint/string=BROKER-PATH_ --scope/Scope?=null:
+    endpoint_ = endpoint
+    scope_ = scope
+
+  scope -> Scope:
+    return scope_ or server.scope
 
   get-devices --device-ids/List -> Map:
-    response := server.send-request http.POST "$BROKER-PATH_/devices/query" {
+    response := server.send-request http.POST "$endpoint_/devices/query" {
       "device_ids": device-ids.map: "$it"
     }
     result := {:}
@@ -226,7 +242,7 @@ class BrokerBackendHttp implements BrokerBackend:
       "limit": limit,
     }
     if since: payload["since"] = since.utc.to-iso8601-string
-    response := server.send-request http.POST "$BROKER-PATH_/events/query" payload
+    response := server.send-request http.POST "$endpoint_/events/query" payload
     result := {:}
     current-list/List? := null
     current-id/Uuid? := null
@@ -247,35 +263,42 @@ class BrokerBackendHttp implements BrokerBackend:
     if detailed-devices.size != 1: throw "Device not found: $device-id"
     detailed-device := detailed-devices[device-id]
     new-goal := block.call detailed-device
-    server.send-request http.PUT "$BROKER-PATH_/goal" {
+    server.send-request http.PUT "$endpoint_/goal" {
       "device_id": "$device-id",
       "goal": new-goal
     }
 
   update-goals --device-ids/List --goals/List -> none:
-    server.send-request http.PUT "$BROKER-PATH_/goals" {
+    server.send-request http.PUT "$endpoint_/goals" {
       "device_ids": device-ids.map: "$it",
       "goals": goals
     }
 
   notify-created --device-id/Uuid --state/Map -> none:
-    server.send-request http.POST "$BROKER-PATH_/devices" {
+    server.send-request http.POST "$endpoint_/devices" {
       "device_id": "$device-id",
-      "organization_id": server.scope.to-json,
+      "organization_id": scope.to-json,
       "state": state,
     }
 
 class PodStoreHttp implements PodStore:
   server/Server
+  endpoint_/string
+  scope_/Scope?
 
-  constructor .server:
+  constructor .server --endpoint/string=POD-STORE-PATH_ --scope/Scope?=null:
+    endpoint_ = endpoint
+    scope_ = scope
+
+  scope -> Scope:
+    return scope_ or server.scope
 
   pod-registry-description-upsert -> int
       --fleet-id/Uuid
       --name/string
       --description/string?:
-    scope := server.scope.to-json
-    return server.send-request http.PUT "$POD-STORE-PATH_/descriptions" {
+    scope := this.scope.to-json
+    return server.send-request http.PUT "$endpoint_/descriptions" {
       "fleet_id": "$fleet-id",
       "organization_id": scope,
       "name": name,
@@ -283,19 +306,19 @@ class PodStoreHttp implements PodStore:
     }
 
   pod-registry-descriptions-delete --fleet-id/Uuid --description-ids/List -> none:
-    server.send-request http.DELETE "$POD-STORE-PATH_/descriptions" {
+    server.send-request http.DELETE "$endpoint_/descriptions" {
       "fleet_id": "$fleet-id",
       "description_ids": description-ids,
     }
 
   pod-registry-add --pod-description-id/int --pod-id/Uuid -> none:
-    server.send-request http.POST "$POD-STORE-PATH_/pods" {
+    server.send-request http.POST "$endpoint_/pods" {
       "pod_description_id": pod-description-id,
       "pod_id": "$pod-id",
     }
 
   pod-registry-delete --fleet-id/Uuid --pod-ids/List -> none:
-    server.send-request http.DELETE "$POD-STORE-PATH_/pods" {
+    server.send-request http.DELETE "$endpoint_/pods" {
       "fleet_id": "$fleet-id",
       "pod_ids": pod-ids.map: "$it",
     }
@@ -305,7 +328,7 @@ class PodStoreHttp implements PodStore:
       --pod-id/Uuid
       --tag/string
       --force/bool=false:
-    server.send-request http.PUT "$POD-STORE-PATH_/tags" {
+    server.send-request http.PUT "$endpoint_/tags" {
       "pod_description_id": pod-description-id,
       "pod_id": "$pod-id",
       "tag": tag,
@@ -313,20 +336,20 @@ class PodStoreHttp implements PodStore:
     }
 
   pod-registry-tag-remove --pod-description-id/int --tag/string -> none:
-    server.send-request http.DELETE "$POD-STORE-PATH_/tags" {
+    server.send-request http.DELETE "$endpoint_/tags" {
       "pod_description_id": pod-description-id,
       "tag": tag,
     }
 
   pod-registry-descriptions --fleet-id/Uuid -> List:
-    response := server.send-request http.POST "$POD-STORE-PATH_/descriptions/query" {
+    response := server.send-request http.POST "$endpoint_/descriptions/query" {
       "query": "fleet",
       "fleet_id": "$fleet-id",
     }
     return response.map: PodRegistryDescription.from-map it
 
   pod-registry-descriptions --ids/List -> List:
-    response := server.send-request http.POST "$POD-STORE-PATH_/descriptions/query" {
+    response := server.send-request http.POST "$endpoint_/descriptions/query" {
       "query": "ids",
       "description_ids": ids,
     }
@@ -336,8 +359,8 @@ class PodStoreHttp implements PodStore:
       --fleet-id/Uuid
       --names/List
       --create-if-absent/bool:
-    scope := server.scope.to-json
-    response := server.send-request http.POST "$POD-STORE-PATH_/descriptions/query" {
+    scope := this.scope.to-json
+    response := server.send-request http.POST "$endpoint_/descriptions/query" {
       "query": "names",
       "fleet_id": "$fleet-id",
       "organization_id": scope,
@@ -347,7 +370,7 @@ class PodStoreHttp implements PodStore:
     return response.map: PodRegistryDescription.from-map it
 
   pod-registry-pods --pod-description-id/int -> List:
-    response := server.send-request http.POST "$POD-STORE-PATH_/pods/query" {
+    response := server.send-request http.POST "$endpoint_/pods/query" {
       "query": "description",
       "pod_description_id": pod-description-id,
       "limit": 1000,
@@ -356,7 +379,7 @@ class PodStoreHttp implements PodStore:
     return response.map: PodRegistryEntry.from-map it
 
   pod-registry-pods --fleet-id/Uuid --pod-ids/List -> List:
-    response := server.send-request http.POST "$POD-STORE-PATH_/pods/query" {
+    response := server.send-request http.POST "$endpoint_/pods/query" {
       "query": "ids",
       "fleet_id": "$fleet-id",
       "pod_ids": pod-ids.map: "$it",
@@ -364,7 +387,7 @@ class PodStoreHttp implements PodStore:
     return response.map: PodRegistryEntry.from-map it
 
   pod-registry-pod-ids --fleet-id/Uuid --references/List -> Map:
-    response := server.send-request http.POST "$POD-STORE-PATH_/references/resolve" {
+    response := server.send-request http.POST "$endpoint_/references/resolve" {
       "fleet_id": "$fleet-id",
       "references": references.map: | reference/PodReference |
         ref := {
@@ -385,25 +408,25 @@ class PodStoreHttp implements PodStore:
     return result
 
   pod-registry-upload-pod-part --part-id/string contents/ByteArray -> none:
-    scope := server.scope.to-json
-    server.send-request http.PUT "$POD-STORE-PATH_/parts" contents
+    scope := this.scope.to-json
+    server.send-request http.PUT "$endpoint_/parts" contents
         --query-parameters={"scope": scope, "id": part-id}
         --binary-request
 
   pod-registry-download-pod-part part-id/string -> ByteArray:
-    scope := server.scope.to-json
-    return server.send-request http.GET "$POD-STORE-PATH_/parts"
+    scope := this.scope.to-json
+    return server.send-request http.GET "$endpoint_/parts"
         --query-parameters={"scope": scope, "id": part-id}
         --binary-response
 
   pod-registry-upload-pod-manifest --pod-id/Uuid contents/ByteArray -> none:
-    scope := server.scope.to-json
-    server.send-request http.PUT "$POD-STORE-PATH_/manifests" contents
+    scope := this.scope.to-json
+    server.send-request http.PUT "$endpoint_/manifests" contents
         --query-parameters={"scope": scope, "id": "$pod-id"}
         --binary-request
 
   pod-registry-download-pod-manifest --pod-id/Uuid -> ByteArray:
-    scope := server.scope.to-json
-    return server.send-request http.GET "$POD-STORE-PATH_/manifests"
+    scope := this.scope.to-json
+    return server.send-request http.GET "$endpoint_/manifests"
         --query-parameters={"scope": scope, "id": "$pod-id"}
         --binary-response

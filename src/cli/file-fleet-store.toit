@@ -220,7 +220,7 @@ class FleetFile:
     result["recovery-urls"] = recovery-urls
     return result
 
-/** Reads and writes the legacy `devices.json` representation. */
+/** Reads and writes declared devices in `devices.json`. */
 class DevicesFile:
   path/string
   devices/List
