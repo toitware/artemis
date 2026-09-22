@@ -627,7 +627,8 @@ init invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
 
-  if workspace := find-workspace invocation:
+  workspace := find-workspace invocation
+  if workspace:
     if invocation["organization-id"] or invocation["broker"]:
       ui.abort "Configure backend servers and scopes in artemis.yaml for workspace fleets."
     id := Artemis.initialize-workspace workspace --cli=cli
@@ -838,7 +839,7 @@ group-list invocation/Invocation:
   cli := invocation.cli
   ui := cli.ui
 
-  with-declared-fleet invocation: | fleet/Fleet |
+  with-fleet invocation: | fleet/Fleet |
     structured := []
     fleet.groups.do: | name pod-reference/PodReference |
       structured.add {
@@ -858,7 +859,7 @@ group-add invocation/Invocation:
   name := invocation["name"]
   force := invocation["force"]
 
-  with-declared-fleet invocation: | fleet/Fleet |
+  with-fleet invocation: | fleet/Fleet |
     pod-reference/PodReference? := null
     if pod:
       pod-reference = PodReference.parse pod --if-error=:
@@ -897,7 +898,7 @@ group-update invocation/Invocation:
 
   executed-actions/List := []
 
-  with-declared-fleet invocation: | fleet/Fleet |
+  with-fleet invocation: | fleet/Fleet |
     pod-reference/PodReference? := null
     if pod:
       pod-reference = PodReference.parse pod --if-error=:
@@ -932,7 +933,7 @@ group-remove invocation/Invocation:
 
   group := invocation["group"]
 
-  with-declared-fleet invocation: | fleet/Fleet |
+  with-fleet invocation: | fleet/Fleet |
     if not fleet.remove-group group:
       ui.emit --info "Group '$group' does not exist."
       return
@@ -948,7 +949,7 @@ group-move invocation/Invocation:
   devices-to-move := invocation["device"]
 
   ids-to-move := {}
-  with-declared-fleet invocation: | fleet/Fleet |
+  with-fleet invocation: | fleet/Fleet |
     devices-to-move.do: | device |
       ids-to-move.add (fleet.resolve-alias device).id
 

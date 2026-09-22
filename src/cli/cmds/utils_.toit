@@ -22,13 +22,12 @@ import ..workspace-backends
 import ..pod-registry show PodReference PodRegistryDescription
 
 find-workspace invocation/Invocation -> Workspace?:
-  workspace/Workspace? := null
-  exception := catch: workspace = Workspace.find (compute-fleet-root-or-ref invocation)
-  if exception: invocation.cli.ui.abort "$exception"
-  return workspace
+  return Workspace.find (compute-fleet-root-or-ref invocation)
+      --if-error=: invocation.cli.ui.abort it
 
-with-declared-fleet invocation/Invocation [block]:
-  if workspace := find-workspace invocation:
+with-fleet invocation/Invocation [block]:
+  workspace := find-workspace invocation
+  if workspace:
     backends := WorkspaceBackends workspace --cli=invocation.cli
     try:
       block.call (Fleet backends.fleet-strategy.open --cli=invocation.cli)
@@ -39,7 +38,8 @@ with-declared-fleet invocation/Invocation [block]:
       block.call legacy.declared-fleet
 
 fleet-pod-exists invocation/Invocation reference/PodReference -> bool:
-  if workspace := find-workspace invocation:
+  workspace := find-workspace invocation
+  if workspace:
     backends := WorkspaceBackends workspace --cli=invocation.cli
     try:
       fleet-id := backends.fleet-strategy.open.id
@@ -56,7 +56,8 @@ fleet-pod-exists invocation/Invocation reference/PodReference -> bool:
   unreachable
 
 with-listed-pods invocation/Invocation names/List [block]:
-  if workspace := find-workspace invocation:
+  workspace := find-workspace invocation
+  if workspace:
     backends := WorkspaceBackends workspace --cli=invocation.cli
     try:
       fleet-id := backends.fleet-strategy.open.id

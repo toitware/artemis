@@ -67,18 +67,20 @@ class WorkspaceBackends:
     reference/string? := workspace.credential-references.get name
     if not reference: return portable
 
-    local := get-server-from-config --cli=cli_ --name=reference
+    credential-config := get-server-from-config --cli=cli_ --name=reference
     encoded := portable.to-workspace-json --base64 --der-serializer=: unreachable
-    local-encoded := local.to-json --base64 --der-serializer=: unreachable
-    if local.type != portable.type or local-encoded["url"] != encoded["url"]:
+    encoded-credential-config := credential-config.to-json --base64 --der-serializer=: unreachable
+    if credential-config.type != portable.type or encoded-credential-config["url"] != encoded["url"]:
       cli_.ui.abort "Credentials '$reference' do not match the type and URL of workspace server '$name'."
-    if headers := local-encoded.get "admin_headers":
+    headers := encoded-credential-config.get "admin_headers"
+    if headers:
       encoded["admin_headers"] = headers
     // Supabase sessions are stored under auths.<local-server-name>.
     return ServerConfig.from-json reference encoded --der-deserializer=: unreachable
 
   server_ name/string -> Server:
-    if server := servers_.get name: return server
+    cached-server := servers_.get name
+    if cached-server: return cached-server
     config := server-config name
     server/Server := config is ServerConfigSupabase
         ? create-server-supabase-http (config as ServerConfigSupabase)

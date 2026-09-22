@@ -17,7 +17,7 @@ import .utils show TestUi TestExit with-tmp-config-cli
 main:
   host.with-tmp-directory: | tmp/string |
     with-tmp-config-cli: | cli/cli.Cli |
-      workspace := Workspace.from-map --path=(fs.join tmp "artemis.yaml") {
+      workspace := Workspace.from-map --path=(fs.join tmp "artemis.yaml") --if-error=(: unreachable) {
         "\$schema": WORKSPACE-SCHEMA,
         "servers": {:},
         "backends": {"fleet": {"type": "file", "directory": "state/fleet"}},
@@ -64,6 +64,49 @@ main:
       expect (message.contains "does not configure a 'pods' backend")
       message = run cli ["fleet", "init", "--fleet", tmp, "--organization-id", device-id] --fail
       expect (message.contains "Configure backend servers and scopes in artemis.yaml")
+
+      // Malformed fleet metadata produces a CLI diagnostic without changing fleet state.
+      metadata-path := fs.join tmp "state/fleet/fleet.yaml"
+      metadata-contents := file.read-contents metadata-path
+      file.write-contents --path=metadata-path "["
+      message = run cli ["fleet", "group", "list", "--fleet", tmp] --fail
+      expect (message.contains "Failed to read fleet YAML '$metadata-path':")
+      expect (message.contains "INVALID_YAML_DOCUMENT")
+      expect-equals "[" (file.read-contents metadata-path).to-string
+      file.write-contents --path=metadata-path metadata-contents
+      expect-json [{"name": "default", "pod": "my-pod@latest"}]
+          run cli ["fleet", "group", "list", "--fleet", tmp] --json
+
+      // Malformed or missing groups produce CLI diagnostics without recreating the file.
+      groups-path := fs.join tmp "state/fleet/groups.json"
+      groups-contents := file.read-contents groups-path
+      file.write-contents --path=groups-path "["
+      message = run cli ["fleet", "group", "list", "--fleet", tmp] --fail
+      expect (message.contains "Failed to read fleet groups JSON '$groups-path':")
+      expect-equals "[" (file.read-contents groups-path).to-string
+      file.write-contents --path=groups-path groups-contents
+
+      saved-groups-path := fs.join tmp "saved-groups.json"
+      file.rename groups-path saved-groups-path
+      try:
+        message = run cli ["fleet", "group", "list", "--fleet", tmp] --fail
+        expect (message.contains "Failed to read fleet groups JSON '$groups-path':")
+        expect (message.contains "FILE_NOT_FOUND")
+        expect-not (file.is-file groups-path)
+      finally:
+        file.rename saved-groups-path groups-path
+      expect-json [{"name": "default", "pod": "my-pod@latest"}]
+          run cli ["fleet", "group", "list", "--fleet", tmp] --json
+
+      // An invalid workspace must abort instead of falling back to legacy initialization.
+      file.write-contents --path=workspace.path "["
+      message = run cli ["fleet", "init", "--fleet", tmp] --fail
+      expect (message.contains "Failed to read workspace YAML")
+      expect-not (file.is-file (fs.join tmp "fleet.json"))
+      file.write-contents --path=workspace.path "servers: {}\nbackends: {}\n"
+      message = run cli ["fleet", "init", "--fleet", tmp] --fail
+      expect (message.contains "unsupported schema")
+      expect-not (file.is-file (fs.join tmp "fleet.json"))
 
 run cli/cli.Cli args/List --json/bool=false --fail/bool=false -> any:
   ui := TestUi --json=json

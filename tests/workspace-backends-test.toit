@@ -48,10 +48,14 @@ main:
         second-url := "http://localhost:$(second.local-address.port)"
         add-server-to-config --cli=cli
             ServerConfigHttp "local-login" --url=first-url --admin-headers={"Authorization": "Bearer local-secret"}
-        workspace := Workspace.from-map --path=(fs.join tmp "artemis.yaml") {
+        workspace := Workspace.from-map --path=(fs.join tmp "artemis.yaml") --if-error=(: unreachable) {
           "\$schema": WORKSPACE-SCHEMA,
           "servers": {
-            "shared": {"type": "toit-http", "url": first-url, "credentials": "local-login"},
+            "shared": {
+              "type": "toit-http",
+              "url": first-url,
+              "credentials": {"type": "cli-config", "name": "local-login"},
+            },
             "artifacts": {"type": "toit-http", "url": second-url},
             "public": {"type": "supabase", "url": second-url, "anon": "public-key"},
           },
@@ -87,7 +91,7 @@ main:
           expect-not ((json.encode workspace.to-map).to-string.contains "local-secret")
 
           // Supabase uses the explicit endpoint once and has no implicit local session.
-          public-workspace := Workspace.from-map {
+          public-workspace := Workspace.from-map --if-error=(: unreachable) {
             "\$schema": WORKSPACE-SCHEMA,
             "servers": {"public": workspace.to-map["servers"]["public"]},
             "backends": {"pods": workspace.to-map["backends"]["public-pods"]},
@@ -111,8 +115,9 @@ main:
             "expires_at_epoch_ms": (Time.now + (Duration --h=1)).ms-since-epoch,
           }
           authenticated := public-workspace.to-map
-          authenticated["servers"]["public"]["credentials"] = "supabase-login"
-          authenticated-backends := WorkspaceBackends (Workspace.from-map authenticated) --cli=cli
+          authenticated["servers"]["public"]["credentials"] = {"type": "cli-config", "name": "supabase-login"}
+          authenticated-workspace := Workspace.from-map authenticated --if-error=(: unreachable)
+          authenticated-backends := WorkspaceBackends authenticated-workspace --cli=cli
           try:
             authenticated-backends.pods.pod-registry-descriptions --fleet-id=(Uuid.parse DEVICE-ID)
             expect-equals "Bearer session-secret" requests.last["authorization"]

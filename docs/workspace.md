@@ -65,11 +65,15 @@ servers:
   control:
     type: toit-http
     url: https://control.example.net
-    credentials: control-login
+    credentials:
+      type: cli-config
+      name: control-login
   content:
     type: toit-http
     url: https://content.example.net
-    credentials: content-login
+    credentials:
+      type: cli-config
+      name: content-login
 backends:
   fleet:
     type: file
@@ -91,13 +95,21 @@ backends:
     scope: artifact-storage-scope
 ```
 
-`credentials` names a server entry in local CLI configuration. For HTTP servers,
-its `admin_headers` supply request credentials. For Supabase, the session is
-looked up under `auths.<local-server-name>`, as with existing login commands.
+`credentials.type: cli-config` explicitly selects credentials from the user's
+local CLI configuration, outside the workspace. `credentials.name` identifies
+the server entry there; the name is arbitrary and need not match the workspace
+server name. Each user can configure their own credentials under the same name.
+For HTTP servers, that entry's `admin_headers` supply request credentials. For
+Supabase, the session is looked up under `auths.<local-server-name>`, as with
+existing login commands.
 The local entry must match the workspace server's type and URL. Its URL, scope,
 device settings, and certificate roots do not override the manifest. Credentials
 are resolved only when the corresponding backend is opened. A server without a
 credential reference uses no local credentials.
+
+Currently `cli-config` is the only supported credential source. Environment and
+explicit `.env` loading are planned follow-ups; bare-string credential references
+are not accepted.
 
 Configure these local entries using the existing `config broker add` and login
 commands. Workspace manifests reject embedded `admin_headers`. Public API keys
@@ -124,7 +136,9 @@ servers:
     type: supabase
     url: https://your-project.supabase.co
     anon: <public-api-key>
-    credentials: project-login
+    credentials:
+      type: cli-config
+      name: project-login
 ```
 
 Bind broker, pods, and artifacts to `/functions/v1/broker`,

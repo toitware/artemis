@@ -6,6 +6,7 @@ import encoding.json
 import encoding.tison
 import encoding.ubjson
 import encoding.yaml
+import fs
 import http
 import host.directory
 import host.file
@@ -24,6 +25,41 @@ with-tmp-directory [block]:
     block.call tmpdir
   finally:
     directory.rmdir --recursive tmpdir
+
+/**
+Creates a populated directory at $path using an atomic rename.
+
+Creates missing parent directories, then calls $populate with a temporary sibling
+  directory. Renames that directory to $path only after the block completes.
+  Removes the temporary directory on failure or a non-local return. Created parent
+  directories are left in place.
+
+Calls $if-error with the failure after cleanup. Rejects an existing target before
+  and after population, including symbolic links. Concurrent writers must still
+  coordinate access to $path: the existence check and rename are not one operation.
+*/
+create-directory-atomically path/string [populate] [--if-error] -> none:
+  target-exists := false
+  exception := catch:
+    if file.stat path --no-follow-links:
+      target-exists = true
+    else:
+      parent := fs.dirname path
+      directory.mkdir --recursive parent
+      staging := directory.mkdtemp (fs.join parent ".create-")
+      try:
+        populate.call staging
+        if file.stat path --no-follow-links:
+          target-exists = true
+        else:
+          file.rename staging path
+      finally:
+        if file.is-directory staging --no-follow-links:
+          directory.rmdir --recursive staging
+  if exception:
+    if-error.call exception
+  else if target-exists:
+    if-error.call "Directory '$path' already exists."
 
 write-blob-to-file path/string value -> none:
   stream := file.Stream.for-write path
@@ -58,12 +94,38 @@ read-json path/string -> any:
   finally:
     stream.close
 
+/**
+Reads a JSON file at $path.
+
+Calls $if-error with the exception if reading or parsing fails, and returns
+  the block's result.
+*/
+read-json path/string [--if-error] -> any:
+  result := null
+  exception := catch: result = read-json path
+  if exception: return if-error.call exception
+  return result
+
 read-yaml path/string -> any:
   contents := file.read-contents path
   result := monitor.Latch
   // Work around stack-size limit on 32-bit machines.
-  task:: result.set (yaml.decode contents)
+  task::
+    exception := catch: result.set (yaml.decode contents)
+    if exception: result.set exception --exception
   return result.get
+
+/**
+Reads a YAML file at $path.
+
+Calls $if-error with the exception if reading or parsing fails, and returns
+  the block's result.
+*/
+read-yaml path/string [--if-error] -> any:
+  result := null
+  exception := catch: result = read-yaml path
+  if exception: return if-error.call exception
+  return result
 
 read-ubjson path/string -> any:
   data := file.read-contents path

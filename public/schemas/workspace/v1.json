@@ -52,9 +52,7 @@
           "items": { "type": "string" }
         },
         "credentials": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Name of the matching server in local CLI configuration whose credentials to use."
+          "$ref": "#/$defs/CliConfigCredentials"
         }
       }
     },
@@ -76,9 +74,21 @@
           "items": { "type": "string" }
         },
         "credentials": {
+          "$ref": "#/$defs/CliConfigCredentials"
+        }
+      }
+    },
+    "CliConfigCredentials": {
+      "description": "Looks up credentials outside the workspace in the user's local CLI configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name"],
+      "properties": {
+        "type": { "const": "cli-config" },
+        "name": {
           "type": "string",
           "minLength": 1,
-          "description": "Name of the matching server in local CLI configuration whose credentials to use."
+          "description": "Name of the local CLI server entry, whose type and URL must match this workspace server."
         }
       }
     },
