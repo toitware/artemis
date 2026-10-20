@@ -89,7 +89,9 @@ run-test fleet/TestFleet serial-port/string wifi-ssid/string wifi-password/strin
         "test2.toit": TEST-PERIODIC-CODE,
       }
       --pod-spec={
-        "max-offline": "2m"
+        // This Wi-Fi-only test needs room for both application containers.
+        "firmware-envelope": "esp32-no-ble",
+        "max-offline": "2m",
       }
 
   test-device := fleet.listen-to-serial-device
